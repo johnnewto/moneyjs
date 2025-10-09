@@ -1,3 +1,10 @@
+# sfcr 0.2.2
+
+## Changes
+
+@gpetrini fixed the armadillo requirements
+@joaomacalos fixed the CI/CD pipeline to upgrade to latest software versions
+
 # sfcr 0.2.1
 
 ## Major changes
