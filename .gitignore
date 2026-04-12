@@ -4,3 +4,24 @@
 inst/doc
 docs
 docs/*
+
+# JetBrains
+.idea/
+
+# JS / monorepo tooling
+node_modules/
+.turbo/
+packages/*/dist/
+packages/*/node_modules/
+packages/*/.turbo/
+
+# Java / Gradle build outputs
+java/.gradle/
+java/build/
+java/**/*.class
+
+# Generated vignette asset directories
+vignettes/articles/*_files/
+
+# Local generated dev outputs
+devdocs/results_*.png

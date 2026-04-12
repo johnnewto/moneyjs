@@ -1,0 +1,19 @@
+{
+  "name": "sfcr-workspace",
+  "private": true,
+  "packageManager": "pnpm@10.8.0",
+  "scripts": {
+    "build": "pnpm --filter @sfcr/core build && pnpm --filter @sfcr/web build",
+    "dev": "pnpm web:dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "web:dev": "pnpm --filter @sfcr/web dev",
+    "web:build": "pnpm --filter @sfcr/web build"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

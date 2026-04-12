@@ -1,0 +1,118 @@
+import type { InitialValueRow } from "../lib/editorModel";
+
+interface InitialValuesEditorProps {
+  currentValues?: Record<string, number | undefined>;
+  initialValues: InitialValueRow[];
+  issues: Record<string, string | undefined>;
+  onChange(next: InitialValueRow[]): void;
+}
+
+export function InitialValuesEditor({
+  currentValues = {},
+  initialValues,
+  issues,
+  onChange
+}: InitialValuesEditorProps) {
+  return (
+    <section className="editor-panel">
+      <div className="panel-header">
+        <h2>Initial values</h2>
+        <button type="button" onClick={() => onChange([...initialValues, newInitialValueRow()])}>
+          Add initial
+        </button>
+      </div>
+
+      <div className="initial-grid-shell">
+        <div className="initial-grid-header" role="row">
+          <span>#</span>
+          <span>Name</span>
+          <span>Initial</span>
+          <span>Current</span>
+          <span>Status</span>
+          <span />
+        </div>
+
+        <div className="initial-grid-body">
+        {initialValues.map((initialValue, index) => (
+          <div
+            className={`initial-grid-row${
+              issues[`initialValues.${index}.name`] || issues[`initialValues.${index}.valueText`]
+                ? " has-issue"
+                : ""
+            }`}
+            key={initialValue.id}
+            role="row"
+          >
+            <span className="initial-grid-index">{index + 1}</span>
+            <input
+              aria-label={`Initial ${index + 1} name`}
+              className={issues[`initialValues.${index}.name`] ? "input-error" : ""}
+              value={initialValue.name}
+              onChange={(event) =>
+                updateRow(initialValues, index, { name: event.target.value }, onChange)
+              }
+              placeholder="Hh"
+            />
+            <input
+              aria-label={`Initial ${index + 1} value`}
+              className={issues[`initialValues.${index}.valueText`] ? "input-error" : ""}
+              value={initialValue.valueText}
+              onChange={(event) =>
+                updateRow(initialValues, index, { valueText: event.target.value }, onChange)
+              }
+              placeholder="Value"
+            />
+            <span className="initial-grid-current">
+              {formatCurrentValue(initialValue.name, currentValues[initialValue.name.trim()])}
+            </span>
+            <span
+              className={`initial-grid-status${
+                issues[`initialValues.${index}.name`] || issues[`initialValues.${index}.valueText`]
+                  ? " has-issue"
+                  : ""
+              }`}
+            >
+              {issues[`initialValues.${index}.name`] ?? issues[`initialValues.${index}.valueText`] ?? "OK"}
+            </span>
+            <button type="button" onClick={() => onChange(removeRow(initialValues, index))}>
+              Remove
+            </button>
+          </div>
+        ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function newInitialValueRow(): InitialValueRow {
+  return {
+    id: `init-${crypto.randomUUID()}`,
+    name: "",
+    valueText: ""
+  };
+}
+
+function updateRow(
+  rows: InitialValueRow[],
+  index: number,
+  patch: Partial<InitialValueRow>,
+  onChange: (next: InitialValueRow[]) => void
+): void {
+  onChange(rows.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)));
+}
+
+function removeRow<T>(rows: T[], index: number): T[] {
+  return rows.filter((_, rowIndex) => rowIndex !== index);
+}
+
+function formatCurrentValue(name: string, value: number | undefined): string {
+  const trimmedName = name.trim();
+  if (!trimmedName) {
+    return "";
+  }
+  if (!Number.isFinite(value)) {
+    return `${trimmedName} = --`;
+  }
+  return `${trimmedName} = ${Number(value).toLocaleString(undefined, { maximumFractionDigits: 6 })}`;
+}

@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "jsx": "react-jsx",
+    "outDir": "dist",
+    "lib": ["DOM", "ES2022"],
+    "paths": {
+      "@sfcr/core": ["../core/src/index.ts"],
+      "@sfcr/core-worker": ["../core-worker/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
+}
