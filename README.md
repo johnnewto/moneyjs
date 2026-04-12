@@ -10,8 +10,8 @@ The main product surface lives in:
 
 The older implementations remain in the repo as references:
 
-- `R/`: original R package implementation
-- `java/`: migration/reference engine used to port behavior into TypeScript
+- `references/java/`: migration/reference engine used to port behavior into TypeScript
+- `references/r-sfcr/`: pinned checkout of the upstream R implementation for parity/reference work
 
 ## Current Focus
 
@@ -93,18 +93,25 @@ packages/
   core-worker/  Worker protocol and wrapper
   web/          Browser application
 
-R/              Original R package implementation
-java/           Reference Java engine used during migration
+references/
+  java/         Reference Java engine used during migration
+  r-sfcr/       Upstream R reference repo (git submodule)
 ```
 
-## Role Of The R And Java Code
+## Role Of The Reference Code
 
-The R and Java code is still useful, but it is no longer the center of the repo.
+The reference code is still useful, but it is no longer the center of the repo.
 
 Use them for:
 
 - parity checks
 - understanding legacy behavior
 - migration reference when extending the TypeScript solver
+
+If cloning fresh, initialize the external R reference with:
+
+```bash
+git submodule update --init --recursive
+```
 
 Do not treat them as the default runtime target for new product work unless a task explicitly requires it.
