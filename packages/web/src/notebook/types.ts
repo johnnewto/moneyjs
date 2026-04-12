@@ -8,7 +8,7 @@ export interface NotebookDocument {
   cells: NotebookCell[];
   metadata: {
     version: 1;
-    template?: "bmw";
+    template?: string;
   };
 }
 

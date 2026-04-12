@@ -30,12 +30,13 @@ import {
   parseNotebookSource
 } from "./document";
 import { resolveSequenceDiagram } from "./sequence";
-import { createBmwNotebook } from "./templates";
+import { createNotebookFromTemplate } from "./templates";
 import type {
   ChartCell,
   MatrixCell,
   ModelCell,
   NotebookCell,
+  NotebookDocument,
   RunCell,
   SequenceCell,
   TableCell
@@ -43,7 +44,7 @@ import type {
 import { useNotebookRunner } from "./useNotebookRunner";
 
 export function NotebookApp() {
-  const [notebookDocument, setNotebookDocument] = useState(() => createBmwNotebook());
+  const [notebookDocument, setNotebookDocument] = useState(() => createNotebookFromTemplate());
   const [importText, setImportText] = useState("");
   const [committedImportText, setCommittedImportText] = useState("");
   const [uiMessage, setUiMessage] = useState<string | null>(null);
@@ -52,7 +53,7 @@ export function NotebookApp() {
   const [isUtilityBarVisible, setIsUtilityBarVisible] = useState(true);
   const [isDataPanelOpen, setIsDataPanelOpen] = useState(false);
   const [importPreview, setImportPreview] = useState<{
-    document: ReturnType<typeof createBmwNotebook>;
+    document: NotebookDocument;
     source: "json" | "markdown";
   } | null>(null);
   const runner = useNotebookRunner(notebookDocument);
