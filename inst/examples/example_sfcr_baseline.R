@@ -1,3 +1,5 @@
+library(sfcr)
+
 eqs <- sfcr_set(
   TXs ~ TXd,
   YD ~ W * Ns - TXs,

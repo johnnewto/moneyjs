@@ -10,6 +10,7 @@ docs/*
 
 # JS / monorepo tooling
 node_modules/
+package-lock.json
 .turbo/
 packages/*/dist/
 packages/*/node_modules/
