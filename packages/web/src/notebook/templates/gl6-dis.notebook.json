@@ -1,0 +1,465 @@
+{
+  "id": "gl6-dis-notebook",
+  "title": "GL6 DIS Notebook",
+  "metadata": {
+    "version": 1,
+    "template": "gl6-dis"
+  },
+  "cells": [
+    {
+      "id": "intro",
+      "type": "markdown",
+      "title": "Overview",
+      "source": "This notebook adapts the DIS portion of `gl6-dis.Rmd` into executable browser cells. It includes the baseline model, the balance-sheet and transactions-flow matrices, and the two scenario experiments from the article."
+    },
+    {
+      "id": "balance-sheet",
+      "type": "matrix",
+      "title": "DIS balance sheet",
+      "sourceRunCellId": "baseline-run",
+      "columns": ["Households", "Production firms", "Banks", "Sum"],
+      "rows": [
+        {
+          "label": "Money",
+          "values": ["+Mh", "", "-Ms", "0"]
+        },
+        {
+          "label": "Loans",
+          "values": ["", "-Ld", "+Ls", "0"]
+        },
+        {
+          "label": "Inventories",
+          "values": ["", "+INV", "", "+INV"]
+        },
+        {
+          "label": "Balance",
+          "values": ["-Mh", "", "", "-Mh"]
+        }
+      ],
+      "description": "Balance-sheet matrix for model DIS following the article structure.",
+      "note": "Validated against the baseline simulation in the source vignette."
+    },
+    {
+      "id": "transaction-flow",
+      "type": "matrix",
+      "title": "DIS transactions-flow matrix",
+      "sourceRunCellId": "baseline-run",
+      "columns": [
+        "Households",
+        "Firms_current",
+        "Firms_capital",
+        "Banks_current",
+        "Banks_capital"
+      ],
+      "rows": [
+        {
+          "label": "Consumption",
+          "values": ["-C", "+C", "", "", ""]
+        },
+        {
+          "label": "Ch. Inventories",
+          "values": ["", "+d(INV)", "-d(INV)", "", ""]
+        },
+        {
+          "label": "Wages",
+          "values": ["+WB", "-WB", "", "", ""]
+        },
+        {
+          "label": "Interest on loans",
+          "values": ["", "-rl[-1] * Ld[-1]", "", "+rl[-1] * Ls[-1]", ""]
+        },
+        {
+          "label": "Entrepreneurial Profits",
+          "values": ["+EF", "-EF", "", "", ""]
+        },
+        {
+          "label": "Banks profits",
+          "values": ["+EFb", "", "", "-EFb", ""]
+        },
+        {
+          "label": "Interest on deposits",
+          "values": ["+rm[-1] * Mh[-1]", "", "", "-rm[-1] * Mh[-1]", ""]
+        },
+        {
+          "label": "Change loans",
+          "values": ["", "", "+d(Ld)", "", "-d(Ls)"]
+        },
+        {
+          "label": "Change deposits",
+          "values": ["-d(Mh)", "", "", "", "+d(Ms)"]
+        }
+      ],
+      "description": "Transactions-flow matrix for model DIS following the article structure.",
+      "note": "Validated against the baseline simulation in the source vignette."
+    },
+    {
+      "id": "transaction-flow-sequence",
+      "type": "sequence",
+      "title": "DIS transaction flow sequence",
+      "source": {
+        "kind": "matrix",
+        "matrixCellId": "transaction-flow"
+      },
+      "description": "Sequence view generated from the DIS transactions-flow matrix at the selected simulation period."
+    },
+    {
+      "id": "equations",
+      "type": "model",
+      "title": "DIS model",
+      "editor": {
+        "equations": [
+          {
+            "id": "eq-0-y",
+            "name": "y",
+            "desc": "Output determined by expected sales and inventory adjustment.",
+            "expression": "s_E + inv_E - lag(inv)"
+          },
+          {
+            "id": "eq-1-inv_T",
+            "name": "inv_T",
+            "desc": "Target inventory stock as a ratio of expected sales.",
+            "expression": "sigma_T * s_E"
+          },
+          {
+            "id": "eq-2-inv_E",
+            "name": "inv_E",
+            "desc": "Expected inventory stock adjusts toward the target.",
+            "expression": "lag(inv) + gamma * (inv_T - lag(inv))"
+          },
+          {
+            "id": "eq-3-inv",
+            "name": "inv",
+            "desc": "Realized inventories evolve with production minus sales.",
+            "expression": "lag(inv) + (y - s)"
+          },
+          {
+            "id": "eq-4-s_E",
+            "name": "s_E",
+            "desc": "Expected sales formed adaptively.",
+            "expression": "beta * lag(s) + (1 - beta) * lag(s_E)"
+          },
+          {
+            "id": "eq-5-s",
+            "name": "s",
+            "desc": "Real sales equal real consumption demand.",
+            "expression": "c"
+          },
+          {
+            "id": "eq-6-N",
+            "name": "N",
+            "desc": "Employment from output and productivity.",
+            "expression": "y / pr"
+          },
+          {
+            "id": "eq-7-WB",
+            "name": "WB",
+            "desc": "Wage bill.",
+            "expression": "N * W"
+          },
+          {
+            "id": "eq-8-UC",
+            "name": "UC",
+            "desc": "Unit cost.",
+            "expression": "WB / y"
+          },
+          {
+            "id": "eq-9-INV",
+            "name": "INV",
+            "desc": "Nominal inventories.",
+            "expression": "inv * UC"
+          },
+          {
+            "id": "eq-10-S",
+            "name": "S",
+            "desc": "Nominal sales.",
+            "expression": "p * s"
+          },
+          {
+            "id": "eq-11-p",
+            "name": "p",
+            "desc": "Price level.",
+            "expression": "(1 + phi) * NHUC"
+          },
+          {
+            "id": "eq-12-NHUC",
+            "name": "NHUC",
+            "desc": "Normalized historic unit cost.",
+            "expression": "(1 - sigma_T) * UC + sigma_T * (1 + lag(rl)) * lag(UC)"
+          },
+          {
+            "id": "eq-13-EF",
+            "name": "EF",
+            "desc": "Entrepreneurial profits.",
+            "expression": "S - WB + (INV - lag(INV)) - lag(rl) * lag(INV)"
+          },
+          {
+            "id": "eq-14-Ld",
+            "name": "Ld",
+            "desc": "Demand for loans.",
+            "expression": "INV"
+          },
+          {
+            "id": "eq-15-Ls",
+            "name": "Ls",
+            "desc": "Supply of loans.",
+            "expression": "Ld"
+          },
+          {
+            "id": "eq-16-Ms",
+            "name": "Ms",
+            "desc": "Supply of deposits.",
+            "expression": "Ls"
+          },
+          {
+            "id": "eq-17-rm",
+            "name": "rm",
+            "desc": "Deposit rate.",
+            "expression": "rl - add"
+          },
+          {
+            "id": "eq-18-EFb",
+            "name": "EFb",
+            "desc": "Bank profits.",
+            "expression": "lag(rl) * lag(Ls) - lag(rm) * lag(Mh)"
+          },
+          {
+            "id": "eq-19-YD",
+            "name": "YD",
+            "desc": "Disposable income.",
+            "expression": "WB + EF + EFb + lag(rm) * lag(Mh)"
+          },
+          {
+            "id": "eq-20-Mh",
+            "name": "Mh",
+            "desc": "Household deposits.",
+            "expression": "lag(Mh) + YD - C"
+          },
+          {
+            "id": "eq-21-ydhs",
+            "name": "ydhs",
+            "desc": "Haig-Simons real disposable income.",
+            "expression": "c + (mh - lag(mh))"
+          },
+          {
+            "id": "eq-22-C",
+            "name": "C",
+            "desc": "Nominal consumption.",
+            "expression": "c * p"
+          },
+          {
+            "id": "eq-23-mh",
+            "name": "mh",
+            "desc": "Real household wealth.",
+            "expression": "Mh / p"
+          },
+          {
+            "id": "eq-24-c",
+            "name": "c",
+            "desc": "Real consumption demand.",
+            "expression": "alpha0 + alpha1 * ydhs_E + alpha2 * lag(mh)"
+          },
+          {
+            "id": "eq-25-ydhs_E",
+            "name": "ydhs_E",
+            "desc": "Expected Haig-Simons disposable income.",
+            "expression": "epsilon * lag(ydhs) + (1 - epsilon) * lag(ydhs_E)"
+          }
+        ],
+        "externals": [
+          {
+            "id": "ext-0-rl",
+            "name": "rl",
+            "desc": "Interest rate on loans.",
+            "kind": "constant",
+            "valueText": "0.025"
+          },
+          {
+            "id": "ext-1-pr",
+            "name": "pr",
+            "desc": "Labor productivity.",
+            "kind": "constant",
+            "valueText": "1"
+          },
+          {
+            "id": "ext-2-W",
+            "name": "W",
+            "desc": "Money wage.",
+            "kind": "constant",
+            "valueText": "0.75"
+          },
+          {
+            "id": "ext-3-add",
+            "name": "add",
+            "desc": "Spread between loan and deposit rates.",
+            "kind": "constant",
+            "valueText": "0.02"
+          },
+          {
+            "id": "ext-4-alpha0",
+            "name": "alpha0",
+            "desc": "Autonomous consumption.",
+            "kind": "constant",
+            "valueText": "15"
+          },
+          {
+            "id": "ext-5-alpha1",
+            "name": "alpha1",
+            "desc": "Propensity to consume out of expected disposable income.",
+            "kind": "constant",
+            "valueText": "0.8"
+          },
+          {
+            "id": "ext-6-alpha2",
+            "name": "alpha2",
+            "desc": "Propensity to consume out of wealth.",
+            "kind": "constant",
+            "valueText": "0.1"
+          },
+          {
+            "id": "ext-7-beta",
+            "name": "beta",
+            "desc": "Speed of sales expectations adjustment.",
+            "kind": "constant",
+            "valueText": "0.75"
+          },
+          {
+            "id": "ext-8-epsilon",
+            "name": "epsilon",
+            "desc": "Speed of income expectations adjustment.",
+            "kind": "constant",
+            "valueText": "0.75"
+          },
+          {
+            "id": "ext-9-gamma",
+            "name": "gamma",
+            "desc": "Speed of inventory adjustment.",
+            "kind": "constant",
+            "valueText": "0.25"
+          },
+          {
+            "id": "ext-10-phi",
+            "name": "phi",
+            "desc": "Costing margin.",
+            "kind": "constant",
+            "valueText": "0.25"
+          },
+          {
+            "id": "ext-11-sigma_T",
+            "name": "sigma_T",
+            "desc": "Target inventory-to-sales ratio.",
+            "kind": "constant",
+            "valueText": "0.15"
+          }
+        ],
+        "initialValues": [],
+        "options": {
+          "periods": 100,
+          "solverMethod": "GAUSS_SEIDEL",
+          "toleranceText": "1e-10",
+          "maxIterations": 100,
+          "defaultInitialValueText": "1e-15",
+          "hiddenLeftVariable": "Mh",
+          "hiddenRightVariable": "Ms",
+          "hiddenToleranceText": "0.00001",
+          "relativeHiddenTolerance": false
+        },
+        "scenario": {
+          "shocks": []
+        }
+      }
+    },
+    {
+      "id": "baseline-run",
+      "type": "run",
+      "title": "Baseline run",
+      "sourceModelCellId": "equations",
+      "mode": "baseline",
+      "resultKey": "gl6_dis_baseline",
+      "description": "Baseline DIS simulation with the hidden-equation condition Mh = Ms."
+    },
+    {
+      "id": "baseline-chart",
+      "type": "chart",
+      "title": "Baseline headline variables",
+      "sourceRunCellId": "baseline-run",
+      "variables": ["ydhs", "c", "p", "Mh"]
+    },
+    {
+      "id": "baseline-table",
+      "type": "table",
+      "title": "Baseline variable summary",
+      "sourceRunCellId": "baseline-run",
+      "variables": ["y", "ydhs", "c", "p", "Mh", "INV"]
+    },
+    {
+      "id": "scenario-1-note",
+      "type": "markdown",
+      "title": "Scenario 1",
+      "source": "Scenario 1 raises the costing margin `phi` from 0.25 to 0.35 between periods 5 and 40."
+    },
+    {
+      "id": "scenario-1-run",
+      "type": "run",
+      "title": "Scenario 1: costing margin shock",
+      "sourceModelCellId": "equations",
+      "mode": "scenario",
+      "scenario": {
+        "shocks": [
+          {
+            "startPeriodInclusive": 5,
+            "endPeriodInclusive": 40,
+            "variables": {
+              "phi": {
+                "kind": "constant",
+                "value": 0.35
+              }
+            }
+          }
+        ]
+      },
+      "resultKey": "gl6_dis_s1"
+    },
+    {
+      "id": "scenario-1-chart",
+      "type": "chart",
+      "title": "Scenario 1 consumption and income",
+      "sourceRunCellId": "scenario-1-run",
+      "variables": ["c", "ydhs", "p"]
+    },
+    {
+      "id": "scenario-2-note",
+      "type": "markdown",
+      "title": "Scenario 2",
+      "source": "Scenario 2 raises the target inventories-to-sales ratio `sigma_T` from 0.15 to 0.25 between periods 5 and 50."
+    },
+    {
+      "id": "scenario-2-run",
+      "type": "run",
+      "title": "Scenario 2: inventory target shock",
+      "sourceModelCellId": "equations",
+      "mode": "scenario",
+      "scenario": {
+        "shocks": [
+          {
+            "startPeriodInclusive": 5,
+            "endPeriodInclusive": 50,
+            "variables": {
+              "sigma_T": {
+                "kind": "constant",
+                "value": 0.25
+              }
+            }
+          }
+        ]
+      },
+      "resultKey": "gl6_dis_s2"
+    },
+    {
+      "id": "scenario-2-chart",
+      "type": "chart",
+      "title": "Scenario 2 inventories and income",
+      "sourceRunCellId": "scenario-2-run",
+      "variables": ["ydhs", "c", "inv", "inv_E"]
+    }
+  ]
+}

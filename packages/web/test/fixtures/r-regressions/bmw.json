@@ -1,0 +1,56 @@
+{
+  "templateId": "bmw",
+  "sourceVignette": "references/r-sfcr/vignettes/articles/gl5-bmw.Rmd",
+  "checkpoints": {
+    "baseline-newton": {
+      "periods": {
+        "5": {
+          "Y": 170.420012769834,
+          "Cd": 148.550010761917,
+          "Mh": 48.33001613292,
+          "W": 0.978435627044
+        },
+        "50": {
+          "Y": 160.001291555339,
+          "Cd": 144.001029995334,
+          "Mh": 160.000301852153,
+          "W": 0.875001567453
+        }
+      }
+    },
+    "scenario-1-run": {
+      "periods": {
+        "5": {
+          "Cd": 184.00076799615,
+          "YD": 184.000898519949,
+          "Id": 16.00013261009,
+          "AF": 16.000020488797
+        },
+        "50": {
+          "Cd": 216.002288694411,
+          "YD": 216.002662713277,
+          "Id": 24.000386125804,
+          "AF": 24.000068017441
+        }
+      }
+    },
+    "scenario-2-run": {
+      "periods": {
+        "5": {
+          "Cd": 120.000618247311,
+          "YD": 120.000748773033,
+          "W": 0.852941800064
+        },
+        "50": {
+          "Cd": 105.882972288854,
+          "YD": 105.881523563624,
+          "W": 0.874989723813
+        }
+      }
+    }
+  },
+  "matrixValidation": {
+    "balanceSheet": "Water tight! The balance-sheet matrix is consistent with the simulated model.",
+    "transactionFlow": "Water tight! The transactions-flow matrix is consistent with the simulated model."
+  }
+}

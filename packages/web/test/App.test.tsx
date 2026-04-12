@@ -121,6 +121,24 @@ describe("App", () => {
     expect(screen.getAllByText("Expression").length).toBeGreaterThan(0);
   });
 
+  it("switches notebook templates from the command bar", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    expect(screen.getByText(/bmw browser notebook/i)).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText(/notebook template/i), "gl6-dis");
+
+    expect(screen.getByText(/gl6 dis notebook/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /dis balance sheet/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /dis transactions-flow matrix/i })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^dis model$/i })).toBeInTheDocument();
+  });
+
   it("exports notebook JSON into the import area", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";

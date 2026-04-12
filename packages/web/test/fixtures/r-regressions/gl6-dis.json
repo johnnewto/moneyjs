@@ -1,0 +1,58 @@
+{
+  "templateId": "gl6-dis",
+  "sourceVignette": "references/r-sfcr/vignettes/articles/gl6-dis.Rmd",
+  "checkpoints": {
+    "baseline-run": {
+      "periods": {
+        "5": {
+          "ydhs": 27.595758269891,
+          "c": 27.234864196675,
+          "p": 0.941015625,
+          "Mh": -15.26123071715,
+          "INV": -15.26123071715
+        },
+        "100": {
+          "ydhs": 79.768105356381,
+          "c": 79.768139572704,
+          "p": 0.941015625,
+          "Mh": 8.97403335955,
+          "INV": 8.97403335955
+        }
+      }
+    },
+    "scenario-1-run": {
+      "periods": {
+        "5": {
+          "c": 79.768141366838,
+          "ydhs": 79.061721812223,
+          "p": 1.016296875
+        },
+        "40": {
+          "c": 79.391729798995,
+          "ydhs": 79.391948006075,
+          "p": 1.016296875
+        }
+      }
+    },
+    "scenario-2-run": {
+      "periods": {
+        "5": {
+          "ydhs": 81.329886417449,
+          "c": 79.768141366838,
+          "inv": 13.959472551815,
+          "inv_E": 13.959475152328
+        },
+        "50": {
+          "ydhs": 83.287388417449,
+          "c": 83.289033823875,
+          "inv": 20.840020289524,
+          "inv_E": 20.837301937702
+        }
+      }
+    }
+  },
+  "matrixValidation": {
+    "balanceSheet": "Water tight! The balance-sheet matrix is consistent with the simulated model.",
+    "transactionFlow": "Water tight! The transactions-flow matrix is consistent with the simulated model."
+  }
+}

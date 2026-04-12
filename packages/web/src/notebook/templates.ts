@@ -1,8 +1,10 @@
 import bmwNotebookJson from "./templates/bmw.notebook.json";
+import gl6DisNotebookJson from "./templates/gl6-dis.notebook.json";
 import { notebookFromJson } from "./document";
 import type { NotebookDocument } from "./types";
 
-export type NotebookTemplateId = "bmw";
+export type NotebookTemplateId = "bmw" | "gl6-dis";
+export const DEFAULT_NOTEBOOK_TEMPLATE_ID: NotebookTemplateId = "bmw";
 
 export interface NotebookTemplateDefinition {
   id: NotebookTemplateId;
@@ -17,11 +19,21 @@ export const NOTEBOOK_TEMPLATES: Record<NotebookTemplateId, NotebookTemplateDefi
     label: "BMW",
     description: "BMW browser notebook with a baseline run, two scenarios, and accounting views.",
     document: notebookFromJson(JSON.stringify(bmwNotebookJson))
+  },
+  "gl6-dis": {
+    id: "gl6-dis",
+    label: "GL6 DIS",
+    description: "DIS notebook based on the gl6-dis article baseline, matrices, and two scenarios.",
+    document: notebookFromJson(JSON.stringify(gl6DisNotebookJson))
   }
 };
 
 export function createNotebookFromTemplate(
-  id: NotebookTemplateId = "bmw"
+  id: NotebookTemplateId = DEFAULT_NOTEBOOK_TEMPLATE_ID
 ): NotebookDocument {
   return structuredClone(NOTEBOOK_TEMPLATES[id].document);
+}
+
+export function isNotebookTemplateId(value: string): value is NotebookTemplateId {
+  return value in NOTEBOOK_TEMPLATES;
 }

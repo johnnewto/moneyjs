@@ -30,7 +30,12 @@ import {
   parseNotebookSource
 } from "./document";
 import { resolveSequenceDiagram } from "./sequence";
-import { createNotebookFromTemplate } from "./templates";
+import {
+  createNotebookFromTemplate,
+  DEFAULT_NOTEBOOK_TEMPLATE_ID,
+  isNotebookTemplateId,
+  NOTEBOOK_TEMPLATES
+} from "./templates";
 import type {
   ChartCell,
   MatrixCell,
@@ -44,7 +49,9 @@ import type {
 import { useNotebookRunner } from "./useNotebookRunner";
 
 export function NotebookApp() {
-  const [notebookDocument, setNotebookDocument] = useState(() => createNotebookFromTemplate());
+  const [notebookDocument, setNotebookDocument] = useState(() =>
+    createNotebookFromTemplate(DEFAULT_NOTEBOOK_TEMPLATE_ID)
+  );
   const [importText, setImportText] = useState("");
   const [committedImportText, setCommittedImportText] = useState("");
   const [uiMessage, setUiMessage] = useState<string | null>(null);
@@ -225,6 +232,16 @@ export function NotebookApp() {
     setUiMessage("Discarded import text changes.");
   }
 
+  function handleTemplateChange(templateId: string): void {
+    if (!isNotebookTemplateId(templateId)) {
+      return;
+    }
+
+    setNotebookDocument(createNotebookFromTemplate(templateId));
+    setImportPreview(null);
+    setUiMessage(`Loaded template ${NOTEBOOK_TEMPLATES[templateId].label}.`);
+  }
+
   function handleDownloadJson(): void {
     const exported =
       sourceFormat === "json"
@@ -290,6 +307,9 @@ export function NotebookApp() {
   }
 
   const hasPendingImportTextChanges = importText !== committedImportText;
+  const currentTemplateId = isNotebookTemplateId(notebookDocument.metadata.template ?? "")
+    ? notebookDocument.metadata.template
+    : "";
 
   return (
     <main className="app-shell">
@@ -303,6 +323,21 @@ export function NotebookApp() {
           </div>
 
           <div className="notebook-app-bar-actions">
+            <label className="notebook-action-desktop">
+              <span className="sr-only">Notebook template</span>
+              <select
+                aria-label="Notebook template"
+                value={currentTemplateId}
+                onChange={(event) => handleTemplateChange(event.target.value)}
+              >
+                {currentTemplateId ? null : <option value="">Custom notebook</option>}
+                {Object.values(NOTEBOOK_TEMPLATES).map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {template.label}
+                  </option>
+                ))}
+              </select>
+            </label>
             <button type="button" onClick={() => void runner.runAll()}>
               Run all
             </button>
