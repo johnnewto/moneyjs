@@ -3,12 +3,14 @@ import { parseEquation, type ExternalDef, type ModelDefinition, type ScenarioDef
 export interface EquationRow {
   id: string;
   name: string;
+  desc?: string;
   expression: string;
 }
 
 export interface ExternalRow {
   id: string;
   name: string;
+  desc?: string;
   kind: ExternalDef["kind"];
   valueText: string;
 }
@@ -76,11 +78,13 @@ export function editorStateFromModel(
     equations: model.equations.map((equation, index) => ({
       id: `eq-${index}-${equation.name}`,
       name: equation.name,
+      desc: "",
       expression: equation.expression
     })),
     externals: Object.entries(model.externals).map(([name, external], index) => ({
       id: `ext-${index}-${name}`,
       name,
+      desc: "",
       kind: external.kind,
       valueText:
         external.kind === "constant"

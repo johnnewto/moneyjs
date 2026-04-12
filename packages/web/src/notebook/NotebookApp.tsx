@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { evaluateExpression, parseExpression, type SimulationResult } from "@sfcr/core";
 
@@ -15,6 +15,7 @@ import { InitialValuesEditor } from "../components/InitialValuesEditor";
 import { PeriodScrubber } from "../components/PeriodScrubber";
 import { ResultChart } from "../components/ResultChart";
 import { ResultTable } from "../components/ResultTable";
+import { SequenceDiagramCanvas } from "../components/SequenceDiagramCanvas";
 import { SolverPanel } from "../components/SolverPanel";
 import {
   buildRuntimeConfig,
@@ -28,19 +29,28 @@ import {
   notebookToMarkdown,
   parseNotebookSource
 } from "./document";
+import { resolveSequenceDiagram } from "./sequence";
 import { createBmwNotebook } from "./templates";
-import type { ChartCell, MatrixCell, ModelCell, NotebookCell, RunCell, TableCell } from "./types";
+import type {
+  ChartCell,
+  MatrixCell,
+  ModelCell,
+  NotebookCell,
+  RunCell,
+  SequenceCell,
+  TableCell
+} from "./types";
 import { useNotebookRunner } from "./useNotebookRunner";
 
 export function NotebookApp() {
   const [notebookDocument, setNotebookDocument] = useState(() => createBmwNotebook());
   const [importText, setImportText] = useState("");
+  const [committedImportText, setCommittedImportText] = useState("");
   const [uiMessage, setUiMessage] = useState<string | null>(null);
   const [sourceFormat, setSourceFormat] = useState<"json" | "markdown">("json");
   const [selectedPeriodIndex, setSelectedPeriodIndex] = useState(0);
   const [isUtilityBarVisible, setIsUtilityBarVisible] = useState(true);
   const [isDataPanelOpen, setIsDataPanelOpen] = useState(false);
-  const [isAppMenuOpen, setIsAppMenuOpen] = useState(false);
   const [importPreview, setImportPreview] = useState<{
     document: ReturnType<typeof createBmwNotebook>;
     source: "json" | "markdown";
@@ -48,11 +58,11 @@ export function NotebookApp() {
   const runner = useNotebookRunner(notebookDocument);
   const maxResultPeriodIndex = Math.max(
     0,
-    ...Object.values(runner.outputs)
-      .filter((output): output is { type: "result"; result: { series: Record<string, ArrayLike<number>> } } => output?.type === "result")
-      .flatMap((output) =>
-        Object.values(output.result.series).map((values) => Math.max(values.length - 1, 0))
-      )
+    ...Object.values(runner.outputs).flatMap((output) =>
+      output?.type === "result"
+        ? Object.values(output.result.series).map((values) => Math.max(values.length - 1, 0))
+        : []
+    )
   );
 
   useEffect(() => {
@@ -120,8 +130,8 @@ export function NotebookApp() {
         ? notebookToJson(notebookDocument)
         : notebookToMarkdown(notebookDocument);
     setImportText(exported);
+    setCommittedImportText(exported);
     setIsDataPanelOpen(true);
-    setIsAppMenuOpen(false);
     navigator.clipboard
       .writeText(exported)
       .then(() =>
@@ -140,9 +150,28 @@ export function NotebookApp() {
     try {
       const parsed = parseNotebookSource(importText);
       setImportPreview({ document: parsed.document, source: parsed.format });
-      setIsAppMenuOpen(false);
+      setCommittedImportText(importText);
       setUiMessage(
         `Previewed notebook ${parsed.format === "json" ? "JSON" : "Markdown"}. Apply to replace the current notebook.`
+      );
+    } catch (error) {
+      setImportPreview(null);
+      setUiMessage(
+        error instanceof Error
+          ? error.message
+          : `Invalid notebook ${sourceFormat === "json" ? "JSON" : "Markdown"}`
+      );
+    }
+  }
+
+  function handleApplyImportText(): void {
+    try {
+      const parsed = parseNotebookSource(importText);
+      setNotebookDocument(parsed.document);
+      setCommittedImportText(importText);
+      setImportPreview(null);
+      setUiMessage(
+        `Imported notebook ${parsed.format === "json" ? "JSON" : "Markdown"}.`
       );
     } catch (error) {
       setImportPreview(null);
@@ -160,9 +189,9 @@ export function NotebookApp() {
       const inferredFormat = inferFormatFromFileName(file.name) ?? detectNotebookSourceFormat(text);
       const parsed = parseNotebookSource(text, inferredFormat);
       setImportText(text);
+      setCommittedImportText(text);
       setImportPreview({ document: parsed.document, source: parsed.format });
       setIsDataPanelOpen(true);
-      setIsAppMenuOpen(false);
       setUiMessage(
         `Previewed ${file.name} as ${parsed.format === "json" ? "JSON" : "Markdown"}. Apply to replace the current notebook.`
       );
@@ -177,6 +206,7 @@ export function NotebookApp() {
       return;
     }
     setNotebookDocument(importPreview.document);
+    setCommittedImportText(importText);
     setUiMessage(
       `Imported notebook ${importPreview.source === "json" ? "JSON" : "Markdown"}.`
     );
@@ -186,6 +216,12 @@ export function NotebookApp() {
   function handleDiscardPreview(): void {
     setImportPreview(null);
     setUiMessage("Cleared import preview.");
+  }
+
+  function handleDiscardImportTextChanges(): void {
+    setImportText(committedImportText);
+    setImportPreview(null);
+    setUiMessage("Discarded import text changes.");
   }
 
   function handleDownloadJson(): void {
@@ -204,7 +240,6 @@ export function NotebookApp() {
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
-    setIsAppMenuOpen(false);
     setUiMessage("Downloaded notebook JSON.");
   }
 
@@ -218,7 +253,6 @@ export function NotebookApp() {
       return count + issues.length + diagnostics.issues.length;
     }, 0);
 
-    setIsAppMenuOpen(false);
     setUiMessage(
       issueCount === 0
         ? `Validated ${modelCells.length} model cell${modelCells.length === 1 ? "" : "s"} with no issues.`
@@ -254,6 +288,8 @@ export function NotebookApp() {
     });
   }
 
+  const hasPendingImportTextChanges = importText !== committedImportText;
+
   return (
     <main className="app-shell">
       <section
@@ -288,7 +324,6 @@ export function NotebookApp() {
               className="secondary-button notebook-action-desktop"
               onClick={() => {
                 setIsDataPanelOpen(true);
-                setIsAppMenuOpen(false);
               }}
             >
               Import
@@ -296,40 +331,8 @@ export function NotebookApp() {
             <a className="notebook-toolbar-link notebook-action-desktop" href="#/workspace">
               Workspace
             </a>
-            <button
-              type="button"
-              className="secondary-button notebook-app-bar-menu-button"
-              aria-expanded={isAppMenuOpen}
-              aria-controls="notebook-app-menu"
-              onClick={() => setIsAppMenuOpen((current) => !current)}
-            >
-              Menu
-            </button>
           </div>
         </div>
-
-        {isAppMenuOpen ? (
-          <div id="notebook-app-menu" className="notebook-app-bar-menu">
-            <button type="button" onClick={handleValidateNotebook}>
-              Validate
-            </button>
-            <button type="button" onClick={handleExportJson}>
-              Export
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setIsDataPanelOpen(true);
-                setIsAppMenuOpen(false);
-              }}
-            >
-              Import
-            </button>
-            <a className="notebook-toolbar-link" href="#/workspace" onClick={() => setIsAppMenuOpen(false)}>
-              Workspace
-            </a>
-          </div>
-        ) : null}
       </section>
 
       {uiMessage ? (
@@ -390,18 +393,18 @@ export function NotebookApp() {
                     event.currentTarget.value = "";
                   }}
                 />
-                <button type="button" onClick={handleImportJson}>
+                <button type="button" className="notebook-utility-button" onClick={handleImportJson}>
                   Preview import
                 </button>
-                <button type="button" onClick={handleExportJson}>
+                <button type="button" className="notebook-utility-button" onClick={handleExportJson}>
                   Export to text
                 </button>
-                <button type="button" onClick={handleDownloadJson}>
+                <button type="button" className="notebook-utility-button" onClick={handleDownloadJson}>
                   Download {sourceFormat === "json" ? "JSON" : "Markdown"}
                 </button>
                 <button
                   type="button"
-                  className="secondary-button"
+                  className="secondary-button notebook-utility-button notebook-utility-button-muted"
                   onClick={() => setIsDataPanelOpen(false)}
                 >
                   Close
@@ -419,6 +422,44 @@ export function NotebookApp() {
                   : "Paste notebook Markdown with headings and fenced sfcr-* blocks"
               }
             />
+
+            {hasPendingImportTextChanges ? (
+              <div className="notebook-import-draft-actions">
+                <div className="status-hint">Unapplied import text changes.</div>
+                <div className="button-row">
+                  <button type="button" onClick={handleApplyImportText}>
+                    Apply text
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={handleDiscardImportTextChanges}
+                  >
+                    Discard text
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {importPreview ? (
+              <div className="notebook-import-preview-actions">
+                <div className="status-hint">
+                  Preview ready: {importPreview.document.title} ({importPreview.document.cells.length} cells)
+                </div>
+                <div className="button-row">
+                  <button type="button" onClick={handleApplyPreview}>
+                    Apply preview
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={handleDiscardPreview}
+                  >
+                    Discard preview
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </section>
 
           {maxResultPeriodIndex > 0 ? (
@@ -436,7 +477,10 @@ export function NotebookApp() {
               <NotebookCellView
                 key={cell.id}
                 cell={cell}
+                cells={notebookDocument.cells}
                 getModelCurrentValues={getCurrentValueMapForModelCell}
+                maxPeriodIndex={maxResultPeriodIndex}
+                onSelectedPeriodIndexChange={setSelectedPeriodIndex}
                 runner={runner}
                 onModelChange={updateModelCell}
                 onCellChange={updateCell}
@@ -514,7 +558,10 @@ function inferFormatFromFileName(fileName: string): "json" | "markdown" | null {
 
 interface NotebookCellViewProps {
   cell: NotebookCell;
+  cells: NotebookCell[];
   getModelCurrentValues(modelCellId: string): Record<string, number | undefined>;
+  maxPeriodIndex: number;
+  onSelectedPeriodIndexChange(nextIndex: number): void;
   runner: ReturnType<typeof useNotebookRunner>;
   selectedPeriodIndex: number;
   onModelChange(cellId: string, editor: EditorState): void;
@@ -523,7 +570,10 @@ interface NotebookCellViewProps {
 
 function NotebookCellView({
   cell,
+  cells,
   getModelCurrentValues,
+  maxPeriodIndex,
+  onSelectedPeriodIndexChange,
   runner,
   selectedPeriodIndex,
   onModelChange,
@@ -643,6 +693,16 @@ function NotebookCellView({
         {cell.type === "matrix" ? (
           <MatrixCellView cell={cell} runner={runner} selectedPeriodIndex={selectedPeriodIndex} />
         ) : null}
+        {cell.type === "sequence" ? (
+          <SequenceCellView
+            cell={cell}
+            cells={cells}
+            maxPeriodIndex={maxPeriodIndex}
+            onSelectedPeriodIndexChange={onSelectedPeriodIndexChange}
+            runner={runner}
+            selectedPeriodIndex={selectedPeriodIndex}
+          />
+        ) : null}
       </div>
     </article>
   );
@@ -717,7 +777,7 @@ function ModelCellView({
           </div>
           {cell.editor.equations.map((equation, index) => {
             const issue =
-              issues[`equations.${index}.name`] ?? issues[`equations.${index}.expression`];
+              issueMap[`equations.${index}.name`] ?? issueMap[`equations.${index}.expression`];
             const traceRole = activeTrace?.rowStates.get(equation.id) ?? null;
 
             return (
@@ -947,6 +1007,180 @@ function MatrixCellView({
   );
 }
 
+function SequenceCellView({
+  cell,
+  cells,
+  maxPeriodIndex,
+  onSelectedPeriodIndexChange,
+  runner,
+  selectedPeriodIndex
+}: {
+  cell: SequenceCell;
+  cells: NotebookCell[];
+  maxPeriodIndex: number;
+  onSelectedPeriodIndexChange(nextIndex: number): void;
+  runner: ReturnType<typeof useNotebookRunner>;
+  selectedPeriodIndex: number;
+}) {
+  const diagram = useMemo(
+    () =>
+      resolveSequenceDiagram(
+        cell,
+        (cellId) => {
+          const target = cells.find((entry) => entry.id === cellId);
+          return target?.type === "matrix" ? target : null;
+        },
+        (cellId) => runner.getResult(cellId),
+        selectedPeriodIndex
+      ),
+    [cell, cells, runner, selectedPeriodIndex]
+  );
+  const [visibleStepCount, setVisibleStepCount] = useState(() => diagram.steps.length);
+  const [highlightedStepIndex, setHighlightedStepIndex] = useState<number | null>(null);
+  const pendingPeriodAdvanceRef = useRef(false);
+  const pendingPeriodRetreatRef = useRef(false);
+  const previousCellIdRef = useRef(cell.id);
+  const previousPeriodIndexRef = useRef(selectedPeriodIndex);
+
+  useEffect(() => {
+    if (previousCellIdRef.current !== cell.id) {
+      previousCellIdRef.current = cell.id;
+      previousPeriodIndexRef.current = selectedPeriodIndex;
+      pendingPeriodAdvanceRef.current = false;
+      pendingPeriodRetreatRef.current = false;
+      setVisibleStepCount(diagram.steps.length);
+      setHighlightedStepIndex(null);
+      return;
+    }
+
+    if (pendingPeriodAdvanceRef.current) {
+      pendingPeriodAdvanceRef.current = false;
+      previousPeriodIndexRef.current = selectedPeriodIndex;
+      setVisibleStepCount(Math.min(1, diagram.steps.length));
+      setHighlightedStepIndex(diagram.steps.length > 0 ? 0 : null);
+      return;
+    }
+
+    if (pendingPeriodRetreatRef.current) {
+      pendingPeriodRetreatRef.current = false;
+      previousPeriodIndexRef.current = selectedPeriodIndex;
+      setVisibleStepCount(diagram.steps.length);
+      setHighlightedStepIndex(diagram.steps.length > 0 ? diagram.steps.length - 1 : null);
+      return;
+    }
+
+    if (previousPeriodIndexRef.current !== selectedPeriodIndex) {
+      previousPeriodIndexRef.current = selectedPeriodIndex;
+      setVisibleStepCount(diagram.steps.length);
+      setHighlightedStepIndex(null);
+      return;
+    }
+
+    setVisibleStepCount(diagram.steps.length);
+    setHighlightedStepIndex(null);
+  }, [diagram.steps.length, cell.id, selectedPeriodIndex]);
+
+  function moveToStep(nextCount: number): void {
+    const clamped = Math.max(0, Math.min(nextCount, diagram.steps.length));
+    setVisibleStepCount(clamped);
+    setHighlightedStepIndex(clamped > visibleStepCount ? clamped - 1 : null);
+  }
+
+  const visibleSteps = Math.min(visibleStepCount, diagram.steps.length);
+  const canAdvancePeriod = selectedPeriodIndex < maxPeriodIndex;
+  const canRetreatPeriod = selectedPeriodIndex > 0;
+
+  function handleNextStep(): void {
+    if (visibleSteps < diagram.steps.length) {
+      moveToStep(visibleSteps + 1);
+      return;
+    }
+    if (!canAdvancePeriod) {
+      return;
+    }
+    pendingPeriodAdvanceRef.current = true;
+    onSelectedPeriodIndexChange(selectedPeriodIndex + 1);
+  }
+
+  function handlePreviousStep(): void {
+    if (visibleSteps > 0) {
+      moveToStep(visibleSteps - 1);
+      return;
+    }
+    if (!canRetreatPeriod) {
+      return;
+    }
+    pendingPeriodRetreatRef.current = true;
+    onSelectedPeriodIndexChange(selectedPeriodIndex - 1);
+  }
+
+  return (
+    <div className="sequence-viewer">
+      {cell.description ? <p className="notebook-markdown">{cell.description}</p> : null}
+      <div className="sequence-toolbar">
+        <div className="sequence-toolbar-meta">
+          <span>
+            Participants <strong>{diagram.participants.length}</strong>
+          </span>
+          <span>
+            Steps <strong>{diagram.steps.length}</strong>
+          </span>
+          <span>
+            Visible <strong>{visibleSteps}</strong>
+          </span>
+        </div>
+        <div className="sequence-toolbar-actions">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => moveToStep(0)}
+            disabled={visibleSteps === 0}
+          >
+            Reset
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={handlePreviousStep}
+            disabled={visibleSteps === 0 && !canRetreatPeriod}
+          >
+            Previous step
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={handleNextStep}
+            disabled={visibleSteps >= diagram.steps.length && !canAdvancePeriod}
+          >
+            Next step
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => moveToStep(diagram.steps.length)}
+            disabled={visibleSteps >= diagram.steps.length}
+          >
+            Show all
+          </button>
+        </div>
+      </div>
+      <SequenceDiagramCanvas
+        diagram={diagram}
+        visibleStepCount={visibleSteps}
+        highlightedStepIndex={highlightedStepIndex}
+      />
+      {diagram.errors.length ? (
+        <ul className="validation-list">
+          {diagram.errors.map((error) => (
+            <li key={error}>{error}</li>
+          ))}
+        </ul>
+      ) : null}
+      {cell.note ? <p className="notebook-matrix-note">{cell.note}</p> : null}
+    </div>
+  );
+}
+
 function buildEvaluatedMatrix(
   cell: MatrixCell,
   result: SimulationResult | null,
@@ -1006,12 +1240,12 @@ function computeMatrixTotal(
     return numericValues
       .filter((_, currentRowIndex) => currentRowIndex !== sumRowIndex)
       .flatMap((row) => row.filter((_, currentColumnIndex) => currentColumnIndex !== sumColumnIndex))
-      .reduce((total, value) => total + (value ?? 0), 0);
+      .reduce<number>((total, value) => total + (value ?? 0), 0);
   }
   if (rowIndex === sumRowIndex) {
     return numericValues
       .filter((_, currentRowIndex) => currentRowIndex !== sumRowIndex)
-      .reduce((total, row) => total + (row[columnIndex] ?? 0), 0);
+      .reduce<number>((total, row) => total + (row[columnIndex] ?? 0), 0);
   }
   if (columnIndex === sumColumnIndex) {
     return computeRowTotal(numericValues[rowIndex] ?? [], sumColumnIndex);
@@ -1020,7 +1254,7 @@ function computeMatrixTotal(
 }
 
 function computeRowTotal(row: Array<number | null>, sumColumnIndex: number): number {
-  return row.reduce(
+  return row.reduce<number>(
     (total, value, index) => total + (index === sumColumnIndex ? 0 : value ?? 0),
     0
   );

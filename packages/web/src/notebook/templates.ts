@@ -1,13 +1,47 @@
 import {
   bmwBaselineModel,
   bmwBaselineOptions,
-  type ScenarioDefinition
+  type ScenarioDefinition,
+  type SimulationOptions
 } from "@sfcr/core";
 
 import { editorStateFromModel } from "../lib/editorModel";
 import type { NotebookDocument } from "./types";
 
-const BMW_OPTIONS = {
+const BMW_DESCRIPTIONS: Record<string, string> = {
+  AF: "Amortization funds",
+  Cd: "Consumption goods demand by households",
+  Cs: "Consumption goods supply",
+  DA: "Depreciation allowance",
+  K: "Stock of capital",
+  KT: "Target stock of capital",
+  Ld: "Demand for bank loans",
+  Ls: "Supply of bank loans",
+  Id: "Demand for investment goods",
+  Is: "Supply of investment goods",
+  Mh: "Bank deposits held by households",
+  Ms: "Supply of bank deposits",
+  Nd: "Demand for labor",
+  Ns: "Supply of labor",
+  W: "Wage rate",
+  WBd: "Wage bill - demand",
+  WBs: "Wage bill - supply",
+  Y: "Income = GDP",
+  YD: "Disposable income of households"
+};
+
+const BMW_EXTERNAL_DESCRIPTIONS: Record<string, string> = {
+  alpha0: "Exogenous component in consumption",
+  alpha1: "Propensity to consume out of income",
+  alpha2: "Propensity to consume out of wealth",
+  delta: "Depreciation rate",
+  gamma: "Speed of adjustment of capital to its target value",
+  kappa: "Capital-output ratio",
+  pr: "Labor productivity",
+  rl: "Rate of interest on bank loans, set exogenously"
+};
+
+const BMW_OPTIONS: SimulationOptions = {
   ...bmwBaselineOptions,
   periods: 50,
   solverMethod: "NEWTON",
@@ -54,28 +88,43 @@ const BMW_BALANCE_SHEET = {
   description:
     "Balance-sheet matrix for the BMW model, following the sfcr article presentation.",
   note: "Source structure adapted from the sfcr BMW article balance-sheet display."
-} as const;
+};
 
 const BMW_TRANSACTION_FLOW = {
-  columns: ["Current", "Capital", "Households", "Production firms", "Banks", "Sum"],
+  columns: [
+    "Households",
+    "Firms_current",
+    "Firms_capital",
+    "Banks_current",
+    "Banks_capital"
+  ],
   rows: [
-    { label: "Consumption", values: ["", "", "-Cd", "+Cs", "", "0"] },
-    { label: "Investment", values: ["", "", "", "+Is", "", "+I"] },
-    { label: "Wages", values: ["", "", "+WBs", "-WBd", "", "0"] },
-    { label: "Depreciation allowance", values: ["", "", "", "+DA", "", "+DA"] },
-    { label: "Interest on loans", values: ["", "", "", "-rl[-1] * Ld[-1]", "+rl[-1] * Ls[-1]", "0"] },
-    { label: "Interest on deposits", values: ["", "", "+rm[-1] * Mh[-1]", "", "-rm[-1] * Mh[-1]", "0"] },
-    { label: "Change in loans", values: ["", "", "", "+d(Ld)", "-d(Ls)", "0"] },
-    { label: "Change in money deposits", values: ["", "", "-d(Mh)", "", "+d(Ms)", "0"] },
-    { label: "Sum", values: ["0", "0", "0", "0", "0", "0"] }
+    { label: "Consumption", values: ["-Cs", "+Cd", "", "", ""] },
+    { label: "Investment", values: ["", "+Is", "-Id", "", ""] },
+    { label: "Wages", values: ["+WBs", "-WBd", "", "", ""] },
+    { label: "Depreciation", values: ["", "-AF", "+AF", "", ""] },
+    {
+      label: "Interest loans",
+      values: ["", "-rl[-1] * Ld[-1]", "", "+rl[-1] * Ls[-1]", ""]
+    },
+    {
+      label: "Interest on deposits",
+      values: ["+rm[-1] * Mh[-1]", "", "", "-rm[-1] * Ms[-1]", ""]
+    },
+    { label: "Ch. loans", values: ["", "", "+d(Ld)", "", "-d(Ls)"] },
+    { label: "Ch. deposits", values: ["-d(Mh)", "", "", "", "+d(Ms)"] }
   ],
   description:
     "Transactions-flow matrix for the BMW model, shown in the same accounting style as the sfcr article.",
   note: "Signs and row structure follow the BMW transactions-flow matrix in the sfcr article."
-} as const;
+};
 
 export function createBmwNotebook(): NotebookDocument {
-  const bmwEditor = editorStateFromModel(bmwBaselineModel, BMW_OPTIONS, null);
+  const bmwEditor = withEquationDescriptions(
+    editorStateFromModel(bmwBaselineModel, BMW_OPTIONS, null),
+    BMW_DESCRIPTIONS,
+    BMW_EXTERNAL_DESCRIPTIONS
+  );
 
   return {
     id: "bmw-notebook",
@@ -97,14 +146,38 @@ export function createBmwNotebook(): NotebookDocument {
         type: "matrix",
         title: "BMW balance sheet",
         sourceRunCellId: "baseline-newton",
-        ...BMW_BALANCE_SHEET
+        columns: [...BMW_BALANCE_SHEET.columns],
+        rows: BMW_BALANCE_SHEET.rows.map((row) => ({
+          label: row.label,
+          values: [...row.values]
+        })),
+        description: BMW_BALANCE_SHEET.description,
+        note: BMW_BALANCE_SHEET.note
       },
       {
         id: "transaction-flow",
         type: "matrix",
         title: "BMW transactions-flow matrix",
         sourceRunCellId: "baseline-newton",
-        ...BMW_TRANSACTION_FLOW
+        columns: [...BMW_TRANSACTION_FLOW.columns],
+        rows: BMW_TRANSACTION_FLOW.rows.map((row) => ({
+          label: row.label,
+          values: [...row.values]
+        })),
+        description: BMW_TRANSACTION_FLOW.description,
+        note: BMW_TRANSACTION_FLOW.note
+      },
+      {
+        id: "transaction-flow-sequence",
+        type: "sequence",
+        title: "BMW transaction flow sequence",
+        source: {
+          kind: "matrix",
+          matrixCellId: "transaction-flow"
+        },
+        description:
+          "Canvas-rendered sequence view generated from the transactions-flow matrix at the selected simulation period.",
+        note: "Use Reset and Next step to manually reveal flows in order."
       },
       {
         id: "equations-newton",
@@ -183,5 +256,28 @@ export function createBmwNotebook(): NotebookDocument {
         variables: ["Cd", "YD", "W"]
       }
     ]
+  };
+}
+
+function withEquationDescriptions<
+  T extends {
+    equations: Array<{ name: string; desc?: string }>;
+    externals: Array<{ name: string; desc?: string }>;
+  }
+>(
+  editor: T,
+  equationDescriptions: Record<string, string>,
+  externalDescriptions: Record<string, string>
+): T {
+  return {
+    ...editor,
+    equations: editor.equations.map((equation) => ({
+      ...equation,
+      desc: equationDescriptions[equation.name] ?? equation.desc ?? ""
+    })),
+    externals: editor.externals.map((external) => ({
+      ...external,
+      desc: externalDescriptions[external.name] ?? external.desc ?? ""
+    }))
   };
 }

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type MouseEvent } from "react";
+import { useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 
 import type { EquationRow } from "../lib/editorModel";
 
@@ -13,7 +13,7 @@ interface EquationGridEditorProps {
 
 export function EquationGridEditor({
   buildError = null,
-  currentValues = {},
+  currentValues: _currentValues = {},
   equations,
   issues,
   onChange,
@@ -22,6 +22,7 @@ export function EquationGridEditor({
   const parameterNameSet = useMemo(() => new Set(parameterNames), [parameterNames]);
   const traceModel = useMemo(() => buildTraceModel(equations), [equations]);
   const variableRefs = useRef<Array<HTMLTextAreaElement | null>>([]);
+  const descRefs = useRef<Array<HTMLInputElement | null>>([]);
   const expressionRefs = useRef<Array<HTMLTextAreaElement | null>>([]);
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
   const [pinnedTrace, setPinnedTrace] = useState<PinnedTrace | null>(null);
@@ -56,7 +57,7 @@ export function EquationGridEditor({
           <span>#</span>
           <span>Variable</span>
           <span>Expression</span>
-          <span>Current</span>
+          <span>Description</span>
           <span>Status</span>
           <span />
         </div>
@@ -80,7 +81,10 @@ export function EquationGridEditor({
                 key={equation.id}
                 className={rowClassName}
                 onClick={(event) => {
-                  if (event.target instanceof HTMLElement && event.target.closest("textarea,button")) {
+                  if (
+                    event.target instanceof HTMLElement &&
+                    event.target.closest("textarea,input,button")
+                  ) {
                     return;
                   }
                   setPinnedTrace((current) =>
@@ -102,7 +106,7 @@ export function EquationGridEditor({
                   onChange={(value) =>
                     updateRow(equations, index, { name: value }, onChange)
                   }
-                  onEnter={() => expressionRefs.current[index]?.focus()}
+                  onEnter={() => descRefs.current[index]?.focus()}
                   parameterNames={parameterNameSet}
                   placeholder="Y"
                   value={equation.name}
@@ -117,19 +121,41 @@ export function EquationGridEditor({
                   onChange={(value) =>
                     updateRow(equations, index, { expression: value }, onChange)
                   }
-                  onEnter={() => variableRefs.current[index + 1]?.focus()}
+                  onEnter={() => descRefs.current[index]?.focus()}
                   parameterNames={parameterNameSet}
                   placeholder="Cs + Gs"
                   value={equation.expression}
                 />
-                <span className="equation-grid-current">
-                  {formatCurrentValue(equation.name, currentValues[equation.name.trim()])}
-                </span>
+                <input
+                  aria-label={`Equation ${index + 1} description`}
+                  className="equation-grid-description"
+                  onChange={(event) =>
+                    updateRow(equations, index, { desc: event.target.value }, onChange)
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      variableRefs.current[index + 1]?.focus();
+                    }
+                  }}
+                  placeholder="Income = GDP"
+                  ref={(node) => {
+                    descRefs.current[index] = node;
+                  }}
+                  spellCheck={false}
+                  type="text"
+                  value={equation.desc ?? ""}
+                />
                 <span className={`equation-grid-status${issue ? " has-issue" : ""}`}>
                   {issue ? issue : "OK"}
                 </span>
-                <button type="button" onClick={() => onChange(removeRow(equations, index))}>
-                  Remove
+                <button
+                  type="button"
+                  aria-label={`Remove equation ${index + 1}`}
+                  className="equation-grid-remove-button"
+                  onClick={() => onChange(removeRow(equations, index))}
+                >
+                  -
                 </button>
               </div>
             );
@@ -195,8 +221,8 @@ export function highlightFormula(
   source: string,
   parameterNames: Set<string>,
   highlightedTokens?: Map<string, TraceTokenRole>
-): Array<string | JSX.Element> {
-  const parts: Array<string | JSX.Element> = [];
+): ReactNode[] {
+  const parts: ReactNode[] = [];
   const tokenPattern = /([A-Za-z_][A-Za-z0-9_]*|\d+(?:\.\d+)?(?:e[+-]?\d+)?)/gi;
   let lastIndex = 0;
 
@@ -452,6 +478,7 @@ function newEquationRow(): EquationRow {
   return {
     id: `eq-${crypto.randomUUID()}`,
     name: "",
+    desc: "",
     expression: ""
   };
 }
@@ -467,15 +494,4 @@ function updateRow(
 
 function removeRow<T>(rows: T[], index: number): T[] {
   return rows.filter((_, rowIndex) => rowIndex !== index);
-}
-
-function formatCurrentValue(name: string, value: number | undefined): string {
-  const trimmedName = name.trim();
-  if (!trimmedName) {
-    return "";
-  }
-  if (!Number.isFinite(value)) {
-    return `${trimmedName} = --`;
-  }
-  return `${trimmedName} = ${Number(value).toLocaleString(undefined, { maximumFractionDigits: 6 })}`;
 }

@@ -18,7 +18,8 @@ export type NotebookCell =
   | RunCell
   | ChartCell
   | TableCell
-  | MatrixCell;
+  | MatrixCell
+  | SequenceCell;
 
 export interface NotebookCellBase {
   id: string;
@@ -67,6 +68,26 @@ export interface MatrixCell extends NotebookCellBase {
   description?: string;
   note?: string;
 }
+
+export interface SequenceCell extends NotebookCellBase {
+  type: "sequence";
+  source: SequenceCellSource;
+  description?: string;
+  note?: string;
+}
+
+export type SequenceCellSource =
+  | {
+      kind: "plantuml";
+      source: string;
+    }
+  | {
+      kind: "matrix";
+      matrixCellId: string;
+      sourceRunCellId?: string;
+      includeZeroFlows?: boolean;
+      aliases?: Record<string, string>;
+    };
 
 export type NotebookCellOutput =
   | {

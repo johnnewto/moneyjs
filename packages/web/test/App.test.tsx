@@ -2,7 +2,7 @@
 
 import "@testing-library/jest-dom/vitest";
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -109,11 +109,15 @@ describe("App", () => {
       screen.getByRole("heading", { name: /bmw transactions-flow matrix/i })
     ).toBeInTheDocument();
     expect(
+      screen.getByRole("heading", { name: /bmw transaction flow sequence/i })
+    ).toBeInTheDocument();
+    expect(
       screen.getByRole("heading", { name: /baseline run with newton/i })
     ).toBeInTheDocument();
     expect(screen.getAllByText(/edit model cell/i).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: /add equation/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByText("Variable").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Description").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Expression").length).toBeGreaterThan(0);
   });
 
@@ -140,6 +144,7 @@ describe("App", () => {
 
     expect(screen.getByDisplayValue(/```sfcr-model/i)).toBeInTheDocument();
     expect(screen.getByDisplayValue(/```sfcr-matrix/i)).toBeInTheDocument();
+    expect(screen.getByDisplayValue(/```sfcr-sequence/i)).toBeInTheDocument();
     expect(screen.getByDisplayValue(/# BMW Browser Notebook/i)).toBeInTheDocument();
   });
 
@@ -190,9 +195,44 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: /import preview/i })).toBeInTheDocument();
     expect(screen.getByText(/Title: Imported Notebook/i)).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /apply preview/i }));
+    await user.click(screen.getAllByRole("button", { name: /apply preview/i })[0]);
 
     expect(screen.getByText(/^Imported Notebook$/i)).toBeInTheDocument();
+  });
+
+  it("shows apply and discard actions when the import text is edited", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /^export$/i }));
+
+    const textarea = screen.getByPlaceholderText(
+      /paste a notebook json document/i
+    ) as HTMLTextAreaElement;
+    const originalValue = textarea.value;
+    const editedValue = textarea.value.replace("BMW Browser Notebook", "Draft Notebook");
+
+    fireEvent.change(textarea, { target: { value: editedValue } });
+
+    expect(screen.getByRole("button", { name: /apply text/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /discard text/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /apply text/i }));
+
+    expect(screen.getByText(/^Draft Notebook$/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^export$/i }));
+
+    const refreshedTextarea = screen.getByPlaceholderText(
+      /paste a notebook json document/i
+    ) as HTMLTextAreaElement;
+    fireEvent.change(refreshedTextarea, { target: { value: originalValue } });
+
+    await user.click(screen.getByRole("button", { name: /discard text/i }));
+
+    expect(refreshedTextarea.value).toBe(editedValue);
   });
 
   it("edits a markdown cell through the per-cell source editor", async () => {
@@ -224,7 +264,14 @@ describe("App", () => {
 
     render(<App />);
 
-    await user.click(screen.getAllByRole("button", { name: /edit source/i })[3]);
+    const runHeading = screen.getByRole("heading", { name: /baseline run with newton/i });
+    const runArticle = runHeading.closest("article");
+    expect(runArticle).not.toBeNull();
+    if (!runArticle) {
+      throw new Error("Expected run cell article.");
+    }
+
+    await user.click(within(runArticle).getByRole("button", { name: /edit source/i }));
 
     const titleEditor = screen.getByRole("textbox", {
       name: /title editor for baseline run with newton/i

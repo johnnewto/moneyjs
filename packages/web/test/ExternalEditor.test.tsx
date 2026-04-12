@@ -16,7 +16,13 @@ describe("ExternalEditor", () => {
     render(
       <ExternalEditor
         externals={[
-          { id: "ext-1", name: "alpha1", kind: "constant", valueText: "0.6" },
+          {
+            id: "ext-1",
+            name: "alpha1",
+            desc: "Propensity to consume out of income",
+            kind: "constant",
+            valueText: "0.6"
+          },
           { id: "ext-2", name: "Gd", kind: "series", valueText: "20, 21, 22" }
         ]}
         issues={{ "externals.1.valueText": "series values are invalid" }}
@@ -26,8 +32,37 @@ describe("ExternalEditor", () => {
 
     expect(screen.getAllByRole("row").length).toBeGreaterThan(2);
     expect(screen.getByLabelText(/external 1 name/i)).toHaveValue("alpha1");
+    expect(screen.getByLabelText(/external 1 description/i)).toHaveValue(
+      "Propensity to consume out of income"
+    );
     expect(screen.getByLabelText(/external 2 kind/i)).toHaveValue("series");
     expect(screen.getByText(/series values are invalid/i)).toBeInTheDocument();
+  });
+
+  it("edits an external description", () => {
+    const onChange = vi.fn();
+
+    render(
+      <ExternalEditor
+        externals={[{ id: "ext-1", name: "alpha1", kind: "constant", valueText: "0.6" }]}
+        issues={{}}
+        onChange={onChange}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText(/external 1 description/i), {
+      target: { value: "Updated description" }
+    });
+
+    expect(onChange).toHaveBeenCalledWith([
+      {
+        id: "ext-1",
+        name: "alpha1",
+        desc: "Updated description",
+        kind: "constant",
+        valueText: "0.6"
+      }
+    ]);
   });
 
   it("adds a new external row", () => {

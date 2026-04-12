@@ -38,6 +38,39 @@ import "../styles/app.css";
 
 type PresetId = "sim" | "bmw";
 
+const BMW_DESCRIPTIONS: Record<string, string> = {
+  AF: "Amortization funds",
+  Cd: "Consumption goods demand by households",
+  Cs: "Consumption goods supply",
+  DA: "Depreciation allowance",
+  K: "Stock of capital",
+  KT: "Target stock of capital",
+  Ld: "Demand for bank loans",
+  Ls: "Supply of bank loans",
+  Id: "Demand for investment goods",
+  Is: "Supply of investment goods",
+  Mh: "Bank deposits held by households",
+  Ms: "Supply of bank deposits",
+  Nd: "Demand for labor",
+  Ns: "Supply of labor",
+  W: "Wage rate",
+  WBd: "Wage bill - demand",
+  WBs: "Wage bill - supply",
+  Y: "Income = GDP",
+  YD: "Disposable income of households"
+};
+
+const BMW_EXTERNAL_DESCRIPTIONS: Record<string, string> = {
+  alpha0: "Exogenous component in consumption",
+  alpha1: "Propensity to consume out of income",
+  alpha2: "Propensity to consume out of wealth",
+  delta: "Depreciation rate",
+  gamma: "Speed of adjustment of capital to its target value",
+  kappa: "Capital-output ratio",
+  pr: "Labor productivity",
+  rl: "Rate of interest on bank loans, set exogenously"
+};
+
 const PRESETS: PresetConfig[] = [
   {
     id: "sim",
@@ -48,7 +81,11 @@ const PRESETS: PresetConfig[] = [
   {
     id: "bmw",
     label: "BMW baseline",
-    editor: editorStateFromModel(bmwBaselineModel, bmwBaselineOptions, null),
+    editor: withEditorDescriptions(
+      editorStateFromModel(bmwBaselineModel, bmwBaselineOptions, null),
+      BMW_DESCRIPTIONS,
+      BMW_EXTERNAL_DESCRIPTIONS
+    ),
     highlights: ["Y", "Cd", "Id", "K", "Mh", "W"]
   }
 ];
@@ -427,4 +464,22 @@ export function WorkspaceApp() {
       </div>
     </main>
   );
+}
+
+function withEditorDescriptions(
+  editor: EditorState,
+  equationDescriptions: Record<string, string>,
+  externalDescriptions: Record<string, string>
+): EditorState {
+  return {
+    ...editor,
+    equations: editor.equations.map((equation) => ({
+      ...equation,
+      desc: equationDescriptions[equation.name] ?? equation.desc ?? ""
+    })),
+    externals: editor.externals.map((external) => ({
+      ...external,
+      desc: externalDescriptions[external.name] ?? external.desc ?? ""
+    }))
+  };
 }

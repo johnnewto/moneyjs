@@ -8,7 +8,7 @@ interface ExternalEditorProps {
 }
 
 export function ExternalEditor({
-  currentValues = {},
+  currentValues: _currentValues = {},
   externals,
   issues,
   onChange
@@ -31,9 +31,9 @@ export function ExternalEditor({
         <div className="external-grid-header" role="row">
           <span>#</span>
           <span>Name</span>
-          <span>Kind</span>
           <span>Value</span>
-          <span>Current</span>
+          <span>Description</span>
+          <span>Kind</span>
           <span>Status</span>
           <span />
         </div>
@@ -59,6 +59,25 @@ export function ExternalEditor({
               }
               placeholder="alpha1"
             />
+            <input
+              aria-label={`External ${index + 1} value`}
+              className={issues[`externals.${index}.valueText`] ? "input-error" : ""}
+              value={external.valueText}
+              onChange={(event) =>
+                updateRow(externals, index, { valueText: event.target.value }, onChange)
+              }
+              placeholder="20 or 20, 21, 22"
+            />
+            <input
+              aria-label={`External ${index + 1} description`}
+              className="external-grid-description"
+              value={external.desc ?? ""}
+              onChange={(event) =>
+                updateRow(externals, index, { desc: event.target.value }, onChange)
+              }
+              placeholder="Propensity to consume out of income"
+              spellCheck={false}
+            />
             <select
               aria-label={`External ${index + 1} kind`}
               value={external.kind}
@@ -71,18 +90,6 @@ export function ExternalEditor({
               <option value="constant">Constant</option>
               <option value="series">Series</option>
             </select>
-            <input
-              aria-label={`External ${index + 1} value`}
-              className={issues[`externals.${index}.valueText`] ? "input-error" : ""}
-              value={external.valueText}
-              onChange={(event) =>
-                updateRow(externals, index, { valueText: event.target.value }, onChange)
-              }
-              placeholder="20 or 20, 21, 22"
-            />
-            <span className="external-grid-current">
-              {formatCurrentValue(external.name, currentValues[external.name.trim()])}
-            </span>
             <span
               className={`external-grid-status${
                 issues[`externals.${index}.name`] || issues[`externals.${index}.valueText`]
@@ -92,8 +99,13 @@ export function ExternalEditor({
             >
               {issues[`externals.${index}.name`] ?? issues[`externals.${index}.valueText`] ?? "OK"}
             </span>
-            <button type="button" onClick={() => onChange(removeRow(externals, index))}>
-              Remove
+            <button
+              type="button"
+              aria-label={`Remove external ${index + 1}`}
+              className="external-grid-remove-button"
+              onClick={() => onChange(removeRow(externals, index))}
+            >
+              -
             </button>
           </div>
         ))}
@@ -111,6 +123,7 @@ function newExternalRow(): ExternalRow {
   return {
     id: `ext-${crypto.randomUUID()}`,
     name: "",
+    desc: "",
     kind: "constant",
     valueText: ""
   };
@@ -127,15 +140,4 @@ function updateRow(
 
 function removeRow<T>(rows: T[], index: number): T[] {
   return rows.filter((_, rowIndex) => rowIndex !== index);
-}
-
-function formatCurrentValue(name: string, value: number | undefined): string {
-  const trimmedName = name.trim();
-  if (!trimmedName) {
-    return "";
-  }
-  if (!Number.isFinite(value)) {
-    return `${trimmedName} = --`;
-  }
-  return `${trimmedName} = ${Number(value).toLocaleString(undefined, { maximumFractionDigits: 6 })}`;
 }
