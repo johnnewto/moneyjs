@@ -17,6 +17,9 @@ export function useNotebookRunner(document: NotebookDocument): NotebookRunnerApi
   const [state, setState] = useState<NotebookRuntimeState>({ outputs: {}, status: {}, errors: {} });
 
   useEffect(() => () => client.dispose(), [client]);
+  useEffect(() => {
+    setState({ outputs: {}, status: {}, errors: {} });
+  }, [document]);
 
   const modelCells = useMemo(
     () => new Map(document.cells.filter((cell) => cell.type === "model").map((cell) => [cell.id, cell])),

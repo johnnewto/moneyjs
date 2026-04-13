@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 
 import { evaluateExpression, parseExpression, type SimulationResult } from "@sfcr/core";
 
@@ -27,7 +28,8 @@ import {
   detectNotebookSourceFormat,
   notebookToJson,
   notebookToMarkdown,
-  parseNotebookSource
+  parseNotebookSource,
+  serializeNotebookCell
 } from "./document";
 import { resolveSequenceDiagram } from "./sequence";
 import {
@@ -132,6 +134,11 @@ export function NotebookApp() {
     setUiMessage(null);
   }
 
+  function replaceNotebookDocument(nextDocument: NotebookDocument): void {
+    setNotebookDocument(nextDocument);
+    setSelectedPeriodIndex(0);
+  }
+
   function handleExportJson(): void {
     const exported =
       sourceFormat === "json"
@@ -175,7 +182,7 @@ export function NotebookApp() {
   function handleApplyImportText(): void {
     try {
       const parsed = parseNotebookSource(importText);
-      setNotebookDocument(parsed.document);
+      replaceNotebookDocument(parsed.document);
       setCommittedImportText(importText);
       setImportPreview(null);
       setUiMessage(
@@ -213,7 +220,7 @@ export function NotebookApp() {
     if (!importPreview) {
       return;
     }
-    setNotebookDocument(importPreview.document);
+    replaceNotebookDocument(importPreview.document);
     setCommittedImportText(importText);
     setUiMessage(
       `Imported notebook ${importPreview.source === "json" ? "JSON" : "Markdown"}.`
@@ -237,7 +244,7 @@ export function NotebookApp() {
       return;
     }
 
-    setNotebookDocument(createNotebookFromTemplate(templateId));
+    replaceNotebookDocument(createNotebookFromTemplate(templateId));
     setImportPreview(null);
     setUiMessage(`Loaded template ${NOTEBOOK_TEMPLATES[templateId].label}.`);
   }
@@ -620,23 +627,116 @@ function NotebookCellView({
   const [isEditingSource, setIsEditingSource] = useState(false);
   const [titleDraft, setTitleDraft] = useState(() => cell.title);
   const [sourceDraft, setSourceDraft] = useState(() => serializeCellBody(cell));
+  const [sourceLayoutMode, setSourceLayoutMode] = useState<"pretty" | "compact">("compact");
+  const [openSourceMenu, setOpenSourceMenu] = useState<"insert" | null>(null);
   const [sourceError, setSourceError] = useState<string | null>(null);
+  const [sourceValidationError, setSourceValidationError] = useState<string | null>(null);
+  const insertMenuRef = useRef<HTMLDivElement | null>(null);
+  const sourceTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const sourceHighlightRef = useRef<HTMLPreElement | null>(null);
 
   useEffect(() => {
     setTitleDraft(cell.title);
     setSourceDraft(serializeCellBody(cell));
+    setSourceLayoutMode("compact");
+    setOpenSourceMenu(null);
     setSourceError(null);
+    setSourceValidationError(null);
     setIsEditingSource(false);
   }, [cell]);
+
+  useEffect(() => {
+    if (!isEditingSource) {
+      setSourceValidationError(null);
+      return;
+    }
+
+    try {
+      parseCellSource(cell, titleDraft, sourceDraft);
+      setSourceValidationError(null);
+    } catch (validationError) {
+      setSourceValidationError(
+        validationError instanceof Error ? validationError.message : "Invalid cell source"
+      );
+    }
+  }, [cell, isEditingSource, sourceDraft, titleDraft]);
+
+  useEffect(() => {
+    if (!isEditingSource || openSourceMenu == null) {
+      return;
+    }
+
+    function handlePointerDown(event: MouseEvent): void {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      if (insertMenuRef.current?.contains(target)) {
+        return;
+      }
+
+      setOpenSourceMenu(null);
+    }
+
+    function handleEscape(event: KeyboardEvent): void {
+      if (event.key === "Escape") {
+        setOpenSourceMenu(null);
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isEditingSource, openSourceMenu]);
+
+  useEffect(() => {
+    if (!isEditingSource || !sourceTextareaRef.current) {
+      return;
+    }
+
+    const textarea = sourceTextareaRef.current;
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 640)}px`;
+  }, [isEditingSource, sourceDraft, sourceLayoutMode]);
+
+  function handleSourceScroll(): void {
+    if (!sourceTextareaRef.current || !sourceHighlightRef.current) {
+      return;
+    }
+
+    sourceHighlightRef.current.scrollTop = sourceTextareaRef.current.scrollTop;
+    sourceHighlightRef.current.scrollLeft = sourceTextareaRef.current.scrollLeft;
+  }
 
   function handleApplySource(): void {
     try {
       const nextCell = parseCellSource(cell, titleDraft, sourceDraft);
       onCellChange(cell.id, () => nextCell);
       setSourceError(null);
+      setSourceValidationError(null);
       setIsEditingSource(false);
     } catch (applyError) {
       setSourceError(applyError instanceof Error ? applyError.message : "Invalid cell source");
+    }
+  }
+
+  function handleSourceLayoutModeChange(nextMode: "pretty" | "compact"): void {
+    if (cell.type === "markdown") {
+      setSourceLayoutMode(nextMode);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(sourceDraft) as Omit<NotebookCell, "title">;
+      setSourceDraft(formatCellBody(parsed, nextMode));
+      setSourceLayoutMode(nextMode);
+    } catch {
+      setSourceLayoutMode(nextMode);
     }
   }
 
@@ -676,6 +776,68 @@ function NotebookCellView({
 
         {isEditingSource ? (
           <div className="notebook-source-editor">
+            <div className="notebook-source-toolbar">
+              <div className="notebook-source-menu" ref={insertMenuRef}>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  aria-controls={`source-insert-menu-${cell.id}`}
+                  aria-expanded={openSourceMenu === "insert"}
+                  onClick={() =>
+                    setOpenSourceMenu((current) => (current === "insert" ? null : "insert"))
+                  }
+                >
+                  Insert
+                </button>
+                {openSourceMenu === "insert" ? (
+                  <div
+                    id={`source-insert-menu-${cell.id}`}
+                    className="notebook-source-menu-panel"
+                    aria-label="Source insert actions"
+                  >
+                  {buildSourceHelperActions(cell).map((action) => (
+                    <button
+                      key={action.label}
+                      type="button"
+                      className="secondary-button notebook-source-helper"
+                      onClick={() => {
+                        setSourceDraft((current) => applySourceHelper(current, action.insert));
+                        setOpenSourceMenu(null);
+                      }}
+                    >
+                      {action.label}
+                    </button>
+                  ))}
+                  </div>
+                ) : null}
+              </div>
+              {cell.type !== "markdown" ? (
+                <fieldset className="notebook-source-layout" aria-label="Source layout mode">
+                  <label className="notebook-source-layout-option">
+                    <input
+                      type="radio"
+                      name={`source-layout-${cell.id}`}
+                      checked={sourceLayoutMode === "pretty"}
+                      onChange={() => handleSourceLayoutModeChange("pretty")}
+                    />
+                    <span>Pretty</span>
+                  </label>
+                  <label className="notebook-source-layout-option">
+                    <input
+                      type="radio"
+                      name={`source-layout-${cell.id}`}
+                      checked={sourceLayoutMode === "compact"}
+                      onChange={() => handleSourceLayoutModeChange("compact")}
+                    />
+                    <span>Compact</span>
+                  </label>
+                </fieldset>
+              ) : null}
+              <details className="notebook-source-help notebook-source-help-inline">
+                <summary>Syntax help</summary>
+                <pre className="notebook-source-help-code">{buildSourceHelpText(cell)}</pre>
+              </details>
+            </div>
             <label className="field">
               <span>Title</span>
               <input
@@ -685,12 +847,33 @@ function NotebookCellView({
                 aria-label={`Title editor for ${cell.title}`}
               />
             </label>
-            <textarea
-              className="json-area"
-              value={sourceDraft}
-              onChange={(event) => setSourceDraft(event.target.value)}
-              aria-label={`Source editor for ${cell.title}`}
-            />
+            <div className="notebook-source-codeframe">
+              <pre
+                ref={sourceHighlightRef}
+                className="notebook-source-highlight"
+                aria-hidden="true"
+              >
+                <code>{highlightSourceDraft(sourceDraft, cell.type)}</code>
+              </pre>
+              <textarea
+                ref={sourceTextareaRef}
+                className="json-area notebook-source-textarea"
+                value={sourceDraft}
+                onChange={(event) => setSourceDraft(event.target.value)}
+                onScroll={handleSourceScroll}
+                spellCheck={false}
+                aria-label={`Source editor for ${cell.title}`}
+              />
+            </div>
+            {sourceValidationError ? (
+              <div className="notebook-source-validation" aria-live="polite">
+                Live validation: {sourceValidationError}
+              </div>
+            ) : (
+              <div className="notebook-source-validation is-valid" aria-live="polite">
+                Live validation: ready to apply
+              </div>
+            )}
             <div className="button-row">
               <button type="button" onClick={handleApplySource}>
                 Apply source
@@ -701,7 +884,10 @@ function NotebookCellView({
                 onClick={() => {
                   setTitleDraft(cell.title);
                   setSourceDraft(serializeCellBody(cell));
+                  setSourceLayoutMode("compact");
+                  setOpenSourceMenu(null);
                   setSourceError(null);
+                  setSourceValidationError(null);
                   setIsEditingSource(false);
                 }}
               >
@@ -953,7 +1139,16 @@ function ChartCellView({
     }))
     .filter((entry) => entry.values.length > 0);
 
-  return <ResultChart selectedIndex={selectedPeriodIndex} series={series} />;
+  return (
+    <ResultChart
+      axisMode={cell.axisMode ?? "shared"}
+      axisSnap={cell.axisSnap}
+      seriesRanges={cell.seriesRanges}
+      selectedIndex={selectedPeriodIndex}
+      series={series}
+      sharedRange={cell.sharedRange}
+    />
+  );
 }
 
 function TableCellView({
@@ -1427,8 +1622,179 @@ function serializeCellBody(cell: NotebookCell): string {
   if (cell.type === "markdown") {
     return cell.source;
   }
-  const { title, ...cellBody } = cell;
-  return JSON.stringify(cellBody, null, 2);
+  const { title, ...cellBody } = serializeNotebookCell(cell);
+  return formatCellBody(cellBody, "compact");
+}
+
+function formatCellBody(
+  cellBody: Omit<NotebookCell, "title">,
+  mode: "pretty" | "compact"
+): string {
+  return mode === "pretty"
+    ? JSON.stringify(cellBody, null, 2)
+    : stringifyJsonWithCompactLeaves(cellBody, 0);
+}
+
+function highlightSourceDraft(source: string, cellType: NotebookCell["type"]): ReactNode[] {
+  if (cellType === "markdown") {
+    return highlightMarkdownSource(source);
+  }
+
+  return highlightJsonSource(source);
+}
+
+function highlightJsonSource(source: string): ReactNode[] {
+  const parts: ReactNode[] = [];
+  let cursor = 0;
+
+  source.replace(
+    /"(?:\\.|[^"\\])*"(?=\s*:)?|"(?:\\.|[^"\\])*"|true|false|null|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|[{}\[\],:]/g,
+    (match, offset) => {
+      if (offset > cursor) {
+        parts.push(source.slice(cursor, offset));
+      }
+
+      parts.push(
+        <span key={`${offset}-${match}`} className={tokenClassForJson(source, match, offset)}>
+          {match}
+        </span>
+      );
+      cursor = offset + match.length;
+      return match;
+    }
+  );
+
+  if (cursor < source.length) {
+    parts.push(source.slice(cursor));
+  }
+
+  return parts;
+}
+
+function tokenClassForJson(source: string, token: string, offset: number): string {
+  if (token === "true" || token === "false") {
+    return "token-boolean";
+  }
+  if (token === "null") {
+    return "token-null";
+  }
+  if (/^-?\d/.test(token)) {
+    return "token-number";
+  }
+  if (/^"/.test(token)) {
+    const trailing = source.slice(offset + token.length);
+    return /^\s*:/.test(trailing) ? "token-key" : "token-string";
+  }
+  return "token-punctuation";
+}
+
+function highlightMarkdownSource(source: string): ReactNode[] {
+  const parts: ReactNode[] = [];
+  const lines = source.split("\n");
+
+  lines.forEach((line, index) => {
+    if (index > 0) {
+      parts.push("\n");
+    }
+
+    const headingMatch = line.match(/^(#+\s.*)$/);
+    if (headingMatch) {
+      parts.push(
+        <span key={`md-heading-${index}`} className="token-heading">
+          {line}
+        </span>
+      );
+      return;
+    }
+
+    let cursor = 0;
+    line.replace(/`[^`]*`|\*\*[^*]+\*\*|\*[^*]+\*/g, (match, offset) => {
+      if (offset > cursor) {
+        parts.push(line.slice(cursor, offset));
+      }
+      parts.push(
+        <span key={`md-${index}-${offset}`} className="token-markdown">
+          {match}
+        </span>
+      );
+      cursor = offset + match.length;
+      return match;
+    });
+
+    if (cursor < line.length) {
+      parts.push(line.slice(cursor));
+    }
+  });
+
+  return parts;
+}
+
+function stringifyJsonWithCompactLeaves(value: unknown, level: number): string {
+  if (value == null || typeof value !== "object") {
+    return JSON.stringify(value);
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return "[]";
+    }
+
+    if (value.every(isInlineJsonValue)) {
+      return `[${value.map((entry) => stringifyInlineJsonValue(entry)).join(", ")}]`;
+    }
+
+    const indentation = "  ".repeat(level);
+    const childIndentation = "  ".repeat(level + 1);
+    return `[\n${value
+      .map((entry) => `${childIndentation}${stringifyJsonWithCompactLeaves(entry, level + 1)}`)
+      .join(",\n")}\n${indentation}]`;
+  }
+
+  const entries = Object.entries(value);
+  if (entries.length === 0) {
+    return "{}";
+  }
+
+  if (level > 0 && entries.every(([, entryValue]) => isInlineJsonValue(entryValue))) {
+    return `{ ${entries
+      .map(([key, entryValue]) => `${JSON.stringify(key)}: ${stringifyInlineJsonValue(entryValue)}`)
+      .join(", ")} }`;
+  }
+
+  const indentation = "  ".repeat(level);
+  const childIndentation = "  ".repeat(level + 1);
+  return `{\n${entries
+    .map(
+      ([key, entryValue]) =>
+        `${childIndentation}${JSON.stringify(key)}: ${stringifyJsonWithCompactLeaves(entryValue, level + 1)}`
+    )
+    .join(",\n")}\n${indentation}}`;
+}
+
+function stringifyInlineJsonValue(value: unknown): string {
+  if (value == null || typeof value !== "object") {
+    return JSON.stringify(value);
+  }
+
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => stringifyInlineJsonValue(entry)).join(", ")}]`;
+  }
+
+  return `{ ${Object.entries(value)
+    .map(([key, entryValue]) => `${JSON.stringify(key)}: ${stringifyInlineJsonValue(entryValue)}`)
+    .join(", ")} }`;
+}
+
+function isInlineJsonValue(value: unknown): boolean {
+  if (value == null || typeof value !== "object") {
+    return true;
+  }
+
+  if (Array.isArray(value)) {
+    return value.every((entry) => entry == null || typeof entry !== "object");
+  }
+
+  return Object.values(value).every((entry) => entry == null || typeof entry !== "object");
 }
 
 function parseCellSource(cell: NotebookCell, title: string, source: string): NotebookCell {
@@ -1455,5 +1821,322 @@ function parseCellSource(cell: NotebookCell, title: string, source: string): Not
   if (typeof parsed.id !== "string") {
     throw new Error("Cell source must include id.");
   }
-  return { ...parsed, title: nextTitle } as NotebookCell;
+  validateCellSourceShape(cell.type, parsed);
+  return normalizeCellSource({ ...parsed, title: nextTitle } as NotebookCell);
+}
+
+function normalizeCellSource(cell: NotebookCell): NotebookCell {
+  if (cell.type !== "run" || !cell.scenario) {
+    return cell;
+  }
+
+  return {
+    ...cell,
+    scenario: {
+      ...cell.scenario,
+      shocks: cell.scenario.shocks.map((shock) => {
+        const candidate = shock as typeof shock & { rangeInclusive?: [number, number] };
+        const start = candidate.rangeInclusive?.[0] ?? shock.startPeriodInclusive;
+        const end = candidate.rangeInclusive?.[1] ?? shock.endPeriodInclusive;
+        return {
+          ...shock,
+          startPeriodInclusive: start,
+          endPeriodInclusive: end
+        };
+      })
+    }
+  };
+}
+
+function validateCellSourceShape(cellType: NotebookCell["type"], parsed: Omit<NotebookCell, "title">): void {
+  switch (cellType) {
+    case "run":
+      if (typeof (parsed as RunCell).sourceModelCellId !== "string") {
+        throw new Error("Run cells require sourceModelCellId.");
+      }
+      if (!["baseline", "scenario"].includes(String((parsed as RunCell).mode))) {
+        throw new Error("Run cells require mode to be 'baseline' or 'scenario'.");
+      }
+      if (typeof (parsed as RunCell).resultKey !== "string") {
+        throw new Error("Run cells require resultKey.");
+      }
+      ((parsed as RunCell).scenario?.shocks ?? []).forEach((shock, index) => {
+        const candidate = shock as typeof shock & { rangeInclusive?: [number, number] };
+        if (
+          candidate.rangeInclusive != null &&
+          (!Array.isArray(candidate.rangeInclusive) ||
+            candidate.rangeInclusive.length !== 2 ||
+            candidate.rangeInclusive.some((value) => typeof value !== "number"))
+        ) {
+          throw new Error(
+            `scenario.shocks.${index}.rangeInclusive must be a [start, end] number pair.`
+          );
+        }
+      });
+      return;
+    case "chart":
+      if (typeof (parsed as ChartCell).sourceRunCellId !== "string") {
+        throw new Error("Chart cells require sourceRunCellId.");
+      }
+      if (!Array.isArray((parsed as ChartCell).variables)) {
+        throw new Error("Chart cells require variables to be an array.");
+      }
+      if (
+        (parsed as ChartCell).axisMode != null &&
+        !["shared", "separate"].includes(String((parsed as ChartCell).axisMode))
+      ) {
+        throw new Error("Chart axisMode must be 'shared' or 'separate'.");
+      }
+      if ((parsed as ChartCell).axisSnap != null) {
+        const axisSnap = (parsed as ChartCell).axisSnap as unknown as Record<string, unknown>;
+        if (typeof axisSnap !== "object" || Array.isArray(axisSnap)) {
+          throw new Error("Chart axisSnap must be an object.");
+        }
+        if (typeof axisSnap.enabled !== "boolean") {
+          throw new Error("Chart axisSnap.enabled must be a boolean.");
+        }
+        if (axisSnap.tolerance != null && typeof axisSnap.tolerance !== "number") {
+          throw new Error("Chart axisSnap.tolerance must be a number.");
+        }
+      }
+      validateChartAxisRange((parsed as ChartCell).sharedRange, "sharedRange");
+      if (
+        (parsed as ChartCell).seriesRanges != null &&
+        (typeof (parsed as ChartCell).seriesRanges !== "object" ||
+          Array.isArray((parsed as ChartCell).seriesRanges))
+      ) {
+        throw new Error("Chart seriesRanges must be an object keyed by variable name.");
+      }
+      Object.entries((parsed as ChartCell).seriesRanges ?? {}).forEach(([name, range]) => {
+        validateChartAxisRange(range, `seriesRanges.${name}`);
+      });
+      return;
+    case "table":
+      if (typeof (parsed as TableCell).sourceRunCellId !== "string") {
+        throw new Error("Table cells require sourceRunCellId.");
+      }
+      if (!Array.isArray((parsed as TableCell).variables)) {
+        throw new Error("Table cells require variables to be an array.");
+      }
+      return;
+    case "matrix":
+      if (!Array.isArray((parsed as MatrixCell).columns)) {
+        throw new Error("Matrix cells require columns to be an array.");
+      }
+      if (!Array.isArray((parsed as MatrixCell).rows)) {
+        throw new Error("Matrix cells require rows to be an array.");
+      }
+      return;
+    case "sequence":
+      if (
+        !(parsed as SequenceCell).source ||
+        typeof (parsed as SequenceCell).source !== "object"
+      ) {
+        throw new Error("Sequence cells require a source object.");
+      }
+      return;
+    case "markdown":
+    case "model":
+      return;
+  }
+}
+
+function buildSourceHelperActions(cell: NotebookCell): Array<{ label: string; insert: string }> {
+  switch (cell.type) {
+    case "chart":
+      return [
+        { label: "Add axisMode", insert: '"axisMode": "shared"' },
+        { label: "Shared range", insert: '"sharedRange": {\n  "mode": "manual",\n  "min": 0,\n  "max": 200\n}' },
+        { label: "Series ranges", insert: '"seriesRanges": {\n  "y": {\n    "mode": "auto",\n    "includeZero": true\n  }\n}' },
+        { label: "Axis snap", insert: '"axisSnap": {\n  "enabled": true,\n  "tolerance": 0.1\n}' },
+        { label: "Include zero", insert: '"sharedRange": {\n  "mode": "auto",\n  "includeZero": true\n}' },
+        { label: "Use shared", insert: '"axisMode": "shared"' },
+        { label: "Use separate", insert: '"axisMode": "separate"' },
+        { label: "Variables array", insert: '"variables": ["y", "c"]' }
+      ];
+    case "run":
+      return [
+        {
+          label: "Scenario skeleton",
+          insert:
+            '"scenario": {\n  "shocks": [\n    {\n      "rangeInclusive": [1, 4],\n      "variables": {\n        "Gd": {\n          "kind": "constant",\n          "value": 25\n        }\n      }\n    }\n  ]\n}'
+        },
+        { label: "Add shock", insert: '"shocks": []' },
+        { label: "Result key", insert: '"resultKey": "scenario_result"' }
+      ];
+    case "table":
+      return [{ label: "Variables array", insert: '"variables": ["y", "c"]' }];
+    case "matrix":
+      return [
+        { label: "Columns array", insert: '"columns": ["Households", "Firms"]' },
+        { label: "Rows array", insert: '"rows": []' }
+      ];
+    case "sequence":
+      return [{ label: "Matrix source", insert: '"source": {\n  "kind": "matrix",\n  "matrixCellId": "matrix-1"\n}' }];
+    case "markdown":
+      return [
+        { label: "Code span", insert: "`variable`" },
+        { label: "Bullet list", insert: "- item one\n- item two" }
+      ];
+    case "model":
+      return [];
+  }
+}
+
+function buildSourceHelpText(cell: NotebookCell): string {
+  switch (cell.type) {
+    case "markdown":
+      return "Markdown cell source is plain text.\n\nExample:\nUpdated notebook overview with `inline code` and a short bullet list.";
+    case "run":
+      return `Required fields:
+- id
+- type: "run"
+- sourceModelCellId
+- mode: "baseline" | "scenario"
+- resultKey
+
+Scenario example:
+${formatCellBody(
+  {
+    id: cell.id,
+    type: "run",
+    sourceModelCellId: "equations",
+    mode: "scenario",
+    resultKey: "example_result",
+    scenario: {
+      shocks: [
+        {
+          rangeInclusive: [5, 12],
+          variables: {
+            phi: { kind: "constant", value: 0.35 }
+          }
+        }
+      ]
+    }
+  } as Omit<NotebookCell, "title">,
+  "compact"
+)}`;
+    case "chart":
+      return `Required fields:
+- id
+- type: "chart"
+- sourceRunCellId
+- variables: string[]
+
+Optional:
+- axisMode: "shared" | "separate"
+- axisSnap: { "enabled": boolean, "tolerance"?: number }
+- sharedRange: { "mode": "auto" | "manual", "includeZero"?: boolean, "min"?: number, "max"?: number }
+- seriesRanges: { [variableName]: range }
+
+Example:
+${formatCellBody(
+  {
+    id: cell.id,
+    type: "chart",
+    sourceRunCellId: "baseline-run",
+    variables: ["ydhs", "c", "p"],
+    axisMode: "separate",
+    axisSnap: {
+      enabled: true,
+      tolerance: 0.1
+    },
+    sharedRange: {
+      mode: "auto",
+      includeZero: true
+    },
+    seriesRanges: {
+      p: {
+        mode: "manual",
+        min: 0,
+        max: 2
+      }
+    }
+  } as Omit<NotebookCell, "title">,
+  "compact"
+)}`;
+    case "table":
+      return `Required fields:
+- id
+- type: "table"
+- sourceRunCellId
+- variables: string[]`;
+    case "matrix":
+      return `Required fields:
+- id
+- type: "matrix"
+- columns: string[]
+- rows: [{ "label": string, "values": string[] }]`;
+    case "sequence":
+      return `Required fields:
+- id
+- type: "sequence"
+- source
+
+Source can be:
+- { "kind": "plantuml", "source": "..." }
+- { "kind": "matrix", "matrixCellId": "matrix-1" }`;
+    case "model":
+      return "";
+  }
+}
+
+function applySourceHelper(currentSource: string, insert: string): string {
+  const trimmed = currentSource.trimEnd();
+  if (!trimmed) {
+    return insert;
+  }
+
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    return insertIntoJsonObject(trimmed, insert);
+  }
+
+  return `${trimmed}\n${insert}`;
+}
+
+function insertIntoJsonObject(source: string, insert: string): string {
+  const closingIndex = source.lastIndexOf("}");
+  if (closingIndex <= 0) {
+    return `${source}\n${insert}`;
+  }
+
+  const beforeClosing = source.slice(0, closingIndex).trimEnd();
+  const needsComma = !beforeClosing.endsWith("{");
+  const indentation = "  ";
+  const formattedInsert = insert
+    .split("\n")
+    .map((line) => `${indentation}${line}`)
+    .join("\n");
+
+  return `${beforeClosing}${needsComma ? "," : ""}\n${formattedInsert}\n}`;
+}
+
+function validateChartAxisRange(range: unknown, label: string): void {
+  if (range == null) {
+    return;
+  }
+  if (typeof range !== "object" || Array.isArray(range)) {
+    throw new Error(`${label} must be an object.`);
+  }
+
+  const candidate = range as Record<string, unknown>;
+  if (!["auto", "manual"].includes(String(candidate.mode))) {
+    throw new Error(`${label}.mode must be 'auto' or 'manual'.`);
+  }
+  if (candidate.includeZero != null && typeof candidate.includeZero !== "boolean") {
+    throw new Error(`${label}.includeZero must be a boolean.`);
+  }
+  if (candidate.min != null && typeof candidate.min !== "number") {
+    throw new Error(`${label}.min must be a number.`);
+  }
+  if (candidate.max != null && typeof candidate.max !== "number") {
+    throw new Error(`${label}.max must be a number.`);
+  }
+  if (
+    typeof candidate.min === "number" &&
+    typeof candidate.max === "number" &&
+    !(candidate.min < candidate.max)
+  ) {
+    throw new Error(`${label}.min must be less than ${label}.max.`);
+  }
 }

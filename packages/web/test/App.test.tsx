@@ -300,4 +300,106 @@ describe("App", () => {
 
     expect(screen.getByRole("heading", { name: /updated baseline run/i })).toBeInTheDocument();
   });
+
+  it("shows source helpers and live validation for chart cells", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    await user.selectOptions(screen.getByLabelText(/notebook template/i), "gl6-dis");
+
+    const chartHeading = screen.getByRole("heading", { name: /baseline headline variables/i });
+    const chartArticle = chartHeading.closest("article");
+    expect(chartArticle).not.toBeNull();
+    if (!chartArticle) {
+      throw new Error("Expected chart cell article.");
+    }
+
+    await user.click(within(chartArticle).getByRole("button", { name: /edit source/i }));
+    await user.click(screen.getByText(/^insert$/i));
+
+    expect(screen.getByRole("button", { name: /add axismode/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /axis snap/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /shared range/i })).toBeInTheDocument();
+    expect(screen.getByText(/live validation: ready to apply/i)).toBeInTheDocument();
+    expect(screen.getByText(/^syntax help$/i)).toBeInTheDocument();
+
+    const sourceEditor = screen.getByRole("textbox", {
+      name: /source editor for baseline headline variables/i
+    });
+    fireEvent.change(
+      sourceEditor,
+      {
+        target: {
+          value: `{
+  "id": "baseline-chart",
+  "type": "chart",
+  "sourceRunCellId": "baseline-run",
+  "variables": ["ydhs", "c", "p", "Mh"],
+  "sharedRange": {
+    "mode": "manual",
+    "min": 10,
+    "max": 0
+  }
+}`
+        }
+      }
+    );
+
+    expect(screen.getByText(/live validation:/i)).not.toHaveTextContent(/ready to apply/i);
+  });
+
+  it("can switch the notebook source editor into compact mode", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    await user.selectOptions(screen.getByLabelText(/notebook template/i), "gl6-dis");
+
+    const chartHeading = screen.getByRole("heading", { name: /baseline headline variables/i });
+    const chartArticle = chartHeading.closest("article");
+    expect(chartArticle).not.toBeNull();
+    if (!chartArticle) {
+      throw new Error("Expected chart cell article.");
+    }
+
+    await user.click(within(chartArticle).getByRole("button", { name: /edit source/i }));
+    await user.click(screen.getByRole("radio", { name: /compact/i }));
+
+    const sourceEditor = screen.getByRole("textbox", {
+      name: /source editor for baseline headline variables/i
+    }) as HTMLTextAreaElement;
+
+    expect(sourceEditor.value.startsWith("{\n")).toBe(true);
+    expect(sourceEditor.value).toContain('"id": "baseline-chart"');
+    expect(sourceEditor.value).toContain('"seriesRanges": { "p": { "mode": "auto", "includeZero": true } }');
+  });
+
+  it("closes source popups on escape and outside click", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    await user.selectOptions(screen.getByLabelText(/notebook template/i), "gl6-dis");
+
+    const chartHeading = screen.getByRole("heading", { name: /baseline headline variables/i });
+    const chartArticle = chartHeading.closest("article");
+    expect(chartArticle).not.toBeNull();
+    if (!chartArticle) {
+      throw new Error("Expected chart cell article.");
+    }
+
+    await user.click(within(chartArticle).getByRole("button", { name: /edit source/i }));
+    await user.click(screen.getByRole("button", { name: /^insert$/i }));
+    expect(screen.getByLabelText(/source insert actions/i)).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByLabelText(/source insert actions/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByText(/^syntax help$/i));
+    expect(screen.getByText(/required fields:/i)).toBeInTheDocument();
+  });
 });

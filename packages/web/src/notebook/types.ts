@@ -1,3 +1,4 @@
+import type { ChartAxisRange, ChartAxisSnap } from "../components/ResultChart";
 import type { ScenarioDefinition, SimulationResult } from "@sfcr/core";
 
 import type { EditorState, RuntimeDocument } from "../lib/editorModel";
@@ -49,6 +50,10 @@ export interface ChartCell extends NotebookCellBase {
   type: "chart";
   sourceRunCellId: string;
   variables: string[];
+  axisMode?: "shared" | "separate";
+  axisSnap?: ChartAxisSnap;
+  sharedRange?: ChartAxisRange;
+  seriesRanges?: Record<string, ChartAxisRange | undefined>;
 }
 
 export interface TableCell extends NotebookCellBase {

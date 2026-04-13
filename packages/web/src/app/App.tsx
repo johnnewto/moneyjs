@@ -15,7 +15,7 @@ import { ExternalEditor } from "../components/ExternalEditor";
 import { InitialValuesEditor } from "../components/InitialValuesEditor";
 import { ImportExportPanel } from "../components/ImportExportPanel";
 import { PeriodScrubber } from "../components/PeriodScrubber";
-import { ResultChart } from "../components/ResultChart";
+import { ResultChart, type ChartAxisMode } from "../components/ResultChart";
 import { ResultTable } from "../components/ResultTable";
 import { ScenarioEditor } from "../components/ScenarioEditor";
 import { SolverPanel } from "../components/SolverPanel";
@@ -119,6 +119,7 @@ export function WorkspaceApp() {
     "Cd",
     "Hh"
   ]);
+  const [chartAxisMode, setChartAxisMode] = useState<ChartAxisMode>("shared");
   const [selectedPeriodIndex, setSelectedPeriodIndex] = useState(0);
   const solver = useSolver();
   const validationIssues = validateEditorState(editor);
@@ -353,7 +354,11 @@ export function WorkspaceApp() {
                 onChange={setSelectedPeriodIndex}
                 selectedIndex={selectedPeriodIndex}
               />
-              <ResultChart selectedIndex={selectedPeriodIndex} series={chartSeries} />
+              <ResultChart
+                axisMode={chartAxisMode}
+                selectedIndex={selectedPeriodIndex}
+                series={chartSeries}
+              />
               <ResultTable
                 title="All Series"
                 rows={resultRows}
@@ -417,21 +422,34 @@ export function WorkspaceApp() {
             ) : null}
 
             {solver.result ? (
-              <label className="field">
-                <span>Chart variables</span>
-                <input
-                  value={selectedChartVariables.join(", ")}
-                  onChange={(event) =>
-                    setSelectedChartVariables(
-                      event.target.value
-                        .split(",")
-                        .map((value) => value.trim())
-                        .filter((value) => value !== "")
-                    )
-                  }
-                  placeholder="Y, Cd, Hh"
-                />
-              </label>
+              <>
+                <label className="field">
+                  <span>Chart variables</span>
+                  <input
+                    value={selectedChartVariables.join(", ")}
+                    onChange={(event) =>
+                      setSelectedChartVariables(
+                        event.target.value
+                          .split(",")
+                          .map((value) => value.trim())
+                          .filter((value) => value !== "")
+                      )
+                    }
+                    placeholder="Y, Cd, Hh"
+                  />
+                </label>
+
+                <label className="field">
+                  <span>Left axis mode</span>
+                  <select
+                    value={chartAxisMode}
+                    onChange={(event) => setChartAxisMode(event.target.value as ChartAxisMode)}
+                  >
+                    <option value="shared">Shared axis</option>
+                    <option value="separate">One axis per series</option>
+                  </select>
+                </label>
+              </>
             ) : null}
           </section>
 

@@ -19,22 +19,10 @@
       "sourceRunCellId": "baseline-run",
       "columns": ["Households", "Production firms", "Banks", "Sum"],
       "rows": [
-        {
-          "label": "Money",
-          "values": ["+Mh", "", "-Ms", "0"]
-        },
-        {
-          "label": "Loans",
-          "values": ["", "-Ld", "+Ls", "0"]
-        },
-        {
-          "label": "Inventories",
-          "values": ["", "+INV", "", "+INV"]
-        },
-        {
-          "label": "Balance",
-          "values": ["-Mh", "", "", "-Mh"]
-        }
+        { "label": "Money", "values": ["+Mh", "", "-Ms", "0"] },
+        { "label": "Loans", "values": ["", "-Ld", "+Ls", "0"] },
+        { "label": "Inventories", "values": ["", "+INV", "", "+INV"] },
+        { "label": "Balance", "values": ["-Mh", "", "", "-Mh"] }
       ],
       "description": "Balance-sheet matrix for model DIS following the article structure.",
       "note": "Validated against the baseline simulation in the source vignette."
@@ -52,42 +40,21 @@
         "Banks_capital"
       ],
       "rows": [
-        {
-          "label": "Consumption",
-          "values": ["-C", "+C", "", "", ""]
-        },
-        {
-          "label": "Ch. Inventories",
-          "values": ["", "+d(INV)", "-d(INV)", "", ""]
-        },
-        {
-          "label": "Wages",
-          "values": ["+WB", "-WB", "", "", ""]
-        },
+        { "label": "Consumption", "values": ["-C", "+C", "", "", ""] },
+        { "label": "Ch. Inventories", "values": ["", "+d(INV)", "-d(INV)", "", ""] },
+        { "label": "Wages", "values": ["+WB", "-WB", "", "", ""] },
         {
           "label": "Interest on loans",
           "values": ["", "-rl[-1] * Ld[-1]", "", "+rl[-1] * Ls[-1]", ""]
         },
-        {
-          "label": "Entrepreneurial Profits",
-          "values": ["+EF", "-EF", "", "", ""]
-        },
-        {
-          "label": "Banks profits",
-          "values": ["+EFb", "", "", "-EFb", ""]
-        },
+        { "label": "Entrepreneurial Profits", "values": ["+EF", "-EF", "", "", ""] },
+        { "label": "Banks profits", "values": ["+EFb", "", "", "-EFb", ""] },
         {
           "label": "Interest on deposits",
           "values": ["+rm[-1] * Mh[-1]", "", "", "-rm[-1] * Mh[-1]", ""]
         },
-        {
-          "label": "Change loans",
-          "values": ["", "", "+d(Ld)", "", "-d(Ls)"]
-        },
-        {
-          "label": "Change deposits",
-          "values": ["-d(Mh)", "", "", "", "+d(Ms)"]
-        }
+        { "label": "Change loans", "values": ["", "", "+d(Ld)", "", "-d(Ls)"] },
+        { "label": "Change deposits", "values": ["-d(Mh)", "", "", "", "+d(Ms)"] }
       ],
       "description": "Transactions-flow matrix for model DIS following the article structure.",
       "note": "Validated against the baseline simulation in the source vignette."
@@ -96,10 +63,7 @@
       "id": "transaction-flow-sequence",
       "type": "sequence",
       "title": "DIS transaction flow sequence",
-      "source": {
-        "kind": "matrix",
-        "matrixCellId": "transaction-flow"
-      },
+      "source": { "kind": "matrix", "matrixCellId": "transaction-flow" },
       "description": "Sequence view generated from the DIS transactions-flow matrix at the selected simulation period."
     },
     {
@@ -266,41 +230,11 @@
           }
         ],
         "externals": [
-          {
-            "id": "ext-0-rl",
-            "name": "rl",
-            "desc": "Interest rate on loans.",
-            "kind": "constant",
-            "valueText": "0.025"
-          },
-          {
-            "id": "ext-1-pr",
-            "name": "pr",
-            "desc": "Labor productivity.",
-            "kind": "constant",
-            "valueText": "1"
-          },
-          {
-            "id": "ext-2-W",
-            "name": "W",
-            "desc": "Money wage.",
-            "kind": "constant",
-            "valueText": "0.75"
-          },
-          {
-            "id": "ext-3-add",
-            "name": "add",
-            "desc": "Spread between loan and deposit rates.",
-            "kind": "constant",
-            "valueText": "0.02"
-          },
-          {
-            "id": "ext-4-alpha0",
-            "name": "alpha0",
-            "desc": "Autonomous consumption.",
-            "kind": "constant",
-            "valueText": "15"
-          },
+          { "id": "ext-0-rl", "name": "rl", "desc": "Interest rate on loans.", "kind": "constant", "valueText": "0.025" },
+          { "id": "ext-1-pr", "name": "pr", "desc": "Labor productivity.", "kind": "constant", "valueText": "1" },
+          { "id": "ext-2-W", "name": "W", "desc": "Money wage.", "kind": "constant", "valueText": "0.75" },
+          { "id": "ext-3-add", "name": "add", "desc": "Spread between loan and deposit rates.", "kind": "constant", "valueText": "0.02" },
+          { "id": "ext-4-alpha0", "name": "alpha0", "desc": "Autonomous consumption.", "kind": "constant", "valueText": "15" },
           {
             "id": "ext-5-alpha1",
             "name": "alpha1",
@@ -308,48 +242,12 @@
             "kind": "constant",
             "valueText": "0.8"
           },
-          {
-            "id": "ext-6-alpha2",
-            "name": "alpha2",
-            "desc": "Propensity to consume out of wealth.",
-            "kind": "constant",
-            "valueText": "0.1"
-          },
-          {
-            "id": "ext-7-beta",
-            "name": "beta",
-            "desc": "Speed of sales expectations adjustment.",
-            "kind": "constant",
-            "valueText": "0.75"
-          },
-          {
-            "id": "ext-8-epsilon",
-            "name": "epsilon",
-            "desc": "Speed of income expectations adjustment.",
-            "kind": "constant",
-            "valueText": "0.75"
-          },
-          {
-            "id": "ext-9-gamma",
-            "name": "gamma",
-            "desc": "Speed of inventory adjustment.",
-            "kind": "constant",
-            "valueText": "0.25"
-          },
-          {
-            "id": "ext-10-phi",
-            "name": "phi",
-            "desc": "Costing margin.",
-            "kind": "constant",
-            "valueText": "0.25"
-          },
-          {
-            "id": "ext-11-sigma_T",
-            "name": "sigma_T",
-            "desc": "Target inventory-to-sales ratio.",
-            "kind": "constant",
-            "valueText": "0.15"
-          }
+          { "id": "ext-6-alpha2", "name": "alpha2", "desc": "Propensity to consume out of wealth.", "kind": "constant", "valueText": "0.1" },
+          { "id": "ext-7-beta", "name": "beta", "desc": "Speed of sales expectations adjustment.", "kind": "constant", "valueText": "0.75" },
+          { "id": "ext-8-epsilon", "name": "epsilon", "desc": "Speed of income expectations adjustment.", "kind": "constant", "valueText": "0.75" },
+          { "id": "ext-9-gamma", "name": "gamma", "desc": "Speed of inventory adjustment.", "kind": "constant", "valueText": "0.25" },
+          { "id": "ext-10-phi", "name": "phi", "desc": "Costing margin.", "kind": "constant", "valueText": "0.25" },
+          { "id": "ext-11-sigma_T", "name": "sigma_T", "desc": "Target inventory-to-sales ratio.", "kind": "constant", "valueText": "0.15" }
         ],
         "initialValues": [],
         "options": {
@@ -382,7 +280,12 @@
       "type": "chart",
       "title": "Baseline headline variables",
       "sourceRunCellId": "baseline-run",
-      "variables": ["ydhs", "c", "p", "Mh"]
+      "variables": ["ydhs", "c", "p", "Mh"],
+      "axisMode": "separate",
+      "axisSnap": { "enabled": true, "tolerance": 0.5 },
+      "seriesRanges": {
+        "p": { "mode": "auto", "includeZero": true }
+      }
     },
     {
       "id": "baseline-table",
@@ -406,13 +309,9 @@
       "scenario": {
         "shocks": [
           {
-            "startPeriodInclusive": 5,
-            "endPeriodInclusive": 40,
+            "rangeInclusive": [5, 40],
             "variables": {
-              "phi": {
-                "kind": "constant",
-                "value": 0.35
-              }
+              "phi": { "kind": "constant", "value": 0.35 }
             }
           }
         ]
@@ -424,7 +323,12 @@
       "type": "chart",
       "title": "Scenario 1 consumption and income",
       "sourceRunCellId": "scenario-1-run",
-      "variables": ["c", "ydhs", "p"]
+      "variables": ["c", "ydhs", "p"],
+      "axisMode": "separate",
+      "axisSnap": { "enabled": true, "tolerance": 0.5 },
+      "seriesRanges": {
+        "p": { "mode": "auto", "includeZero": true }
+      }
     },
     {
       "id": "scenario-2-note",
@@ -441,13 +345,9 @@
       "scenario": {
         "shocks": [
           {
-            "startPeriodInclusive": 5,
-            "endPeriodInclusive": 50,
+            "rangeInclusive": [5, 50],
             "variables": {
-              "sigma_T": {
-                "kind": "constant",
-                "value": 0.25
-              }
+              "sigma_T": { "kind": "constant", "value": 0.25 }
             }
           }
         ]
@@ -459,7 +359,13 @@
       "type": "chart",
       "title": "Scenario 2 inventories and income",
       "sourceRunCellId": "scenario-2-run",
-      "variables": ["ydhs", "c", "inv", "inv_E"]
+      "variables": ["ydhs", "c", "inv", "inv_E"],
+      "axisMode": "separate",
+      "axisSnap": { "enabled": true, "tolerance": 0.5 },
+      "seriesRanges": {
+        "inv": { "mode": "auto", "includeZero": true },
+        "inv_E": { "mode": "auto", "includeZero": true }
+      }
     }
   ]
 }

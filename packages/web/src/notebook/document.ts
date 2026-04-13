@@ -1,7 +1,7 @@
 import type { NotebookCell, NotebookDocument } from "./types";
 
 export function notebookToJson(document: NotebookDocument): string {
-  return JSON.stringify(document, null, 2);
+  return JSON.stringify(serializeNotebookDocument(document), null, 2);
 }
 
 export function notebookToMarkdown(document: NotebookDocument): string {
@@ -19,7 +19,7 @@ export function notebookToMarkdown(document: NotebookDocument): string {
     lines.push(`## ${cell.title}`);
     lines.push("");
     lines.push(`\`\`\`sfcr-${cell.type}`);
-    lines.push(JSON.stringify(cell, null, 2));
+    lines.push(JSON.stringify(serializeNotebookCell(cell), null, 2));
     lines.push("```");
     lines.push("");
 
@@ -48,7 +48,7 @@ export function notebookFromJson(source: string): NotebookDocument {
 
   parsed.cells.forEach(validateCell);
 
-  return parsed as NotebookDocument;
+  return normalizeNotebookDocument(parsed as NotebookDocument);
 }
 
 export function notebookFromMarkdown(source: string): NotebookDocument {
@@ -72,7 +72,7 @@ export function notebookFromMarkdown(source: string): NotebookDocument {
     if (fenceMatch) {
       const cell = JSON.parse(fenceMatch[2]) as NotebookCell;
       validateCell(cell);
-      cells.push(cell);
+      cells.push(normalizeNotebookCell(cell));
     } else if (body) {
       markdownIndex += 1;
       cells.push({
@@ -93,6 +93,63 @@ export function notebookFromMarkdown(source: string): NotebookDocument {
     title,
     metadata: { version: 1 },
     cells
+  };
+}
+
+export function serializeNotebookCell(cell: NotebookCell): NotebookCell {
+  if (cell.type !== "run" || !cell.scenario) {
+    return structuredClone(cell);
+  }
+
+  return {
+    ...cell,
+    scenario: {
+      ...cell.scenario,
+      shocks: cell.scenario.shocks.map((shock) => {
+        const { startPeriodInclusive, endPeriodInclusive, ...rest } = shock;
+        return {
+          ...rest,
+          rangeInclusive: [startPeriodInclusive, endPeriodInclusive]
+        };
+      })
+    }
+  } as unknown as NotebookCell;
+}
+
+function serializeNotebookDocument(document: NotebookDocument): NotebookDocument {
+  return {
+    ...document,
+    cells: document.cells.map(serializeNotebookCell)
+  };
+}
+
+function normalizeNotebookDocument(document: NotebookDocument): NotebookDocument {
+  return {
+    ...document,
+    cells: document.cells.map(normalizeNotebookCell)
+  };
+}
+
+function normalizeNotebookCell(cell: NotebookCell): NotebookCell {
+  if (cell.type !== "run" || !cell.scenario) {
+    return cell;
+  }
+
+  return {
+    ...cell,
+    scenario: {
+      ...cell.scenario,
+      shocks: cell.scenario.shocks.map((shock) => {
+        const candidate = shock as typeof shock & { rangeInclusive?: [number, number] };
+        const start = candidate.rangeInclusive?.[0] ?? shock.startPeriodInclusive;
+        const end = candidate.rangeInclusive?.[1] ?? shock.endPeriodInclusive;
+        return {
+          ...shock,
+          startPeriodInclusive: start,
+          endPeriodInclusive: end
+        };
+      })
+    }
   };
 }
 

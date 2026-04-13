@@ -3,15 +3,41 @@ interface ChartSeries {
   values: number[];
 }
 
+export type ChartAxisMode = "shared" | "separate";
+export type ChartAxisRangeMode = "auto" | "manual";
+
+export interface ChartAxisRange {
+  includeZero?: boolean;
+  max?: number;
+  min?: number;
+  mode: ChartAxisRangeMode;
+}
+
+export interface ChartAxisSnap {
+  enabled: boolean;
+  tolerance?: number;
+}
+
 interface ResultChartProps {
+  axisMode?: ChartAxisMode;
+  axisSnap?: ChartAxisSnap;
+  seriesRanges?: Record<string, ChartAxisRange | undefined>;
   selectedIndex?: number;
   series: ChartSeries[];
+  sharedRange?: ChartAxisRange;
 }
 
 const SERIES_COLORS = ["#111827", "#ec4899", "#ea580c", "#6366f1", "#059669", "#0284c7"];
 const AXIS_TICK_COUNT = 5;
 
-export function ResultChart({ series, selectedIndex = 0 }: ResultChartProps) {
+export function ResultChart({
+  axisMode = "shared",
+  axisSnap,
+  seriesRanges,
+  series,
+  sharedRange,
+  selectedIndex = 0
+}: ResultChartProps) {
   const normalizedSeries = series
     .map((entry, index) => ({
       ...entry,
@@ -31,7 +57,8 @@ export function ResultChart({ series, selectedIndex = 0 }: ResultChartProps) {
   const rightPadding = 20;
   const axisSpacing = 42;
   const primaryAxisWidth = 56;
-  const leftPadding = primaryAxisWidth + axisSpacing * Math.max(normalizedSeries.length - 1, 0);
+  const axisCount = axisMode === "separate" ? normalizedSeries.length : 1;
+  const leftPadding = primaryAxisWidth + axisSpacing * Math.max(axisCount - 1, 0);
   const plotWidth = width - leftPadding - rightPadding;
   const plotHeight = height - topPadding - bottomPadding;
   const xTickCount = Math.min(6, normalizedSeries[0]?.values.length ?? 6);
@@ -41,21 +68,22 @@ export function ResultChart({ series, selectedIndex = 0 }: ResultChartProps) {
     Math.max((normalizedSeries[0]?.values.length ?? 1) - 1, 0)
   );
 
-  const axisMetrics = normalizedSeries.map((entry) => {
-    const minValue = Math.min(...entry.finiteValues);
-    const maxValue = Math.max(...entry.finiteValues);
-    const range = maxValue - minValue || Math.max(Math.abs(maxValue), 1);
-    const paddedMin = minValue === maxValue ? minValue - range * 0.05 : minValue;
-    const paddedMax = minValue === maxValue ? maxValue + range * 0.05 : maxValue;
-
+  const baseAxisMetrics = normalizedSeries.map((entry) => {
     return {
       ...entry,
-      min: paddedMin,
-      max: paddedMax,
-      range: paddedMax - paddedMin || 1,
-      ticks: buildNumericTicks(paddedMin, paddedMax, AXIS_TICK_COUNT)
+      axisRangeConfig: seriesRanges?.[entry.name],
+      ...buildAxisMetrics(entry.finiteValues, seriesRanges?.[entry.name])
     };
   });
+  const axisMetrics =
+    axisMode === "separate" ? snapAxisMetrics(baseAxisMetrics, axisSnap) : baseAxisMetrics;
+  const sharedFiniteValues = axisMetrics.flatMap((entry) => entry.finiteValues);
+  const sharedMetrics = buildAxisMetrics(sharedFiniteValues, sharedRange);
+  const primaryMetrics = axisMode === "shared" ? sharedMetrics : axisMetrics[0];
+  const ariaLabel =
+    axisMode === "shared"
+      ? "Simulation result chart with shared left axis"
+      : "Simulation result chart with multiple left axes";
 
   return (
     <section className="result-panel">
@@ -75,7 +103,7 @@ export function ResultChart({ series, selectedIndex = 0 }: ResultChartProps) {
         className="result-chart"
         viewBox={`0 0 ${width} ${height}`}
         role="img"
-        aria-label="Simulation result chart with multiple left axes"
+        aria-label={ariaLabel}
       >
         <rect
           x={leftPadding}
@@ -87,8 +115,8 @@ export function ResultChart({ series, selectedIndex = 0 }: ResultChartProps) {
           strokeWidth="1"
         />
 
-        {axisMetrics[0]?.ticks.map((tick) => {
-          const y = toY(tick, topPadding, plotHeight, axisMetrics[0].min, axisMetrics[0].range);
+        {primaryMetrics?.ticks.map((tick) => {
+          const y = toY(tick, topPadding, plotHeight, primaryMetrics.min, primaryMetrics.range);
           return (
             <g key={`grid-${tick}`}>
               <line
@@ -132,7 +160,7 @@ export function ResultChart({ series, selectedIndex = 0 }: ResultChartProps) {
           strokeWidth="1.5"
         />
 
-        {axisMetrics.map((entry, index) => {
+        {(axisMode === "shared" ? axisMetrics.slice(0, 1) : axisMetrics).map((entry, index) => {
           const axisX = leftPadding - axisSpacing * index;
           const labelX = axisX - 12;
 
@@ -150,16 +178,22 @@ export function ResultChart({ series, selectedIndex = 0 }: ResultChartProps) {
               <text
                 x={axisX}
                 y={topPadding - 8}
-                fill={entry.color}
+                fill={axisMode === "shared" ? "#111827" : entry.color}
                 fontSize="12"
                 fontWeight="700"
                 textAnchor="middle"
               >
-                {entry.name}
+                {axisMode === "shared" ? "Value" : entry.name}
               </text>
 
-              {entry.ticks.map((tick) => {
-                const y = toY(tick, topPadding, plotHeight, entry.min, entry.range);
+              {(axisMode === "shared" ? sharedMetrics.ticks : entry.ticks).map((tick) => {
+                const y = toY(
+                  tick,
+                  topPadding,
+                  plotHeight,
+                  axisMode === "shared" ? sharedMetrics.min : entry.min,
+                  axisMode === "shared" ? sharedMetrics.range : entry.range
+                );
                 return (
                   <g key={`${entry.name}-${tick}`}>
                     <line
@@ -167,13 +201,13 @@ export function ResultChart({ series, selectedIndex = 0 }: ResultChartProps) {
                       x2={axisX}
                       y1={y}
                       y2={y}
-                      stroke={entry.color}
+                      stroke={axisMode === "shared" ? "#0f172a" : entry.color}
                       strokeWidth="1.5"
                     />
                     <text
                       x={labelX}
                       y={y + 3}
-                      fill={entry.color}
+                      fill={axisMode === "shared" ? "#111827" : entry.color}
                       fontSize="11"
                       textAnchor="end"
                     >
@@ -182,30 +216,42 @@ export function ResultChart({ series, selectedIndex = 0 }: ResultChartProps) {
                   </g>
                 );
               })}
-
-              <polyline
-                fill="none"
-                points={toPolylinePoints(entry.values, leftPadding, topPadding, plotWidth, plotHeight, entry.min, entry.range)}
-                stroke={entry.color}
-                strokeWidth={index === 0 ? 2.75 : 2.25}
-              />
-              <circle
-                cx={toX(activeIndex, leftPadding, plotWidth, entry.values.length)}
-                cy={toY(
-                  Number.isFinite(entry.values[activeIndex]) ? entry.values[activeIndex] : entry.min,
-                  topPadding,
-                  plotHeight,
-                  entry.min,
-                  entry.range
-                )}
-                fill="#ffffff"
-                r="4.5"
-                stroke={entry.color}
-                strokeWidth="2"
-              />
             </g>
           );
         })}
+
+        {axisMetrics.map((entry, index) => (
+          <g key={`series-${entry.name}`}>
+            <polyline
+              fill="none"
+              points={toPolylinePoints(
+                entry.values,
+                leftPadding,
+                topPadding,
+                plotWidth,
+                plotHeight,
+                axisMode === "shared" ? sharedMetrics.min : entry.min,
+                axisMode === "shared" ? sharedMetrics.range : entry.range
+              )}
+              stroke={entry.color}
+              strokeWidth={index === 0 ? 2.75 : 2.25}
+            />
+            <circle
+              cx={toX(activeIndex, leftPadding, plotWidth, entry.values.length)}
+              cy={toY(
+                Number.isFinite(entry.values[activeIndex]) ? entry.values[activeIndex] : entry.min,
+                topPadding,
+                plotHeight,
+                axisMode === "shared" ? sharedMetrics.min : entry.min,
+                axisMode === "shared" ? sharedMetrics.range : entry.range
+              )}
+              fill="#ffffff"
+              r="4.5"
+              stroke={entry.color}
+              strokeWidth="2"
+            />
+          </g>
+        ))}
 
         <text
           x={leftPadding + plotWidth / 2}
@@ -218,14 +264,136 @@ export function ResultChart({ series, selectedIndex = 0 }: ResultChartProps) {
         </text>
       </svg>
 
-      <div className="chart-scale chart-scale-multi">
-        {axisMetrics.map((entry) => (
-          <span key={`scale-${entry.name}`} style={{ color: entry.color }}>
-            {entry.name}: {formatAxisValue(entry.min)} to {formatAxisValue(entry.max)}
-          </span>
-        ))}
+      <div className={`chart-scale ${axisMode === "shared" ? "chart-scale-shared" : "chart-scale-multi"}`}>
+        {axisMode === "shared" ? (
+          <span>Shared axis: {formatAxisValue(sharedMetrics.min)} to {formatAxisValue(sharedMetrics.max)}</span>
+        ) : (
+          axisMetrics.map((entry) => (
+            <span key={`scale-${entry.name}`} style={{ color: entry.color }}>
+              {entry.name}: {formatAxisValue(entry.min)} to {formatAxisValue(entry.max)}
+            </span>
+          ))
+        )}
       </div>
     </section>
+  );
+}
+
+function buildAxisMetrics(
+  finiteValues: number[],
+  axisRange?: ChartAxisRange
+): { min: number; max: number; range: number; ticks: number[] } {
+  const autoBounds = buildAutoBounds(finiteValues, axisRange?.includeZero === true);
+  const manualMin = axisRange?.mode === "manual" ? axisRange.min : undefined;
+  const manualMax = axisRange?.mode === "manual" ? axisRange.max : undefined;
+  const resolvedMin = manualMin ?? autoBounds.min;
+  const resolvedMax = manualMax ?? autoBounds.max;
+
+  if (!(resolvedMin < resolvedMax)) {
+    throw new Error("Axis range min must be less than max.");
+  }
+
+  return {
+    min: resolvedMin,
+    max: resolvedMax,
+    range: resolvedMax - resolvedMin || 1,
+    ticks: buildNumericTicks(resolvedMin, resolvedMax, AXIS_TICK_COUNT)
+  };
+}
+
+function buildAutoBounds(finiteValues: number[], includeZero: boolean): { min: number; max: number } {
+  const minValue = Math.min(...finiteValues);
+  const maxValue = Math.max(...finiteValues);
+  const range = maxValue - minValue || Math.max(Math.abs(maxValue), 1);
+  let paddedMin = minValue === maxValue ? minValue - range * 0.05 : minValue;
+  let paddedMax = minValue === maxValue ? maxValue + range * 0.05 : maxValue;
+
+  if (includeZero) {
+    paddedMin = Math.min(paddedMin, 0);
+    paddedMax = Math.max(paddedMax, 0);
+  }
+
+  if (paddedMin === paddedMax) {
+    paddedMax = paddedMin + 1;
+  }
+
+  return { min: paddedMin, max: paddedMax };
+}
+
+function snapAxisMetrics<
+  T extends {
+    axisRangeConfig?: ChartAxisRange;
+    max: number;
+    min: number;
+    range: number;
+    ticks: number[];
+  }
+>(metrics: T[], axisSnap?: ChartAxisSnap): T[] {
+  if (!axisSnap?.enabled || metrics.length < 2) {
+    return metrics;
+  }
+
+  const tolerance = axisSnap.tolerance ?? 0.1;
+  const nextMetrics = [...metrics];
+  const visited = new Set<number>();
+
+  for (let index = 0; index < nextMetrics.length; index += 1) {
+    if (visited.has(index)) {
+      continue;
+    }
+
+    const baseMetric = nextMetrics[index];
+    if (baseMetric.axisRangeConfig?.mode === "manual") {
+      visited.add(index);
+      continue;
+    }
+
+    const group = [index];
+    for (let candidateIndex = index + 1; candidateIndex < nextMetrics.length; candidateIndex += 1) {
+      const candidate = nextMetrics[candidateIndex];
+      if (candidate.axisRangeConfig?.mode === "manual") {
+        continue;
+      }
+
+      if (rangesAreSnapCompatible(baseMetric, candidate, tolerance)) {
+        group.push(candidateIndex);
+      }
+    }
+
+    if (group.length === 1) {
+      visited.add(index);
+      continue;
+    }
+
+    const snappedMin = Math.min(...group.map((groupIndex) => nextMetrics[groupIndex].min));
+    const snappedMax = Math.max(...group.map((groupIndex) => nextMetrics[groupIndex].max));
+    const snappedRange = snappedMax - snappedMin || 1;
+    const snappedTicks = buildNumericTicks(snappedMin, snappedMax, AXIS_TICK_COUNT);
+
+    group.forEach((groupIndex) => {
+      nextMetrics[groupIndex] = {
+        ...nextMetrics[groupIndex],
+        min: snappedMin,
+        max: snappedMax,
+        range: snappedRange,
+        ticks: snappedTicks
+      };
+      visited.add(groupIndex);
+    });
+  }
+
+  return nextMetrics;
+}
+
+function rangesAreSnapCompatible(
+  left: { min: number; max: number; range: number },
+  right: { min: number; max: number; range: number },
+  tolerance: number
+): boolean {
+  const referenceRange = Math.max(left.range, right.range, 1);
+  return (
+    Math.abs(left.min - right.min) <= tolerance * referenceRange &&
+    Math.abs(left.max - right.max) <= tolerance * referenceRange
   );
 }
 
@@ -260,7 +428,8 @@ function toY(
   min: number,
   range: number
 ): number {
-  return topPadding + plotHeight - ((value - min) / range) * plotHeight;
+  const rawY = topPadding + plotHeight - ((value - min) / range) * plotHeight;
+  return Math.max(topPadding, Math.min(topPadding + plotHeight, rawY));
 }
 
 function buildNumericTicks(min: number, max: number, count: number): number[] {
