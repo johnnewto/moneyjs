@@ -7,6 +7,7 @@ import gl6DisRegressionFixture from "./fixtures/r-regressions/gl6-dis.json";
 import gl7InsoutRegressionFixture from "./fixtures/r-regressions/gl7-insout.json";
 import gl8GrowthRegressionFixture from "./fixtures/r-regressions/gl8-growth.json";
 import { buildRuntimeConfig } from "../src/lib/editorModel";
+import { buildEditorStateForNotebookModel } from "../src/notebook/modelSections";
 import { NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
 
 interface RegressionFixture {
@@ -31,15 +32,7 @@ describe("notebook template regressions against R fixtures", () => {
   for (const fixture of FIXTURES) {
     it(`matches ${fixture.templateId} baseline and scenario checkpoints`, () => {
       const document = NOTEBOOK_TEMPLATES[fixture.templateId].document;
-      const modelCell = document.cells.find((cell) => cell.type === "model");
-
-      expect(modelCell?.type).toBe("model");
-      if (!modelCell || modelCell.type !== "model") {
-        throw new Error(`Model cell missing for template ${fixture.templateId}`);
-      }
-
-      const runtime = buildRuntimeConfig(modelCell.editor);
-      const baselineResult = runBaseline(runtime.model, runtime.options);
+      const baselineResults = new Map<string, ReturnType<typeof runBaseline>>();
 
       for (const [cellId, checkpoint] of Object.entries(fixture.checkpoints)) {
         const runCell = document.cells.find((cell) => cell.id === cellId);
@@ -48,14 +41,38 @@ describe("notebook template regressions against R fixtures", () => {
           throw new Error(`Run cell ${cellId} missing for template ${fixture.templateId}`);
         }
 
+        const editor = buildEditorStateForNotebookModel(document, runCell);
+        expect(editor).not.toBeNull();
+        if (!editor) {
+          throw new Error(`Source model missing for run cell ${cellId} in template ${fixture.templateId}`);
+        }
+
+        const runtime = buildRuntimeConfig(editor);
+        const runOptions =
+          runCell.periods == null ? runtime.options : { ...runtime.options, periods: runCell.periods };
+
         const result =
           runCell.mode === "baseline"
-            ? baselineResult
-            : runScenario(
-                baselineResult,
-                runCell.scenario ?? { shocks: [] },
-                runtime.options
-              );
+            ? (() => {
+                const baseline = runBaseline(runtime.model, runOptions);
+                baselineResults.set(runCell.id, baseline);
+                return baseline;
+              })()
+            : (() => {
+                const baselineRunCellId =
+                  runCell.baselineRunCellId ??
+                  document.cells.find(
+                    (cell): cell is typeof runCell =>
+                      cell.type === "run" && cell.mode === "baseline" && cell.sourceModelId === runCell.sourceModelId
+                  )?.id;
+                expect(baselineRunCellId).toBeTruthy();
+                const baseline = baselineRunCellId ? baselineResults.get(baselineRunCellId) : undefined;
+                expect(baseline).toBeDefined();
+                if (!baseline) {
+                  throw new Error(`Baseline result missing for scenario run ${cellId} in template ${fixture.templateId}`);
+                }
+                return runScenario(baseline, runCell.scenario ?? { shocks: [] }, runOptions);
+              })();
 
         for (const [periodText, expectedValues] of Object.entries(checkpoint.periods)) {
           const periodIndex = Number(periodText) - 1;

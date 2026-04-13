@@ -17,6 +17,8 @@ export interface ChartAxisRange {
 interface ResultChartProps {
   axisMode?: ChartAxisMode;
   axisSnapTolarance?: number;
+  overlaySeries?: ChartSeries[];
+  periodLabelOffset?: number;
   seriesRanges?: Record<string, ChartAxisRange | undefined>;
   selectedIndex?: number;
   series: ChartSeries[];
@@ -31,6 +33,8 @@ const AXIS_TICK_COUNT = 5;
 export function ResultChart({
   axisMode = "shared",
   axisSnapTolarance,
+  overlaySeries = [],
+  periodLabelOffset = 0,
   seriesRanges,
   series,
   sharedRange,
@@ -46,6 +50,23 @@ export function ResultChart({
       finiteValues: entry.values.filter(Number.isFinite)
     }))
     .filter((entry) => entry.values.length > 1 && entry.finiteValues.length > 0);
+  const normalizedOverlaySeries = overlaySeries
+    .map((entry) => {
+      const matchingSeries = normalizedSeries.find((candidate) => candidate.name === entry.name);
+      return matchingSeries
+        ? {
+            ...entry,
+            color: matchingSeries.color,
+            finiteValues: entry.values.filter(Number.isFinite)
+          }
+        : null;
+    })
+    .filter(
+      (
+        entry
+      ): entry is ChartSeries & { color: string; finiteValues: number[] } =>
+        entry != null && entry.values.length > 1 && entry.finiteValues.length > 0
+    );
 
   if (normalizedSeries.length === 0) {
     return null;
@@ -105,6 +126,7 @@ export function ResultChart({
           hoveredMetric,
           resolvedHoverVisibleIndex,
           visibleStartIndex,
+          periodLabelOffset,
           leftPadding,
           topPadding,
           plotWidth,
@@ -201,7 +223,7 @@ export function ResultChart({
                 strokeWidth="1"
               />
               <text x={x} y={height - 12} fill="#111827" fontSize="11" textAnchor="middle">
-                {tickIndex + 1}
+                {tickIndex + 1 + periodLabelOffset}
               </text>
             </g>
           );
@@ -313,6 +335,28 @@ export function ResultChart({
               hoveredDatum ? (hoveredDatum.seriesName === entry.name ? " is-active" : " is-dimmed") : ""
             }`}
           >
+            {normalizedOverlaySeries
+              .filter((overlay) => overlay.name === entry.name)
+              .map((overlay) => (
+                <polyline
+                  key={`overlay-${entry.name}`}
+                  fill="none"
+                  points={toPolylinePoints(
+                    overlay.values.slice(visibleStartIndex, visibleEndIndex + 1),
+                    leftPadding,
+                    topPadding,
+                    plotWidth,
+                    plotHeight,
+                    axisMode === "shared" ? sharedMetrics.min : entry.min,
+                    axisMode === "shared" ? sharedMetrics.range : entry.range
+                  )}
+                  pointerEvents="none"
+                  stroke={entry.color}
+                  strokeDasharray="5 5"
+                  strokeOpacity={hoveredDatum ? (hoveredDatum.seriesName === entry.name ? 0.28 : 0.12) : 0.18}
+                  strokeWidth="2"
+                />
+              ))}
             <polyline
               fill="none"
               points={toPolylinePoints(
@@ -406,7 +450,7 @@ export function ResultChart({
 
       <div className={`chart-scale ${axisMode === "shared" ? "chart-scale-shared" : "chart-scale-multi"}`}>
         <span>
-          Time axis: {resolvedTimeRange.startPeriodInclusive} to {resolvedTimeRange.endPeriodInclusive}
+          Time axis: {resolvedTimeRange.startPeriodInclusive + periodLabelOffset} to {resolvedTimeRange.endPeriodInclusive + periodLabelOffset}
         </span>
         {axisMode === "shared" ? (
           <span>Shared axis: {formatAxisValue(sharedMetrics.min)} to {formatAxisValue(sharedMetrics.max)}</span>
@@ -432,6 +476,7 @@ function buildHoverTooltip(
   },
   visibleIndex: number,
   visibleStartIndex: number,
+  periodLabelOffset: number,
   leftPadding: number,
   topPadding: number,
   plotWidth: number,
@@ -458,7 +503,7 @@ function buildHoverTooltip(
 
   return {
     color: metric.color,
-    period: visibleStartIndex + visibleIndex + 1,
+    period: visibleStartIndex + visibleIndex + 1 + periodLabelOffset,
     seriesName: metric.name,
     tooltipWidth,
     tooltipX: prefersLeft ? x - tooltipWidth - 12 : x + 12,

@@ -393,7 +393,7 @@
       "seriesRanges": { "PI": { "includeZero": true }, "GRk": { "includeZero": true }, "BLR": { "includeZero": true }, "CAR": { "includeZero": true } }
     },
     { "id": "baseline-table", "type": "table", "title": "Baseline variable summary", "sourceRunCellId": "baseline-run", "variables": ["Yk", "Ck", "Ik", "P", "Rl", "BLR", "CAR", "GD"] },
-    { "id": "scenario-1-note", "type": "markdown", "title": "Scenario 1", "source": "Scenario 1 follows the article's first experiment: `omega0` rises from `-0.20594` to `-0.1` from periods 5 to 150, raising the target real wage." },
+    { "id": "scenario-1-note", "type": "markdown", "title": "Scenario 1", "source": "# Scenario 1 follows the article's first experiment: `omega0` rises from `-0.20594` to `-0.1` from periods 5 to 150, raising the target real wage.\n- [x] Write the press release\n- [ ] Update the website\n- [ ] Contact the media" },
     {
       "id": "scenario-1-run",
       "type": "run",
@@ -407,6 +407,9 @@
           }
         ]
       },
+      "baselineRunCellId": "baseline-run",
+      "baselineStartPeriod": 100,
+      "periods": 250,
       "resultKey": "gl8_growth_s1",
       "sourceModelId": "equations"
     },
@@ -434,6 +437,8 @@
           }
         ]
       },
+      "baselineRunCellId": "baseline-run",
+      "periods": 350,
       "resultKey": "gl8_growth_s2",
       "sourceModelId": "equations"
     },
@@ -452,6 +457,8 @@
           }
         ]
       },
+      "baselineRunCellId": "baseline-run",
+      "periods": 350,
       "resultKey": "gl8_growth_s10",
       "sourceModelId": "equations"
     },

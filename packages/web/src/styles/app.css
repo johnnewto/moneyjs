@@ -376,6 +376,7 @@ textarea {
 
 .notebook-source-textarea {
   background: transparent;
+  border-radius: 0 14px 14px 0;
   color: transparent;
   caret-color: #14213d;
   max-height: 640px;
@@ -1714,6 +1715,32 @@ textarea {
   margin-top: 0;
 }
 
+.notebook-run-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.45rem;
+  margin-bottom: 0.55rem;
+}
+
+.notebook-run-meta-chip {
+  align-items: baseline;
+  background: rgba(248, 250, 252, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 999px;
+  color: #64748b;
+  display: inline-flex;
+  font-size: 0.75rem;
+  gap: 0.28rem;
+  line-height: 1.2;
+  padding: 0.18rem 0.48rem;
+}
+
+.notebook-run-meta-chip strong {
+  color: #334155;
+  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+  font-size: 0.74rem;
+}
+
 .notebook-inline-list {
   color: #475569;
   display: grid;
@@ -1866,6 +1893,33 @@ textarea {
 }
 
 .notebook-source-codeframe {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  position: relative;
+}
+
+.notebook-source-gutter {
+  background: rgba(241, 245, 249, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  border-right: 0;
+  border-radius: 14px 0 0 14px;
+  color: #94a3b8;
+  font: 0.95rem/1.45 "IBM Plex Mono", "SFMono-Regular", monospace;
+  margin: 0;
+  max-height: 640px;
+  min-width: 3.25rem;
+  overflow: hidden;
+  padding: 0.6rem 0.5rem 0.6rem 0.7rem;
+  text-align: right;
+  user-select: none;
+  white-space: pre;
+}
+
+.notebook-source-gutter code {
+  display: block;
+}
+
+.notebook-source-editor-pane {
   position: relative;
 }
 
@@ -1876,7 +1930,7 @@ textarea {
 
 .notebook-source-highlight {
   background: #fffdf7;
-  border-radius: 14px;
+  border-radius: 0 14px 14px 0;
   color: #334155;
   inset: 0;
   margin: 0;
@@ -1931,6 +1985,20 @@ textarea {
   background: rgba(240, 253, 244, 0.9);
   border-color: rgba(22, 163, 74, 0.18);
   color: #166534;
+}
+
+.notebook-source-exit-hint {
+  background: rgba(248, 250, 252, 0.88);
+  border: 1px dashed rgba(148, 163, 184, 0.34);
+  border-radius: 10px;
+  color: #475569;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  padding: 0.38rem 0.55rem;
+}
+
+.notebook-source-exit-hint strong {
+  color: #1e293b;
 }
 
 .notebook-model-editor {

@@ -254,6 +254,8 @@
           }
         ]
       },
+      "baselineRunCellId": "baseline-run",
+      "periods": 70,
       "resultKey": "gl7_insout_s1",
       "sourceModelId": "equations"
     },
@@ -281,6 +283,9 @@
           }
         ]
       },
+      "baselineRunCellId": "baseline-run",
+      "baselineStartPeriod": 60,
+      "periods": 55,
       "resultKey": "gl7_insout_s2",
       "sourceModelId": "equations"
     },
@@ -312,6 +317,8 @@
           }
         ]
       },
+      "baselineRunCellId": "baseline-run",
+      "periods": 55,
       "resultKey": "gl7_insout_s7",
       "sourceModelId": "equations"
     },

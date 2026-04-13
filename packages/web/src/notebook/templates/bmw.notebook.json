@@ -105,6 +105,8 @@
           }
         ]
       },
+      "baselineRunCellId": "baseline-newton",
+      "periods": 50,
       "resultKey": "bmw_s1",
       "sourceModelId": "equations-newton"
     },
@@ -123,6 +125,8 @@
           }
         ]
       },
+      "baselineRunCellId": "baseline-newton",
+      "periods": 50,
       "resultKey": "bmw_s2",
       "sourceModelId": "equations-newton"
     },

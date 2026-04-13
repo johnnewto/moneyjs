@@ -644,6 +644,12 @@ function NotebookCellView({
   const insertMenuRef = useRef<HTMLDivElement | null>(null);
   const sourceTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const sourceHighlightRef = useRef<HTMLPreElement | null>(null);
+  const sourceGutterRef = useRef<HTMLPreElement | null>(null);
+  const currentSerializedBody = serializeCellBody(cell);
+  const hasSourceEdits = titleDraft !== cell.title || sourceDraft !== currentSerializedBody;
+  const sourceLineNumbers = Array.from({ length: sourceDraft.split("\n").length }, (_, index) =>
+    String(index + 1)
+  ).join("\n");
 
   useEffect(() => {
     setTitleDraft(cell.title);
@@ -721,6 +727,9 @@ function NotebookCellView({
 
     sourceHighlightRef.current.scrollTop = sourceTextareaRef.current.scrollTop;
     sourceHighlightRef.current.scrollLeft = sourceTextareaRef.current.scrollLeft;
+    if (sourceGutterRef.current) {
+      sourceGutterRef.current.scrollTop = sourceTextareaRef.current.scrollTop;
+    }
   }
 
   function handleApplySource(): void {
@@ -733,6 +742,16 @@ function NotebookCellView({
     } catch (applyError) {
       setSourceError(applyError instanceof Error ? applyError.message : "Invalid cell source");
     }
+  }
+
+  function handleCancelSource(): void {
+    setTitleDraft(cell.title);
+    setSourceDraft(serializeCellBody(cell));
+    setSourceLayoutMode("compact");
+    setOpenSourceMenu(null);
+    setSourceError(null);
+    setSourceValidationError(null);
+    setIsEditingSource(false);
   }
 
   function handleSourceLayoutModeChange(nextMode: "pretty" | "compact"): void {
@@ -776,13 +795,29 @@ function NotebookCellView({
             ) : null}
           </div>
           {isSourceEditable(cell) ? (
-            <button
-              type="button"
-              className="notebook-run-button notebook-source-toggle"
-              onClick={() => setIsEditingSource((current) => !current)}
-            >
-              {isEditingSource ? "Hide source" : "Edit source"}
-            </button>
+            isEditingSource ? (
+              <div className="notebook-run-actions">
+                <button
+                  type="button"
+                  className="notebook-run-button notebook-source-toggle"
+                  onClick={handleApplySource}
+                  disabled={!hasSourceEdits || sourceValidationError != null}
+                >
+                  Apply
+                </button>
+                <button type="button" className="notebook-run-button notebook-source-toggle" onClick={handleCancelSource}>
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="notebook-run-button notebook-source-toggle"
+                onClick={() => setIsEditingSource(true)}
+              >
+                Edit source
+              </button>
+            )
           ) : null}
         </div>
 
@@ -864,21 +899,30 @@ function NotebookCellView({
             </label>
             <div className="notebook-source-codeframe">
               <pre
-                ref={sourceHighlightRef}
-                className="notebook-source-highlight"
+                ref={sourceGutterRef}
+                className="notebook-source-gutter"
                 aria-hidden="true"
               >
-                <code>{highlightSourceDraft(sourceDraft, cell.type)}</code>
+                <code>{sourceLineNumbers}</code>
               </pre>
-              <textarea
-                ref={sourceTextareaRef}
-                className="json-area notebook-source-textarea"
-                value={sourceDraft}
-                onChange={(event) => setSourceDraft(event.target.value)}
-                onScroll={handleSourceScroll}
-                spellCheck={false}
-                aria-label={`Source editor for ${cell.title}`}
-              />
+              <div className="notebook-source-editor-pane">
+                <pre
+                  ref={sourceHighlightRef}
+                  className="notebook-source-highlight"
+                  aria-hidden="true"
+                >
+                  <code>{highlightSourceDraft(sourceDraft, cell.type)}</code>
+                </pre>
+                <textarea
+                  ref={sourceTextareaRef}
+                  className="json-area notebook-source-textarea"
+                  value={sourceDraft}
+                  onChange={(event) => setSourceDraft(event.target.value)}
+                  onScroll={handleSourceScroll}
+                  spellCheck={false}
+                  aria-label={`Source editor for ${cell.title}`}
+                />
+              </div>
             </div>
             {sourceValidationError ? (
               <div className="notebook-source-validation" aria-live="polite">
@@ -889,26 +933,6 @@ function NotebookCellView({
                 Live validation: ready to apply
               </div>
             )}
-            <div className="button-row notebook-source-button-row">
-              <button type="button" className="notebook-run-button" onClick={handleApplySource}>
-                Apply source
-              </button>
-              <button
-                type="button"
-                className="notebook-run-button"
-                onClick={() => {
-                  setTitleDraft(cell.title);
-                  setSourceDraft(serializeCellBody(cell));
-                  setSourceLayoutMode("compact");
-                  setOpenSourceMenu(null);
-                  setSourceError(null);
-                  setSourceValidationError(null);
-                  setIsEditingSource(false);
-                }}
-              >
-                Cancel
-              </button>
-            </div>
           </div>
         ) : null}
 
@@ -997,7 +1021,7 @@ function NotebookCellView({
             }
           />
         ) : null}
-        {cell.type === "run" ? <RunCellView cell={cell} /> : null}
+        {cell.type === "run" ? <RunCellView cell={cell} cells={cells} /> : null}
         {cell.type === "chart" ? (
           <ChartCellView
             cell={cell}
@@ -1663,16 +1687,32 @@ function InitialValuesCellView({
   );
 }
 
-function RunCellView({ cell }: { cell: RunCell }) {
+function RunCellView({ cell, cells }: { cell: RunCell; cells: NotebookCell[] }) {
+  const baselineStartPeriod = resolveEffectiveScenarioStartPeriod(cells, cell);
+
   return (
     <div className="notebook-run-summary">
-      <p>{cell.description ?? "Execute this cell to generate a simulation result."}</p>
-      <ul className="notebook-inline-list">
-        <li>Mode: {cell.mode}</li>
-        <li>Source model: {cell.sourceModelId ?? cell.sourceModelCellId ?? "missing"}</li>
-        <li>Result key: {cell.resultKey}</li>
-        <li>Scenario shocks: {cell.scenario?.shocks.length ?? 0}</li>
-      </ul>
+      {cell.description ? <p>{cell.description}</p> : null}
+      <div className="notebook-run-meta">
+        <span className="notebook-run-meta-chip">
+          Mode <strong>{cell.mode}</strong>
+        </span>
+        {cell.mode === "scenario" && cell.baselineRunCellId ? (
+          <span className="notebook-run-meta-chip">
+            Baseline <strong>{cell.baselineRunCellId}</strong>
+          </span>
+        ) : null}
+        {cell.mode === "scenario" && baselineStartPeriod != null ? (
+          <span className="notebook-run-meta-chip">
+            Start period <strong>{baselineStartPeriod}</strong>
+          </span>
+        ) : null}
+        {cell.periods != null ? (
+          <span className="notebook-run-meta-chip">
+            Periods <strong>{cell.periods}</strong>
+          </span>
+        ) : null}
+      </div>
       {cell.scenario?.shocks.length ? (
         <div className="notebook-run-scenarios">
           {cell.scenario.shocks.map((shock, shockIndex) => (
@@ -1720,20 +1760,92 @@ function ChartCellView({
   const sourceRunCell = cells.find(
     (candidate): candidate is RunCell => candidate.type === "run" && candidate.id === cell.sourceRunCellId
   );
+  const baselineRunCell =
+    sourceRunCell?.mode === "scenario" && sourceRunCell.baselineRunCellId
+      ? cells.find(
+          (candidate): candidate is RunCell =>
+            candidate.type === "run" && candidate.id === sourceRunCell.baselineRunCellId
+        )
+      : null;
+  const baselineResult = baselineRunCell ? runner.getResult(baselineRunCell.id) : null;
+  const baselineStartPeriod = sourceRunCell
+    ? resolveEffectiveScenarioStartPeriod(cells, sourceRunCell)
+    : undefined;
+  const periodLabelOffset = baselineStartPeriod != null ? baselineStartPeriod - 1 : 0;
+  const chartSelectedIndex =
+    baselineStartPeriod != null
+      ? Math.max(selectedPeriodIndex - periodLabelOffset, 0)
+      : selectedPeriodIndex;
+  const overlaySeries =
+    sourceRunCell?.mode === "scenario" &&
+    baselineStartPeriod != null &&
+    baselineResult
+      ? cell.variables
+          .map((name) => ({
+            name,
+            values: Array.from(
+              baselineResult.series[name]?.slice(
+                Math.max(baselineStartPeriod - 1, 0),
+                Math.max(baselineStartPeriod - 1, 0) + (sourceRunCell.periods ?? series[0]?.values.length ?? 0)
+              ) ?? []
+            )
+          }))
+          .filter((entry) => entry.values.length > 0)
+      : [];
   const timeRangeDefaults = resolveChartTimeRangeDefaults(sourceRunCell, series[0]?.values.length ?? 0);
 
   return (
     <ResultChart
       axisMode={cell.axisMode ?? "shared"}
       axisSnapTolarance={cell.axisSnapTolarance}
+      overlaySeries={overlaySeries}
+      periodLabelOffset={periodLabelOffset}
       seriesRanges={cell.seriesRanges}
-      selectedIndex={selectedPeriodIndex}
+      selectedIndex={chartSelectedIndex}
       series={series}
       sharedRange={cell.sharedRange}
       timeRangeDefaults={timeRangeDefaults}
       timeRangeInclusive={cell.timeRangeInclusive}
     />
   );
+}
+
+function resolveEffectiveScenarioStartPeriod(
+  cells: NotebookCell[],
+  cell: RunCell
+): number | undefined {
+  if (cell.mode !== "scenario") {
+    return undefined;
+  }
+
+  if (cell.baselineStartPeriod != null) {
+    return cell.baselineStartPeriod;
+  }
+
+  const baselineRunCell = cell.baselineRunCellId
+    ? cells.find(
+        (candidate): candidate is RunCell =>
+          candidate.type === "run" && candidate.id === cell.baselineRunCellId
+      ) ?? null
+    : null;
+
+  if (!baselineRunCell) {
+    return undefined;
+  }
+
+  if (baselineRunCell.periods != null) {
+    return baselineRunCell.periods;
+  }
+
+  return buildEditorStateForNotebookModel(
+    {
+      id: "notebook",
+      title: "notebook",
+      metadata: { version: 1 },
+      cells
+    },
+    baselineRunCell
+  )?.options.periods;
 }
 
 function TableCellView({
@@ -2399,11 +2511,26 @@ function validateCellSourceShape(cellType: NotebookCell["type"], parsed: Omit<No
       ) {
         throw new Error("Run cells require sourceModelId or sourceModelCellId.");
       }
+      if (
+        (parsed as RunCell).baselineRunCellId != null &&
+        typeof (parsed as RunCell).baselineRunCellId !== "string"
+      ) {
+        throw new Error("Run cells require baselineRunCellId to be a string when provided.");
+      }
+      if (
+        (parsed as RunCell).baselineStartPeriod != null &&
+        typeof (parsed as RunCell).baselineStartPeriod !== "number"
+      ) {
+        throw new Error("Run cells require baselineStartPeriod to be a number when provided.");
+      }
       if (!["baseline", "scenario"].includes(String((parsed as RunCell).mode))) {
         throw new Error("Run cells require mode to be 'baseline' or 'scenario'.");
       }
       if (typeof (parsed as RunCell).resultKey !== "string") {
         throw new Error("Run cells require resultKey.");
+      }
+      if ((parsed as RunCell).periods != null && typeof (parsed as RunCell).periods !== "number") {
+        throw new Error("Run cells require periods to be a number when provided.");
       }
       ((parsed as RunCell).scenario?.shocks ?? []).forEach((shock, index) => {
         const candidate = shock as typeof shock & { rangeInclusive?: [number, number] };
@@ -2551,6 +2678,9 @@ function buildSourceHelperActions(cell: NotebookCell): Array<{ label: string; in
           insert:
             '"scenario": {\n  "shocks": [\n    {\n      "rangeInclusive": [1, 4],\n      "variables": {\n        "Gd": {\n          "kind": "constant",\n          "value": 25\n        }\n      }\n    }\n  ]\n}'
         },
+        { label: "Baseline run id", insert: '"baselineRunCellId": "baseline-run"' },
+        { label: "Baseline start", insert: '"baselineStartPeriod": 55' },
+        { label: "Periods", insert: '"periods": 60' },
         { label: "Add shock", insert: '"shocks": []' },
         { label: "Result key", insert: '"resultKey": "scenario_result"' }
       ];
@@ -2609,13 +2739,21 @@ function buildSourceHelpText(cell: NotebookCell): string {
 - mode: "baseline" | "scenario"
 - resultKey
 
+Optional:
+- baselineRunCellId
+- baselineStartPeriod
+- periods
+
 Scenario example:
 ${formatCellBody(
   {
     id: cell.id,
     type: "run",
     sourceModelId: "main",
+    baselineRunCellId: "baseline-run",
+    baselineStartPeriod: 55,
     mode: "scenario",
+    periods: 60,
     resultKey: "example_result",
     scenario: {
       shocks: [
@@ -2817,25 +2955,8 @@ function resolveChartTimeRangeDefaults(
   sourceRunCell: RunCell | undefined,
   seriesLength: number
 ): { endPeriodInclusive: number; startPeriodInclusive: number } {
-  const scenarioPaddingPeriods = 5;
-  const fullRange = {
+  return {
     startPeriodInclusive: 1,
     endPeriodInclusive: Math.max(seriesLength, 1)
-  };
-
-  if (sourceRunCell?.mode !== "scenario" || !sourceRunCell.scenario || sourceRunCell.scenario.shocks.length === 0) {
-    return fullRange;
-  }
-
-  return {
-    startPeriodInclusive: Math.max(
-      1,
-      Math.min(...sourceRunCell.scenario.shocks.map((shock) => shock.startPeriodInclusive)) -
-        scenarioPaddingPeriods
-    ),
-    endPeriodInclusive: Math.min(
-      fullRange.endPeriodInclusive,
-      Math.max(...sourceRunCell.scenario.shocks.map((shock) => shock.endPeriodInclusive))
-    )
   };
 }

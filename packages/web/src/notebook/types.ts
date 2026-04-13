@@ -80,10 +80,13 @@ export interface RunCell extends NotebookCellBase {
   type: "run";
   sourceModelCellId?: string;
   sourceModelId?: string;
+  baselineRunCellId?: string;
+  baselineStartPeriod?: number;
   mode: "baseline" | "scenario";
   scenario?: ScenarioDefinition | null;
   resultKey: string;
   description?: string;
+  periods?: number;
 }
 
 export interface ChartCell extends NotebookCellBase {

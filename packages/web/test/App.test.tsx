@@ -304,10 +304,15 @@ describe("App", () => {
     const titleEditor = screen.getByRole("textbox", {
       name: /title editor for overview/i
     }) as HTMLInputElement;
+    const applyButton = screen.getByRole("button", { name: /^apply$/i });
+
+    expect(applyButton).toBeDisabled();
+    expect(sourceEditor.closest(".notebook-source-editor")?.querySelector(".notebook-source-gutter")).not.toBeNull();
 
     fireEvent.change(titleEditor, { target: { value: "Updated overview" } });
     fireEvent.change(sourceEditor, { target: { value: "Updated notebook overview." } });
-    await user.click(screen.getByRole("button", { name: /apply source/i }));
+    expect(applyButton).toBeEnabled();
+    await user.click(applyButton);
 
     expect(screen.getByRole("heading", { name: /updated overview/i })).toBeInTheDocument();
     expect(screen.getByText(/updated notebook overview\./i)).toBeInTheDocument();
@@ -333,7 +338,7 @@ describe("App", () => {
     }) as HTMLInputElement;
 
     fireEvent.change(titleEditor, { target: { value: "Updated baseline run" } });
-    await user.click(screen.getByRole("button", { name: /apply source/i }));
+    await user.click(screen.getByRole("button", { name: /^apply$/i }));
 
     expect(screen.getByRole("heading", { name: /updated baseline run/i })).toBeInTheDocument();
   });

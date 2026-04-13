@@ -124,6 +124,8 @@
           }
         ]
       },
+      "baselineRunCellId": "baseline-run",
+      "periods": 40,
       "resultKey": "gl6_dis_s1",
       "sourceModelId": "equations"
     },
@@ -151,6 +153,8 @@
           }
         ]
       },
+      "baselineRunCellId": "baseline-run",
+      "periods": 50,
       "resultKey": "gl6_dis_s2",
       "sourceModelId": "equations"
     },
