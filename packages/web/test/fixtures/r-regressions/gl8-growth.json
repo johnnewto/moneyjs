@@ -1,0 +1,76 @@
+{
+  "templateId": "gl8-growth",
+  "sourceVignette": "references/r-sfcr/vignettes/articles/gl8-growth.Rmd",
+  "checkpoints": {
+    "baseline-run": {
+      "periods": {
+        "5": {
+          "Yk": 13640317.3334931,
+          "P": 7.247929124917,
+          "BLR": 0.099308635868,
+          "CAR": 0.092244931235,
+          "GD": 65683032.9308278
+        },
+        "350": {
+          "Yk": 362619928540.597,
+          "PI": 0.00698878913,
+          "GRk": 0.029999995893,
+          "BLR": 0.061789629176,
+          "CAR": 0.091491631401
+        }
+      }
+    },
+    "scenario-1-run": {
+      "periods": {
+        "10": {
+          "PI": 0.011977896953,
+          "Rl": 0.067785409809,
+          "CAR": 0.092908302016,
+          "BLR": 0.018759286216
+        },
+        "150": {
+          "PI": 0.021530213648,
+          "Rl": 0.068289225808,
+          "CAR": 0.088460918334,
+          "BLR": 0.110854870595
+        }
+      }
+    },
+    "scenario-2-run": {
+      "periods": {
+        "10": {
+          "PI": 0.006988786145,
+          "Rl": 0.064803999569,
+          "BLR": 0.063644153424,
+          "CAR": 0.091640447259
+        },
+        "25": {
+          "PI": 0.005995934947,
+          "Rl": 0.065026475657,
+          "BLR": 0.079214382562,
+          "CAR": 0.091645964037
+        }
+      }
+    },
+    "scenario-10-run": {
+      "periods": {
+        "10": {
+          "CAR": 0.078014236581,
+          "Rl": 0.064803999569,
+          "BLR": 0.062606208323,
+          "PI": 0.006988786145
+        },
+        "150": {
+          "CAR": 0.09304779061,
+          "Rl": 0.079990862443,
+          "BLR": 0.102248956781,
+          "PI": -0.000108494375
+        }
+      }
+    }
+  },
+  "matrixValidation": {
+    "balanceSheet": "Water tight! The balance-sheet matrix is consistent with the simulated model.",
+    "transactionFlow": "Water tight! The transactions-flow matrix is consistent with the simulated model."
+  }
+}

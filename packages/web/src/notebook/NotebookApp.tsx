@@ -24,6 +24,7 @@ import {
   validateEditorState,
   type EditorState
 } from "../lib/editorModel";
+import { stringifyJsonWithCompactLeaves } from "../lib/jsonFormat";
 import {
   detectNotebookSourceFormat,
   notebookToJson,
@@ -31,6 +32,17 @@ import {
   parseNotebookSource,
   serializeNotebookCell
 } from "./document";
+import {
+  buildEditorStateForNotebookModel,
+  buildEditorStateFromSections,
+  countModelSectionIssues,
+  findEquationsCell,
+  findExternalsCell,
+  findInitialValuesCell,
+  findSolverCell,
+  resolveNotebookModelKey,
+  resolveRunCellModelKey
+} from "./modelSections";
 import { resolveSequenceDiagram } from "./sequence";
 import {
   createNotebookFromTemplate,
@@ -40,12 +52,16 @@ import {
 } from "./templates";
 import type {
   ChartCell,
+  EquationsCell,
+  ExternalsCell,
+  InitialValuesCell,
   MatrixCell,
   ModelCell,
   NotebookCell,
   NotebookDocument,
   RunCell,
   SequenceCell,
+  SolverCell,
   TableCell
 } from "./types";
 import { useNotebookRunner } from "./useNotebookRunner";
@@ -59,7 +75,6 @@ export function NotebookApp() {
   const [uiMessage, setUiMessage] = useState<string | null>(null);
   const [sourceFormat, setSourceFormat] = useState<"json" | "markdown">("json");
   const [selectedPeriodIndex, setSelectedPeriodIndex] = useState(0);
-  const [isUtilityBarVisible, setIsUtilityBarVisible] = useState(true);
   const [isDataPanelOpen, setIsDataPanelOpen] = useState(false);
   const [importPreview, setImportPreview] = useState<{
     document: NotebookDocument;
@@ -78,44 +93,6 @@ export function NotebookApp() {
   useEffect(() => {
     setSelectedPeriodIndex((current) => Math.min(current, maxResultPeriodIndex));
   }, [maxResultPeriodIndex]);
-
-  useEffect(() => {
-    let lastScrollY = window.scrollY;
-    let upwardRevealDistance = 0;
-    const topRevealThreshold = 24;
-    const minimumDelta = 10;
-    const upwardRevealThreshold = 180;
-
-    function handleScroll() {
-      const nextScrollY = window.scrollY;
-      if (nextScrollY < topRevealThreshold) {
-        setIsUtilityBarVisible(true);
-        upwardRevealDistance = 0;
-        lastScrollY = nextScrollY;
-        return;
-      }
-
-      const delta = nextScrollY - lastScrollY;
-      if (Math.abs(delta) < minimumDelta) {
-        return;
-      }
-
-      if (delta > 0) {
-        upwardRevealDistance = 0;
-        setIsUtilityBarVisible(false);
-      } else {
-        upwardRevealDistance += Math.abs(delta);
-        if (upwardRevealDistance >= upwardRevealThreshold) {
-          setIsUtilityBarVisible(true);
-        }
-      }
-
-      lastScrollY = nextScrollY;
-    }
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
 
   function updateCell(cellId: string, updater: (cell: NotebookCell) => NotebookCell): void {
     setNotebookDocument((current) => ({
@@ -269,25 +246,53 @@ export function NotebookApp() {
   }
 
   function handleValidateNotebook(): void {
-    const modelCells = notebookDocument.cells.filter(
-      (cell): cell is ModelCell => cell.type === "model"
+    const legacyEditors = notebookDocument.cells
+      .filter((cell): cell is ModelCell => cell.type === "model")
+      .map((cell) => cell.editor);
+    const modelIds = Array.from(
+      new Set(
+        notebookDocument.cells
+          .filter(
+            (cell): cell is EquationsCell | SolverCell | ExternalsCell | InitialValuesCell =>
+              cell.type === "equations" ||
+              cell.type === "solver" ||
+              cell.type === "externals" ||
+              cell.type === "initial-values"
+          )
+          .map((cell) => cell.modelId)
+      )
     );
-    const issueCount = modelCells.reduce((count, cell) => {
-      const issues = validateEditorState(cell.editor);
-      const diagnostics = diagnoseBuildRuntime(cell.editor);
+    const splitEditors = modelIds
+      .map((modelId) => buildEditorStateForNotebookModel(notebookDocument, { modelId }))
+      .filter((editor): editor is EditorState => editor != null);
+    const editors = [...legacyEditors, ...splitEditors];
+    const issueCount = editors.reduce((count, editor) => {
+      const issues = validateEditorState(editor);
+      const diagnostics = diagnoseBuildRuntime(editor);
       return count + issues.length + diagnostics.issues.length;
     }, 0);
 
     setUiMessage(
       issueCount === 0
-        ? `Validated ${modelCells.length} model cell${modelCells.length === 1 ? "" : "s"} with no issues.`
-        : `Validation found ${issueCount} issue${issueCount === 1 ? "" : "s"} across ${modelCells.length} model cell${modelCells.length === 1 ? "" : "s"}.`
+        ? `Validated ${editors.length} model${editors.length === 1 ? "" : "s"} with no issues.`
+        : `Validation found ${issueCount} issue${issueCount === 1 ? "" : "s"} across ${editors.length} model${editors.length === 1 ? "" : "s"}.`
     );
   }
 
-  function getCurrentValueMapForModelCell(modelCellId: string): Record<string, number | undefined> {
+  function getCurrentValueMapForModelRef(ref: {
+    modelId?: string;
+    sourceModelId?: string;
+    sourceModelCellId?: string;
+  }): Record<string, number | undefined> {
+    const modelKey = resolveNotebookModelKey(notebookDocument.cells, ref);
+    if (!modelKey) {
+      return {};
+    }
+
     const sourceRunCell = notebookDocument.cells.find(
-      (cell) => cell.type === "run" && cell.sourceModelCellId === modelCellId
+      (cell) =>
+        cell.type === "run" &&
+        resolveRunCellModelKey(notebookDocument.cells, cell) === modelKey
     );
     if (!sourceRunCell || sourceRunCell.type !== "run") {
       return {};
@@ -319,65 +324,7 @@ export function NotebookApp() {
     : "";
 
   return (
-    <main className="app-shell">
-      <section
-        className={`control-panel notebook-app-bar${isUtilityBarVisible ? "" : " is-hidden"}`}
-      >
-        <div className="notebook-app-bar-main">
-          <div className="notebook-app-bar-brand">
-            <span className="eyebrow">Notebook commands</span>
-            <strong>{notebookDocument.title}</strong>
-          </div>
-
-          <div className="notebook-app-bar-actions">
-            <label className="notebook-action-desktop">
-              <span className="sr-only">Notebook template</span>
-              <select
-                aria-label="Notebook template"
-                value={currentTemplateId}
-                onChange={(event) => handleTemplateChange(event.target.value)}
-              >
-                {currentTemplateId ? null : <option value="">Custom notebook</option>}
-                {Object.values(NOTEBOOK_TEMPLATES).map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {template.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button type="button" onClick={() => void runner.runAll()}>
-              Run all
-            </button>
-            <button
-              type="button"
-              className="secondary-button notebook-action-desktop"
-              onClick={handleValidateNotebook}
-            >
-              Validate
-            </button>
-            <button
-              type="button"
-              className="secondary-button notebook-action-desktop"
-              onClick={handleExportJson}
-            >
-              Export
-            </button>
-            <button
-              type="button"
-              className="secondary-button notebook-action-desktop"
-              onClick={() => {
-                setIsDataPanelOpen(true);
-              }}
-            >
-              Import
-            </button>
-            <a className="notebook-toolbar-link notebook-action-desktop" href="#/workspace">
-              Workspace
-            </a>
-          </div>
-        </div>
-      </section>
-
+    <main className="app-shell notebook-shell">
       {uiMessage ? (
         <section className="status-panel">
           <div className={uiMessage.toLowerCase().includes("imported") || uiMessage.toLowerCase().includes("exported") || uiMessage.toLowerCase().includes("downloaded") ? "success-text" : "error-text"}>
@@ -388,6 +335,65 @@ export function NotebookApp() {
 
       <div className="notebook-layout">
         <div className="notebook-main-column">
+          <section className="control-panel notebook-app-bar">
+            <div className="notebook-app-bar-main">
+              <div className="notebook-app-bar-brand">
+                <span className="eyebrow">Notebook commands</span>
+                <strong>{notebookDocument.title}</strong>
+              </div>
+
+              <div className="notebook-app-bar-actions">
+                <label className="notebook-action-desktop">
+                  <span className="sr-only">Notebook template</span>
+                  <select
+                    aria-label="Notebook template"
+                    value={currentTemplateId}
+                    onChange={(event) => handleTemplateChange(event.target.value)}
+                  >
+                    {currentTemplateId ? null : <option value="">Custom notebook</option>}
+                    {Object.values(NOTEBOOK_TEMPLATES).map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button type="button" className="notebook-run-button" onClick={() => void runner.runAll()}>
+                  Run all
+                </button>
+                <button
+                  type="button"
+                  className="notebook-run-button notebook-action-desktop"
+                  onClick={handleValidateNotebook}
+                >
+                  Validate
+                </button>
+                <button
+                  type="button"
+                  className="notebook-run-button notebook-action-desktop"
+                  onClick={handleExportJson}
+                >
+                  Export
+                </button>
+                <button
+                  type="button"
+                  className="notebook-run-button notebook-action-desktop"
+                  onClick={() => {
+                    setIsDataPanelOpen(true);
+                  }}
+                >
+                  Import
+                </button>
+                <a
+                  className="notebook-toolbar-link notebook-run-button notebook-action-desktop"
+                  href="#/workspace"
+                >
+                  Workspace
+                </a>
+              </div>
+            </div>
+          </section>
+
           <section
             className={`control-panel notebook-data-panel${
               isDataPanelOpen ? "" : " is-collapsed"
@@ -521,7 +527,7 @@ export function NotebookApp() {
                 key={cell.id}
                 cell={cell}
                 cells={notebookDocument.cells}
-                getModelCurrentValues={getCurrentValueMapForModelCell}
+                getModelCurrentValues={getCurrentValueMapForModelRef}
                 maxPeriodIndex={maxResultPeriodIndex}
                 onSelectedPeriodIndexChange={setSelectedPeriodIndex}
                 runner={runner}
@@ -602,7 +608,11 @@ function inferFormatFromFileName(fileName: string): "json" | "markdown" | null {
 interface NotebookCellViewProps {
   cell: NotebookCell;
   cells: NotebookCell[];
-  getModelCurrentValues(modelCellId: string): Record<string, number | undefined>;
+  getModelCurrentValues(ref: {
+    modelId?: string;
+    sourceModelId?: string;
+    sourceModelCellId?: string;
+  }): Record<string, number | undefined>;
   maxPeriodIndex: number;
   onSelectedPeriodIndexChange(nextIndex: number): void;
   runner: ReturnType<typeof useNotebookRunner>;
@@ -753,17 +763,22 @@ function NotebookCellView({
           <div className="notebook-run-actions">
             {cell.type === "run" ? (
               <>
-                <span className={`run-status run-status-${status}`}>{status}</span>
-                <button type="button" onClick={() => void runner.runCell(cell.id)}>
-                  Run cell
+                <button
+                  type="button"
+                  className="notebook-run-button"
+                  onClick={() => void runner.runCell(cell.id)}
+                  disabled={status === "running"}
+                >
+                  {status === "running" ? "Running..." : "Run cell"}
                 </button>
+                <span className={`run-status run-status-${status}`}>{status}</span>
               </>
             ) : null}
           </div>
           {isSourceEditable(cell) ? (
             <button
               type="button"
-              className="secondary-button notebook-source-toggle"
+              className="notebook-run-button notebook-source-toggle"
               onClick={() => setIsEditingSource((current) => !current)}
             >
               {isEditingSource ? "Hide source" : "Edit source"}
@@ -874,13 +889,13 @@ function NotebookCellView({
                 Live validation: ready to apply
               </div>
             )}
-            <div className="button-row">
-              <button type="button" onClick={handleApplySource}>
+            <div className="button-row notebook-source-button-row">
+              <button type="button" className="notebook-run-button" onClick={handleApplySource}>
                 Apply source
               </button>
               <button
                 type="button"
-                className="secondary-button"
+                className="notebook-run-button"
                 onClick={() => {
                   setTitleDraft(cell.title);
                   setSourceDraft(serializeCellBody(cell));
@@ -898,11 +913,88 @@ function NotebookCellView({
         ) : null}
 
         {cell.type === "markdown" ? <p className="notebook-markdown">{cell.source}</p> : null}
+        {cell.type === "equations" ? (
+          <EquationsCellView
+            cell={cell}
+            currentValues={getModelCurrentValues({ modelId: cell.modelId })}
+            externals={findExternalsCell(cells, cell.modelId)?.externals ?? []}
+            initialValuesCount={findInitialValuesCell(cells, cell.modelId)?.initialValues.length ?? 0}
+            solverCell={findSolverCell(cells, cell.modelId)}
+            onChange={(equations) =>
+              onCellChange(cell.id, (current) =>
+                current.type === "equations" ? { ...current, equations } : current
+              )
+            }
+            onToggleCollapsed={() =>
+              onCellChange(cell.id, (current) =>
+                current.type === "equations"
+                  ? { ...current, collapsed: !current.collapsed }
+                  : current
+              )
+            }
+          />
+        ) : null}
         {cell.type === "model" ? (
           <ModelCellView
             cell={cell}
-            currentValues={getModelCurrentValues(cell.id)}
+            currentValues={getModelCurrentValues({ sourceModelCellId: cell.id })}
             onChange={(editor) => onModelChange(cell.id, editor)}
+          />
+        ) : null}
+        {cell.type === "solver" ? (
+          <SolverCellView
+            cell={cell}
+            issueMap={buildIssueMapForStandaloneModelSections(cells, cell.modelId)}
+            onChange={(options) =>
+              onCellChange(cell.id, (current) =>
+                current.type === "solver" ? { ...current, options } : current
+              )
+            }
+            onToggleCollapsed={() =>
+              onCellChange(cell.id, (current) =>
+                current.type === "solver"
+                  ? { ...current, collapsed: !current.collapsed }
+                  : current
+              )
+            }
+          />
+        ) : null}
+        {cell.type === "externals" ? (
+          <ExternalsCellView
+            cell={cell}
+            currentValues={getModelCurrentValues({ modelId: cell.modelId })}
+            issueMap={buildIssueMapForStandaloneModelSections(cells, cell.modelId)}
+            onChange={(externals) =>
+              onCellChange(cell.id, (current) =>
+                current.type === "externals" ? { ...current, externals } : current
+              )
+            }
+            onToggleCollapsed={() =>
+              onCellChange(cell.id, (current) =>
+                current.type === "externals"
+                  ? { ...current, collapsed: !current.collapsed }
+                  : current
+              )
+            }
+          />
+        ) : null}
+        {cell.type === "initial-values" ? (
+          <InitialValuesCellView
+            cell={cell}
+            currentValues={getModelCurrentValues({ modelId: cell.modelId })}
+            issueMap={buildIssueMapForStandaloneModelSections(cells, cell.modelId)}
+            onChange={(initialValues) =>
+              onCellChange(cell.id, (current) =>
+                current.type === "initial-values" ? { ...current, initialValues } : current
+              )
+            }
+            onToggleCollapsed={() =>
+              onCellChange(cell.id, (current) =>
+                current.type === "initial-values"
+                  ? { ...current, collapsed: !current.collapsed }
+                  : current
+              )
+            }
           />
         ) : null}
         {cell.type === "run" ? <RunCellView cell={cell} /> : null}
@@ -1068,25 +1160,505 @@ function ModelCellView({
             onChange={(equations) => onChange({ ...cell.editor, equations })}
             parameterNames={cell.editor.externals.map((external) => external.name)}
           />
-          <ExternalEditor
-            currentValues={currentValues}
-            externals={cell.editor.externals}
-            issues={issueMap}
-            onChange={(externals) => onChange({ ...cell.editor, externals })}
-          />
-          <InitialValuesEditor
-            currentValues={currentValues}
-            initialValues={cell.editor.initialValues}
-            issues={issueMap}
-            onChange={(initialValues) => onChange({ ...cell.editor, initialValues })}
-          />
-          <SolverPanel
-            options={cell.editor.options}
-            issues={issueMap}
-            onChange={(options) => onChange({ ...cell.editor, options })}
-          />
         </div>
       </details>
+    </div>
+  );
+}
+
+function EquationsCellView({
+  cell,
+  currentValues,
+  externals,
+  initialValuesCount,
+  solverCell,
+  onChange,
+  onToggleCollapsed
+}: {
+  cell: EquationsCell;
+  currentValues: Record<string, number | undefined>;
+  externals: ExternalsCell["externals"];
+  initialValuesCount: number;
+  solverCell: SolverCell | null;
+  onChange(equations: EquationsCell["equations"]): void;
+  onToggleCollapsed(): void;
+}) {
+  const editor = buildEditorStateFromSections({
+    equations: cell.equations,
+    externals,
+    initialValues: [],
+    options:
+      solverCell?.options ?? {
+        periods: 100,
+        solverMethod: "GAUSS_SEIDEL",
+        toleranceText: "1e-15",
+        maxIterations: 200,
+        defaultInitialValueText: "1e-15",
+        hiddenLeftVariable: "",
+        hiddenRightVariable: "",
+        hiddenToleranceText: "0.00001",
+        relativeHiddenTolerance: false
+      }
+  });
+  const issues = validateEditorState(editor);
+  const buildDiagnostics = diagnoseBuildRuntime(editor);
+  const allIssues = [...issues, ...buildDiagnostics.issues];
+  const issueMap = Object.fromEntries(allIssues.map((issue) => [issue.path, issue.message]));
+  const runtime = safeBuildRuntime(editor);
+  const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
+  const [pinnedTrace, setPinnedTrace] = useState<PinnedTrace | null>(null);
+  const parameterNameSet = useMemo(() => new Set(externals.map((external) => external.name)), [externals]);
+  const traceModel = useMemo(() => buildTraceModel(cell.equations), [cell.equations]);
+  const activeTrace = pinnedTrace
+    ? buildActiveTrace(traceModel, pinnedTrace.rowId, pinnedTrace.mode)
+    : hoveredRowId
+      ? buildActiveTrace(traceModel, hoveredRowId, "inputs")
+      : null;
+
+  return (
+    <div className="notebook-model-stack">
+      <div className="notebook-linked-editor-topline">
+        <div className="notebook-model-summary" aria-label="Equations summary">
+          <span className="notebook-model-chip">
+            Eq <strong>{cell.equations.length}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Ext <strong>{externals.length}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Init <strong>{initialValuesCount}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Solver <strong>{solverCell?.options.solverMethod ?? "missing"}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Periods <strong>{runtime?.options.periods ?? solverCell?.options.periods ?? "invalid"}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Hidden <strong>{runtime?.options.hiddenEquation ? "on" : "off"}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Issues <strong>{countModelSectionIssues(allIssues.map((issue) => issue.path), "equations.")}</strong>
+          </span>
+        </div>
+        <button type="button" className="notebook-run-button" onClick={onToggleCollapsed}>
+          {cell.collapsed ? "Show contents" : "Hide contents"}
+        </button>
+      </div>
+      {cell.collapsed ? null : (
+        <>
+          <section className="notebook-model-view" aria-label="Model view">
+            <div className="notebook-model-view-header">
+              <h3>Model view</h3>
+              <p className="panel-subtitle">Compact read-only equation list.</p>
+            </div>
+            <div className="notebook-model-view-table" role="table" aria-label="Model equations">
+              <div className="notebook-model-view-row notebook-model-view-row-header" role="row">
+                <span role="columnheader">Variable</span>
+                <span role="columnheader">Expression</span>
+                <span role="columnheader">Current</span>
+              </div>
+              {cell.equations.map((equation, index) => {
+                const issue =
+                  issueMap[`equations.${index}.name`] ?? issueMap[`equations.${index}.expression`];
+                const traceRole = activeTrace?.rowStates.get(equation.id) ?? null;
+
+                return (
+                  <div
+                    key={equation.id}
+                    className={[
+                      "notebook-model-view-row",
+                      issue ? "has-issue" : "",
+                      hoveredRowId === equation.id ? "is-hovered" : "",
+                      traceRole ? `trace-${traceRole}` : ""
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    onClick={(event) =>
+                      setPinnedTrace((current) => togglePinnedTrace(current, equation.id, event))
+                    }
+                    onMouseEnter={() => setHoveredRowId(equation.id)}
+                    onMouseLeave={() =>
+                      setHoveredRowId((current) => (current === equation.id ? null : current))
+                    }
+                    role="row"
+                  >
+                    <span className="notebook-model-view-name" role="cell">
+                      {equation.name
+                        ? highlightFormula(
+                            equation.name,
+                            parameterNameSet,
+                            traceRole ? activeTrace?.tokenStates : undefined
+                          )
+                        : "?"}
+                    </span>
+                    <span className="notebook-model-view-expression" role="cell">
+                      {equation.expression
+                        ? highlightFormula(
+                            equation.expression,
+                            parameterNameSet,
+                            traceRole ? activeTrace?.tokenStates : undefined
+                          )
+                        : " "}
+                    </span>
+                    <span className="notebook-model-view-current" role="cell">
+                      {formatNotebookCurrentValue(
+                        equation.name,
+                        currentValues[equation.name.trim()]
+                      )}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          <details className="notebook-model-editor">
+            <summary>Edit equations cell</summary>
+            <div className="notebook-model-editor-body">
+              <EquationGridEditor
+                buildError={buildDiagnostics.modelError}
+                currentValues={currentValues}
+                equations={cell.equations}
+                issues={issueMap}
+                onChange={onChange}
+                parameterNames={externals.map((external) => external.name)}
+              />
+            </div>
+          </details>
+        </>
+      )}
+    </div>
+  );
+}
+
+function SolverCellView({
+  cell,
+  issueMap,
+  onChange,
+  onToggleCollapsed
+}: {
+  cell: SolverCell;
+  issueMap: Record<string, string | undefined>;
+  onChange(options: EditorState["options"]): void;
+  onToggleCollapsed(): void;
+}) {
+  const options = cell.options;
+  const hiddenEquationEnabled =
+    options.hiddenLeftVariable.trim() !== "" && options.hiddenRightVariable.trim() !== "";
+  const issuePaths = Object.keys(issueMap);
+
+  return (
+    <div className="notebook-model-stack notebook-linked-editor-cell">
+      <div className="notebook-linked-editor-topline">
+        <div className="notebook-model-summary" aria-label="Solver summary">
+          <span className="notebook-model-chip">
+            Model <strong>{cell.modelId}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Solver <strong>{options.solverMethod}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Periods <strong>{options.periods}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Hidden <strong>{hiddenEquationEnabled ? "on" : "off"}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Issues <strong>{countModelSectionIssues(issuePaths, "options.")}</strong>
+          </span>
+        </div>
+        <button type="button" className="notebook-run-button" onClick={onToggleCollapsed}>
+          {cell.collapsed ? "Show contents" : "Hide contents"}
+        </button>
+      </div>
+      {cell.collapsed ? null : (
+        <>
+          <section className="notebook-model-view" aria-label="Solver view">
+            <div className="notebook-model-view-header">
+              <h3>Solver view</h3>
+              <p className="panel-subtitle">Compact read-only simulation and hidden-equation settings.</p>
+            </div>
+            <div className="notebook-model-view-table" role="table" aria-label="Solver options">
+              <div
+                className="notebook-model-view-row notebook-model-view-row-header notebook-model-view-row-solver"
+                role="row"
+              >
+                <span role="columnheader">Setting</span>
+                <span role="columnheader">Value</span>
+                <span role="columnheader">Status</span>
+              </div>
+              {[
+                { label: "Solver", value: options.solverMethod, status: issueMap["options.solverMethod"] ? "Issue" : "OK" },
+                { label: "Periods", value: String(options.periods), status: issueMap["options.periods"] ? "Issue" : "OK" },
+                { label: "Tolerance", value: options.toleranceText, status: issueMap["options.toleranceText"] ? "Issue" : "OK" },
+                { label: "Max iterations", value: String(options.maxIterations), status: issueMap["options.maxIterations"] ? "Issue" : "OK" },
+                { label: "Default initial", value: options.defaultInitialValueText, status: issueMap["options.defaultInitialValueText"] ? "Issue" : "OK" },
+                {
+                  label: "Hidden equation",
+                  value: hiddenEquationEnabled
+                    ? `${options.hiddenLeftVariable} = ${options.hiddenRightVariable}`
+                    : "disabled",
+                  status: issueMap["options.hiddenEquation"] ? "Issue" : "OK"
+                },
+                { label: "Hidden tolerance", value: options.hiddenToleranceText, status: issueMap["options.hiddenToleranceText"] ? "Issue" : "OK" },
+                {
+                  label: "Relative hidden tol.",
+                  value: options.relativeHiddenTolerance ? "true" : "false",
+                  status: "OK"
+                }
+              ].map((row) => (
+                <div
+                  key={row.label}
+                  className={[
+                    "notebook-model-view-row",
+                    "notebook-model-view-row-solver",
+                    row.status !== "OK" ? "has-issue" : ""
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  role="row"
+                >
+                  <span className="notebook-model-view-name" role="cell">
+                    {row.label}
+                  </span>
+                  <span className="notebook-model-view-expression" role="cell">
+                    {row.value}
+                  </span>
+                  <span className="notebook-model-view-kind" role="cell">
+                    {row.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+          <details className="notebook-model-editor">
+            <summary>Edit solver cell</summary>
+            <div className="notebook-model-editor-body">
+              <SolverPanel options={options} issues={issueMap} onChange={onChange} />
+            </div>
+          </details>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ExternalsCellView({
+  cell,
+  currentValues,
+  issueMap,
+  onChange,
+  onToggleCollapsed
+}: {
+  cell: ExternalsCell;
+  currentValues: Record<string, number | undefined>;
+  issueMap: Record<string, string | undefined>;
+  onChange(externals: EditorState["externals"]): void;
+  onToggleCollapsed(): void;
+}) {
+  const issuePaths = Object.keys(issueMap);
+  const seriesExternalCount = cell.externals.filter((external) => external.kind === "series").length;
+
+  return (
+    <div className="notebook-model-stack notebook-linked-editor-cell">
+      <div className="notebook-linked-editor-topline">
+        <div className="notebook-model-summary" aria-label="Externals summary">
+          <span className="notebook-model-chip">
+            Model <strong>{cell.modelId}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Ext <strong>{cell.externals.length}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Series <strong>{seriesExternalCount}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Issues <strong>{countModelSectionIssues(issuePaths, "externals.")}</strong>
+          </span>
+        </div>
+        <button type="button" className="notebook-run-button" onClick={onToggleCollapsed}>
+          {cell.collapsed ? "Show contents" : "Hide contents"}
+        </button>
+      </div>
+      {cell.collapsed ? null : (
+        <>
+          <section className="notebook-model-view" aria-label="Externals view">
+            <div className="notebook-model-view-header">
+              <h3>Externals view</h3>
+              <p className="panel-subtitle">Compact read-only external parameter list.</p>
+            </div>
+            <div className="notebook-model-view-table" role="table" aria-label="Externals">
+              <div
+                className="notebook-model-view-row notebook-model-view-row-header notebook-model-view-row-external"
+                role="row"
+              >
+                <span role="columnheader">Name</span>
+                <span role="columnheader">Value</span>
+                <span role="columnheader">Current</span>
+                <span role="columnheader">Kind</span>
+              </div>
+              {cell.externals.map((external, index) => {
+                const issue =
+                  issueMap[`externals.${index}.name`] ??
+                  issueMap[`externals.${index}.valueText`] ??
+                  issueMap[`externals.${index}.kind`];
+
+                return (
+                  <div
+                    key={external.id}
+                    className={[
+                      "notebook-model-view-row",
+                      "notebook-model-view-row-external",
+                      issue ? "has-issue" : ""
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    role="row"
+                  >
+                    <span className="notebook-model-view-name" role="cell">
+                      {external.name || "?"}
+                    </span>
+                    <span className="notebook-model-view-expression" role="cell">
+                      {external.valueText || " "}
+                    </span>
+                    <span className="notebook-model-view-current" role="cell">
+                      {formatNotebookCurrentValue(external.name, currentValues[external.name.trim()])}
+                    </span>
+                    <span className="notebook-model-view-kind" role="cell">
+                      {external.kind}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+          <details className="notebook-model-editor">
+            <summary>Edit externals cell</summary>
+            <div className="notebook-model-editor-body">
+              <ExternalEditor
+                currentValues={currentValues}
+                externals={cell.externals}
+                issues={issueMap}
+                onChange={onChange}
+              />
+            </div>
+          </details>
+        </>
+      )}
+    </div>
+  );
+}
+
+function InitialValuesCellView({
+  cell,
+  currentValues,
+  issueMap,
+  onChange,
+  onToggleCollapsed
+}: {
+  cell: InitialValuesCell;
+  currentValues: Record<string, number | undefined>;
+  issueMap: Record<string, string | undefined>;
+  onChange(initialValues: EditorState["initialValues"]): void;
+  onToggleCollapsed(): void;
+}) {
+  const issuePaths = Object.keys(issueMap);
+
+  return (
+    <div className="notebook-model-stack notebook-linked-editor-cell">
+      <div className="notebook-linked-editor-topline">
+        <div className="notebook-model-summary" aria-label="Initial values summary">
+          <span className="notebook-model-chip">
+            Model <strong>{cell.modelId}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Init <strong>{cell.initialValues.length}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Populated{" "}
+            <strong>
+              {cell.initialValues.filter((initialValue) => initialValue.valueText.trim() !== "").length}
+            </strong>
+          </span>
+          <span className="notebook-model-chip">
+            Issues{" "}
+            <strong>
+              {countModelSectionIssues(issuePaths, "initialValues.")}
+            </strong>
+          </span>
+        </div>
+        <button type="button" className="notebook-run-button" onClick={onToggleCollapsed}>
+          {cell.collapsed ? "Show contents" : "Hide contents"}
+        </button>
+      </div>
+      {cell.collapsed ? null : (
+        <>
+          <section className="notebook-model-view" aria-label="Initial values view">
+            <div className="notebook-model-view-header">
+              <h3>Initial values view</h3>
+              <p className="panel-subtitle">Compact read-only list of initial conditions.</p>
+            </div>
+            <div className="notebook-model-view-table" role="table" aria-label="Initial values">
+              <div
+                className="notebook-model-view-row notebook-model-view-row-header notebook-model-view-row-initial"
+                role="row"
+              >
+                <span role="columnheader">Name</span>
+                <span role="columnheader">Initial</span>
+                <span role="columnheader">Current</span>
+                <span role="columnheader">Status</span>
+              </div>
+              {cell.initialValues.map((initialValue, index) => {
+                const issue =
+                  issueMap[`initialValues.${index}.name`] ??
+                  issueMap[`initialValues.${index}.valueText`];
+
+                return (
+                  <div
+                    key={initialValue.id}
+                    className={[
+                      "notebook-model-view-row",
+                      "notebook-model-view-row-initial",
+                      issue ? "has-issue" : ""
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    role="row"
+                  >
+                    <span className="notebook-model-view-name" role="cell">
+                      {initialValue.name || "?"}
+                    </span>
+                    <span className="notebook-model-view-expression" role="cell">
+                      {initialValue.valueText || " "}
+                    </span>
+                    <span className="notebook-model-view-current" role="cell">
+                      {formatNotebookCurrentValue(
+                        initialValue.name,
+                        currentValues[initialValue.name.trim()]
+                      )}
+                    </span>
+                    <span className="notebook-model-view-kind" role="cell">
+                      {issue ?? "OK"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+          <details className="notebook-model-editor">
+            <summary>Edit initial values cell</summary>
+            <div className="notebook-model-editor-body">
+              <InitialValuesEditor
+                currentValues={currentValues}
+                initialValues={cell.initialValues}
+                issues={issueMap}
+                onChange={onChange}
+              />
+            </div>
+          </details>
+        </>
+      )}
     </div>
   );
 }
@@ -1097,7 +1669,7 @@ function RunCellView({ cell }: { cell: RunCell }) {
       <p>{cell.description ?? "Execute this cell to generate a simulation result."}</p>
       <ul className="notebook-inline-list">
         <li>Mode: {cell.mode}</li>
-        <li>Source model: {cell.sourceModelCellId}</li>
+        <li>Source model: {cell.sourceModelId ?? cell.sourceModelCellId ?? "missing"}</li>
         <li>Result key: {cell.resultKey}</li>
         <li>Scenario shocks: {cell.scenario?.shocks.length ?? 0}</li>
       </ul>
@@ -1616,6 +2188,31 @@ function safeBuildRuntime(editor: EditorState) {
   }
 }
 
+function buildIssueMapForStandaloneModelSections(
+  cells: NotebookCell[],
+  modelId: string
+): Record<string, string | undefined> {
+  const equationsCell = findEquationsCell(cells, modelId);
+  const solverCell = findSolverCell(cells, modelId);
+  if (!equationsCell || !solverCell) {
+    return {};
+  }
+
+  const editor = buildEditorStateFromSections({
+    equations: equationsCell.equations,
+    externals: findExternalsCell(cells, modelId)?.externals ?? [],
+    initialValues: findInitialValuesCell(cells, modelId)?.initialValues ?? [],
+    options: solverCell.options
+  });
+
+  return Object.fromEntries(
+    [...validateEditorState(editor), ...diagnoseBuildRuntime(editor).issues].map((issue) => [
+      issue.path,
+      issue.message
+    ])
+  );
+}
+
 function summarizeCellTypes(cells: NotebookCell[]): string {
   const counts = cells.reduce<Record<string, number>>((accumulator, cell) => {
     accumulator[cell.type] = (accumulator[cell.type] ?? 0) + 1;
@@ -1628,7 +2225,7 @@ function summarizeCellTypes(cells: NotebookCell[]): string {
 }
 
 function isSourceEditable(cell: NotebookCell): boolean {
-  return cell.type !== "model";
+  return !["model", "equations", "solver", "externals", "initial-values"].includes(cell.type);
 }
 
 function serializeCellBody(cell: NotebookCell): string {
@@ -1742,74 +2339,6 @@ function highlightMarkdownSource(source: string): ReactNode[] {
   return parts;
 }
 
-function stringifyJsonWithCompactLeaves(value: unknown, level: number): string {
-  if (value == null || typeof value !== "object") {
-    return JSON.stringify(value);
-  }
-
-  if (Array.isArray(value)) {
-    if (value.length === 0) {
-      return "[]";
-    }
-
-    if (value.every(isInlineJsonValue)) {
-      return `[${value.map((entry) => stringifyInlineJsonValue(entry)).join(", ")}]`;
-    }
-
-    const indentation = "  ".repeat(level);
-    const childIndentation = "  ".repeat(level + 1);
-    return `[\n${value
-      .map((entry) => `${childIndentation}${stringifyJsonWithCompactLeaves(entry, level + 1)}`)
-      .join(",\n")}\n${indentation}]`;
-  }
-
-  const entries = Object.entries(value);
-  if (entries.length === 0) {
-    return "{}";
-  }
-
-  if (level > 0 && entries.every(([, entryValue]) => isInlineJsonValue(entryValue))) {
-    return `{ ${entries
-      .map(([key, entryValue]) => `${JSON.stringify(key)}: ${stringifyInlineJsonValue(entryValue)}`)
-      .join(", ")} }`;
-  }
-
-  const indentation = "  ".repeat(level);
-  const childIndentation = "  ".repeat(level + 1);
-  return `{\n${entries
-    .map(
-      ([key, entryValue]) =>
-        `${childIndentation}${JSON.stringify(key)}: ${stringifyJsonWithCompactLeaves(entryValue, level + 1)}`
-    )
-    .join(",\n")}\n${indentation}}`;
-}
-
-function stringifyInlineJsonValue(value: unknown): string {
-  if (value == null || typeof value !== "object") {
-    return JSON.stringify(value);
-  }
-
-  if (Array.isArray(value)) {
-    return `[${value.map((entry) => stringifyInlineJsonValue(entry)).join(", ")}]`;
-  }
-
-  return `{ ${Object.entries(value)
-    .map(([key, entryValue]) => `${JSON.stringify(key)}: ${stringifyInlineJsonValue(entryValue)}`)
-    .join(", ")} }`;
-}
-
-function isInlineJsonValue(value: unknown): boolean {
-  if (value == null || typeof value !== "object") {
-    return true;
-  }
-
-  if (Array.isArray(value)) {
-    return value.every((entry) => entry == null || typeof entry !== "object");
-  }
-
-  return Object.values(value).every((entry) => entry == null || typeof entry !== "object");
-}
-
 function parseCellSource(cell: NotebookCell, title: string, source: string): NotebookCell {
   const nextTitle = title.trim();
   if (!nextTitle) {
@@ -1864,8 +2393,11 @@ function normalizeCellSource(cell: NotebookCell): NotebookCell {
 function validateCellSourceShape(cellType: NotebookCell["type"], parsed: Omit<NotebookCell, "title">): void {
   switch (cellType) {
     case "run":
-      if (typeof (parsed as RunCell).sourceModelCellId !== "string") {
-        throw new Error("Run cells require sourceModelCellId.");
+      if (
+        typeof (parsed as RunCell).sourceModelId !== "string" &&
+        typeof (parsed as RunCell).sourceModelCellId !== "string"
+      ) {
+        throw new Error("Run cells require sourceModelId or sourceModelCellId.");
       }
       if (!["baseline", "scenario"].includes(String((parsed as RunCell).mode))) {
         throw new Error("Run cells require mode to be 'baseline' or 'scenario'.");
@@ -1927,6 +2459,52 @@ function validateCellSourceShape(cellType: NotebookCell["type"], parsed: Omit<No
         throw new Error("Table cells require variables to be an array.");
       }
       return;
+    case "solver":
+      if (typeof (parsed as SolverCell).modelId !== "string") {
+        throw new Error("solver cells require modelId.");
+      }
+      if ((parsed as SolverCell).collapsed != null && typeof (parsed as SolverCell).collapsed !== "boolean") {
+        throw new Error("solver cells require collapsed to be a boolean when provided.");
+      }
+      if (!(parsed as SolverCell).options || typeof (parsed as SolverCell).options !== "object") {
+        throw new Error("solver cells require options.");
+      }
+      return;
+    case "externals":
+    case "initial-values":
+      if (typeof (parsed as ExternalsCell | InitialValuesCell).modelId !== "string") {
+        throw new Error(`${cellType} cells require modelId.`);
+      }
+      if (
+        (parsed as ExternalsCell | InitialValuesCell).collapsed != null &&
+        typeof (parsed as ExternalsCell | InitialValuesCell).collapsed !== "boolean"
+      ) {
+        throw new Error(`${cellType} cells require collapsed to be a boolean when provided.`);
+      }
+      if (cellType === "externals" && !Array.isArray((parsed as ExternalsCell).externals)) {
+        throw new Error("externals cells require externals.");
+      }
+      if (
+        cellType === "initial-values" &&
+        !Array.isArray((parsed as InitialValuesCell).initialValues)
+      ) {
+        throw new Error("initial-values cells require initialValues.");
+      }
+      return;
+    case "equations":
+      if (typeof (parsed as EquationsCell).modelId !== "string") {
+        throw new Error("equations cells require modelId.");
+      }
+      if (!Array.isArray((parsed as EquationsCell).equations)) {
+        throw new Error("equations cells require equations.");
+      }
+      if (
+        (parsed as EquationsCell).collapsed != null &&
+        typeof (parsed as EquationsCell).collapsed !== "boolean"
+      ) {
+        throw new Error("equations cells require collapsed to be a boolean when provided.");
+      }
+      return;
     case "matrix":
       if (!Array.isArray((parsed as MatrixCell).columns)) {
         throw new Error("Matrix cells require columns to be an array.");
@@ -1985,6 +2563,30 @@ function buildSourceHelperActions(cell: NotebookCell): Array<{ label: string; in
       ];
     case "sequence":
       return [{ label: "Matrix source", insert: '"source": {\n  "kind": "matrix",\n  "matrixCellId": "matrix-1"\n}' }];
+    case "equations":
+      return [
+        { label: "Model id", insert: '"modelId": "main"' },
+        { label: "Equations array", insert: '"equations": []' },
+        { label: "Collapsed true", insert: '"collapsed": true' }
+      ];
+    case "solver":
+      return [
+        { label: "Model id", insert: '"modelId": "main"' },
+        { label: "Options object", insert: '"options": {\n  "periods": 100,\n  "solverMethod": "GAUSS_SEIDEL",\n  "toleranceText": "1e-15",\n  "maxIterations": 200,\n  "defaultInitialValueText": "1e-15",\n  "hiddenLeftVariable": "",\n  "hiddenRightVariable": "",\n  "hiddenToleranceText": "0.00001",\n  "relativeHiddenTolerance": false\n}' },
+        { label: "Collapsed true", insert: '"collapsed": true' }
+      ];
+    case "externals":
+      return [
+        { label: "Model id", insert: '"modelId": "main"' },
+        { label: "Externals array", insert: '"externals": []' },
+        { label: "Collapsed true", insert: '"collapsed": true' }
+      ];
+    case "initial-values":
+      return [
+        { label: "Model id", insert: '"modelId": "main"' },
+        { label: "Initial values array", insert: '"initialValues": []' },
+        { label: "Collapsed true", insert: '"collapsed": true' }
+      ];
     case "markdown":
       return [
         { label: "Code span", insert: "`variable`" },
@@ -2003,7 +2605,7 @@ function buildSourceHelpText(cell: NotebookCell): string {
       return `Required fields:
 - id
 - type: "run"
-- sourceModelCellId
+- sourceModelId or sourceModelCellId
 - mode: "baseline" | "scenario"
 - resultKey
 
@@ -2012,7 +2614,7 @@ ${formatCellBody(
   {
     id: cell.id,
     type: "run",
-    sourceModelCellId: "equations",
+    sourceModelId: "main",
     mode: "scenario",
     resultKey: "example_result",
     scenario: {
@@ -2028,6 +2630,18 @@ ${formatCellBody(
   } as Omit<NotebookCell, "title">,
   "compact"
 )}`;
+    case "equations":
+      return `Required fields:
+- id
+- type: "equations"
+- modelId
+- equations: []
+
+Optional:
+- collapsed: boolean
+
+Behavior:
+This cell owns the model equation list for one notebook model.`;
     case "chart":
       return `Required fields:
 - id
@@ -2064,6 +2678,42 @@ ${formatCellBody(
   } as Omit<NotebookCell, "title">,
   "compact"
 )}`;
+    case "externals":
+      return `Required fields:
+- id
+- type: "externals"
+- modelId
+- externals: []
+
+Optional:
+- collapsed: boolean
+
+Behavior:
+This cell owns the external parameter list for one notebook model. Hide/show only affects visibility in the notebook UI.`;
+    case "solver":
+      return `Required fields:
+- id
+- type: "solver"
+- modelId
+- options
+
+Optional:
+- collapsed: boolean
+
+Behavior:
+This cell owns the solver/options section for one notebook model. Hide/show only affects visibility in the notebook UI.`;
+    case "initial-values":
+      return `Required fields:
+- id
+- type: "initial-values"
+- modelId
+- initialValues: []
+
+Optional:
+- collapsed: boolean
+
+Behavior:
+This cell owns the initial-values section for one notebook model. Hide/show only affects visibility in the notebook UI.`;
     case "table":
       return `Required fields:
 - id

@@ -1,7 +1,8 @@
 import type { NotebookCell, NotebookDocument } from "./types";
+import { stringifyJsonWithCompactLeaves } from "../lib/jsonFormat";
 
 export function notebookToJson(document: NotebookDocument): string {
-  return JSON.stringify(serializeNotebookDocument(document), null, 2);
+  return stringifyJsonWithCompactLeaves(serializeNotebookDocument(document));
 }
 
 export function notebookToMarkdown(document: NotebookDocument): string {
@@ -19,7 +20,7 @@ export function notebookToMarkdown(document: NotebookDocument): string {
     lines.push(`## ${cell.title}`);
     lines.push("");
     lines.push(`\`\`\`sfcr-${cell.type}`);
-    lines.push(JSON.stringify(serializeNotebookCell(cell), null, 2));
+    lines.push(stringifyJsonWithCompactLeaves(serializeNotebookCell(cell)));
     lines.push("```");
     lines.push("");
 
@@ -67,7 +68,7 @@ export function notebookFromMarkdown(source: string): NotebookDocument {
   for (const section of sections) {
     const cellTitle = section.title;
     const body = section.body.trim();
-    const fenceMatch = body.match(/^```sfcr-([a-z]+)\n([\s\S]*?)\n```$/);
+    const fenceMatch = body.match(/^```sfcr-([a-z-]+)\n([\s\S]*?)\n```$/);
 
     if (fenceMatch) {
       const cell = JSON.parse(fenceMatch[2]) as NotebookCell;

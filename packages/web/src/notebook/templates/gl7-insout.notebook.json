@@ -1,17 +1,9 @@
 {
   "id": "gl7-insout-notebook",
   "title": "GL7 INSOUT Notebook",
-  "metadata": {
-    "version": 1,
-    "template": "gl7-insout"
-  },
+  "metadata": { "version": 1, "template": "gl7-insout" },
   "cells": [
-    {
-      "id": "intro",
-      "type": "markdown",
-      "title": "Overview",
-      "source": "This notebook adapts the `gl7-insout.Rmd` article into executable browser cells. It includes the INSOUT balance-sheet and transactions-flow matrices, the full baseline model, and three representative simulations from the article: higher targeted inventories, higher government expenditure, and the combined inflation-plus-interest-rate experiment."
-    },
+    { "id": "intro", "type": "markdown", "title": "Overview", "source": "This notebook adapts the `gl7-insout.Rmd` article into executable browser cells. It includes the INSOUT balance-sheet and transactions-flow matrices, the full baseline model, and three representative simulations from the article: higher targeted inventories, higher government expenditure, and the combined inflation-plus-interest-rate experiment." },
     {
       "id": "balance-sheet",
       "type": "matrix",
@@ -37,16 +29,7 @@
       "type": "matrix",
       "title": "INSOUT transactions-flow matrix",
       "sourceRunCellId": "baseline-run",
-      "columns": [
-        "Households",
-        "Firms current",
-        "Firms capital",
-        "Government",
-        "CB current",
-        "CB capital",
-        "Banks current",
-        "Banks capital"
-      ],
+      "columns": ["Households", "Firms current", "Firms capital", "Government", "CB current", "CB capital", "Banks current", "Banks capital"],
       "rows": [
         { "label": "Consumption", "values": ["-C", "+C", "", "", "", "", "", ""] },
         { "label": "Govt. expenditures", "values": ["", "+G", "", "-G", "", "", "", ""] },
@@ -72,193 +55,180 @@
       "description": "Transactions-flow matrix for model INSOUT following the gl7 article.",
       "note": "Validated against the baseline simulation in the R vignette fixture."
     },
-    {
-      "id": "transaction-flow-sequence",
-      "type": "sequence",
-      "title": "INSOUT transaction flow sequence",
-      "source": { "kind": "matrix", "matrixCellId": "transaction-flow" },
-      "description": "Sequence view generated from the INSOUT transactions-flow matrix at the selected simulation period."
-    },
+    { "id": "transaction-flow-sequence", "type": "sequence", "title": "INSOUT transaction flow sequence", "source": { "kind": "matrix", "matrixCellId": "transaction-flow" }, "description": "Sequence view generated from the INSOUT transactions-flow matrix at the selected simulation period." },
     {
       "id": "equations",
-      "type": "model",
+      "type": "equations",
       "title": "INSOUT model",
-      "editor": {
-        "equations": [
-          { "id": "eq-0-y", "name": "y", "desc": "Output determined by expected sales and inventory adjustment.", "expression": "sE + (invE - lag(inv))" },
-          { "id": "eq-1-N", "name": "N", "desc": "Employment from output and productivity.", "expression": "y / pr" },
-          { "id": "eq-2-WB", "name": "WB", "desc": "Wage bill.", "expression": "N * W" },
-          { "id": "eq-3-UC", "name": "UC", "desc": "Unit cost.", "expression": "WB / y" },
-          { "id": "eq-4-sE", "name": "sE", "desc": "Expected sales formed adaptively.", "expression": "beta * lag(s) + (1 - beta) * lag(sE)" },
-          { "id": "eq-5-invT", "name": "invT", "desc": "Target inventory stock.", "expression": "sigmaT * sE" },
-          { "id": "eq-6-sigmaT", "name": "sigmaT", "desc": "Target inventory-sales ratio responds to the loan rate.", "expression": "sigma0 - sigma1 * rl" },
-          { "id": "eq-7-invE", "name": "invE", "desc": "Expected inventory stock.", "expression": "lag(inv) + gamma * (invT - lag(inv))" },
-          { "id": "eq-8-p", "name": "p", "desc": "Price level.", "expression": "(1 + tau) * (1 + phi) * NHUC" },
-          { "id": "eq-9-NHUC", "name": "NHUC", "desc": "Normalized historic unit cost.", "expression": "(1 - sigmaT) * UC + sigmaT * (1 + lag(rl)) * lag(UC)" },
-          { "id": "eq-10-s", "name": "s", "desc": "Real sales.", "expression": "c + g" },
-          { "id": "eq-11-S", "name": "S", "desc": "Nominal sales.", "expression": "s * p" },
-          { "id": "eq-12-inv", "name": "inv", "desc": "Real inventories.", "expression": "lag(inv) + y - s" },
-          { "id": "eq-13-sigmas", "name": "sigmas", "desc": "Inventory-sales ratio.", "expression": "lag(inv) / s" },
-          { "id": "eq-14-INV", "name": "INV", "desc": "Nominal inventories.", "expression": "inv * UC" },
-          { "id": "eq-15-Ld", "name": "Ld", "desc": "Firms' demand for loans.", "expression": "INV" },
-          { "id": "eq-16-FXf", "name": "FXf", "desc": "Entrepreneurial profits.", "expression": "S - TX - WB + (INV - lag(INV)) - lag(rl) * lag(INV)" },
-          { "id": "eq-17-pi", "name": "pi", "desc": "Inflation rate.", "expression": "(p / lag(p)) - 1" },
-          { "id": "eq-18-YDr", "name": "YDr", "desc": "Nominal disposable income.", "expression": "FX + WB + lag(rm) * lag(M2h) + lag(rb) * lag(Bhh) + lag(BLh)" },
-          { "id": "eq-19-CG", "name": "CG", "desc": "Capital gains on bonds.", "expression": "(pbl - lag(pbl)) * lag(BLh)" },
-          { "id": "eq-20-YDhs", "name": "YDhs", "desc": "Haig-Simons disposable income.", "expression": "YDr + CG" },
-          { "id": "eq-21-FX", "name": "FX", "desc": "Total distributed profits to households.", "expression": "FXf + FXb" },
-          { "id": "eq-22-V", "name": "V", "desc": "Household wealth.", "expression": "lag(V) + YDhs - C" },
-          { "id": "eq-23-Vnc", "name": "Vnc", "desc": "Wealth net of cash.", "expression": "V - Hhh" },
-          { "id": "eq-24-ydr", "name": "ydr", "desc": "Real disposable income.", "expression": "(YDr / p) - pi * (lag(V) / p)" },
-          { "id": "eq-25-ydhs", "name": "ydhs", "desc": "Real Haig-Simons disposable income.", "expression": "(YDr - pi * lag(V) + CG) / p" },
-          { "id": "eq-26-v", "name": "v", "desc": "Real wealth.", "expression": "V / p" },
-          { "id": "eq-27-c", "name": "c", "desc": "Real consumption demand.", "expression": "alpha0 + alpha1 * ydrE + alpha2 * lag(v)" },
-          { "id": "eq-28-ydrE", "name": "ydrE", "desc": "Expected real disposable income.", "expression": "epsilon * lag(ydr) + (1 - epsilon) * lag(ydrE)" },
-          { "id": "eq-29-C", "name": "C", "desc": "Nominal consumption demand.", "expression": "p * c" },
-          { "id": "eq-30-YDrE", "name": "YDrE", "desc": "Expected nominal disposable income.", "expression": "p * ydrE + pi * (lag(V) / p)" },
-          { "id": "eq-31-VE", "name": "VE", "desc": "Expected wealth.", "expression": "lag(V) + (YDrE - C)" },
-          { "id": "eq-32-Hhd", "name": "Hhd", "desc": "Cash demand.", "expression": "lambdac * C" },
-          { "id": "eq-33-VncE", "name": "VncE", "desc": "Expected wealth net of cash.", "expression": "VE - Hhd" },
-          { "id": "eq-34-ERrbl", "name": "ERrbl", "desc": "Expected bond return.", "expression": "rbl" },
-          { "id": "eq-35-M2d", "name": "M2d", "desc": "Household time-deposit demand.", "expression": "VncE * (lambda20 + lambda22 * rm + lambda23 * rb + lambda24 * ERrbl + lambda25 * (YDrE / VncE))" },
-          { "id": "eq-36-Bhd", "name": "Bhd", "desc": "Household bill demand.", "expression": "VncE * (lambda30 + lambda32 * rm + lambda33 * rb + lambda34 * ERrbl + lambda35 * (YDrE / VncE))" },
-          { "id": "eq-37-BLd", "name": "BLd", "desc": "Household bond demand.", "expression": "(VncE / pbl) * (lambda40 + lambda42 * rm + lambda43 * rb + lambda44 * ERrbl + lambda45 * (YDrE / VncE))" },
-          { "id": "eq-38-M1d", "name": "M1d", "desc": "Household checking-deposit demand.", "expression": "VncE * (lambda10 + lambda12 * rm + lambda13 * rb + lambda14 * ERrbl + lambda15 * (YDrE / VncE))" },
-          { "id": "eq-39-M1d2", "name": "M1d2", "desc": "Checking-deposit residual definition.", "expression": "VncE - M2d - Bhd - pbl * BLd" },
-          { "id": "eq-40-Hhh", "name": "Hhh", "desc": "Realized cash holdings.", "expression": "Hhd" },
-          { "id": "eq-41-Bhh", "name": "Bhh", "desc": "Realized household bill holdings.", "expression": "Bhd" },
-          { "id": "eq-42-BLh", "name": "BLh", "desc": "Realized household bond holdings.", "expression": "BLd" },
-          { "id": "eq-43-M1hN", "name": "M1hN", "desc": "Notional checking deposits.", "expression": "Vnc - M2d - Bhd - pbl * BLd" },
-          { "id": "eq-44-z1", "name": "z1", "desc": "Checking-deposit regime indicator.", "expression": "if (M1hN > 0) {1} else {0}" },
-          { "id": "eq-45-z2", "name": "z2", "desc": "Alternative portfolio regime indicator.", "expression": "1 - z1" },
-          { "id": "eq-46-M1h", "name": "M1h", "desc": "Realized checking deposits.", "expression": "M1hN * z1" },
-          { "id": "eq-47-M2hN", "name": "M2hN", "desc": "Notional time deposits.", "expression": "M2d" },
-          { "id": "eq-48-M2h", "name": "M2h", "desc": "Realized time deposits.", "expression": "M2d * z1 + (Vnc - Bhh - pbl * BLd) * z2" },
-          { "id": "eq-49-TX", "name": "TX", "desc": "Tax revenues.", "expression": "S * (tau / (1 + tau))" },
-          { "id": "eq-50-G", "name": "G", "desc": "Nominal government expenditure.", "expression": "p * g" },
-          { "id": "eq-51-PSBR", "name": "PSBR", "desc": "Public sector borrowing requirement.", "expression": "G + lag(rb) * lag(Bs) + lag(BLs) - (TX + FXcb)" },
-          { "id": "eq-52-Bs", "name": "Bs", "desc": "Treasury bills supplied by government.", "expression": "lag(Bs) + PSBR - (BLs - lag(BLs)) * pbl" },
-          { "id": "eq-53-BLs", "name": "BLs", "desc": "Treasury bonds supplied by government.", "expression": "BLd" },
-          { "id": "eq-54-pbl", "name": "pbl", "desc": "Price of bonds.", "expression": "1 / rbl" },
-          { "id": "eq-55-GD", "name": "GD", "desc": "Government debt accumulation.", "expression": "lag(GD) + PSBR" },
-          { "id": "eq-56-Hs", "name": "Hs", "desc": "High-powered money supplied by the central bank.", "expression": "Bcb + As" },
-          { "id": "eq-57-Hbs", "name": "Hbs", "desc": "Bank reserves at the central bank.", "expression": "Hs - Hhs" },
-          { "id": "eq-58-Bcb", "name": "Bcb", "desc": "Bills held by the central bank.", "expression": "Bs - Bhh - Bbd" },
-          { "id": "eq-59-As", "name": "As", "desc": "Advances supplied by the central bank.", "expression": "Ad" },
-          { "id": "eq-60-ra", "name": "ra", "desc": "Interest rate on advances.", "expression": "rb" },
-          { "id": "eq-61-FXcb", "name": "FXcb", "desc": "Central-bank profits.", "expression": "lag(rb) * lag(Bcb) + lag(ra) * lag(As)" },
-          { "id": "eq-62-Hhs", "name": "Hhs", "desc": "Cash supplied to households.", "expression": "Hhd" },
-          { "id": "eq-63-M1s", "name": "M1s", "desc": "Checking deposits supplied by banks.", "expression": "M1h" },
-          { "id": "eq-64-M2s", "name": "M2s", "desc": "Time deposits supplied by banks.", "expression": "M2h" },
-          { "id": "eq-65-Ls", "name": "Ls", "desc": "Loans supplied by banks.", "expression": "Ld" },
-          { "id": "eq-66-Hbd", "name": "Hbd", "desc": "Reserve requirement demand.", "expression": "ro1 * M1s + ro2 * M2s" },
-          { "id": "eq-67-BbdN", "name": "BbdN", "desc": "Notional bank-bill holdings.", "expression": "M1s + M2s - Ls - Hbd" },
-          { "id": "eq-68-BLRN", "name": "BLRN", "desc": "Notional bank liquidity ratio.", "expression": "BbdN / (M1s + M2s)" },
-          { "id": "eq-69-Ad", "name": "Ad", "desc": "Advances demanded by banks.", "expression": "(bot * (M1s + M2s) - BbdN) * z3" },
-          { "id": "eq-70-z3", "name": "z3", "desc": "Advance-demand regime indicator.", "expression": "if (BLRN < bot) {1} else {0}" },
-          { "id": "eq-71-Bbd", "name": "Bbd", "desc": "Realized bank-bill holdings.", "expression": "Ad + M1s + M2s - Ls - Hbd" },
-          { "id": "eq-72-BLR", "name": "BLR", "desc": "Realized bank liquidity ratio.", "expression": "Bbd / (M1s + M2s)" },
-          { "id": "eq-73-rm", "name": "rm", "desc": "Deposit rate set by banks.", "expression": "lag(rm) + zetam * (z4 - z5) + zetab * (rb - lag(rb))" },
-          { "id": "eq-74-z4", "name": "z4", "desc": "Low-liquidity signal.", "expression": "if (lag(BLRN) < bot) {1} else {0}" },
-          { "id": "eq-75-z5", "name": "z5", "desc": "High-liquidity signal.", "expression": "if (lag(BLRN) > top) {1} else {0}" },
-          { "id": "eq-76-FXb", "name": "FXb", "desc": "Bank profits.", "expression": "lag(rl) * lag(Ls) + lag(rb) * lag(Bbd) - lag(rm) * lag(M2s) - lag(ra) * lag(Ad)" },
-          { "id": "eq-77-rl", "name": "rl", "desc": "Loan rate set by banks.", "expression": "lag(rl) + zetal * (z6 - z7) + (rb - lag(rb))" },
-          { "id": "eq-78-z6", "name": "z6", "desc": "Low profit-margin signal.", "expression": "if (BPM < botpm) {1} else {0}" },
-          { "id": "eq-79-z7", "name": "z7", "desc": "High profit-margin signal.", "expression": "if (BPM > toppm) {1} else {0}" },
-          { "id": "eq-80-lM1s", "name": "lM1s", "desc": "Lag helper for M1s.", "expression": "lag(M1s)" },
-          { "id": "eq-81-lM2s", "name": "lM2s", "desc": "Lag helper for M2s.", "expression": "lag(M2s)" },
-          { "id": "eq-82-BPM", "name": "BPM", "desc": "Bank profit margin.", "expression": "(FXb + lag(FXb)) / (lM1s + lag(lM1s) + lM2s + lag(lM2s))" },
-          { "id": "eq-83-omegaT", "name": "omegaT", "desc": "Target real wage.", "expression": "exp(Omega0 + Omega1 * log(pr) + Omega2 * log(N / Nfe))" },
-          { "id": "eq-84-W", "name": "W", "desc": "Money wage.", "expression": "lag(W) * (1 + Omega3 * (lag(omegaT) - (lag(W) / lag(p))))" },
-          { "id": "eq-85-Y", "name": "Y", "desc": "Nominal output.", "expression": "p * s + UC * (inv - lag(inv))" }
-        ],
-        "externals": [
-          { "id": "ext-0-rbl", "name": "rbl", "desc": "Interest rate on bonds.", "kind": "constant", "valueText": "0.027" },
-          { "id": "ext-1-rb", "name": "rb", "desc": "Interest rate on bills.", "kind": "constant", "valueText": "0.023" },
-          { "id": "ext-2-pr", "name": "pr", "desc": "Labor productivity.", "kind": "constant", "valueText": "1" },
-          { "id": "ext-3-g", "name": "g", "desc": "Real government expenditure.", "kind": "constant", "valueText": "25" },
-          { "id": "ext-4-Nfe", "name": "Nfe", "desc": "Full-employment labor supply.", "kind": "constant", "valueText": "133.28" },
-          { "id": "ext-5-alpha0", "name": "alpha0", "desc": "Autonomous consumption.", "kind": "constant", "valueText": "0" },
-          { "id": "ext-6-alpha1", "name": "alpha1", "desc": "Propensity to consume from expected income.", "kind": "constant", "valueText": "0.95" },
-          { "id": "ext-7-alpha2", "name": "alpha2", "desc": "Propensity to consume from wealth.", "kind": "constant", "valueText": "0.05" },
-          { "id": "ext-8-beta", "name": "beta", "desc": "Sales expectations adjustment speed.", "kind": "constant", "valueText": "0.5" },
-          { "id": "ext-9-bot", "name": "bot", "desc": "Lower bound for the bank liquidity ratio.", "kind": "constant", "valueText": "0.02" },
-          { "id": "ext-10-botpm", "name": "botpm", "desc": "Lower bound for the bank profit margin.", "kind": "constant", "valueText": "0.003" },
-          { "id": "ext-11-epsilon", "name": "epsilon", "desc": "Income expectations adjustment speed.", "kind": "constant", "valueText": "0.5" },
-          { "id": "ext-12-gamma", "name": "gamma", "desc": "Inventory adjustment speed.", "kind": "constant", "valueText": "0.5" },
-          { "id": "ext-13-lambdac", "name": "lambdac", "desc": "Cash-to-consumption ratio.", "kind": "constant", "valueText": "0.1" },
-          { "id": "ext-14-phi", "name": "phi", "desc": "Mark-up parameter.", "kind": "constant", "valueText": "0.1" },
-          { "id": "ext-15-ro1", "name": "ro1", "desc": "Reserve requirement on M1.", "kind": "constant", "valueText": "0.1" },
-          { "id": "ext-16-ro2", "name": "ro2", "desc": "Reserve requirement on M2.", "kind": "constant", "valueText": "0.1" },
-          { "id": "ext-17-sigma0", "name": "sigma0", "desc": "Intercept for desired inventories.", "kind": "constant", "valueText": "0.3612" },
-          { "id": "ext-18-sigma1", "name": "sigma1", "desc": "Sensitivity of desired inventories to the loan rate.", "kind": "constant", "valueText": "3" },
-          { "id": "ext-19-tau", "name": "tau", "desc": "Tax rate.", "kind": "constant", "valueText": "0.25" },
-          { "id": "ext-20-zetab", "name": "zetab", "desc": "Pass-through from bill rate to deposit rate.", "kind": "constant", "valueText": "0.9" },
-          { "id": "ext-21-zetal", "name": "zetal", "desc": "Loan-rate adjustment speed.", "kind": "constant", "valueText": "0.0002" },
-          { "id": "ext-22-zetam", "name": "zetam", "desc": "Deposit-rate adjustment speed.", "kind": "constant", "valueText": "0.0002" },
-          { "id": "ext-23-Omega0", "name": "Omega0", "desc": "Wage target intercept.", "kind": "constant", "valueText": "-0.32549" },
-          { "id": "ext-24-Omega1", "name": "Omega1", "desc": "Wage target productivity elasticity.", "kind": "constant", "valueText": "1" },
-          { "id": "ext-25-Omega2", "name": "Omega2", "desc": "Wage target employment elasticity.", "kind": "constant", "valueText": "1.5" },
-          { "id": "ext-26-Omega3", "name": "Omega3", "desc": "Wage adjustment speed.", "kind": "constant", "valueText": "0.1" },
-          { "id": "ext-27-top", "name": "top", "desc": "Upper bound for the bank liquidity ratio.", "kind": "constant", "valueText": "0.06" },
-          { "id": "ext-28-toppm", "name": "toppm", "desc": "Upper bound for the bank profit margin.", "kind": "constant", "valueText": "0.005" },
-          { "id": "ext-29-lambda10", "name": "lambda10", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "-0.17071" },
-          { "id": "ext-30-lambda11", "name": "lambda11", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "0" },
-          { "id": "ext-31-lambda12", "name": "lambda12", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "0" },
-          { "id": "ext-32-lambda13", "name": "lambda13", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "0" },
-          { "id": "ext-33-lambda14", "name": "lambda14", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "0" },
-          { "id": "ext-34-lambda15", "name": "lambda15", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "0.18" },
-          { "id": "ext-35-lambda20", "name": "lambda20", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "0.52245" },
-          { "id": "ext-36-lambda21", "name": "lambda21", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "0" },
-          { "id": "ext-37-lambda22", "name": "lambda22", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "30" },
-          { "id": "ext-38-lambda23", "name": "lambda23", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "-15" },
-          { "id": "ext-39-lambda24", "name": "lambda24", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "-15" },
-          { "id": "ext-40-lambda25", "name": "lambda25", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "-0.06" },
-          { "id": "ext-41-lambda30", "name": "lambda30", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "0.47311" },
-          { "id": "ext-42-lambda31", "name": "lambda31", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "0" },
-          { "id": "ext-43-lambda32", "name": "lambda32", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "-15" },
-          { "id": "ext-44-lambda33", "name": "lambda33", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "30" },
-          { "id": "ext-45-lambda34", "name": "lambda34", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "-15" },
-          { "id": "ext-46-lambda35", "name": "lambda35", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "-0.06" },
-          { "id": "ext-47-lambda40", "name": "lambda40", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "0.17515" },
-          { "id": "ext-48-lambda41", "name": "lambda41", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "0" },
-          { "id": "ext-49-lambda42", "name": "lambda42", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "-15" },
-          { "id": "ext-50-lambda43", "name": "lambda43", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "-15" },
-          { "id": "ext-51-lambda44", "name": "lambda44", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "30" },
-          { "id": "ext-52-lambda45", "name": "lambda45", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "-0.06" }
-        ],
-        "initialValues": [
-          { "id": "init-0-p", "name": "p", "valueText": "1" },
-          { "id": "init-1-W", "name": "W", "valueText": "1" },
-          { "id": "init-2-UC", "name": "UC", "valueText": "1" },
-          { "id": "init-3-BPM", "name": "BPM", "valueText": "0.0035" },
-          { "id": "init-4-rb", "name": "rb", "valueText": "1e-15" }
-        ],
-        "options": {
-          "periods": 210,
-          "solverMethod": "GAUSS_SEIDEL",
-          "toleranceText": "1e-15",
-          "maxIterations": 400,
-          "defaultInitialValueText": "1e-15",
-          "hiddenLeftVariable": "Hbd",
-          "hiddenRightVariable": "Hbs",
-          "hiddenToleranceText": "0.00001",
-          "relativeHiddenTolerance": false
-        },
-        "scenario": {
-          "shocks": []
-        }
-      }
+      "modelId": "equations",
+      "equations": [
+        { "id": "eq-0-y", "name": "y", "desc": "Output determined by expected sales and inventory adjustment.", "expression": "sE + (invE - lag(inv))" },
+        { "id": "eq-1-N", "name": "N", "desc": "Employment from output and productivity.", "expression": "y / pr" },
+        { "id": "eq-2-WB", "name": "WB", "desc": "Wage bill.", "expression": "N * W" },
+        { "id": "eq-3-UC", "name": "UC", "desc": "Unit cost.", "expression": "WB / y" },
+        { "id": "eq-4-sE", "name": "sE", "desc": "Expected sales formed adaptively.", "expression": "beta * lag(s) + (1 - beta) * lag(sE)" },
+        { "id": "eq-5-invT", "name": "invT", "desc": "Target inventory stock.", "expression": "sigmaT * sE" },
+        { "id": "eq-6-sigmaT", "name": "sigmaT", "desc": "Target inventory-sales ratio responds to the loan rate.", "expression": "sigma0 - sigma1 * rl" },
+        { "id": "eq-7-invE", "name": "invE", "desc": "Expected inventory stock.", "expression": "lag(inv) + gamma * (invT - lag(inv))" },
+        { "id": "eq-8-p", "name": "p", "desc": "Price level.", "expression": "(1 + tau) * (1 + phi) * NHUC" },
+        { "id": "eq-9-NHUC", "name": "NHUC", "desc": "Normalized historic unit cost.", "expression": "(1 - sigmaT) * UC + sigmaT * (1 + lag(rl)) * lag(UC)" },
+        { "id": "eq-10-s", "name": "s", "desc": "Real sales.", "expression": "c + g" },
+        { "id": "eq-11-S", "name": "S", "desc": "Nominal sales.", "expression": "s * p" },
+        { "id": "eq-12-inv", "name": "inv", "desc": "Real inventories.", "expression": "lag(inv) + y - s" },
+        { "id": "eq-13-sigmas", "name": "sigmas", "desc": "Inventory-sales ratio.", "expression": "lag(inv) / s" },
+        { "id": "eq-14-INV", "name": "INV", "desc": "Nominal inventories.", "expression": "inv * UC" },
+        { "id": "eq-15-Ld", "name": "Ld", "desc": "Firms' demand for loans.", "expression": "INV" },
+        { "id": "eq-16-FXf", "name": "FXf", "desc": "Entrepreneurial profits.", "expression": "S - TX - WB + (INV - lag(INV)) - lag(rl) * lag(INV)" },
+        { "id": "eq-17-pi", "name": "pi", "desc": "Inflation rate.", "expression": "(p / lag(p)) - 1" },
+        { "id": "eq-18-YDr", "name": "YDr", "desc": "Nominal disposable income.", "expression": "FX + WB + lag(rm) * lag(M2h) + lag(rb) * lag(Bhh) + lag(BLh)" },
+        { "id": "eq-19-CG", "name": "CG", "desc": "Capital gains on bonds.", "expression": "(pbl - lag(pbl)) * lag(BLh)" },
+        { "id": "eq-20-YDhs", "name": "YDhs", "desc": "Haig-Simons disposable income.", "expression": "YDr + CG" },
+        { "id": "eq-21-FX", "name": "FX", "desc": "Total distributed profits to households.", "expression": "FXf + FXb" },
+        { "id": "eq-22-V", "name": "V", "desc": "Household wealth.", "expression": "lag(V) + YDhs - C" },
+        { "id": "eq-23-Vnc", "name": "Vnc", "desc": "Wealth net of cash.", "expression": "V - Hhh" },
+        { "id": "eq-24-ydr", "name": "ydr", "desc": "Real disposable income.", "expression": "(YDr / p) - pi * (lag(V) / p)" },
+        { "id": "eq-25-ydhs", "name": "ydhs", "desc": "Real Haig-Simons disposable income.", "expression": "(YDr - pi * lag(V) + CG) / p" },
+        { "id": "eq-26-v", "name": "v", "desc": "Real wealth.", "expression": "V / p" },
+        { "id": "eq-27-c", "name": "c", "desc": "Real consumption demand.", "expression": "alpha0 + alpha1 * ydrE + alpha2 * lag(v)" },
+        { "id": "eq-28-ydrE", "name": "ydrE", "desc": "Expected real disposable income.", "expression": "epsilon * lag(ydr) + (1 - epsilon) * lag(ydrE)" },
+        { "id": "eq-29-C", "name": "C", "desc": "Nominal consumption demand.", "expression": "p * c" },
+        { "id": "eq-30-YDrE", "name": "YDrE", "desc": "Expected nominal disposable income.", "expression": "p * ydrE + pi * (lag(V) / p)" },
+        { "id": "eq-31-VE", "name": "VE", "desc": "Expected wealth.", "expression": "lag(V) + (YDrE - C)" },
+        { "id": "eq-32-Hhd", "name": "Hhd", "desc": "Cash demand.", "expression": "lambdac * C" },
+        { "id": "eq-33-VncE", "name": "VncE", "desc": "Expected wealth net of cash.", "expression": "VE - Hhd" },
+        { "id": "eq-34-ERrbl", "name": "ERrbl", "desc": "Expected bond return.", "expression": "rbl" },
+        { "id": "eq-35-M2d", "name": "M2d", "desc": "Household time-deposit demand.", "expression": "VncE * (lambda20 + lambda22 * rm + lambda23 * rb + lambda24 * ERrbl + lambda25 * (YDrE / VncE))" },
+        { "id": "eq-36-Bhd", "name": "Bhd", "desc": "Household bill demand.", "expression": "VncE * (lambda30 + lambda32 * rm + lambda33 * rb + lambda34 * ERrbl + lambda35 * (YDrE / VncE))" },
+        { "id": "eq-37-BLd", "name": "BLd", "desc": "Household bond demand.", "expression": "(VncE / pbl) * (lambda40 + lambda42 * rm + lambda43 * rb + lambda44 * ERrbl + lambda45 * (YDrE / VncE))" },
+        { "id": "eq-38-M1d", "name": "M1d", "desc": "Household checking-deposit demand.", "expression": "VncE * (lambda10 + lambda12 * rm + lambda13 * rb + lambda14 * ERrbl + lambda15 * (YDrE / VncE))" },
+        { "id": "eq-39-M1d2", "name": "M1d2", "desc": "Checking-deposit residual definition.", "expression": "VncE - M2d - Bhd - pbl * BLd" },
+        { "id": "eq-40-Hhh", "name": "Hhh", "desc": "Realized cash holdings.", "expression": "Hhd" },
+        { "id": "eq-41-Bhh", "name": "Bhh", "desc": "Realized household bill holdings.", "expression": "Bhd" },
+        { "id": "eq-42-BLh", "name": "BLh", "desc": "Realized household bond holdings.", "expression": "BLd" },
+        { "id": "eq-43-M1hN", "name": "M1hN", "desc": "Notional checking deposits.", "expression": "Vnc - M2d - Bhd - pbl * BLd" },
+        { "id": "eq-44-z1", "name": "z1", "desc": "Checking-deposit regime indicator.", "expression": "if (M1hN > 0) {1} else {0}" },
+        { "id": "eq-45-z2", "name": "z2", "desc": "Alternative portfolio regime indicator.", "expression": "1 - z1" },
+        { "id": "eq-46-M1h", "name": "M1h", "desc": "Realized checking deposits.", "expression": "M1hN * z1" },
+        { "id": "eq-47-M2hN", "name": "M2hN", "desc": "Notional time deposits.", "expression": "M2d" },
+        { "id": "eq-48-M2h", "name": "M2h", "desc": "Realized time deposits.", "expression": "M2d * z1 + (Vnc - Bhh - pbl * BLd) * z2" },
+        { "id": "eq-49-TX", "name": "TX", "desc": "Tax revenues.", "expression": "S * (tau / (1 + tau))" },
+        { "id": "eq-50-G", "name": "G", "desc": "Nominal government expenditure.", "expression": "p * g" },
+        { "id": "eq-51-PSBR", "name": "PSBR", "desc": "Public sector borrowing requirement.", "expression": "G + lag(rb) * lag(Bs) + lag(BLs) - (TX + FXcb)" },
+        { "id": "eq-52-Bs", "name": "Bs", "desc": "Treasury bills supplied by government.", "expression": "lag(Bs) + PSBR - (BLs - lag(BLs)) * pbl" },
+        { "id": "eq-53-BLs", "name": "BLs", "desc": "Treasury bonds supplied by government.", "expression": "BLd" },
+        { "id": "eq-54-pbl", "name": "pbl", "desc": "Price of bonds.", "expression": "1 / rbl" },
+        { "id": "eq-55-GD", "name": "GD", "desc": "Government debt accumulation.", "expression": "lag(GD) + PSBR" },
+        { "id": "eq-56-Hs", "name": "Hs", "desc": "High-powered money supplied by the central bank.", "expression": "Bcb + As" },
+        { "id": "eq-57-Hbs", "name": "Hbs", "desc": "Bank reserves at the central bank.", "expression": "Hs - Hhs" },
+        { "id": "eq-58-Bcb", "name": "Bcb", "desc": "Bills held by the central bank.", "expression": "Bs - Bhh - Bbd" },
+        { "id": "eq-59-As", "name": "As", "desc": "Advances supplied by the central bank.", "expression": "Ad" },
+        { "id": "eq-60-ra", "name": "ra", "desc": "Interest rate on advances.", "expression": "rb" },
+        { "id": "eq-61-FXcb", "name": "FXcb", "desc": "Central-bank profits.", "expression": "lag(rb) * lag(Bcb) + lag(ra) * lag(As)" },
+        { "id": "eq-62-Hhs", "name": "Hhs", "desc": "Cash supplied to households.", "expression": "Hhd" },
+        { "id": "eq-63-M1s", "name": "M1s", "desc": "Checking deposits supplied by banks.", "expression": "M1h" },
+        { "id": "eq-64-M2s", "name": "M2s", "desc": "Time deposits supplied by banks.", "expression": "M2h" },
+        { "id": "eq-65-Ls", "name": "Ls", "desc": "Loans supplied by banks.", "expression": "Ld" },
+        { "id": "eq-66-Hbd", "name": "Hbd", "desc": "Reserve requirement demand.", "expression": "ro1 * M1s + ro2 * M2s" },
+        { "id": "eq-67-BbdN", "name": "BbdN", "desc": "Notional bank-bill holdings.", "expression": "M1s + M2s - Ls - Hbd" },
+        { "id": "eq-68-BLRN", "name": "BLRN", "desc": "Notional bank liquidity ratio.", "expression": "BbdN / (M1s + M2s)" },
+        { "id": "eq-69-Ad", "name": "Ad", "desc": "Advances demanded by banks.", "expression": "(bot * (M1s + M2s) - BbdN) * z3" },
+        { "id": "eq-70-z3", "name": "z3", "desc": "Advance-demand regime indicator.", "expression": "if (BLRN < bot) {1} else {0}" },
+        { "id": "eq-71-Bbd", "name": "Bbd", "desc": "Realized bank-bill holdings.", "expression": "Ad + M1s + M2s - Ls - Hbd" },
+        { "id": "eq-72-BLR", "name": "BLR", "desc": "Realized bank liquidity ratio.", "expression": "Bbd / (M1s + M2s)" },
+        { "id": "eq-73-rm", "name": "rm", "desc": "Deposit rate set by banks.", "expression": "lag(rm) + zetam * (z4 - z5) + zetab * (rb - lag(rb))" },
+        { "id": "eq-74-z4", "name": "z4", "desc": "Low-liquidity signal.", "expression": "if (lag(BLRN) < bot) {1} else {0}" },
+        { "id": "eq-75-z5", "name": "z5", "desc": "High-liquidity signal.", "expression": "if (lag(BLRN) > top) {1} else {0}" },
+        { "id": "eq-76-FXb", "name": "FXb", "desc": "Bank profits.", "expression": "lag(rl) * lag(Ls) + lag(rb) * lag(Bbd) - lag(rm) * lag(M2s) - lag(ra) * lag(Ad)" },
+        { "id": "eq-77-rl", "name": "rl", "desc": "Loan rate set by banks.", "expression": "lag(rl) + zetal * (z6 - z7) + (rb - lag(rb))" },
+        { "id": "eq-78-z6", "name": "z6", "desc": "Low profit-margin signal.", "expression": "if (BPM < botpm) {1} else {0}" },
+        { "id": "eq-79-z7", "name": "z7", "desc": "High profit-margin signal.", "expression": "if (BPM > toppm) {1} else {0}" },
+        { "id": "eq-80-lM1s", "name": "lM1s", "desc": "Lag helper for M1s.", "expression": "lag(M1s)" },
+        { "id": "eq-81-lM2s", "name": "lM2s", "desc": "Lag helper for M2s.", "expression": "lag(M2s)" },
+        { "id": "eq-82-BPM", "name": "BPM", "desc": "Bank profit margin.", "expression": "(FXb + lag(FXb)) / (lM1s + lag(lM1s) + lM2s + lag(lM2s))" },
+        { "id": "eq-83-omegaT", "name": "omegaT", "desc": "Target real wage.", "expression": "exp(Omega0 + Omega1 * log(pr) + Omega2 * log(N / Nfe))" },
+        { "id": "eq-84-W", "name": "W", "desc": "Money wage.", "expression": "lag(W) * (1 + Omega3 * (lag(omegaT) - (lag(W) / lag(p))))" },
+        { "id": "eq-85-Y", "name": "Y", "desc": "Nominal output.", "expression": "p * s + UC * (inv - lag(inv))" }
+      ],
+      "collapsed": true
+    },
+    { "id": "solver", "type": "solver", "title": "Solver", "modelId": "equations", "options": { "periods": 210, "solverMethod": "GAUSS_SEIDEL", "toleranceText": "1e-15", "maxIterations": 400, "defaultInitialValueText": "1e-15", "hiddenLeftVariable": "Hbd", "hiddenRightVariable": "Hbs", "hiddenToleranceText": "0.00001", "relativeHiddenTolerance": false }, "collapsed": true },
+    {
+      "id": "externals-equations",
+      "type": "externals",
+      "title": "Externals",
+      "modelId": "equations",
+      "externals": [
+        { "id": "ext-0-rbl", "name": "rbl", "desc": "Interest rate on bonds.", "kind": "constant", "valueText": "0.027" },
+        { "id": "ext-1-rb", "name": "rb", "desc": "Interest rate on bills.", "kind": "constant", "valueText": "0.023" },
+        { "id": "ext-2-pr", "name": "pr", "desc": "Labor productivity.", "kind": "constant", "valueText": "1" },
+        { "id": "ext-3-g", "name": "g", "desc": "Real government expenditure.", "kind": "constant", "valueText": "25" },
+        { "id": "ext-4-Nfe", "name": "Nfe", "desc": "Full-employment labor supply.", "kind": "constant", "valueText": "133.28" },
+        { "id": "ext-5-alpha0", "name": "alpha0", "desc": "Autonomous consumption.", "kind": "constant", "valueText": "0" },
+        { "id": "ext-6-alpha1", "name": "alpha1", "desc": "Propensity to consume from expected income.", "kind": "constant", "valueText": "0.95" },
+        { "id": "ext-7-alpha2", "name": "alpha2", "desc": "Propensity to consume from wealth.", "kind": "constant", "valueText": "0.05" },
+        { "id": "ext-8-beta", "name": "beta", "desc": "Sales expectations adjustment speed.", "kind": "constant", "valueText": "0.5" },
+        { "id": "ext-9-bot", "name": "bot", "desc": "Lower bound for the bank liquidity ratio.", "kind": "constant", "valueText": "0.02" },
+        { "id": "ext-10-botpm", "name": "botpm", "desc": "Lower bound for the bank profit margin.", "kind": "constant", "valueText": "0.003" },
+        { "id": "ext-11-epsilon", "name": "epsilon", "desc": "Income expectations adjustment speed.", "kind": "constant", "valueText": "0.5" },
+        { "id": "ext-12-gamma", "name": "gamma", "desc": "Inventory adjustment speed.", "kind": "constant", "valueText": "0.5" },
+        { "id": "ext-13-lambdac", "name": "lambdac", "desc": "Cash-to-consumption ratio.", "kind": "constant", "valueText": "0.1" },
+        { "id": "ext-14-phi", "name": "phi", "desc": "Mark-up parameter.", "kind": "constant", "valueText": "0.1" },
+        { "id": "ext-15-ro1", "name": "ro1", "desc": "Reserve requirement on M1.", "kind": "constant", "valueText": "0.1" },
+        { "id": "ext-16-ro2", "name": "ro2", "desc": "Reserve requirement on M2.", "kind": "constant", "valueText": "0.1" },
+        { "id": "ext-17-sigma0", "name": "sigma0", "desc": "Intercept for desired inventories.", "kind": "constant", "valueText": "0.3612" },
+        { "id": "ext-18-sigma1", "name": "sigma1", "desc": "Sensitivity of desired inventories to the loan rate.", "kind": "constant", "valueText": "3" },
+        { "id": "ext-19-tau", "name": "tau", "desc": "Tax rate.", "kind": "constant", "valueText": "0.25" },
+        { "id": "ext-20-zetab", "name": "zetab", "desc": "Pass-through from bill rate to deposit rate.", "kind": "constant", "valueText": "0.9" },
+        { "id": "ext-21-zetal", "name": "zetal", "desc": "Loan-rate adjustment speed.", "kind": "constant", "valueText": "0.0002" },
+        { "id": "ext-22-zetam", "name": "zetam", "desc": "Deposit-rate adjustment speed.", "kind": "constant", "valueText": "0.0002" },
+        { "id": "ext-23-Omega0", "name": "Omega0", "desc": "Wage target intercept.", "kind": "constant", "valueText": "-0.32549" },
+        { "id": "ext-24-Omega1", "name": "Omega1", "desc": "Wage target productivity elasticity.", "kind": "constant", "valueText": "1" },
+        { "id": "ext-25-Omega2", "name": "Omega2", "desc": "Wage target employment elasticity.", "kind": "constant", "valueText": "1.5" },
+        { "id": "ext-26-Omega3", "name": "Omega3", "desc": "Wage adjustment speed.", "kind": "constant", "valueText": "0.1" },
+        { "id": "ext-27-top", "name": "top", "desc": "Upper bound for the bank liquidity ratio.", "kind": "constant", "valueText": "0.06" },
+        { "id": "ext-28-toppm", "name": "toppm", "desc": "Upper bound for the bank profit margin.", "kind": "constant", "valueText": "0.005" },
+        { "id": "ext-29-lambda10", "name": "lambda10", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "-0.17071" },
+        { "id": "ext-30-lambda11", "name": "lambda11", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "0" },
+        { "id": "ext-31-lambda12", "name": "lambda12", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "0" },
+        { "id": "ext-32-lambda13", "name": "lambda13", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "0" },
+        { "id": "ext-33-lambda14", "name": "lambda14", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "0" },
+        { "id": "ext-34-lambda15", "name": "lambda15", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "0.18" },
+        { "id": "ext-35-lambda20", "name": "lambda20", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "0.52245" },
+        { "id": "ext-36-lambda21", "name": "lambda21", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "0" },
+        { "id": "ext-37-lambda22", "name": "lambda22", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "30" },
+        { "id": "ext-38-lambda23", "name": "lambda23", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "-15" },
+        { "id": "ext-39-lambda24", "name": "lambda24", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "-15" },
+        { "id": "ext-40-lambda25", "name": "lambda25", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "-0.06" },
+        { "id": "ext-41-lambda30", "name": "lambda30", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "0.47311" },
+        { "id": "ext-42-lambda31", "name": "lambda31", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "0" },
+        { "id": "ext-43-lambda32", "name": "lambda32", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "-15" },
+        { "id": "ext-44-lambda33", "name": "lambda33", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "30" },
+        { "id": "ext-45-lambda34", "name": "lambda34", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "-15" },
+        { "id": "ext-46-lambda35", "name": "lambda35", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "-0.06" },
+        { "id": "ext-47-lambda40", "name": "lambda40", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "0.17515" },
+        { "id": "ext-48-lambda41", "name": "lambda41", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "0" },
+        { "id": "ext-49-lambda42", "name": "lambda42", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "-15" },
+        { "id": "ext-50-lambda43", "name": "lambda43", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "-15" },
+        { "id": "ext-51-lambda44", "name": "lambda44", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "30" },
+        { "id": "ext-52-lambda45", "name": "lambda45", "desc": "Portfolio parameter.", "kind": "constant", "valueText": "-0.06" }
+      ],
+      "collapsed": true
     },
     {
-      "id": "baseline-run",
-      "type": "run",
-      "title": "Baseline run",
-      "sourceModelCellId": "equations",
-      "mode": "baseline",
-      "resultKey": "gl7_insout_baseline",
-      "description": "Baseline INSOUT simulation with the hidden-equation condition Hbd = Hbs."
+      "id": "initial-values-equations",
+      "type": "initial-values",
+      "title": "Initial values",
+      "modelId": "equations",
+      "initialValues": [
+        { "id": "init-0-p", "name": "p", "valueText": "1" },
+        { "id": "init-1-W", "name": "W", "valueText": "1" },
+        { "id": "init-2-UC", "name": "UC", "valueText": "1" },
+        { "id": "init-3-BPM", "name": "BPM", "valueText": "0.0035" },
+        { "id": "init-4-rb", "name": "rb", "valueText": "1e-15" }
+      ],
+      "collapsed": true
     },
+    { "id": "baseline-run", "type": "run", "title": "Baseline run", "mode": "baseline", "resultKey": "gl7_insout_baseline", "description": "Baseline INSOUT simulation with the hidden-equation condition Hbd = Hbs.", "sourceModelId": "equations" },
     {
       "id": "baseline-chart",
       "type": "chart",
@@ -267,42 +237,25 @@
       "variables": ["Y", "pi", "BLRN", "BPM"],
       "axisMode": "separate",
       "axisSnapTolarance": 0.5,
-      "seriesRanges": {
-        "pi": { "includeZero": true },
-        "BLRN": { "includeZero": true },
-        "BPM": { "includeZero": true }
-      }
+      "seriesRanges": { "pi": { "includeZero": true }, "BLRN": { "includeZero": true }, "BPM": { "includeZero": true } }
     },
-    {
-      "id": "baseline-table",
-      "type": "table",
-      "title": "Baseline variable summary",
-      "sourceRunCellId": "baseline-run",
-      "variables": ["y", "s", "p", "V", "INV", "BLRN", "BPM"]
-    },
-    {
-      "id": "scenario-1-note",
-      "type": "markdown",
-      "title": "Simulation 1",
-      "source": "Simulation 1 raises `sigma0` from `0.3612` to `0.4` between periods 5 and 70, increasing the targeted inventories-to-sales ratio through the `sigmaT` rule."
-    },
+    { "id": "baseline-table", "type": "table", "title": "Baseline variable summary", "sourceRunCellId": "baseline-run", "variables": ["y", "s", "p", "V", "INV", "BLRN", "BPM"] },
+    { "id": "scenario-1-note", "type": "markdown", "title": "Simulation 1", "source": "Simulation 1 raises `sigma0` from `0.3612` to `0.4` between periods 5 and 70, increasing the targeted inventories-to-sales ratio through the `sigmaT` rule." },
     {
       "id": "scenario-1-run",
       "type": "run",
       "title": "Simulation 1: targeted inventories shock",
-      "sourceModelCellId": "equations",
       "mode": "scenario",
       "scenario": {
         "shocks": [
           {
             "rangeInclusive": [5, 70],
-            "variables": {
-              "sigma0": { "kind": "constant", "value": 0.4 }
-            }
+            "variables": { "sigma0": { "kind": "constant", "value": 0.4 } }
           }
         ]
       },
-      "resultKey": "gl7_insout_s1"
+      "resultKey": "gl7_insout_s1",
+      "sourceModelId": "equations"
     },
     {
       "id": "scenario-1-chart",
@@ -312,34 +265,24 @@
       "variables": ["INV", "Ls", "rm", "rb"],
       "axisMode": "separate",
       "axisSnapTolarance": 0.5,
-      "seriesRanges": {
-        "rm": { "includeZero": true },
-        "rb": { "includeZero": true }
-      }
+      "seriesRanges": { "rm": { "includeZero": true }, "rb": { "includeZero": true } }
     },
-    {
-      "id": "scenario-2-note",
-      "type": "markdown",
-      "title": "Simulation 2",
-      "source": "Simulation 2 raises real government expenditure `g` from `25` to `30` between periods 5 and 55."
-    },
+    { "id": "scenario-2-note", "type": "markdown", "title": "Simulation 2", "source": "Simulation 2 raises real government expenditure `g` from `25` to `30` between periods 5 and 55." },
     {
       "id": "scenario-2-run",
       "type": "run",
       "title": "Simulation 2: government expenditure shock",
-      "sourceModelCellId": "equations",
       "mode": "scenario",
       "scenario": {
         "shocks": [
           {
             "rangeInclusive": [5, 55],
-            "variables": {
-              "g": { "kind": "constant", "value": 30 }
-            }
+            "variables": { "g": { "kind": "constant", "value": 30 } }
           }
         ]
       },
-      "resultKey": "gl7_insout_s2"
+      "resultKey": "gl7_insout_s2",
+      "sourceModelId": "equations"
     },
     {
       "id": "scenario-2-chart",
@@ -349,40 +292,28 @@
       "variables": ["c", "v", "ydr", "pi"],
       "axisMode": "separate",
       "axisSnapTolarance": 0.5,
-      "seriesRanges": {
-        "pi": { "includeZero": true }
-      }
+      "seriesRanges": { "pi": { "includeZero": true } }
     },
-    {
-      "id": "scenario-7-note",
-      "type": "markdown",
-      "title": "Simulation 7",
-      "source": "Simulation 7 combines a higher target real wage with higher bill and bond rates: `Omega0` rises from `-0.32549` to `-0.2` during periods 4 to 55, while `rb` rises from `0.023` to `0.03` and `rbl` rises from `0.027` to `0.039` during periods 5 to 55."
-    },
+    { "id": "scenario-7-note", "type": "markdown", "title": "Simulation 7", "source": "Simulation 7 combines a higher target real wage with higher bill and bond rates: `Omega0` rises from `-0.32549` to `-0.2` during periods 4 to 55, while `rb` rises from `0.023` to `0.03` and `rbl` rises from `0.027` to `0.039` during periods 5 to 55." },
     {
       "id": "scenario-7-run",
       "type": "run",
       "title": "Simulation 7: inflation and rate shock",
-      "sourceModelCellId": "equations",
       "mode": "scenario",
       "scenario": {
         "shocks": [
           {
             "rangeInclusive": [4, 55],
-            "variables": {
-              "Omega0": { "kind": "constant", "value": -0.2 }
-            }
+            "variables": { "Omega0": { "kind": "constant", "value": -0.2 } }
           },
           {
             "rangeInclusive": [5, 55],
-            "variables": {
-              "rb": { "kind": "constant", "value": 0.03 },
-              "rbl": { "kind": "constant", "value": 0.039 }
-            }
+            "variables": { "rb": { "kind": "constant", "value": 0.03 }, "rbl": { "kind": "constant", "value": 0.039 } }
           }
         ]
       },
-      "resultKey": "gl7_insout_s7"
+      "resultKey": "gl7_insout_s7",
+      "sourceModelId": "equations"
     },
     {
       "id": "scenario-7-chart",
@@ -392,9 +323,7 @@
       "variables": ["pi", "s", "V", "Bs"],
       "axisMode": "separate",
       "axisSnapTolarance": 0.5,
-      "seriesRanges": {
-        "pi": { "includeZero": true }
-      }
+      "seriesRanges": { "pi": { "includeZero": true } }
     }
   ]
 }

@@ -74,8 +74,13 @@ export function InitialValuesEditor({
             >
               {issues[`initialValues.${index}.name`] ?? issues[`initialValues.${index}.valueText`] ?? "OK"}
             </span>
-            <button type="button" onClick={() => onChange(removeRow(initialValues, index))}>
-              Remove
+            <button
+              type="button"
+              aria-label={`Remove initial ${index + 1}`}
+              className="external-grid-remove-button"
+              onClick={() => onChange(removeRow(initialValues, index))}
+            >
+              -
             </button>
           </div>
         ))}

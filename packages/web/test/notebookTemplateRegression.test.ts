@@ -5,6 +5,7 @@ import { runBaseline, runScenario } from "@sfcr/core";
 import bmwRegressionFixture from "./fixtures/r-regressions/bmw.json";
 import gl6DisRegressionFixture from "./fixtures/r-regressions/gl6-dis.json";
 import gl7InsoutRegressionFixture from "./fixtures/r-regressions/gl7-insout.json";
+import gl8GrowthRegressionFixture from "./fixtures/r-regressions/gl8-growth.json";
 import { buildRuntimeConfig } from "../src/lib/editorModel";
 import { NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
 
@@ -21,7 +22,8 @@ interface RegressionFixture {
 const FIXTURES: RegressionFixture[] = [
   bmwRegressionFixture,
   gl6DisRegressionFixture,
-  gl7InsoutRegressionFixture
+  gl7InsoutRegressionFixture,
+  gl8GrowthRegressionFixture
 ];
 const TOLERANCE = 5e-3;
 

@@ -13,6 +13,69 @@ round_value <- function(x) {
   round(unname(as.numeric(x)), digits = 12)
 }
 
+extract_java_call_pairs <- function(text, pattern) {
+  matches <- gregexpr(pattern, text, perl = TRUE)
+  captures <- regmatches(text, matches)[[1]]
+  if (length(captures) == 0) {
+    return(data.frame(name = character(), value = character(), stringsAsFactors = FALSE))
+  }
+
+  parsed <- lapply(
+    captures,
+    function(entry) {
+      match <- regexec(pattern, entry, perl = TRUE)
+      values <- regmatches(entry, match)[[1]]
+      c(values[2], values[3])
+    }
+  )
+
+  as.data.frame(do.call(rbind, parsed), stringsAsFactors = FALSE) |>
+    stats::setNames(c("name", "value"))
+}
+
+load_growth_model_from_java <- function() {
+  java_source <- paste(
+    readLines("references/java/src/main/java/io/github/joaomacalos/sfcr/model/GrowthModels.java", warn = FALSE),
+    collapse = "\n"
+  )
+
+  equation_pairs <- extract_java_call_pairs(
+    java_source,
+    r"{\.equation\("([^"]+)",\s*"([^"]+)"\)}"
+  )
+  external_pairs <- extract_java_call_pairs(
+    java_source,
+    r"{external\(builder,\s*"([^"]+)",\s*"([^"]+)"\);}"
+  )
+  initial_pairs <- extract_java_call_pairs(
+    java_source,
+    r"{initial\(builder,\s*"([^"]+)",\s*"([^"]+)"\);}"
+  )
+
+  equations <- do.call(
+    sfcr_set,
+    lapply(seq_len(nrow(equation_pairs)), function(index) {
+      stats::as.formula(sprintf("%s ~ %s", equation_pairs$name[[index]], equation_pairs$value[[index]]))
+    })
+  )
+
+  externals <- do.call(
+    sfcr_set,
+    lapply(seq_len(nrow(external_pairs)), function(index) {
+      stats::as.formula(sprintf("%s ~ %s", external_pairs$name[[index]], external_pairs$value[[index]]))
+    })
+  )
+
+  initials <- do.call(
+    sfcr_set,
+    lapply(seq_len(nrow(initial_pairs)), function(index) {
+      stats::as.formula(sprintf("%s ~ %s", initial_pairs$name[[index]], initial_pairs$value[[index]]))
+    })
+  )
+
+  list(equations = equations, externals = externals, initial = initials)
+}
+
 period_snapshot <- function(model, period, variables) {
   row <- model[model$period == period, variables, drop = FALSE]
   if (nrow(row) != 1) {
@@ -525,6 +588,122 @@ generate_gl7_insout_fixture <- function() {
   write_fixture("gl7-insout", fixture)
 }
 
+generate_gl8_growth_fixture <- function() {
+  growth_model <- load_growth_model_from_java()
+
+  growth <- sfcr_baseline(
+    equations = growth_model$equations,
+    external = growth_model$externals,
+    initial = growth_model$initial,
+    periods = 350,
+    method = "Broyden",
+    hidden = c("Bbs" = "Bbd"),
+    tol = 1e-15,
+    max_iter = 350,
+    rhtol = TRUE,
+    .hidden_tol = 1e-6
+  )
+
+  scenario1 <- sfcr_scenario(
+    baseline = growth,
+    scenario = sfcr_shock(variables = sfcr_set(omega0 ~ -0.1), start = 5, end = 150),
+    periods = 350,
+    method = "Broyden"
+  )
+
+  scenario2 <- sfcr_scenario(
+    baseline = growth,
+    scenario = sfcr_shock(variables = sfcr_set(GRg ~ 0.035), start = 10, end = 11),
+    periods = 350,
+    method = "Broyden"
+  )
+
+  scenario10 <- sfcr_scenario(
+    baseline = growth,
+    scenario = sfcr_shock(variables = sfcr_set(NPLk ~ 0.05), start = 10, end = 150),
+    periods = 350,
+    method = "Broyden"
+  )
+
+  bs_growth <- sfcr_matrix(
+    columns = c("Households", "Firms", "Govt", "Central Bank", "Banks", "Sum"),
+    codes = c("h", "f", "g", "cb", "b", "s"),
+    c("Inventories", f = "+IN", s = "+IN"),
+    c("Fixed Capital", f = "+K", s = "+K"),
+    c("HPM", h = "+Hhd", cb = "-Hs", b = "+Hbd"),
+    c("Money", h = "+Mh", b = "-Ms"),
+    c("Bills", h = "+Bhd", g = "-Bs", cb = "+Bcbd", b = "+Bbd"),
+    c("Bonds", h = "+BLd * Pbl", g = "-BLs * Pbl"),
+    c("Loans", h = "-Lhd", f = "-Lfd", b = "+Ls"),
+    c("Equities", h = "+Ekd * Pe", f = "-Eks * Pe"),
+    c("Bank capital", h = "+OFb", b = "-OFb"),
+    c("Balance", h = "-V", f = "-Vf", g = "GD", s = "-(IN + K)")
+  )
+
+  tfm_growth <- sfcr_matrix(
+    columns = c("Households", "Firms curr.", "Firms cap.", "Govt.", "CB curr.", "CB cap.", "Banks curr.", "Banks cap."),
+    code = c("h", "fc", "fk", "g", "cbc", "cbk", "bc", "bk"),
+    c("Consumption", h = "-CONS", fc = "+CONS"),
+    c("Govt. Exp.", fc = "+G", g = "-G"),
+    c("Investment", fc = "+INV", fk = "-INV"),
+    c("Inventories", fc = "+(IN - IN[-1])", fk = "-(IN - IN[-1])"),
+    c("Taxes", h = "-TX", g = "+TX"),
+    c("Wages", h = "+WB", fc = "-WB"),
+    c("Inventory financing cost", fc = "-Rl[-1] * IN[-1]", bc = "+Rl[-1] * (IN[-1])"),
+    c("Entr. Profits", h = "+FDf", fc = "-Ff", fk = "+FUf", bc = "+Rl[-1] * (Lfs[-1] - IN[-1] - NPL)"),
+    c("Banks Profits", h = "+FDb", bc = "-Fb", bk = "+FUb"),
+    c("Int. hh loans", h = "-Rl[-1] * Lhd[-1]", bc = "+Rl[-1] * Lhs[-1]"),
+    c("Int. deposits", h = "+Rm[-1] * Mh[-1]", bc = "-Rm[-1] * Ms[-1]"),
+    c("Int. bills", h = "+Rb[-1] * Bhd[-1]", g = "-Rb[-1] * Bs[-1]", cbc = "+Rb[-1] * Bcbd[-1]", bc = "+Rb[-1] * Bbd[-1]"),
+    c("Int. bonds", h = "+BLd[-1]", g = "-BLd[-1]"),
+    c("Ch. loans", h = "+(Lhd - Lhd[-1])", fk = "+(Lfd - Lfd[-1])", bk = "-(Ls - Ls[-1])"),
+    c("Ch. cash", h = "-(Hhd - Hhd[-1])", cbk = "+(Hs - Hs[-1])", bk = "-(Hbd - Hbd[-1])"),
+    c("Ch. deposits", h = "-(Mh - Mh[-1])", bk = "+(Ms - Ms[-1])"),
+    c("Ch. bills", h = "-(Bhd - Bhd[-1])", g = "+(Bs - Bs[-1])", cbk = "-(Bcbd - Bcbd[-1])", bk = "-(Bbd - Bbd[-1])"),
+    c("Ch. bonds", h = "-(BLd - BLd[-1]) * Pbl", g = "+(BLs - BLs[-1]) * Pbl"),
+    c("Ch. equities", h = "-(Ekd - Ekd[-1]) * Pe", fk = "+(Eks - Eks[-1]) * Pe"),
+    c("Loan defaults", fk = "+NPL", bk = "-NPL")
+  )
+
+  fixture <- list(
+    templateId = "gl8-growth",
+    sourceVignette = "references/r-sfcr/vignettes/articles/gl8-growth.Rmd",
+    checkpoints = list(
+      "baseline-run" = list(
+        periods = list(
+          "5" = period_snapshot(growth, 5, c("Yk", "P", "BLR", "CAR", "GD")),
+          "350" = period_snapshot(growth, 350, c("Yk", "PI", "GRk", "BLR", "CAR"))
+        )
+      ),
+      "scenario-1-run" = list(
+        periods = list(
+          "10" = period_snapshot(scenario1, 10, c("PI", "Rl", "CAR", "BLR")),
+          "150" = period_snapshot(scenario1, 150, c("PI", "Rl", "CAR", "BLR"))
+        )
+      ),
+      "scenario-2-run" = list(
+        periods = list(
+          "10" = period_snapshot(scenario2, 10, c("PI", "Rl", "BLR", "CAR")),
+          "25" = period_snapshot(scenario2, 25, c("PI", "Rl", "BLR", "CAR"))
+        )
+      ),
+      "scenario-10-run" = list(
+        periods = list(
+          "10" = period_snapshot(scenario10, 10, c("CAR", "Rl", "BLR", "PI")),
+          "150" = period_snapshot(scenario10, 150, c("CAR", "Rl", "BLR", "PI"))
+        )
+      )
+    ),
+    matrixValidation = list(
+      balanceSheet = capture.output(sfcr_validate(bs_growth, growth, "bs", rtol = TRUE, tol = 1e-8)),
+      transactionFlow = capture.output(sfcr_validate(tfm_growth, growth, "tfm", tol = 1e-7, rtol = TRUE))
+    )
+  )
+
+  write_fixture("gl8-growth", fixture)
+}
+
 generate_bmw_fixture()
 generate_gl6_dis_fixture()
 generate_gl7_insout_fixture()
+generate_gl8_growth_fixture()

@@ -1,17 +1,9 @@
 {
   "id": "bmw-notebook",
   "title": "BMW Browser Notebook",
-  "metadata": {
-    "version": 1,
-    "template": "bmw"
-  },
+  "metadata": { "version": 1, "template": "bmw" },
   "cells": [
-    {
-      "id": "intro",
-      "type": "markdown",
-      "title": "Overview",
-      "source": "This browser notebook adapts the BMW vignette into executable model, run, and chart cells. It focuses on a Newton baseline and two scenario comparisons."
-    },
+    { "id": "intro", "type": "markdown", "title": "Overview", "source": "This browser notebook adapts the BMW vignette into executable model, run, and chart cells. It focuses on a Newton baseline and two scenario comparisons." },
     {
       "id": "balance-sheet",
       "type": "matrix",
@@ -19,26 +11,11 @@
       "sourceRunCellId": "baseline-newton",
       "columns": ["Households", "Production firms", "Banks", "Sum"],
       "rows": [
-        {
-          "label": "Money deposits",
-          "values": ["+Mh", "", "-Ms", "0"]
-        },
-        {
-          "label": "Loans",
-          "values": ["", "-Ld", "+Ls", "0"]
-        },
-        {
-          "label": "Fixed capital",
-          "values": ["", "+K", "", "+K"]
-        },
-        {
-          "label": "Balance (net worth)",
-          "values": ["-Vh", "-V", "0", "0"]
-        },
-        {
-          "label": "Sum",
-          "values": ["0", "0", "0", "0"]
-        }
+        { "label": "Money deposits", "values": ["+Mh", "", "-Ms", "0"] },
+        { "label": "Loans", "values": ["", "-Ld", "+Ls", "0"] },
+        { "label": "Fixed capital", "values": ["", "+K", "", "+K"] },
+        { "label": "Balance (net worth)", "values": ["-Vh", "-V", "0", "0"] },
+        { "label": "Sum", "values": ["0", "0", "0", "0"] }
       ],
       "description": "Balance-sheet matrix for the BMW model, following the sfcr article presentation.",
       "note": "Source structure adapted from the sfcr BMW article balance-sheet display."
@@ -48,357 +25,107 @@
       "type": "matrix",
       "title": "BMW transactions-flow matrix",
       "sourceRunCellId": "baseline-newton",
-      "columns": [
-        "Households",
-        "Firms_current",
-        "Firms_capital",
-        "Banks_current",
-        "Banks_capital"
-      ],
+      "columns": ["Households", "Firms_current", "Firms_capital", "Banks_current", "Banks_capital"],
       "rows": [
-        {
-          "label": "Consumption",
-          "values": ["-Cs", "+Cd", "", "", ""]
-        },
-        {
-          "label": "Investment",
-          "values": ["", "+Is", "-Id", "", ""]
-        },
-        {
-          "label": "Wages",
-          "values": ["+WBs", "-WBd", "", "", ""]
-        },
-        {
-          "label": "Depreciation",
-          "values": ["", "-AF", "+AF", "", ""]
-        },
-        {
-          "label": "Interest loans",
-          "values": ["", "-rl[-1] * Ld[-1]", "", "+rl[-1] * Ls[-1]", ""]
-        },
-        {
-          "label": "Interest on deposits",
-          "values": ["+rm[-1] * Mh[-1]", "", "", "-rm[-1] * Ms[-1]", ""]
-        },
-        {
-          "label": "Ch. loans",
-          "values": ["", "", "+d(Ld)", "", "-d(Ls)"]
-        },
-        {
-          "label": "Ch. deposits",
-          "values": ["-d(Mh)", "", "", "", "+d(Ms)"]
-        }
+        { "label": "Consumption", "values": ["-Cs", "+Cd", "", "", ""] },
+        { "label": "Investment", "values": ["", "+Is", "-Id", "", ""] },
+        { "label": "Wages", "values": ["+WBs", "-WBd", "", "", ""] },
+        { "label": "Depreciation", "values": ["", "-AF", "+AF", "", ""] },
+        { "label": "Interest loans", "values": ["", "-rl[-1] * Ld[-1]", "", "+rl[-1] * Ls[-1]", ""] },
+        { "label": "Interest on deposits", "values": ["+rm[-1] * Mh[-1]", "", "", "-rm[-1] * Ms[-1]", ""] },
+        { "label": "Ch. loans", "values": ["", "", "+d(Ld)", "", "-d(Ls)"] },
+        { "label": "Ch. deposits", "values": ["-d(Mh)", "", "", "", "+d(Ms)"] }
       ],
       "description": "Transactions-flow matrix for the BMW model, shown in the same accounting style as the sfcr article.",
       "note": "Signs and row structure follow the BMW transactions-flow matrix in the sfcr article."
     },
-    {
-      "id": "transaction-flow-sequence",
-      "type": "sequence",
-      "title": "BMW transaction flow sequence",
-      "source": {
-        "kind": "matrix",
-        "matrixCellId": "transaction-flow"
-      },
-      "description": "Canvas-rendered sequence view generated from the transactions-flow matrix at the selected simulation period.",
-      "note": "Use Reset and Next step to manually reveal flows in order."
-    },
+    { "id": "transaction-flow-sequence", "type": "sequence", "title": "BMW transaction flow sequence", "source": { "kind": "matrix", "matrixCellId": "transaction-flow" }, "description": "Canvas-rendered sequence view generated from the transactions-flow matrix at the selected simulation period.", "note": "Use Reset and Next step to manually reveal flows in order." },
     {
       "id": "equations-newton",
-      "type": "model",
-      "title": "BMW model with Newton solver",
-      "editor": {
-        "equations": [
-          {
-            "id": "eq-0-Cs",
-            "name": "Cs",
-            "desc": "Consumption goods supply",
-            "expression": "Cd"
-          },
-          {
-            "id": "eq-1-Is",
-            "name": "Is",
-            "desc": "Supply of investment goods",
-            "expression": "Id"
-          },
-          {
-            "id": "eq-2-Ns",
-            "name": "Ns",
-            "desc": "Supply of labor",
-            "expression": "Nd"
-          },
-          {
-            "id": "eq-3-Ls",
-            "name": "Ls",
-            "desc": "Supply of bank loans",
-            "expression": "lag(Ls) + Ld - lag(Ld)"
-          },
-          {
-            "id": "eq-4-Y",
-            "name": "Y",
-            "desc": "Income = GDP",
-            "expression": "Cs + Is"
-          },
-          {
-            "id": "eq-5-WBd",
-            "name": "WBd",
-            "desc": "Wage bill - demand",
-            "expression": "Y - lag(rl) * lag(Ld) - AF"
-          },
-          {
-            "id": "eq-6-AF",
-            "name": "AF",
-            "desc": "Amortization funds",
-            "expression": "delta * lag(K)"
-          },
-          {
-            "id": "eq-7-Ld",
-            "name": "Ld",
-            "desc": "Demand for bank loans",
-            "expression": "lag(Ld) + Id - AF"
-          },
-          {
-            "id": "eq-8-YD",
-            "name": "YD",
-            "desc": "Disposable income of households",
-            "expression": "WBs + lag(rm) * lag(Mh)"
-          },
-          {
-            "id": "eq-9-Mh",
-            "name": "Mh",
-            "desc": "Bank deposits held by households",
-            "expression": "lag(Mh) + YD - Cd"
-          },
-          {
-            "id": "eq-10-Ms",
-            "name": "Ms",
-            "desc": "Supply of bank deposits",
-            "expression": "lag(Ms) + Ls - lag(Ls)"
-          },
-          {
-            "id": "eq-11-rm",
-            "name": "rm",
-            "desc": "",
-            "expression": "rl"
-          },
-          {
-            "id": "eq-12-WBs",
-            "name": "WBs",
-            "desc": "Wage bill - supply",
-            "expression": "W * Ns"
-          },
-          {
-            "id": "eq-13-Nd",
-            "name": "Nd",
-            "desc": "Demand for labor",
-            "expression": "Y / pr"
-          },
-          {
-            "id": "eq-14-W",
-            "name": "W",
-            "desc": "Wage rate",
-            "expression": "WBd / Nd"
-          },
-          {
-            "id": "eq-15-Cd",
-            "name": "Cd",
-            "desc": "Consumption goods demand by households",
-            "expression": "alpha0 + alpha1 * YD + alpha2 * lag(Mh)"
-          },
-          {
-            "id": "eq-16-K",
-            "name": "K",
-            "desc": "Stock of capital",
-            "expression": "lag(K) + Id - DA"
-          },
-          {
-            "id": "eq-17-DA",
-            "name": "DA",
-            "desc": "Depreciation allowance",
-            "expression": "delta * lag(K)"
-          },
-          {
-            "id": "eq-18-KT",
-            "name": "KT",
-            "desc": "Target stock of capital",
-            "expression": "kappa * lag(Y)"
-          },
-          {
-            "id": "eq-19-Id",
-            "name": "Id",
-            "desc": "Demand for investment goods",
-            "expression": "gamma * (KT - lag(K)) + DA"
-          }
-        ],
-        "externals": [
-          {
-            "id": "ext-0-rl",
-            "name": "rl",
-            "desc": "Rate of interest on bank loans, set exogenously",
-            "kind": "constant",
-            "valueText": "0.025"
-          },
-          {
-            "id": "ext-1-alpha0",
-            "name": "alpha0",
-            "desc": "Exogenous component in consumption",
-            "kind": "constant",
-            "valueText": "20"
-          },
-          {
-            "id": "ext-2-alpha1",
-            "name": "alpha1",
-            "desc": "Propensity to consume out of income",
-            "kind": "constant",
-            "valueText": "0.75"
-          },
-          {
-            "id": "ext-3-alpha2",
-            "name": "alpha2",
-            "desc": "Propensity to consume out of wealth",
-            "kind": "constant",
-            "valueText": "0.1"
-          },
-          {
-            "id": "ext-4-delta",
-            "name": "delta",
-            "desc": "Depreciation rate",
-            "kind": "constant",
-            "valueText": "0.1"
-          },
-          {
-            "id": "ext-5-gamma",
-            "name": "gamma",
-            "desc": "Speed of adjustment of capital to its target value",
-            "kind": "constant",
-            "valueText": "0.15"
-          },
-          {
-            "id": "ext-6-kappa",
-            "name": "kappa",
-            "desc": "Capital-output ratio",
-            "kind": "constant",
-            "valueText": "1"
-          },
-          {
-            "id": "ext-7-pr",
-            "name": "pr",
-            "desc": "Labor productivity",
-            "kind": "constant",
-            "valueText": "1"
-          }
-        ],
-        "initialValues": [],
-        "options": {
-          "periods": 50,
-          "solverMethod": "NEWTON",
-          "toleranceText": "1e-10",
-          "maxIterations": 100,
-          "defaultInitialValueText": "1e-15",
-          "hiddenLeftVariable": "Ms",
-          "hiddenRightVariable": "Mh",
-          "hiddenToleranceText": "0.00001",
-          "relativeHiddenTolerance": false
-        },
-        "scenario": {
-          "shocks": []
-        }
-      }
+      "type": "equations",
+      "title": "BMW model",
+      "modelId": "equations-newton",
+      "equations": [
+        { "id": "eq-0-Cs", "name": "Cs", "desc": "Consumption goods supply", "expression": "Cd" },
+        { "id": "eq-1-Is", "name": "Is", "desc": "Supply of investment goods", "expression": "Id" },
+        { "id": "eq-2-Ns", "name": "Ns", "desc": "Supply of labor", "expression": "Nd" },
+        { "id": "eq-3-Ls", "name": "Ls", "desc": "Supply of bank loans", "expression": "lag(Ls) + Ld - lag(Ld)" },
+        { "id": "eq-4-Y", "name": "Y", "desc": "Income = GDP", "expression": "Cs + Is" },
+        { "id": "eq-5-WBd", "name": "WBd", "desc": "Wage bill - demand", "expression": "Y - lag(rl) * lag(Ld) - AF" },
+        { "id": "eq-6-AF", "name": "AF", "desc": "Amortization funds", "expression": "delta * lag(K)" },
+        { "id": "eq-7-Ld", "name": "Ld", "desc": "Demand for bank loans", "expression": "lag(Ld) + Id - AF" },
+        { "id": "eq-8-YD", "name": "YD", "desc": "Disposable income of households", "expression": "WBs + lag(rm) * lag(Mh)" },
+        { "id": "eq-9-Mh", "name": "Mh", "desc": "Bank deposits held by households", "expression": "lag(Mh) + YD - Cd" },
+        { "id": "eq-10-Ms", "name": "Ms", "desc": "Supply of bank deposits", "expression": "lag(Ms) + Ls - lag(Ls)" },
+        { "id": "eq-11-rm", "name": "rm", "desc": "", "expression": "rl" },
+        { "id": "eq-12-WBs", "name": "WBs", "desc": "Wage bill - supply", "expression": "W * Ns" },
+        { "id": "eq-13-Nd", "name": "Nd", "desc": "Demand for labor", "expression": "Y / pr" },
+        { "id": "eq-14-W", "name": "W", "desc": "Wage rate", "expression": "WBd / Nd" },
+        { "id": "eq-15-Cd", "name": "Cd", "desc": "Consumption goods demand by households", "expression": "alpha0 + alpha1 * YD + alpha2 * lag(Mh)" },
+        { "id": "eq-16-K", "name": "K", "desc": "Stock of capital", "expression": "lag(K) + Id - DA" },
+        { "id": "eq-17-DA", "name": "DA", "desc": "Depreciation allowance", "expression": "delta * lag(K)" },
+        { "id": "eq-18-KT", "name": "KT", "desc": "Target stock of capital", "expression": "kappa * lag(Y)" },
+        { "id": "eq-19-Id", "name": "Id", "desc": "Demand for investment goods", "expression": "gamma * (KT - lag(K)) + DA" }
+      ],
+      "collapsed": true
     },
+    { "id": "solver-newton", "type": "solver", "title": "Solver options", "modelId": "equations-newton", "options": { "periods": 50, "solverMethod": "NEWTON", "toleranceText": "1e-10", "maxIterations": 100, "defaultInitialValueText": "1e-15", "hiddenLeftVariable": "Ms", "hiddenRightVariable": "Mh", "hiddenToleranceText": "0.00001", "relativeHiddenTolerance": false }, "collapsed": true },
     {
-      "id": "baseline-newton",
-      "type": "run",
-      "title": "Baseline run with Newton",
-      "sourceModelCellId": "equations-newton",
-      "mode": "baseline",
-      "resultKey": "bmw_newton",
-      "description": "This Newton baseline provides the reference path for the BMW scenarios."
+      "id": "externals-equations-newton",
+      "type": "externals",
+      "title": "Externals",
+      "modelId": "equations-newton",
+      "externals": [
+        { "id": "ext-0-rl", "name": "rl", "desc": "Rate of interest on bank loans, set exogenously", "kind": "constant", "valueText": "0.025" },
+        { "id": "ext-1-alpha0", "name": "alpha0", "desc": "Exogenous component in consumption", "kind": "constant", "valueText": "20" },
+        { "id": "ext-2-alpha1", "name": "alpha1", "desc": "Propensity to consume out of income", "kind": "constant", "valueText": "0.75" },
+        { "id": "ext-3-alpha2", "name": "alpha2", "desc": "Propensity to consume out of wealth", "kind": "constant", "valueText": "0.1" },
+        { "id": "ext-4-delta", "name": "delta", "desc": "Depreciation rate", "kind": "constant", "valueText": "0.1" },
+        { "id": "ext-5-gamma", "name": "gamma", "desc": "Speed of adjustment of capital to its target value", "kind": "constant", "valueText": "0.15" },
+        { "id": "ext-6-kappa", "name": "kappa", "desc": "Capital-output ratio", "kind": "constant", "valueText": "1" },
+        { "id": "ext-7-pr", "name": "pr", "desc": "Labor productivity", "kind": "constant", "valueText": "1" }
+      ],
+      "collapsed": true
     },
-    {
-      "id": "baseline-chart",
-      "type": "chart",
-      "title": "Baseline headline variables",
-      "sourceRunCellId": "baseline-newton",
-      "variables": ["Y", "Cd", "Mh", "W"]
-    },
-    {
-      "id": "baseline-table",
-      "type": "table",
-      "title": "Baseline variable summary",
-      "sourceRunCellId": "baseline-newton",
-      "variables": ["Y", "Cd", "Id", "K", "Mh", "W"]
-    },
-    {
-      "id": "scenario-1-note",
-      "type": "markdown",
-      "title": "Scenario 1",
-      "source": "Scenario 1 increases autonomous consumption expenditure by raising alpha0 from period 5 to period 50."
-    },
+    { "id": "initial-values-equations-newton", "type": "initial-values", "title": "Initial values", "modelId": "equations-newton", "initialValues": [], "collapsed": true },
+    { "id": "baseline-newton", "type": "run", "title": "Baseline run with Newton", "mode": "baseline", "resultKey": "bmw_newton", "description": "This Newton baseline provides the reference path for the BMW scenarios.", "sourceModelId": "equations-newton" },
+    { "id": "baseline-chart", "type": "chart", "title": "Baseline headline variables", "sourceRunCellId": "baseline-newton", "variables": ["Y", "Cd", "Mh", "W"] },
+    { "id": "baseline-table", "type": "table", "title": "Baseline variable summary", "sourceRunCellId": "baseline-newton", "variables": ["Y", "Cd", "Id", "K", "Mh", "W"] },
+    { "id": "scenario-1-note", "type": "markdown", "title": "Scenario 1", "source": "Scenario 1 increases autonomous consumption expenditure by raising alpha0 from period 5 to period 50." },
     {
       "id": "scenario-1-run",
       "type": "run",
       "title": "Scenario 1: autonomous consumption shock",
-      "sourceModelCellId": "equations-newton",
       "mode": "scenario",
       "scenario": {
         "shocks": [
           {
-            "startPeriodInclusive": 5,
-            "endPeriodInclusive": 50,
-            "variables": {
-              "alpha0": {
-                "kind": "constant",
-                "value": 30
-              }
-            }
+            "variables": { "alpha0": { "kind": "constant", "value": 30 } },
+            "rangeInclusive": [5, 50]
           }
         ]
       },
-      "resultKey": "bmw_s1"
+      "resultKey": "bmw_s1",
+      "sourceModelId": "equations-newton"
     },
-    {
-      "id": "scenario-1-chart",
-      "type": "chart",
-      "title": "Scenario 1 consumption and income",
-      "sourceRunCellId": "scenario-1-run",
-      "variables": ["Cd", "YD", "Id", "AF"],
-      "sharedRange": { "includeZero": true }
-    },
-    {
-      "id": "scenario-2-note",
-      "type": "markdown",
-      "title": "Scenario 2",
-      "source": "Scenario 2 lowers alpha1 from period 5 to period 50 to examine the effect of a higher propensity to save."
-    },
+    { "id": "scenario-1-chart", "type": "chart", "title": "Scenario 1 consumption and income", "sourceRunCellId": "scenario-1-run", "variables": ["Cd", "YD", "Id", "AF"], "sharedRange": { "includeZero": true } },
+    { "id": "scenario-2-note", "type": "markdown", "title": "Scenario 2", "source": "Scenario 2 lowers alpha1 from period 5 to period 50 to examine the effect of a higher propensity to save." },
     {
       "id": "scenario-2-run",
       "type": "run",
       "title": "Scenario 2: propensity-to-save shock",
-      "sourceModelCellId": "equations-newton",
       "mode": "scenario",
       "scenario": {
         "shocks": [
           {
-            "startPeriodInclusive": 5,
-            "endPeriodInclusive": 50,
-            "variables": {
-              "alpha1": {
-                "kind": "constant",
-                "value": 0.7
-              }
-            }
+            "variables": { "alpha1": { "kind": "constant", "value": 0.7 } },
+            "rangeInclusive": [5, 50]
           }
         ]
       },
-      "resultKey": "bmw_s2"
+      "resultKey": "bmw_s2",
+      "sourceModelId": "equations-newton"
     },
-    {
-      "id": "scenario-2-chart",
-      "type": "chart",
-      "title": "Scenario 2 headline variables",
-      "sourceRunCellId": "scenario-2-run",
-      "variables": ["Cd", "YD", "W"],
-      "sharedRange": { "includeZero": true }
-    }
+    { "id": "scenario-2-chart", "type": "chart", "title": "Scenario 2 headline variables", "sourceRunCellId": "scenario-2-run", "variables": ["Cd", "YD", "W"], "sharedRange": { "includeZero": true } }
   ]
 }

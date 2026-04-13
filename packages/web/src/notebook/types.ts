@@ -1,7 +1,14 @@
 import type { ChartAxisRange } from "../components/ResultChart";
 import type { ScenarioDefinition, SimulationResult } from "@sfcr/core";
 
-import type { EditorState, RuntimeDocument } from "../lib/editorModel";
+import type {
+  EditorOptions,
+  EditorState,
+  EquationRow,
+  ExternalRow,
+  InitialValueRow,
+  RuntimeDocument
+} from "../lib/editorModel";
 
 export interface NotebookDocument {
   id: string;
@@ -16,6 +23,10 @@ export interface NotebookDocument {
 export type NotebookCell =
   | MarkdownCell
   | ModelCell
+  | EquationsCell
+  | SolverCell
+  | ExternalsCell
+  | InitialValuesCell
   | RunCell
   | ChartCell
   | TableCell
@@ -37,9 +48,38 @@ export interface ModelCell extends NotebookCellBase {
   editor: EditorState;
 }
 
+export interface EquationsCell extends NotebookCellBase {
+  type: "equations";
+  modelId: string;
+  equations: EquationRow[];
+  collapsed?: boolean;
+}
+
+export interface SolverCell extends NotebookCellBase {
+  type: "solver";
+  modelId: string;
+  options: EditorOptions;
+  collapsed?: boolean;
+}
+
+export interface ExternalsCell extends NotebookCellBase {
+  type: "externals";
+  modelId: string;
+  externals: ExternalRow[];
+  collapsed?: boolean;
+}
+
+export interface InitialValuesCell extends NotebookCellBase {
+  type: "initial-values";
+  modelId: string;
+  initialValues: InitialValueRow[];
+  collapsed?: boolean;
+}
+
 export interface RunCell extends NotebookCellBase {
   type: "run";
-  sourceModelCellId: string;
+  sourceModelCellId?: string;
+  sourceModelId?: string;
   mode: "baseline" | "scenario";
   scenario?: ScenarioDefinition | null;
   resultKey: string;

@@ -4,6 +4,7 @@ import type { SimulationResult } from "@sfcr/core";
 
 import { buildRuntimeConfig } from "../lib/editorModel";
 import { createWorkerClient } from "../lib/workerClient";
+import { buildEditorStateForNotebookModel, resolveRunCellModelKey } from "./modelSections";
 import type { NotebookDocument, NotebookRuntimeState, RunCell } from "./types";
 
 export interface NotebookRunnerApi extends NotebookRuntimeState {
@@ -21,10 +22,6 @@ export function useNotebookRunner(document: NotebookDocument): NotebookRunnerApi
     setState({ outputs: {}, status: {}, errors: {} });
   }, [document]);
 
-  const modelCells = useMemo(
-    () => new Map(document.cells.filter((cell) => cell.type === "model").map((cell) => [cell.id, cell])),
-    [document.cells]
-  );
   const runCells = useMemo(
     () => document.cells.filter((cell): cell is RunCell => cell.type === "run"),
     [document.cells]
@@ -36,12 +33,13 @@ export function useNotebookRunner(document: NotebookDocument): NotebookRunnerApi
       return;
     }
 
-    const modelCell = modelCells.get(cell.sourceModelCellId);
-    if (!modelCell) {
+    const editor = buildEditorStateForNotebookModel(document, cell);
+    const modelOutputKey = resolveRunCellModelKey(document.cells, cell);
+    if (!editor || !modelOutputKey) {
       setState((current) => ({
         ...current,
         status: { ...current.status, [cellId]: "error" },
-        errors: { ...current.errors, [cellId]: "Source model cell not found." }
+        errors: { ...current.errors, [cellId]: "Source model sections not found." }
       }));
       return;
     }
@@ -53,7 +51,7 @@ export function useNotebookRunner(document: NotebookDocument): NotebookRunnerApi
     }));
 
     try {
-      const runtime = buildRuntimeConfig(modelCell.editor);
+      const runtime = buildRuntimeConfig(editor);
       let result: SimulationResult;
 
       if (cell.mode === "baseline") {
@@ -70,7 +68,7 @@ export function useNotebookRunner(document: NotebookDocument): NotebookRunnerApi
         ...current,
         outputs: {
           ...current.outputs,
-          [modelCell.id]: { type: "model", runtime },
+          [modelOutputKey]: { type: "model", runtime },
           [cellId]: { type: "result", result }
         },
         status: { ...current.status, [cellId]: "success" }

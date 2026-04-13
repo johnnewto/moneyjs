@@ -59,6 +59,7 @@ describe("editor model validation", () => {
     expect(restored.equations).toHaveLength(original.equations.length);
     expect(restored.externals).toHaveLength(original.externals.length);
     expect(restored.scenario.shocks).toHaveLength(original.scenario.shocks.length);
+    expect(json).toMatch(/\{ "name": "[^"]+", "expression": "[^"]+" \}/);
   });
 
   it("rejects malformed shock rows", () => {

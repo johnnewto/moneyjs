@@ -1,10 +1,11 @@
 import bmwNotebookJson from "./templates/bmw.notebook.json";
 import gl6DisNotebookJson from "./templates/gl6-dis.notebook.json";
 import gl7InsoutNotebookJson from "./templates/gl7-insout.notebook.json";
+import gl8GrowthNotebookJson from "./templates/gl8-growth.notebook.json";
 import { notebookFromJson } from "./document";
 import type { NotebookDocument } from "./types";
 
-export type NotebookTemplateId = "bmw" | "gl6-dis" | "gl7-insout";
+export type NotebookTemplateId = "bmw" | "gl6-dis" | "gl7-insout" | "gl8-growth";
 export const DEFAULT_NOTEBOOK_TEMPLATE_ID: NotebookTemplateId = "bmw";
 
 export interface NotebookTemplateDefinition {
@@ -33,6 +34,13 @@ export const NOTEBOOK_TEMPLATES: Record<NotebookTemplateId, NotebookTemplateDefi
     description:
       "INSOUT notebook based on the gl7-insout article baseline, matrices, and selected scenario experiments.",
     document: notebookFromJson(JSON.stringify(gl7InsoutNotebookJson))
+  },
+  "gl8-growth": {
+    id: "gl8-growth",
+    label: "GL8 GROWTH",
+    description:
+      "GROWTH notebook based on the gl8-growth article baseline, accounting matrices, and selected policy experiments.",
+    document: notebookFromJson(JSON.stringify(gl8GrowthNotebookJson))
   }
 };
 

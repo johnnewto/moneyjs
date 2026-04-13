@@ -96,7 +96,8 @@ describe("App", () => {
     expect(screen.getAllByText(/unexpected character: \[/i).length).toBeGreaterThan(0);
   });
 
-  it("renders the BMW notebook route", () => {
+  it("renders the BMW notebook route", async () => {
+    const user = userEvent.setup();
     window.location.hash = "#/notebook";
 
     render(<App />);
@@ -114,8 +115,8 @@ describe("App", () => {
     expect(
       screen.getByRole("heading", { name: /baseline run with newton/i })
     ).toBeInTheDocument();
-    expect(screen.getAllByText(/edit model cell/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("button", { name: /add equation/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: /show contents/i }).length).toBeGreaterThan(0);
+    await user.click(screen.getAllByRole("button", { name: /show contents/i })[0]);
     expect(screen.getAllByText("Variable").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Description").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Expression").length).toBeGreaterThan(0);
@@ -139,6 +140,36 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: /^dis model$/i })).toBeInTheDocument();
   });
 
+  it("renders separate externals and initial-values cells for the growth notebook", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    await user.selectOptions(screen.getByLabelText(/notebook template/i), "gl8-growth");
+
+    expect(screen.getByText(/gl8 growth notebook/i)).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { name: /^externals$/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("heading", { name: /initial values/i }).length).toBeGreaterThan(0);
+
+    const externalsCell = screen
+      .getAllByRole("heading", { name: /^externals$/i })
+      .map((heading) => heading.closest("article"))
+      .find((article): article is HTMLElement => article instanceof HTMLElement);
+    expect(externalsCell).not.toBeNull();
+    if (!externalsCell) {
+      throw new Error("Expected externals cell article.");
+    }
+
+    expect(within(externalsCell).getByRole("button", { name: /show contents/i })).toBeInTheDocument();
+    expect(within(externalsCell).queryByRole("button", { name: /add external/i })).not.toBeInTheDocument();
+
+    await user.click(within(externalsCell).getByRole("button", { name: /show contents/i }));
+
+    expect(within(externalsCell).getByRole("button", { name: /hide contents/i })).toBeInTheDocument();
+    expect(within(externalsCell).getByRole("button", { name: /add external/i })).toBeInTheDocument();
+  });
+
   it("exports notebook JSON into the import area", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";
@@ -148,6 +179,9 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: /^export$/i }));
 
     expect(screen.getByDisplayValue(/"title": "BMW Browser Notebook"/i)).toBeInTheDocument();
+    expect(
+      screen.getByDisplayValue(/\{ "id": "intro", "type": "markdown", "title": "Overview", "source":/i)
+    ).toBeInTheDocument();
   });
 
   it("exports notebook Markdown into the import area", async () => {
@@ -160,7 +194,10 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: /^markdown$/i }));
     await user.click(screen.getByRole("button", { name: /export to text/i }));
 
-    expect(screen.getByDisplayValue(/```sfcr-model/i)).toBeInTheDocument();
+    expect(screen.getByDisplayValue(/```sfcr-equations/i)).toBeInTheDocument();
+    expect(screen.getByDisplayValue(/```sfcr-solver/i)).toBeInTheDocument();
+    expect(screen.getByDisplayValue(/```sfcr-externals/i)).toBeInTheDocument();
+    expect(screen.getByDisplayValue(/```sfcr-initial-values/i)).toBeInTheDocument();
     expect(screen.getByDisplayValue(/```sfcr-matrix/i)).toBeInTheDocument();
     expect(screen.getByDisplayValue(/```sfcr-sequence/i)).toBeInTheDocument();
     expect(screen.getByDisplayValue(/# BMW Browser Notebook/i)).toBeInTheDocument();

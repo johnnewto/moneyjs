@@ -2,7 +2,7 @@
 
 `sfcr` is now centered on a **browser-first TypeScript implementation** for building and running stock-flow consistent (SFC) models.
 
-Live app: `https://johnnewto.github.io/moneyjs/`
+Live app: [https://johnnewto.github.io/moneyjs/](https://johnnewto.github.io/moneyjs/)
 
 The main product surface lives in:
 
@@ -96,10 +96,7 @@ The current browser application supports:
 ## GitHub Pages
 
 This repository is configured to deploy the browser app to:
-
-```text
-https://johnnewto.github.io/moneyjs/
-```
+[https://johnnewto.github.io/moneyjs/](https://johnnewto.github.io/moneyjs/)
 
 The GitHub Actions workflow in `.github/workflows/deploy-pages.yml` publishes `packages/web/dist` whenever `main` is updated.
 

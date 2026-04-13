@@ -1,4 +1,5 @@
 import { parseEquation, type ExternalDef, type ModelDefinition, type ScenarioDefinition, type ShockVariableDef, type SimulationOptions, type SolverMethod } from "@sfcr/core";
+import { stringifyJsonWithCompactLeaves } from "./jsonFormat";
 
 export interface EquationRow {
   id: string;
@@ -212,7 +213,7 @@ export function editorStateFromRuntimeDocument(document: RuntimeDocument): Edito
 }
 
 export function runtimeDocumentToJson(editor: EditorState): string {
-  return JSON.stringify(runtimeDocumentFromEditor(editor), null, 2);
+  return stringifyJsonWithCompactLeaves(runtimeDocumentFromEditor(editor));
 }
 
 export function editorStateFromJson(source: string): EditorState {
