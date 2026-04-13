@@ -54,6 +54,7 @@ import { resolveSequenceDiagram } from "./sequence";
 import {
   createNotebookFromTemplate,
   DEFAULT_NOTEBOOK_TEMPLATE_ID,
+  type NotebookTemplateId,
   isNotebookTemplateId,
   NOTEBOOK_TEMPLATES
 } from "./templates";
@@ -75,7 +76,7 @@ import { useNotebookRunner } from "./useNotebookRunner";
 
 export function NotebookApp() {
   const [notebookDocument, setNotebookDocument] = useState(() =>
-    createNotebookFromTemplate(DEFAULT_NOTEBOOK_TEMPLATE_ID)
+    createNotebookFromTemplate(resolveNotebookTemplateIdFromHash(window.location.hash))
   );
   const [importText, setImportText] = useState("");
   const [committedImportText, setCommittedImportText] = useState("");
@@ -123,6 +124,28 @@ export function NotebookApp() {
     setSelectedPeriodIndex(0);
   }
 
+  function replaceNotebookDocumentFromTemplate(templateId: NotebookTemplateId): void {
+    replaceNotebookDocument(createNotebookFromTemplate(templateId));
+  }
+
+  useEffect(() => {
+    function handleHashChange(): void {
+      const templateId = parseNotebookTemplateIdFromHash(window.location.hash);
+      if (!templateId) {
+        return;
+      }
+      if (notebookDocument.metadata.template === templateId) {
+        return;
+      }
+      replaceNotebookDocumentFromTemplate(templateId);
+      setImportPreview(null);
+      setUiMessage(`Loaded template ${NOTEBOOK_TEMPLATES[templateId].label}.`);
+    }
+
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, [notebookDocument.metadata.template]);
+
   function handleExportJson(): void {
     const exported =
       sourceFormat === "json"
@@ -167,6 +190,7 @@ export function NotebookApp() {
     try {
       const parsed = parseNotebookSource(importText);
       replaceNotebookDocument(parsed.document);
+      writeNotebookHash();
       setCommittedImportText(importText);
       setImportPreview(null);
       setUiMessage(
@@ -190,6 +214,9 @@ export function NotebookApp() {
       setImportText(text);
       setCommittedImportText(text);
       setImportPreview({ document: parsed.document, source: parsed.format });
+      if (!isNotebookTemplateId(parsed.document.metadata.template ?? "")) {
+        writeNotebookHash();
+      }
       setIsDataPanelOpen(true);
       setUiMessage(
         `Previewed ${file.name} as ${parsed.format === "json" ? "JSON" : "Markdown"}. Apply to replace the current notebook.`
@@ -205,6 +232,9 @@ export function NotebookApp() {
       return;
     }
     replaceNotebookDocument(importPreview.document);
+    if (!isNotebookTemplateId(importPreview.document.metadata.template ?? "")) {
+      writeNotebookHash();
+    }
     setCommittedImportText(importText);
     setUiMessage(
       `Imported notebook ${importPreview.source === "json" ? "JSON" : "Markdown"}.`
@@ -228,7 +258,8 @@ export function NotebookApp() {
       return;
     }
 
-    replaceNotebookDocument(createNotebookFromTemplate(templateId));
+    replaceNotebookDocumentFromTemplate(templateId);
+    writeNotebookHash(templateId);
     setImportPreview(null);
     setUiMessage(`Loaded template ${NOTEBOOK_TEMPLATES[templateId].label}.`);
   }
@@ -610,6 +641,23 @@ function inferFormatFromFileName(fileName: string): "json" | "markdown" | null {
     return "markdown";
   }
   return null;
+}
+
+function resolveNotebookTemplateIdFromHash(hash: string): NotebookTemplateId {
+  return parseNotebookTemplateIdFromHash(hash) ?? DEFAULT_NOTEBOOK_TEMPLATE_ID;
+}
+
+function parseNotebookTemplateIdFromHash(hash: string): NotebookTemplateId | null {
+  const match = hash.match(/^#\/notebook\/([^/?#]+)/);
+  const candidate = match?.[1]?.trim();
+  return candidate && isNotebookTemplateId(candidate) ? candidate : null;
+}
+
+function writeNotebookHash(templateId?: NotebookTemplateId): void {
+  const nextHash = templateId ? `#/notebook/${templateId}` : "#/notebook";
+  if (window.location.hash !== nextHash) {
+    window.location.hash = nextHash;
+  }
 }
 
 interface NotebookCellViewProps {

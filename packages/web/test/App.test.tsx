@@ -132,6 +132,15 @@ describe("App", () => {
     expect(screen.getByRole("tooltip")).toHaveTextContent("Income = GDP");
   });
 
+  it("loads a notebook template from the hash path", () => {
+    window.location.hash = "#/notebook/gl2-pc";
+
+    render(<App />);
+
+    expect(screen.getByText(/gl2 pc notebook/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /pc balance sheet/i })).toBeInTheDocument();
+  });
+
   it("switches notebook templates from the command bar", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";
@@ -148,6 +157,7 @@ describe("App", () => {
       screen.getByRole("heading", { name: /dis transactions-flow matrix/i })
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^dis model$/i })).toBeInTheDocument();
+    expect(window.location.hash).toBe("#/notebook/gl6-dis");
   });
 
   it("renders separate externals and initial-values cells for the growth notebook", async () => {
