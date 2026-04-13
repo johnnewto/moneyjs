@@ -4,6 +4,7 @@ import { runBaseline, runScenario } from "@sfcr/core";
 
 import bmwRegressionFixture from "./fixtures/r-regressions/bmw.json";
 import gl6DisRegressionFixture from "./fixtures/r-regressions/gl6-dis.json";
+import gl7InsoutRegressionFixture from "./fixtures/r-regressions/gl7-insout.json";
 import { buildRuntimeConfig } from "../src/lib/editorModel";
 import { NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
 
@@ -17,7 +18,11 @@ interface RegressionFixture {
   >;
 }
 
-const FIXTURES: RegressionFixture[] = [bmwRegressionFixture, gl6DisRegressionFixture];
+const FIXTURES: RegressionFixture[] = [
+  bmwRegressionFixture,
+  gl6DisRegressionFixture,
+  gl7InsoutRegressionFixture
+];
 const TOLERANCE = 5e-3;
 
 describe("notebook template regressions against R fixtures", () => {
@@ -58,7 +63,10 @@ describe("notebook template regressions against R fixtures", () => {
             expect(actualValue, `${fixture.templateId}:${cellId}:${periodText}:${variable}`).toBeTypeOf(
               "number"
             );
-            expect(Math.abs((actualValue ?? NaN) - expectedValue)).toBeLessThanOrEqual(TOLERANCE);
+            expect(
+              Math.abs((actualValue ?? NaN) - expectedValue),
+              `${fixture.templateId}:${cellId}:${periodText}:${variable}`
+            ).toBeLessThanOrEqual(TOLERANCE);
           }
         }
       }

@@ -1,9 +1,10 @@
 import bmwNotebookJson from "./templates/bmw.notebook.json";
 import gl6DisNotebookJson from "./templates/gl6-dis.notebook.json";
+import gl7InsoutNotebookJson from "./templates/gl7-insout.notebook.json";
 import { notebookFromJson } from "./document";
 import type { NotebookDocument } from "./types";
 
-export type NotebookTemplateId = "bmw" | "gl6-dis";
+export type NotebookTemplateId = "bmw" | "gl6-dis" | "gl7-insout";
 export const DEFAULT_NOTEBOOK_TEMPLATE_ID: NotebookTemplateId = "bmw";
 
 export interface NotebookTemplateDefinition {
@@ -25,6 +26,13 @@ export const NOTEBOOK_TEMPLATES: Record<NotebookTemplateId, NotebookTemplateDefi
     label: "GL6 DIS",
     description: "DIS notebook based on the gl6-dis article baseline, matrices, and two scenarios.",
     document: notebookFromJson(JSON.stringify(gl6DisNotebookJson))
+  },
+  "gl7-insout": {
+    id: "gl7-insout",
+    label: "GL7 INSOUT",
+    description:
+      "INSOUT notebook based on the gl7-insout article baseline, matrices, and selected scenario experiments.",
+    document: notebookFromJson(JSON.stringify(gl7InsoutNotebookJson))
   }
 };
 

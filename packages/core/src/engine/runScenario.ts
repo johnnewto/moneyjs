@@ -1,4 +1,5 @@
 import type { ScenarioDefinition, SimulationOptions } from "../model/types";
+import type { ModelDefinition } from "../model/types";
 import type { SimulationResult } from "../result/result";
 import { runBaseline } from "./runBaseline";
 import { validateShock } from "./validate";
@@ -9,17 +10,11 @@ export function runScenario(
   options: SimulationOptions
 ): SimulationResult {
   const model = baseline.model;
-  const scenarioModel = {
+  const scenarioModel: ModelDefinition = {
     ...model,
-    externals: { ...model.externals }
+    externals: { ...model.externals },
+    initialValues: {}
   };
-
-  for (const [name, values] of Object.entries(baseline.series)) {
-    if (!(name in scenarioModel.externals)) {
-      continue;
-    }
-    scenarioModel.externals[name] = { kind: "series", values: Array.from(values) };
-  }
 
   for (const equation of model.equations) {
     scenarioModel.initialValues[equation.name] = baseline.series[equation.name]?.[

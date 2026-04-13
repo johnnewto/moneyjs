@@ -1,0 +1,76 @@
+{
+  "templateId": "gl7-insout",
+  "sourceVignette": "references/r-sfcr/vignettes/articles/gl7-insout.Rmd",
+  "checkpoints": {
+    "baseline-run": {
+      "periods": {
+        "5": {
+          "Y": 48.952395689712,
+          "pi": -0.062200874839,
+          "V": 65.892036614573,
+          "BLRN": 1.549304977898,
+          "BPM": 0.017358470519
+        },
+        "210": {
+          "Y": 161.583703284526,
+          "pi": -2.3163222e-05,
+          "V": 131.264436103971,
+          "BLRN": 0.036807528955,
+          "BPM": 0.004840726628
+        }
+      }
+    },
+    "scenario-1-run": {
+      "periods": {
+        "5": {
+          "INV": 35.511074881457,
+          "Ls": 35.511074881457,
+          "rm": 0.0197,
+          "rb": 0.023
+        },
+        "70": {
+          "INV": 37.467394336476,
+          "Ls": 37.467394336476,
+          "rm": 0.0213,
+          "rb": 0.023
+        }
+      }
+    },
+    "scenario-2-run": {
+      "periods": {
+        "5": {
+          "c": 108.235205000099,
+          "v": 108.62499395629,
+          "ydr": 108.625000434407,
+          "pi": -2.3163379e-05
+        },
+        "55": {
+          "c": 122.371912060443,
+          "v": 123.182232499104,
+          "ydr": 122.294493326237,
+          "pi": 0.015713472137
+        }
+      }
+    },
+    "scenario-7-run": {
+      "periods": {
+        "5": {
+          "pi": 0.006498732597,
+          "s": 133.235205000099,
+          "V": 120.219247164215,
+          "Bs": 35.872461805512
+        },
+        "55": {
+          "pi": 0.009281067576,
+          "s": 132.969060817864,
+          "V": 199.92142524994,
+          "Bs": 81.155093676383
+        }
+      }
+    }
+  },
+  "matrixValidation": {
+    "balanceSheet": "Water tight! The balance-sheet matrix is consistent with the simulated model.",
+    "transactionFlow": "Water tight! The transactions-flow matrix is consistent with the simulated model."
+  }
+}
