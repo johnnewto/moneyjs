@@ -8,6 +8,7 @@ const webRoot = path.resolve(__dirname, "..");
 
 const defaultFiles = [
   "src/notebook/templates/bmw.notebook.json",
+  "src/notebook/templates/gl2-pc.notebook.json",
   "src/notebook/templates/gl6-dis.notebook.json",
   "src/notebook/templates/gl7-insout.notebook.json",
   "src/notebook/templates/gl8-growth.notebook.json"

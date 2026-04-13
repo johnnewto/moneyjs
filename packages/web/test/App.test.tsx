@@ -120,6 +120,16 @@ describe("App", () => {
     expect(screen.getAllByText("Variable").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Description").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Expression").length).toBeGreaterThan(0);
+    const yToken = screen
+      .getAllByText("Y")
+      .find((node) => node.className.includes("formula-token"));
+    expect(yToken).toBeDefined();
+    if (!yToken) {
+      throw new Error("Expected formula token for Y");
+    }
+
+    fireEvent.mouseEnter(yToken);
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Income = GDP");
   });
 
   it("switches notebook templates from the command bar", async () => {

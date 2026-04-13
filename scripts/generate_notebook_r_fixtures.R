@@ -205,6 +205,178 @@ generate_bmw_fixture <- function() {
   write_fixture("bmw", fixture)
 }
 
+generate_gl2_pc_fixture <- function() {
+  pc_ra_values <- c(
+    -0.028023782328, -0.011508874474, 0.077935415707, 0.003525419571, 0.006464386758,
+    0.085753249344, 0.023045810299, -0.06325306173, -0.034342642595, -0.022283098505,
+    0.061204089872, 0.017990691353, 0.02003857253, 0.005534135797, -0.027792056738,
+    0.08934565684, 0.024892523911, -0.098330857831, 0.035067795078, -0.023639570386,
+    -0.053391185299, -0.010898745733, -0.051300222415, -0.036444561465, -0.031251963392,
+    -0.084334665537, 0.041889352225, 0.007668655892, -0.056906846851, 0.062690746053,
+    0.021323211074, -0.01475357415, 0.044756283052, 0.043906674377, 0.041079054082,
+    0.034432012705, 0.027695882677, -0.003095585529, -0.015298133187, -0.019023550051,
+    -0.034735348946, -0.010395863901, -0.063269817578, 0.108447798267, 0.060398099915,
+    -0.05615542916, -0.020144241765, -0.023332767681, 0.038998255917, -0.004168453324,
+    0.0126659257, -0.001427337767, -0.002143522865, 0.068430114201, -0.011288549283,
+    0.075823530221, -0.077437640212, 0.029230687482, 0.006192712192, 0.010797078437
+  )
+
+  pc_eqs <- sfcr_set(
+    Y ~ C + G,
+    YD ~ Y - TX + r[-1] * Bh[-1],
+    TX ~ theta * (Y + r[-1] * Bh[-1]),
+    V ~ V[-1] + (YD - C),
+    C ~ alpha1 * YD + alpha2 * V[-1],
+    Hh ~ V - Bh,
+    Hh1 ~ V * ((1 - lambda0) - lambda1 * r + lambda2 * (YD / V)),
+    Bh ~ V * (lambda0 + lambda1 * r - lambda2 * (YD / V)),
+    Bs ~ Bs[-1] + (G + r[-1] * Bs[-1]) - (TX + r[-1] * Bcb[-1]),
+    Hs ~ Hs[-1] + Bcb - Bcb[-1],
+    Bcb ~ Bs - Bh
+  )
+
+  pc_ext <- sfcr_set(
+    r ~ 0.025,
+    G ~ 20,
+    alpha1 ~ 0.6,
+    alpha2 ~ 0.4,
+    theta ~ 0.2,
+    lambda0 ~ 0.635,
+    lambda1 ~ 0.05,
+    lambda2 ~ 0.01
+  )
+
+  pc <- sfcr_baseline(
+    equations = pc_eqs,
+    external = pc_ext,
+    periods = 70,
+    hidden = c("Hh" = "Hs")
+  )
+
+  shock1 <- sfcr_shock(
+    variables = sfcr_set(r ~ 0.035),
+    start = 5,
+    end = 60
+  )
+  pc2 <- sfcr_scenario(pc, scenario = shock1, periods = 60)
+
+  pc_ra_formula <- stats::as.formula(sprintf("Ra ~ c(%s)", paste(pc_ra_values, collapse = ", ")))
+  pc_ext2 <- c(pc_ext, pc_ra_formula)
+
+  pc_eqs2 <- pc_eqs
+  pc_eqs2[[5]] <- C ~ alpha1 * YDE + alpha2 * V[-1]
+  pc_eqs2[[8]] <- Bh ~ Bd
+  pc_eqs2[[12]] <- Hd ~ VE - Bd
+  pc_eqs2[[13]] <- VE ~ V[-1] + (YDE - C)
+  pc_eqs2[[14]] <- Bd ~ VE * (lambda0 + lambda1 * r - lambda2 * (YDE / VE))
+  pc_eqs2[[15]] <- YDE ~ YD * (1 + Ra)
+
+  pcex <- sfcr_baseline(pc_eqs2, pc_ext2, 60, hidden = c("Hh" = "Hs"))
+
+  pc_eqs3 <- pc_eqs
+  pc_eqs3[[5]] <- C ~ alpha1 * YDE + alpha2 * V[-1]
+  pc_eqs3[[8]] <- Bh ~ Bd
+  pc_eqs3[[12]] <- Hd ~ VE - Bd
+  pc_eqs3[[13]] <- VE ~ V[-1] + (YDE - C)
+  pc_eqs3[[14]] <- Bd ~ VE * (lambda0 + lambda1 * r - lambda2 * (YDE / VE))
+  pc_eqs3[[15]] <- YDE ~ YD[-1]
+
+  pcex2 <- sfcr_baseline(pc_eqs3, pc_ext, 60)
+
+  shock2 <- sfcr_shock(
+    variables = sfcr_set(alpha1 ~ 0.7),
+    start = 5,
+    end = 60
+  )
+  pc3 <- sfcr_scenario(pcex2, scenario = shock2, periods = 60)
+
+  pc_eqs4 <- pc_eqs3
+  pc_eqs4[[16]] <- alpha1 ~ alpha10 - iota * r[-1]
+
+  pc_ext3 <- pc_ext
+  pc_ext3[[3]] <- alpha10 ~ 0.7
+  pc_ext3[[9]] <- iota ~ 4
+
+  pcex3 <- sfcr_baseline(pc_eqs4, pc_ext3, 60)
+  pcex3_1 <- sfcr_scenario(pcex3, scenario = shock1, periods = 60)
+
+  bs_pc <- sfcr_matrix(
+    columns = c("Households", "Firms", "Government", "Central bank", "sum"),
+    codes = c("h", "f", "g", "cb", "s"),
+    r1 = c("Money", h = "+Hh", cb = "-Hs"),
+    r2 = c("Bills", h = "+Bh", g = "-Bs", cb = "+Bcb"),
+    r3 = c("Balance", h = "-V", g = "+V")
+  )
+
+  tfm_pc <- sfcr_matrix(
+    columns = c("Households", "Firms", "Government", "CB current", "CB capital"),
+    codes = c("h", "f", "g", "cbc", "cbk"),
+    c("Consumption", h = "-C", f = "+C"),
+    c("Govt. Expenditures", f = "+G", g = "-G"),
+    c("Income", h = "+Y", f = "-Y"),
+    c("Int. payments", h = "+r[-1] * Bh[-1]", g = "-r[-1] * Bs[-1]", cbc = "+r[-1] * Bcb[-1]"),
+    c("CB profits", g = "+r[-1] * Bcb[-1]", cbc = "-r[-1] * Bcb[-1]"),
+    c("Taxes", h = "-TX", g = "+TX"),
+    c("Ch. Money", h = "-(Hh - Hh[-1])", cbk = "+(Hs - Hs[-1])"),
+    c("Ch. Bills", h = "-(Bh - Bh[-1])", g = "+(Bs - Bs[-1])", cbk = "-(Bcb - Bcb[-1])")
+  )
+
+  fixture <- list(
+    templateId = "gl2-pc",
+    sourceVignette = "references/r-sfcr/vignettes/articles/gl2-pc.Rmd",
+    checkpoints = list(
+      "baseline-run" = list(
+        periods = list(
+          "5" = period_snapshot(pc, 5, c("Y", "YD", "C", "V", "Bh", "Hh")),
+          "70" = period_snapshot(pc, 70, c("Y", "YD", "C", "V", "Bh", "Hh"))
+        )
+      ),
+      "scenario-1-run" = list(
+        periods = list(
+          "5" = period_snapshot(pc2, 5, c("Y", "YD", "C", "Bh", "Hh")),
+          "60" = period_snapshot(pc2, 60, c("Y", "YD", "C", "Bh", "Hh"))
+        )
+      ),
+      "pcex1-baseline-run" = list(
+        periods = list(
+          "5" = period_snapshot(pcex, 5, c("Y", "YD", "YDE", "C", "V", "Hh", "Hd", "Bh", "Bd")),
+          "60" = period_snapshot(pcex, 60, c("Y", "YD", "YDE", "C", "V", "Hh", "Hd", "Bh", "Bd"))
+        )
+      ),
+      "adaptive-baseline-run" = list(
+        periods = list(
+          "5" = period_snapshot(pcex2, 5, c("Y", "YDE", "C", "V", "Bd", "Hd")),
+          "60" = period_snapshot(pcex2, 60, c("Y", "YDE", "C", "V", "Bd", "Hd"))
+        )
+      ),
+      "adaptive-scenario-run" = list(
+        periods = list(
+          "5" = period_snapshot(pc3, 5, c("Y", "C", "YDE", "V")),
+          "60" = period_snapshot(pc3, 60, c("Y", "C", "YDE", "V"))
+        )
+      ),
+      "interest-sensitive-baseline-run" = list(
+        periods = list(
+          "5" = period_snapshot(pcex3, 5, c("alpha1", "Y", "YDE", "C", "V")),
+          "60" = period_snapshot(pcex3, 60, c("alpha1", "Y", "YDE", "C", "V"))
+        )
+      ),
+      "interest-sensitive-scenario-run" = list(
+        periods = list(
+          "5" = period_snapshot(pcex3_1, 5, c("alpha1", "Y", "YD", "C", "TX")),
+          "60" = period_snapshot(pcex3_1, 60, c("alpha1", "Y", "YD", "C", "TX"))
+        )
+      )
+    ),
+    matrixValidation = list(
+      balanceSheet = capture.output(sfcr_validate(bs_pc, pc, "bs")),
+      transactionFlow = capture.output(sfcr_validate(tfm_pc, pc, "tfm"))
+    )
+  )
+
+  write_fixture("gl2-pc", fixture)
+}
+
 generate_gl6_dis_fixture <- function() {
   dis_eqs <- sfcr_set(
     y ~ s_E + inv_E - inv[-1],
@@ -704,6 +876,7 @@ generate_gl8_growth_fixture <- function() {
 }
 
 generate_bmw_fixture()
+generate_gl2_pc_fixture()
 generate_gl6_dis_fixture()
 generate_gl7_insout_fixture()
 generate_gl8_growth_fixture()

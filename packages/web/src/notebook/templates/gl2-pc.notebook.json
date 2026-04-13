@@ -1,0 +1,286 @@
+{
+  "id": "gl2-pc-notebook",
+  "title": "GL2 PC Notebook",
+  "metadata": { "version": 1, "template": "gl2-pc" },
+  "cells": [
+    { "id": "intro", "type": "markdown", "title": "Overview", "source": "This notebook adapts `gl2-pc.Rmd` into executable browser cells. It includes the PC balance-sheet and transactions-flow matrices, the baseline portfolio-choice model, the interest-rate scenario from the article, a deterministic `PCEX1` random-shock section with a stored `Ra` sequence, the `PCEX2` adaptive-expectations variant, and the `PCEX3` interest-sensitive propensity-to-consume extension." },
+    {
+      "id": "balance-sheet",
+      "type": "matrix",
+      "title": "PC balance sheet",
+      "sourceRunCellId": "baseline-run",
+      "columns": ["Households", "Firms", "Government", "Central bank", "Sum"],
+      "rows": [
+        { "label": "Money", "values": ["+Hh", "", "", "-Hs", "0"] },
+        { "label": "Bills", "values": ["+Bh", "", "-Bs", "+Bcb", "0"] },
+        { "label": "Balance", "values": ["-V", "", "+V", "", "0"] }
+      ],
+      "description": "Balance-sheet matrix for model PC following the article structure.",
+      "note": "Validated against the baseline simulation from the source vignette."
+    },
+    {
+      "id": "transaction-flow",
+      "type": "matrix",
+      "title": "PC transactions-flow matrix",
+      "sourceRunCellId": "baseline-run",
+      "columns": ["Households", "Firms", "Government", "CB current", "CB capital"],
+      "rows": [
+        { "label": "Consumption", "values": ["-C", "+C", "", "", ""] },
+        { "label": "Govt. expenditures", "values": ["", "+G", "-G", "", ""] },
+        { "label": "Income", "values": ["+Y", "-Y", "", "", ""] },
+        { "label": "Interest payments", "values": ["+lag(r) * lag(Bh)", "", "-lag(r) * lag(Bs)", "+lag(r) * lag(Bcb)", ""] },
+        { "label": "CB profits", "values": ["", "", "+lag(r) * lag(Bcb)", "-lag(r) * lag(Bcb)", ""] },
+        { "label": "Taxes", "values": ["-TX", "", "+TX", "", ""] },
+        { "label": "Change money", "values": ["-(Hh - lag(Hh))", "", "", "", "+(Hs - lag(Hs))"] },
+        { "label": "Change bills", "values": ["-(Bh - lag(Bh))", "", "+(Bs - lag(Bs))", "", "-(Bcb - lag(Bcb))"] }
+      ],
+      "description": "Transactions-flow matrix for model PC following the article structure.",
+      "note": "Validated against the baseline simulation from the source vignette."
+    },
+    { "id": "transaction-flow-sequence", "type": "sequence", "title": "PC transaction flow sequence", "source": { "kind": "matrix", "matrixCellId": "transaction-flow" }, "description": "Sequence view generated from the PC transactions-flow matrix at the selected simulation period." },
+    {
+      "id": "equations",
+      "type": "equations",
+      "title": "PC model",
+      "modelId": "pc-baseline",
+      "equations": [
+        { "id": "eq-0-Y", "name": "Y", "desc": "National income.", "expression": "C + G" },
+        { "id": "eq-1-YD", "name": "YD", "desc": "Disposable income including interest on bills.", "expression": "Y - TX + lag(r) * lag(Bh)" },
+        { "id": "eq-2-TX", "name": "TX", "desc": "Taxes levied on income and bill interest.", "expression": "theta * (Y + lag(r) * lag(Bh))" },
+        { "id": "eq-3-V", "name": "V", "desc": "Household wealth.", "expression": "lag(V) + (YD - C)" },
+        { "id": "eq-4-C", "name": "C", "desc": "Consumption depends on disposable income and lagged wealth.", "expression": "alpha1 * YD + alpha2 * lag(V)" },
+        { "id": "eq-5-Hh", "name": "Hh", "desc": "Household money holdings.", "expression": "V - Bh" },
+        { "id": "eq-6-Hh1", "name": "Hh1", "desc": "Alternative portfolio-choice definition for money holdings.", "expression": "V * ((1 - lambda0) - lambda1 * r + lambda2 * (YD / V))" },
+        { "id": "eq-7-Bh", "name": "Bh", "desc": "Household bill holdings.", "expression": "V * (lambda0 + lambda1 * r - lambda2 * (YD / V))" },
+        { "id": "eq-8-Bs", "name": "Bs", "desc": "Government bill supply.", "expression": "lag(Bs) + (G + lag(r) * lag(Bs)) - (TX + lag(r) * lag(Bcb))" },
+        { "id": "eq-9-Hs", "name": "Hs", "desc": "High-powered money supplied by the central bank.", "expression": "lag(Hs) + Bcb - lag(Bcb)" },
+        { "id": "eq-10-Bcb", "name": "Bcb", "desc": "Central-bank bill holdings.", "expression": "Bs - Bh" }
+      ],
+      "collapsed": true
+    },
+    { "id": "solver", "type": "solver", "title": "Solver", "modelId": "pc-baseline", "options": { "periods": 70, "solverMethod": "GAUSS_SEIDEL", "toleranceText": "1e-10", "maxIterations": 200, "defaultInitialValueText": "1e-15", "hiddenLeftVariable": "Hh", "hiddenRightVariable": "Hs", "hiddenToleranceText": "0.00001", "relativeHiddenTolerance": false }, "collapsed": true },
+    {
+      "id": "externals-equations",
+      "type": "externals",
+      "title": "Externals",
+      "modelId": "pc-baseline",
+      "externals": [
+        { "id": "ext-0-r", "name": "r", "desc": "Interest rate on bills.", "kind": "constant", "valueText": "0.025" },
+        { "id": "ext-1-G", "name": "G", "desc": "Government expenditure.", "kind": "constant", "valueText": "20" },
+        { "id": "ext-2-alpha1", "name": "alpha1", "desc": "Propensity to consume out of disposable income.", "kind": "constant", "valueText": "0.6" },
+        { "id": "ext-3-alpha2", "name": "alpha2", "desc": "Propensity to consume out of lagged wealth.", "kind": "constant", "valueText": "0.4" },
+        { "id": "ext-4-theta", "name": "theta", "desc": "Tax rate.", "kind": "constant", "valueText": "0.2" },
+        { "id": "ext-5-lambda0", "name": "lambda0", "desc": "Portfolio parameter for bills.", "kind": "constant", "valueText": "0.635" },
+        { "id": "ext-6-lambda1", "name": "lambda1", "desc": "Interest sensitivity of bill demand.", "kind": "constant", "valueText": "0.05" },
+        { "id": "ext-7-lambda2", "name": "lambda2", "desc": "Income sensitivity of bill demand.", "kind": "constant", "valueText": "0.01" }
+      ],
+      "collapsed": true
+    },
+    { "id": "initial-values-equations", "type": "initial-values", "title": "Initial values", "modelId": "pc-baseline", "initialValues": [], "collapsed": true },
+    { "id": "baseline-run", "type": "run", "title": "Baseline run", "mode": "baseline", "resultKey": "gl2_pc_baseline", "description": "Baseline PC simulation with the hidden-equation condition Hh = Hs.", "sourceModelId": "pc-baseline" },
+    { "id": "baseline-chart", "type": "chart", "title": "Baseline headline variables", "sourceRunCellId": "baseline-run", "variables": ["Y", "YD", "C", "V", "Bh", "Hh"], "axisMode": "separate", "axisSnapTolarance": 0.5 },
+    { "id": "baseline-table", "type": "table", "title": "Baseline variable summary", "sourceRunCellId": "baseline-run", "variables": ["Y", "YD", "TX", "C", "V", "Bh", "Hh", "Bcb"] },
+    { "id": "scenario-1-note", "type": "markdown", "title": "Interest-rate scenario", "source": "This scenario raises the bills rate `r` from `0.025` to `0.035` between periods 5 and 60, matching the first deterministic experiment in the vignette." },
+    {
+      "id": "scenario-1-run",
+      "type": "run",
+      "title": "Scenario 1: higher bills rate",
+      "mode": "scenario",
+      "scenario": {
+        "shocks": [
+          {
+            "rangeInclusive": [5, 60],
+            "variables": { "r": { "kind": "constant", "value": 0.035 } }
+          }
+        ]
+      },
+      "baselineRunCellId": "baseline-run",
+      "periods": 60,
+      "resultKey": "gl2_pc_s1",
+      "sourceModelId": "pc-baseline"
+    },
+    { "id": "scenario-1-chart", "type": "chart", "title": "Scenario 1 portfolio adjustment", "sourceRunCellId": "scenario-1-run", "variables": ["Y", "YD", "C", "Bh", "Hh"], "axisMode": "separate", "axisSnapTolarance": 0.5 },
+    { "id": "pcex1-note", "type": "markdown", "title": "PCEX1", "source": "This section mirrors the random-shock experiment from `gl2-pc.Rmd`, but uses a fixed stored `Ra` sequence instead of runtime randomness so that browser regressions remain deterministic." },
+    {
+      "id": "pcex1-equations",
+      "type": "equations",
+      "title": "PCEX1 fixed-shock model",
+      "modelId": "pc-pcex1",
+      "equations": [
+        { "id": "p1-eq-0-Y", "name": "Y", "desc": "National income.", "expression": "C + G" },
+        { "id": "p1-eq-1-YD", "name": "YD", "desc": "Disposable income including lagged bill interest.", "expression": "Y - TX + lag(r) * lag(Bh)" },
+        { "id": "p1-eq-2-TX", "name": "TX", "desc": "Taxes on income and interest receipts.", "expression": "theta * (Y + lag(r) * lag(Bh))" },
+        { "id": "p1-eq-3-V", "name": "V", "desc": "Household wealth.", "expression": "lag(V) + (YD - C)" },
+        { "id": "p1-eq-4-C", "name": "C", "desc": "Consumption based on expected disposable income and lagged wealth.", "expression": "alpha1 * YDE + alpha2 * lag(V)" },
+        { "id": "p1-eq-5-Hh", "name": "Hh", "desc": "Household money holdings.", "expression": "V - Bh" },
+        { "id": "p1-eq-6-Hh1", "name": "Hh1", "desc": "Alternative portfolio-choice definition for money holdings.", "expression": "V * ((1 - lambda0) - lambda1 * r + lambda2 * (YD / V))" },
+        { "id": "p1-eq-7-Bh", "name": "Bh", "desc": "Realized household bill holdings.", "expression": "Bd" },
+        { "id": "p1-eq-8-Bs", "name": "Bs", "desc": "Government bill supply.", "expression": "lag(Bs) + (G + lag(r) * lag(Bs)) - (TX + lag(r) * lag(Bcb))" },
+        { "id": "p1-eq-9-Hs", "name": "Hs", "desc": "High-powered money supplied by the central bank.", "expression": "lag(Hs) + Bcb - lag(Bcb)" },
+        { "id": "p1-eq-10-Bcb", "name": "Bcb", "desc": "Central-bank bill holdings.", "expression": "Bs - Bh" },
+        { "id": "p1-eq-11-Hd", "name": "Hd", "desc": "Desired household money holdings.", "expression": "VE - Bd" },
+        { "id": "p1-eq-12-VE", "name": "VE", "desc": "Expected household wealth.", "expression": "lag(V) + (YDE - C)" },
+        { "id": "p1-eq-13-Bd", "name": "Bd", "desc": "Desired household bill holdings.", "expression": "VE * (lambda0 + lambda1 * r - lambda2 * (YDE / VE))" },
+        { "id": "p1-eq-14-YDE", "name": "YDE", "desc": "Expected disposable income with the fixed shock sequence.", "expression": "YD * (1 + Ra)" }
+      ],
+      "collapsed": true
+    },
+    { "id": "pcex1-solver", "type": "solver", "title": "Solver", "modelId": "pc-pcex1", "options": { "periods": 60, "solverMethod": "GAUSS_SEIDEL", "toleranceText": "1e-10", "maxIterations": 200, "defaultInitialValueText": "1e-15", "hiddenLeftVariable": "Hh", "hiddenRightVariable": "Hs", "hiddenToleranceText": "0.00001", "relativeHiddenTolerance": false }, "collapsed": true },
+    {
+      "id": "pcex1-externals",
+      "type": "externals",
+      "title": "Externals",
+      "modelId": "pc-pcex1",
+      "externals": [
+        { "id": "p1-ext-0-r", "name": "r", "desc": "Interest rate on bills.", "kind": "constant", "valueText": "0.025" },
+        { "id": "p1-ext-1-G", "name": "G", "desc": "Government expenditure.", "kind": "constant", "valueText": "20" },
+        { "id": "p1-ext-2-alpha1", "name": "alpha1", "desc": "Propensity to consume out of expected disposable income.", "kind": "constant", "valueText": "0.6" },
+        { "id": "p1-ext-3-alpha2", "name": "alpha2", "desc": "Propensity to consume out of lagged wealth.", "kind": "constant", "valueText": "0.4" },
+        { "id": "p1-ext-4-theta", "name": "theta", "desc": "Tax rate.", "kind": "constant", "valueText": "0.2" },
+        { "id": "p1-ext-5-lambda0", "name": "lambda0", "desc": "Portfolio parameter for bills.", "kind": "constant", "valueText": "0.635" },
+        { "id": "p1-ext-6-lambda1", "name": "lambda1", "desc": "Interest sensitivity of bill demand.", "kind": "constant", "valueText": "0.05" },
+        { "id": "p1-ext-7-lambda2", "name": "lambda2", "desc": "Income sensitivity of bill demand.", "kind": "constant", "valueText": "0.01" },
+        { "id": "p1-ext-8-Ra", "name": "Ra", "desc": "Fixed shock sequence for expected disposable income.", "kind": "series", "valueText": "-0.028023782328, -0.011508874474, 0.077935415707, 0.003525419571, 0.006464386758, 0.085753249344, 0.023045810299, -0.06325306173, -0.034342642595, -0.022283098505, 0.061204089872, 0.017990691353, 0.02003857253, 0.005534135797, -0.027792056738, 0.08934565684, 0.024892523911, -0.098330857831, 0.035067795078, -0.023639570386, -0.053391185299, -0.010898745733, -0.051300222415, -0.036444561465, -0.031251963392, -0.084334665537, 0.041889352225, 0.007668655892, -0.056906846851, 0.062690746053, 0.021323211074, -0.01475357415, 0.044756283052, 0.043906674377, 0.041079054082, 0.034432012705, 0.027695882677, -0.003095585529, -0.015298133187, -0.019023550051, -0.034735348946, -0.010395863901, -0.063269817578, 0.108447798267, 0.060398099915, -0.05615542916, -0.020144241765, -0.023332767681, 0.038998255917, -0.004168453324, 0.0126659257, -0.001427337767, -0.002143522865, 0.068430114201, -0.011288549283, 0.075823530221, -0.077437640212, 0.029230687482, 0.006192712192, 0.010797078437" }
+      ],
+      "collapsed": true
+    },
+    { "id": "pcex1-initial-values", "type": "initial-values", "title": "Initial values", "modelId": "pc-pcex1", "initialValues": [], "collapsed": true },
+    { "id": "pcex1-baseline-run", "type": "run", "title": "PCEX1 baseline run", "mode": "baseline", "resultKey": "gl2_pc_pcex1_baseline", "description": "PCEX1 with a stored `Ra` shock series and the hidden-equation condition Hh = Hs.", "sourceModelId": "pc-pcex1" },
+    { "id": "pcex1-baseline-chart", "type": "chart", "title": "PCEX1 stocks and desired holdings", "sourceRunCellId": "pcex1-baseline-run", "variables": ["Hh", "Hd", "Bh", "Bd", "YDE"], "axisMode": "separate", "axisSnapTolarance": 0.5 },
+    { "id": "pcex1-baseline-table", "type": "table", "title": "PCEX1 variable summary", "sourceRunCellId": "pcex1-baseline-run", "variables": ["Y", "YD", "YDE", "C", "V", "Hh", "Hd", "Bh", "Bd"] },
+    { "id": "adaptive-note", "type": "markdown", "title": "Adaptive expectations", "source": "The next model follows the adaptive-expectations section of `gl2-pc.Rmd`. Expected disposable income is set to `lag(YD)`, and the wealth-allocation equations are rewritten in terms of desired bills `Bd` and expected wealth `VE`." },
+    {
+      "id": "adaptive-equations",
+      "type": "equations",
+      "title": "PCEX2 adaptive model",
+      "modelId": "pc-adaptive",
+      "equations": [
+        { "id": "ad-eq-0-Y", "name": "Y", "desc": "National income.", "expression": "C + G" },
+        { "id": "ad-eq-1-YD", "name": "YD", "desc": "Disposable income including lagged bill interest.", "expression": "Y - TX + lag(r) * lag(Bh)" },
+        { "id": "ad-eq-2-TX", "name": "TX", "desc": "Taxes on income and interest receipts.", "expression": "theta * (Y + lag(r) * lag(Bh))" },
+        { "id": "ad-eq-3-V", "name": "V", "desc": "Household wealth.", "expression": "lag(V) + (YD - C)" },
+        { "id": "ad-eq-4-C", "name": "C", "desc": "Consumption based on expected disposable income and lagged wealth.", "expression": "alpha1 * YDE + alpha2 * lag(V)" },
+        { "id": "ad-eq-5-Hh", "name": "Hh", "desc": "Household money holdings.", "expression": "V - Bh" },
+        { "id": "ad-eq-6-Hh1", "name": "Hh1", "desc": "Alternative portfolio-choice definition for money holdings.", "expression": "V * ((1 - lambda0) - lambda1 * r + lambda2 * (YD / V))" },
+        { "id": "ad-eq-7-Bh", "name": "Bh", "desc": "Realized household bill holdings.", "expression": "Bd" },
+        { "id": "ad-eq-8-Bs", "name": "Bs", "desc": "Government bill supply.", "expression": "lag(Bs) + (G + lag(r) * lag(Bs)) - (TX + lag(r) * lag(Bcb))" },
+        { "id": "ad-eq-9-Hs", "name": "Hs", "desc": "High-powered money supplied by the central bank.", "expression": "lag(Hs) + Bcb - lag(Bcb)" },
+        { "id": "ad-eq-10-Bcb", "name": "Bcb", "desc": "Central-bank bill holdings.", "expression": "Bs - Bh" },
+        { "id": "ad-eq-11-Hd", "name": "Hd", "desc": "Desired household money holdings.", "expression": "VE - Bd" },
+        { "id": "ad-eq-12-VE", "name": "VE", "desc": "Expected household wealth.", "expression": "lag(V) + (YDE - C)" },
+        { "id": "ad-eq-13-Bd", "name": "Bd", "desc": "Desired household bill holdings.", "expression": "VE * (lambda0 + lambda1 * r - lambda2 * (YDE / VE))" },
+        { "id": "ad-eq-14-YDE", "name": "YDE", "desc": "Expected disposable income formed adaptively.", "expression": "lag(YD)" }
+      ],
+      "collapsed": true
+    },
+    { "id": "adaptive-solver", "type": "solver", "title": "Solver", "modelId": "pc-adaptive", "options": { "periods": 60, "solverMethod": "GAUSS_SEIDEL", "toleranceText": "1e-10", "maxIterations": 200, "defaultInitialValueText": "1e-15", "hiddenLeftVariable": "", "hiddenRightVariable": "", "hiddenToleranceText": "0.00001", "relativeHiddenTolerance": false }, "collapsed": true },
+    {
+      "id": "adaptive-externals",
+      "type": "externals",
+      "title": "Externals",
+      "modelId": "pc-adaptive",
+      "externals": [
+        { "id": "ad-ext-0-r", "name": "r", "desc": "Interest rate on bills.", "kind": "constant", "valueText": "0.025" },
+        { "id": "ad-ext-1-G", "name": "G", "desc": "Government expenditure.", "kind": "constant", "valueText": "20" },
+        { "id": "ad-ext-2-alpha1", "name": "alpha1", "desc": "Propensity to consume out of expected disposable income.", "kind": "constant", "valueText": "0.6" },
+        { "id": "ad-ext-3-alpha2", "name": "alpha2", "desc": "Propensity to consume out of lagged wealth.", "kind": "constant", "valueText": "0.4" },
+        { "id": "ad-ext-4-theta", "name": "theta", "desc": "Tax rate.", "kind": "constant", "valueText": "0.2" },
+        { "id": "ad-ext-5-lambda0", "name": "lambda0", "desc": "Portfolio parameter for bills.", "kind": "constant", "valueText": "0.635" },
+        { "id": "ad-ext-6-lambda1", "name": "lambda1", "desc": "Interest sensitivity of bill demand.", "kind": "constant", "valueText": "0.05" },
+        { "id": "ad-ext-7-lambda2", "name": "lambda2", "desc": "Income sensitivity of bill demand.", "kind": "constant", "valueText": "0.01" }
+      ],
+      "collapsed": true
+    },
+    { "id": "adaptive-initial-values", "type": "initial-values", "title": "Initial values", "modelId": "pc-adaptive", "initialValues": [], "collapsed": true },
+    { "id": "adaptive-baseline-run", "type": "run", "title": "Adaptive baseline run", "mode": "baseline", "resultKey": "gl2_pc_adaptive_baseline", "description": "Adaptive-expectations PC model with expected disposable income set to lagged income.", "sourceModelId": "pc-adaptive" },
+    { "id": "adaptive-baseline-chart", "type": "chart", "title": "Adaptive baseline headline variables", "sourceRunCellId": "adaptive-baseline-run", "variables": ["Y", "YDE", "C", "V", "Bd", "Hd"], "axisMode": "separate", "axisSnapTolarance": 0.5 },
+    { "id": "adaptive-scenario-note", "type": "markdown", "title": "Paradox of thrift experiment", "source": "This scenario raises `alpha1` from `0.6` to `0.7` between periods 5 and 60, matching the thrift experiment in the adaptive-expectations section." },
+    {
+      "id": "adaptive-scenario-run",
+      "type": "run",
+      "title": "Adaptive scenario: higher alpha1",
+      "mode": "scenario",
+      "scenario": {
+        "shocks": [
+          {
+            "rangeInclusive": [5, 60],
+            "variables": { "alpha1": { "kind": "constant", "value": 0.7 } }
+          }
+        ]
+      },
+      "baselineRunCellId": "adaptive-baseline-run",
+      "periods": 60,
+      "resultKey": "gl2_pc_adaptive_s1",
+      "sourceModelId": "pc-adaptive"
+    },
+    { "id": "adaptive-scenario-chart", "type": "chart", "title": "Adaptive scenario income and wealth", "sourceRunCellId": "adaptive-scenario-run", "variables": ["Y", "C", "YDE", "V"], "axisMode": "separate", "axisSnapTolarance": 0.5 },
+    { "id": "interest-sensitive-note", "type": "markdown", "title": "Interest-sensitive consumption", "source": "The final model follows the vignette extension where the propensity to consume is endogenous: `alpha1 = alpha10 - iota * lag(r)`." },
+    {
+      "id": "interest-sensitive-equations",
+      "type": "equations",
+      "title": "PCEX3 interest-sensitive model",
+      "modelId": "pc-interest-sensitive",
+      "equations": [
+        { "id": "is-eq-0-Y", "name": "Y", "desc": "National income.", "expression": "C + G" },
+        { "id": "is-eq-1-YD", "name": "YD", "desc": "Disposable income including lagged bill interest.", "expression": "Y - TX + lag(r) * lag(Bh)" },
+        { "id": "is-eq-2-TX", "name": "TX", "desc": "Taxes on income and interest receipts.", "expression": "theta * (Y + lag(r) * lag(Bh))" },
+        { "id": "is-eq-3-V", "name": "V", "desc": "Household wealth.", "expression": "lag(V) + (YD - C)" },
+        { "id": "is-eq-4-C", "name": "C", "desc": "Consumption based on endogenous alpha1 and expected disposable income.", "expression": "alpha1 * YDE + alpha2 * lag(V)" },
+        { "id": "is-eq-5-Hh", "name": "Hh", "desc": "Household money holdings.", "expression": "V - Bh" },
+        { "id": "is-eq-6-Hh1", "name": "Hh1", "desc": "Alternative portfolio-choice definition for money holdings.", "expression": "V * ((1 - lambda0) - lambda1 * r + lambda2 * (YD / V))" },
+        { "id": "is-eq-7-Bh", "name": "Bh", "desc": "Realized household bill holdings.", "expression": "Bd" },
+        { "id": "is-eq-8-Bs", "name": "Bs", "desc": "Government bill supply.", "expression": "lag(Bs) + (G + lag(r) * lag(Bs)) - (TX + lag(r) * lag(Bcb))" },
+        { "id": "is-eq-9-Hs", "name": "Hs", "desc": "High-powered money supplied by the central bank.", "expression": "lag(Hs) + Bcb - lag(Bcb)" },
+        { "id": "is-eq-10-Bcb", "name": "Bcb", "desc": "Central-bank bill holdings.", "expression": "Bs - Bh" },
+        { "id": "is-eq-11-Hd", "name": "Hd", "desc": "Desired household money holdings.", "expression": "VE - Bd" },
+        { "id": "is-eq-12-VE", "name": "VE", "desc": "Expected household wealth.", "expression": "lag(V) + (YDE - C)" },
+        { "id": "is-eq-13-Bd", "name": "Bd", "desc": "Desired household bill holdings.", "expression": "VE * (lambda0 + lambda1 * r - lambda2 * (YDE / VE))" },
+        { "id": "is-eq-14-YDE", "name": "YDE", "desc": "Expected disposable income formed adaptively.", "expression": "lag(YD)" },
+        { "id": "is-eq-15-alpha1", "name": "alpha1", "desc": "Propensity to consume responds negatively to the lagged bills rate.", "expression": "alpha10 - iota * lag(r)" }
+      ],
+      "collapsed": true
+    },
+    { "id": "interest-sensitive-solver", "type": "solver", "title": "Solver", "modelId": "pc-interest-sensitive", "options": { "periods": 60, "solverMethod": "GAUSS_SEIDEL", "toleranceText": "1e-10", "maxIterations": 200, "defaultInitialValueText": "1e-15", "hiddenLeftVariable": "", "hiddenRightVariable": "", "hiddenToleranceText": "0.00001", "relativeHiddenTolerance": false }, "collapsed": true },
+    {
+      "id": "interest-sensitive-externals",
+      "type": "externals",
+      "title": "Externals",
+      "modelId": "pc-interest-sensitive",
+      "externals": [
+        { "id": "is-ext-0-r", "name": "r", "desc": "Interest rate on bills.", "kind": "constant", "valueText": "0.025" },
+        { "id": "is-ext-1-G", "name": "G", "desc": "Government expenditure.", "kind": "constant", "valueText": "20" },
+        { "id": "is-ext-2-alpha2", "name": "alpha2", "desc": "Propensity to consume out of lagged wealth.", "kind": "constant", "valueText": "0.4" },
+        { "id": "is-ext-3-theta", "name": "theta", "desc": "Tax rate.", "kind": "constant", "valueText": "0.2" },
+        { "id": "is-ext-4-lambda0", "name": "lambda0", "desc": "Portfolio parameter for bills.", "kind": "constant", "valueText": "0.635" },
+        { "id": "is-ext-5-lambda1", "name": "lambda1", "desc": "Interest sensitivity of bill demand.", "kind": "constant", "valueText": "0.05" },
+        { "id": "is-ext-6-lambda2", "name": "lambda2", "desc": "Income sensitivity of bill demand.", "kind": "constant", "valueText": "0.01" },
+        { "id": "is-ext-7-alpha10", "name": "alpha10", "desc": "Intercept for the endogenous propensity to consume.", "kind": "constant", "valueText": "0.7" },
+        { "id": "is-ext-8-iota", "name": "iota", "desc": "Sensitivity of alpha1 to the lagged interest rate.", "kind": "constant", "valueText": "4" }
+      ],
+      "collapsed": true
+    },
+    { "id": "interest-sensitive-initial-values", "type": "initial-values", "title": "Initial values", "modelId": "pc-interest-sensitive", "initialValues": [], "collapsed": true },
+    { "id": "interest-sensitive-baseline-run", "type": "run", "title": "Interest-sensitive baseline run", "mode": "baseline", "resultKey": "gl2_pc_interest_baseline", "description": "Adaptive-expectations PC model with endogenous alpha1.", "sourceModelId": "pc-interest-sensitive" },
+    { "id": "interest-sensitive-baseline-chart", "type": "chart", "title": "Interest-sensitive baseline headline variables", "sourceRunCellId": "interest-sensitive-baseline-run", "variables": ["alpha1", "Y", "YDE", "C", "V"], "axisMode": "separate", "axisSnapTolarance": 0.5 },
+    { "id": "interest-sensitive-scenario-note", "type": "markdown", "title": "Bills-rate shock revisited", "source": "This scenario reapplies the bills-rate increase to the interest-sensitive model, raising `r` from `0.025` to `0.035` between periods 5 and 60." },
+    {
+      "id": "interest-sensitive-scenario-run",
+      "type": "run",
+      "title": "Interest-sensitive scenario: higher bills rate",
+      "mode": "scenario",
+      "scenario": {
+        "shocks": [
+          {
+            "rangeInclusive": [5, 60],
+            "variables": { "r": { "kind": "constant", "value": 0.035 } }
+          }
+        ]
+      },
+      "baselineRunCellId": "interest-sensitive-baseline-run",
+      "periods": 60,
+      "resultKey": "gl2_pc_interest_s1",
+      "sourceModelId": "pc-interest-sensitive"
+    },
+    { "id": "interest-sensitive-scenario-chart", "type": "chart", "title": "Interest-sensitive scenario output and public finances", "sourceRunCellId": "interest-sensitive-scenario-run", "variables": ["alpha1", "Y", "YD", "C", "TX"], "axisMode": "separate", "axisSnapTolarance": 0.5 }
+  ]
+}

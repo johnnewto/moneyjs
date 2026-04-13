@@ -188,4 +188,36 @@ describe("EquationGridEditor", () => {
       { id: "eq-y", name: "Y", desc: "Updated description", expression: "C + I" }
     ]);
   });
+
+  it("adds instant tooltips to described variable tokens", () => {
+    render(
+      <EquationGridEditor
+        equations={[{ id: "eq-y", name: "Y", desc: "Income = GDP", expression: "alpha1 * Y" }]}
+        issues={{}}
+        onChange={vi.fn()}
+        parameterNames={["alpha1"]}
+        variableDescriptions={
+          new Map([
+            ["Y", "Income = GDP"],
+            ["alpha1", "Propensity to consume out of income"]
+          ])
+        }
+      />
+    );
+
+    fireEvent.mouseEnter(screen.getByText("alpha1"));
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Propensity to consume out of income");
+    fireEvent.mouseLeave(screen.getByText("alpha1"));
+
+    const yToken = screen
+      .getAllByText("Y")
+      .find((node) => node.className.includes("formula-token"));
+    expect(yToken).toBeDefined();
+    if (!yToken) {
+      throw new Error("Expected formula token for Y");
+    }
+
+    fireEvent.mouseEnter(yToken);
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Income = GDP");
+  });
 });

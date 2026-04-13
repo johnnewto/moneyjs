@@ -33,6 +33,7 @@ import {
   type EditorState,
   type RuntimeDocument
 } from "../lib/editorModel";
+import { buildVariableDescriptions, getVariableDescription } from "../lib/variableDescriptions";
 
 import "../styles/app.css";
 
@@ -126,6 +127,10 @@ export function WorkspaceApp() {
   const buildDiagnostics = diagnoseBuildRuntime(editor);
   const allIssues = [...validationIssues, ...buildDiagnostics.issues];
   const issueMap = Object.fromEntries(allIssues.map((issue) => [issue.path, issue.message]));
+  const variableDescriptions = buildVariableDescriptions({
+    equations: editor.equations,
+    externals: editor.externals
+  });
 
   const preset = PRESETS.find((entry) => entry.id === presetId) ?? PRESETS[0];
   let runtime: RuntimeDocument | null;
@@ -138,6 +143,7 @@ export function WorkspaceApp() {
   const resultRows = solver.result
     ? Object.entries(solver.result.series)
         .map(([name, values]) => ({
+          description: getVariableDescription(variableDescriptions, name),
           name,
           selected: values[Math.min(selectedPeriodIndex, values.length - 1)] ?? NaN,
           start: values[0] ?? NaN,
@@ -328,6 +334,7 @@ export function WorkspaceApp() {
             issues={issueMap}
             onChange={(equations) => setEditor((current) => ({ ...current, equations }))}
             parameterNames={editor.externals.map((external) => external.name)}
+            variableDescriptions={variableDescriptions}
           />
           <ExternalEditor
             currentValues={currentValueMap}
@@ -358,11 +365,13 @@ export function WorkspaceApp() {
                 axisMode={chartAxisMode}
                 selectedIndex={selectedPeriodIndex}
                 series={chartSeries}
+                variableDescriptions={variableDescriptions}
               />
               <ResultTable
                 title="All Series"
                 rows={resultRows}
                 selectedIndex={selectedPeriodIndex}
+                variableDescriptions={variableDescriptions}
               />
             </>
           ) : null}
@@ -476,6 +485,7 @@ export function WorkspaceApp() {
               title="Highlighted Variables"
               rows={highlightRows}
               selectedIndex={selectedPeriodIndex}
+              variableDescriptions={variableDescriptions}
             />
           ) : null}
         </aside>

@@ -1,14 +1,23 @@
 import { useEffect, useState } from "react";
 
 import type { EquationRow } from "../lib/editorModel";
+import type { VariableDescriptions } from "../lib/variableDescriptions";
+import { InstantTooltip } from "./InstantTooltip";
+import { VariableLabel } from "./VariableLabel";
 
 interface EquationTableProps {
   equations: EquationRow[];
   issues: Record<string, string | undefined>;
   onChange(next: EquationRow[]): void;
+  variableDescriptions?: VariableDescriptions;
 }
 
-export function EquationTable({ equations, issues, onChange }: EquationTableProps) {
+export function EquationTable({
+  equations,
+  issues,
+  onChange,
+  variableDescriptions
+}: EquationTableProps) {
   const [selectedEquationId, setSelectedEquationId] = useState<string>(equations[0]?.id ?? "");
   const [query, setQuery] = useState("");
 
@@ -110,7 +119,13 @@ export function EquationTable({ equations, issues, onChange }: EquationTableProp
                   }${hasIssue ? " has-issue" : ""}`}
                   onClick={() => setSelectedEquationId(equation.id)}
                 >
-                  <span className="equation-list-name">{equation.name || `Equation ${index + 1}`}</span>
+                  <VariableLabel
+                    className="equation-list-name"
+                    name={equation.name}
+                    variableDescriptions={variableDescriptions}
+                  >
+                    {equation.name || `Equation ${index + 1}`}
+                  </VariableLabel>
                   <span className="equation-list-expression">
                     {equation.expression || "No expression yet"}
                   </span>
@@ -127,11 +142,20 @@ export function EquationTable({ equations, issues, onChange }: EquationTableProp
         <div className="equation-detail">
           {selectedEquation && selectedIndex >= 0 ? (
             <>
-              <div className="equation-detail-header">
-                <div>
-                  <div className="eyebrow">Equation {selectedIndex + 1}</div>
-                  <h3>{selectedEquation.name || "Unnamed equation"}</h3>
-                </div>
+                <div className="equation-detail-header">
+                  <div>
+                    <div className="eyebrow">Equation {selectedIndex + 1}</div>
+                    <InstantTooltip
+                      as="h3"
+                      tooltip={
+                        selectedEquation.name
+                          ? variableDescriptions?.get(selectedEquation.name.trim())
+                          : undefined
+                      }
+                    >
+                      {selectedEquation.name || "Unnamed equation"}
+                    </InstantTooltip>
+                  </div>
                 <button type="button" onClick={() => onChange(removeRow(equations, selectedIndex))}>
                   Remove
                 </button>

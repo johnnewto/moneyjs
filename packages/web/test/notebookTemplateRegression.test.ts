@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { runBaseline, runScenario } from "@sfcr/core";
 
 import bmwRegressionFixture from "./fixtures/r-regressions/bmw.json";
+import gl2PcRegressionFixture from "./fixtures/r-regressions/gl2-pc.json";
 import gl6DisRegressionFixture from "./fixtures/r-regressions/gl6-dis.json";
 import gl7InsoutRegressionFixture from "./fixtures/r-regressions/gl7-insout.json";
 import gl8GrowthRegressionFixture from "./fixtures/r-regressions/gl8-growth.json";
@@ -22,6 +23,7 @@ interface RegressionFixture {
 
 const FIXTURES: RegressionFixture[] = [
   bmwRegressionFixture,
+  gl2PcRegressionFixture,
   gl6DisRegressionFixture,
   gl7InsoutRegressionFixture,
   gl8GrowthRegressionFixture

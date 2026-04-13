@@ -177,6 +177,32 @@ describe("ResultChart", () => {
     expect(screen.getByText("B").closest(".legend-item")).toHaveClass("is-dimmed");
   });
 
+  it("shows the variable description in the hover tooltip when available", () => {
+    render(
+      <ResultChart
+        series={[
+          { name: "Y", values: [10, 12, 14, 16] },
+          { name: "C", values: [30, 32, 34, 36] }
+        ]}
+        variableDescriptions={new Map([["Y", "Description"]])}
+      />
+    );
+
+    const chart = screen.getByRole("img", { name: /simulation result chart with shared left axis/i });
+    chart.getBoundingClientRect = () =>
+      ({
+        left: 0,
+        top: 0,
+        width: 900,
+        height: 360
+      }) as DOMRect;
+
+    fireEvent.mouseMove(chart, { clientX: 330, clientY: 250 });
+
+    expect(screen.getByText(/Y • Description/i)).toBeInTheDocument();
+    expect(screen.getByText(/Value: 12\.0/i)).toBeInTheDocument();
+  });
+
   it("highlights the matching legend and axis in multi-axis mode on hover", () => {
     render(
       <ResultChart
@@ -247,5 +273,30 @@ describe("ResultChart", () => {
 
     expect(axisGroup).toHaveClass("is-active");
     expect(screen.getByText(/A • Period 2/i)).toBeInTheDocument();
+  });
+
+  it("adds variable description tooltips to legend and scale labels", () => {
+    render(
+      <ResultChart
+        axisMode="separate"
+        series={[
+          { name: "Y", values: [10, 12, 14, 16] },
+          { name: "C", values: [8, 9, 10, 11] }
+        ]}
+        variableDescriptions={
+          new Map([
+            ["Y", "Income = GDP"],
+            ["C", "Consumption"]
+          ])
+        }
+      />
+    );
+
+    fireEvent.mouseEnter(screen.getAllByText("Y")[0]!);
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Income = GDP");
+
+    fireEvent.mouseLeave(screen.getAllByText("Y")[0]!);
+    fireEvent.mouseEnter(screen.getAllByText("C")[0]!);
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Consumption");
   });
 });

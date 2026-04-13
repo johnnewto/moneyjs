@@ -1,6 +1,8 @@
 import { useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 
 import type { EquationRow } from "../lib/editorModel";
+import type { VariableDescriptions } from "../lib/variableDescriptions";
+import { InstantTooltip } from "./InstantTooltip";
 
 interface EquationGridEditorProps {
   buildError?: string | null;
@@ -9,6 +11,7 @@ interface EquationGridEditorProps {
   issues: Record<string, string | undefined>;
   onChange(next: EquationRow[]): void;
   parameterNames?: string[];
+  variableDescriptions?: VariableDescriptions;
 }
 
 export function EquationGridEditor({
@@ -17,7 +20,8 @@ export function EquationGridEditor({
   equations,
   issues,
   onChange,
-  parameterNames = []
+  parameterNames = [],
+  variableDescriptions
 }: EquationGridEditorProps) {
   const parameterNameSet = useMemo(() => new Set(parameterNames), [parameterNames]);
   const traceModel = useMemo(() => buildTraceModel(equations), [equations]);
@@ -110,6 +114,7 @@ export function EquationGridEditor({
                   parameterNames={parameterNameSet}
                   placeholder="Y"
                   value={equation.name}
+                  variableDescriptions={variableDescriptions}
                 />
                 <HighlightedFormulaInput
                   ariaLabel={`Equation ${index + 1} expression`}
@@ -125,6 +130,7 @@ export function EquationGridEditor({
                   parameterNames={parameterNameSet}
                   placeholder="Cs + Gs"
                   value={equation.expression}
+                  variableDescriptions={variableDescriptions}
                 />
                 <input
                   aria-label={`Equation ${index + 1} description`}
@@ -176,6 +182,7 @@ interface HighlightedFormulaInputProps {
   parameterNames: Set<string>;
   placeholder: string;
   value: string;
+  variableDescriptions?: VariableDescriptions;
 }
 
 function HighlightedFormulaInput({
@@ -187,7 +194,8 @@ function HighlightedFormulaInput({
   onEnter,
   parameterNames,
   placeholder,
-  value
+  value,
+  variableDescriptions
 }: HighlightedFormulaInputProps) {
   return (
     <label className={`highlighted-formula-input ${className}`.trim()}>
@@ -195,7 +203,9 @@ function HighlightedFormulaInput({
         aria-hidden="true"
         className={`highlighted-formula-preview${value ? "" : " is-placeholder"}`}
       >
-        {value ? highlightFormula(value, parameterNames, highlightedTokens) : placeholder}
+        {value
+          ? highlightFormula(value, parameterNames, highlightedTokens, variableDescriptions)
+          : placeholder}
       </div>
       <textarea
         aria-label={ariaLabel}
@@ -220,7 +230,8 @@ function HighlightedFormulaInput({
 export function highlightFormula(
   source: string,
   parameterNames: Set<string>,
-  highlightedTokens?: Map<string, TraceTokenRole>
+  highlightedTokens?: Map<string, TraceTokenRole>,
+  variableDescriptions?: VariableDescriptions
 ): ReactNode[] {
   const parts: ReactNode[] = [];
   const tokenPattern = /([A-Za-z_][A-Za-z0-9_]*|\d+(?:\.\d+)?(?:e[+-]?\d+)?)/gi;
@@ -237,13 +248,18 @@ export function highlightFormula(
     const tokenClass = classifyToken(token, parameterNames, source, index + token.length);
     const normalizedToken = token.trim();
     const traceClass = highlightedTokens?.get(normalizedToken) ?? null;
+    const tokenDescription =
+      tokenClass === "formula-uppercase" || tokenClass === "formula-parameter"
+        ? variableDescriptions?.get(normalizedToken)
+        : undefined;
     parts.push(
-      <span
+      <InstantTooltip
         key={`${token}-${index}`}
         className={`formula-token ${tokenClass}${traceClass ? ` trace-token-${traceClass}` : ""}`}
+        tooltip={tokenDescription}
       >
         {token}
-      </span>
+      </InstantTooltip>
     );
     lastIndex = index + token.length;
   }

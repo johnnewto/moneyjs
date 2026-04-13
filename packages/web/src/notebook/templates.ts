@@ -1,11 +1,12 @@
 import bmwNotebookJson from "./templates/bmw.notebook.json";
+import gl2PcNotebookJson from "./templates/gl2-pc.notebook.json";
 import gl6DisNotebookJson from "./templates/gl6-dis.notebook.json";
 import gl7InsoutNotebookJson from "./templates/gl7-insout.notebook.json";
 import gl8GrowthNotebookJson from "./templates/gl8-growth.notebook.json";
 import { notebookFromJson } from "./document";
 import type { NotebookDocument } from "./types";
 
-export type NotebookTemplateId = "bmw" | "gl6-dis" | "gl7-insout" | "gl8-growth";
+export type NotebookTemplateId = "bmw" | "gl2-pc" | "gl6-dis" | "gl7-insout" | "gl8-growth";
 export const DEFAULT_NOTEBOOK_TEMPLATE_ID: NotebookTemplateId = "bmw";
 
 export interface NotebookTemplateDefinition {
@@ -21,6 +22,13 @@ export const NOTEBOOK_TEMPLATES: Record<NotebookTemplateId, NotebookTemplateDefi
     label: "BMW",
     description: "BMW browser notebook with a baseline run, two scenarios, and accounting views.",
     document: notebookFromJson(JSON.stringify(bmwNotebookJson))
+  },
+  "gl2-pc": {
+    id: "gl2-pc",
+    label: "GL2 PC",
+    description:
+      "PC notebook based on the gl2-pc article baseline, balance-sheet views, and two deterministic extensions.",
+    document: notebookFromJson(JSON.stringify(gl2PcNotebookJson))
   },
   "gl6-dis": {
     id: "gl6-dis",

@@ -18,6 +18,8 @@ import { ResultChart } from "../components/ResultChart";
 import { ResultTable } from "../components/ResultTable";
 import { SequenceDiagramCanvas } from "../components/SequenceDiagramCanvas";
 import { SolverPanel } from "../components/SolverPanel";
+import { InstantTooltip } from "../components/InstantTooltip";
+import { VariableLabel } from "../components/VariableLabel";
 import {
   buildRuntimeConfig,
   diagnoseBuildRuntime,
@@ -25,6 +27,11 @@ import {
   type EditorState
 } from "../lib/editorModel";
 import { stringifyJsonWithCompactLeaves } from "../lib/jsonFormat";
+import {
+  buildVariableDescriptions,
+  getVariableDescription,
+  type VariableDescriptions
+} from "../lib/variableDescriptions";
 import {
   detectNotebookSourceFormat,
   notebookToJson,
@@ -650,6 +657,10 @@ function NotebookCellView({
   const sourceLineNumbers = Array.from({ length: sourceDraft.split("\n").length }, (_, index) =>
     String(index + 1)
   ).join("\n");
+  const variableDescriptions = useMemo(
+    () => resolveCellVariableDescriptions(cells, cell),
+    [cells, cell]
+  );
 
   useEffect(() => {
     setTitleDraft(cell.title);
@@ -1007,6 +1018,7 @@ function NotebookCellView({
             cell={cell}
             currentValues={getModelCurrentValues({ modelId: cell.modelId })}
             issueMap={buildIssueMapForStandaloneModelSections(cells, cell.modelId)}
+            variableDescriptions={variableDescriptions}
             onChange={(initialValues) =>
               onCellChange(cell.id, (current) =>
                 current.type === "initial-values" ? { ...current, initialValues } : current
@@ -1021,20 +1033,33 @@ function NotebookCellView({
             }
           />
         ) : null}
-        {cell.type === "run" ? <RunCellView cell={cell} cells={cells} /> : null}
+        {cell.type === "run" ? (
+          <RunCellView cell={cell} cells={cells} variableDescriptions={variableDescriptions} />
+        ) : null}
         {cell.type === "chart" ? (
           <ChartCellView
             cell={cell}
             cells={cells}
             runner={runner}
             selectedPeriodIndex={selectedPeriodIndex}
+            variableDescriptions={variableDescriptions}
           />
         ) : null}
         {cell.type === "table" ? (
-          <TableCellView cell={cell} runner={runner} selectedPeriodIndex={selectedPeriodIndex} />
+          <TableCellView
+            cell={cell}
+            runner={runner}
+            selectedPeriodIndex={selectedPeriodIndex}
+            variableDescriptions={variableDescriptions}
+          />
         ) : null}
         {cell.type === "matrix" ? (
-          <MatrixCellView cell={cell} runner={runner} selectedPeriodIndex={selectedPeriodIndex} />
+          <MatrixCellView
+            cell={cell}
+            runner={runner}
+            selectedPeriodIndex={selectedPeriodIndex}
+            variableDescriptions={variableDescriptions}
+          />
         ) : null}
         {cell.type === "sequence" ? (
           <SequenceCellView
@@ -1044,6 +1069,7 @@ function NotebookCellView({
             onSelectedPeriodIndexChange={onSelectedPeriodIndexChange}
             runner={runner}
             selectedPeriodIndex={selectedPeriodIndex}
+            variableDescriptions={variableDescriptions}
           />
         ) : null}
       </div>
@@ -1070,6 +1096,14 @@ function ModelCellView({
   const parameterNameSet = useMemo(
     () => new Set(cell.editor.externals.map((external) => external.name)),
     [cell.editor.externals]
+  );
+  const variableDescriptions = useMemo(
+    () =>
+      buildVariableDescriptions({
+        equations: cell.editor.equations,
+        externals: cell.editor.externals
+      }),
+    [cell.editor.equations, cell.editor.externals]
   );
   const traceModel = useMemo(() => buildTraceModel(cell.editor.equations), [cell.editor.equations]);
   const activeTrace = pinnedTrace
@@ -1148,7 +1182,8 @@ function ModelCellView({
                     ? highlightFormula(
                         equation.name,
                         parameterNameSet,
-                        traceRole ? activeTrace?.tokenStates : undefined
+                        traceRole ? activeTrace?.tokenStates : undefined,
+                        variableDescriptions
                       )
                     : "?"}
                 </span>
@@ -1157,7 +1192,8 @@ function ModelCellView({
                     ? highlightFormula(
                         equation.expression,
                         parameterNameSet,
-                        traceRole ? activeTrace?.tokenStates : undefined
+                        traceRole ? activeTrace?.tokenStates : undefined,
+                        variableDescriptions
                       )
                     : " "}
                 </span>
@@ -1183,6 +1219,7 @@ function ModelCellView({
             issues={issueMap}
             onChange={(equations) => onChange({ ...cell.editor, equations })}
             parameterNames={cell.editor.externals.map((external) => external.name)}
+            variableDescriptions={variableDescriptions}
           />
         </div>
       </details>
@@ -1232,6 +1269,14 @@ function EquationsCellView({
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
   const [pinnedTrace, setPinnedTrace] = useState<PinnedTrace | null>(null);
   const parameterNameSet = useMemo(() => new Set(externals.map((external) => external.name)), [externals]);
+  const variableDescriptions = useMemo(
+    () =>
+      buildVariableDescriptions({
+        equations: cell.equations,
+        externals
+      }),
+    [cell.equations, externals]
+  );
   const traceModel = useMemo(() => buildTraceModel(cell.equations), [cell.equations]);
   const activeTrace = pinnedTrace
     ? buildActiveTrace(traceModel, pinnedTrace.rowId, pinnedTrace.mode)
@@ -1312,7 +1357,8 @@ function EquationsCellView({
                         ? highlightFormula(
                             equation.name,
                             parameterNameSet,
-                            traceRole ? activeTrace?.tokenStates : undefined
+                            traceRole ? activeTrace?.tokenStates : undefined,
+                            variableDescriptions
                           )
                         : "?"}
                     </span>
@@ -1321,7 +1367,8 @@ function EquationsCellView({
                         ? highlightFormula(
                             equation.expression,
                             parameterNameSet,
-                            traceRole ? activeTrace?.tokenStates : undefined
+                            traceRole ? activeTrace?.tokenStates : undefined,
+                            variableDescriptions
                           )
                         : " "}
                     </span>
@@ -1347,6 +1394,7 @@ function EquationsCellView({
                 issues={issueMap}
                 onChange={onChange}
                 parameterNames={externals.map((external) => external.name)}
+                variableDescriptions={variableDescriptions}
               />
             </div>
           </details>
@@ -1483,6 +1531,10 @@ function ExternalsCellView({
 }) {
   const issuePaths = Object.keys(issueMap);
   const seriesExternalCount = cell.externals.filter((external) => external.kind === "series").length;
+  const variableDescriptions = useMemo(
+    () => buildVariableDescriptions({ externals: cell.externals }),
+    [cell.externals]
+  );
 
   return (
     <div className="notebook-model-stack notebook-linked-editor-cell">
@@ -1540,9 +1592,18 @@ function ExternalsCellView({
                       .join(" ")}
                     role="row"
                   >
-                    <span className="notebook-model-view-name" role="cell">
+                    <InstantTooltip
+                      as="span"
+                      className="notebook-model-view-name"
+                      role="cell"
+                      tooltip={
+                        external.name
+                          ? getVariableDescription(variableDescriptions, external.name)
+                          : undefined
+                      }
+                    >
                       {external.name || "?"}
-                    </span>
+                    </InstantTooltip>
                     <span className="notebook-model-view-expression" role="cell">
                       {external.valueText || " "}
                     </span>
@@ -1578,12 +1639,14 @@ function InitialValuesCellView({
   cell,
   currentValues,
   issueMap,
+  variableDescriptions,
   onChange,
   onToggleCollapsed
 }: {
   cell: InitialValuesCell;
   currentValues: Record<string, number | undefined>;
   issueMap: Record<string, string | undefined>;
+  variableDescriptions: VariableDescriptions;
   onChange(initialValues: EditorState["initialValues"]): void;
   onToggleCollapsed(): void;
 }) {
@@ -1650,9 +1713,18 @@ function InitialValuesCellView({
                       .join(" ")}
                     role="row"
                   >
-                    <span className="notebook-model-view-name" role="cell">
+                    <InstantTooltip
+                      as="span"
+                      className="notebook-model-view-name"
+                      role="cell"
+                      tooltip={
+                        initialValue.name
+                          ? getVariableDescription(variableDescriptions, initialValue.name)
+                          : undefined
+                      }
+                    >
                       {initialValue.name || "?"}
-                    </span>
+                    </InstantTooltip>
                     <span className="notebook-model-view-expression" role="cell">
                       {initialValue.valueText || " "}
                     </span>
@@ -1687,7 +1759,15 @@ function InitialValuesCellView({
   );
 }
 
-function RunCellView({ cell, cells }: { cell: RunCell; cells: NotebookCell[] }) {
+function RunCellView({
+  cell,
+  cells,
+  variableDescriptions
+}: {
+  cell: RunCell;
+  cells: NotebookCell[];
+  variableDescriptions: VariableDescriptions;
+}) {
   const baselineStartPeriod = resolveEffectiveScenarioStartPeriod(cells, cell);
 
   return (
@@ -1723,7 +1803,13 @@ function RunCellView({ cell, cells }: { cell: RunCell; cells: NotebookCell[] }) 
               <ul className="notebook-run-shock-list">
                 {Object.entries(shock.variables).map(([name, value]) => (
                   <li key={name}>
-                    <strong>{name}</strong>: {formatShockValue(value)}
+                    <InstantTooltip
+                      as="strong"
+                      tooltip={getVariableDescription(variableDescriptions, name)}
+                    >
+                      {name}
+                    </InstantTooltip>:{" "}
+                    {formatShockValue(value)}
                   </li>
                 ))}
               </ul>
@@ -1739,12 +1825,14 @@ function ChartCellView({
   cell,
   cells,
   runner,
-  selectedPeriodIndex
+  selectedPeriodIndex,
+  variableDescriptions
 }: {
   cell: ChartCell;
   cells: NotebookCell[];
   runner: ReturnType<typeof useNotebookRunner>;
   selectedPeriodIndex: number;
+  variableDescriptions: VariableDescriptions;
 }) {
   const result = runner.getResult(cell.sourceRunCellId);
   if (!result) {
@@ -1806,6 +1894,7 @@ function ChartCellView({
       sharedRange={cell.sharedRange}
       timeRangeDefaults={timeRangeDefaults}
       timeRangeInclusive={cell.timeRangeInclusive}
+      variableDescriptions={variableDescriptions}
     />
   );
 }
@@ -1848,14 +1937,102 @@ function resolveEffectiveScenarioStartPeriod(
   )?.options.periods;
 }
 
+function resolveCellVariableDescriptions(
+  cells: NotebookCell[],
+  cell: NotebookCell
+): VariableDescriptions {
+  if (cell.type === "model") {
+    return buildVariableDescriptions({
+      equations: cell.editor.equations,
+      externals: cell.editor.externals
+    });
+  }
+
+  if (
+    cell.type === "equations" ||
+    cell.type === "externals" ||
+    cell.type === "initial-values" ||
+    cell.type === "solver"
+  ) {
+    return resolveModelVariableDescriptionsForModelId(cells, cell.modelId);
+  }
+
+  if (cell.type === "run") {
+    return resolveModelVariableDescriptionsForRunCell(cells, cell);
+  }
+
+  if (cell.type === "chart" || cell.type === "table" || cell.type === "matrix") {
+    const sourceRunCell = cells.find(
+      (candidate): candidate is RunCell =>
+        candidate.type === "run" && candidate.id === cell.sourceRunCellId
+    );
+    return sourceRunCell ? resolveModelVariableDescriptionsForRunCell(cells, sourceRunCell) : new Map();
+  }
+
+  if (cell.type === "sequence") {
+    if (cell.source.kind !== "matrix") {
+      return new Map();
+    }
+
+    const source = cell.source;
+    const matrixCell = cells.find(
+      (candidate): candidate is MatrixCell =>
+        candidate.type === "matrix" && candidate.id === source.matrixCellId
+    );
+    const sourceRunCellId = source.sourceRunCellId ?? matrixCell?.sourceRunCellId;
+    const sourceRunCell = sourceRunCellId
+      ? cells.find(
+          (candidate): candidate is RunCell =>
+            candidate.type === "run" && candidate.id === sourceRunCellId
+        ) ?? null
+      : null;
+
+    return sourceRunCell ? resolveModelVariableDescriptionsForRunCell(cells, sourceRunCell) : new Map();
+  }
+
+  return new Map();
+}
+
+function resolveModelVariableDescriptionsForRunCell(
+  cells: NotebookCell[],
+  cell: RunCell
+): VariableDescriptions {
+  const editor = buildEditorStateForNotebookModel(
+    {
+      id: "notebook",
+      title: "notebook",
+      metadata: { version: 1 },
+      cells
+    },
+    cell
+  );
+
+  return buildVariableDescriptions({
+    equations: editor?.equations,
+    externals: editor?.externals
+  });
+}
+
+function resolveModelVariableDescriptionsForModelId(
+  cells: NotebookCell[],
+  modelId: string
+): VariableDescriptions {
+  return buildVariableDescriptions({
+    equations: findEquationsCell(cells, modelId)?.equations,
+    externals: findExternalsCell(cells, modelId)?.externals
+  });
+}
+
 function TableCellView({
   cell,
   runner,
-  selectedPeriodIndex
+  selectedPeriodIndex,
+  variableDescriptions
 }: {
   cell: TableCell;
   runner: ReturnType<typeof useNotebookRunner>;
   selectedPeriodIndex: number;
+  variableDescriptions: VariableDescriptions;
 }) {
   const result = runner.getResult(cell.sourceRunCellId);
   if (!result) {
@@ -1865,6 +2042,7 @@ function TableCellView({
   const rows = cell.variables.map((name) => {
     const values = result.series[name] ?? [];
     return {
+      description: getVariableDescription(variableDescriptions, name),
       name,
       selected: values[Math.min(selectedPeriodIndex, values.length - 1)] ?? NaN,
       start: values[0] ?? NaN,
@@ -1872,17 +2050,26 @@ function TableCellView({
     };
   });
 
-  return <ResultTable title={cell.title} rows={rows} selectedIndex={selectedPeriodIndex} />;
+  return (
+    <ResultTable
+      title={cell.title}
+      rows={rows}
+      selectedIndex={selectedPeriodIndex}
+      variableDescriptions={variableDescriptions}
+    />
+  );
 }
 
 function MatrixCellView({
   cell,
   runner,
-  selectedPeriodIndex
+  selectedPeriodIndex,
+  variableDescriptions
 }: {
   cell: MatrixCell;
   runner: ReturnType<typeof useNotebookRunner>;
   selectedPeriodIndex: number;
+  variableDescriptions: VariableDescriptions;
 }) {
   const result = cell.sourceRunCellId ? runner.getResult(cell.sourceRunCellId) : null;
   const evaluatedMatrix = useMemo(
@@ -1900,7 +2087,7 @@ function MatrixCellView({
               <th scope="col" />
               {cell.columns.map((column) => (
                 <th key={column} scope="col">
-                  {column}
+                  <VariableLabel name={column} variableDescriptions={variableDescriptions} />
                 </th>
               ))}
             </tr>
@@ -1911,14 +2098,18 @@ function MatrixCellView({
                 key={row.label}
                 className={row.isSumRow && !row.isBalanced ? "matrix-balance-error" : undefined}
               >
-                <th scope="row">{row.label}</th>
+                <th scope="row">
+                  <VariableLabel name={row.label} variableDescriptions={variableDescriptions} />
+                </th>
                 {row.entries.map((entry, index) => (
                   <td
                     key={`${row.label}-${cell.columns[index] ?? index}`}
                     className={entry.isSumCell && !entry.isBalanced ? "matrix-balance-error" : undefined}
                   >
                     <div className="matrix-entry-inline">
-                      <span className="matrix-entry-source">{entry.source}</span>
+                      <span className="matrix-entry-source">
+                        {highlightFormula(entry.source, new Set(), undefined, variableDescriptions)}
+                      </span>
                       {entry.resolved ? (
                         <span className="matrix-entry-current">{entry.resolved}</span>
                       ) : null}
@@ -1941,7 +2132,8 @@ function SequenceCellView({
   maxPeriodIndex,
   onSelectedPeriodIndexChange,
   runner,
-  selectedPeriodIndex
+  selectedPeriodIndex,
+  variableDescriptions
 }: {
   cell: SequenceCell;
   cells: NotebookCell[];
@@ -1949,6 +2141,7 @@ function SequenceCellView({
   onSelectedPeriodIndexChange(nextIndex: number): void;
   runner: ReturnType<typeof useNotebookRunner>;
   selectedPeriodIndex: number;
+  variableDescriptions: VariableDescriptions;
 }) {
   const diagram = useMemo(
     () =>
@@ -2096,6 +2289,7 @@ function SequenceCellView({
         diagram={diagram}
         visibleStepCount={visibleSteps}
         highlightedStepIndex={highlightedStepIndex}
+        variableDescriptions={variableDescriptions}
       />
       {diagram.errors.length ? (
         <ul className="validation-list">

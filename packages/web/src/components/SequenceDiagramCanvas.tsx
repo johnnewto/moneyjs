@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { VariableDescriptions } from "../lib/variableDescriptions";
 
 import type {
   ParsedDiagram,
@@ -13,6 +14,7 @@ interface SequenceDiagramCanvasProps {
   diagram: ParsedDiagram;
   visibleStepCount: number;
   highlightedStepIndex: number | null;
+  variableDescriptions?: VariableDescriptions;
 }
 
 interface LayoutParticipant extends SequenceParticipant {
@@ -46,7 +48,8 @@ const BOTTOM_BOX_TOP_GAP = -12;
 export function SequenceDiagramCanvas({
   diagram,
   visibleStepCount,
-  highlightedStepIndex
+  highlightedStepIndex,
+  variableDescriptions
 }: SequenceDiagramCanvasProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [width, setWidth] = useState(MIN_CANVAS_WIDTH);
@@ -135,6 +138,7 @@ export function SequenceDiagramCanvas({
           top={layout.lifelineTop - layout.participantBoxHeight / 2}
           boxWidth={layout.participantBoxWidth}
           boxHeight={layout.participantBoxHeight}
+          variableDescriptions={variableDescriptions}
         />
 
         <ParticipantBoxes
@@ -142,6 +146,7 @@ export function SequenceDiagramCanvas({
           top={layout.bottomBoxTop}
           boxWidth={layout.participantBoxWidth}
           boxHeight={layout.participantBoxHeight}
+          variableDescriptions={variableDescriptions}
         />
 
         {steps.map((step, stepIndex) => {
@@ -173,12 +178,14 @@ function ParticipantBoxes({
   participants,
   top,
   boxWidth,
-  boxHeight
+  boxHeight,
+  variableDescriptions
 }: {
   participants: LayoutParticipant[];
   top: number;
   boxWidth: number;
   boxHeight: number;
+  variableDescriptions?: VariableDescriptions;
 }) {
   return (
     <>
@@ -188,6 +195,9 @@ function ParticipantBoxes({
 
         return (
           <g key={`${participant.id}-${top}`}>
+            {variableDescriptions?.get(participant.id) ? (
+              <title>{variableDescriptions.get(participant.id)}</title>
+            ) : null}
             <rect
               x={left}
               y={top}
