@@ -2,6 +2,8 @@
 
 `sfcr` is now centered on a **browser-first TypeScript implementation** for building and running stock-flow consistent (SFC) models.
 
+Live app: `https://johnnewto.github.io/moneyjs/`
+
 The main product surface lives in:
 
 - `packages/web`: browser app
@@ -59,6 +61,12 @@ Or build the web app directly:
 pnpm web:build
 ```
 
+For a GitHub Pages deployment, build the app with the repository base path:
+
+```bash
+VITE_BASE_PATH=/moneyjs/ pnpm web:build
+```
+
 ## Testing And Typechecking
 
 Workspace-level checks:
@@ -84,6 +92,18 @@ The current browser application supports:
 - result tables and lightweight SVG charts
 - JSON import/export through text and local files
 - inline validation for common editor errors
+
+## GitHub Pages
+
+This repository is configured to deploy the browser app to:
+
+```text
+https://johnnewto.github.io/moneyjs/
+```
+
+The GitHub Actions workflow in `.github/workflows/deploy-pages.yml` publishes `packages/web/dist` whenever `main` is updated.
+
+If the repository name changes, update the `VITE_BASE_PATH` value in that workflow so it matches the new Pages path.
 
 ## Project Layout
 
