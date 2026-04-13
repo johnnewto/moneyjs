@@ -338,7 +338,6 @@ describe("App", () => {
   "sourceRunCellId": "baseline-run",
   "variables": ["ydhs", "c", "p", "Mh"],
   "sharedRange": {
-    "mode": "manual",
     "min": 10,
     "max": 0
   }
@@ -374,7 +373,7 @@ describe("App", () => {
 
     expect(sourceEditor.value.startsWith("{\n")).toBe(true);
     expect(sourceEditor.value).toContain('"id": "baseline-chart"');
-    expect(sourceEditor.value).toContain('"seriesRanges": { "p": { "mode": "auto", "includeZero": true } }');
+    expect(sourceEditor.value).toContain('"seriesRanges": { "p": { "includeZero": true } }');
   });
 
   it("closes source popups on escape and outside click", async () => {

@@ -362,7 +362,7 @@
       "title": "Scenario 1 consumption and income",
       "sourceRunCellId": "scenario-1-run",
       "variables": ["Cd", "YD", "Id", "AF"],
-      "sharedRange": { "mode": "auto", "includeZero": true }
+      "sharedRange": { "includeZero": true }
     },
     {
       "id": "scenario-2-note",
@@ -398,7 +398,7 @@
       "title": "Scenario 2 headline variables",
       "sourceRunCellId": "scenario-2-run",
       "variables": ["Cd", "YD", "W"],
-      "sharedRange": { "mode": "auto", "includeZero": true }
+      "sharedRange": { "includeZero": true }
     }
   ]
 }

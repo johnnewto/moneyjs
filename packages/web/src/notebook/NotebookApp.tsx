@@ -907,7 +907,12 @@ function NotebookCellView({
         ) : null}
         {cell.type === "run" ? <RunCellView cell={cell} /> : null}
         {cell.type === "chart" ? (
-          <ChartCellView cell={cell} runner={runner} selectedPeriodIndex={selectedPeriodIndex} />
+          <ChartCellView
+            cell={cell}
+            cells={cells}
+            runner={runner}
+            selectedPeriodIndex={selectedPeriodIndex}
+          />
         ) : null}
         {cell.type === "table" ? (
           <TableCellView cell={cell} runner={runner} selectedPeriodIndex={selectedPeriodIndex} />
@@ -1120,10 +1125,12 @@ function RunCellView({ cell }: { cell: RunCell }) {
 
 function ChartCellView({
   cell,
+  cells,
   runner,
   selectedPeriodIndex
 }: {
   cell: ChartCell;
+  cells: NotebookCell[];
   runner: ReturnType<typeof useNotebookRunner>;
   selectedPeriodIndex: number;
 }) {
@@ -1138,15 +1145,21 @@ function ChartCellView({
       values: Array.from(result.series[name] ?? [])
     }))
     .filter((entry) => entry.values.length > 0);
+  const sourceRunCell = cells.find(
+    (candidate): candidate is RunCell => candidate.type === "run" && candidate.id === cell.sourceRunCellId
+  );
+  const timeRangeDefaults = resolveChartTimeRangeDefaults(sourceRunCell, series[0]?.values.length ?? 0);
 
   return (
     <ResultChart
       axisMode={cell.axisMode ?? "shared"}
-      axisSnap={cell.axisSnap}
+      axisSnapTolarance={cell.axisSnapTolarance}
       seriesRanges={cell.seriesRanges}
       selectedIndex={selectedPeriodIndex}
       series={series}
       sharedRange={cell.sharedRange}
+      timeRangeDefaults={timeRangeDefaults}
+      timeRangeInclusive={cell.timeRangeInclusive}
     />
   );
 }
@@ -1887,19 +1900,14 @@ function validateCellSourceShape(cellType: NotebookCell["type"], parsed: Omit<No
       ) {
         throw new Error("Chart axisMode must be 'shared' or 'separate'.");
       }
-      if ((parsed as ChartCell).axisSnap != null) {
-        const axisSnap = (parsed as ChartCell).axisSnap as unknown as Record<string, unknown>;
-        if (typeof axisSnap !== "object" || Array.isArray(axisSnap)) {
-          throw new Error("Chart axisSnap must be an object.");
-        }
-        if (typeof axisSnap.enabled !== "boolean") {
-          throw new Error("Chart axisSnap.enabled must be a boolean.");
-        }
-        if (axisSnap.tolerance != null && typeof axisSnap.tolerance !== "number") {
-          throw new Error("Chart axisSnap.tolerance must be a number.");
-        }
+      if (
+        (parsed as ChartCell).axisSnapTolarance != null &&
+        typeof (parsed as ChartCell).axisSnapTolarance !== "number"
+      ) {
+        throw new Error("Chart axisSnapTolarance must be a number.");
       }
       validateChartAxisRange((parsed as ChartCell).sharedRange, "sharedRange");
+      validateChartTimeRangeInclusive((parsed as ChartCell).timeRangeInclusive, "timeRangeInclusive");
       if (
         (parsed as ChartCell).seriesRanges != null &&
         (typeof (parsed as ChartCell).seriesRanges !== "object" ||
@@ -1946,10 +1954,14 @@ function buildSourceHelperActions(cell: NotebookCell): Array<{ label: string; in
     case "chart":
       return [
         { label: "Add axisMode", insert: '"axisMode": "shared"' },
-        { label: "Shared range", insert: '"sharedRange": {\n  "mode": "manual",\n  "min": 0,\n  "max": 200\n}' },
-        { label: "Series ranges", insert: '"seriesRanges": {\n  "y": {\n    "mode": "auto",\n    "includeZero": true\n  }\n}' },
-        { label: "Axis snap", insert: '"axisSnap": {\n  "enabled": true,\n  "tolerance": 0.1\n}' },
-        { label: "Include zero", insert: '"sharedRange": {\n  "mode": "auto",\n  "includeZero": true\n}' },
+        { label: "Shared range", insert: '"sharedRange": {\n  "min": 0,\n  "max": 200\n}' },
+        {
+          label: "Time range",
+          insert: '"timeRangeInclusive": [5, 20]'
+        },
+        { label: "Series ranges", insert: '"seriesRanges": {\n  "y": {\n    "includeZero": true\n  }\n}' },
+        { label: "Axis snap", insert: '"axisSnapTolarance": 0.1' },
+        { label: "Include zero", insert: '"sharedRange": {\n  "includeZero": true\n}' },
         { label: "Use shared", insert: '"axisMode": "shared"' },
         { label: "Use separate", insert: '"axisMode": "separate"' },
         { label: "Variables array", insert: '"variables": ["y", "c"]' }
@@ -2025,8 +2037,9 @@ ${formatCellBody(
 
 Optional:
 - axisMode: "shared" | "separate"
-- axisSnap: { "enabled": boolean, "tolerance"?: number }
-- sharedRange: { "mode": "auto" | "manual", "includeZero"?: boolean, "min"?: number, "max"?: number }
+- axisSnapTolarance: number
+- timeRangeInclusive: [startPeriodInclusive, endPeriodInclusive]
+- sharedRange: { "includeZero"?: boolean, "min"?: number, "max"?: number }
 - seriesRanges: { [variableName]: range }
 
 Example:
@@ -2037,17 +2050,13 @@ ${formatCellBody(
     sourceRunCellId: "baseline-run",
     variables: ["ydhs", "c", "p"],
     axisMode: "separate",
-    axisSnap: {
-      enabled: true,
-      tolerance: 0.1
-    },
+    axisSnapTolarance: 0.1,
+    timeRangeInclusive: [5, 20],
     sharedRange: {
-      mode: "auto",
       includeZero: true
     },
     seriesRanges: {
       p: {
-        mode: "manual",
         min: 0,
         max: 2
       }
@@ -2120,9 +2129,6 @@ function validateChartAxisRange(range: unknown, label: string): void {
   }
 
   const candidate = range as Record<string, unknown>;
-  if (!["auto", "manual"].includes(String(candidate.mode))) {
-    throw new Error(`${label}.mode must be 'auto' or 'manual'.`);
-  }
   if (candidate.includeZero != null && typeof candidate.includeZero !== "boolean") {
     throw new Error(`${label}.includeZero must be a boolean.`);
   }
@@ -2139,4 +2145,47 @@ function validateChartAxisRange(range: unknown, label: string): void {
   ) {
     throw new Error(`${label}.min must be less than ${label}.max.`);
   }
+}
+
+function validateChartTimeRangeInclusive(range: unknown, label: string): void {
+  if (range == null) {
+    return;
+  }
+  if (
+    !Array.isArray(range) ||
+    range.length !== 2 ||
+    range.some((value) => !Number.isInteger(value) || Number(value) < 1)
+  ) {
+    throw new Error(`${label} must be a [start, end] pair of integers >= 1.`);
+  }
+  if (range[0] > range[1]) {
+    throw new Error(`${label}[0] must be <= ${label}[1].`);
+  }
+}
+
+function resolveChartTimeRangeDefaults(
+  sourceRunCell: RunCell | undefined,
+  seriesLength: number
+): { endPeriodInclusive: number; startPeriodInclusive: number } {
+  const scenarioPaddingPeriods = 5;
+  const fullRange = {
+    startPeriodInclusive: 1,
+    endPeriodInclusive: Math.max(seriesLength, 1)
+  };
+
+  if (sourceRunCell?.mode !== "scenario" || !sourceRunCell.scenario || sourceRunCell.scenario.shocks.length === 0) {
+    return fullRange;
+  }
+
+  return {
+    startPeriodInclusive: Math.max(
+      1,
+      Math.min(...sourceRunCell.scenario.shocks.map((shock) => shock.startPeriodInclusive)) -
+        scenarioPaddingPeriods
+    ),
+    endPeriodInclusive: Math.min(
+      fullRange.endPeriodInclusive,
+      Math.max(...sourceRunCell.scenario.shocks.map((shock) => shock.endPeriodInclusive))
+    )
+  };
 }

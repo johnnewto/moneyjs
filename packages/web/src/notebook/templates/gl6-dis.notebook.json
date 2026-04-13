@@ -282,9 +282,9 @@
       "sourceRunCellId": "baseline-run",
       "variables": ["ydhs", "c", "p", "Mh"],
       "axisMode": "separate",
-      "axisSnap": { "enabled": true, "tolerance": 0.5 },
+      "axisSnapTolarance": 0.5,
       "seriesRanges": {
-        "p": { "mode": "auto", "includeZero": true }
+        "p": { "includeZero": true }
       }
     },
     {
@@ -325,9 +325,9 @@
       "sourceRunCellId": "scenario-1-run",
       "variables": ["c", "ydhs", "p"],
       "axisMode": "separate",
-      "axisSnap": { "enabled": true, "tolerance": 0.5 },
+      "axisSnapTolarance": 0.5,
       "seriesRanges": {
-        "p": { "mode": "auto", "includeZero": true }
+        "p": { "includeZero": true }
       }
     },
     {
@@ -361,10 +361,10 @@
       "sourceRunCellId": "scenario-2-run",
       "variables": ["ydhs", "c", "inv", "inv_E"],
       "axisMode": "separate",
-      "axisSnap": { "enabled": true, "tolerance": 0.5 },
+      "axisSnapTolarance": 0.5,
       "seriesRanges": {
-        "inv": { "mode": "auto", "includeZero": true },
-        "inv_E": { "mode": "auto", "includeZero": true }
+        "inv": { "includeZero": true },
+        "inv_E": { "includeZero": true }
       }
     }
   ]

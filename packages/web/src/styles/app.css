@@ -1994,6 +1994,20 @@ textarea {
   align-items: center;
   display: inline-flex;
   gap: 0.35rem;
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease,
+    color 140ms ease;
+}
+
+.legend-item.is-active {
+  color: #0f172a;
+  font-weight: 700;
+  transform: translateY(-1px);
+}
+
+.legend-item.is-dimmed {
+  opacity: 0.42;
 }
 
 .legend-swatch {
@@ -2013,6 +2027,11 @@ textarea {
 
 .chart-scale-multi {
   font-size: 0.92rem;
+}
+
+.chart-series,
+.chart-axis {
+  transition: opacity 140ms ease;
 }
 
 .error-text {

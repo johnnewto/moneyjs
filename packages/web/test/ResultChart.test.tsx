@@ -2,10 +2,14 @@
 
 import "@testing-library/jest-dom/vitest";
 
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { ResultChart } from "../src/components/ResultChart";
+
+afterEach(() => {
+  cleanup();
+});
 
 describe("ResultChart", () => {
   it("renders a shared left axis by default", () => {
@@ -50,7 +54,7 @@ describe("ResultChart", () => {
   it("supports includeZero on a shared auto range", () => {
     render(
       <ResultChart
-        sharedRange={{ mode: "auto", includeZero: true }}
+        sharedRange={{ includeZero: true }}
         series={[
           { name: "P", values: [2, 3, 5, 4] },
           { name: "POLR", values: [10, 15, 25, 20] }
@@ -65,14 +69,14 @@ describe("ResultChart", () => {
     render(
       <ResultChart
         axisMode="separate"
-        sharedRange={{ mode: "manual", min: -10, max: 10 }}
+        sharedRange={{ min: -10, max: 10 }}
         series={[
           { name: "P", values: [2, 3, 5, 4] },
           { name: "POLR", values: [10, 15, 25, 20] }
         ]}
         seriesRanges={{
-          P: { mode: "manual", min: 0, max: 10 },
-          POLR: { mode: "auto", includeZero: true }
+          P: { min: 0, max: 10 },
+          POLR: { includeZero: true }
         }}
       />
     );
@@ -85,7 +89,7 @@ describe("ResultChart", () => {
     render(
       <ResultChart
         axisMode="separate"
-        axisSnap={{ enabled: true, tolerance: 0.2 }}
+        axisSnapTolarance={0.2}
         series={[
           { name: "A", values: [10, 12, 14, 16] },
           { name: "B", values: [11, 13, 15, 17] }
@@ -101,18 +105,147 @@ describe("ResultChart", () => {
     render(
       <ResultChart
         axisMode="separate"
-        axisSnap={{ enabled: true, tolerance: 0.5 }}
+        axisSnapTolarance={0.5}
         series={[
           { name: "A", values: [10, 12, 14, 16] },
           { name: "B", values: [11, 13, 15, 17] }
         ]}
         seriesRanges={{
-          A: { mode: "manual", min: 0, max: 20 }
+          A: { min: 0, max: 20 }
         }}
       />
     );
 
     expect(screen.getByText(/A: 0\.000 to 20\.0/i)).toBeInTheDocument();
     expect(screen.getByText(/B: 11\.0 to 17\.0/i)).toBeInTheDocument();
+  });
+
+  it("uses the supplied auto time-range defaults", () => {
+    render(
+      <ResultChart
+        series={[
+          { name: "A", values: [10, 12, 14, 16, 18, 20] },
+          { name: "B", values: [5, 6, 7, 8, 9, 10] }
+        ]}
+        timeRangeDefaults={{ startPeriodInclusive: 3, endPeriodInclusive: 5 }}
+      />
+    );
+
+    expect(screen.getByText(/Time axis: 3 to 5/i)).toBeInTheDocument();
+    expect(screen.getByText(/Shared axis: 7\.00 to 18\.0/i)).toBeInTheDocument();
+  });
+
+  it("supports manual time ranges", () => {
+    render(
+      <ResultChart
+        series={[
+          { name: "A", values: [10, 12, 14, 16, 18, 20] },
+          { name: "B", values: [5, 6, 7, 8, 9, 10] }
+        ]}
+        timeRangeInclusive={[2, 4]}
+      />
+    );
+
+    expect(screen.getByText(/Time axis: 2 to 4/i)).toBeInTheDocument();
+    expect(screen.getByText(/Shared axis: 6\.00 to 16\.0/i)).toBeInTheDocument();
+  });
+
+  it("highlights the nearest trace and shows a hover tooltip", () => {
+    render(
+      <ResultChart
+        series={[
+          { name: "A", values: [10, 12, 14, 16] },
+          { name: "B", values: [30, 32, 34, 36] }
+        ]}
+      />
+    );
+
+    const chart = screen.getByRole("img", { name: /simulation result chart with shared left axis/i });
+    chart.getBoundingClientRect = () =>
+      ({
+        left: 0,
+        top: 0,
+        width: 900,
+        height: 360
+      }) as DOMRect;
+
+    fireEvent.mouseMove(chart, { clientX: 330, clientY: 250 });
+
+    expect(screen.getByText(/A • Period 2/i)).toBeInTheDocument();
+    expect(screen.getByText(/Value: 12\.0/i)).toBeInTheDocument();
+    expect(screen.getByText("A").closest(".legend-item")).toHaveClass("is-active");
+    expect(screen.getByText("B").closest(".legend-item")).toHaveClass("is-dimmed");
+  });
+
+  it("highlights the matching legend and axis in multi-axis mode on hover", () => {
+    render(
+      <ResultChart
+        axisMode="separate"
+        series={[
+          { name: "A", values: [10, 10, 10, 10] },
+          { name: "B", values: [30, 35, 30, 30] }
+        ]}
+      />
+    );
+
+    const chart = screen.getByRole("img", { name: /simulation result chart with multiple left axes/i });
+    chart.getBoundingClientRect = () =>
+      ({
+        left: 0,
+        top: 0,
+        width: 900,
+        height: 360
+      }) as DOMRect;
+
+    fireEvent.mouseMove(chart, { clientX: 330, clientY: 60 });
+
+    const legend = chart.parentElement?.querySelector(".chart-legend");
+    if (!legend) {
+      throw new Error("Expected chart legend.");
+    }
+
+    const legendA = within(legend).getByText("A").closest(".legend-item");
+    const legendB = within(legend).getByText("B").closest(".legend-item");
+
+    expect(legendA).toHaveClass("is-dimmed");
+    expect(legendB).toHaveClass("is-active");
+    expect(screen.getByText(/B • Period 2/i)).toBeInTheDocument();
+  });
+
+  it("applies hover highlighting when hovering the legend and left-hand axis", () => {
+    render(
+      <ResultChart
+        axisMode="separate"
+        selectedIndex={1}
+        series={[
+          { name: "A", values: [10, 12, 14, 16] },
+          { name: "B", values: [30, 32, 34, 36] }
+        ]}
+      />
+    );
+
+    const legendItems = screen.getAllByText("B");
+    const legendItem = legendItems[0]?.closest(".legend-item");
+    if (!legendItem) {
+      throw new Error("Expected legend item.");
+    }
+
+    fireEvent.mouseEnter(legendItem);
+
+    expect(legendItem).toHaveClass("is-active");
+    expect(screen.getByText(/B • Period 2/i)).toBeInTheDocument();
+
+    fireEvent.mouseLeave(legendItem);
+
+    const axisLabel = screen.getAllByText("A").find((node) => node.closest(".chart-axis"));
+    const axisGroup = axisLabel?.closest(".chart-axis");
+    if (!axisGroup) {
+      throw new Error("Expected chart axis.");
+    }
+
+    fireEvent.mouseEnter(axisGroup);
+
+    expect(axisGroup).toHaveClass("is-active");
+    expect(screen.getByText(/A • Period 2/i)).toBeInTheDocument();
   });
 });

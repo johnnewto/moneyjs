@@ -266,11 +266,11 @@
       "sourceRunCellId": "baseline-run",
       "variables": ["Y", "pi", "BLRN", "BPM"],
       "axisMode": "separate",
-      "axisSnap": { "enabled": true, "tolerance": 0.5 },
+      "axisSnapTolarance": 0.5,
       "seriesRanges": {
-        "pi": { "mode": "auto", "includeZero": true },
-        "BLRN": { "mode": "auto", "includeZero": true },
-        "BPM": { "mode": "auto", "includeZero": true }
+        "pi": { "includeZero": true },
+        "BLRN": { "includeZero": true },
+        "BPM": { "includeZero": true }
       }
     },
     {
@@ -311,10 +311,10 @@
       "sourceRunCellId": "scenario-1-run",
       "variables": ["INV", "Ls", "rm", "rb"],
       "axisMode": "separate",
-      "axisSnap": { "enabled": true, "tolerance": 0.5 },
+      "axisSnapTolarance": 0.5,
       "seriesRanges": {
-        "rm": { "mode": "auto", "includeZero": true },
-        "rb": { "mode": "auto", "includeZero": true }
+        "rm": { "includeZero": true },
+        "rb": { "includeZero": true }
       }
     },
     {
@@ -348,9 +348,9 @@
       "sourceRunCellId": "scenario-2-run",
       "variables": ["c", "v", "ydr", "pi"],
       "axisMode": "separate",
-      "axisSnap": { "enabled": true, "tolerance": 0.5 },
+      "axisSnapTolarance": 0.5,
       "seriesRanges": {
-        "pi": { "mode": "auto", "includeZero": true }
+        "pi": { "includeZero": true }
       }
     },
     {
@@ -391,9 +391,9 @@
       "sourceRunCellId": "scenario-7-run",
       "variables": ["pi", "s", "V", "Bs"],
       "axisMode": "separate",
-      "axisSnap": { "enabled": true, "tolerance": 0.5 },
+      "axisSnapTolarance": 0.5,
       "seriesRanges": {
-        "pi": { "mode": "auto", "includeZero": true }
+        "pi": { "includeZero": true }
       }
     }
   ]
