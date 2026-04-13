@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
+import { formatVariableTooltip, type VariableUnitMetadata } from "../lib/unitMeta";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
+import { getVariableUnitLabel } from "../lib/units";
 import { InstantTooltip } from "./InstantTooltip";
 
 interface ChartSeries {
@@ -28,6 +30,7 @@ interface ResultChartProps {
   timeRangeDefaults?: { endPeriodInclusive: number; startPeriodInclusive: number };
   timeRangeInclusive?: [number, number];
   variableDescriptions?: VariableDescriptions;
+  variableUnitMetadata?: VariableUnitMetadata;
 }
 
 const SERIES_COLORS = ["#111827", "#ec4899", "#ea580c", "#6366f1", "#059669", "#0284c7"];
@@ -44,6 +47,7 @@ export function ResultChart({
   timeRangeDefaults,
   timeRangeInclusive,
   variableDescriptions,
+  variableUnitMetadata,
   selectedIndex = 0
 }: ResultChartProps) {
   const [hoveredDatum, setHoveredDatum] = useState<{ index: number; seriesName: string } | null>(null);
@@ -138,7 +142,8 @@ export function ResultChart({
           axisMode === "shared" ? sharedMetrics.min : hoveredMetric.min,
           axisMode === "shared" ? sharedMetrics.range : hoveredMetric.range,
           visibleLength,
-          variableDescriptions
+          variableDescriptions,
+          variableUnitMetadata
         )
       : null;
 
@@ -157,10 +162,18 @@ export function ResultChart({
                 setHoveredDatum({ index: fallbackHoverVisibleIndex, seriesName: entry.name })
               }
               onMouseLeave={() => setHoveredDatum(null)}
-              tooltip={variableDescriptions?.get(entry.name)}
+              tooltip={formatVariableTooltip(
+                variableDescriptions?.get(entry.name),
+                variableUnitMetadata?.get(entry.name)
+              )}
             >
               <span className="legend-swatch" style={{ backgroundColor: entry.color }} />
               {entry.name}
+              {getVariableUnitLabel(variableUnitMetadata ?? new Map(), entry.name) ? (
+                <span className="unit-badge">
+                  {getVariableUnitLabel(variableUnitMetadata ?? new Map(), entry.name)}
+                </span>
+              ) : null}
             </InstantTooltip>
           ))}
         </div>
@@ -269,7 +282,14 @@ export function ResultChart({
               }
               onMouseLeave={() => setHoveredDatum(null)}
             >
-              {axisMode === "shared" ? null : <title>{variableDescriptions?.get(entry.name)}</title>}
+              {axisMode === "shared" ? null : (
+                <title>
+                  {formatVariableTooltip(
+                    variableDescriptions?.get(entry.name),
+                    variableUnitMetadata?.get(entry.name)
+                  )}
+                </title>
+              )}
               <rect
                 x={axisHitLeft}
                 y={topPadding - 18}
@@ -429,7 +449,7 @@ export function ResultChart({
             <g transform={`translate(${hoverTooltip.tooltipX}, ${hoverTooltip.tooltipY})`}>
               <rect
                 width={hoverTooltip.tooltipWidth}
-                height="42"
+                height={hoverTooltip.unitLabel ? "56" : "42"}
                 rx="10"
                 fill="rgba(15, 23, 42, 0.92)"
                 stroke={hoverTooltip.color}
@@ -441,6 +461,11 @@ export function ResultChart({
               <text x="10" y="31" fill="#e2e8f0" fontSize="11">
                 Value: {formatAxisValue(hoverTooltip.value)}
               </text>
+              {hoverTooltip.unitLabel ? (
+                <text x="10" y="46" fill="#cbd5e1" fontSize="11">
+                  Units: {hoverTooltip.unitLabel}
+                </text>
+              ) : null}
               {hoverTooltip.description ? (
                 <title>{`${hoverTooltip.seriesName}: ${hoverTooltip.description}`}</title>
               ) : null}
@@ -471,7 +496,10 @@ export function ResultChart({
               as="span"
               key={`scale-${entry.name}`}
               style={{ color: entry.color }}
-              tooltip={variableDescriptions?.get(entry.name)}
+              tooltip={formatVariableTooltip(
+                variableDescriptions?.get(entry.name),
+                variableUnitMetadata?.get(entry.name)
+              )}
             >
               {entry.name}: {formatAxisValue(entry.min)} to {formatAxisValue(entry.max)}
             </InstantTooltip>
@@ -500,12 +528,14 @@ function buildHoverTooltip(
   min: number,
   range: number,
   visibleLength: number,
-  variableDescriptions?: VariableDescriptions
+  variableDescriptions?: VariableDescriptions,
+  variableUnitMetadata?: VariableUnitMetadata
 ): {
   color: string;
   description?: string;
   period: number;
   seriesName: string;
+  unitLabel?: string | null;
   tooltipWidth: number;
   tooltipX: number;
   tooltipY: number;
@@ -522,6 +552,7 @@ function buildHoverTooltip(
   return {
     color: metric.color,
     description: variableDescriptions?.get(metric.name),
+    unitLabel: getVariableUnitLabel(variableUnitMetadata ?? new Map(), metric.name),
     period: visibleStartIndex + visibleIndex + 1 + periodLabelOffset,
     seriesName: metric.name,
     tooltipWidth,

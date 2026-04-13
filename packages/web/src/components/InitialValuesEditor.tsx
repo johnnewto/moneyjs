@@ -1,17 +1,20 @@
 import type { InitialValueRow } from "../lib/editorModel";
+import { formatNamedValueWithUnits, type VariableUnitMetadata } from "../lib/unitMeta";
 
 interface InitialValuesEditorProps {
   currentValues?: Record<string, number | undefined>;
   initialValues: InitialValueRow[];
   issues: Record<string, string | undefined>;
   onChange(next: InitialValueRow[]): void;
+  variableUnitMetadata?: VariableUnitMetadata;
 }
 
 export function InitialValuesEditor({
   currentValues = {},
   initialValues,
   issues,
-  onChange
+  onChange,
+  variableUnitMetadata
 }: InitialValuesEditorProps) {
   return (
     <section className="editor-panel">
@@ -63,7 +66,11 @@ export function InitialValuesEditor({
               placeholder="Value"
             />
             <span className="initial-grid-current">
-              {formatCurrentValue(initialValue.name, currentValues[initialValue.name.trim()])}
+              {formatCurrentValue(
+                initialValue.name,
+                currentValues[initialValue.name.trim()],
+                variableUnitMetadata
+              )}
             </span>
             <span
               className={`initial-grid-status${
@@ -111,13 +118,12 @@ function removeRow<T>(rows: T[], index: number): T[] {
   return rows.filter((_, rowIndex) => rowIndex !== index);
 }
 
-function formatCurrentValue(name: string, value: number | undefined): string {
-  const trimmedName = name.trim();
-  if (!trimmedName) {
-    return "";
-  }
-  if (!Number.isFinite(value)) {
-    return `${trimmedName} = --`;
-  }
-  return `${trimmedName} = ${Number(value).toLocaleString(undefined, { maximumFractionDigits: 6 })}`;
+function formatCurrentValue(
+  name: string,
+  value: number | undefined,
+  variableUnitMetadata?: VariableUnitMetadata
+): string {
+  return formatNamedValueWithUnits(name, value, variableUnitMetadata?.get(name.trim()), {
+    maximumFractionDigits: 6
+  });
 }

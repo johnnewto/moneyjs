@@ -1,4 +1,5 @@
 import type { VariableDescriptions } from "../lib/variableDescriptions";
+import { formatValueWithUnits, type VariableUnitMetadata } from "../lib/unitMeta";
 import { VariableLabel } from "./VariableLabel";
 
 interface ResultRow {
@@ -14,13 +15,15 @@ interface ResultTableProps {
   title: string;
   rows: ResultRow[];
   variableDescriptions?: VariableDescriptions;
+  variableUnitMetadata?: VariableUnitMetadata;
 }
 
 export function ResultTable({
   title,
   rows,
   selectedIndex = 0,
-  variableDescriptions
+  variableDescriptions,
+  variableUnitMetadata
 }: ResultTableProps) {
   return (
     <section className="result-panel">
@@ -42,11 +45,12 @@ export function ResultTable({
                   description={row.description}
                   name={row.name}
                   variableDescriptions={variableDescriptions}
+                  variableUnitMetadata={variableUnitMetadata}
                 />
               </td>
-              <td>{formatNumber(row.start)}</td>
-              <td>{formatNumber(row.selected)}</td>
-              <td>{formatNumber(row.end)}</td>
+              <td>{formatNumber(row.start, row.name, variableUnitMetadata)}</td>
+              <td>{formatNumber(row.selected, row.name, variableUnitMetadata)}</td>
+              <td>{formatNumber(row.end, row.name, variableUnitMetadata)}</td>
             </tr>
           ))}
         </tbody>
@@ -55,9 +59,15 @@ export function ResultTable({
   );
 }
 
-function formatNumber(value: number): string {
+function formatNumber(
+  value: number,
+  variableName: string,
+  variableUnitMetadata?: VariableUnitMetadata
+): string {
   if (!Number.isFinite(value)) {
     return "NaN";
   }
-  return value.toLocaleString(undefined, { maximumFractionDigits: 6 });
+  return formatValueWithUnits(value, variableUnitMetadata?.get(variableName), {
+    maximumFractionDigits: 6
+  });
 }

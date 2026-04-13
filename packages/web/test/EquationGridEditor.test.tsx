@@ -202,6 +202,12 @@ describe("EquationGridEditor", () => {
             ["alpha1", "Propensity to consume out of income"]
           ])
         }
+        variableUnitMetadata={
+          new Map([
+            ["Y", { dimensionKind: "flow", baseUnit: "$" }],
+            ["alpha1", { dimensionKind: "aux" }]
+          ])
+        }
       />
     );
 
@@ -219,5 +225,27 @@ describe("EquationGridEditor", () => {
 
     fireEvent.mouseEnter(yToken);
     expect(screen.getByRole("tooltip")).toHaveTextContent("Income = GDP");
+    expect(screen.getByRole("tooltip")).toHaveTextContent("flow ($/yr)");
+  });
+
+  it("shows a unit badge for the variable column when metadata is present", () => {
+    render(
+      <EquationGridEditor
+        equations={[
+          {
+            id: "eq-mh",
+            name: "Mh",
+            desc: "Bank deposits held by households",
+            expression: "lag(Mh) + YD - C"
+          }
+        ]}
+        issues={{}}
+        onChange={vi.fn()}
+        parameterNames={[]}
+        variableUnitMetadata={new Map([["Mh", { dimensionKind: "stock", baseUnit: "$" }]])}
+      />
+    );
+
+    expect(screen.getByText("$")).toBeInTheDocument();
   });
 });

@@ -1,17 +1,20 @@
 import { useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 
-import type { EquationRow } from "../lib/editorModel";
+import type { EquationRow, ValidationIssue } from "../lib/editorModel";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
+import { formatVariableTooltip, type VariableUnitMetadata } from "../lib/unitMeta";
+import { getVariableUnitLabel } from "../lib/units";
 import { InstantTooltip } from "./InstantTooltip";
 
 interface EquationGridEditorProps {
   buildError?: string | null;
   currentValues?: Record<string, number | undefined>;
   equations: EquationRow[];
-  issues: Record<string, string | undefined>;
+  issues: Record<string, string | ValidationIssue | undefined>;
   onChange(next: EquationRow[]): void;
   parameterNames?: string[];
   variableDescriptions?: VariableDescriptions;
+  variableUnitMetadata?: VariableUnitMetadata;
 }
 
 export function EquationGridEditor({
@@ -21,7 +24,8 @@ export function EquationGridEditor({
   issues,
   onChange,
   parameterNames = [],
-  variableDescriptions
+  variableDescriptions,
+  variableUnitMetadata
 }: EquationGridEditorProps) {
   const parameterNameSet = useMemo(() => new Set(parameterNames), [parameterNames]);
   const traceModel = useMemo(() => buildTraceModel(equations), [equations]);
@@ -68,12 +72,12 @@ export function EquationGridEditor({
 
         <div className="equation-grid-body">
           {equations.map((equation, index) => {
-            const issue =
-              issues[`equations.${index}.name`] ?? issues[`equations.${index}.expression`];
+            const issue = resolveEquationIssue(index, issues);
+            const issueMessage = issue?.message ?? null;
             const traceRole = activeTrace?.rowStates.get(equation.id) ?? null;
             const rowClassName = [
               "equation-grid-row",
-              issue ? "has-issue" : "",
+              issueMessage ? "has-issue" : "",
               hoveredRowId === equation.id ? "is-hovered" : "",
               traceRole ? `trace-${traceRole}` : ""
             ]
@@ -81,88 +85,104 @@ export function EquationGridEditor({
               .join(" ");
 
             return (
-              <div
-                key={equation.id}
-                className={rowClassName}
-                onClick={(event) => {
-                  if (
-                    event.target instanceof HTMLElement &&
-                    event.target.closest("textarea,input,button")
-                  ) {
-                    return;
-                  }
-                  setPinnedTrace((current) =>
-                    togglePinnedTrace(current, equation.id, event)
-                  );
-                }}
-                onMouseEnter={() => setHoveredRowId(equation.id)}
-                onMouseLeave={() => setHoveredRowId((current) => (current === equation.id ? null : current))}
-                role="row"
-              >
-                <span className="equation-grid-index">{index + 1}</span>
-                <HighlightedFormulaInput
-                  ariaLabel={`Equation ${index + 1} variable`}
-                  className={issues[`equations.${index}.name`] ? "input-error" : ""}
-                  highlightedTokens={traceRole ? activeTrace?.tokenStates : undefined}
-                  inputRef={(node) => {
-                    variableRefs.current[index] = node;
-                  }}
-                  onChange={(value) =>
-                    updateRow(equations, index, { name: value }, onChange)
-                  }
-                  onEnter={() => descRefs.current[index]?.focus()}
-                  parameterNames={parameterNameSet}
-                  placeholder="Y"
-                  value={equation.name}
-                  variableDescriptions={variableDescriptions}
-                />
-                <HighlightedFormulaInput
-                  ariaLabel={`Equation ${index + 1} expression`}
-                  className={issues[`equations.${index}.expression`] ? "input-error" : ""}
-                  highlightedTokens={traceRole ? activeTrace?.tokenStates : undefined}
-                  inputRef={(node) => {
-                    expressionRefs.current[index] = node;
-                  }}
-                  onChange={(value) =>
-                    updateRow(equations, index, { expression: value }, onChange)
-                  }
-                  onEnter={() => descRefs.current[index]?.focus()}
-                  parameterNames={parameterNameSet}
-                  placeholder="Cs + Gs"
-                  value={equation.expression}
-                  variableDescriptions={variableDescriptions}
-                />
-                <input
-                  aria-label={`Equation ${index + 1} description`}
-                  className="equation-grid-description"
-                  onChange={(event) =>
-                    updateRow(equations, index, { desc: event.target.value }, onChange)
-                  }
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      variableRefs.current[index + 1]?.focus();
+              <div key={equation.id} className="equation-grid-row-group">
+                <div
+                  className={rowClassName}
+                  onClick={(event) => {
+                    if (
+                      event.target instanceof HTMLElement &&
+                      event.target.closest("textarea,input,button")
+                    ) {
+                      return;
                     }
+                    setPinnedTrace((current) =>
+                      togglePinnedTrace(current, equation.id, event)
+                    );
                   }}
-                  placeholder="Income = GDP"
-                  ref={(node) => {
-                    descRefs.current[index] = node;
-                  }}
-                  spellCheck={false}
-                  type="text"
-                  value={equation.desc ?? ""}
-                />
-                <span className={`equation-grid-status${issue ? " has-issue" : ""}`}>
-                  {issue ? issue : "OK"}
-                </span>
-                <button
-                  type="button"
-                  aria-label={`Remove equation ${index + 1}`}
-                  className="equation-grid-remove-button"
-                  onClick={() => onChange(removeRow(equations, index))}
+                  onMouseEnter={() => setHoveredRowId(equation.id)}
+                  onMouseLeave={() => setHoveredRowId((current) => (current === equation.id ? null : current))}
+                  role="row"
                 >
-                  -
-                </button>
+                  <span className="equation-grid-index">{index + 1}</span>
+                  <HighlightedFormulaInput
+                    ariaLabel={`Equation ${index + 1} variable`}
+                    className={issues[`equations.${index}.name`] ? "input-error" : ""}
+                    highlightedTokens={traceRole ? activeTrace?.tokenStates : undefined}
+                    inputRef={(node) => {
+                      variableRefs.current[index] = node;
+                    }}
+                    onChange={(value) =>
+                      updateRow(equations, index, { name: value }, onChange)
+                    }
+                    onEnter={() => descRefs.current[index]?.focus()}
+                    parameterNames={parameterNameSet}
+                    placeholder="Y"
+                    value={equation.name}
+                    variableDescriptions={variableDescriptions}
+                    variableUnitMetadata={variableUnitMetadata}
+                  />
+                  <HighlightedFormulaInput
+                    ariaLabel={`Equation ${index + 1} expression`}
+                    className={issues[`equations.${index}.expression`] ? "input-error" : ""}
+                    highlightedTokens={traceRole ? activeTrace?.tokenStates : undefined}
+                    inputRef={(node) => {
+                      expressionRefs.current[index] = node;
+                    }}
+                    onChange={(value) =>
+                      updateRow(equations, index, { expression: value }, onChange)
+                    }
+                    onEnter={() => descRefs.current[index]?.focus()}
+                    parameterNames={parameterNameSet}
+                    placeholder="Cs + Gs"
+                    value={equation.expression}
+                    variableDescriptions={variableDescriptions}
+                  />
+                  <input
+                    aria-label={`Equation ${index + 1} description`}
+                    className="equation-grid-description"
+                    onChange={(event) =>
+                      updateRow(equations, index, { desc: event.target.value }, onChange)
+                    }
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        variableRefs.current[index + 1]?.focus();
+                      }
+                    }}
+                    placeholder="Income = GDP"
+                    ref={(node) => {
+                      descRefs.current[index] = node;
+                    }}
+                    spellCheck={false}
+                    type="text"
+                    value={equation.desc ?? ""}
+                  />
+                  <span
+                    className={`equation-grid-status${issueMessage ? " has-issue" : ""}${
+                      issue?.severity === "warning" ? " is-warning" : ""
+                    }`}
+                  >
+                    {issue == null ? "OK" : issue.severity === "warning" ? "Warning" : "Error"}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`Remove equation ${index + 1}`}
+                    className="equation-grid-remove-button"
+                    onClick={() => onChange(removeRow(equations, index))}
+                  >
+                    -
+                  </button>
+                </div>
+                {issue != null ? (
+                  <div
+                    className={`equation-grid-warning-row${
+                      issue.severity === "warning" ? " is-warning" : " is-error"
+                    }`}
+                    role="note"
+                  >
+                    {issue.message}
+                  </div>
+                ) : null}
               </div>
             );
           })}
@@ -175,6 +195,7 @@ export function EquationGridEditor({
 interface HighlightedFormulaInputProps {
   ariaLabel: string;
   className?: string;
+  footer?: ReactNode;
   highlightedTokens?: Map<string, TraceTokenRole>;
   inputRef(node: HTMLTextAreaElement | null): void;
   onChange(value: string): void;
@@ -183,11 +204,13 @@ interface HighlightedFormulaInputProps {
   placeholder: string;
   value: string;
   variableDescriptions?: VariableDescriptions;
+  variableUnitMetadata?: VariableUnitMetadata;
 }
 
 function HighlightedFormulaInput({
   ariaLabel,
   className = "",
+  footer,
   highlightedTokens,
   inputRef,
   onChange,
@@ -195,8 +218,13 @@ function HighlightedFormulaInput({
   parameterNames,
   placeholder,
   value,
-  variableDescriptions
+  variableDescriptions,
+  variableUnitMetadata
 }: HighlightedFormulaInputProps) {
+  const unitLabel =
+    ariaLabel.toLowerCase().includes("variable") && value.trim()
+      ? getVariableUnitLabel(variableUnitMetadata ?? new Map(), value.trim())
+      : null;
   return (
     <label className={`highlighted-formula-input ${className}`.trim()}>
       <div
@@ -204,7 +232,13 @@ function HighlightedFormulaInput({
         className={`highlighted-formula-preview${value ? "" : " is-placeholder"}`}
       >
         {value
-          ? highlightFormula(value, parameterNames, highlightedTokens, variableDescriptions)
+          ? highlightFormula(
+              value,
+              parameterNames,
+              highlightedTokens,
+              variableDescriptions,
+              variableUnitMetadata
+            )
           : placeholder}
       </div>
       <textarea
@@ -223,6 +257,7 @@ function HighlightedFormulaInput({
         spellCheck={false}
         value={value}
       />
+      {footer ?? (unitLabel ? <span className="unit-badge input-unit-badge">{unitLabel}</span> : null)}
     </label>
   );
 }
@@ -231,7 +266,8 @@ export function highlightFormula(
   source: string,
   parameterNames: Set<string>,
   highlightedTokens?: Map<string, TraceTokenRole>,
-  variableDescriptions?: VariableDescriptions
+  variableDescriptions?: VariableDescriptions,
+  variableUnitMetadata?: VariableUnitMetadata
 ): ReactNode[] {
   const parts: ReactNode[] = [];
   const tokenPattern = /([A-Za-z_][A-Za-z0-9_]*|\d+(?:\.\d+)?(?:e[+-]?\d+)?)/gi;
@@ -250,7 +286,10 @@ export function highlightFormula(
     const traceClass = highlightedTokens?.get(normalizedToken) ?? null;
     const tokenDescription =
       tokenClass === "formula-uppercase" || tokenClass === "formula-parameter"
-        ? variableDescriptions?.get(normalizedToken)
+        ? formatVariableTooltip(
+            variableDescriptions?.get(normalizedToken),
+            variableUnitMetadata?.get(normalizedToken)
+          )
         : undefined;
     parts.push(
       <InstantTooltip
@@ -510,4 +549,27 @@ function updateRow(
 
 function removeRow<T>(rows: T[], index: number): T[] {
   return rows.filter((_, rowIndex) => rowIndex !== index);
+}
+
+function resolveEquationIssue(
+  index: number,
+  issues: Record<string, string | ValidationIssue | undefined>
+): ValidationIssue | null {
+  const nameIssue = issues[`equations.${index}.name`];
+  if (typeof nameIssue === "string") {
+    return { path: `equations.${index}.name`, message: nameIssue, severity: "error" };
+  }
+  if (nameIssue) {
+    return nameIssue;
+  }
+
+  const expressionIssue = issues[`equations.${index}.expression`];
+  if (typeof expressionIssue === "string") {
+    return {
+      path: `equations.${index}.expression`,
+      message: expressionIssue,
+      severity: "error"
+    };
+  }
+  return expressionIssue ?? null;
 }

@@ -1,4 +1,5 @@
 import type { ExternalRow } from "../lib/editorModel";
+import { formatUnitLabel } from "../lib/unitMeta";
 
 interface ExternalEditorProps {
   currentValues?: Record<string, number | undefined>;
@@ -33,6 +34,7 @@ export function ExternalEditor({
           <span>Name</span>
           <span>Value</span>
           <span>Description</span>
+          <span>Units</span>
           <span>Kind</span>
           <span>Status</span>
           <span />
@@ -78,6 +80,9 @@ export function ExternalEditor({
               placeholder="Propensity to consume out of income"
               spellCheck={false}
             />
+            <span className="external-grid-units">
+              {formatUnitLabel(external.unitMeta) ?? "—"}
+            </span>
             <select
               aria-label={`External ${index + 1} kind`}
               value={external.kind}

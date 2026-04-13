@@ -1,11 +1,14 @@
 import { parseEquation, type ExternalDef, type ModelDefinition, type ScenarioDefinition, type ShockVariableDef, type SimulationOptions, type SolverMethod } from "@sfcr/core";
 import { stringifyJsonWithCompactLeaves } from "./jsonFormat";
+import type { UnitMeta } from "./unitMeta";
+import { buildVariableUnitMetadata, diagnoseEquationUnits } from "./units";
 
 export interface EquationRow {
   id: string;
   name: string;
   desc?: string;
   expression: string;
+  unitMeta?: UnitMeta;
 }
 
 export interface ExternalRow {
@@ -14,6 +17,7 @@ export interface ExternalRow {
   desc?: string;
   kind: ExternalDef["kind"];
   valueText: string;
+  unitMeta?: UnitMeta;
 }
 
 export interface InitialValueRow {
@@ -63,6 +67,7 @@ export interface EditorState {
 export interface ValidationIssue {
   path: string;
   message: string;
+  severity?: "error" | "warning";
 }
 
 export interface BuildDiagnosticResult {
@@ -396,6 +401,10 @@ export function validateEditorState(editor: EditorState): ValidationIssue[] {
 
 export function diagnoseBuildRuntime(editor: EditorState): BuildDiagnosticResult {
   const issues: ValidationIssue[] = [];
+  const variableUnits = buildVariableUnitMetadata({
+    equations: editor.equations,
+    externals: editor.externals
+  });
 
   editor.equations.forEach((equation, index) => {
     const name = equation.name.trim();
@@ -405,7 +414,14 @@ export function diagnoseBuildRuntime(editor: EditorState): BuildDiagnosticResult
     }
 
     try {
-      parseEquation(name, expression);
+      const parsed = parseEquation(name, expression);
+      for (const diagnostic of diagnoseEquationUnits(name, parsed.expression, variableUnits)) {
+        issues.push({
+          path: `equations.${index}.expression`,
+          message: diagnostic.message,
+          severity: diagnostic.severity
+        });
+      }
     } catch (error) {
       issues.push({
         path: `equations.${index}.expression`,
@@ -468,8 +484,10 @@ export function diagnoseBuildRuntime(editor: EditorState): BuildDiagnosticResult
     });
   });
 
-  if (issues.length > 0) {
-    const firstIssue = issues[0];
+  const errorIssues = issues.filter((issue) => (issue.severity ?? "error") === "error");
+
+  if (errorIssues.length > 0) {
+    const firstIssue = errorIssues[0];
     return {
       issues,
       modelError: firstIssue ? `Model build error: ${firstIssue.message}` : "Model build error."
@@ -478,7 +496,7 @@ export function diagnoseBuildRuntime(editor: EditorState): BuildDiagnosticResult
 
   try {
     buildRuntimeConfig(editor);
-    return { issues: [], modelError: null };
+    return { issues, modelError: null };
   } catch (error) {
     return {
       issues: [],

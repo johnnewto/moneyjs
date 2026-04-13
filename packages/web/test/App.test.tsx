@@ -74,7 +74,7 @@ describe("App", () => {
     }
     await user.clear(firstEquationName);
 
-    expect(screen.getByText(/editor validation: 1 issue\(s\)\./i)).toBeInTheDocument();
+    expect(screen.getByText(/editor validation: 1 error\(s\), 0 warning\(s\)\./i)).toBeInTheDocument();
     expect(screen.getAllByText(/equation name is required/i)).not.toHaveLength(0);
   });
 
@@ -92,7 +92,7 @@ describe("App", () => {
     fireEvent.change(firstExpression, { target: { value: "[" } });
 
     expect(screen.getByText(/model build error: unexpected character: \[/i)).toBeInTheDocument();
-    expect(screen.getByText(/editor validation: 1 issue\(s\)\./i)).toBeInTheDocument();
+    expect(screen.getByText(/editor validation: 1 error\(s\), 0 warning\(s\)\./i)).toBeInTheDocument();
     expect(screen.getAllByText(/unexpected character: \[/i).length).toBeGreaterThan(0);
   });
 

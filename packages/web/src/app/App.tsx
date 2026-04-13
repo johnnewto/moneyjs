@@ -33,7 +33,9 @@ import {
   type EditorState,
   type RuntimeDocument
 } from "../lib/editorModel";
+import type { UnitMeta } from "../lib/unitMeta";
 import { buildVariableDescriptions, getVariableDescription } from "../lib/variableDescriptions";
+import { buildVariableUnitMetadata } from "../lib/units";
 
 import "../styles/app.css";
 
@@ -72,6 +74,40 @@ const BMW_EXTERNAL_DESCRIPTIONS: Record<string, string> = {
   rl: "Rate of interest on bank loans, set exogenously"
 };
 
+const BMW_EQUATION_UNITS: Record<string, UnitMeta> = {
+  AF: { dimensionKind: "flow", baseUnit: "$" },
+  Cd: { dimensionKind: "flow", baseUnit: "$" },
+  Cs: { dimensionKind: "flow", baseUnit: "$" },
+  DA: { dimensionKind: "flow", baseUnit: "$" },
+  Id: { dimensionKind: "flow", baseUnit: "$" },
+  Is: { dimensionKind: "flow", baseUnit: "$" },
+  K: { dimensionKind: "stock", baseUnit: "$" },
+  KT: { dimensionKind: "stock", baseUnit: "$" },
+  Ld: { dimensionKind: "stock", baseUnit: "$" },
+  Ls: { dimensionKind: "stock", baseUnit: "$" },
+  Mh: { dimensionKind: "stock", baseUnit: "$" },
+  Ms: { dimensionKind: "stock", baseUnit: "$" },
+  Nd: { dimensionKind: "flow", baseUnit: "items" },
+  Ns: { dimensionKind: "flow", baseUnit: "items" },
+  W: { dimensionKind: "aux" },
+  WBd: { dimensionKind: "flow", baseUnit: "$" },
+  WBs: { dimensionKind: "flow", baseUnit: "$" },
+  Y: { dimensionKind: "flow", baseUnit: "$" },
+  YD: { dimensionKind: "flow", baseUnit: "$" },
+  rm: { dimensionKind: "aux" }
+};
+
+const BMW_EXTERNAL_UNITS: Record<string, UnitMeta> = {
+  alpha0: { dimensionKind: "flow", baseUnit: "$" },
+  alpha1: { dimensionKind: "aux" },
+  alpha2: { dimensionKind: "aux" },
+  delta: { dimensionKind: "aux" },
+  gamma: { dimensionKind: "aux" },
+  kappa: { dimensionKind: "aux" },
+  pr: { dimensionKind: "aux" },
+  rl: { dimensionKind: "aux" }
+};
+
 const PRESETS: PresetConfig[] = [
   {
     id: "sim",
@@ -85,7 +121,9 @@ const PRESETS: PresetConfig[] = [
     editor: withEditorDescriptions(
       editorStateFromModel(bmwBaselineModel, bmwBaselineOptions, null),
       BMW_DESCRIPTIONS,
-      BMW_EXTERNAL_DESCRIPTIONS
+      BMW_EXTERNAL_DESCRIPTIONS,
+      BMW_EQUATION_UNITS,
+      BMW_EXTERNAL_UNITS
     ),
     highlights: ["Y", "Cd", "Id", "K", "Mh", "W"]
   }
@@ -126,8 +164,18 @@ export function WorkspaceApp() {
   const validationIssues = validateEditorState(editor);
   const buildDiagnostics = diagnoseBuildRuntime(editor);
   const allIssues = [...validationIssues, ...buildDiagnostics.issues];
+  const blockingIssues = allIssues.filter((issue) => (issue.severity ?? "error") === "error");
   const issueMap = Object.fromEntries(allIssues.map((issue) => [issue.path, issue.message]));
+  const equationIssueMap = Object.fromEntries(
+    allIssues
+      .filter((issue) => issue.path.startsWith("equations."))
+      .map((issue) => [issue.path, issue])
+  );
   const variableDescriptions = buildVariableDescriptions({
+    equations: editor.equations,
+    externals: editor.externals
+  });
+  const variableUnitMetadata = buildVariableUnitMetadata({
     equations: editor.equations,
     externals: editor.externals
   });
@@ -283,8 +331,9 @@ export function WorkspaceApp() {
     }
   }
 
-  const canRunScenario = runtime?.scenario != null && allIssues.length === 0 && !buildDiagnostics.modelError;
-  const canRunBaseline = runtime != null && allIssues.length === 0 && !buildDiagnostics.modelError;
+  const canRunScenario =
+    runtime?.scenario != null && blockingIssues.length === 0 && !buildDiagnostics.modelError;
+  const canRunBaseline = runtime != null && blockingIssues.length === 0 && !buildDiagnostics.modelError;
 
   const statusMessage = uiMessage ?? solver.error?.message ?? null;
 
@@ -331,10 +380,11 @@ export function WorkspaceApp() {
             buildError={buildDiagnostics.modelError}
             currentValues={currentValueMap}
             equations={editor.equations}
-            issues={issueMap}
+            issues={equationIssueMap}
             onChange={(equations) => setEditor((current) => ({ ...current, equations }))}
             parameterNames={editor.externals.map((external) => external.name)}
             variableDescriptions={variableDescriptions}
+            variableUnitMetadata={variableUnitMetadata}
           />
           <ExternalEditor
             currentValues={currentValueMap}
@@ -347,6 +397,7 @@ export function WorkspaceApp() {
             initialValues={editor.initialValues}
             issues={issueMap}
             onChange={(initialValues) => setEditor((current) => ({ ...current, initialValues }))}
+            variableUnitMetadata={variableUnitMetadata}
           />
           <ScenarioEditor
             scenario={editor.scenario}
@@ -366,12 +417,14 @@ export function WorkspaceApp() {
                 selectedIndex={selectedPeriodIndex}
                 series={chartSeries}
                 variableDescriptions={variableDescriptions}
+                variableUnitMetadata={variableUnitMetadata}
               />
               <ResultTable
                 title="All Series"
                 rows={resultRows}
                 selectedIndex={selectedPeriodIndex}
                 variableDescriptions={variableDescriptions}
+                variableUnitMetadata={variableUnitMetadata}
               />
             </>
           ) : null}
@@ -486,6 +539,7 @@ export function WorkspaceApp() {
               rows={highlightRows}
               selectedIndex={selectedPeriodIndex}
               variableDescriptions={variableDescriptions}
+              variableUnitMetadata={variableUnitMetadata}
             />
           ) : null}
         </aside>
@@ -497,17 +551,21 @@ export function WorkspaceApp() {
 function withEditorDescriptions(
   editor: EditorState,
   equationDescriptions: Record<string, string>,
-  externalDescriptions: Record<string, string>
+  externalDescriptions: Record<string, string>,
+  equationUnits: Record<string, UnitMeta> = {},
+  externalUnits: Record<string, UnitMeta> = {}
 ): EditorState {
   return {
     ...editor,
     equations: editor.equations.map((equation) => ({
       ...equation,
-      desc: equationDescriptions[equation.name] ?? equation.desc ?? ""
+      desc: equationDescriptions[equation.name] ?? equation.desc ?? "",
+      unitMeta: equationUnits[equation.name] ?? equation.unitMeta
     })),
     externals: editor.externals.map((external) => ({
       ...external,
-      desc: externalDescriptions[external.name] ?? external.desc ?? ""
+      desc: externalDescriptions[external.name] ?? external.desc ?? "",
+      unitMeta: externalUnits[external.name] ?? external.unitMeta
     }))
   };
 }

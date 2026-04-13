@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  diagnoseBuildRuntime,
   editorStateFromJson,
   editorStateFromModel,
   runtimeDocumentToJson,
@@ -74,5 +75,63 @@ describe("editor model validation", () => {
     expect(issues.some((issue) => issue.path.endsWith("startPeriodInclusive"))).toBe(true);
     expect(issues.some((issue) => issue.path.endsWith("endPeriodInclusive"))).toBe(true);
     expect(issues.some((issue) => issue.path.endsWith("valueText"))).toBe(true);
+  });
+
+  it("flags definite stock-plus-flow additions", () => {
+    const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
+    editor.equations[0] = {
+      id: "eq-v",
+      name: "V",
+      expression: "K + C",
+      unitMeta: { dimensionKind: "stock", baseUnit: "$" }
+    };
+    editor.equations[1] = {
+      id: "eq-k",
+      name: "K",
+      expression: "1",
+      unitMeta: { dimensionKind: "stock", baseUnit: "$" }
+    };
+    editor.equations[2] = {
+      id: "eq-c",
+      name: "C",
+      expression: "1",
+      unitMeta: { dimensionKind: "flow", baseUnit: "$" }
+    };
+
+    const diagnostics = diagnoseBuildRuntime(editor);
+
+    expect(
+      diagnostics.issues.some(
+        (issue) =>
+          issue.path === "equations.0.expression" &&
+          issue.message.includes("Cannot combine stock ($) with flow ($/yr)")
+      )
+    ).toBe(true);
+  });
+
+  it("allows stock accumulation equations around lag(stock)", () => {
+    const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
+    editor.equations[0] = {
+      id: "eq-mh",
+      name: "Mh",
+      expression: "lag(Mh) + YD - C",
+      unitMeta: { dimensionKind: "stock", baseUnit: "$" }
+    };
+    editor.equations[1] = {
+      id: "eq-yd",
+      name: "YD",
+      expression: "1",
+      unitMeta: { dimensionKind: "flow", baseUnit: "$" }
+    };
+    editor.equations[2] = {
+      id: "eq-c",
+      name: "C",
+      expression: "1",
+      unitMeta: { dimensionKind: "flow", baseUnit: "$" }
+    };
+
+    const diagnostics = diagnoseBuildRuntime(editor);
+
+    expect(diagnostics.issues.filter((issue) => issue.path === "equations.0.expression")).toHaveLength(0);
   });
 });

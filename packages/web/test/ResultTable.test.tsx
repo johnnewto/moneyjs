@@ -26,11 +26,14 @@ describe("ResultTable", () => {
           }
         ]}
         variableDescriptions={new Map([["Y", "Income = GDP"]])}
+        variableUnitMetadata={new Map([["Y", { dimensionKind: "flow", baseUnit: "$" }]])}
       />
     );
 
     fireEvent.mouseEnter(screen.getByText("Y"));
 
     expect(screen.getByRole("tooltip")).toHaveTextContent("Income = GDP");
+    expect(screen.getByRole("tooltip")).toHaveTextContent("flow ($/yr)");
+    expect(screen.getByText("$/yr")).toBeInTheDocument();
   });
 });

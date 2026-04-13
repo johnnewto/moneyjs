@@ -563,6 +563,10 @@ textarea {
   display: grid;
 }
 
+.equation-grid-row-group {
+  display: grid;
+}
+
 .equation-grid-row {
   background: rgba(255, 255, 255, 0.92);
   border-top: 1px solid rgba(148, 163, 184, 0.22);
@@ -614,8 +618,39 @@ textarea {
 }
 
 .highlighted-formula-input {
-  display: block;
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
   position: relative;
+}
+
+.variable-label-inline {
+  align-items: center;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.unit-badge {
+  color: #64748b;
+  display: inline;
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.input-unit-badge {
+  position: absolute;
+  right: 0.32rem;
+  top: 50%;
+  transform: translateY(-56%);
+  z-index: 1;
+}
+
+.highlighted-formula-input:has(.input-unit-badge) .highlighted-formula-preview,
+.highlighted-formula-input:has(.input-unit-badge) .highlighted-formula-control {
+  padding-right: 4.8rem;
 }
 
 .highlighted-formula-input:focus-within {
@@ -751,6 +786,28 @@ textarea {
   color: #b91c1c;
 }
 
+.equation-grid-status.is-warning {
+  color: #b45309;
+}
+
+.equation-grid-warning-row {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  padding: 0.45rem 0.75rem 0.5rem 3.7rem;
+}
+
+.equation-grid-warning-row.is-warning {
+  background: rgba(255, 251, 235, 0.96);
+  border-top: 1px solid rgba(245, 158, 11, 0.22);
+  color: #92400e;
+}
+
+.equation-grid-warning-row.is-error {
+  background: rgba(254, 242, 242, 0.96);
+  border-top: 1px solid rgba(239, 68, 68, 0.18);
+  color: #991b1b;
+}
+
 .equation-grid-row button {
   justify-self: start;
   min-height: auto;
@@ -815,6 +872,7 @@ textarea {
     minmax(96px, 132px)
     minmax(130px, 220px)
     minmax(180px, 320px)
+    minmax(92px, 132px)
     minmax(92px, 118px)
     minmax(48px, 72px)
     42px;
@@ -892,6 +950,13 @@ textarea {
   color: #0f766e;
   font-size: 0.72rem;
   line-height: 1.15;
+  white-space: nowrap;
+}
+
+.external-grid-units {
+  color: #475569;
+  font-size: 0.75rem;
+  line-height: 1.2;
   white-space: nowrap;
 }
 
