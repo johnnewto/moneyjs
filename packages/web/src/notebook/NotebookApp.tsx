@@ -32,7 +32,7 @@ import {
   getVariableDescription,
   type VariableDescriptions
 } from "../lib/variableDescriptions";
-import { buildVariableUnitMetadata } from "../lib/units";
+import { buildVariableUnitMetadata, inferUnits } from "../lib/units";
 import { formatNamedValueWithUnits, formatValueWithUnits } from "../lib/unitMeta";
 import {
   detectNotebookSourceFormat,
@@ -2684,12 +2684,29 @@ function formatResolvedMatrixValue(
     return resolved;
   }
 
-  const variableName = inferPrimaryVariableName(source);
-  const unitMeta = variableName ? variableUnitMetadata.get(variableName) : undefined;
+  const unitMeta = inferMatrixExpressionUnitMeta(source, variableUnitMetadata);
   return `= ${formatValueWithUnits(numericValue, unitMeta, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   })}`;
+}
+
+function inferMatrixExpressionUnitMeta(
+  source: string,
+  variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>
+) {
+  try {
+    const expression = parseExpression(stripLeadingPlus(source.trim()));
+    const inferred = inferUnits(expression, variableUnitMetadata);
+    if (inferred.signature) {
+      return { signature: inferred.signature };
+    }
+  } catch {
+    // Fall back to a simple variable lookup when the matrix entry is not parseable.
+  }
+
+  const variableName = inferPrimaryVariableName(source);
+  return variableName ? variableUnitMetadata.get(variableName) : undefined;
 }
 
 function inferPrimaryVariableName(source: string): string | null {

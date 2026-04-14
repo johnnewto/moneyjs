@@ -4,13 +4,24 @@ import "@testing-library/jest-dom/vitest";
 
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { runBaseline as runCoreBaseline } from "@sfcr/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { bmwBaselineModel, bmwBaselineOptions } from "../../core/src/fixtures/bmw";
 import { App } from "../src/app/App";
 
 const runBaseline = vi.fn();
 const runScenario = vi.fn();
 const validate = vi.fn();
+const bmwNotebookBaselineResult = runCoreBaseline(bmwBaselineModel, bmwBaselineOptions);
+let notebookRunnerMock: {
+  outputs: Record<string, { type: "result"; result: typeof bmwNotebookBaselineResult }>;
+  status: Record<string, "idle" | "running" | "success" | "error">;
+  errors: Record<string, string | undefined>;
+  runCell: ReturnType<typeof vi.fn>;
+  runAll: ReturnType<typeof vi.fn>;
+  getResult: (cellId: string) => typeof bmwNotebookBaselineResult | null;
+};
 
 vi.mock("../src/hooks/useSolver", () => ({
   useSolver: () => ({
@@ -22,6 +33,10 @@ vi.mock("../src/hooks/useSolver", () => ({
     runScenario,
     validate
   })
+}));
+
+vi.mock("../src/notebook/useNotebookRunner", () => ({
+  useNotebookRunner: () => notebookRunnerMock
 }));
 
 describe("App", () => {
@@ -36,6 +51,14 @@ describe("App", () => {
     runBaseline.mockReset();
     runScenario.mockReset();
     validate.mockReset();
+    notebookRunnerMock = {
+      outputs: {},
+      status: {},
+      errors: {},
+      runCell: vi.fn().mockResolvedValue(undefined),
+      runAll: vi.fn().mockResolvedValue(undefined),
+      getResult: () => null
+    };
   });
 
   afterEach(() => {
@@ -130,6 +153,41 @@ describe("App", () => {
 
     fireEvent.mouseEnter(yToken);
     expect(screen.getByRole("tooltip")).toHaveTextContent("Income = GDP");
+  });
+
+  it("renders BMW transaction-flow matrix values with flow units inferred from the full expression", () => {
+    window.location.hash = "#/notebook";
+    notebookRunnerMock = {
+      outputs: {
+        "baseline-newton": { type: "result", result: bmwNotebookBaselineResult }
+      },
+      status: { "baseline-newton": "success" },
+      errors: {},
+      runCell: vi.fn().mockResolvedValue(undefined),
+      runAll: vi.fn().mockResolvedValue(undefined),
+      getResult: (cellId: string) => (cellId === "baseline-newton" ? bmwNotebookBaselineResult : null)
+    };
+
+    render(<App />);
+
+    const matrixHeading = screen.getByRole("heading", { name: /bmw transactions-flow matrix/i });
+    const matrixCell = matrixHeading.closest("article");
+    expect(matrixCell).not.toBeNull();
+    if (!matrixCell) {
+      throw new Error("Expected BMW transactions-flow matrix article.");
+    }
+
+    const interestDepositsRow = within(matrixCell)
+      .getByText("Interest on deposits")
+      .closest("tr");
+    expect(interestDepositsRow).not.toBeNull();
+    expect(interestDepositsRow?.textContent).toContain("-rm[-1] * Ms[-1]");
+    expect(interestDepositsRow?.textContent).toMatch(/= \$[0-9.,]+\/yr/);
+
+    const changeDepositsRow = within(matrixCell).getByText("Ch. deposits").closest("tr");
+    expect(changeDepositsRow).not.toBeNull();
+    expect(changeDepositsRow?.textContent).toContain("-d(Mh)");
+    expect(changeDepositsRow?.textContent).toMatch(/= \$[0-9.,]+\/yr/);
   });
 
   it("loads a notebook template from the hash path", () => {

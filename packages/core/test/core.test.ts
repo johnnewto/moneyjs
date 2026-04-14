@@ -48,6 +48,13 @@ describe("parser", () => {
     expect(new Set(equation.lagDependencies)).toEqual(new Set(["a", "b"]));
   });
 
+  it("treats dt as a built-in constant, not a model dependency", () => {
+    const equation = parseEquation("x", "dt * a + lag(dt) + d(dt)");
+
+    expect(new Set(equation.currentDependencies)).toEqual(new Set(["a"]));
+    expect(new Set(equation.lagDependencies)).toEqual(new Set());
+  });
+
   it("throws on unsupported functions", () => {
     expect(() => parseExpression("sin(x)")).toThrow("Unsupported function");
   });
@@ -139,6 +146,25 @@ describe("simulation", () => {
     expectClose(result.series.K[11] ?? NaN, 135.27289254136974, 1e-3);
     expectClose(result.series.Mh[11] ?? NaN, 135.2729032243398, 1e-3);
     expectClose(result.series.W[11] ?? NaN, 0.9061564443779875, 1e-4);
+  });
+
+  it("evaluates built-in dt inside equations", () => {
+    const result = runBaseline(
+      {
+        equations: [{ name: "x", expression: "2 * dt" }],
+        externals: {},
+        initialValues: {}
+      },
+      {
+        periods: 3,
+        solverMethod: "GAUSS_SEIDEL",
+        tolerance: 1e-9,
+        maxIterations: 20
+      }
+    );
+
+    expectClose(result.series.x[1] ?? NaN, 2, 1e-12);
+    expectClose(result.series.x[2] ?? NaN, 2, 1e-12);
   });
 
   it("applies a multi-period series shock", () => {

@@ -75,37 +75,37 @@ const BMW_EXTERNAL_DESCRIPTIONS: Record<string, string> = {
 };
 
 const BMW_EQUATION_UNITS: Record<string, UnitMeta> = {
-  AF: { dimensionKind: "flow", baseUnit: "$" },
-  Cd: { dimensionKind: "flow", baseUnit: "$" },
-  Cs: { dimensionKind: "flow", baseUnit: "$" },
-  DA: { dimensionKind: "flow", baseUnit: "$" },
-  Id: { dimensionKind: "flow", baseUnit: "$" },
-  Is: { dimensionKind: "flow", baseUnit: "$" },
-  K: { dimensionKind: "stock", baseUnit: "$" },
-  KT: { dimensionKind: "stock", baseUnit: "$" },
-  Ld: { dimensionKind: "stock", baseUnit: "$" },
-  Ls: { dimensionKind: "stock", baseUnit: "$" },
-  Mh: { dimensionKind: "stock", baseUnit: "$" },
-  Ms: { dimensionKind: "stock", baseUnit: "$" },
-  Nd: { dimensionKind: "flow", baseUnit: "items" },
-  Ns: { dimensionKind: "flow", baseUnit: "items" },
-  W: { dimensionKind: "aux" },
-  WBd: { dimensionKind: "flow", baseUnit: "$" },
-  WBs: { dimensionKind: "flow", baseUnit: "$" },
-  Y: { dimensionKind: "flow", baseUnit: "$" },
-  YD: { dimensionKind: "flow", baseUnit: "$" },
-  rm: { dimensionKind: "aux" }
+  AF: { stockFlow: "flow", signature: { money: 1, time: -1 } },
+  Cd: { stockFlow: "flow", signature: { money: 1, time: -1 } },
+  Cs: { stockFlow: "flow", signature: { money: 1, time: -1 } },
+  DA: { stockFlow: "flow", signature: { money: 1, time: -1 } },
+  Id: { stockFlow: "flow", signature: { money: 1, time: -1 } },
+  Is: { stockFlow: "flow", signature: { money: 1, time: -1 } },
+  K: { stockFlow: "stock", signature: { money: 1 } },
+  KT: { stockFlow: "stock", signature: { money: 1 } },
+  Ld: { stockFlow: "stock", signature: { money: 1 } },
+  Ls: { stockFlow: "stock", signature: { money: 1 } },
+  Mh: { stockFlow: "stock", signature: { money: 1 } },
+  Ms: { stockFlow: "stock", signature: { money: 1 } },
+  Nd: { stockFlow: "flow", signature: { items: 1, time: -1 } },
+  Ns: { stockFlow: "flow", signature: { items: 1, time: -1 } },
+  W: { stockFlow: "aux", signature: { money: 1, items: -1 } },
+  WBd: { stockFlow: "flow", signature: { money: 1, time: -1 } },
+  WBs: { stockFlow: "flow", signature: { money: 1, time: -1 } },
+  Y: { stockFlow: "flow", signature: { money: 1, time: -1 } },
+  YD: { stockFlow: "flow", signature: { money: 1, time: -1 } },
+  rm: { stockFlow: "aux", signature: { time: -1 } }
 };
 
 const BMW_EXTERNAL_UNITS: Record<string, UnitMeta> = {
-  alpha0: { dimensionKind: "flow", baseUnit: "$" },
-  alpha1: { dimensionKind: "aux" },
-  alpha2: { dimensionKind: "aux" },
-  delta: { dimensionKind: "aux" },
-  gamma: { dimensionKind: "aux" },
-  kappa: { dimensionKind: "aux" },
-  pr: { dimensionKind: "aux" },
-  rl: { dimensionKind: "aux" }
+  alpha0: { stockFlow: "aux", signature: { money: 1, time: -1 } },
+  alpha1: { stockFlow: "aux", signature: {} },
+  alpha2: { stockFlow: "aux", signature: { time: -1 } },
+  delta: { stockFlow: "aux", signature: { time: -1 } },
+  gamma: { stockFlow: "aux", signature: { time: -1 } },
+  kappa: { stockFlow: "aux", signature: { time: 1 } },
+  pr: { stockFlow: "aux", signature: { money: 1, items: -1 } },
+  rl: { stockFlow: "aux", signature: { time: -1 } }
 };
 
 const PRESETS: PresetConfig[] = [

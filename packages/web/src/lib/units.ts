@@ -2,31 +2,31 @@ import type { Expr } from "@sfcr/core";
 
 import type { EquationRow, ExternalRow } from "./editorModel";
 import {
+  coerceUnitMeta,
+  divideSignatures,
+  formatSignature,
   formatUnitText,
-  formatUnitLabel,
+  multiplySignatures,
+  normalizeSignature,
+  signaturesEqual,
   type UnitMeta,
+  type UnitSignature,
   type VariableUnitMetadata
 } from "./unitMeta";
-
-type InferredDimension = "stock" | "flow" | "scalar" | "unknown";
-
-interface InferredUnit {
-  baseUnit?: string;
-  dimension: InferredDimension;
-}
-
-interface DiagnosticState {
-  issues: UnitDiagnostic[];
-  variableUnits: VariableUnitMetadata;
-}
 
 export interface UnitDiagnostic {
   message: string;
   severity: "error" | "warning";
 }
 
-const UNKNOWN_UNIT: InferredUnit = { dimension: "unknown" };
-const SCALAR_UNIT: InferredUnit = { dimension: "scalar" };
+export interface InferredUnit {
+  diagnostics: UnitDiagnostic[];
+  signature: UnitSignature | null;
+}
+
+const DIMENSIONLESS: UnitSignature = {};
+const TIME_STEP: UnitSignature = { time: 1 };
+const DT_VARIABLE = "dt";
 
 export function buildVariableUnitMetadata(args: {
   equations?: EquationRow[];
@@ -71,272 +71,460 @@ export function diagnoseEquationUnits(
   expression: Expr,
   variableUnits: VariableUnitMetadata
 ): UnitDiagnostic[] {
-  const state: DiagnosticState = { issues: [], variableUnits };
-  const leftMeta = variableUnits.get(equationName.trim());
-
-  if (leftMeta?.dimensionKind === "stock" && leftMeta.baseUnit) {
-    const accumulationIssue = validateStockAccumulationExpression(
-      equationName,
-      expression,
-      variableUnits
-    );
-    if (accumulationIssue === null) {
-      return state.issues;
-    }
-    if (accumulationIssue) {
-      state.issues.push(accumulationIssue);
-      return state.issues;
-    }
+  const leftMeta = coerceUnitMeta(variableUnits.get(equationName.trim()));
+  const stockAccumulationDiagnostics = leftMeta
+    ? diagnoseStockAccumulation(equationName, expression, leftMeta, variableUnits)
+    : null;
+  if (stockAccumulationDiagnostics !== null) {
+    return stockAccumulationDiagnostics;
   }
 
-  inferExpressionUnit(expression, state);
-  return state.issues;
-}
+  const rhs = inferUnits(expression, variableUnits);
+  const diagnostics = [...rhs.diagnostics];
 
-function validateStockAccumulationExpression(
-  equationName: string,
-  expression: Expr,
-  variableUnits: VariableUnitMetadata
-): UnitDiagnostic | null | undefined {
-  const terms = flattenAdditiveTerms(expression);
-  let anchorCount = 0;
-  let hasFlowTerm = false;
-  const leftMeta = variableUnits.get(equationName.trim());
-
-  if (!leftMeta?.baseUnit) {
-    return undefined;
+  if (!leftMeta?.signature) {
+    return diagnostics;
   }
 
-  for (const term of terms) {
-    if (term.sign !== 1) {
-      continue;
-    }
-    if (term.expr.type === "Lag" && term.expr.name === equationName.trim()) {
-      anchorCount += 1;
-      continue;
-    }
-  }
-
-  if (anchorCount !== 1) {
-    return undefined;
-  }
-
-  for (const term of terms) {
-    if (term.expr.type === "Lag" && term.expr.name === equationName.trim() && term.sign === 1) {
-      continue;
-    }
-
-    const inferred = inferExpressionUnit(term.expr, {
-      issues: [],
-      variableUnits
+  if (rhs.signature != null && !signaturesEqual(leftMeta.signature, rhs.signature)) {
+    diagnostics.push({
+      severity: "error",
+      message: `Equation '${equationName}' has units ${formatSignature(leftMeta.signature)} but its RHS infers ${formatSignature(rhs.signature)}.`
     });
-    if (isDefinitelySameUnit(inferred, { dimension: "stock", baseUnit: leftMeta.baseUnit })) {
-      return {
-        severity: "warning",
-        message: `Stock '${equationName}' should usually accumulate flows around lag(${equationName}). Consider using d(name) for stock-change terms.`
-      };
-    }
-    if (
-      inferred.dimension !== "unknown" &&
-      inferred.dimension !== "scalar" &&
-      !isDefinitelySameUnit(inferred, { dimension: "flow", baseUnit: leftMeta.baseUnit })
-    ) {
-      return {
-        severity: "error",
-        message: `Stock '${equationName}' can only combine lag(${equationName}) with ${leftMeta.baseUnit}/yr flow terms.`
-      };
-    }
-    hasFlowTerm = hasFlowTerm || inferred.dimension === "flow";
   }
 
-  return hasFlowTerm ? null : undefined;
+  return diagnostics;
 }
 
-function inferExpressionUnit(expression: Expr, state: DiagnosticState): InferredUnit {
-  switch (expression.type) {
+export function inferUnits(expr: Expr, variableUnits: VariableUnitMetadata): InferredUnit {
+  switch (expr.type) {
     case "Number":
-      return SCALAR_UNIT;
+      return known(DIMENSIONLESS);
     case "Variable":
-      return inferredUnitFromMeta(state.variableUnits.get(expression.name));
-    case "Lag":
-      return inferredUnitFromMeta(state.variableUnits.get(expression.name));
-    case "Diff": {
-      const meta = state.variableUnits.get(expression.name);
-      if (meta?.dimensionKind === "stock" && meta.baseUnit) {
-        return { dimension: "flow", baseUnit: meta.baseUnit };
+      if (expr.name === DT_VARIABLE) {
+        return known(TIME_STEP);
       }
-      return UNKNOWN_UNIT;
+      return fromMeta(variableUnits.get(expr.name));
+    case "Lag":
+      if (expr.name === DT_VARIABLE) {
+        return known(TIME_STEP);
+      }
+      return fromMeta(variableUnits.get(expr.name));
+    case "Diff": {
+      if (expr.name === DT_VARIABLE) {
+        return known(DIMENSIONLESS);
+      }
+      const meta = variableUnits.get(expr.name);
+      if (!meta?.signature) {
+        return unknown();
+      }
+      return known(divideSignatures(meta.signature, TIME_STEP));
     }
-    case "Unary":
-      return inferExpressionUnit(expression.expr, state);
-    case "If": {
-      const whenTrue = inferExpressionUnit(expression.whenTrue, state);
-      const whenFalse = inferExpressionUnit(expression.whenFalse, state);
-        if (isDefiniteMismatch(whenTrue, whenFalse)) {
-        state.issues.push({
+    case "Unary": {
+      const inner = inferUnits(expr.expr, variableUnits);
+      return { signature: inner.signature, diagnostics: inner.diagnostics };
+    }
+    case "If":
+      return inferIfUnits(expr, variableUnits);
+    case "Function":
+      return inferFunctionUnits(expr, variableUnits);
+    case "Binary":
+      return inferBinaryUnits(expr, variableUnits);
+  }
+}
+
+function inferIfUnits(
+  expr: Extract<Expr, { type: "If" }>,
+  variableUnits: VariableUnitMetadata
+): InferredUnit {
+  const whenTrue = inferUnits(expr.whenTrue, variableUnits);
+  const whenFalse = inferUnits(expr.whenFalse, variableUnits);
+  const diagnostics = mergeDiagnostics(whenTrue, whenFalse);
+
+  if (whenTrue.signature == null || whenFalse.signature == null) {
+    return { signature: null, diagnostics };
+  }
+  if (!signaturesEqual(whenTrue.signature, whenFalse.signature)) {
+    diagnostics.push({
+      severity: "error",
+      message: `Conditional branches must use matching units, got ${formatSignature(whenTrue.signature)} and ${formatSignature(whenFalse.signature)}.`
+    });
+    return { signature: null, diagnostics };
+  }
+
+  return { signature: whenTrue.signature, diagnostics };
+}
+
+function inferFunctionUnits(
+  expr: Extract<Expr, { type: "Function" }>,
+  variableUnits: VariableUnitMetadata
+): InferredUnit {
+  switch (expr.name) {
+    case "min":
+    case "max": {
+      const left = inferUnits(expr.args[0] ?? { type: "Number", value: 0 }, variableUnits);
+      const right = inferUnits(expr.args[1] ?? { type: "Number", value: 0 }, variableUnits);
+      const diagnostics = mergeDiagnostics(left, right);
+
+      if (left.signature == null || right.signature == null) {
+        return { signature: null, diagnostics };
+      }
+      if (!signaturesEqual(left.signature, right.signature)) {
+        diagnostics.push({
           severity: "error",
-          message: `Conditional branches must use matching units, got ${formatInferredUnit(whenTrue)} and ${formatInferredUnit(whenFalse)}.`
+          message: `${expr.name}() arguments must use matching units, got ${formatSignature(left.signature)} and ${formatSignature(right.signature)}.`
+        });
+        return { signature: null, diagnostics };
+      }
+
+      return { signature: left.signature, diagnostics };
+    }
+    case "abs": {
+      const argument = inferUnits(expr.args[0] ?? { type: "Number", value: 0 }, variableUnits);
+      return argument;
+    }
+    case "log":
+    case "exp": {
+      const argument = inferUnits(expr.args[0] ?? { type: "Number", value: 0 }, variableUnits);
+      const diagnostics = [...argument.diagnostics];
+
+      if (argument.signature != null && !signaturesEqual(argument.signature, DIMENSIONLESS)) {
+        diagnostics.push({
+          severity: "error",
+          message: `${expr.name}() requires a dimensionless argument.`
         });
       }
-      return mergeCompatibleUnits(whenTrue, whenFalse);
+
+      return { signature: DIMENSIONLESS, diagnostics };
     }
-    case "Function": {
-      if (expression.name === "min" || expression.name === "max") {
-        const left = inferExpressionUnit(expression.args[0] ?? { type: "Number", value: 0 }, state);
-        const right = inferExpressionUnit(expression.args[1] ?? { type: "Number", value: 0 }, state);
-        if (isDefiniteMismatch(left, right)) {
-          state.issues.push({
-            severity: "error",
-            message: `${expression.name}() arguments must use matching units, got ${formatInferredUnit(left)} and ${formatInferredUnit(right)}.`
-          });
-        }
-        return mergeCompatibleUnits(left, right);
+    case "sqrt": {
+      const argument = inferUnits(expr.args[0] ?? { type: "Number", value: 0 }, variableUnits);
+      const diagnostics = [...argument.diagnostics];
+
+      if (argument.signature == null) {
+        return { signature: null, diagnostics };
       }
-      return UNKNOWN_UNIT;
-    }
-    case "Binary":
-      return inferBinaryUnit(expression, state);
-  }
-}
 
-function inferBinaryUnit(expression: Extract<Expr, { type: "Binary" }>, state: DiagnosticState): InferredUnit {
-  if (isStockDifferenceFlow(expression, state.variableUnits)) {
-    const leftName =
-      expression.left.type === "Variable"
-        ? expression.left.name
-        : expression.left.type === "Lag"
-          ? expression.left.name
-          : expression.right.type === "Variable" || expression.right.type === "Lag"
-            ? expression.right.name
-            : "";
-    const leftMeta = state.variableUnits.get(leftName);
-    return leftMeta?.baseUnit ? { dimension: "flow", baseUnit: leftMeta.baseUnit } : UNKNOWN_UNIT;
-  }
-
-  const left = inferExpressionUnit(expression.left, state);
-  const right = inferExpressionUnit(expression.right, state);
-
-  if (expression.op === "+" || expression.op === "-") {
-    if (isDefiniteMismatch(left, right)) {
-      state.issues.push({
-        severity: "error",
-        message: `Cannot combine ${formatInferredUnit(left)} with ${formatInferredUnit(right)} using '${expression.op}'.`
+      const sqrtSignature = normalizeSignature({
+        money: (argument.signature.money ?? 0) / 2,
+        items: (argument.signature.items ?? 0) / 2,
+        time: (argument.signature.time ?? 0) / 2
       });
-      return UNKNOWN_UNIT;
+
+      return { signature: sqrtSignature, diagnostics };
     }
-    return mergeCompatibleUnits(left, right);
+  }
+}
+
+function inferBinaryUnits(
+  expr: Extract<Expr, { type: "Binary" }>,
+  variableUnits: VariableUnitMetadata
+): InferredUnit {
+  const stockDifferenceSignature = inferStockDifferenceSignature(expr, variableUnits);
+  if (stockDifferenceSignature) {
+    return known(stockDifferenceSignature);
   }
 
+  const left = inferUnits(expr.left, variableUnits);
+  const right = inferUnits(expr.right, variableUnits);
+  const diagnostics = mergeDiagnostics(left, right);
+
+  switch (expr.op) {
+    case "+":
+    case "-":
+      if (left.signature == null || right.signature == null) {
+        return { signature: null, diagnostics };
+      }
+      if (!signaturesEqual(left.signature, right.signature)) {
+        diagnostics.push({
+          severity: "error",
+          message: `Cannot combine ${formatSignature(left.signature)} with ${formatSignature(right.signature)} using '${expr.op}'.`
+        });
+        return { signature: null, diagnostics };
+      }
+      return { signature: left.signature, diagnostics };
+    case "*":
+      if (left.signature == null || right.signature == null) {
+        return { signature: null, diagnostics };
+      }
+      return { signature: multiplySignatures(left.signature, right.signature), diagnostics };
+    case "/":
+      if (left.signature == null || right.signature == null) {
+        return { signature: null, diagnostics };
+      }
+      return { signature: divideSignatures(left.signature, right.signature), diagnostics };
+    case "^":
+      if (right.signature != null && !signaturesEqual(right.signature, DIMENSIONLESS)) {
+        diagnostics.push({
+          severity: "error",
+          message: "Exponent must be dimensionless."
+        });
+      }
+      if (left.signature != null && !signaturesEqual(left.signature, DIMENSIONLESS)) {
+        diagnostics.push({
+          severity: "warning",
+          message: "Exponentiation of non-dimensionless quantities is not fully supported."
+        });
+      }
+      return { signature: left.signature, diagnostics };
+    case ">":
+    case ">=":
+    case "<":
+    case "<=":
+    case "==":
+    case "!=":
+      if (
+        left.signature != null &&
+        right.signature != null &&
+        !signaturesEqual(left.signature, right.signature)
+      ) {
+        diagnostics.push({
+          severity: "error",
+          message: `Comparison requires matching units, got ${formatSignature(left.signature)} and ${formatSignature(right.signature)}.`
+        });
+      }
+      return { signature: DIMENSIONLESS, diagnostics };
+    case "&&":
+    case "||":
+      return { signature: DIMENSIONLESS, diagnostics };
+  }
+}
+
+function diagnoseStockAccumulation(
+  equationName: string,
+  expression: Expr,
+  leftMeta: UnitMeta,
+  variableUnits: VariableUnitMetadata
+): UnitDiagnostic[] | null {
+  if (leftMeta.stockFlow !== "stock" || !leftMeta.signature) {
+    return null;
+  }
+
+  const incrementExpr = extractLagAnchorRemainder(expression, equationName.trim());
+  if (!incrementExpr) {
+    return null;
+  }
+
+  const hasExplicitDt = containsDtVariable(incrementExpr);
+  const incrementSignature = hasExplicitDt
+    ? leftMeta.signature
+    : divideSignatures(leftMeta.signature, TIME_STEP);
+  const inferred = inferUnits(incrementExpr, variableUnits);
+  const diagnostics: UnitDiagnostic[] = [...inferred.diagnostics];
+
+  if (inferred.signature == null) {
+    return diagnostics;
+  }
+
+  if (!signaturesEqual(inferred.signature, incrementSignature)) {
+    diagnostics.push({
+      severity: "error",
+      message: `Stock '${equationName}' can only combine lag(${equationName}) with increments of ${formatSignature(incrementSignature)}.`
+    });
+    return diagnostics;
+  }
+
+  if (containsStockDifferenceLike(incrementExpr, variableUnits)) {
+    diagnostics.push({
+      severity: "warning",
+      message: `Prefer d(name) instead of stock differences like '${renderExpr(incrementExpr)}' for clearer stock-change notation.`
+    });
+  }
+
+  if (!containsExplicitDiff(incrementExpr) && !hasExplicitDt) {
+    diagnostics.push({
+      severity: "warning",
+      message: `Stock '${equationName}' assumes an implicit dt = 1 when adding increment terms.`
+    });
+  }
+  return diagnostics;
+}
+
+function containsDtVariable(expr: Expr): boolean {
   if (
-    expression.op === ">" ||
-    expression.op === ">=" ||
-    expression.op === "<" ||
-    expression.op === "<=" ||
-    expression.op === "==" ||
-    expression.op === "!=" ||
-    expression.op === "&&" ||
-    expression.op === "||"
+    (expr.type === "Variable" || expr.type === "Lag" || expr.type === "Diff") &&
+    expr.name === DT_VARIABLE
   ) {
-    return SCALAR_UNIT;
+    return true;
   }
-
-  return UNKNOWN_UNIT;
-}
-
-function inferredUnitFromMeta(meta?: UnitMeta): InferredUnit {
-  if (!meta?.dimensionKind || meta.dimensionKind === "aux") {
-    return UNKNOWN_UNIT;
+  if (expr.type === "Unary") {
+    return containsDtVariable(expr.expr);
   }
-  return {
-    dimension: meta.dimensionKind,
-    baseUnit: meta.baseUnit
-  };
-}
-
-function mergeCompatibleUnits(left: InferredUnit, right: InferredUnit): InferredUnit {
-  if (left.dimension === "unknown") {
-    return right;
+  if (expr.type === "Binary") {
+    return containsDtVariable(expr.left) || containsDtVariable(expr.right);
   }
-  if (right.dimension === "unknown") {
-    return left;
+  if (expr.type === "Function") {
+    return expr.args.some((arg) => containsDtVariable(arg));
   }
-  if (left.dimension === "scalar") {
-    return right;
+  if (expr.type === "If") {
+    return (
+      containsDtVariable(expr.condition) ||
+      containsDtVariable(expr.whenTrue) ||
+      containsDtVariable(expr.whenFalse)
+    );
   }
-  if (right.dimension === "scalar") {
-    return left;
-  }
-  if (left.dimension === right.dimension && left.baseUnit === right.baseUnit) {
-    return left;
-  }
-  return UNKNOWN_UNIT;
-}
-
-function isDefiniteMismatch(left: InferredUnit, right: InferredUnit): boolean {
-  if (left.dimension === "unknown" || right.dimension === "unknown") {
-    return false;
-  }
-  if (left.dimension === "scalar" || right.dimension === "scalar") {
-    return false;
-  }
-  return left.dimension !== right.dimension || left.baseUnit !== right.baseUnit;
-}
-
-function isDefinitelySameUnit(
-  inferred: InferredUnit,
-  expected: { dimension: "stock" | "flow"; baseUnit: string }
-): boolean {
-  return inferred.dimension === expected.dimension && inferred.baseUnit === expected.baseUnit;
-}
-
-function formatInferredUnit(unit: InferredUnit): string {
-  if (unit.dimension === "unknown") {
-    return "unknown units";
-  }
-  if (unit.dimension === "scalar") {
-    return "scalar";
-  }
-  return formatUnitLabel({ dimensionKind: unit.dimension, baseUnit: unit.baseUnit }) ?? "unknown units";
-}
-
-function flattenAdditiveTerms(expression: Expr, sign = 1): Array<{ expr: Expr; sign: 1 | -1 }> {
-  if (expression.type === "Binary" && expression.op === "+") {
-    return [
-      ...flattenAdditiveTerms(expression.left, sign),
-      ...flattenAdditiveTerms(expression.right, sign)
-    ];
-  }
-  if (expression.type === "Binary" && expression.op === "-") {
-    return [
-      ...flattenAdditiveTerms(expression.left, sign),
-      ...flattenAdditiveTerms(expression.right, sign === 1 ? -1 : 1)
-    ];
-  }
-  return [{ expr: expression, sign: sign === 1 ? 1 : -1 }];
-}
-
-function isStockDifferenceFlow(expression: Extract<Expr, { type: "Binary" }>, variableUnits: VariableUnitMetadata): boolean {
-  if (expression.op !== "-") {
-    return false;
-  }
-
-  if (
-    expression.left.type === "Variable" &&
-    expression.right.type === "Lag" &&
-    expression.left.name === expression.right.name
-  ) {
-    return variableUnits.get(expression.left.name)?.dimensionKind === "stock";
-  }
-
-  if (
-    expression.left.type === "Lag" &&
-    expression.right.type === "Variable" &&
-    expression.left.name === expression.right.name
-  ) {
-    return variableUnits.get(expression.left.name)?.dimensionKind === "stock";
-  }
-
   return false;
+}
+
+function containsExplicitDiff(expr: Expr): boolean {
+  if (expr.type === "Diff") {
+    return true;
+  }
+  if (expr.type === "Unary") {
+    return containsExplicitDiff(expr.expr);
+  }
+  if (expr.type === "Binary") {
+    return containsExplicitDiff(expr.left) || containsExplicitDiff(expr.right);
+  }
+  if (expr.type === "Function") {
+    return expr.args.some((arg) => containsExplicitDiff(arg));
+  }
+  if (expr.type === "If") {
+    return (
+      containsExplicitDiff(expr.condition) ||
+      containsExplicitDiff(expr.whenTrue) ||
+      containsExplicitDiff(expr.whenFalse)
+    );
+  }
+  return false;
+}
+
+function containsStockDifferenceLike(expr: Expr, variableUnits: VariableUnitMetadata): boolean {
+  if (isStockDifferenceLike(expr, variableUnits)) {
+    return true;
+  }
+  if (expr.type === "Unary") {
+    return containsStockDifferenceLike(expr.expr, variableUnits);
+  }
+  if (expr.type === "Binary") {
+    return (
+      containsStockDifferenceLike(expr.left, variableUnits) ||
+      containsStockDifferenceLike(expr.right, variableUnits)
+    );
+  }
+  if (expr.type === "Function" || expr.type === "If") {
+    return false;
+  }
+  return false;
+}
+
+function isStockDifferenceLike(expr: Expr, variableUnits: VariableUnitMetadata): boolean {
+  if (expr.type !== "Binary" || expr.op !== "-") {
+    return false;
+  }
+
+  const leftName =
+    expr.left.type === "Variable"
+      ? expr.left.name
+      : expr.left.type === "Lag"
+        ? expr.left.name
+        : null;
+  const rightName =
+    expr.right.type === "Variable"
+      ? expr.right.name
+      : expr.right.type === "Lag"
+        ? expr.right.name
+        : null;
+
+  if (!leftName || !rightName || leftName !== rightName) {
+    return false;
+  }
+
+  return (variableUnits.get(leftName)?.stockFlow ?? "aux") === "stock";
+}
+
+function inferStockDifferenceSignature(
+  expr: Extract<Expr, { type: "Binary" }>,
+  variableUnits: VariableUnitMetadata
+): UnitSignature | null {
+  if (!isStockDifferenceLike(expr, variableUnits)) {
+    return null;
+  }
+
+  const variableName =
+    expr.left.type === "Variable" || expr.left.type === "Lag"
+      ? expr.left.name
+      : expr.right.type === "Variable" || expr.right.type === "Lag"
+        ? expr.right.name
+        : null;
+  if (!variableName) {
+    return null;
+  }
+
+  const meta = coerceUnitMeta(variableUnits.get(variableName));
+  return meta?.signature ? divideSignatures(meta.signature, TIME_STEP) : null;
+}
+
+function extractLagAnchorRemainder(expr: Expr, variableName: string): Expr | null {
+  if (expr.type === "Binary" && expr.op === "+") {
+    if (expr.left.type === "Lag" && expr.left.name === variableName) {
+      return expr.right;
+    }
+    if (expr.right.type === "Lag" && expr.right.name === variableName) {
+      return expr.left;
+    }
+    const leftRemainder = extractLagAnchorRemainder(expr.left, variableName);
+    if (leftRemainder) {
+      return { type: "Binary", op: "+", left: leftRemainder, right: expr.right };
+    }
+    const rightRemainder = extractLagAnchorRemainder(expr.right, variableName);
+    if (rightRemainder) {
+      return { type: "Binary", op: "+", left: expr.left, right: rightRemainder };
+    }
+  }
+
+  if (expr.type === "Binary" && expr.op === "-") {
+    if (expr.left.type === "Lag" && expr.left.name === variableName) {
+      return { type: "Unary", op: "-", expr: expr.right };
+    }
+    const leftRemainder = extractLagAnchorRemainder(expr.left, variableName);
+    if (leftRemainder) {
+      return { type: "Binary", op: "-", left: leftRemainder, right: expr.right };
+    }
+  }
+
+  return null;
+}
+
+function renderExpr(expr: Expr): string {
+  switch (expr.type) {
+    case "Number":
+      return String(expr.value);
+    case "Variable":
+      return expr.name;
+    case "Lag":
+      return `lag(${expr.name})`;
+    case "Diff":
+      return `d(${expr.name})`;
+    case "Unary":
+      return `-${renderExpr(expr.expr)}`;
+    case "Binary":
+      return `${renderExpr(expr.left)} ${expr.op} ${renderExpr(expr.right)}`;
+    case "If":
+      return `if (...)`;
+    case "Function":
+      return `${expr.name}(...)`;
+  }
+}
+
+function fromMeta(meta?: UnitMeta): InferredUnit {
+  const normalizedMeta = coerceUnitMeta(meta);
+  if (!normalizedMeta?.signature) {
+    return unknown();
+  }
+  return known(normalizedMeta.signature);
+}
+
+function known(signature: UnitSignature): InferredUnit {
+  return { signature: normalizeSignature(signature), diagnostics: [] };
+}
+
+function unknown(): InferredUnit {
+  return { signature: null, diagnostics: [] };
+}
+
+function mergeDiagnostics(...parts: InferredUnit[]): UnitDiagnostic[] {
+  return parts.flatMap((part) => part.diagnostics);
 }
 
 function setVariableUnitMeta(
@@ -345,9 +533,13 @@ function setVariableUnitMeta(
   unitMeta?: UnitMeta
 ): void {
   const normalizedName = variableName.trim();
-  if (!normalizedName || metadata.has(normalizedName) || !unitMeta?.dimensionKind) {
+  const normalizedMeta = coerceUnitMeta(unitMeta);
+  if (!normalizedName || metadata.has(normalizedName) || !normalizedMeta?.signature) {
     return;
   }
 
-  metadata.set(normalizedName, unitMeta);
+  metadata.set(normalizedName, {
+    signature: normalizeSignature(normalizedMeta.signature),
+    stockFlow: normalizedMeta.stockFlow
+  });
 }

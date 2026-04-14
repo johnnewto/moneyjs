@@ -1,15 +1,26 @@
 import type { SolverContext } from "../engine/context";
 import type { Expr } from "./ast";
 
+const DT_VARIABLE = "dt";
+
 export function evaluateExpression(expr: Expr, context: SolverContext): number {
   switch (expr.type) {
     case "Number":
       return expr.value;
     case "Variable":
+      if (expr.name === DT_VARIABLE) {
+        return 1;
+      }
       return context.currentValue(expr.name);
     case "Lag":
+      if (expr.name === DT_VARIABLE) {
+        return 1;
+      }
       return context.lagValue(expr.name);
     case "Diff":
+      if (expr.name === DT_VARIABLE) {
+        return 0;
+      }
       return context.diffValue(expr.name);
     case "Unary":
       return -evaluateExpression(expr.expr, context);
@@ -60,7 +71,14 @@ export function collectCurrentDependencies(expr: Expr): Set<string> {
     case "Lag":
       return new Set<string>();
     case "Variable":
+      if (expr.name === DT_VARIABLE) {
+        return new Set<string>();
+      }
+      return new Set<string>([expr.name]);
     case "Diff":
+      if (expr.name === DT_VARIABLE) {
+        return new Set<string>();
+      }
       return new Set<string>([expr.name]);
     case "Unary":
       return collectCurrentDependencies(expr.expr);
@@ -86,7 +104,14 @@ export function collectLagDependencies(expr: Expr): Set<string> {
     case "Variable":
       return new Set<string>();
     case "Lag":
+      if (expr.name === DT_VARIABLE) {
+        return new Set<string>();
+      }
+      return new Set<string>([expr.name]);
     case "Diff":
+      if (expr.name === DT_VARIABLE) {
+        return new Set<string>();
+      }
       return new Set<string>([expr.name]);
     case "Unary":
       return collectLagDependencies(expr.expr);

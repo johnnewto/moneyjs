@@ -104,7 +104,7 @@ describe("editor model validation", () => {
       diagnostics.issues.some(
         (issue) =>
           issue.path === "equations.0.expression" &&
-          issue.message.includes("Cannot combine stock ($) with flow ($/yr)")
+          issue.message.includes("Cannot combine $ with $/yr")
       )
     ).toBe(true);
   });
@@ -128,6 +128,51 @@ describe("editor model validation", () => {
       name: "C",
       expression: "1",
       unitMeta: { dimensionKind: "flow", baseUnit: "$" }
+    };
+
+    const diagnostics = diagnoseBuildRuntime(editor);
+
+    expect(diagnostics.issues.filter((issue) => issue.path === "equations.0.expression")).toEqual([
+      expect.objectContaining({
+        severity: "warning",
+        message: expect.stringContaining("implicit dt = 1")
+      })
+    ]);
+  });
+
+  it("treats lag(stock) + d(otherStock) as a clean preferred form", () => {
+    const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
+    editor.equations[0] = {
+      id: "eq-ls",
+      name: "Ls",
+      expression: "lag(Ls) + d(Ld)",
+      unitMeta: { dimensionKind: "stock", baseUnit: "$" }
+    };
+    editor.equations[1] = {
+      id: "eq-ld",
+      name: "Ld",
+      expression: "1",
+      unitMeta: { dimensionKind: "stock", baseUnit: "$" }
+    };
+
+    const diagnostics = diagnoseBuildRuntime(editor);
+
+    expect(diagnostics.issues.filter((issue) => issue.path === "equations.0.expression")).toHaveLength(0);
+  });
+
+  it("allows explicit dt in stock accumulation expressions", () => {
+    const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
+    editor.equations[0] = {
+      id: "eq-ls",
+      name: "Ls",
+      expression: "lag(Ls) + d(Ld) * dt",
+      unitMeta: { dimensionKind: "stock", baseUnit: "$" }
+    };
+    editor.equations[1] = {
+      id: "eq-ld",
+      name: "Ld",
+      expression: "1",
+      unitMeta: { dimensionKind: "stock", baseUnit: "$" }
     };
 
     const diagnostics = diagnoseBuildRuntime(editor);

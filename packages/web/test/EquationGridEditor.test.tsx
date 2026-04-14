@@ -225,7 +225,7 @@ describe("EquationGridEditor", () => {
 
     fireEvent.mouseEnter(yToken);
     expect(screen.getByRole("tooltip")).toHaveTextContent("Income = GDP");
-    expect(screen.getByRole("tooltip")).toHaveTextContent("flow ($/yr)");
+    expect(screen.getByRole("tooltip")).toHaveTextContent("$/yr");
   });
 
   it("shows a unit badge for the variable column when metadata is present", () => {
@@ -247,5 +247,47 @@ describe("EquationGridEditor", () => {
     );
 
     expect(screen.getByText("$")).toBeInTheDocument();
+  });
+
+  it("renders unit mismatch errors in the equation status cell and message row", () => {
+    render(
+      <EquationGridEditor
+        equations={[{ id: "eq-v", name: "V", expression: "K + C" }]}
+        issues={{
+          "equations.0.expression": {
+            message: "Cannot combine $ with $/yr using '+'.",
+            severity: "error"
+          }
+        }}
+        onChange={vi.fn()}
+        parameterNames={[]}
+      />
+    );
+
+    expect(screen.getByText("Error")).toBeInTheDocument();
+    const message = screen.getByRole("note");
+    expect(message).toHaveTextContent("Cannot combine $ with $/yr using '+'.");
+    expect(message).toHaveClass("equation-grid-warning-row", "is-error");
+  });
+
+  it("renders unit warnings in the equation status cell and message row", () => {
+    render(
+      <EquationGridEditor
+        equations={[{ id: "eq-mh", name: "Mh", expression: "lag(Mh) + YD - C" }]}
+        issues={{
+          "equations.0.expression": {
+            message: "Stock 'Mh' assumes an implicit dt = 1 when adding increment terms.",
+            severity: "warning"
+          }
+        }}
+        onChange={vi.fn()}
+        parameterNames={[]}
+      />
+    );
+
+    expect(screen.getByText("Warning")).toBeInTheDocument();
+    const message = screen.getByRole("note");
+    expect(message).toHaveTextContent("Stock 'Mh' assumes an implicit dt = 1");
+    expect(message).toHaveClass("equation-grid-warning-row", "is-warning");
   });
 });
