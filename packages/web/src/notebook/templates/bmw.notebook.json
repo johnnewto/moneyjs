@@ -89,7 +89,13 @@
     },
     { "id": "initial-values-equations-newton", "type": "initial-values", "title": "Initial values", "modelId": "equations-newton", "initialValues": [], "collapsed": true },
     { "id": "baseline-newton", "type": "run", "title": "Baseline run with Newton", "mode": "baseline", "resultKey": "bmw_newton", "description": "This Newton baseline provides the reference path for the BMW scenarios.", "sourceModelId": "equations-newton" },
-    { "id": "baseline-chart", "type": "chart", "title": "Baseline headline variables", "sourceRunCellId": "baseline-newton", "variables": ["Y", "Cd", "Mh", "W"] },
+    {
+      "id": "baseline-chart",
+      "type": "chart","title": "Baseline headline variables",
+      "sourceRunCellId": "baseline-newton",
+      "variables": ["Y", "Cd", "Mh", "W"],
+      "axisMode": "separate", "axisSnapTolarance": 0.1,   "niceScale": true
+    },
     { "id": "baseline-table", "type": "table", "title": "Baseline variable summary", "sourceRunCellId": "baseline-newton", "variables": ["Y", "Cd", "Id", "K", "Mh", "W"] },
     { "id": "scenario-1-note", "type": "markdown", "title": "Scenario 1", "source": "Scenario 1 increases autonomous consumption expenditure by raising alpha0 from period 5 to period 50." },
     {
@@ -110,7 +116,11 @@
       "resultKey": "bmw_s1",
       "sourceModelId": "equations-newton"
     },
-    { "id": "scenario-1-chart", "type": "chart", "title": "Scenario 1 consumption and income", "sourceRunCellId": "scenario-1-run", "variables": ["Cd", "YD", "Id", "AF"], "sharedRange": { "includeZero": true } },
+    {
+      "id": "scenario-1-chart", "type": "chart", "title": "Scenario 1 consumption and income", "sourceRunCellId": "scenario-1-run",
+      "variables": ["Cd", "YD", "Id", "AF"], "sharedRange": { "includeZero": true },
+      "axisMode": "separate", "axisSnapTolarance": 0.1,   "niceScale": true
+    },
     { "id": "scenario-2-note", "type": "markdown", "title": "Scenario 2", "source": "Scenario 2 lowers alpha1 from period 5 to period 50 to examine the effect of a higher propensity to save." },
     {
       "id": "scenario-2-run",

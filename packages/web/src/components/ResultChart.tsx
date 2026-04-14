@@ -21,6 +21,7 @@ export interface ChartAxisRange {
 interface ResultChartProps {
   axisMode?: ChartAxisMode;
   axisSnapTolarance?: number;
+  niceScale?: boolean;
   overlaySeries?: ChartSeries[];
   periodLabelOffset?: number;
   seriesRanges?: Record<string, ChartAxisRange | undefined>;
@@ -31,14 +32,18 @@ interface ResultChartProps {
   timeRangeInclusive?: [number, number];
   variableDescriptions?: VariableDescriptions;
   variableUnitMetadata?: VariableUnitMetadata;
+  yAxisTickCount?: number;
 }
 
 const SERIES_COLORS = ["#111827", "#ec4899", "#ea580c", "#6366f1", "#059669", "#0284c7"];
-const AXIS_TICK_COUNT = 5;
+const DEFAULT_AXIS_TICK_COUNT = 5;
+const AUTO_AXIS_EDGE_PADDING_RATIO = 0.04;
+const X_TICK_LABEL_OFFSET = 16;
 
 export function ResultChart({
   axisMode = "shared",
   axisSnapTolarance,
+  niceScale = false,
   overlaySeries = [],
   periodLabelOffset = 0,
   seriesRanges,
@@ -48,6 +53,7 @@ export function ResultChart({
   timeRangeInclusive,
   variableDescriptions,
   variableUnitMetadata,
+  yAxisTickCount = DEFAULT_AXIS_TICK_COUNT,
   selectedIndex = 0
 }: ResultChartProps) {
   const [hoveredDatum, setHoveredDatum] = useState<{ index: number; seriesName: string } | null>(null);
@@ -108,13 +114,22 @@ export function ResultChart({
       ...entry,
       visibleValues,
       axisRangeConfig: seriesRanges?.[entry.name],
-      ...buildAxisMetrics(visibleValues.filter(Number.isFinite), seriesRanges?.[entry.name])
+      ...buildAxisMetrics(
+        visibleValues.filter(Number.isFinite),
+        seriesRanges?.[entry.name],
+        yAxisTickCount,
+        { exactTickCount: axisMode === "separate", niceScale }
+      )
     };
   });
   const axisMetrics =
-    axisMode === "separate" ? snapAxisMetrics(baseAxisMetrics, axisSnapTolarance) : baseAxisMetrics;
+    axisMode === "separate"
+      ? snapAxisMetrics(baseAxisMetrics, axisSnapTolarance, { exactTickCount: true, niceScale })
+      : baseAxisMetrics;
   const sharedFiniteValues = axisMetrics.flatMap((entry) => entry.visibleValues.filter(Number.isFinite));
-  const sharedMetrics = buildAxisMetrics(sharedFiniteValues, sharedRange);
+  const sharedMetrics = buildAxisMetrics(sharedFiniteValues, sharedRange, yAxisTickCount, {
+    niceScale
+  });
   const primaryMetrics = axisMode === "shared" ? sharedMetrics : axisMetrics[0];
   const hoveredMetric = hoveredDatum
     ? axisMetrics.find((entry) => entry.name === hoveredDatum.seriesName) ?? null
@@ -213,6 +228,7 @@ export function ResultChart({
           strokeWidth="1"
         />
 
+        {/* Horizontal grid lines and Y-axis tick labels share the same tick list. */}
         {primaryMetrics?.ticks.map((tick) => {
           const y = toY(tick, topPadding, plotHeight, primaryMetrics.min, primaryMetrics.range);
           return (
@@ -241,7 +257,13 @@ export function ResultChart({
                 stroke="#d1d5db"
                 strokeWidth="1"
               />
-              <text x={x} y={height - 12} fill="#111827" fontSize="11" textAnchor="middle">
+              <text
+                x={x}
+                y={topPadding + plotHeight + X_TICK_LABEL_OFFSET}
+                fill="#111827"
+                fontSize="11"
+                textAnchor="middle"
+              >
                 {tickIndex + 1 + periodLabelOffset}
               </text>
             </g>
@@ -672,13 +694,26 @@ function clampTimeRange(
 
 function buildAxisMetrics(
   finiteValues: number[],
-  axisRange?: ChartAxisRange
+  axisRange?: ChartAxisRange,
+  tickCount: number = DEFAULT_AXIS_TICK_COUNT,
+  options?: { exactTickCount?: boolean; niceScale?: boolean }
 ): { min: number; max: number; range: number; ticks: number[] } {
-  const autoBounds = buildAutoBounds(finiteValues, axisRange?.includeZero === true);
+  const includeZero = axisRange?.includeZero === true;
+  const autoBounds = buildAutoBounds(finiteValues, includeZero);
+  const rawAutoBounds = buildRawAutoBounds(finiteValues, includeZero);
   const manualMin = axisRange?.min;
   const manualMax = axisRange?.max;
-  const resolvedMin = manualMin ?? autoBounds.min;
-  const resolvedMax = manualMax ?? autoBounds.max;
+  const resolvedAutoBounds =
+    options?.niceScale && manualMin == null && manualMax == null
+      ? buildNiceScaleBounds(
+          rawAutoBounds.min,
+          rawAutoBounds.max,
+          tickCount,
+          options.exactTickCount === true
+        )
+      : autoBounds;
+  const resolvedMin = manualMin ?? resolvedAutoBounds.min;
+  const resolvedMax = manualMax ?? resolvedAutoBounds.max;
 
   if (!(resolvedMin < resolvedMax)) {
     throw new Error("Axis range min must be less than max.");
@@ -688,16 +723,16 @@ function buildAxisMetrics(
     min: resolvedMin,
     max: resolvedMax,
     range: resolvedMax - resolvedMin || 1,
-    ticks: buildNumericTicks(resolvedMin, resolvedMax, AXIS_TICK_COUNT)
+    ticks: buildNumericTicks(resolvedMin, resolvedMax, tickCount, options)
   };
 }
 
 function buildAutoBounds(finiteValues: number[], includeZero: boolean): { min: number; max: number } {
-  const minValue = Math.min(...finiteValues);
-  const maxValue = Math.max(...finiteValues);
-  const range = maxValue - minValue || Math.max(Math.abs(maxValue), 1);
-  let paddedMin = minValue === maxValue ? minValue - range * 0.05 : minValue;
-  let paddedMax = minValue === maxValue ? maxValue + range * 0.05 : maxValue;
+  const rawBounds = buildRawAutoBounds(finiteValues, includeZero);
+  const range = rawBounds.max - rawBounds.min || Math.max(Math.abs(rawBounds.max), 1);
+  const edgePadding = range * AUTO_AXIS_EDGE_PADDING_RATIO;
+  let paddedMin = rawBounds.min - edgePadding;
+  let paddedMax = rawBounds.max + edgePadding;
 
   if (includeZero) {
     paddedMin = Math.min(paddedMin, 0);
@@ -711,6 +746,59 @@ function buildAutoBounds(finiteValues: number[], includeZero: boolean): { min: n
   return { min: paddedMin, max: paddedMax };
 }
 
+function buildRawAutoBounds(finiteValues: number[], includeZero: boolean): { min: number; max: number } {
+  const minValue = Math.min(...finiteValues);
+  const maxValue = Math.max(...finiteValues);
+  const range = maxValue - minValue || Math.max(Math.abs(maxValue), 1);
+  let paddedMin = minValue === maxValue ? minValue - range * 0.05 : minValue;
+  let paddedMax = maxValue === minValue ? maxValue + range * 0.05 : maxValue;
+
+  if (includeZero) {
+    paddedMin = Math.min(paddedMin, 0);
+    paddedMax = Math.max(paddedMax, 0);
+  }
+
+  if (paddedMin === paddedMax) {
+    paddedMax = paddedMin + 1;
+  }
+
+  return { min: paddedMin, max: paddedMax };
+}
+
+function buildNiceScaleBounds(
+  min: number,
+  max: number,
+  tickCount: number,
+  exactTickCount: boolean
+): { min: number; max: number } {
+  if (!(min < max)) {
+    return { min, max };
+  }
+
+  const intervalCount = Math.max(tickCount - 1, 1);
+  let step = buildNiceTickStepCeil((max - min) / intervalCount);
+
+  if (!exactTickCount) {
+    return {
+      min: roundTickValue(Math.floor(min / step) * step),
+      max: roundTickValue(Math.ceil(max / step) * step)
+    };
+  }
+
+  for (let attempt = 0; attempt < 64; attempt += 1) {
+    const niceMin = roundTickValue(Math.floor(min / step) * step);
+    const niceMax = roundTickValue(niceMin + step * intervalCount);
+
+    if (niceMax >= max - step * 1e-6) {
+      return { min: niceMin, max: niceMax };
+    }
+
+    step = buildNextNiceTickStep(step);
+  }
+
+  return { min, max };
+}
+
 function snapAxisMetrics<
   T extends {
     axisRangeConfig?: ChartAxisRange;
@@ -719,7 +807,11 @@ function snapAxisMetrics<
     range: number;
     ticks: number[];
   }
->(metrics: T[], axisSnapTolarance?: number): T[] {
+>(
+  metrics: T[],
+  axisSnapTolarance?: number,
+  tickOptions?: { exactTickCount?: boolean; niceScale?: boolean }
+): T[] {
   if (axisSnapTolarance == null || metrics.length < 2) {
     return metrics;
   }
@@ -759,7 +851,12 @@ function snapAxisMetrics<
     const snappedMin = Math.min(...group.map((groupIndex) => nextMetrics[groupIndex].min));
     const snappedMax = Math.max(...group.map((groupIndex) => nextMetrics[groupIndex].max));
     const snappedRange = snappedMax - snappedMin || 1;
-    const snappedTicks = buildNumericTicks(snappedMin, snappedMax, AXIS_TICK_COUNT);
+    const snappedTicks = buildNumericTicks(
+      snappedMin,
+      snappedMax,
+      nextMetrics[group[0]]?.ticks.length ?? DEFAULT_AXIS_TICK_COUNT,
+      tickOptions
+    );
 
     group.forEach((groupIndex) => {
       nextMetrics[groupIndex] = {
@@ -823,12 +920,92 @@ function toY(
   return Math.max(topPadding, Math.min(topPadding + plotHeight, rawY));
 }
 
-function buildNumericTicks(min: number, max: number, count: number): number[] {
+function buildNumericTicks(
+  min: number,
+  max: number,
+  count: number,
+  options?: { exactTickCount?: boolean }
+): number[] {
   if (count <= 1) {
     return [min];
   }
 
-  return Array.from({ length: count }, (_, index) => min + ((max - min) * index) / (count - 1));
+  // In separate-axis mode we keep the same number of intervals on every axis so
+  // the horizontal grid and each axis's tick marks share the same screen rows.
+  // In shared mode the requested count is treated as a target density instead.
+  if (options?.exactTickCount === true) {
+    return buildExactCountNumericTicks(min, max, count);
+  }
+
+  // Treat the requested count as a target density, then snap spacing to a nicer 0/5 step.
+  const rawStep = (max - min) / Math.max(count - 1, 1);
+  const tickStep = buildNiceTickStep(rawStep);
+  const firstTick = Math.ceil((min - tickStep * 1e-6) / tickStep) * tickStep;
+  const ticks: number[] = [];
+
+  for (let value = firstTick; value <= max + tickStep * 1e-6; value += tickStep) {
+    ticks.push(roundTickValue(value));
+  }
+
+  return ticks.length > 0 ? ticks : [roundTickValue(min)];
+}
+
+function buildExactCountNumericTicks(min: number, max: number, count: number): number[] {
+  return Array.from({ length: count }, (_, index) =>
+    roundTickValue(min + ((max - min) * index) / Math.max(count - 1, 1))
+  );
+}
+
+function buildNiceTickStep(rawStep: number): number {
+  if (!Number.isFinite(rawStep) || rawStep <= 0) {
+    return 1;
+  }
+
+  const exponent = Math.floor(Math.log10(rawStep));
+  const increment = 5 * 10 ** (exponent - 1);
+  const roundedStep = Math.round(rawStep / increment) * increment;
+
+  if (roundedStep > 0) {
+    return roundTickValue(roundedStep);
+  }
+
+  return roundTickValue(increment);
+}
+
+function buildNiceTickStepCeil(rawStep: number): number {
+  if (!Number.isFinite(rawStep) || rawStep <= 0) {
+    return 1;
+  }
+
+  const exponent = Math.floor(Math.log10(rawStep));
+  const increment = 5 * 10 ** (exponent - 1);
+  const roundedUpStep = Math.ceil(rawStep / increment) * increment;
+
+  if (roundedUpStep > 0) {
+    return roundTickValue(roundedUpStep);
+  }
+
+  return roundTickValue(increment);
+}
+
+function buildNextNiceTickStep(step: number): number {
+  if (!Number.isFinite(step) || step <= 0) {
+    return 1;
+  }
+
+  const exponent = Math.floor(Math.log10(step));
+  const increment = 5 * 10 ** (exponent - 1);
+  return roundTickValue(step + increment);
+}
+
+function roundTickValue(value: number): number {
+  if (!Number.isFinite(value) || value === 0) {
+    return value;
+  }
+
+  const exponent = Math.floor(Math.log10(Math.abs(value)));
+  const precision = Math.max(0, 6 - exponent);
+  return Number(value.toFixed(precision));
 }
 
 function buildIntegerTicks(length: number, count: number): number[] {

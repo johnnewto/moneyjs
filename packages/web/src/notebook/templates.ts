@@ -3,10 +3,19 @@ import gl2PcNotebookJson from "./templates/gl2-pc.notebook.json";
 import gl6DisNotebookJson from "./templates/gl6-dis.notebook.json";
 import gl7InsoutNotebookJson from "./templates/gl7-insout.notebook.json";
 import gl8GrowthNotebookJson from "./templates/gl8-growth.notebook.json";
+import predatorPreyNotebookJson from "./templates/predator-prey.notebook.json";
+import solverOverviewNotebookJson from "./templates/solver-overview.notebook.json";
 import { notebookFromJson } from "./document";
 import type { NotebookDocument } from "./types";
 
-export type NotebookTemplateId = "bmw" | "gl2-pc" | "gl6-dis" | "gl7-insout" | "gl8-growth";
+export type NotebookTemplateId =
+  | "bmw"
+  | "gl2-pc"
+  | "gl6-dis"
+  | "gl7-insout"
+  | "gl8-growth"
+  | "predator-prey"
+  | "solver-overview";
 export const DEFAULT_NOTEBOOK_TEMPLATE_ID: NotebookTemplateId = "bmw";
 
 export interface NotebookTemplateDefinition {
@@ -49,6 +58,20 @@ export const NOTEBOOK_TEMPLATES: Record<NotebookTemplateId, NotebookTemplateDefi
     description:
       "GROWTH notebook based on the gl8-growth article baseline, accounting matrices, and selected policy experiments.",
     document: notebookFromJson(JSON.stringify(gl8GrowthNotebookJson))
+  },
+  "predator-prey": {
+    id: "predator-prey",
+    label: "Predator-prey",
+    description:
+      "Minimal reference notebook with lagged predator-prey dynamics, one baseline run, and one scenario shock.",
+    document: notebookFromJson(JSON.stringify(predatorPreyNotebookJson))
+  },
+  "solver-overview": {
+    id: "solver-overview",
+    label: "Solver overview",
+    description:
+      "Runnable version of the solver overview block-ordering example with one acyclic chain, one cyclic block, and one scenario.",
+    document: notebookFromJson(JSON.stringify(solverOverviewNotebookJson))
   }
 };
 

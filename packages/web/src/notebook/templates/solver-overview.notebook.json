@@ -1,0 +1,147 @@
+{
+  "id": "solver-overview-notebook",
+  "title": "Solver Overview Notebook",
+  "metadata": { "version": 1, "template": "solver-overview" },
+  "cells": [
+    {
+      "id": "intro",
+      "type": "markdown",
+      "title": "Overview",
+      "source": "This notebook turns the concrete block-ordering example from `devdocs/solver-overview.md` into a runnable model. The document uses `c = d + 1` and `d = c + 1` to illustrate a cyclic component, but that pair has no finite solution. This notebook keeps the same overall teaching shape while using a convergent cyclic pair, an explicit dependency from the cyclic block back to `b`, and a lagged feedback term from `e` into `c`. That keeps the ordered blocks exactly `[a]`, `[b]`, `[c, d]`, `[e]` while also creating a more interesting period-to-period transition."
+    },
+    {
+      "id": "equations",
+      "type": "equations",
+      "title": "Block-order example model",
+      "modelId": "solver-overview",
+      "equations": [
+        { "id": "eq-0-a", "name": "a", "desc": "Acyclic starting value.", "expression": "a_level" },
+        { "id": "eq-1-b", "name": "b", "desc": "Depends only on the solved value of a.", "expression": "a + b_offset" },
+        { "id": "eq-2-c", "name": "c", "desc": "First member of the simultaneous block, with current dependence on d and b plus lagged feedback from e.", "expression": "c_weight * d + c_offset + c_from_b * b + c_from_lag_e * lag(e)" },
+        { "id": "eq-3-d", "name": "d", "desc": "Second member of the simultaneous block.", "expression": "d_weight * c + d_offset" },
+        { "id": "eq-4-e", "name": "e", "desc": "Acyclic tail equation that waits for b and c.", "expression": "b + c" }
+      ],
+      "collapsed": true
+    },
+    {
+      "id": "solver",
+      "type": "solver",
+      "title": "Solver",
+      "modelId": "solver-overview",
+      "options": {
+        "periods": 30,
+        "solverMethod": "GAUSS_SEIDEL",
+        "toleranceText": "1e-10",
+        "maxIterations": 100,
+        "defaultInitialValueText": "1e-15",
+        "hiddenLeftVariable": "",
+        "hiddenRightVariable": "",
+        "hiddenToleranceText": "0.00001",
+        "relativeHiddenTolerance": false
+      },
+      "collapsed": true
+    },
+    {
+      "id": "externals",
+      "type": "externals",
+      "title": "Externals",
+      "modelId": "solver-overview",
+      "externals": [
+        { "id": "ext-0-a-level", "name": "a_level", "desc": "Constant for equation a.", "kind": "constant", "valueText": "1" },
+        { "id": "ext-1-b-offset", "name": "b_offset", "desc": "Offset used by b = a + b_offset.", "kind": "constant", "valueText": "1" },
+        { "id": "ext-2-c-weight", "name": "c_weight", "desc": "Feedback weight from d into c.", "kind": "constant", "valueText": "0.45" },
+        { "id": "ext-3-c-offset", "name": "c_offset", "desc": "Constant term in equation c.", "kind": "constant", "valueText": "0.8" },
+        { "id": "ext-4-d-weight", "name": "d_weight", "desc": "Feedback weight from c into d.", "kind": "constant", "valueText": "0.5" },
+        { "id": "ext-5-d-offset", "name": "d_offset", "desc": "Constant term in equation d.", "kind": "constant", "valueText": "1" },
+        { "id": "ext-6-c-from-b", "name": "c_from_b", "desc": "Links the cyclic block to b so the block order matches the overview document.", "kind": "constant", "valueText": "0.1" },
+        { "id": "ext-7-c-from-lag-e", "name": "c_from_lag_e", "desc": "Lagged feedback from e into the cyclic block to create period-to-period dynamics.", "kind": "constant", "valueText": "0.2" }
+      ],
+      "collapsed": true
+    },
+    {
+      "id": "initial-values",
+      "type": "initial-values",
+      "title": "Initial values",
+      "modelId": "solver-overview",
+      "initialValues": [],
+      "collapsed": true
+    },
+    {
+      "id": "baseline-run",
+      "type": "run",
+      "title": "Baseline run",
+      "mode": "baseline",
+      "resultKey": "solver_overview_baseline",
+      "description": "Baseline run for the block-order example using a convergent cyclic pair with lagged feedback.",
+      "sourceModelId": "solver-overview"
+    },
+    {
+      "id": "baseline-chart",
+      "type": "chart",
+      "title": "Baseline variables by block position",
+      "sourceRunCellId": "baseline-run",
+      "variables": ["a", "b", "c", "d", "e"],
+      "axisMode": "separate",
+      "axisSnapTolarance": 0.5,
+      "seriesRanges": {
+        "a": { "includeZero": true },
+        "b": { "includeZero": true },
+        "c": { "includeZero": true },
+        "d": { "includeZero": true },
+        "e": { "includeZero": true }
+      }
+    },
+    {
+      "id": "baseline-table",
+      "type": "table",
+      "title": "Baseline variable summary",
+      "sourceRunCellId": "baseline-run",
+      "variables": ["a", "b", "c", "d", "e"]
+    },
+    {
+      "id": "scenario-note",
+      "type": "markdown",
+      "title": "Scenario 1",
+      "source": "This scenario raises `c_offset` from `0.8` to `1.1` between periods 5 and 20. It shifts the cyclic block upward while leaving the acyclic equations and overall block ordering unchanged."
+    },
+    {
+      "id": "scenario-run",
+      "type": "run",
+      "title": "Scenario 1: higher c offset",
+      "mode": "scenario",
+      "scenario": {
+        "shocks": [
+          {
+            "rangeInclusive": [5, 20],
+            "variables": { "c_offset": { "kind": "constant", "value": 1.1 } }
+          }
+        ]
+      },
+      "baselineRunCellId": "baseline-run",
+      "periods": 20,
+      "resultKey": "solver_overview_s1",
+      "sourceModelId": "solver-overview"
+    },
+    {
+      "id": "scenario-chart",
+      "type": "chart",
+      "title": "Scenario 1 cyclic block response",
+      "sourceRunCellId": "scenario-run",
+      "variables": ["c", "d", "e"],
+      "axisMode": "separate",
+      "axisSnapTolarance": 0.5,
+      "seriesRanges": {
+        "c": { "includeZero": true },
+        "d": { "includeZero": true },
+        "e": { "includeZero": true }
+      }
+    },
+    {
+      "id": "scenario-table",
+      "type": "table",
+      "title": "Scenario 1 variable summary",
+      "sourceRunCellId": "scenario-run",
+      "variables": ["a", "b", "c", "d", "e"]
+    }
+  ]
+}

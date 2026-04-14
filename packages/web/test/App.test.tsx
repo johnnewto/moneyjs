@@ -201,6 +201,48 @@ describe("App", () => {
     expect(screen.queryByRole("dialog", { name: /equation syntax/i })).not.toBeInTheDocument();
   });
 
+  it("can show external values inside the notebook equations cell expression view", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    const equationsCell = document.getElementById("equations-newton");
+    expect(equationsCell).not.toBeNull();
+    if (!(equationsCell instanceof HTMLElement)) {
+      throw new Error("Expected equations cell article.");
+    }
+
+    await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+
+    expect(within(equationsCell).queryByText("alpha0")).not.toBeInTheDocument();
+    expect(within(equationsCell).queryByText("alpha1")).not.toBeInTheDocument();
+    expect(
+      within(equationsCell)
+        .getAllByText("20")
+        .some((node) => node.className.includes("formula-token"))
+    ).toBe(true);
+    expect(
+      within(equationsCell)
+        .getAllByText("0.75")
+        .some((node) => node.className.includes("formula-token"))
+    ).toBe(true);
+
+    await user.click(
+      within(equationsCell).getByRole("button", { name: /show external names/i })
+    );
+
+    expect(within(equationsCell).getByText("alpha0")).toBeInTheDocument();
+    expect(within(equationsCell).getByText("alpha1")).toBeInTheDocument();
+
+    await user.click(
+      within(equationsCell).getByRole("button", { name: /show external values/i })
+    );
+
+    expect(within(equationsCell).queryByText("alpha0")).not.toBeInTheDocument();
+    expect(within(equationsCell).queryByText("alpha1")).not.toBeInTheDocument();
+  });
+
   it("dims other notebook cells while a linked editor is active", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";
@@ -318,13 +360,9 @@ describe("App", () => {
     await user.click(within(summaryCell).getByRole("button", { name: /^Y\b/i }));
 
     expect(screen.getByText("Selected variable")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Y$/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Y\b/i })).toBeInTheDocument();
     expect(screen.getAllByText(/income = gdp/i).length).toBeGreaterThan(0);
-    expect(
-      screen.getByText(
-        (content, element) => element?.tagName.toLowerCase() === "code" && content.startsWith("Y = ")
-      )
-    ).toBeInTheDocument();
+    expect(document.querySelector("code.inspector-equation")).toHaveTextContent(/Y.*=\s*Cs\s*\+\s*Is/);
   });
 
   it("opens the notebook variable inspector from the model equations table", async () => {
@@ -353,8 +391,9 @@ describe("App", () => {
     await user.click(within(modelCell).getByRole("button", { name: /^show$/i }));
     await user.click(within(modelCell).getByRole("button", { name: /^Y\b/i }));
 
-    expect(screen.getByRole("heading", { name: /^Y$/ })).toBeInTheDocument();
-    expect(screen.getByText(/this endogenous flow variable/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Y\b/i })).toBeInTheDocument();
+    expect(screen.getByText(/^Endogenous$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Flow$/i)).toBeInTheDocument();
   });
 
   it("shows variable descriptions for lowercase rate tokens in the BMW transaction-flow matrix", () => {
@@ -425,7 +464,7 @@ describe("App", () => {
     await user.click(rmToken);
 
     expect(screen.getByText("Selected variable")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^rm$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^rm\b/i })).toBeInTheDocument();
   });
 
   it("loads a notebook template from the hash path", () => {

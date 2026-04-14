@@ -24,12 +24,11 @@ export function serializeCellBody(cell: NotebookCell): string {
   if (cell.type === "markdown") {
     return cell.source;
   }
-  const { title, ...cellBody } = serializeNotebookCell(cell);
-  return formatCellBody(cellBody, "compact");
+  return formatCellBody(serializeNotebookCell(cell), "compact");
 }
 
 export function formatCellBody(
-  cellBody: Omit<NotebookCell, "title">,
+  cellBody: Record<string, unknown>,
   mode: "pretty" | "compact"
 ): string {
   return mode === "pretty"
@@ -48,13 +47,13 @@ export function highlightSourceDraft(
   return highlightJsonSource(source);
 }
 
-export function parseCellSource(cell: NotebookCell, title: string, source: string): NotebookCell {
-  const nextTitle = title.trim();
-  if (!nextTitle) {
-    throw new Error("Cell title is required.");
-  }
-
+export function parseCellSource(cell: NotebookCell, source: string, title?: string): NotebookCell {
   if (cell.type === "markdown") {
+    const nextTitle = title?.trim() ?? "";
+    if (!nextTitle) {
+      throw new Error("Cell title is required.");
+    }
+
     return {
       ...cell,
       title: nextTitle,
@@ -62,18 +61,21 @@ export function parseCellSource(cell: NotebookCell, title: string, source: strin
     };
   }
 
-  const parsed = JSON.parse(source) as Omit<NotebookCell, "title">;
+  const parsed = JSON.parse(source) as NotebookCell;
   if (!parsed || typeof parsed !== "object") {
     throw new Error("Cell source must parse to an object.");
   }
   if (parsed.type !== cell.type) {
     throw new Error(`Cell source must remain type '${cell.type}'.`);
   }
+  if (typeof parsed.title !== "string" || !parsed.title.trim()) {
+    throw new Error("Cell source must include title.");
+  }
   if (typeof parsed.id !== "string") {
     throw new Error("Cell source must include id.");
   }
   validateCellSourceShape(cell.type, parsed);
-  return normalizeCellSource({ ...parsed, title: nextTitle } as NotebookCell);
+  return normalizeCellSource(parsed);
 }
 
 export function buildSourceHelperActions(
@@ -85,6 +87,8 @@ export function buildSourceHelperActions(
         { label: "Add axisMode", insert: '"axisMode": "shared"' },
         { label: "Collapsed true", insert: '"collapsed": true' },
         { label: "Shared range", insert: '"sharedRange": {\n  "min": 0,\n  "max": 200\n}' },
+        { label: "Nice scale", insert: '"niceScale": true' },
+        { label: "Y-axis ticks", insert: '"yAxisTickCount": 7' },
         { label: "Time range", insert: '"timeRangeInclusive": [5, 20]' },
         {
           label: "Series ranges",
@@ -174,6 +178,7 @@ export function buildSourceHelpText(cell: NotebookCell): string {
       return "Markdown cell source is plain text.\n\nExample:\nUpdated notebook overview with `inline code` and a short bullet list.";
     case "run":
       return `Required fields:
+- title
 - id
 - type: "run"
 - sourceModelId or sourceModelCellId
@@ -188,6 +193,7 @@ Optional:
 Scenario example:
 ${formatCellBody(
   {
+    title: cell.title,
     id: cell.id,
     type: "run",
     sourceModelId: "main",
@@ -206,7 +212,7 @@ ${formatCellBody(
         }
       ]
     }
-  } as Omit<NotebookCell, "title">,
+  },
   "compact"
 )}`;
     case "equations":
@@ -223,6 +229,7 @@ Behavior:
 This cell owns the model equation list for one notebook model.`;
     case "chart":
       return `Required fields:
+- title
 - id
 - type: "chart"
 - sourceRunCellId
@@ -231,6 +238,8 @@ This cell owns the model equation list for one notebook model.`;
 Optional:
 - axisMode: "shared" | "separate"
 - axisSnapTolarance: number
+- niceScale: boolean
+- yAxisTickCount: integer >= 2 (preferred density, actual count may vary slightly to keep nice spacing)
 - timeRangeInclusive: [startPeriodInclusive, endPeriodInclusive]
 - sharedRange: { "includeZero"?: boolean, "min"?: number, "max"?: number }
 - seriesRanges: { [variableName]: range }
@@ -238,12 +247,15 @@ Optional:
 Example:
 ${formatCellBody(
   {
+    title: cell.title,
     id: cell.id,
     type: "chart",
     sourceRunCellId: "baseline-run",
     variables: ["ydhs", "c", "p"],
     axisMode: "separate",
     axisSnapTolarance: 0.1,
+    niceScale: true,
+    yAxisTickCount: 7,
     timeRangeInclusive: [5, 20],
     sharedRange: {
       includeZero: true
@@ -254,9 +266,15 @@ ${formatCellBody(
         max: 2
       }
     }
-  } as Omit<NotebookCell, "title">,
+  },
   "compact"
-)}`;
+) }
+
+Notes:
+- Horizontal grid lines and Y-axis labels are generated from the same tick list.
+- niceScale expands auto-scaled bounds outward to nicer 0/5-style values.
+- In shared-axis mode, yAxisTickCount is treated as a target density, so the final tick count may shift slightly when the chart snaps to nicer 0/5 spacing.
+- In separate-axis mode, the chart keeps the same tick count on each axis so the grid rows and axis tick rows stay aligned.`;
     case "externals":
       return `Required fields:
 - id
@@ -295,18 +313,21 @@ Behavior:
 This cell owns the initial-values section for one notebook model. Hide/show only affects visibility in the notebook UI.`;
     case "table":
       return `Required fields:
+- title
 - id
 - type: "table"
 - sourceRunCellId
 - variables: string[]`;
     case "matrix":
       return `Required fields:
+- title
 - id
 - type: "matrix"
 - columns: string[]
 - rows: [{ "label": string, "values": string[] }]`;
     case "sequence":
       return `Required fields:
+- title
 - id
 - type: "sequence"
 - source
@@ -561,6 +582,19 @@ function validateCellSourceShape(
         typeof (parsed as ChartCell).axisSnapTolarance !== "number"
       ) {
         throw new Error("Chart axisSnapTolarance must be a number.");
+      }
+      if (
+        (parsed as ChartCell).niceScale != null &&
+        typeof (parsed as ChartCell).niceScale !== "boolean"
+      ) {
+        throw new Error("Chart niceScale must be a boolean.");
+      }
+      if (
+        (parsed as ChartCell).yAxisTickCount != null &&
+        (!Number.isInteger((parsed as ChartCell).yAxisTickCount) ||
+          Number((parsed as ChartCell).yAxisTickCount) < 2)
+      ) {
+        throw new Error("Chart yAxisTickCount must be an integer greater than or equal to 2.");
       }
       validateChartAxisRange((parsed as ChartCell).sharedRange, "sharedRange");
       validateChartTimeRangeInclusive(

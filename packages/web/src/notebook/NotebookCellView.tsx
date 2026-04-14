@@ -121,7 +121,10 @@ export function NotebookCellView({
   const sourceHighlightRef = useRef<HTMLPreElement | null>(null);
   const sourceGutterRef = useRef<HTMLPreElement | null>(null);
   const currentSerializedBody = serializeCellBody(cell);
-  const hasSourceEdits = titleDraft !== cell.title || sourceDraft !== currentSerializedBody;
+  const hasSourceEdits =
+    cell.type === "markdown"
+      ? titleDraft !== cell.title || sourceDraft !== currentSerializedBody
+      : sourceDraft !== currentSerializedBody;
   const isCollapsed = cell.collapsed === true && !isEditingSource && !isLinkedModelEditorCell(cell);
   const sourceLineNumbers = Array.from({ length: sourceDraft.split("\n").length }, (_, index) =>
     String(index + 1)
@@ -167,7 +170,7 @@ export function NotebookCellView({
     }
 
     try {
-      parseCellSource(cell, titleDraft, sourceDraft);
+      parseCellSource(cell, sourceDraft, cell.type === "markdown" ? titleDraft : undefined);
       setSourceValidationError(null);
     } catch (validationError) {
       setSourceValidationError(
@@ -233,7 +236,11 @@ export function NotebookCellView({
 
   function handleApplySource(): void {
     try {
-      const nextCell = parseCellSource(cell, titleDraft, sourceDraft);
+      const nextCell = parseCellSource(
+        cell,
+        sourceDraft,
+        cell.type === "markdown" ? titleDraft : undefined
+      );
       onCellChange(cell.id, () => nextCell);
       setSourceError(null);
       setSourceValidationError(null);
@@ -260,7 +267,7 @@ export function NotebookCellView({
     }
 
     try {
-      const parsed = JSON.parse(sourceDraft) as Omit<NotebookCell, "title">;
+      const parsed = JSON.parse(sourceDraft) as NotebookCell;
       setSourceDraft(formatCellBody(parsed, nextMode));
       setSourceLayoutMode(nextMode);
     } catch {
@@ -280,6 +287,14 @@ export function NotebookCellView({
           <NotebookLinkedEditorHeader
             actions={
               <NotebookCellHeaderActions
+                helpDialogContent={
+                  isEditingSource && cell.type === "chart" ? (
+                    <pre className="notebook-source-help-code">{buildSourceHelpText(cell)}</pre>
+                  ) : undefined
+                }
+                helpDialogTitle={
+                  isEditingSource && cell.type === "chart" ? "Chart Syntax" : undefined
+                }
                 helpText={showToolbarHelp ? buildNotebookCellHelpText(cell) : null}
                 isCollapsed={cell.collapsed === true}
                 isEditing={isEditingSource}
@@ -405,20 +420,24 @@ export function NotebookCellView({
                   </label>
                 </fieldset>
               ) : null}
-              <details className="notebook-source-help notebook-source-help-inline">
-                <summary>Syntax help</summary>
-                <pre className="notebook-source-help-code">{buildSourceHelpText(cell)}</pre>
-              </details>
+              {cell.type === "chart" ? null : (
+                <details className="notebook-source-help notebook-source-help-inline">
+                  <summary>Syntax help</summary>
+                  <pre className="notebook-source-help-code">{buildSourceHelpText(cell)}</pre>
+                </details>
+              )}
             </div>
-            <label className="field">
-              <span>Title</span>
-              <input
-                type="text"
-                value={titleDraft}
-                onChange={(event) => setTitleDraft(event.target.value)}
-                aria-label={`Title editor for ${cell.title}`}
-              />
-            </label>
+            {cell.type === "markdown" ? (
+              <label className="field">
+                <span>Title</span>
+                <input
+                  type="text"
+                  value={titleDraft}
+                  onChange={(event) => setTitleDraft(event.target.value)}
+                  aria-label={`Title editor for ${cell.title}`}
+                />
+              </label>
+            ) : null}
             <div className="notebook-source-codeframe">
               <pre ref={sourceGutterRef} className="notebook-source-gutter" aria-hidden="true">
                 <code>{sourceLineNumbers}</code>
@@ -467,6 +486,7 @@ export function NotebookCellView({
             }
             onEditingChange={setIsLinkedEditorEditing}
             onVariableInspectRequest={onVariableInspectRequest}
+            selectedPeriodIndex={selectedPeriodIndex}
             solverCell={findSolverCell(cells, cell.modelId)}
             title={cell.title}
             onChange={(equations) =>
@@ -881,6 +901,7 @@ function EquationsCellView({
   initialValuesCount,
   onEditingChange,
   onVariableInspectRequest,
+  selectedPeriodIndex,
   solverCell,
   title,
   onChange,
@@ -898,6 +919,7 @@ function EquationsCellView({
     variableDescriptions: VariableDescriptions;
     variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
   }): void;
+  selectedPeriodIndex: number;
   solverCell: SolverCell | null;
   title: string;
   onChange(equations: EquationsCell["equations"]): void;
@@ -957,7 +979,12 @@ function EquationsCellView({
       ? buildActiveTrace(traceModel, hoveredRowId, "inputs")
       : null;
   const [isEditingEquations, setIsEditingEquations] = useState(false);
+  const [showExternalValues, setShowExternalValues] = useState(true);
   const hasDraftEdits = JSON.stringify(draftEquations) !== JSON.stringify(cell.equations);
+  const externalDisplayValues = useMemo(
+    () => buildExternalDisplayValues(externals, selectedPeriodIndex),
+    [externals, selectedPeriodIndex]
+  );
 
   useEffect(() => {
     onEditingChange?.(isEditingEquations);
@@ -990,6 +1017,18 @@ function EquationsCellView({
         actions={
           <NotebookLinkedEditorActions
             cell={cell}
+            extraActions={
+              !isEditingEquations && cell.collapsed !== true ? (
+                <button
+                  type="button"
+                  className="notebook-run-button"
+                  aria-pressed={showExternalValues}
+                  onClick={() => setShowExternalValues((current) => !current)}
+                >
+                  {showExternalValues ? "Show external names" : "Show external values"}
+                </button>
+              ) : null
+            }
             hasDraftEdits={hasDraftEdits}
             isEditing={isEditingEquations}
             onApply={handleApply}
@@ -1123,19 +1162,20 @@ function EquationsCellView({
                   <span className="notebook-model-view-expression" role="cell">
                     {equation.expression
                       ? highlightFormula(
-                          equation.expression,
-                          parameterNameSet,
-                          traceRole ? activeTrace?.tokenStates : undefined,
-                          variableDescriptions,
-                          variableUnitMetadata,
-                          (selectedVariable) =>
-                            onVariableInspectRequest({
-                              currentValues,
-                              editor,
-                              selectedVariable,
-                              variableDescriptions,
-                              variableUnitMetadata
-                            })
+                        equation.expression,
+                        parameterNameSet,
+                        traceRole ? activeTrace?.tokenStates : undefined,
+                        variableDescriptions,
+                        variableUnitMetadata,
+                        (selectedVariable) =>
+                          onVariableInspectRequest({
+                            currentValues,
+                            editor,
+                            selectedVariable,
+                            variableDescriptions,
+                            variableUnitMetadata
+                            }),
+                        showExternalValues ? externalDisplayValues : undefined
                         )
                       : " "}
                   </span>
@@ -1782,6 +1822,7 @@ function NotebookCellHeaderActions({
     <div className="notebook-cell-header-actions">
       {leadingActions ? <div className="notebook-cell-header-leading">{leadingActions}</div> : null}
       <div className="notebook-linked-editor-actions">
+        {!isEditing ? trailingActions ?? null : null}
         {helpText ? (
           <NotebookHelpButton
             dialogContent={helpDialogContent}
@@ -1805,7 +1846,7 @@ function NotebookCellHeaderActions({
             {isCollapsed ? "Show" : "Hide"}
           </button>
         ) : null}
-        {trailingActions ?? null}
+        {isEditing ? trailingActions ?? null : null}
       </div>
     </div>
   );
@@ -1813,6 +1854,7 @@ function NotebookCellHeaderActions({
 
 function NotebookLinkedEditorActions({
   cell,
+  extraActions,
   hasDraftEdits,
   isEditing,
   onApply,
@@ -1822,6 +1864,7 @@ function NotebookLinkedEditorActions({
   title
 }: {
   cell: ModelCell | EquationsCell | SolverCell | ExternalsCell | InitialValuesCell;
+  extraActions?: ReactNode;
   hasDraftEdits: boolean;
   isEditing: boolean;
   onApply(): void;
@@ -1849,25 +1892,28 @@ function NotebookLinkedEditorActions({
       onToggleCollapsed={onToggleCollapsed}
       title={title}
       trailingActions={
-        isEditing ? (
-          <>
-            <button
-              type="button"
-              className="notebook-run-button notebook-source-toggle"
-              onClick={onApply}
-              disabled={!hasDraftEdits}
-            >
-              Apply
-            </button>
-            <button
-              type="button"
-              className="notebook-run-button notebook-source-toggle"
-              onClick={onCancel}
-            >
-              Cancel
-            </button>
-          </>
-        ) : null
+        <>
+          {!isEditing ? extraActions ?? null : null}
+          {isEditing ? (
+            <>
+              <button
+                type="button"
+                className="notebook-run-button notebook-source-toggle"
+                onClick={onApply}
+                disabled={!hasDraftEdits}
+              >
+                Apply
+              </button>
+              <button
+                type="button"
+                className="notebook-run-button notebook-source-toggle"
+                onClick={onCancel}
+              >
+                Cancel
+              </button>
+            </>
+          ) : null}
+        </>
       }
     />
   );
@@ -2075,6 +2121,7 @@ function ChartCellView({
     <ResultChart
       axisMode={cell.axisMode ?? "shared"}
       axisSnapTolarance={cell.axisSnapTolarance}
+      niceScale={cell.niceScale}
       overlaySeries={overlaySeries}
       periodLabelOffset={periodLabelOffset}
       seriesRanges={cell.seriesRanges}
@@ -2085,6 +2132,7 @@ function ChartCellView({
       timeRangeInclusive={cell.timeRangeInclusive}
       variableDescriptions={variableDescriptions}
       variableUnitMetadata={variableUnitMetadata}
+      yAxisTickCount={cell.yAxisTickCount}
     />
   );
 }
@@ -2911,6 +2959,37 @@ function formatShockValue(
   return `[${value.values
     .map((item) => item.toLocaleString(undefined, { maximumFractionDigits: 6 }))
     .join(", ")}]`;
+}
+
+function buildExternalDisplayValues(
+  externals: ExternalsCell["externals"],
+  selectedPeriodIndex: number
+): Map<string, string> {
+  return new Map(
+    externals.map((external) => [
+      external.name,
+      formatExternalValueLabel(external, selectedPeriodIndex)
+    ])
+  );
+}
+
+function formatExternalValueLabel(
+  external: ExternalsCell["externals"][number],
+  selectedPeriodIndex: number
+): string {
+  if (external.kind === "constant") {
+    const constantValue = Number(external.valueText.trim());
+    return Number.isFinite(constantValue)
+      ? constantValue.toLocaleString(undefined, { maximumFractionDigits: 6 })
+      : external.valueText;
+  }
+
+  const values = external.valueText
+    .split(",")
+    .map((part) => Number(part.trim()))
+    .filter((value) => Number.isFinite(value));
+  const value = values[Math.min(selectedPeriodIndex, Math.max(values.length - 1, 0))];
+  return Number.isFinite(value) ? value.toLocaleString(undefined, { maximumFractionDigits: 6 }) : "--";
 }
 
 function safeBuildRuntime(editor: EditorState) {

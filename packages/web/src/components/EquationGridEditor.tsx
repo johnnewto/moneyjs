@@ -210,6 +210,7 @@ export function EquationGridEditor({
 interface HighlightedFormulaInputProps {
   ariaLabel: string;
   className?: string;
+  displayTokens?: Map<string, string>;
   footer?: ReactNode;
   highlightedTokens?: Map<string, TraceTokenRole>;
   inputRef(node: HTMLTextAreaElement | null): void;
@@ -226,6 +227,7 @@ interface HighlightedFormulaInputProps {
 function HighlightedFormulaInput({
   ariaLabel,
   className = "",
+  displayTokens,
   footer,
   highlightedTokens,
   inputRef,
@@ -255,7 +257,8 @@ function HighlightedFormulaInput({
               highlightedTokens,
               variableDescriptions,
               variableUnitMetadata,
-              onSelectVariable
+              onSelectVariable,
+              displayTokens
             )
           : placeholder}
       </div>
@@ -286,7 +289,8 @@ export function highlightFormula(
   highlightedTokens?: Map<string, TraceTokenRole>,
   variableDescriptions?: VariableDescriptions,
   variableUnitMetadata?: VariableUnitMetadata,
-  onSelectVariable?: (variableName: string) => void
+  onSelectVariable?: (variableName: string) => void,
+  displayTokens?: Map<string, string>
 ): ReactNode[] {
   const parts: ReactNode[] = [];
   const tokenPattern = /([A-Za-z_][A-Za-z0-9_]*|\d+(?:\.\d+)?(?:e[+-]?\d+)?)/gi;
@@ -302,6 +306,8 @@ export function highlightFormula(
 
     const tokenClass = classifyToken(token, parameterNames, source, index + token.length);
     const normalizedToken = token.trim();
+    const renderedToken =
+      tokenClass === "formula-parameter" ? displayTokens?.get(normalizedToken) ?? token : token;
     const traceClass = highlightedTokens?.get(normalizedToken) ?? null;
     const hasVariableMetadata =
       variableDescriptions?.has(normalizedToken) || variableUnitMetadata?.has(normalizedToken);
@@ -344,7 +350,7 @@ export function highlightFormula(
             onSelectVariable(normalizedToken);
           }}
         >
-          {token}
+          {renderedToken}
         </span>
       </InstantTooltip>
     );

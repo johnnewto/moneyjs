@@ -1,0 +1,149 @@
+{
+  "id": "predator-prey-notebook",
+  "title": "Predator-Prey Notebook",
+  "metadata": { "version": 1, "template": "predator-prey" },
+  "cells": [
+    {
+      "id": "intro",
+      "type": "markdown",
+      "title": "Overview",
+      "source": "This notebook is a small reference example for the browser notebook format. It uses a discrete predator-prey system with lagged state updates, so the model is dynamic across periods without creating a same-period feedback block. That makes it a good companion to `devdocs/solver-overview.md`: the solver still runs period by period, but each period is mostly a direct acyclic pass because the state transition depends on lagged values."
+    },
+    {
+      "id": "equations",
+      "type": "equations",
+      "title": "Predator-prey model",
+      "modelId": "predator-prey",
+      "equations": [
+        { "id": "eq-0-interaction", "name": "interaction", "desc": "Lagged encounter term between prey and predators.", "expression": "lag(prey) * lag(predator)" },
+        { "id": "eq-1-prey_capacity_gap", "name": "prey_capacity_gap", "desc": "Remaining room before prey reaches carrying capacity.", "expression": "1 - lag(prey) / prey_capacity" },
+        { "id": "eq-2-prey_births", "name": "prey_births", "desc": "Prey reproduction damped by carrying capacity.", "expression": "alpha * lag(prey) * prey_capacity_gap" },
+        { "id": "eq-3-prey_losses", "name": "prey_losses", "desc": "Prey removed through predation.", "expression": "beta * interaction" },
+        { "id": "eq-4-predator_births", "name": "predator_births", "desc": "Predator growth from successful encounters.", "expression": "delta * interaction" },
+        { "id": "eq-5-predator_losses", "name": "predator_losses", "desc": "Predator decline from natural mortality.", "expression": "gamma * lag(predator)" },
+        { "id": "eq-6-prey", "name": "prey", "desc": "Prey stock next period.", "expression": "lag(prey) + prey_births - prey_losses" },
+        { "id": "eq-7-predator", "name": "predator", "desc": "Predator stock next period.", "expression": "lag(predator) + predator_births - predator_losses" },
+        { "id": "eq-8-balance", "name": "balance", "desc": "Net biological balance for quick inspection.", "expression": "prey - predator" }
+      ],
+      "collapsed": true
+    },
+    {
+      "id": "solver",
+      "type": "solver",
+      "title": "Solver",
+      "modelId": "predator-prey",
+      "options": {
+        "periods": 120,
+        "solverMethod": "GAUSS_SEIDEL",
+        "toleranceText": "1e-10",
+        "maxIterations": 50,
+        "defaultInitialValueText": "1e-15",
+        "hiddenLeftVariable": "",
+        "hiddenRightVariable": "",
+        "hiddenToleranceText": "0.00001",
+        "relativeHiddenTolerance": false
+      },
+      "collapsed": true
+    },
+    {
+      "id": "externals",
+      "type": "externals",
+      "title": "Externals",
+      "modelId": "predator-prey",
+      "externals": [
+        { "id": "ext-0-alpha", "name": "alpha", "desc": "Prey intrinsic growth rate.", "kind": "constant", "valueText": "0.12" },
+        { "id": "ext-1-beta", "name": "beta", "desc": "Predation intensity.", "kind": "constant", "valueText": "0.01" },
+        { "id": "ext-2-delta", "name": "delta", "desc": "Predator growth from prey encounters.", "kind": "constant", "valueText": "0.005" },
+        { "id": "ext-3-gamma", "name": "gamma", "desc": "Predator mortality rate.", "kind": "constant", "valueText": "0.08" },
+        { "id": "ext-4-prey_capacity", "name": "prey_capacity", "desc": "Environmental carrying capacity for the prey population.", "kind": "constant", "valueText": "80" }
+      ],
+      "collapsed": true
+    },
+    {
+      "id": "initial-values",
+      "type": "initial-values",
+      "title": "Initial values",
+      "modelId": "predator-prey",
+      "initialValues": [
+        { "id": "init-0-prey", "name": "prey", "valueText": "40" },
+        { "id": "init-1-predator", "name": "predator", "valueText": "9" }
+      ],
+      "collapsed": true
+    },
+    {
+      "id": "baseline-run",
+      "type": "run",
+      "title": "Baseline run",
+      "mode": "baseline",
+      "resultKey": "predator_prey_baseline",
+      "description": "Baseline discrete predator-prey path using lagged state updates.",
+      "sourceModelId": "predator-prey"
+    },
+    {
+      "id": "baseline-chart",
+      "type": "chart",
+      "title": "Baseline populations and interactions",
+      "sourceRunCellId": "baseline-run",
+      "variables": ["prey", "predator", "interaction"],
+      "axisMode": "separate",
+      "axisSnapTolarance": 0.5,
+      "seriesRanges": {
+        "prey": { "includeZero": true },
+        "predator": { "includeZero": true },
+        "interaction": { "includeZero": true }
+      }
+    },
+    {
+      "id": "baseline-table",
+      "type": "table",
+      "title": "Baseline variable summary",
+      "sourceRunCellId": "baseline-run",
+      "variables": ["prey", "predator", "prey_births", "prey_losses", "predator_births", "predator_losses", "balance"]
+    },
+    {
+      "id": "scenario-note",
+      "type": "markdown",
+      "title": "Scenario 1",
+      "source": "This scenario raises the prey growth rate `alpha` from `0.12` to `0.14` between periods 25 and 50. It is a compact example of a single external shock applied to an otherwise acyclic lagged system."
+    },
+    {
+      "id": "scenario-run",
+      "type": "run",
+      "title": "Scenario 1: temporary prey growth shock",
+      "mode": "scenario",
+      "scenario": {
+        "shocks": [
+          {
+            "rangeInclusive": [25, 50],
+            "variables": { "alpha": { "kind": "constant", "value": 0.14 } }
+          }
+        ]
+      },
+      "baselineRunCellId": "baseline-run",
+      "periods": 50,
+      "resultKey": "predator_prey_s1",
+      "sourceModelId": "predator-prey"
+    },
+    {
+      "id": "scenario-chart",
+      "type": "chart",
+      "title": "Scenario 1 populations and balance",
+      "sourceRunCellId": "scenario-run",
+      "variables": ["prey", "predator", "balance"],
+      "axisMode": "separate",
+      "axisSnapTolarance": 0.5,
+      "seriesRanges": {
+        "prey": { "includeZero": true },
+        "predator": { "includeZero": true },
+        "balance": { "includeZero": true }
+      }
+    },
+    {
+      "id": "scenario-table",
+      "type": "table",
+      "title": "Scenario 1 variable summary",
+      "sourceRunCellId": "scenario-run",
+      "variables": ["prey", "predator", "interaction", "prey_births", "predator_births", "balance"]
+    }
+  ]
+}

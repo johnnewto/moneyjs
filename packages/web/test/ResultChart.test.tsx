@@ -51,6 +51,28 @@ describe("ResultChart", () => {
     expect(screen.getByText(/P: .* to /i)).toBeInTheDocument();
   });
 
+  it("keeps separate-axis tick rows aligned by using the same tick count on each axis", () => {
+    render(
+      <ResultChart
+        axisMode="separate"
+        yAxisTickCount={6}
+        series={[
+          { name: "A", values: [0.11, 0.13, 0.17, 0.19] },
+          { name: "B", values: [120, 180, 260, 310] }
+        ]}
+      />
+    );
+
+    const axisGroups = Array.from(document.querySelectorAll(".chart-axis"));
+    expect(axisGroups).toHaveLength(2);
+
+    const tickLabelCounts = axisGroups.map(
+      (axisGroup) => axisGroup.querySelectorAll("text").length - 1
+    );
+
+    expect(tickLabelCounts).toEqual([6, 6]);
+  });
+
   it("supports includeZero on a shared auto range", () => {
     render(
       <ResultChart
@@ -62,7 +84,7 @@ describe("ResultChart", () => {
       />
     );
 
-    expect(screen.getByText(/Shared axis: 0\.000 to 25\.0/i)).toBeInTheDocument();
+    expect(screen.getByText(/Shared axis: -1\.00 to 26\.0/i)).toBeInTheDocument();
   });
 
   it("supports manual shared and per-series ranges", () => {
@@ -82,7 +104,7 @@ describe("ResultChart", () => {
     );
 
     expect(screen.getByText(/P: 0\.000 to 10\.0/i)).toBeInTheDocument();
-    expect(screen.getByText(/POLR: 0\.000 to 25\.0/i)).toBeInTheDocument();
+    expect(screen.getByText(/POLR: -1\.00 to 26\.0/i)).toBeInTheDocument();
   });
 
   it("snaps similar separate auto axes when enabled", () => {
@@ -97,8 +119,8 @@ describe("ResultChart", () => {
       />
     );
 
-    expect(screen.getByText(/A: 10\.0 to 17\.0/i)).toBeInTheDocument();
-    expect(screen.getByText(/B: 10\.0 to 17\.0/i)).toBeInTheDocument();
+    expect(screen.getByText(/A: 9\.76 to 17\.2/i)).toBeInTheDocument();
+    expect(screen.getByText(/B: 9\.76 to 17\.2/i)).toBeInTheDocument();
   });
 
   it("does not snap manual per-series ranges", () => {
@@ -117,7 +139,7 @@ describe("ResultChart", () => {
     );
 
     expect(screen.getByText(/A: 0\.000 to 20\.0/i)).toBeInTheDocument();
-    expect(screen.getByText(/B: 11\.0 to 17\.0/i)).toBeInTheDocument();
+    expect(screen.getByText(/B: 10\.8 to 17\.2/i)).toBeInTheDocument();
   });
 
   it("uses the supplied auto time-range defaults", () => {
@@ -132,7 +154,7 @@ describe("ResultChart", () => {
     );
 
     expect(screen.getByText(/Time axis: 3 to 5/i)).toBeInTheDocument();
-    expect(screen.getByText(/Shared axis: 7\.00 to 18\.0/i)).toBeInTheDocument();
+    expect(screen.getByText(/Shared axis: 6\.56 to 18\.4/i)).toBeInTheDocument();
   });
 
   it("supports manual time ranges", () => {
@@ -147,7 +169,36 @@ describe("ResultChart", () => {
     );
 
     expect(screen.getByText(/Time axis: 2 to 4/i)).toBeInTheDocument();
-    expect(screen.getByText(/Shared axis: 6\.00 to 16\.0/i)).toBeInTheDocument();
+    expect(screen.getByText(/Shared axis: 5\.60 to 16\.4/i)).toBeInTheDocument();
+  });
+
+  it("uses nice y-axis tick spacing with 0 or 5 endings", () => {
+    render(
+      <ResultChart
+        series={[
+          { name: "A", values: [0.101, 0.214, 0.327, 0.441] },
+          { name: "B", values: [0.151, 0.264, 0.377, 0.491] }
+        ]}
+      />
+    );
+
+    expect(screen.getAllByText("0.200").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("0.300").length).toBeGreaterThan(0);
+    expect(screen.queryByText("0.213")).not.toBeInTheDocument();
+  });
+
+  it("supports niceScale to expand auto bounds to nicer values", () => {
+    render(
+      <ResultChart
+        niceScale
+        series={[
+          { name: "A", values: [0.112, 0.176, 0.243, 0.298] },
+          { name: "B", values: [0.101, 0.166, 0.231, 0.287] }
+        ]}
+      />
+    );
+
+    expect(screen.getByText(/Shared axis: 0\.100 to 0\.300/i)).toBeInTheDocument();
   });
 
   it("highlights the nearest trace and shows a hover tooltip", () => {

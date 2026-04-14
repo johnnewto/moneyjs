@@ -92,6 +92,8 @@ export interface ChartCell extends NotebookCellBase {
   variables: string[];
   axisMode?: "shared" | "separate";
   axisSnapTolarance?: number;
+  niceScale?: boolean;
+  yAxisTickCount?: number;
   sharedRange?: ChartAxisRange;
   seriesRanges?: Record<string, ChartAxisRange | undefined>;
   timeRangeInclusive?: [number, number];
