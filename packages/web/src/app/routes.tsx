@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 export type AppRoute = "workspace" | "notebook";
 
 export function getRouteFromHash(hash: string): AppRoute {
-  return hash.startsWith("#/notebook") ? "notebook" : "workspace";
+  return hash.startsWith("#/workspace") ? "workspace" : "notebook";
 }
 
 export function useAppRoute(): AppRoute {
