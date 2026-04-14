@@ -28,7 +28,7 @@ export function serializeCellBody(cell: NotebookCell): string {
 }
 
 export function formatCellBody(
-  cellBody: Record<string, unknown>,
+  cellBody: object,
   mode: "pretty" | "compact"
 ): string {
   return mode === "pretty"
