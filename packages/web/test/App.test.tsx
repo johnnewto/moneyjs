@@ -175,6 +175,61 @@ describe("App", () => {
     expect(within(equationsCell).getByRole("button", { name: /^cancel$/i })).toBeInTheDocument();
   });
 
+  it("shows a larger equation syntax dialog from help while editing equations", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    const equationsCell = document.getElementById("equations-newton");
+    expect(equationsCell).not.toBeNull();
+    if (!(equationsCell instanceof HTMLElement)) {
+      throw new Error("Expected equations cell article.");
+    }
+
+    await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+    await user.click(within(equationsCell).getByRole("button", { name: /^edit$/i }));
+    await user.click(within(equationsCell).getByRole("button", { name: /^help$/i }));
+
+    const dialog = screen.getByRole("dialog", { name: /equation syntax/i });
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText(/core forms/i)).toBeInTheDocument();
+    expect(within(dialog).getAllByText(/I\(flowExpr\)/i).length).toBeGreaterThan(0);
+    expect(within(dialog).getByText(/stock-flow guidance/i)).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: /^close$/i }));
+    expect(screen.queryByRole("dialog", { name: /equation syntax/i })).not.toBeInTheDocument();
+  });
+
+  it("dims other notebook cells while a linked editor is active", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    const equationsCell = document.getElementById("equations-newton");
+    expect(equationsCell).not.toBeNull();
+    if (!(equationsCell instanceof HTMLElement)) {
+      throw new Error("Expected equations cell article.");
+    }
+
+    await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+    await user.click(within(equationsCell).getByRole("button", { name: /^edit$/i }));
+
+    const notebookSheet = screen.getByRole("region", { name: /notebook sheet/i });
+    expect(notebookSheet.className).toContain("notebook-has-active-editor");
+    expect(equationsCell.className).toContain("notebook-cell-is-active-editor");
+    const activeOutlineItem = screen
+      .getAllByRole("button", { name: /bmw model/i })
+      .map((button) => button.closest("li"))
+      .find((item): item is HTMLLIElement => item instanceof HTMLLIElement);
+    expect(activeOutlineItem?.className).toContain("notebook-outline-item-is-active");
+
+    await user.click(within(equationsCell).getByRole("button", { name: /^cancel$/i }));
+    expect(notebookSheet.className).not.toContain("notebook-has-active-editor");
+    expect(equationsCell.className).not.toContain("notebook-cell-is-active-editor");
+  });
+
   it("auto-runs notebook cells on load", async () => {
     window.location.hash = "#/notebook";
 

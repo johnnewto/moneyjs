@@ -22,6 +22,8 @@ export function evaluateExpression(expr: Expr, context: SolverContext): number {
         return 0;
       }
       return context.diffValue(expr.name);
+    case "Integral":
+      throw new Error("Integral I(...) must be used as the outermost RHS of an equation.");
     case "Unary":
       return -evaluateExpression(expr.expr, context);
     case "If":
@@ -80,6 +82,8 @@ export function collectCurrentDependencies(expr: Expr): Set<string> {
         return new Set<string>();
       }
       return new Set<string>([expr.name]);
+    case "Integral":
+      return collectCurrentDependencies(expr.expr);
     case "Unary":
       return collectCurrentDependencies(expr.expr);
     case "If":
@@ -113,6 +117,8 @@ export function collectLagDependencies(expr: Expr): Set<string> {
         return new Set<string>();
       }
       return new Set<string>([expr.name]);
+    case "Integral":
+      return collectLagDependencies(expr.expr);
     case "Unary":
       return collectLagDependencies(expr.expr);
     case "If":

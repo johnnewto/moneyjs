@@ -42,6 +42,7 @@ export function NotebookApp() {
   const [selectedPeriodIndex, setSelectedPeriodIndex] = useState(0);
   const [autoRunRevision, setAutoRunRevision] = useState(0);
   const [isDataPanelOpen, setIsDataPanelOpen] = useState(false);
+  const [activeEditorCellId, setActiveEditorCellId] = useState<string | null>(null);
   const [importPreview, setImportPreview] = useState<{
     document: NotebookDocument;
     source: "json" | "markdown";
@@ -323,9 +324,21 @@ export function NotebookApp() {
   }
 
   function scrollToCell(cellId: string): void {
-    document.getElementById(cellId)?.scrollIntoView({
+    const cell = document.getElementById(cellId);
+    if (!cell) {
+      return;
+    }
+
+    const scrubber = document.querySelector(".notebook-scrubber-slot");
+    const scrubberHeight =
+      scrubber instanceof HTMLElement ? scrubber.getBoundingClientRect().height : 0;
+    const extraOffset = 0;
+    const targetTop =
+      window.scrollY + cell.getBoundingClientRect().top - scrubberHeight - extraOffset;
+
+    window.scrollTo({
       behavior: "smooth",
-      block: "start"
+      top: Math.max(targetTop, 0)
     });
   }
 
@@ -548,16 +561,23 @@ export function NotebookApp() {
             ) : null}
           </section>
 
-          <section className="notebook-canvas" aria-label="Notebook sheet">
+          <section
+            className={`notebook-canvas${
+              activeEditorCellId ? " notebook-has-active-editor" : ""
+            }`}
+            aria-label="Notebook sheet"
+          >
             {notebookDocument.cells.map((cell) => (
               <NotebookCellView
                 key={cell.id}
+                activeEditorCellId={activeEditorCellId}
                 cell={cell}
                 cells={notebookDocument.cells}
                 getModelCurrentValues={getCurrentValueMapForModelRef}
                 maxPeriodIndex={maxResultPeriodIndex}
                 onSelectedPeriodIndexChange={setSelectedPeriodIndex}
                 runner={runner}
+                onActiveEditorCellIdChange={setActiveEditorCellId}
                 onModelChange={updateModelCell}
                 onCellChange={updateCell}
                 selectedPeriodIndex={selectedPeriodIndex}
@@ -566,7 +586,11 @@ export function NotebookApp() {
           </section>
         </div>
 
-        <aside className="notebook-outline notebook-rail editor-panel">
+        <aside
+          className={`notebook-outline notebook-rail editor-panel${
+            activeEditorCellId ? " notebook-outline-has-active-editor" : ""
+          }`}
+        >
           <div className="panel-header">
             <div>
               <p className="panel-subtitle">{notebookDocument.title}</p>
@@ -575,7 +599,10 @@ export function NotebookApp() {
 
           <ol className="notebook-outline-list">
             {notebookDocument.cells.map((cell, index) => (
-              <li key={cell.id}>
+              <li
+                key={cell.id}
+                className={activeEditorCellId === cell.id ? "notebook-outline-item-is-active" : ""}
+              >
                 <button type="button" onClick={() => scrollToCell(cell.id)}>
                   <span className="outline-index">{index + 1}</span>
                   <span>{cell.title}</span>

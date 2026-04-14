@@ -3,6 +3,7 @@ export type Expr =
   | VariableExpr
   | LagExpr
   | DiffExpr
+  | IntegralExpr
   | UnaryExpr
   | BinaryExpr
   | IfExpr
@@ -26,6 +27,11 @@ export interface LagExpr {
 export interface DiffExpr {
   type: "Diff";
   name: string;
+}
+
+export interface IntegralExpr {
+  type: "Integral";
+  expr: Expr;
 }
 
 export interface UnaryExpr {

@@ -83,19 +83,19 @@ describe("editor model validation", () => {
       id: "eq-v",
       name: "V",
       expression: "K + C",
-      unitMeta: { dimensionKind: "stock", baseUnit: "$" }
+      unitMeta: { stockFlow: "stock", signature: { money: 1 } }
     };
     editor.equations[1] = {
       id: "eq-k",
       name: "K",
       expression: "1",
-      unitMeta: { dimensionKind: "stock", baseUnit: "$" }
+      unitMeta: { stockFlow: "stock", signature: { money: 1 } }
     };
     editor.equations[2] = {
       id: "eq-c",
       name: "C",
       expression: "1",
-      unitMeta: { dimensionKind: "flow", baseUnit: "$" }
+      unitMeta: { stockFlow: "flow", signature: { money: 1, time: -1 } }
     };
 
     const diagnostics = diagnoseBuildRuntime(editor);
@@ -115,19 +115,19 @@ describe("editor model validation", () => {
       id: "eq-mh",
       name: "Mh",
       expression: "lag(Mh) + YD - C",
-      unitMeta: { dimensionKind: "stock", baseUnit: "$" }
+      unitMeta: { stockFlow: "stock", signature: { money: 1 } }
     };
     editor.equations[1] = {
       id: "eq-yd",
       name: "YD",
       expression: "1",
-      unitMeta: { dimensionKind: "flow", baseUnit: "$" }
+      unitMeta: { stockFlow: "flow", signature: { money: 1, time: -1 } }
     };
     editor.equations[2] = {
       id: "eq-c",
       name: "C",
       expression: "1",
-      unitMeta: { dimensionKind: "flow", baseUnit: "$" }
+      unitMeta: { stockFlow: "flow", signature: { money: 1, time: -1 } }
     };
 
     const diagnostics = diagnoseBuildRuntime(editor);
@@ -146,13 +146,13 @@ describe("editor model validation", () => {
       id: "eq-ls",
       name: "Ls",
       expression: "lag(Ls) + d(Ld)",
-      unitMeta: { dimensionKind: "stock", baseUnit: "$" }
+      unitMeta: { stockFlow: "stock", signature: { money: 1 } }
     };
     editor.equations[1] = {
       id: "eq-ld",
       name: "Ld",
       expression: "1",
-      unitMeta: { dimensionKind: "stock", baseUnit: "$" }
+      unitMeta: { stockFlow: "stock", signature: { money: 1 } }
     };
 
     const diagnostics = diagnoseBuildRuntime(editor);
@@ -171,17 +171,100 @@ describe("editor model validation", () => {
       id: "eq-ls",
       name: "Ls",
       expression: "lag(Ls) + d(Ld) * dt",
-      unitMeta: { dimensionKind: "stock", baseUnit: "$" }
+      unitMeta: { stockFlow: "stock", signature: { money: 1 } }
     };
     editor.equations[1] = {
       id: "eq-ld",
       name: "Ld",
       expression: "1",
-      unitMeta: { dimensionKind: "stock", baseUnit: "$" }
+      unitMeta: { stockFlow: "stock", signature: { money: 1 } }
     };
 
     const diagnostics = diagnoseBuildRuntime(editor);
 
     expect(diagnostics.issues.filter((issue) => issue.path === "equations.0.expression")).toHaveLength(0);
+  });
+
+  it("accepts stock integrator form I(flow) for stock equations", () => {
+    const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
+    editor.equations[0] = {
+      id: "eq-bs",
+      name: "Bs",
+      expression: "I(G - TX)",
+      unitMeta: { stockFlow: "stock", signature: { money: 1 } }
+    };
+    editor.equations[1] = {
+      id: "eq-g",
+      name: "G",
+      expression: "1",
+      unitMeta: { stockFlow: "flow", signature: { money: 1, time: -1 } }
+    };
+    editor.equations[2] = {
+      id: "eq-tx",
+      name: "TX",
+      expression: "1",
+      unitMeta: { stockFlow: "flow", signature: { money: 1, time: -1 } }
+    };
+
+    const diagnostics = diagnoseBuildRuntime(editor);
+
+    expect(diagnostics.issues.filter((issue) => issue.path === "equations.0.expression")).toHaveLength(0);
+  });
+
+  it("flags I(flow) when the inner expression is not a flow", () => {
+    const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
+    editor.equations[0] = {
+      id: "eq-bs",
+      name: "Bs",
+      expression: "I(Bh)",
+      unitMeta: { stockFlow: "stock", signature: { money: 1 } }
+    };
+    editor.equations[1] = {
+      id: "eq-bh",
+      name: "Bh",
+      expression: "1",
+      unitMeta: { stockFlow: "stock", signature: { money: 1 } }
+    };
+
+    const diagnostics = diagnoseBuildRuntime(editor);
+
+    expect(diagnostics.issues.filter((issue) => issue.path === "equations.0.expression")).toEqual([
+      expect.objectContaining({
+        severity: "error",
+        message: expect.stringContaining("expects a flow with units $/yr")
+      })
+    ]);
+  });
+
+  it("rejects nested I(...) usage in equation editor diagnostics", () => {
+    const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
+    editor.equations[0] = {
+      id: "eq-bs",
+      name: "Bs",
+      expression: "lag(Bs) + I(G - TX)",
+      unitMeta: { stockFlow: "stock", signature: { money: 1 } }
+    };
+    editor.equations[1] = {
+      id: "eq-g",
+      name: "G",
+      expression: "1",
+      unitMeta: { stockFlow: "flow", signature: { money: 1, time: -1 } }
+    };
+    editor.equations[2] = {
+      id: "eq-tx",
+      name: "TX",
+      expression: "1",
+      unitMeta: { stockFlow: "flow", signature: { money: 1, time: -1 } }
+    };
+
+    const diagnostics = diagnoseBuildRuntime(editor);
+
+    expect(
+      diagnostics.issues.some(
+        (issue) =>
+          issue.path === "equations.0.expression" &&
+          issue.message.includes("I(...) is only supported as the outermost RHS form")
+      )
+    ).toBe(true);
   });
 });

@@ -1,4 +1,12 @@
-import { parseEquation, type ExternalDef, type ModelDefinition, type ScenarioDefinition, type ShockVariableDef, type SimulationOptions, type SolverMethod } from "@sfcr/core";
+import {
+  parseEquation,
+  type ExternalDef,
+  type ModelDefinition,
+  type ScenarioDefinition,
+  type ShockVariableDef,
+  type SimulationOptions,
+  type SolverMethod
+} from "@sfcr/core";
 import { stringifyJsonWithCompactLeaves } from "./jsonFormat";
 import type { UnitMeta } from "./unitMeta";
 import { buildVariableUnitMetadata, diagnoseEquationUnits } from "./units";
@@ -415,7 +423,7 @@ export function diagnoseBuildRuntime(editor: EditorState): BuildDiagnosticResult
 
     try {
       const parsed = parseEquation(name, expression);
-      for (const diagnostic of diagnoseEquationUnits(name, parsed.expression, variableUnits)) {
+      for (const diagnostic of diagnoseEquationUnits(name, parsed.sourceExpression, variableUnits)) {
         issues.push({
           path: `equations.${index}.expression`,
           message: diagnostic.message,

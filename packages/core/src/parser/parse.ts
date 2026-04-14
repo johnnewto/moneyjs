@@ -4,6 +4,7 @@ import { collectCurrentDependencies, collectLagDependencies } from "./dependenci
 export interface ParsedEquation {
   name: string;
   expression: Expr;
+  sourceExpression: Expr;
   currentDependencies: string[];
   lagDependencies: string[];
 }
@@ -342,6 +343,11 @@ class Parser {
         this.expect("RPAREN");
         return { type: "Diff", name: argument };
       }
+      case "I": {
+        const argument = this.parseTopLevelExpression();
+        this.expect("RPAREN");
+        return { type: "Integral", expr: argument };
+      }
       case "exp":
       case "log":
       case "abs":
@@ -380,13 +386,63 @@ export function parseExpression(source: string): Expr {
 }
 
 export function parseEquation(name: string, source: string): ParsedEquation {
-  const expression = parseExpression(source);
+  const sourceExpression = parseExpression(source);
+  const expression = lowerIntegrals(name, sourceExpression);
   return {
     name,
     expression,
+    sourceExpression,
     currentDependencies: Array.from(collectCurrentDependencies(expression)),
     lagDependencies: Array.from(collectLagDependencies(expression))
   };
+}
+
+function lowerIntegrals(equationName: string, expression: Expr): Expr {
+  if (expression.type === "Integral") {
+    return {
+      type: "Binary",
+      op: "+",
+      left: { type: "Lag", name: equationName },
+      right: {
+        type: "Binary",
+        op: "*",
+        left: expression.expr,
+        right: { type: "Variable", name: "dt" }
+      }
+    };
+  }
+
+  if (containsIntegral(expression)) {
+    throw new Error(
+      "I(...) is only supported as the outermost RHS form of an equation, e.g. Bs = I(flowExpr)."
+    );
+  }
+
+  return expression;
+}
+
+function containsIntegral(expression: Expr): boolean {
+  switch (expression.type) {
+    case "Integral":
+      return true;
+    case "Unary":
+      return containsIntegral(expression.expr);
+    case "Binary":
+      return containsIntegral(expression.left) || containsIntegral(expression.right);
+    case "If":
+      return (
+        containsIntegral(expression.condition) ||
+        containsIntegral(expression.whenTrue) ||
+        containsIntegral(expression.whenFalse)
+      );
+    case "Function":
+      return expression.args.some((arg) => containsIntegral(arg));
+    case "Number":
+    case "Variable":
+    case "Lag":
+    case "Diff":
+      return false;
+  }
 }
 
 function normalize(source: string): string {

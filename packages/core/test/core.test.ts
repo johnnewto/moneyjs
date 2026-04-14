@@ -55,6 +55,38 @@ describe("parser", () => {
     expect(new Set(equation.lagDependencies)).toEqual(new Set());
   });
 
+  it("parses I(...) and lowers it against the equation lhs", () => {
+    const expression = parseExpression("I(G - TX)");
+    const equation = parseEquation("Bs", "I(G - TX)");
+
+    expect(expression.type).toBe("Integral");
+    expect(equation.sourceExpression.type).toBe("Integral");
+    expect(equation.expression).toEqual({
+      type: "Binary",
+      op: "+",
+      left: { type: "Lag", name: "Bs" },
+      right: {
+        type: "Binary",
+        op: "*",
+        left: {
+          type: "Binary",
+          op: "-",
+          left: { type: "Variable", name: "G" },
+          right: { type: "Variable", name: "TX" }
+        },
+        right: { type: "Variable", name: "dt" }
+      }
+    });
+    expect(new Set(equation.currentDependencies)).toEqual(new Set(["G", "TX"]));
+    expect(new Set(equation.lagDependencies)).toEqual(new Set(["Bs"]));
+  });
+
+  it("rejects nested I(...) usage", () => {
+    expect(() => parseEquation("Bs", "lag(Bs) + I(G - TX)")).toThrow(
+      "I(...) is only supported as the outermost RHS form"
+    );
+  });
+
   it("throws on unsupported functions", () => {
     expect(() => parseExpression("sin(x)")).toThrow("Unsupported function");
   });
@@ -165,6 +197,30 @@ describe("simulation", () => {
 
     expectClose(result.series.x[1] ?? NaN, 2, 1e-12);
     expectClose(result.series.x[2] ?? NaN, 2, 1e-12);
+  });
+
+  it("evaluates I(flow) as lag(stock) + flow * dt", () => {
+    const result = runBaseline(
+      {
+        equations: [
+          { name: "flow", expression: "2" },
+          { name: "Bs", expression: "I(flow)" }
+        ],
+        externals: {},
+        initialValues: { Bs: 10 }
+      },
+      {
+        periods: 4,
+        solverMethod: "GAUSS_SEIDEL",
+        tolerance: 1e-9,
+        maxIterations: 20
+      }
+    );
+
+    expectClose(result.series.Bs[0] ?? NaN, 10, 1e-12);
+    expectClose(result.series.Bs[1] ?? NaN, 12, 1e-12);
+    expectClose(result.series.Bs[2] ?? NaN, 14, 1e-12);
+    expectClose(result.series.Bs[3] ?? NaN, 16, 1e-12);
   });
 
   it("applies a multi-period series shock", () => {

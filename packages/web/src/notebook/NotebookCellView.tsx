@@ -69,6 +69,7 @@ import type {
 import { useNotebookRunner } from "./useNotebookRunner";
 
 export interface NotebookCellViewProps {
+  activeEditorCellId: string | null;
   cell: NotebookCell;
   cells: NotebookCell[];
   getModelCurrentValues(ref: {
@@ -77,6 +78,7 @@ export interface NotebookCellViewProps {
     sourceModelCellId?: string;
   }): Record<string, number | undefined>;
   maxPeriodIndex: number;
+  onActiveEditorCellIdChange(cellId: string | null): void;
   onSelectedPeriodIndexChange(nextIndex: number): void;
   onModelChange(cellId: string, editor: EditorState): void;
   onCellChange(cellId: string, updater: (cell: NotebookCell) => NotebookCell): void;
@@ -85,10 +87,12 @@ export interface NotebookCellViewProps {
 }
 
 export function NotebookCellView({
+  activeEditorCellId,
   cell,
   cells,
   getModelCurrentValues,
   maxPeriodIndex,
+  onActiveEditorCellIdChange,
   onSelectedPeriodIndexChange,
   runner,
   selectedPeriodIndex,
@@ -123,6 +127,8 @@ export function NotebookCellView({
     [cells, cell]
   );
   const showToolbarHelp = !isLinkedModelEditorCell(cell);
+  const [isLinkedEditorEditing, setIsLinkedEditorEditing] = useState(false);
+  const isActivelyEditing = isEditingSource || isLinkedEditorEditing;
 
   useEffect(() => {
     setTitleDraft(cell.title);
@@ -132,7 +138,19 @@ export function NotebookCellView({
     setSourceError(null);
     setSourceValidationError(null);
     setIsEditingSource(false);
+    setIsLinkedEditorEditing(false);
   }, [cell]);
+
+  useEffect(() => {
+    if (isActivelyEditing) {
+      onActiveEditorCellIdChange(cell.id);
+      return;
+    }
+
+    if (activeEditorCellId === cell.id) {
+      onActiveEditorCellIdChange(null);
+    }
+  }, [activeEditorCellId, cell.id, isActivelyEditing, onActiveEditorCellIdChange]);
 
   useEffect(() => {
     if (!isEditingSource) {
@@ -247,7 +265,7 @@ export function NotebookCellView({
       id={cell.id}
       className={`notebook-cell notebook-cell-${cell.type}${
         isCompactLinkedCellHeader(cell) ? " notebook-cell-linked-collapsed" : ""
-      }`}
+      }${activeEditorCellId === cell.id ? " notebook-cell-is-active-editor" : ""}`}
     >
       <div className="notebook-cell-content">
         <div className="notebook-cell-toolbar">
@@ -439,6 +457,7 @@ export function NotebookCellView({
             initialValuesCount={
               findInitialValuesCell(cells, cell.modelId)?.initialValues.length ?? 0
             }
+            onEditingChange={setIsLinkedEditorEditing}
             solverCell={findSolverCell(cells, cell.modelId)}
             title={cell.title}
             onChange={(equations) =>
@@ -459,6 +478,7 @@ export function NotebookCellView({
           <ModelCellView
             cell={cell}
             currentValues={getModelCurrentValues({ sourceModelCellId: cell.id })}
+            onEditingChange={setIsLinkedEditorEditing}
             onChange={(editor) => onModelChange(cell.id, editor)}
             onToggleCollapsed={() =>
               onCellChange(cell.id, (current) =>
@@ -472,6 +492,7 @@ export function NotebookCellView({
           <SolverCellView
             cell={cell}
             issueMap={buildIssueMapForStandaloneModelSections(cells, cell.modelId)}
+            onEditingChange={setIsLinkedEditorEditing}
             title={cell.title}
             onChange={(options) =>
               onCellChange(cell.id, (current) =>
@@ -490,6 +511,7 @@ export function NotebookCellView({
             cell={cell}
             currentValues={getModelCurrentValues({ modelId: cell.modelId })}
             issueMap={buildIssueMapForStandaloneModelSections(cells, cell.modelId)}
+            onEditingChange={setIsLinkedEditorEditing}
             title={cell.title}
             onChange={(externals) =>
               onCellChange(cell.id, (current) =>
@@ -510,6 +532,7 @@ export function NotebookCellView({
             cell={cell}
             currentValues={getModelCurrentValues({ modelId: cell.modelId })}
             issueMap={buildIssueMapForStandaloneModelSections(cells, cell.modelId)}
+            onEditingChange={setIsLinkedEditorEditing}
             title={cell.title}
             variableDescriptions={variableDescriptions}
             variableUnitMetadata={variableUnitMetadata}
@@ -577,12 +600,14 @@ export function NotebookCellView({
 function ModelCellView({
   cell,
   currentValues,
+  onEditingChange,
   onChange,
   onToggleCollapsed,
   title
 }: {
   cell: ModelCell;
   currentValues: Record<string, number | undefined>;
+  onEditingChange?(isEditing: boolean): void;
   onChange(editor: EditorState): void;
   onToggleCollapsed(): void;
   title: string;
@@ -628,6 +653,10 @@ function ModelCellView({
       : null;
   const [isEditingEquations, setIsEditingEquations] = useState(false);
   const hasDraftEdits = JSON.stringify(draftEditor) !== JSON.stringify(cell.editor);
+
+  useEffect(() => {
+    onEditingChange?.(isEditingEquations);
+  }, [isEditingEquations, onEditingChange]);
 
   useEffect(() => {
     if (!isEditingEquations) {
@@ -795,6 +824,7 @@ function EquationsCellView({
   currentValues,
   externals,
   initialValuesCount,
+  onEditingChange,
   solverCell,
   title,
   onChange,
@@ -804,6 +834,7 @@ function EquationsCellView({
   currentValues: Record<string, number | undefined>;
   externals: ExternalsCell["externals"];
   initialValuesCount: number;
+  onEditingChange?(isEditing: boolean): void;
   solverCell: SolverCell | null;
   title: string;
   onChange(equations: EquationsCell["equations"]): void;
@@ -864,6 +895,10 @@ function EquationsCellView({
       : null;
   const [isEditingEquations, setIsEditingEquations] = useState(false);
   const hasDraftEdits = JSON.stringify(draftEquations) !== JSON.stringify(cell.equations);
+
+  useEffect(() => {
+    onEditingChange?.(isEditingEquations);
+  }, [isEditingEquations, onEditingChange]);
 
   useEffect(() => {
     if (!isEditingEquations) {
@@ -1029,12 +1064,14 @@ function EquationsCellView({
 function SolverCellView({
   cell,
   issueMap,
+  onEditingChange,
   title,
   onChange,
   onToggleCollapsed
 }: {
   cell: SolverCell;
   issueMap: Record<string, string | undefined>;
+  onEditingChange?(isEditing: boolean): void;
   title: string;
   onChange(options: EditorState["options"]): void;
   onToggleCollapsed(): void;
@@ -1046,6 +1083,10 @@ function SolverCellView({
   const [isEditingSolver, setIsEditingSolver] = useState(false);
   const [draftOptions, setDraftOptions] = useState(cell.options);
   const hasDraftEdits = JSON.stringify(draftOptions) !== JSON.stringify(cell.options);
+
+  useEffect(() => {
+    onEditingChange?.(isEditingSolver);
+  }, [isEditingSolver, onEditingChange]);
 
   useEffect(() => {
     if (!isEditingSolver) {
@@ -1202,6 +1243,7 @@ function ExternalsCellView({
   cell,
   currentValues,
   issueMap,
+  onEditingChange,
   title,
   onChange,
   onToggleCollapsed
@@ -1209,6 +1251,7 @@ function ExternalsCellView({
   cell: ExternalsCell;
   currentValues: Record<string, number | undefined>;
   issueMap: Record<string, string | undefined>;
+  onEditingChange?(isEditing: boolean): void;
   title: string;
   onChange(externals: EditorState["externals"]): void;
   onToggleCollapsed(): void;
@@ -1226,6 +1269,10 @@ function ExternalsCellView({
   const [isEditingExternals, setIsEditingExternals] = useState(false);
   const [draftExternals, setDraftExternals] = useState(cell.externals);
   const hasDraftEdits = JSON.stringify(draftExternals) !== JSON.stringify(cell.externals);
+
+  useEffect(() => {
+    onEditingChange?.(isEditingExternals);
+  }, [isEditingExternals, onEditingChange]);
 
   useEffect(() => {
     if (!isEditingExternals) {
@@ -1356,6 +1403,7 @@ function InitialValuesCellView({
   cell,
   currentValues,
   issueMap,
+  onEditingChange,
   title,
   variableDescriptions,
   variableUnitMetadata,
@@ -1365,6 +1413,7 @@ function InitialValuesCellView({
   cell: InitialValuesCell;
   currentValues: Record<string, number | undefined>;
   issueMap: Record<string, string | undefined>;
+  onEditingChange?(isEditing: boolean): void;
   title: string;
   variableDescriptions: VariableDescriptions;
   variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
@@ -1376,6 +1425,10 @@ function InitialValuesCellView({
   const [draftInitialValues, setDraftInitialValues] = useState(cell.initialValues);
   const hasDraftEdits =
     JSON.stringify(draftInitialValues) !== JSON.stringify(cell.initialValues);
+
+  useEffect(() => {
+    onEditingChange?.(isEditingInitialValues);
+  }, [isEditingInitialValues, onEditingChange]);
 
   useEffect(() => {
     if (!isEditingInitialValues) {
@@ -1515,12 +1568,58 @@ function InitialValuesCellView({
 }
 
 function NotebookHelpButton({
+  dialogContent,
+  dialogTitle,
   title,
   helpText
 }: {
+  dialogContent?: ReactNode;
+  dialogTitle?: string;
   title: string;
   helpText: string;
 }) {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  if (dialogContent) {
+    return (
+      <>
+        <button type="button" className="notebook-run-button" onClick={() => setIsDialogOpen(true)}>
+          Help
+        </button>
+        {isDialogOpen ? (
+          <div
+            className="notebook-help-dialog-backdrop"
+            onClick={() => setIsDialogOpen(false)}
+            role="presentation"
+          >
+            <div
+              aria-label={dialogTitle ?? `Help for ${title}`}
+              aria-modal="true"
+              className="notebook-help-dialog"
+              onClick={(event) => event.stopPropagation()}
+              role="dialog"
+            >
+              <div className="notebook-help-dialog-header">
+                <div>
+                  <p className="panel-subtitle">{title}</p>
+                  <h3>{dialogTitle ?? "Help"}</h3>
+                </div>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => setIsDialogOpen(false)}
+                >
+                  Close
+                </button>
+              </div>
+              <div className="notebook-help-dialog-body">{dialogContent}</div>
+            </div>
+          </div>
+        ) : null}
+      </>
+    );
+  }
+
   return (
     <details className="notebook-cell-help">
       <summary className="notebook-run-button">Help</summary>
@@ -1562,6 +1661,8 @@ function NotebookLinkedEditorHeader({
 }
 
 function NotebookCellHeaderActions({
+  helpDialogContent,
+  helpDialogTitle,
   helpText,
   isCollapsed,
   isEditing,
@@ -1571,6 +1672,8 @@ function NotebookCellHeaderActions({
   title,
   trailingActions
 }: {
+  helpDialogContent?: ReactNode;
+  helpDialogTitle?: string;
   helpText: string | null;
   isCollapsed: boolean;
   isEditing: boolean;
@@ -1584,7 +1687,14 @@ function NotebookCellHeaderActions({
     <div className="notebook-cell-header-actions">
       {leadingActions ? <div className="notebook-cell-header-leading">{leadingActions}</div> : null}
       <div className="notebook-linked-editor-actions">
-        {helpText ? <NotebookHelpButton title={title} helpText={helpText} /> : null}
+        {helpText ? (
+          <NotebookHelpButton
+            dialogContent={helpDialogContent}
+            dialogTitle={helpDialogTitle}
+            title={title}
+            helpText={helpText}
+          />
+        ) : null}
         {!isCollapsed && onEditToggle && !isEditing ? (
           <button
             type="button"
@@ -1627,6 +1737,16 @@ function NotebookLinkedEditorActions({
 }) {
   return (
     <NotebookCellHeaderActions
+      helpDialogContent={
+        isEditing && (cell.type === "equations" || cell.type === "model") ? (
+          <EquationSyntaxHelpContent />
+        ) : undefined
+      }
+      helpDialogTitle={
+        isEditing && (cell.type === "equations" || cell.type === "model")
+          ? "Equation Syntax"
+          : undefined
+      }
       helpText={buildNotebookCellHelpText(cell)}
       isCollapsed={cell.collapsed === true}
       isEditing={isEditing}
@@ -1655,6 +1775,54 @@ function NotebookLinkedEditorActions({
         ) : null
       }
     />
+  );
+}
+
+function EquationSyntaxHelpContent() {
+  return (
+    <div className="notebook-help-doc">
+      <section>
+        <h4>Core Forms</h4>
+        <ul className="notebook-help-list">
+          <li>`X = A + B` for algebraic equations.</li>
+          <li>`lag(X)` or `X[-1]` for the previous-period value.</li>
+          <li>`d(X)` for a per-year stock-change term.</li>
+          <li>`I(flowExpr)` for stock accumulation, equivalent to `lag(X) + flowExpr * dt` on the equation lhs.</li>
+          <li>`dt` for the time step. It is currently `1` year unless changed in the runtime later.</li>
+        </ul>
+      </section>
+      <section>
+        <h4>Operators</h4>
+        <ul className="notebook-help-list">
+          <li>`+`, `-`, `*`, `/`, `^`</li>
+          <li>Comparisons: `&gt;`, `&gt;=`, `&lt;`, `&lt;=`, `==`, `!=`</li>
+          <li>Logical operators: `&&`, `||`</li>
+        </ul>
+      </section>
+      <section>
+        <h4>Functions</h4>
+        <ul className="notebook-help-list">
+          <li>`min(a, b)`, `max(a, b)`</li>
+          <li>`abs(x)`, `sqrt(x)`, `exp(x)`, `log(x)`</li>
+          <li>`if (condition) {'{'}expr{'}'} else {'{'}expr{'}'}` for conditional logic</li>
+        </ul>
+      </section>
+      <section>
+        <h4>Stock-Flow Guidance</h4>
+        <ul className="notebook-help-list">
+          <li>Stocks should usually be written as `lag(stock) + increment * dt` or `I(flowExpr)`.</li>
+          <li>Use explicit `* dt` when combining a lagged stock with flow terms.</li>
+          <li>Use declared units to catch `$ + $/yr` mistakes.</li>
+        </ul>
+      </section>
+      <section>
+        <h4>Examples</h4>
+        <pre className="notebook-help-code">{`YD = Y - TX + lag(r) * lag(Bh)
+Mh = lag(Mh) + (YD - Cd) * dt
+Bs = I(G + lag(r) * lag(Bs) - TX - lag(r) * lag(Bcb))
+if (ER <= BANDt) { exp(v) } else { log(v) }`}</pre>
+      </section>
+    </div>
   );
 }
 

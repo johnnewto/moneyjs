@@ -72,6 +72,13 @@ export function diagnoseEquationUnits(
   variableUnits: VariableUnitMetadata
 ): UnitDiagnostic[] {
   const leftMeta = coerceUnitMeta(variableUnits.get(equationName.trim()));
+  const integralDiagnostics = leftMeta
+    ? diagnoseIntegralEquation(equationName, expression, leftMeta, variableUnits)
+    : null;
+  if (integralDiagnostics !== null) {
+    return integralDiagnostics;
+  }
+
   const stockAccumulationDiagnostics = leftMeta
     ? diagnoseStockAccumulation(equationName, expression, leftMeta, variableUnits)
     : null;
@@ -119,6 +126,16 @@ export function inferUnits(expr: Expr, variableUnits: VariableUnitMetadata): Inf
         return unknown();
       }
       return known(divideSignatures(meta.signature, TIME_STEP));
+    }
+    case "Integral": {
+      const inner = inferUnits(expr.expr, variableUnits);
+      if (inner.signature == null) {
+        return inner;
+      }
+      return {
+        signature: multiplySignatures(inner.signature, TIME_STEP),
+        diagnostics: inner.diagnostics
+      };
     }
     case "Unary": {
       const inner = inferUnits(expr.expr, variableUnits);
@@ -345,6 +362,43 @@ function diagnoseStockAccumulation(
   return diagnostics;
 }
 
+function diagnoseIntegralEquation(
+  equationName: string,
+  expression: Expr,
+  leftMeta: UnitMeta,
+  variableUnits: VariableUnitMetadata
+): UnitDiagnostic[] | null {
+  if (expression.type !== "Integral") {
+    return null;
+  }
+
+  const diagnostics: UnitDiagnostic[] = [];
+
+  if (leftMeta.stockFlow !== "stock" || !leftMeta.signature) {
+    diagnostics.push({
+      severity: "error",
+      message: `I(...) should define a stock variable, but '${equationName}' is not marked as a stock.`
+    });
+    return diagnostics;
+  }
+
+  const inner = inferUnits(expression.expr, variableUnits);
+  diagnostics.push(...inner.diagnostics);
+  if (inner.signature == null) {
+    return diagnostics;
+  }
+
+  const expectedInner = divideSignatures(leftMeta.signature, TIME_STEP);
+  if (!signaturesEqual(inner.signature, expectedInner)) {
+    diagnostics.push({
+      severity: "error",
+      message: `I(...) for stock '${equationName}' expects a flow with units ${formatSignature(expectedInner)}, but got ${formatSignature(inner.signature)}.`
+    });
+  }
+
+  return diagnostics;
+}
+
 function containsDtVariable(expr: Expr): boolean {
   if (
     (expr.type === "Variable" || expr.type === "Lag" || expr.type === "Diff") &&
@@ -353,6 +407,9 @@ function containsDtVariable(expr: Expr): boolean {
     return true;
   }
   if (expr.type === "Unary") {
+    return containsDtVariable(expr.expr);
+  }
+  if (expr.type === "Integral") {
     return containsDtVariable(expr.expr);
   }
   if (expr.type === "Binary") {
@@ -378,6 +435,9 @@ function containsExplicitDiff(expr: Expr): boolean {
   if (expr.type === "Unary") {
     return containsExplicitDiff(expr.expr);
   }
+  if (expr.type === "Integral") {
+    return containsExplicitDiff(expr.expr);
+  }
   if (expr.type === "Binary") {
     return containsExplicitDiff(expr.left) || containsExplicitDiff(expr.right);
   }
@@ -399,6 +459,9 @@ function containsStockDifferenceLike(expr: Expr, variableUnits: VariableUnitMeta
     return true;
   }
   if (expr.type === "Unary") {
+    return containsStockDifferenceLike(expr.expr, variableUnits);
+  }
+  if (expr.type === "Integral") {
     return containsStockDifferenceLike(expr.expr, variableUnits);
   }
   if (expr.type === "Binary") {
@@ -501,6 +564,8 @@ function renderExpr(expr: Expr): string {
       return `lag(${expr.name})`;
     case "Diff":
       return `d(${expr.name})`;
+    case "Integral":
+      return `I(${renderExpr(expr.expr)})`;
     case "Unary":
       return `-${renderExpr(expr.expr)}`;
     case "Binary":

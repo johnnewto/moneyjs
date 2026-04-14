@@ -1533,7 +1533,7 @@ textarea {
 .notebook-scrubber-slot {
   min-width: 0;
   position: sticky;
-  top: 0.75rem;
+  top: 0rem;
   z-index: 20;
 }
 
@@ -1593,6 +1593,35 @@ textarea {
   width: 100%;
 }
 
+.notebook-outline.notebook-outline-has-active-editor .notebook-outline-list li {
+  opacity: 0.45;
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+
+.notebook-outline.notebook-outline-has-active-editor
+  .notebook-outline-list
+  li.notebook-outline-item-is-active {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+.notebook-outline.notebook-outline-has-active-editor
+  .notebook-outline-list
+  li.notebook-outline-item-is-active
+  button {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.notebook-outline.notebook-outline-has-active-editor
+  .notebook-outline-list
+  li.notebook-outline-item-is-active
+  .outline-index {
+  color: #2563eb;
+}
+
 .outline-index {
   color: #94a3b8;
   display: inline-block;
@@ -1614,6 +1643,28 @@ textarea {
   border-radius: 24px;
   box-shadow: 0 18px 46px rgba(20, 33, 61, 0.07);
   overflow: hidden;
+}
+
+.notebook-canvas.notebook-has-active-editor .notebook-cell {
+  opacity: 0.5;
+  transition:
+    opacity 140ms ease,
+    background-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+
+.notebook-canvas.notebook-has-active-editor .notebook-cell.notebook-cell-is-active-editor {
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.16);
+  opacity: 1;
+  position: relative;
+  transform: translateY(-1px);
+  z-index: 1;
+}
+
+.notebook-canvas.notebook-has-active-editor .notebook-cell:not(.notebook-cell-is-active-editor) {
+  filter: saturate(0.72);
 }
 
 .notebook-cell {
@@ -2497,6 +2548,7 @@ textarea {
   padding: 0.75rem 0.85rem;
   position: absolute;
   right: 0;
+  text-align: left;
   top: 100%;
   z-index: 12;
 }
@@ -2507,6 +2559,83 @@ textarea {
 
 .notebook-cell-help-panel p + p {
   margin-top: 0.45rem;
+}
+
+.notebook-help-dialog-backdrop {
+  align-items: center;
+  background: rgba(15, 23, 42, 0.42);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 1.25rem;
+  position: fixed;
+  z-index: 60;
+}
+
+.notebook-help-dialog {
+  background: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 18px;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.22);
+  color: #334155;
+  max-height: min(80vh, 52rem);
+  max-width: min(52rem, 92vw);
+  overflow: hidden;
+  text-align: left;
+  width: 100%;
+}
+
+.notebook-help-dialog-header {
+  align-items: flex-start;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.1rem 0.9rem;
+}
+
+.notebook-help-dialog-header h3 {
+  margin: 0.1rem 0 0;
+}
+
+.notebook-help-dialog-body {
+  max-height: calc(min(80vh, 52rem) - 5rem);
+  overflow: auto;
+  padding: 1rem 1.1rem 1.2rem;
+}
+
+.notebook-help-doc {
+  display: grid;
+  gap: 1rem;
+}
+
+.notebook-help-doc section {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.notebook-help-doc h4 {
+  margin: 0;
+}
+
+.notebook-help-list {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.notebook-help-code {
+  background: rgba(248, 250, 252, 0.95);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 12px;
+  font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  margin: 0;
+  overflow: auto;
+  padding: 0.8rem 0.9rem;
+  white-space: pre-wrap;
 }
 
 .result-chart {
