@@ -11,8 +11,11 @@ interface EquationGridEditorProps {
   currentValues?: Record<string, number | undefined>;
   equations: EquationRow[];
   issues: Record<string, string | ValidationIssue | undefined>;
+  isEmbedded?: boolean;
   onChange(next: EquationRow[]): void;
   parameterNames?: string[];
+  showHeading?: boolean;
+  showTraceHelp?: boolean;
   variableDescriptions?: VariableDescriptions;
   variableUnitMetadata?: VariableUnitMetadata;
 }
@@ -22,8 +25,11 @@ export function EquationGridEditor({
   currentValues: _currentValues = {},
   equations,
   issues,
+  isEmbedded = false,
   onChange,
   parameterNames = [],
+  showHeading = true,
+  showTraceHelp = true,
   variableDescriptions,
   variableUnitMetadata
 }: EquationGridEditorProps) {
@@ -40,23 +46,22 @@ export function EquationGridEditor({
     : hoveredRowId
       ? buildActiveTrace(traceModel, hoveredRowId, "inputs")
       : null;
+  const showHeader = showHeading || showTraceHelp;
 
   return (
-    <section className="editor-panel">
-      <div className="panel-header">
-        <div>
-          <h2>Equations</h2>
-          <p className="panel-subtitle">
-            Edit the model as a compact spreadsheet-style equation ledger.
-          </p>
-          <p className="panel-subtitle">
-            Hover previews inputs. Click pins inputs, Shift+click pins outputs, Ctrl/Cmd+click shows both.
-          </p>
+    <section className={isEmbedded ? "equation-grid-editor-embedded" : "editor-panel"}>
+      {showHeader ? (
+        <div className="panel-header">
+          <div>
+            {showHeading ? <h2>Equations</h2> : null}
+            {showTraceHelp ? (
+              <p className="panel-subtitle">
+                Hover previews inputs. Click pins inputs, Shift+click pins outputs, Ctrl/Cmd+click shows both.
+              </p>
+            ) : null}
+          </div>
         </div>
-        <button type="button" onClick={() => onChange([...equations, newEquationRow()])}>
-          Add equation
-        </button>
-      </div>
+      ) : null}
 
       {buildError ? <div className="error-text equation-grid-banner">{buildError}</div> : null}
 
@@ -187,6 +192,12 @@ export function EquationGridEditor({
             );
           })}
         </div>
+      </div>
+
+      <div className="equation-grid-footer">
+        <button type="button" onClick={() => onChange([...equations, newEquationRow()])}>
+          Add equation
+        </button>
       </div>
     </section>
   );

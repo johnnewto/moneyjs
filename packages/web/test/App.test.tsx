@@ -2,7 +2,7 @@
 
 import "@testing-library/jest-dom/vitest";
 
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { runBaseline as runCoreBaseline } from "@sfcr/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -125,7 +125,7 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(screen.getByText(/bmw browser notebook/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/bmw browser notebook/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /^run all$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /validate/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /bmw balance sheet/i })).toBeInTheDocument();
@@ -138,10 +138,9 @@ describe("App", () => {
     expect(
       screen.getByRole("heading", { name: /baseline run with newton/i })
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: /show contents/i }).length).toBeGreaterThan(0);
-    await user.click(screen.getAllByRole("button", { name: /show contents/i })[0]);
+    expect(screen.getAllByRole("button", { name: /^show$/i }).length).toBeGreaterThan(0);
+    await user.click(screen.getAllByRole("button", { name: /^show$/i })[0]);
     expect(screen.getAllByText("Variable").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Description").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Expression").length).toBeGreaterThan(0);
     const yToken = screen
       .getAllByText("Y")
@@ -153,6 +152,36 @@ describe("App", () => {
 
     fireEvent.mouseEnter(yToken);
     expect(screen.getByRole("tooltip")).toHaveTextContent("Income = GDP");
+
+    const equationsCell = document.getElementById("equations-newton");
+    expect(equationsCell).not.toBeNull();
+    if (!(equationsCell instanceof HTMLElement)) {
+      throw new Error("Expected equations cell article.");
+    }
+
+    const equationsHelpText = within(equationsCell).getByText(
+      /hover previews inputs\. click pins inputs, shift\+click pins outputs, ctrl\/cmd\+click shows both\./i
+    );
+    expect(equationsHelpText).not.toBeVisible();
+
+    await user.click(within(equationsCell).getByText(/^help$/i));
+    expect(equationsHelpText).toBeVisible();
+
+    const editEquationsButton = within(equationsCell).getByRole("button", { name: /^edit$/i });
+    await user.click(editEquationsButton);
+    expect(screen.queryByText(/compact read-only equation list/i)).not.toBeInTheDocument();
+    expect(screen.getAllByText("Description").length).toBeGreaterThan(0);
+    expect(editEquationsButton).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("auto-runs notebook cells on load", async () => {
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(notebookRunnerMock.runAll).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("renders BMW transaction-flow matrix values with flow units inferred from the full expression", () => {
@@ -195,7 +224,7 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(screen.getByText(/gl2 pc notebook/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/gl2 pc notebook/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("heading", { name: /pc balance sheet/i })).toBeInTheDocument();
   });
 
@@ -205,16 +234,16 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(screen.getByText(/bmw browser notebook/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/bmw browser notebook/i).length).toBeGreaterThan(0);
 
     await user.selectOptions(screen.getByLabelText(/notebook template/i), "gl6-dis");
 
-    expect(screen.getByText(/gl6 dis notebook/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/gl6 dis notebook/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("heading", { name: /dis balance sheet/i })).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /dis transactions-flow matrix/i })
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^dis model$/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { name: /^dis model$/i }).length).toBeGreaterThan(0);
     expect(window.location.hash).toBe("#/notebook/gl6-dis");
   });
 
@@ -226,7 +255,7 @@ describe("App", () => {
 
     await user.selectOptions(screen.getByLabelText(/notebook template/i), "gl8-growth");
 
-    expect(screen.getByText(/gl8 growth notebook/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/gl8 growth notebook/i).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("heading", { name: /^externals$/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("heading", { name: /initial values/i }).length).toBeGreaterThan(0);
 
@@ -239,12 +268,14 @@ describe("App", () => {
       throw new Error("Expected externals cell article.");
     }
 
-    expect(within(externalsCell).getByRole("button", { name: /show contents/i })).toBeInTheDocument();
+    expect(within(externalsCell).getByRole("button", { name: /^show$/i })).toBeInTheDocument();
     expect(within(externalsCell).queryByRole("button", { name: /add external/i })).not.toBeInTheDocument();
 
-    await user.click(within(externalsCell).getByRole("button", { name: /show contents/i }));
+    await user.click(within(externalsCell).getByRole("button", { name: /^show$/i }));
 
-    expect(within(externalsCell).getByRole("button", { name: /hide contents/i })).toBeInTheDocument();
+    expect(within(externalsCell).getByRole("button", { name: /^hide$/i })).toBeInTheDocument();
+    expect(within(externalsCell).getByRole("button", { name: /^edit$/i })).toBeInTheDocument();
+    await user.click(within(externalsCell).getByRole("button", { name: /^edit$/i }));
     expect(within(externalsCell).getByRole("button", { name: /add external/i })).toBeInTheDocument();
   });
 
@@ -330,7 +361,7 @@ describe("App", () => {
 
     await user.click(screen.getAllByRole("button", { name: /apply preview/i })[0]);
 
-    expect(screen.getByText(/^Imported Notebook$/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/^Imported Notebook$/i).length).toBeGreaterThan(0);
   });
 
   it("shows apply and discard actions when the import text is edited", async () => {
@@ -354,7 +385,7 @@ describe("App", () => {
 
     await user.click(screen.getByRole("button", { name: /apply text/i }));
 
-    expect(screen.getByText(/^Draft Notebook$/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/^Draft Notebook$/i).length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole("button", { name: /^export$/i }));
 
@@ -374,7 +405,14 @@ describe("App", () => {
 
     render(<App />);
 
-    await user.click(screen.getAllByRole("button", { name: /edit source/i })[0]);
+    const overviewHeading = screen.getByRole("heading", { name: /overview/i });
+    const overviewArticle = overviewHeading.closest("article");
+    expect(overviewArticle).not.toBeNull();
+    if (!overviewArticle) {
+      throw new Error("Expected overview cell article.");
+    }
+
+    await user.click(within(overviewArticle).getByRole("button", { name: /^edit$/i }));
 
     const sourceEditor = screen.getByRole("textbox", {
       name: /source editor for overview/i
@@ -409,7 +447,7 @@ describe("App", () => {
       throw new Error("Expected run cell article.");
     }
 
-    await user.click(within(runArticle).getByRole("button", { name: /edit source/i }));
+    await user.click(within(runArticle).getByRole("button", { name: /^edit$/i }));
 
     const titleEditor = screen.getByRole("textbox", {
       name: /title editor for baseline run with newton/i
@@ -436,7 +474,7 @@ describe("App", () => {
       throw new Error("Expected chart cell article.");
     }
 
-    await user.click(within(chartArticle).getByRole("button", { name: /edit source/i }));
+    await user.click(within(chartArticle).getByRole("button", { name: /^edit$/i }));
     await user.click(screen.getByText(/^insert$/i));
 
     expect(screen.getByRole("button", { name: /add axismode/i })).toBeInTheDocument();
@@ -484,7 +522,7 @@ describe("App", () => {
       throw new Error("Expected chart cell article.");
     }
 
-    await user.click(within(chartArticle).getByRole("button", { name: /edit source/i }));
+    await user.click(within(chartArticle).getByRole("button", { name: /^edit$/i }));
     await user.click(screen.getByRole("radio", { name: /compact/i }));
 
     const sourceEditor = screen.getByRole("textbox", {
@@ -511,7 +549,7 @@ describe("App", () => {
       throw new Error("Expected chart cell article.");
     }
 
-    await user.click(within(chartArticle).getByRole("button", { name: /edit source/i }));
+    await user.click(within(chartArticle).getByRole("button", { name: /^edit$/i }));
     await user.click(screen.getByRole("button", { name: /^insert$/i }));
     expect(screen.getByLabelText(/source insert actions/i)).toBeInTheDocument();
 

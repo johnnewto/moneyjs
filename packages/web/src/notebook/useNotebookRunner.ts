@@ -13,17 +13,56 @@ export interface NotebookRunnerApi extends NotebookRuntimeState {
   getResult(cellId: string): SimulationResult | null;
 }
 
+export function buildNotebookRunnerResetKey(document: NotebookDocument): string {
+  return JSON.stringify(
+    document.cells.flatMap((cell) => {
+      switch (cell.type) {
+        case "model":
+          return [{ id: cell.id, type: cell.type, editor: cell.editor }];
+        case "equations":
+          return [{ id: cell.id, type: cell.type, modelId: cell.modelId, equations: cell.equations }];
+        case "solver":
+          return [{ id: cell.id, type: cell.type, modelId: cell.modelId, options: cell.options }];
+        case "externals":
+          return [{ id: cell.id, type: cell.type, modelId: cell.modelId, externals: cell.externals }];
+        case "initial-values":
+          return [
+            { id: cell.id, type: cell.type, modelId: cell.modelId, initialValues: cell.initialValues }
+          ];
+        case "run":
+          return [
+            {
+              baselineRunCellId: cell.baselineRunCellId,
+              baselineStartPeriod: cell.baselineStartPeriod,
+              id: cell.id,
+              mode: cell.mode,
+              periods: cell.periods,
+              resultKey: cell.resultKey,
+              scenario: cell.scenario ?? null,
+              sourceModelCellId: cell.sourceModelCellId,
+              sourceModelId: cell.sourceModelId,
+              type: cell.type
+            }
+          ];
+        default:
+          return [];
+      }
+    })
+  );
+}
+
 export function useNotebookRunner(document: NotebookDocument): NotebookRunnerApi {
   const [client] = useState(() => createWorkerClient());
   const [state, setState] = useState<NotebookRuntimeState>({ outputs: {}, status: {}, errors: {} });
   const stateRef = useRef(state);
+  const resetKey = useMemo(() => buildNotebookRunnerResetKey(document), [document]);
 
   useEffect(() => () => client.dispose(), [client]);
   useEffect(() => {
     const next = { outputs: {}, status: {}, errors: {} };
     stateRef.current = next;
     setState(next);
-  }, [document]);
+  }, [resetKey]);
 
   const runCells = useMemo(
     () => document.cells.filter((cell): cell is RunCell => cell.type === "run"),

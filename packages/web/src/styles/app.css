@@ -23,6 +23,58 @@ textarea {
   padding: 2rem 1.25rem 3rem;
 }
 
+.toast-stack {
+  display: grid;
+  gap: 0.6rem;
+  pointer-events: none;
+  position: fixed;
+  right: 1.25rem;
+  top: 1rem;
+  width: min(28rem, calc(100vw - 2rem));
+  z-index: 60;
+}
+
+.toast-notification {
+  align-items: start;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 18px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.14);
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 0.8rem 0.9rem;
+  pointer-events: auto;
+}
+
+.toast-notification.is-success {
+  background: rgba(240, 253, 244, 0.94);
+  border-color: rgba(34, 197, 94, 0.22);
+}
+
+.toast-notification.is-error {
+  background: rgba(254, 242, 242, 0.96);
+  border-color: rgba(239, 68, 68, 0.22);
+}
+
+.toast-notification-message {
+  color: #1f2937;
+  line-height: 1.35;
+}
+
+.toast-notification-close {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 999px;
+  color: #475569;
+  cursor: pointer;
+  padding: 0.18rem 0.58rem;
+}
+
+.toast-notification-close:hover {
+  border-color: rgba(100, 116, 139, 0.34);
+}
+
 .notebook-shell {
   padding-top: 4px;
 }
@@ -519,6 +571,99 @@ textarea {
   border: 1px solid rgba(148, 163, 184, 0.36);
   border-radius: 12px;
   overflow: hidden;
+}
+
+.grid-editor-embedded,
+.equation-grid-editor-embedded {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.grid-editor-footer,
+.equation-grid-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0.7rem;
+}
+
+.grid-editor-embedded .equation-grid-header,
+.grid-editor-embedded .equation-grid-row,
+.equation-grid-editor-embedded .equation-grid-header,
+.equation-grid-editor-embedded .equation-grid-row,
+.grid-editor-embedded .external-grid-header,
+.grid-editor-embedded .external-grid-row,
+.grid-editor-embedded .initial-grid-header,
+.grid-editor-embedded .initial-grid-row {
+  gap: 0.45rem;
+  padding: 0.1rem 0.35rem;
+}
+
+.grid-editor-embedded .equation-grid-header > :not(:first-child),
+.grid-editor-embedded .equation-grid-row > :not(:first-child),
+.equation-grid-editor-embedded .equation-grid-header > :not(:first-child),
+.equation-grid-editor-embedded .equation-grid-row > :not(:first-child),
+.grid-editor-embedded .external-grid-header > :not(:first-child),
+.grid-editor-embedded .external-grid-row > :not(:first-child),
+.grid-editor-embedded .initial-grid-header > :not(:first-child),
+.grid-editor-embedded .initial-grid-row > :not(:first-child) {
+  padding-left: 0.35rem;
+}
+
+.grid-editor-embedded .equation-grid-row input,
+.grid-editor-embedded .external-grid-row input,
+.grid-editor-embedded .external-grid-row select,
+.grid-editor-embedded .initial-grid-row input,
+.grid-editor-embedded .highlighted-formula-preview,
+.grid-editor-embedded .highlighted-formula-control,
+.equation-grid-editor-embedded .equation-grid-row input,
+.equation-grid-editor-embedded .highlighted-formula-preview,
+.equation-grid-editor-embedded .highlighted-formula-control {
+  font-size: 0.86rem;
+  line-height: 1.25;
+}
+
+.grid-editor-embedded .equation-grid-row input,
+.grid-editor-embedded .external-grid-row input,
+.grid-editor-embedded .external-grid-row select,
+.grid-editor-embedded .initial-grid-row input,
+.equation-grid-editor-embedded .equation-grid-row input {
+  padding: 0.04rem 0.1rem;
+}
+
+.grid-editor-embedded .highlighted-formula-preview,
+.grid-editor-embedded .highlighted-formula-control,
+.equation-grid-editor-embedded .highlighted-formula-preview,
+.equation-grid-editor-embedded .highlighted-formula-control {
+  min-height: 1.05rem;
+  padding: 0.02rem 0.1rem;
+}
+
+.grid-editor-embedded .equation-grid-index,
+.grid-editor-embedded .equation-grid-status,
+.grid-editor-embedded .external-grid-index,
+.grid-editor-embedded .external-grid-status,
+.grid-editor-embedded .initial-grid-index,
+.grid-editor-embedded .initial-grid-status,
+.grid-editor-embedded .external-grid-units,
+.grid-editor-embedded .initial-grid-current,
+.equation-grid-editor-embedded .equation-grid-index,
+.equation-grid-editor-embedded .equation-grid-status {
+  font-size: 0.78rem;
+}
+
+.grid-editor-embedded .equation-grid-row button,
+.grid-editor-embedded .external-grid-row button,
+.grid-editor-embedded .initial-grid-row button,
+.equation-grid-editor-embedded .equation-grid-row button {
+  min-width: 1.6rem;
+  padding: 0.1rem 0.25rem;
+}
+
+.grid-editor-embedded .equation-grid-remove-button,
+.grid-editor-embedded .external-grid-remove-button,
+.equation-grid-editor-embedded .equation-grid-remove-button {
+  height: 1.5rem;
+  min-width: 1.5rem;
 }
 
 .equation-grid-header,
@@ -1142,8 +1287,31 @@ textarea {
   margin-top: 0;
 }
 
+.notebook-cell .result-panel {
+  padding: 0.8rem 0.9rem;
+}
+
+.notebook-cell .result-panel h2 {
+  font-size: 0.98rem;
+  margin: 0 0 0.45rem;
+}
+
 .notebook-cell table {
   background: rgba(255, 255, 255, 0.88);
+}
+
+.notebook-cell .result-panel th,
+.notebook-cell .result-panel td {
+  padding: 0.36rem 0.38rem;
+}
+
+.notebook-cell .result-panel thead th {
+  font-size: 0.84rem;
+  line-height: 1.15;
+}
+
+.notebook-cell .result-panel tbody td {
+  line-height: 1.2;
 }
 
 .notebook-layout {
@@ -2218,11 +2386,127 @@ textarea {
   gap: 0.55rem;
 }
 
+.notebook-cell-linked-collapsed .notebook-cell-toolbar {
+  display: none;
+}
+
+.notebook-cell-linked-collapsed .notebook-cell-content {
+  padding-top: 0.65rem;
+}
+
 .notebook-linked-editor-topline {
   align-items: start;
   display: grid;
   gap: 0.55rem;
   grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+  width: 100%;
+}
+
+.notebook-linked-editor-topline.is-compact {
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.notebook-linked-editor-meta {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.notebook-linked-editor-topline.is-compact .notebook-linked-editor-meta {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.65rem;
+}
+
+.notebook-linked-editor-titleline {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.notebook-linked-editor-titleline h2 {
+  font-size: 1rem;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.notebook-linked-editor-topline.is-compact .notebook-model-summary {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+
+.notebook-cell-header-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.7rem;
+  justify-content: flex-end;
+  justify-self: end;
+  margin-left: auto;
+  min-width: 0;
+}
+
+.notebook-cell-header-leading {
+  align-items: center;
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 0.45rem;
+}
+
+.notebook-linked-editor-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  justify-content: flex-end;
+  text-align: right;
+  width: fit-content;
+}
+
+.notebook-cell-help {
+  display: inline-flex;
+  flex: 0 0 auto;
+  position: relative;
+}
+
+.notebook-cell-help summary {
+  align-items: center;
+  display: inline-flex;
+  list-style: none;
+}
+
+.notebook-cell-help summary::-webkit-details-marker {
+  display: none;
+}
+
+.notebook-cell-help-panel {
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 14px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+  color: #334155;
+  margin-top: 0.4rem;
+  max-width: min(32rem, 80vw);
+  min-width: 16rem;
+  padding: 0.75rem 0.85rem;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 12;
+}
+
+.notebook-cell-help-panel p {
+  margin: 0;
+}
+
+.notebook-cell-help-panel p + p {
+  margin-top: 0.45rem;
 }
 
 .result-chart {

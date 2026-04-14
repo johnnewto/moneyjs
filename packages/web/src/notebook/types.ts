@@ -34,6 +34,7 @@ export type NotebookCell =
   | SequenceCell;
 
 export interface NotebookCellBase {
+  collapsed?: boolean;
   id: string;
   title: string;
 }
@@ -52,28 +53,24 @@ export interface EquationsCell extends NotebookCellBase {
   type: "equations";
   modelId: string;
   equations: EquationRow[];
-  collapsed?: boolean;
 }
 
 export interface SolverCell extends NotebookCellBase {
   type: "solver";
   modelId: string;
   options: EditorOptions;
-  collapsed?: boolean;
 }
 
 export interface ExternalsCell extends NotebookCellBase {
   type: "externals";
   modelId: string;
   externals: ExternalRow[];
-  collapsed?: boolean;
 }
 
 export interface InitialValuesCell extends NotebookCellBase {
   type: "initial-values";
   modelId: string;
   initialValues: InitialValueRow[];
-  collapsed?: boolean;
 }
 
 export interface RunCell extends NotebookCellBase {

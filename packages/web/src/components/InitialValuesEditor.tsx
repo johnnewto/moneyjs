@@ -3,27 +3,30 @@ import { formatNamedValueWithUnits, type VariableUnitMetadata } from "../lib/uni
 
 interface InitialValuesEditorProps {
   currentValues?: Record<string, number | undefined>;
+  isEmbedded?: boolean;
   initialValues: InitialValueRow[];
   issues: Record<string, string | undefined>;
   onChange(next: InitialValueRow[]): void;
+  showHeading?: boolean;
   variableUnitMetadata?: VariableUnitMetadata;
 }
 
 export function InitialValuesEditor({
   currentValues = {},
+  isEmbedded = false,
   initialValues,
   issues,
   onChange,
+  showHeading = true,
   variableUnitMetadata
 }: InitialValuesEditorProps) {
   return (
-    <section className="editor-panel">
-      <div className="panel-header">
-        <h2>Initial values</h2>
-        <button type="button" onClick={() => onChange([...initialValues, newInitialValueRow()])}>
-          Add initial
-        </button>
-      </div>
+    <section className={isEmbedded ? "grid-editor-embedded" : "editor-panel"}>
+      {showHeading ? (
+        <div className="panel-header">
+          <h2>Initial values</h2>
+        </div>
+      ) : null}
 
       <div className="initial-grid-shell">
         <div className="initial-grid-header" role="row">
@@ -92,6 +95,12 @@ export function InitialValuesEditor({
           </div>
         ))}
         </div>
+      </div>
+
+      <div className="grid-editor-footer">
+        <button type="button" onClick={() => onChange([...initialValues, newInitialValueRow()])}>
+          Add initial
+        </button>
       </div>
     </section>
   );

@@ -4,29 +4,32 @@ import { formatUnitLabel } from "../lib/unitMeta";
 interface ExternalEditorProps {
   currentValues?: Record<string, number | undefined>;
   externals: ExternalRow[];
+  isEmbedded?: boolean;
   issues: Record<string, string | undefined>;
   onChange(next: ExternalRow[]): void;
+  showHeading?: boolean;
 }
 
 export function ExternalEditor({
   currentValues: _currentValues = {},
   externals,
+  isEmbedded = false,
   issues,
-  onChange
+  onChange,
+  showHeading = true
 }: ExternalEditorProps) {
   return (
-    <section className="editor-panel">
-      <div className="panel-header">
-        <div>
-          <h2>Externals</h2>
-          <p className="panel-subtitle">
-            Parameters and exogenous series in the same compact ledger style as equations.
-          </p>
+    <section className={isEmbedded ? "grid-editor-embedded" : "editor-panel"}>
+      {showHeading ? (
+        <div className="panel-header">
+          <div>
+            <h2>Externals</h2>
+            <p className="panel-subtitle">
+              Parameters and exogenous series in the same compact ledger style as equations.
+            </p>
+          </div>
         </div>
-        <button type="button" onClick={() => onChange([...externals, newExternalRow()])}>
-          Add external
-        </button>
-      </div>
+      ) : null}
 
       <div className="external-grid-shell">
         <div className="external-grid-header" role="row">
@@ -119,6 +122,12 @@ export function ExternalEditor({
             <div className="external-grid-empty">Add an external to define a parameter or input series.</div>
           ) : null}
         </div>
+      </div>
+
+      <div className="grid-editor-footer">
+        <button type="button" onClick={() => onChange([...externals, newExternalRow()])}>
+          Add external
+        </button>
       </div>
     </section>
   );

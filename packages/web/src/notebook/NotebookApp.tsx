@@ -85,6 +85,7 @@ export function NotebookApp() {
   const [uiMessage, setUiMessage] = useState<string | null>(null);
   const [sourceFormat, setSourceFormat] = useState<"json" | "markdown">("json");
   const [selectedPeriodIndex, setSelectedPeriodIndex] = useState(0);
+  const [autoRunRevision, setAutoRunRevision] = useState(0);
   const [isDataPanelOpen, setIsDataPanelOpen] = useState(false);
   const [importPreview, setImportPreview] = useState<{
     document: NotebookDocument;
@@ -103,6 +104,22 @@ export function NotebookApp() {
   useEffect(() => {
     setSelectedPeriodIndex((current) => Math.min(current, maxResultPeriodIndex));
   }, [maxResultPeriodIndex]);
+
+  useEffect(() => {
+    void runner.runAll();
+  }, [autoRunRevision]);
+
+  useEffect(() => {
+    if (!uiMessage) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setUiMessage((current) => (current === uiMessage ? null : current));
+    }, 4000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [uiMessage]);
 
   function updateCell(cellId: string, updater: (cell: NotebookCell) => NotebookCell): void {
     setNotebookDocument((current) => ({
@@ -124,6 +141,7 @@ export function NotebookApp() {
   function replaceNotebookDocument(nextDocument: NotebookDocument): void {
     setNotebookDocument(nextDocument);
     setSelectedPeriodIndex(0);
+    setAutoRunRevision((current) => current + 1);
   }
 
   function replaceNotebookDocumentFromTemplate(templateId: NotebookTemplateId): void {
@@ -366,15 +384,43 @@ export function NotebookApp() {
   return (
     <main className="app-shell notebook-shell">
       {uiMessage ? (
-        <section className="status-panel">
-          <div className={uiMessage.toLowerCase().includes("imported") || uiMessage.toLowerCase().includes("exported") || uiMessage.toLowerCase().includes("downloaded") ? "success-text" : "error-text"}>
-            {uiMessage}
+        <section className="toast-stack" aria-live="polite" aria-atomic="true">
+          <div
+            className={`toast-notification ${
+              uiMessage.toLowerCase().includes("imported") ||
+              uiMessage.toLowerCase().includes("exported") ||
+              uiMessage.toLowerCase().includes("downloaded") ||
+              uiMessage.toLowerCase().includes("loaded")
+                ? "is-success"
+                : "is-error"
+            }`}
+            role="status"
+          >
+            <div className="toast-notification-message">{uiMessage}</div>
+            <button
+              type="button"
+              className="toast-notification-close"
+              onClick={() => setUiMessage(null)}
+              aria-label="Dismiss notification"
+            >
+              Close
+            </button>
           </div>
         </section>
       ) : null}
 
       <div className="notebook-layout">
         <div className="notebook-main-column">
+          {maxResultPeriodIndex > 0 ? (
+            <div className="notebook-scrubber-slot">
+              <PeriodScrubber
+                maxIndex={maxResultPeriodIndex}
+                onChange={setSelectedPeriodIndex}
+                selectedIndex={selectedPeriodIndex}
+              />
+            </div>
+          ) : null}
+
           <section className="control-panel notebook-app-bar">
             <div className="notebook-app-bar-main">
               <div className="notebook-app-bar-brand">
@@ -551,16 +597,6 @@ export function NotebookApp() {
             ) : null}
           </section>
 
-          {maxResultPeriodIndex > 0 ? (
-            <div className="notebook-scrubber-slot">
-              <PeriodScrubber
-                maxIndex={maxResultPeriodIndex}
-                onChange={setSelectedPeriodIndex}
-                selectedIndex={selectedPeriodIndex}
-              />
-            </div>
-          ) : null}
-
           <section className="notebook-canvas" aria-label="Notebook sheet">
             {notebookDocument.cells.map((cell) => (
               <NotebookCellView
@@ -582,8 +618,7 @@ export function NotebookApp() {
         <aside className="notebook-outline notebook-rail editor-panel">
           <div className="panel-header">
             <div>
-              <h2>Outline</h2>
-              <p className="panel-subtitle">BMW vignette sections translated into notebook cells.</p>
+              <p className="panel-subtitle">{notebookDocument.title}</p>
             </div>
           </div>
 
@@ -704,6 +739,7 @@ function NotebookCellView({
   const sourceGutterRef = useRef<HTMLPreElement | null>(null);
   const currentSerializedBody = serializeCellBody(cell);
   const hasSourceEdits = titleDraft !== cell.title || sourceDraft !== currentSerializedBody;
+  const isCollapsed = cell.collapsed === true && !isEditingSource && !isLinkedModelEditorCell(cell);
   const sourceLineNumbers = Array.from({ length: sourceDraft.split("\n").length }, (_, index) =>
     String(index + 1)
   ).join("\n");
@@ -715,6 +751,7 @@ function NotebookCellView({
     () => resolveCellVariableUnitMetadata(cells, cell),
     [cells, cell]
   );
+  const showToolbarHelp = !isLinkedModelEditorCell(cell);
 
   useEffect(() => {
     setTitleDraft(cell.title);
@@ -835,55 +872,73 @@ function NotebookCellView({
   }
 
   return (
-    <article id={cell.id} className={`notebook-cell notebook-cell-${cell.type}`}>
+    <article
+      id={cell.id}
+      className={`notebook-cell notebook-cell-${cell.type}${
+        isCompactLinkedCellHeader(cell) ? " notebook-cell-linked-collapsed" : ""
+      }`}
+    >
       <div className="notebook-cell-content">
         <div className="notebook-cell-toolbar">
-          <div className="notebook-cell-heading">
-            <div className="notebook-cell-type-rule">
-              <span className="notebook-cell-type-tag">{cell.type}</span>
-            </div>
-            <h2>{cell.title}</h2>
-          </div>
-          <div className="notebook-run-actions">
-            {cell.type === "run" ? (
-              <>
-                <button
-                  type="button"
-                  className="notebook-run-button"
-                  onClick={() => void runner.runCell(cell.id)}
-                  disabled={status === "running"}
-                >
-                  {status === "running" ? "Running..." : "Run cell"}
-                </button>
-                <span className={`run-status run-status-${status}`}>{status}</span>
-              </>
-            ) : null}
-          </div>
-          {isSourceEditable(cell) ? (
-            isEditingSource ? (
-              <div className="notebook-run-actions">
-                <button
-                  type="button"
-                  className="notebook-run-button notebook-source-toggle"
-                  onClick={handleApplySource}
-                  disabled={!hasSourceEdits || sourceValidationError != null}
-                >
-                  Apply
-                </button>
-                <button type="button" className="notebook-run-button notebook-source-toggle" onClick={handleCancelSource}>
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                className="notebook-run-button notebook-source-toggle"
-                onClick={() => setIsEditingSource(true)}
-              >
-                Edit source
-              </button>
-            )
-          ) : null}
+          <NotebookLinkedEditorHeader
+            actions={
+              <NotebookCellHeaderActions
+                helpText={showToolbarHelp ? buildNotebookCellHelpText(cell) : null}
+                isCollapsed={cell.collapsed === true}
+                isEditing={isEditingSource}
+                leadingActions={
+                  cell.type === "run" ? (
+                    <>
+                      <button
+                        type="button"
+                        className="notebook-run-button"
+                        onClick={() => void runner.runCell(cell.id)}
+                        disabled={status === "running"}
+                      >
+                        {status === "running" ? "Running..." : "Run cell"}
+                      </button>
+                      <span className={`run-status run-status-${status}`}>{status}</span>
+                    </>
+                  ) : null
+                }
+                onEditToggle={
+                  !isLinkedModelEditorCell(cell) && !isEditingSource ? () => setIsEditingSource(true) : null
+                }
+                onToggleCollapsed={
+                  !isLinkedModelEditorCell(cell)
+                    ? () =>
+                        onCellChange(cell.id, (current) => ({ ...current, collapsed: !current.collapsed }))
+                    : null
+                }
+                title={cell.title}
+                trailingActions={
+                  <>
+                    {isSourceEditable(cell) && isEditingSource ? (
+                      <>
+                        <button
+                          type="button"
+                          className="notebook-run-button notebook-source-toggle"
+                          onClick={handleApplySource}
+                          disabled={!hasSourceEdits || sourceValidationError != null}
+                        >
+                          Apply
+                        </button>
+                        <button
+                          type="button"
+                          className="notebook-run-button notebook-source-toggle"
+                          onClick={handleCancelSource}
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : null}
+                  </>
+                }
+              />
+            }
+            title={cell.title}
+            typeLabel={cell.type}
+          />
         </div>
 
         {error ? <div className="error-text">Error: {error}</div> : null}
@@ -1001,14 +1056,15 @@ function NotebookCellView({
           </div>
         ) : null}
 
-        {cell.type === "markdown" ? <p className="notebook-markdown">{cell.source}</p> : null}
-        {cell.type === "equations" ? (
+        {isCollapsed ? null : cell.type === "markdown" ? <p className="notebook-markdown">{cell.source}</p> : null}
+        {isCollapsed ? null : cell.type === "equations" ? (
           <EquationsCellView
             cell={cell}
             currentValues={getModelCurrentValues({ modelId: cell.modelId })}
             externals={findExternalsCell(cells, cell.modelId)?.externals ?? []}
             initialValuesCount={findInitialValuesCell(cells, cell.modelId)?.initialValues.length ?? 0}
             solverCell={findSolverCell(cells, cell.modelId)}
+            title={cell.title}
             onChange={(equations) =>
               onCellChange(cell.id, (current) =>
                 current.type === "equations" ? { ...current, equations } : current
@@ -1023,17 +1079,24 @@ function NotebookCellView({
             }
           />
         ) : null}
-        {cell.type === "model" ? (
+        {isCollapsed ? null : cell.type === "model" ? (
           <ModelCellView
             cell={cell}
             currentValues={getModelCurrentValues({ sourceModelCellId: cell.id })}
             onChange={(editor) => onModelChange(cell.id, editor)}
+            onToggleCollapsed={() =>
+              onCellChange(cell.id, (current) =>
+                current.type === "model" ? { ...current, collapsed: !current.collapsed } : current
+              )
+            }
+            title={cell.title}
           />
         ) : null}
-        {cell.type === "solver" ? (
+        {isCollapsed ? null : cell.type === "solver" ? (
           <SolverCellView
             cell={cell}
             issueMap={buildIssueMapForStandaloneModelSections(cells, cell.modelId)}
+            title={cell.title}
             onChange={(options) =>
               onCellChange(cell.id, (current) =>
                 current.type === "solver" ? { ...current, options } : current
@@ -1048,11 +1111,12 @@ function NotebookCellView({
             }
           />
         ) : null}
-        {cell.type === "externals" ? (
+        {isCollapsed ? null : cell.type === "externals" ? (
           <ExternalsCellView
             cell={cell}
             currentValues={getModelCurrentValues({ modelId: cell.modelId })}
             issueMap={buildIssueMapForStandaloneModelSections(cells, cell.modelId)}
+            title={cell.title}
             onChange={(externals) =>
               onCellChange(cell.id, (current) =>
                 current.type === "externals" ? { ...current, externals } : current
@@ -1067,11 +1131,12 @@ function NotebookCellView({
             }
           />
         ) : null}
-        {cell.type === "initial-values" ? (
+        {isCollapsed ? null : cell.type === "initial-values" ? (
           <InitialValuesCellView
             cell={cell}
             currentValues={getModelCurrentValues({ modelId: cell.modelId })}
             issueMap={buildIssueMapForStandaloneModelSections(cells, cell.modelId)}
+            title={cell.title}
             variableDescriptions={variableDescriptions}
             variableUnitMetadata={variableUnitMetadata}
             onChange={(initialValues) =>
@@ -1088,10 +1153,10 @@ function NotebookCellView({
             }
           />
         ) : null}
-        {cell.type === "run" ? (
+        {isCollapsed ? null : cell.type === "run" ? (
           <RunCellView cell={cell} cells={cells} variableDescriptions={variableDescriptions} />
         ) : null}
-        {cell.type === "chart" ? (
+        {isCollapsed ? null : cell.type === "chart" ? (
           <ChartCellView
             cell={cell}
             cells={cells}
@@ -1101,7 +1166,7 @@ function NotebookCellView({
             variableUnitMetadata={variableUnitMetadata}
           />
         ) : null}
-        {cell.type === "table" ? (
+        {isCollapsed ? null : cell.type === "table" ? (
           <TableCellView
             cell={cell}
             runner={runner}
@@ -1110,7 +1175,7 @@ function NotebookCellView({
             variableUnitMetadata={variableUnitMetadata}
           />
         ) : null}
-        {cell.type === "matrix" ? (
+        {isCollapsed ? null : cell.type === "matrix" ? (
           <MatrixCellView
             cell={cell}
             runner={runner}
@@ -1119,7 +1184,7 @@ function NotebookCellView({
             variableUnitMetadata={variableUnitMetadata}
           />
         ) : null}
-        {cell.type === "sequence" ? (
+        {isCollapsed ? null : cell.type === "sequence" ? (
           <SequenceCellView
             cell={cell}
             cells={cells}
@@ -1138,11 +1203,15 @@ function NotebookCellView({
 function ModelCellView({
   cell,
   currentValues,
-  onChange
+  onChange,
+  onToggleCollapsed,
+  title
 }: {
   cell: ModelCell;
   currentValues: Record<string, number | undefined>;
   onChange(editor: EditorState): void;
+  onToggleCollapsed(): void;
+  title: string;
 }) {
   const issues = validateEditorState(cell.editor);
   const buildDiagnostics = diagnoseBuildRuntime(cell.editor);
@@ -1182,120 +1251,133 @@ function ModelCellView({
     : hoveredRowId
       ? buildActiveTrace(traceModel, hoveredRowId, "inputs")
       : null;
+  const [isEditingEquations, setIsEditingEquations] = useState(false);
 
   return (
     <div className="notebook-model-stack">
-      <div className="notebook-model-summary" aria-label="Model summary">
-        <span className="notebook-model-chip">
-          Eq <strong>{cell.editor.equations.length}</strong>
-        </span>
-        <span className="notebook-model-chip">
-          Ext <strong>{cell.editor.externals.length}</strong>
-        </span>
-        <span className="notebook-model-chip">
-          Init <strong>{cell.editor.initialValues.length}</strong>
-        </span>
-        <span className="notebook-model-chip">
-          Solver <strong>{cell.editor.options.solverMethod}</strong>
-        </span>
-        <span className="notebook-model-chip">
-          Periods <strong>{runtime?.options.periods ?? "invalid"}</strong>
-        </span>
-        <span className="notebook-model-chip">
-          Hidden <strong>{runtime?.options.hiddenEquation ? "on" : "off"}</strong>
-        </span>
-        <span className="notebook-model-chip">
-          Shocks <strong>{runtime?.scenario?.shocks.length ?? 0}</strong>
-        </span>
-        <span className="notebook-model-chip">
-          Issues <strong>{allIssues.length}</strong>
-        </span>
-      </div>
-
-      <section className="notebook-model-view" aria-label="Model view">
-        <div className="notebook-model-view-header">
-          <h3>Model view</h3>
-          <p className="panel-subtitle">Compact read-only equation list.</p>
+      <NotebookLinkedEditorHeader
+        actions={
+          <NotebookLinkedEditorActions
+            cell={cell}
+            isEditing={isEditingEquations}
+            onEditToggle={() => setIsEditingEquations((current) => !current)}
+            onToggleCollapsed={onToggleCollapsed}
+            title={title}
+          />
+        }
+        title={title}
+        typeLabel={cell.type}
+      >
+        <div className="notebook-model-summary" aria-label="Model summary">
+          <span className="notebook-model-chip">
+            Eq <strong>{cell.editor.equations.length}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Ext <strong>{cell.editor.externals.length}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Init <strong>{cell.editor.initialValues.length}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Solver <strong>{cell.editor.options.solverMethod}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Periods <strong>{runtime?.options.periods ?? "invalid"}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Hidden <strong>{runtime?.options.hiddenEquation ? "on" : "off"}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Shocks <strong>{runtime?.scenario?.shocks.length ?? 0}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Issues <strong>{allIssues.length}</strong>
+          </span>
         </div>
-        <div className="notebook-model-view-table" role="table" aria-label="Model equations">
-          <div className="notebook-model-view-row notebook-model-view-row-header" role="row">
-            <span role="columnheader">Variable</span>
-            <span role="columnheader">Expression</span>
-            <span role="columnheader">Current</span>
-          </div>
-          {cell.editor.equations.map((equation, index) => {
-            const issue =
-              issueMap[`equations.${index}.name`] ?? issueMap[`equations.${index}.expression`];
-            const traceRole = activeTrace?.rowStates.get(equation.id) ?? null;
+      </NotebookLinkedEditorHeader>
 
-            return (
-              <div
-                key={equation.id}
-                className={[
-                  "notebook-model-view-row",
-                  issue ? "has-issue" : "",
-                  hoveredRowId === equation.id ? "is-hovered" : "",
-                  traceRole ? `trace-${traceRole}` : ""
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                onClick={(event) =>
-                  setPinnedTrace((current) => togglePinnedTrace(current, equation.id, event))
-                }
-                onMouseEnter={() => setHoveredRowId(equation.id)}
-                onMouseLeave={() =>
-                  setHoveredRowId((current) => (current === equation.id ? null : current))
-                }
-                role="row"
-              >
-                <span className="notebook-model-view-name" role="cell">
-                  {equation.name
-                    ? highlightFormula(
-                        equation.name,
-                        parameterNameSet,
-                        traceRole ? activeTrace?.tokenStates : undefined,
-                        variableDescriptions
-                      )
-                    : "?"}
-                </span>
-                <span className="notebook-model-view-expression" role="cell">
-                  {equation.expression
-                    ? highlightFormula(
-                        equation.expression,
-                        parameterNameSet,
-                        traceRole ? activeTrace?.tokenStates : undefined,
-                        variableDescriptions
-                      )
-                    : " "}
-                </span>
-                <span className="notebook-model-view-current" role="cell">
-                  {formatNotebookCurrentValue(
-                    equation.name,
-                    currentValues[equation.name.trim()],
-                    variableUnitMetadata
-                  )}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <details className="notebook-model-editor">
-        <summary>Edit model cell</summary>
+      {cell.collapsed ? null : isEditingEquations ? (
         <div className="notebook-model-editor-body">
           <EquationGridEditor
             buildError={buildDiagnostics.modelError}
             currentValues={currentValues}
             equations={cell.editor.equations}
+            isEmbedded
             issues={equationIssueMap}
             onChange={(equations) => onChange({ ...cell.editor, equations })}
             parameterNames={cell.editor.externals.map((external) => external.name)}
+            showHeading={false}
+            showTraceHelp={false}
             variableDescriptions={variableDescriptions}
             variableUnitMetadata={variableUnitMetadata}
           />
         </div>
-      </details>
+      ) : (
+        <section className="notebook-model-view" aria-label="Model view">
+          <div className="notebook-model-view-table" role="table" aria-label="Model equations">
+            <div className="notebook-model-view-row notebook-model-view-row-header" role="row">
+              <span role="columnheader">Variable</span>
+              <span role="columnheader">Expression</span>
+              <span role="columnheader">Current</span>
+            </div>
+            {cell.editor.equations.map((equation, index) => {
+              const issue =
+                issueMap[`equations.${index}.name`] ?? issueMap[`equations.${index}.expression`];
+              const traceRole = activeTrace?.rowStates.get(equation.id) ?? null;
+
+              return (
+                <div
+                  key={equation.id}
+                  className={[
+                    "notebook-model-view-row",
+                    issue ? "has-issue" : "",
+                    hoveredRowId === equation.id ? "is-hovered" : "",
+                    traceRole ? `trace-${traceRole}` : ""
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  onClick={(event) =>
+                    setPinnedTrace((current) => togglePinnedTrace(current, equation.id, event))
+                  }
+                  onMouseEnter={() => setHoveredRowId(equation.id)}
+                  onMouseLeave={() =>
+                    setHoveredRowId((current) => (current === equation.id ? null : current))
+                  }
+                  role="row"
+                >
+                  <span className="notebook-model-view-name" role="cell">
+                    {equation.name
+                      ? highlightFormula(
+                          equation.name,
+                          parameterNameSet,
+                          traceRole ? activeTrace?.tokenStates : undefined,
+                          variableDescriptions
+                        )
+                      : "?"}
+                  </span>
+                  <span className="notebook-model-view-expression" role="cell">
+                    {equation.expression
+                      ? highlightFormula(
+                          equation.expression,
+                          parameterNameSet,
+                          traceRole ? activeTrace?.tokenStates : undefined,
+                          variableDescriptions
+                        )
+                      : " "}
+                  </span>
+                  <span className="notebook-model-view-current" role="cell">
+                    {formatNotebookCurrentValue(
+                      equation.name,
+                      currentValues[equation.name.trim()],
+                      variableUnitMetadata
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
@@ -1306,6 +1388,7 @@ function EquationsCellView({
   externals,
   initialValuesCount,
   solverCell,
+  title,
   onChange,
   onToggleCollapsed
 }: {
@@ -1314,6 +1397,7 @@ function EquationsCellView({
   externals: ExternalsCell["externals"];
   initialValuesCount: number;
   solverCell: SolverCell | null;
+  title: string;
   onChange(equations: EquationsCell["equations"]): void;
   onToggleCollapsed(): void;
 }) {
@@ -1369,10 +1453,23 @@ function EquationsCellView({
     : hoveredRowId
       ? buildActiveTrace(traceModel, hoveredRowId, "inputs")
       : null;
+  const [isEditingEquations, setIsEditingEquations] = useState(false);
 
   return (
     <div className="notebook-model-stack">
-      <div className="notebook-linked-editor-topline">
+      <NotebookLinkedEditorHeader
+        actions={
+          <NotebookLinkedEditorActions
+            cell={cell}
+            isEditing={isEditingEquations}
+            onEditToggle={() => setIsEditingEquations((current) => !current)}
+            onToggleCollapsed={onToggleCollapsed}
+            title={title}
+          />
+        }
+        title={title}
+        typeLabel={cell.type}
+      >
         <div className="notebook-model-summary" aria-label="Equations summary">
           <span className="notebook-model-chip">
             Eq <strong>{cell.equations.length}</strong>
@@ -1396,17 +1493,26 @@ function EquationsCellView({
             Issues <strong>{countModelSectionIssues(allIssues.map((issue) => issue.path), "equations.")}</strong>
           </span>
         </div>
-        <button type="button" className="notebook-run-button" onClick={onToggleCollapsed}>
-          {cell.collapsed ? "Show contents" : "Hide contents"}
-        </button>
-      </div>
+      </NotebookLinkedEditorHeader>
       {cell.collapsed ? null : (
-        <>
+        isEditingEquations ? (
+          <div className="notebook-model-editor-body">
+            <EquationGridEditor
+              buildError={buildDiagnostics.modelError}
+              currentValues={currentValues}
+              equations={cell.equations}
+              isEmbedded
+              issues={equationIssueMap}
+              onChange={onChange}
+              parameterNames={externals.map((external) => external.name)}
+              showHeading={false}
+            showTraceHelp={false}
+            variableDescriptions={variableDescriptions}
+            variableUnitMetadata={variableUnitMetadata}
+          />
+          </div>
+        ) : (
           <section className="notebook-model-view" aria-label="Model view">
-            <div className="notebook-model-view-header">
-              <h3>Model view</h3>
-              <p className="panel-subtitle">Compact read-only equation list.</p>
-            </div>
             <div className="notebook-model-view-table" role="table" aria-label="Model equations">
               <div className="notebook-model-view-row notebook-model-view-row-header" role="row">
                 <span role="columnheader">Variable</span>
@@ -1472,23 +1578,7 @@ function EquationsCellView({
               })}
             </div>
           </section>
-
-          <details className="notebook-model-editor">
-            <summary>Edit equations cell</summary>
-            <div className="notebook-model-editor-body">
-              <EquationGridEditor
-                buildError={buildDiagnostics.modelError}
-                currentValues={currentValues}
-                equations={cell.equations}
-                issues={equationIssueMap}
-                onChange={onChange}
-                parameterNames={externals.map((external) => external.name)}
-                variableDescriptions={variableDescriptions}
-                variableUnitMetadata={variableUnitMetadata}
-              />
-            </div>
-          </details>
-        </>
+        )
       )}
     </div>
   );
@@ -1497,11 +1587,13 @@ function EquationsCellView({
 function SolverCellView({
   cell,
   issueMap,
+  title,
   onChange,
   onToggleCollapsed
 }: {
   cell: SolverCell;
   issueMap: Record<string, string | undefined>;
+  title: string;
   onChange(options: EditorState["options"]): void;
   onToggleCollapsed(): void;
 }) {
@@ -1509,10 +1601,23 @@ function SolverCellView({
   const hiddenEquationEnabled =
     options.hiddenLeftVariable.trim() !== "" && options.hiddenRightVariable.trim() !== "";
   const issuePaths = Object.keys(issueMap);
+  const [isEditingSolver, setIsEditingSolver] = useState(false);
 
   return (
     <div className="notebook-model-stack notebook-linked-editor-cell">
-      <div className="notebook-linked-editor-topline">
+      <NotebookLinkedEditorHeader
+        actions={
+          <NotebookLinkedEditorActions
+            cell={cell}
+            isEditing={isEditingSolver}
+            onEditToggle={() => setIsEditingSolver((current) => !current)}
+            onToggleCollapsed={onToggleCollapsed}
+            title={title}
+          />
+        }
+        title={title}
+        typeLabel={cell.type}
+      >
         <div className="notebook-model-summary" aria-label="Solver summary">
           <span className="notebook-model-chip">
             Model <strong>{cell.modelId}</strong>
@@ -1530,12 +1635,13 @@ function SolverCellView({
             Issues <strong>{countModelSectionIssues(issuePaths, "options.")}</strong>
           </span>
         </div>
-        <button type="button" className="notebook-run-button" onClick={onToggleCollapsed}>
-          {cell.collapsed ? "Show contents" : "Hide contents"}
-        </button>
-      </div>
+      </NotebookLinkedEditorHeader>
       {cell.collapsed ? null : (
-        <>
+        isEditingSolver ? (
+          <div className="notebook-model-editor-body">
+            <SolverPanel options={options} issues={issueMap} onChange={onChange} />
+          </div>
+        ) : (
           <section className="notebook-model-view" aria-label="Solver view">
             <div className="notebook-model-view-header">
               <h3>Solver view</h3>
@@ -1594,13 +1700,7 @@ function SolverCellView({
               ))}
             </div>
           </section>
-          <details className="notebook-model-editor">
-            <summary>Edit solver cell</summary>
-            <div className="notebook-model-editor-body">
-              <SolverPanel options={options} issues={issueMap} onChange={onChange} />
-            </div>
-          </details>
-        </>
+        )
       )}
     </div>
   );
@@ -1610,12 +1710,14 @@ function ExternalsCellView({
   cell,
   currentValues,
   issueMap,
+  title,
   onChange,
   onToggleCollapsed
 }: {
   cell: ExternalsCell;
   currentValues: Record<string, number | undefined>;
   issueMap: Record<string, string | undefined>;
+  title: string;
   onChange(externals: EditorState["externals"]): void;
   onToggleCollapsed(): void;
 }) {
@@ -1629,10 +1731,23 @@ function ExternalsCellView({
     () => buildVariableUnitMetadata({ externals: cell.externals }),
     [cell.externals]
   );
+  const [isEditingExternals, setIsEditingExternals] = useState(false);
 
   return (
     <div className="notebook-model-stack notebook-linked-editor-cell">
-      <div className="notebook-linked-editor-topline">
+      <NotebookLinkedEditorHeader
+        actions={
+          <NotebookLinkedEditorActions
+            cell={cell}
+            isEditing={isEditingExternals}
+            onEditToggle={() => setIsEditingExternals((current) => !current)}
+            onToggleCollapsed={onToggleCollapsed}
+            title={title}
+          />
+        }
+        title={title}
+        typeLabel={cell.type}
+      >
         <div className="notebook-model-summary" aria-label="Externals summary">
           <span className="notebook-model-chip">
             Model <strong>{cell.modelId}</strong>
@@ -1647,17 +1762,21 @@ function ExternalsCellView({
             Issues <strong>{countModelSectionIssues(issuePaths, "externals.")}</strong>
           </span>
         </div>
-        <button type="button" className="notebook-run-button" onClick={onToggleCollapsed}>
-          {cell.collapsed ? "Show contents" : "Hide contents"}
-        </button>
-      </div>
+      </NotebookLinkedEditorHeader>
       {cell.collapsed ? null : (
-        <>
+        isEditingExternals ? (
+          <div className="notebook-model-editor-body">
+            <ExternalEditor
+              currentValues={currentValues}
+              externals={cell.externals}
+              isEmbedded
+              issues={issueMap}
+              onChange={onChange}
+              showHeading={false}
+            />
+          </div>
+        ) : (
           <section className="notebook-model-view" aria-label="Externals view">
-            <div className="notebook-model-view-header">
-              <h3>Externals view</h3>
-              <p className="panel-subtitle">Compact read-only external parameter list.</p>
-            </div>
             <div className="notebook-model-view-table" role="table" aria-label="Externals">
               <div
                 className="notebook-model-view-row notebook-model-view-row-header notebook-model-view-row-external"
@@ -1711,18 +1830,7 @@ function ExternalsCellView({
               })}
             </div>
           </section>
-          <details className="notebook-model-editor">
-            <summary>Edit externals cell</summary>
-            <div className="notebook-model-editor-body">
-              <ExternalEditor
-                currentValues={currentValues}
-                externals={cell.externals}
-                issues={issueMap}
-                onChange={onChange}
-              />
-            </div>
-          </details>
-        </>
+        )
       )}
     </div>
   );
@@ -1732,6 +1840,7 @@ function InitialValuesCellView({
   cell,
   currentValues,
   issueMap,
+  title,
   variableDescriptions,
   variableUnitMetadata,
   onChange,
@@ -1740,16 +1849,30 @@ function InitialValuesCellView({
   cell: InitialValuesCell;
   currentValues: Record<string, number | undefined>;
   issueMap: Record<string, string | undefined>;
+  title: string;
   variableDescriptions: VariableDescriptions;
   variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
   onChange(initialValues: EditorState["initialValues"]): void;
   onToggleCollapsed(): void;
 }) {
   const issuePaths = Object.keys(issueMap);
+  const [isEditingInitialValues, setIsEditingInitialValues] = useState(false);
 
   return (
     <div className="notebook-model-stack notebook-linked-editor-cell">
-      <div className="notebook-linked-editor-topline">
+      <NotebookLinkedEditorHeader
+        actions={
+          <NotebookLinkedEditorActions
+            cell={cell}
+            isEditing={isEditingInitialValues}
+            onEditToggle={() => setIsEditingInitialValues((current) => !current)}
+            onToggleCollapsed={onToggleCollapsed}
+            title={title}
+          />
+        }
+        title={title}
+        typeLabel={cell.type}
+      >
         <div className="notebook-model-summary" aria-label="Initial values summary">
           <span className="notebook-model-chip">
             Model <strong>{cell.modelId}</strong>
@@ -1770,17 +1893,22 @@ function InitialValuesCellView({
             </strong>
           </span>
         </div>
-        <button type="button" className="notebook-run-button" onClick={onToggleCollapsed}>
-          {cell.collapsed ? "Show contents" : "Hide contents"}
-        </button>
-      </div>
+      </NotebookLinkedEditorHeader>
       {cell.collapsed ? null : (
-        <>
+        isEditingInitialValues ? (
+          <div className="notebook-model-editor-body">
+            <InitialValuesEditor
+              currentValues={currentValues}
+              initialValues={cell.initialValues}
+              isEmbedded
+              issues={issueMap}
+              onChange={onChange}
+              showHeading={false}
+              variableUnitMetadata={variableUnitMetadata}
+            />
+          </div>
+        ) : (
           <section className="notebook-model-view" aria-label="Initial values view">
-            <div className="notebook-model-view-header">
-              <h3>Initial values view</h3>
-              <p className="panel-subtitle">Compact read-only list of initial conditions.</p>
-            </div>
             <div className="notebook-model-view-table" role="table" aria-label="Initial values">
               <div
                 className="notebook-model-view-row notebook-model-view-row-header notebook-model-view-row-initial"
@@ -1838,22 +1966,193 @@ function InitialValuesCellView({
               })}
             </div>
           </section>
-          <details className="notebook-model-editor">
-            <summary>Edit initial values cell</summary>
-            <div className="notebook-model-editor-body">
-              <InitialValuesEditor
-                currentValues={currentValues}
-                initialValues={cell.initialValues}
-                issues={issueMap}
-                onChange={onChange}
-                variableUnitMetadata={variableUnitMetadata}
-              />
-            </div>
-          </details>
-        </>
+        )
       )}
     </div>
   );
+}
+
+function NotebookHelpButton({
+  title,
+  helpText
+}: {
+  title: string;
+  helpText: string;
+}) {
+  return (
+    <details className="notebook-cell-help">
+      <summary className="notebook-run-button">Help</summary>
+      <div className="notebook-cell-help-panel" role="note" aria-label={`Help for ${title}`}>
+        {helpText
+          .split("\n")
+          .filter((line) => line.trim().length > 0)
+          .map((line, index) => (
+            <p key={`${title}-help-${index}`}>{line}</p>
+          ))}
+      </div>
+    </details>
+  );
+}
+
+function NotebookLinkedEditorHeader({
+  actions,
+  children,
+  title,
+  typeLabel
+}: {
+  actions: ReactNode;
+  children?: ReactNode;
+  title: string;
+  typeLabel: string;
+}) {
+  return (
+    <div className="notebook-linked-editor-topline is-compact">
+      <div className="notebook-linked-editor-meta">
+        <div className="notebook-linked-editor-titleline">
+          <span className="notebook-cell-type-tag">{typeLabel}</span>
+          <h2>{title}</h2>
+        </div>
+        {children ?? null}
+      </div>
+      {actions}
+    </div>
+  );
+}
+
+function NotebookCellHeaderActions({
+  helpText,
+  isCollapsed,
+  isEditing,
+  leadingActions,
+  onEditToggle,
+  onToggleCollapsed,
+  title,
+  trailingActions
+}: {
+  helpText: string | null;
+  isCollapsed: boolean;
+  isEditing: boolean;
+  leadingActions?: ReactNode;
+  onEditToggle?: (() => void) | null;
+  onToggleCollapsed: (() => void) | null;
+  title: string;
+  trailingActions?: ReactNode;
+}) {
+  return (
+    <div className="notebook-cell-header-actions">
+      {leadingActions ? <div className="notebook-cell-header-leading">{leadingActions}</div> : null}
+      <div className="notebook-linked-editor-actions">
+        {helpText ? <NotebookHelpButton title={title} helpText={helpText} /> : null}
+        {!isCollapsed && onEditToggle ? (
+          <button
+            type="button"
+            className="notebook-run-button"
+            aria-pressed={isEditing}
+            onClick={onEditToggle}
+          >
+            Edit
+          </button>
+        ) : null}
+        {onToggleCollapsed ? (
+          <button type="button" className="notebook-run-button" onClick={onToggleCollapsed}>
+            {isCollapsed ? "Show" : "Hide"}
+          </button>
+        ) : null}
+        {trailingActions ?? null}
+      </div>
+    </div>
+  );
+}
+
+function NotebookLinkedEditorActions({
+  cell,
+  isEditing,
+  onEditToggle,
+  onToggleCollapsed,
+  title
+}: {
+  cell: ModelCell | EquationsCell | SolverCell | ExternalsCell | InitialValuesCell;
+  isEditing: boolean;
+  onEditToggle(): void;
+  onToggleCollapsed(): void;
+  title: string;
+}) {
+  return (
+    <NotebookCellHeaderActions
+      helpText={buildNotebookCellHelpText(cell)}
+      isCollapsed={cell.collapsed === true}
+      isEditing={isEditing}
+      onEditToggle={onEditToggle}
+      onToggleCollapsed={onToggleCollapsed}
+      title={title}
+    />
+  );
+}
+
+function isLinkedModelEditorCell(cell: NotebookCell): boolean {
+  return (
+    cell.type === "model" ||
+    cell.type === "equations" ||
+    cell.type === "solver" ||
+    cell.type === "externals" ||
+    cell.type === "initial-values"
+  );
+}
+
+function isCompactLinkedCellHeader(cell: NotebookCell): boolean {
+  return (
+    cell.type === "model" ||
+    cell.type === "equations" ||
+    cell.type === "solver" ||
+    cell.type === "externals" ||
+    cell.type === "initial-values"
+  );
+}
+
+function buildNotebookCellHelpText(cell: NotebookCell): string {
+  switch (cell.type) {
+    case "markdown":
+      return "Markdown cell for narrative text, notes, and section explanations.";
+    case "model":
+      return [
+        "Combined model cell with equations, externals, initial values, and solver settings.",
+        "Use Edit to switch between the compact model view and the editor.",
+        "Hover previews inputs. Click pins inputs, Shift+click pins outputs, Ctrl/Cmd+click shows both."
+      ].join("\n");
+    case "equations":
+      return [
+        "Equation ledger for the linked model.",
+        "Use Edit to switch between the compact read-only view and the equation editor.",
+        "Hover previews inputs. Click pins inputs, Shift+click pins outputs, Ctrl/Cmd+click shows both."
+      ].join("\n");
+    case "solver":
+      return [
+        "Solver settings for the linked model.",
+        "Use Edit to switch between the compact read-only view and the solver editor."
+      ].join("\n");
+    case "externals":
+      return [
+        "External parameters and exogenous series for the linked model.",
+        "Use Edit to switch between the compact read-only view and the externals editor."
+      ].join("\n");
+    case "initial-values":
+      return [
+        "Initial conditions for the linked model.",
+        "Use Edit to switch between the compact read-only view and the initial values editor."
+      ].join("\n");
+    case "run":
+      return "Run cell for baseline or scenario simulation. Use it to execute the linked model and populate downstream result cells.";
+    case "chart":
+      return "Chart cell that plots variables from a run cell result.";
+    case "table":
+      return "Summary table cell that shows selected, start, and end values for chosen variables.";
+    case "matrix":
+      return "Matrix cell that evaluates transaction or balance-sheet style formulas against the selected run result.";
+    case "sequence":
+      return "Sequence diagram cell that animates flows derived from a matrix cell and its linked run result.";
+    default:
+      return "Notebook cell help is not available for this cell type.";
+  }
 }
 
 function RunCellView({
@@ -2935,6 +3234,9 @@ function normalizeCellSource(cell: NotebookCell): NotebookCell {
 }
 
 function validateCellSourceShape(cellType: NotebookCell["type"], parsed: Omit<NotebookCell, "title">): void {
+  if ((parsed as NotebookCell).collapsed != null && typeof (parsed as NotebookCell).collapsed !== "boolean") {
+    throw new Error(`${cellType} cells require collapsed to be a boolean when provided.`);
+  }
   switch (cellType) {
     case "run":
       if (
@@ -3022,9 +3324,6 @@ function validateCellSourceShape(cellType: NotebookCell["type"], parsed: Omit<No
       if (typeof (parsed as SolverCell).modelId !== "string") {
         throw new Error("solver cells require modelId.");
       }
-      if ((parsed as SolverCell).collapsed != null && typeof (parsed as SolverCell).collapsed !== "boolean") {
-        throw new Error("solver cells require collapsed to be a boolean when provided.");
-      }
       if (!(parsed as SolverCell).options || typeof (parsed as SolverCell).options !== "object") {
         throw new Error("solver cells require options.");
       }
@@ -3033,12 +3332,6 @@ function validateCellSourceShape(cellType: NotebookCell["type"], parsed: Omit<No
     case "initial-values":
       if (typeof (parsed as ExternalsCell | InitialValuesCell).modelId !== "string") {
         throw new Error(`${cellType} cells require modelId.`);
-      }
-      if (
-        (parsed as ExternalsCell | InitialValuesCell).collapsed != null &&
-        typeof (parsed as ExternalsCell | InitialValuesCell).collapsed !== "boolean"
-      ) {
-        throw new Error(`${cellType} cells require collapsed to be a boolean when provided.`);
       }
       if (cellType === "externals" && !Array.isArray((parsed as ExternalsCell).externals)) {
         throw new Error("externals cells require externals.");
@@ -3056,12 +3349,6 @@ function validateCellSourceShape(cellType: NotebookCell["type"], parsed: Omit<No
       }
       if (!Array.isArray((parsed as EquationsCell).equations)) {
         throw new Error("equations cells require equations.");
-      }
-      if (
-        (parsed as EquationsCell).collapsed != null &&
-        typeof (parsed as EquationsCell).collapsed !== "boolean"
-      ) {
-        throw new Error("equations cells require collapsed to be a boolean when provided.");
       }
       return;
     case "matrix":
@@ -3091,6 +3378,7 @@ function buildSourceHelperActions(cell: NotebookCell): Array<{ label: string; in
     case "chart":
       return [
         { label: "Add axisMode", insert: '"axisMode": "shared"' },
+        { label: "Collapsed true", insert: '"collapsed": true' },
         { label: "Shared range", insert: '"sharedRange": {\n  "min": 0,\n  "max": 200\n}' },
         {
           label: "Time range",
@@ -3105,6 +3393,7 @@ function buildSourceHelperActions(cell: NotebookCell): Array<{ label: string; in
       ];
     case "run":
       return [
+        { label: "Collapsed true", insert: '"collapsed": true' },
         {
           label: "Scenario skeleton",
           insert:
@@ -3117,14 +3406,21 @@ function buildSourceHelperActions(cell: NotebookCell): Array<{ label: string; in
         { label: "Result key", insert: '"resultKey": "scenario_result"' }
       ];
     case "table":
-      return [{ label: "Variables array", insert: '"variables": ["y", "c"]' }];
+      return [
+        { label: "Variables array", insert: '"variables": ["y", "c"]' },
+        { label: "Collapsed true", insert: '"collapsed": true' }
+      ];
     case "matrix":
       return [
         { label: "Columns array", insert: '"columns": ["Households", "Firms"]' },
-        { label: "Rows array", insert: '"rows": []' }
+        { label: "Rows array", insert: '"rows": []' },
+        { label: "Collapsed true", insert: '"collapsed": true' }
       ];
     case "sequence":
-      return [{ label: "Matrix source", insert: '"source": {\n  "kind": "matrix",\n  "matrixCellId": "matrix-1"\n}' }];
+      return [
+        { label: "Matrix source", insert: '"source": {\n  "kind": "matrix",\n  "matrixCellId": "matrix-1"\n}' },
+        { label: "Collapsed true", insert: '"collapsed": true' }
+      ];
     case "equations":
       return [
         { label: "Model id", insert: '"modelId": "main"' },
@@ -3152,10 +3448,11 @@ function buildSourceHelperActions(cell: NotebookCell): Array<{ label: string; in
     case "markdown":
       return [
         { label: "Code span", insert: "`variable`" },
-        { label: "Bullet list", insert: "- item one\n- item two" }
+        { label: "Bullet list", insert: "- item one\n- item two" },
+        { label: "Collapsed true", insert: '"collapsed": true' }
       ];
     case "model":
-      return [];
+      return [{ label: "Collapsed true", insert: '"collapsed": true' }];
   }
 }
 
