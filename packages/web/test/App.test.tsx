@@ -171,7 +171,8 @@ describe("App", () => {
     await user.click(editEquationsButton);
     expect(screen.queryByText(/compact read-only equation list/i)).not.toBeInTheDocument();
     expect(screen.getAllByText("Description").length).toBeGreaterThan(0);
-    expect(editEquationsButton).toHaveAttribute("aria-pressed", "true");
+    expect(within(equationsCell).queryByRole("button", { name: /^edit$/i })).not.toBeInTheDocument();
+    expect(within(equationsCell).getByRole("button", { name: /^cancel$/i })).toBeInTheDocument();
   });
 
   it("auto-runs notebook cells on load", async () => {
@@ -217,6 +218,40 @@ describe("App", () => {
     expect(changeDepositsRow).not.toBeNull();
     expect(changeDepositsRow?.textContent).toContain("-d(Mh)");
     expect(changeDepositsRow?.textContent).toMatch(/= \$[0-9.,]+\/yr/);
+  });
+
+  it("shows variable descriptions for lowercase rate tokens in the BMW transaction-flow matrix", () => {
+    window.location.hash = "#/notebook";
+    notebookRunnerMock = {
+      outputs: {
+        "baseline-newton": { type: "result", result: bmwNotebookBaselineResult }
+      },
+      status: { "baseline-newton": "success" },
+      errors: {},
+      runCell: vi.fn().mockResolvedValue(undefined),
+      runAll: vi.fn().mockResolvedValue(undefined),
+      getResult: (cellId: string) => (cellId === "baseline-newton" ? bmwNotebookBaselineResult : null)
+    };
+
+    render(<App />);
+
+    const matrixHeading = screen.getByRole("heading", { name: /bmw transactions-flow matrix/i });
+    const matrixCell = matrixHeading.closest("article");
+    expect(matrixCell).not.toBeNull();
+    if (!matrixCell) {
+      throw new Error("Expected BMW transactions-flow matrix article.");
+    }
+
+    const rmToken = within(matrixCell)
+      .getAllByText("rm")
+      .find((node) => node.className.includes("formula-token"));
+    expect(rmToken).toBeDefined();
+    if (!rmToken) {
+      throw new Error("Expected matrix token for rm.");
+    }
+
+    fireEvent.mouseEnter(rmToken);
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Rate of interest on bank deposits");
   });
 
   it("loads a notebook template from the hash path", () => {
@@ -457,6 +492,58 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: /^apply$/i }));
 
     expect(screen.getByRole("heading", { name: /updated baseline run/i })).toBeInTheDocument();
+  });
+
+  it("keeps linked equation edits local until apply and discards them on cancel", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    const equationsCell = document.getElementById("equations-newton");
+    expect(equationsCell).not.toBeNull();
+    if (!(equationsCell instanceof HTMLElement)) {
+      throw new Error("Expected equations cell article.");
+    }
+
+    await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+    await user.click(within(equationsCell).getByRole("button", { name: /^edit$/i }));
+
+    const firstVariableInput = within(equationsCell).getByRole("textbox", {
+      name: /equation 1 variable/i
+    }) as HTMLTextAreaElement;
+    const originalValue = firstVariableInput.value;
+    const draftValue = `${originalValue}Draft`;
+
+    fireEvent.change(firstVariableInput, { target: { value: draftValue } });
+    expect(within(equationsCell).getByRole("button", { name: /^apply$/i })).toBeEnabled();
+
+    await user.click(screen.getByRole("button", { name: /^export$/i }));
+    const draftExport = screen.getByPlaceholderText(
+      /paste a notebook json document/i
+    ) as HTMLTextAreaElement;
+    expect(draftExport.value).not.toContain(`"name": "${draftValue}"`);
+
+    await user.click(screen.getByRole("button", { name: /^close$/i }));
+    await user.click(within(equationsCell).getByRole("button", { name: /^cancel$/i }));
+    await user.click(within(equationsCell).getByRole("button", { name: /^edit$/i }));
+
+    expect(
+      (within(equationsCell).getByRole("textbox", {
+        name: /equation 1 variable/i
+      }) as HTMLTextAreaElement).value
+    ).toBe(originalValue);
+
+    fireEvent.change(within(equationsCell).getByRole("textbox", { name: /equation 1 variable/i }), {
+      target: { value: draftValue }
+    });
+    await user.click(within(equationsCell).getByRole("button", { name: /^apply$/i }));
+
+    await user.click(screen.getByRole("button", { name: /^export$/i }));
+    const appliedExport = screen.getByPlaceholderText(
+      /paste a notebook json document/i
+    ) as HTMLTextAreaElement;
+    expect(appliedExport.value).toContain(`"name": "${draftValue}"`);
   });
 
   it("shows source helpers and live validation for chart cells", async () => {

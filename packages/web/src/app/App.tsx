@@ -60,7 +60,8 @@ const BMW_DESCRIPTIONS: Record<string, string> = {
   WBd: "Wage bill - demand",
   WBs: "Wage bill - supply",
   Y: "Income = GDP",
-  YD: "Disposable income of households"
+  YD: "Disposable income of households",
+  rm: "Rate of interest on bank deposits"
 };
 
 const BMW_EXTERNAL_DESCRIPTIONS: Record<string, string> = {

@@ -140,7 +140,7 @@ describe("editor model validation", () => {
     ]);
   });
 
-  it("treats lag(stock) + d(otherStock) as a clean preferred form", () => {
+  it("warns that lag(stock) + d(otherStock) should add explicit dt", () => {
     const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
     editor.equations[0] = {
       id: "eq-ls",
@@ -157,7 +157,12 @@ describe("editor model validation", () => {
 
     const diagnostics = diagnoseBuildRuntime(editor);
 
-    expect(diagnostics.issues.filter((issue) => issue.path === "equations.0.expression")).toHaveLength(0);
+    expect(diagnostics.issues.filter((issue) => issue.path === "equations.0.expression")).toEqual([
+      expect.objectContaining({
+        severity: "warning",
+        message: expect.stringContaining("Prefer adding '* dt' explicitly")
+      })
+    ]);
   });
 
   it("allows explicit dt in stock accumulation expressions", () => {

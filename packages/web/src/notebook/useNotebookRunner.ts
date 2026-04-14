@@ -14,41 +14,60 @@ export interface NotebookRunnerApi extends NotebookRuntimeState {
 }
 
 export function buildNotebookRunnerResetKey(document: NotebookDocument): string {
-  return JSON.stringify(
-    document.cells.flatMap((cell) => {
-      switch (cell.type) {
-        case "model":
-          return [{ id: cell.id, type: cell.type, editor: cell.editor }];
-        case "equations":
-          return [{ id: cell.id, type: cell.type, modelId: cell.modelId, equations: cell.equations }];
-        case "solver":
-          return [{ id: cell.id, type: cell.type, modelId: cell.modelId, options: cell.options }];
-        case "externals":
-          return [{ id: cell.id, type: cell.type, modelId: cell.modelId, externals: cell.externals }];
-        case "initial-values":
-          return [
-            { id: cell.id, type: cell.type, modelId: cell.modelId, initialValues: cell.initialValues }
-          ];
-        case "run":
-          return [
-            {
-              baselineRunCellId: cell.baselineRunCellId,
-              baselineStartPeriod: cell.baselineStartPeriod,
-              id: cell.id,
-              mode: cell.mode,
-              periods: cell.periods,
-              resultKey: cell.resultKey,
-              scenario: cell.scenario ?? null,
-              sourceModelCellId: cell.sourceModelCellId,
-              sourceModelId: cell.sourceModelId,
-              type: cell.type
-            }
-          ];
-        default:
-          return [];
-      }
-    })
-  );
+  const resetState = [];
+
+  for (const cell of document.cells) {
+    switch (cell.type) {
+      case "model":
+        resetState.push({ id: cell.id, type: cell.type, editor: cell.editor });
+        break;
+      case "equations":
+        resetState.push({
+          id: cell.id,
+          type: cell.type,
+          modelId: cell.modelId,
+          equations: cell.equations
+        });
+        break;
+      case "solver":
+        resetState.push({ id: cell.id, type: cell.type, modelId: cell.modelId, options: cell.options });
+        break;
+      case "externals":
+        resetState.push({
+          id: cell.id,
+          type: cell.type,
+          modelId: cell.modelId,
+          externals: cell.externals
+        });
+        break;
+      case "initial-values":
+        resetState.push({
+          id: cell.id,
+          type: cell.type,
+          modelId: cell.modelId,
+          initialValues: cell.initialValues
+        });
+        break;
+      case "run":
+        resetState.push({
+          baselineRunCellId: cell.baselineRunCellId,
+          baselineStartPeriod: cell.baselineStartPeriod,
+          id: cell.id,
+          mode: cell.mode,
+          periods: cell.periods,
+          resultKey: cell.resultKey,
+          scenario: cell.scenario ?? null,
+          sourceModelCellId: cell.sourceModelCellId,
+          sourceModelId: cell.sourceModelId,
+          type: cell.type
+        });
+        break;
+      default:
+        break;
+    }
+  }
+
+  return JSON.stringify(resetState);
 }
 
 export function useNotebookRunner(document: NotebookDocument): NotebookRunnerApi {

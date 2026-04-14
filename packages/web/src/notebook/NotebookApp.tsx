@@ -1213,8 +1213,9 @@ function ModelCellView({
   onToggleCollapsed(): void;
   title: string;
 }) {
-  const issues = validateEditorState(cell.editor);
-  const buildDiagnostics = diagnoseBuildRuntime(cell.editor);
+  const [draftEditor, setDraftEditor] = useState(cell.editor);
+  const issues = validateEditorState(draftEditor);
+  const buildDiagnostics = diagnoseBuildRuntime(draftEditor);
   const allIssues = [...issues, ...buildDiagnostics.issues];
   const issueMap = Object.fromEntries(allIssues.map((issue) => [issue.path, issue.message]));
   const equationIssueMap = Object.fromEntries(
@@ -1226,32 +1227,54 @@ function ModelCellView({
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
   const [pinnedTrace, setPinnedTrace] = useState<PinnedTrace | null>(null);
   const parameterNameSet = useMemo(
-    () => new Set(cell.editor.externals.map((external) => external.name)),
-    [cell.editor.externals]
+    () => new Set(draftEditor.externals.map((external) => external.name)),
+    [draftEditor.externals]
   );
   const variableDescriptions = useMemo(
     () =>
       buildVariableDescriptions({
-        equations: cell.editor.equations,
-        externals: cell.editor.externals
+        equations: draftEditor.equations,
+        externals: draftEditor.externals
       }),
-    [cell.editor.equations, cell.editor.externals]
+    [draftEditor.equations, draftEditor.externals]
   );
   const variableUnitMetadata = useMemo(
     () =>
       buildVariableUnitMetadata({
-        equations: cell.editor.equations,
-        externals: cell.editor.externals
+        equations: draftEditor.equations,
+        externals: draftEditor.externals
       }),
-    [cell.editor.equations, cell.editor.externals]
+    [draftEditor.equations, draftEditor.externals]
   );
-  const traceModel = useMemo(() => buildTraceModel(cell.editor.equations), [cell.editor.equations]);
+  const traceModel = useMemo(() => buildTraceModel(draftEditor.equations), [draftEditor.equations]);
   const activeTrace = pinnedTrace
     ? buildActiveTrace(traceModel, pinnedTrace.rowId, pinnedTrace.mode)
     : hoveredRowId
       ? buildActiveTrace(traceModel, hoveredRowId, "inputs")
       : null;
   const [isEditingEquations, setIsEditingEquations] = useState(false);
+  const hasDraftEdits = JSON.stringify(draftEditor) !== JSON.stringify(cell.editor);
+
+  useEffect(() => {
+    if (!isEditingEquations) {
+      setDraftEditor(cell.editor);
+    }
+  }, [cell.editor, isEditingEquations]);
+
+  function handleEditToggle(): void {
+    setDraftEditor(cell.editor);
+    setIsEditingEquations(true);
+  }
+
+  function handleApply(): void {
+    onChange(draftEditor);
+    setIsEditingEquations(false);
+  }
+
+  function handleCancel(): void {
+    setDraftEditor(cell.editor);
+    setIsEditingEquations(false);
+  }
 
   return (
     <div className="notebook-model-stack">
@@ -1259,8 +1282,11 @@ function ModelCellView({
         actions={
           <NotebookLinkedEditorActions
             cell={cell}
+            hasDraftEdits={hasDraftEdits}
             isEditing={isEditingEquations}
-            onEditToggle={() => setIsEditingEquations((current) => !current)}
+            onApply={handleApply}
+            onCancel={handleCancel}
+            onEditToggle={handleEditToggle}
             onToggleCollapsed={onToggleCollapsed}
             title={title}
           />
@@ -1301,11 +1327,11 @@ function ModelCellView({
           <EquationGridEditor
             buildError={buildDiagnostics.modelError}
             currentValues={currentValues}
-            equations={cell.editor.equations}
+            equations={draftEditor.equations}
             isEmbedded
             issues={equationIssueMap}
-            onChange={(equations) => onChange({ ...cell.editor, equations })}
-            parameterNames={cell.editor.externals.map((external) => external.name)}
+            onChange={(equations) => setDraftEditor((current) => ({ ...current, equations }))}
+            parameterNames={draftEditor.externals.map((external) => external.name)}
             showHeading={false}
             showTraceHelp={false}
             variableDescriptions={variableDescriptions}
@@ -1346,14 +1372,20 @@ function ModelCellView({
                   role="row"
                 >
                   <span className="notebook-model-view-name" role="cell">
-                    {equation.name
-                      ? highlightFormula(
-                          equation.name,
-                          parameterNameSet,
-                          traceRole ? activeTrace?.tokenStates : undefined,
-                          variableDescriptions
-                        )
-                      : "?"}
+                    {equation.name ? (
+                      <VariableLabel
+                        className={
+                          traceRole && equation.name.trim()
+                            ? `formula-token trace-token-${activeTrace?.tokenStates.get(equation.name.trim()) ?? "root"}`
+                            : undefined
+                        }
+                        name={equation.name}
+                        variableDescriptions={variableDescriptions}
+                        variableUnitMetadata={variableUnitMetadata}
+                      />
+                    ) : (
+                      "?"
+                    )}
                   </span>
                   <span className="notebook-model-view-expression" role="cell">
                     {equation.expression
@@ -1401,8 +1433,9 @@ function EquationsCellView({
   onChange(equations: EquationsCell["equations"]): void;
   onToggleCollapsed(): void;
 }) {
+  const [draftEquations, setDraftEquations] = useState(cell.equations);
   const editor = buildEditorStateFromSections({
-    equations: cell.equations,
+    equations: draftEquations,
     externals,
     initialValues: [],
     options:
@@ -1434,26 +1467,48 @@ function EquationsCellView({
   const variableDescriptions = useMemo(
     () =>
       buildVariableDescriptions({
-        equations: cell.equations,
+        equations: draftEquations,
         externals
       }),
-    [cell.equations, externals]
+    [draftEquations, externals]
   );
   const variableUnitMetadata = useMemo(
     () =>
       buildVariableUnitMetadata({
-        equations: cell.equations,
+        equations: draftEquations,
         externals
       }),
-    [cell.equations, externals]
+    [draftEquations, externals]
   );
-  const traceModel = useMemo(() => buildTraceModel(cell.equations), [cell.equations]);
+  const traceModel = useMemo(() => buildTraceModel(draftEquations), [draftEquations]);
   const activeTrace = pinnedTrace
     ? buildActiveTrace(traceModel, pinnedTrace.rowId, pinnedTrace.mode)
     : hoveredRowId
       ? buildActiveTrace(traceModel, hoveredRowId, "inputs")
       : null;
   const [isEditingEquations, setIsEditingEquations] = useState(false);
+  const hasDraftEdits = JSON.stringify(draftEquations) !== JSON.stringify(cell.equations);
+
+  useEffect(() => {
+    if (!isEditingEquations) {
+      setDraftEquations(cell.equations);
+    }
+  }, [cell.equations, isEditingEquations]);
+
+  function handleEditToggle(): void {
+    setDraftEquations(cell.equations);
+    setIsEditingEquations(true);
+  }
+
+  function handleApply(): void {
+    onChange(draftEquations);
+    setIsEditingEquations(false);
+  }
+
+  function handleCancel(): void {
+    setDraftEquations(cell.equations);
+    setIsEditingEquations(false);
+  }
 
   return (
     <div className="notebook-model-stack">
@@ -1461,8 +1516,11 @@ function EquationsCellView({
         actions={
           <NotebookLinkedEditorActions
             cell={cell}
+            hasDraftEdits={hasDraftEdits}
             isEditing={isEditingEquations}
-            onEditToggle={() => setIsEditingEquations((current) => !current)}
+            onApply={handleApply}
+            onCancel={handleCancel}
+            onEditToggle={handleEditToggle}
             onToggleCollapsed={onToggleCollapsed}
             title={title}
           />
@@ -1497,15 +1555,15 @@ function EquationsCellView({
       {cell.collapsed ? null : (
         isEditingEquations ? (
           <div className="notebook-model-editor-body">
-            <EquationGridEditor
-              buildError={buildDiagnostics.modelError}
-              currentValues={currentValues}
-              equations={cell.equations}
-              isEmbedded
-              issues={equationIssueMap}
-              onChange={onChange}
-              parameterNames={externals.map((external) => external.name)}
-              showHeading={false}
+              <EquationGridEditor
+                buildError={buildDiagnostics.modelError}
+                currentValues={currentValues}
+                equations={draftEquations}
+                isEmbedded
+                issues={equationIssueMap}
+                onChange={setDraftEquations}
+                parameterNames={externals.map((external) => external.name)}
+                showHeading={false}
             showTraceHelp={false}
             variableDescriptions={variableDescriptions}
             variableUnitMetadata={variableUnitMetadata}
@@ -1542,18 +1600,23 @@ function EquationsCellView({
                     onMouseLeave={() =>
                       setHoveredRowId((current) => (current === equation.id ? null : current))
                     }
-                    role="row"
-                  >
-                    <span className="notebook-model-view-name" role="cell">
-                      {equation.name
-                        ? highlightFormula(
-                            equation.name,
-                            parameterNameSet,
-                            traceRole ? activeTrace?.tokenStates : undefined,
-                            variableDescriptions,
-                            variableUnitMetadata
-                          )
-                        : "?"}
+                  role="row"
+                >
+                  <span className="notebook-model-view-name" role="cell">
+                      {equation.name ? (
+                        <VariableLabel
+                          className={
+                            traceRole && equation.name.trim()
+                              ? `formula-token trace-token-${activeTrace?.tokenStates.get(equation.name.trim()) ?? "root"}`
+                              : undefined
+                          }
+                          name={equation.name}
+                          variableDescriptions={variableDescriptions}
+                          variableUnitMetadata={variableUnitMetadata}
+                        />
+                      ) : (
+                        "?"
+                      )}
                     </span>
                     <span className="notebook-model-view-expression" role="cell">
                       {equation.expression
@@ -1602,6 +1665,29 @@ function SolverCellView({
     options.hiddenLeftVariable.trim() !== "" && options.hiddenRightVariable.trim() !== "";
   const issuePaths = Object.keys(issueMap);
   const [isEditingSolver, setIsEditingSolver] = useState(false);
+  const [draftOptions, setDraftOptions] = useState(cell.options);
+  const hasDraftEdits = JSON.stringify(draftOptions) !== JSON.stringify(cell.options);
+
+  useEffect(() => {
+    if (!isEditingSolver) {
+      setDraftOptions(cell.options);
+    }
+  }, [cell.options, isEditingSolver]);
+
+  function handleEditToggle(): void {
+    setDraftOptions(cell.options);
+    setIsEditingSolver(true);
+  }
+
+  function handleApply(): void {
+    onChange(draftOptions);
+    setIsEditingSolver(false);
+  }
+
+  function handleCancel(): void {
+    setDraftOptions(cell.options);
+    setIsEditingSolver(false);
+  }
 
   return (
     <div className="notebook-model-stack notebook-linked-editor-cell">
@@ -1609,8 +1695,11 @@ function SolverCellView({
         actions={
           <NotebookLinkedEditorActions
             cell={cell}
+            hasDraftEdits={hasDraftEdits}
             isEditing={isEditingSolver}
-            onEditToggle={() => setIsEditingSolver((current) => !current)}
+            onApply={handleApply}
+            onCancel={handleCancel}
+            onEditToggle={handleEditToggle}
             onToggleCollapsed={onToggleCollapsed}
             title={title}
           />
@@ -1639,7 +1728,7 @@ function SolverCellView({
       {cell.collapsed ? null : (
         isEditingSolver ? (
           <div className="notebook-model-editor-body">
-            <SolverPanel options={options} issues={issueMap} onChange={onChange} />
+            <SolverPanel options={draftOptions} issues={issueMap} onChange={setDraftOptions} />
           </div>
         ) : (
           <section className="notebook-model-view" aria-label="Solver view">
@@ -1732,6 +1821,29 @@ function ExternalsCellView({
     [cell.externals]
   );
   const [isEditingExternals, setIsEditingExternals] = useState(false);
+  const [draftExternals, setDraftExternals] = useState(cell.externals);
+  const hasDraftEdits = JSON.stringify(draftExternals) !== JSON.stringify(cell.externals);
+
+  useEffect(() => {
+    if (!isEditingExternals) {
+      setDraftExternals(cell.externals);
+    }
+  }, [cell.externals, isEditingExternals]);
+
+  function handleEditToggle(): void {
+    setDraftExternals(cell.externals);
+    setIsEditingExternals(true);
+  }
+
+  function handleApply(): void {
+    onChange(draftExternals);
+    setIsEditingExternals(false);
+  }
+
+  function handleCancel(): void {
+    setDraftExternals(cell.externals);
+    setIsEditingExternals(false);
+  }
 
   return (
     <div className="notebook-model-stack notebook-linked-editor-cell">
@@ -1739,8 +1851,11 @@ function ExternalsCellView({
         actions={
           <NotebookLinkedEditorActions
             cell={cell}
+            hasDraftEdits={hasDraftEdits}
             isEditing={isEditingExternals}
-            onEditToggle={() => setIsEditingExternals((current) => !current)}
+            onApply={handleApply}
+            onCancel={handleCancel}
+            onEditToggle={handleEditToggle}
             onToggleCollapsed={onToggleCollapsed}
             title={title}
           />
@@ -1768,10 +1883,10 @@ function ExternalsCellView({
           <div className="notebook-model-editor-body">
             <ExternalEditor
               currentValues={currentValues}
-              externals={cell.externals}
+              externals={draftExternals}
               isEmbedded
               issues={issueMap}
-              onChange={onChange}
+              onChange={setDraftExternals}
               showHeading={false}
             />
           </div>
@@ -1857,6 +1972,30 @@ function InitialValuesCellView({
 }) {
   const issuePaths = Object.keys(issueMap);
   const [isEditingInitialValues, setIsEditingInitialValues] = useState(false);
+  const [draftInitialValues, setDraftInitialValues] = useState(cell.initialValues);
+  const hasDraftEdits =
+    JSON.stringify(draftInitialValues) !== JSON.stringify(cell.initialValues);
+
+  useEffect(() => {
+    if (!isEditingInitialValues) {
+      setDraftInitialValues(cell.initialValues);
+    }
+  }, [cell.initialValues, isEditingInitialValues]);
+
+  function handleEditToggle(): void {
+    setDraftInitialValues(cell.initialValues);
+    setIsEditingInitialValues(true);
+  }
+
+  function handleApply(): void {
+    onChange(draftInitialValues);
+    setIsEditingInitialValues(false);
+  }
+
+  function handleCancel(): void {
+    setDraftInitialValues(cell.initialValues);
+    setIsEditingInitialValues(false);
+  }
 
   return (
     <div className="notebook-model-stack notebook-linked-editor-cell">
@@ -1864,8 +2003,11 @@ function InitialValuesCellView({
         actions={
           <NotebookLinkedEditorActions
             cell={cell}
+            hasDraftEdits={hasDraftEdits}
             isEditing={isEditingInitialValues}
-            onEditToggle={() => setIsEditingInitialValues((current) => !current)}
+            onApply={handleApply}
+            onCancel={handleCancel}
+            onEditToggle={handleEditToggle}
             onToggleCollapsed={onToggleCollapsed}
             title={title}
           />
@@ -1899,10 +2041,10 @@ function InitialValuesCellView({
           <div className="notebook-model-editor-body">
             <InitialValuesEditor
               currentValues={currentValues}
-              initialValues={cell.initialValues}
+              initialValues={draftInitialValues}
               isEmbedded
               issues={issueMap}
-              onChange={onChange}
+              onChange={setDraftInitialValues}
               showHeading={false}
               variableUnitMetadata={variableUnitMetadata}
             />
@@ -2043,7 +2185,7 @@ function NotebookCellHeaderActions({
       {leadingActions ? <div className="notebook-cell-header-leading">{leadingActions}</div> : null}
       <div className="notebook-linked-editor-actions">
         {helpText ? <NotebookHelpButton title={title} helpText={helpText} /> : null}
-        {!isCollapsed && onEditToggle ? (
+        {!isCollapsed && onEditToggle && !isEditing ? (
           <button
             type="button"
             className="notebook-run-button"
@@ -2066,13 +2208,19 @@ function NotebookCellHeaderActions({
 
 function NotebookLinkedEditorActions({
   cell,
+  hasDraftEdits,
   isEditing,
+  onApply,
+  onCancel,
   onEditToggle,
   onToggleCollapsed,
   title
 }: {
   cell: ModelCell | EquationsCell | SolverCell | ExternalsCell | InitialValuesCell;
+  hasDraftEdits: boolean;
   isEditing: boolean;
+  onApply(): void;
+  onCancel(): void;
   onEditToggle(): void;
   onToggleCollapsed(): void;
   title: string;
@@ -2085,6 +2233,27 @@ function NotebookLinkedEditorActions({
       onEditToggle={onEditToggle}
       onToggleCollapsed={onToggleCollapsed}
       title={title}
+      trailingActions={
+        isEditing ? (
+          <>
+            <button
+              type="button"
+              className="notebook-run-button notebook-source-toggle"
+              onClick={onApply}
+              disabled={!hasDraftEdits}
+            >
+              Apply
+            </button>
+            <button
+              type="button"
+              className="notebook-run-button notebook-source-toggle"
+              onClick={onCancel}
+            >
+              Cancel
+            </button>
+          </>
+        ) : null
+      }
     />
   );
 }

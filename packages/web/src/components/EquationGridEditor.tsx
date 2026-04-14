@@ -295,8 +295,13 @@ export function highlightFormula(
     const tokenClass = classifyToken(token, parameterNames, source, index + token.length);
     const normalizedToken = token.trim();
     const traceClass = highlightedTokens?.get(normalizedToken) ?? null;
+    const hasVariableMetadata =
+      variableDescriptions?.has(normalizedToken) || variableUnitMetadata?.has(normalizedToken);
     const tokenDescription =
-      tokenClass === "formula-uppercase" || tokenClass === "formula-parameter"
+      tokenClass !== "formula-function" &&
+      tokenClass !== "formula-number" &&
+      tokenClass !== "formula-default" &&
+      hasVariableMetadata
         ? formatVariableTooltip(
             variableDescriptions?.get(normalizedToken),
             variableUnitMetadata?.get(normalizedToken)

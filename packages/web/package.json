@@ -7,6 +7,7 @@
     "build": "vite build",
     "dev": "vite",
     "format:notebooks": "node scripts/format-notebook-json.mjs",
+    "units:report": "node scripts/unit-metadata-report.mjs",
     "lint": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"

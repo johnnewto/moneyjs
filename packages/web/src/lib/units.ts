@@ -331,7 +331,12 @@ function diagnoseStockAccumulation(
     });
   }
 
-  if (!containsExplicitDiff(incrementExpr) && !hasExplicitDt) {
+  if (containsExplicitDiff(incrementExpr) && !hasExplicitDt) {
+    diagnostics.push({
+      severity: "warning",
+      message: `Stock '${equationName}' uses d(name) as a per-year stock-change term. Prefer adding '* dt' explicitly, e.g. lag(${equationName}) + d(name) * dt.`
+    });
+  } else if (!hasExplicitDt) {
     diagnostics.push({
       severity: "warning",
       message: `Stock '${equationName}' assumes an implicit dt = 1 when adding increment terms.`

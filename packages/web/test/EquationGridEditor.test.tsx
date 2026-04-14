@@ -228,6 +228,40 @@ describe("EquationGridEditor", () => {
     expect(screen.getByRole("tooltip")).toHaveTextContent("$/yr");
   });
 
+  it("adds tooltips to lowercase variable tokens when metadata exists", () => {
+    render(
+      <EquationGridEditor
+        equations={[{ id: "eq-yd", name: "YD", expression: "lag(rl) * lag(Mh)" }]}
+        issues={{}}
+        onChange={vi.fn()}
+        parameterNames={[]}
+        variableDescriptions={
+          new Map([
+            ["rl", "Rate of interest on bank loans"],
+            ["Mh", "Bank deposits held by households"]
+          ])
+        }
+        variableUnitMetadata={
+          new Map([
+            ["rl", { stockFlow: "aux", signature: { time: -1 } }],
+            ["Mh", { stockFlow: "stock", signature: { money: 1 } }]
+          ])
+        }
+      />
+    );
+
+    const rlToken = screen
+      .getAllByText("rl")
+      .find((node) => node.className.includes("formula-token"));
+    expect(rlToken).toBeDefined();
+    if (!rlToken) {
+      throw new Error("Expected formula token for rl");
+    }
+
+    fireEvent.mouseEnter(rlToken);
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Rate of interest on bank loans");
+  });
+
   it("shows a unit badge for the variable column when metadata is present", () => {
     render(
       <EquationGridEditor
@@ -288,6 +322,28 @@ describe("EquationGridEditor", () => {
     expect(screen.getByText("Warning")).toBeInTheDocument();
     const message = screen.getByRole("note");
     expect(message).toHaveTextContent("Stock 'Mh' assumes an implicit dt = 1");
+    expect(message).toHaveClass("equation-grid-warning-row", "is-warning");
+  });
+
+  it("renders d(name) stock warnings that recommend explicit dt", () => {
+    render(
+      <EquationGridEditor
+        equations={[{ id: "eq-ls", name: "Ls", expression: "lag(Ls) + d(Ld)" }]}
+        issues={{
+          "equations.0.expression": {
+            message:
+              "Stock 'Ls' uses d(name) as a per-year stock-change term. Prefer adding '* dt' explicitly, e.g. lag(Ls) + d(name) * dt.",
+            severity: "warning"
+          }
+        }}
+        onChange={vi.fn()}
+        parameterNames={[]}
+      />
+    );
+
+    expect(screen.getByText("Warning")).toBeInTheDocument();
+    const message = screen.getByRole("note");
+    expect(message).toHaveTextContent("Prefer adding '* dt' explicitly");
     expect(message).toHaveClass("equation-grid-warning-row", "is-warning");
   });
 });
