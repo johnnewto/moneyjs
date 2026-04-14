@@ -240,6 +240,23 @@ describe("App", () => {
     });
   });
 
+  it("switches the notebook rail to the contents tab", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    expect(screen.queryByRole("button", { name: /bmw model/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^contents$/i }));
+
+    expect(screen.getByRole("tab", { name: /^contents$/i })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+    expect(screen.getAllByRole("button", { name: /bmw model/i }).length).toBeGreaterThan(0);
+  });
+
   it("renders BMW transaction-flow matrix values with flow units inferred from the full expression", () => {
     window.location.hash = "#/notebook";
     notebookRunnerMock = {
@@ -275,6 +292,71 @@ describe("App", () => {
     expect(changeDepositsRow?.textContent).toMatch(/= \$[0-9.,]+\/yr/);
   });
 
+  it("opens the notebook variable inspector from the baseline variable summary table", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    notebookRunnerMock = {
+      outputs: {
+        "baseline-newton": { type: "result", result: bmwNotebookBaselineResult }
+      },
+      status: { "baseline-newton": "success" },
+      errors: {},
+      runCell: vi.fn().mockResolvedValue(undefined),
+      runAll: vi.fn().mockResolvedValue(undefined),
+      getResult: (cellId: string) => (cellId === "baseline-newton" ? bmwNotebookBaselineResult : null)
+    };
+
+    render(<App />);
+
+    const summaryHeading = screen.getAllByRole("heading", { name: /baseline variable summary/i })[0];
+    const summaryCell = summaryHeading.closest("article");
+    expect(summaryCell).not.toBeNull();
+    if (!summaryCell) {
+      throw new Error("Expected baseline variable summary article.");
+    }
+
+    await user.click(within(summaryCell).getByRole("button", { name: /^Y\b/i }));
+
+    expect(screen.getByText("Selected variable")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Y$/ })).toBeInTheDocument();
+    expect(screen.getAllByText(/income = gdp/i).length).toBeGreaterThan(0);
+    expect(
+      screen.getByText(
+        (content, element) => element?.tagName.toLowerCase() === "code" && content.startsWith("Y = ")
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("opens the notebook variable inspector from the model equations table", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    notebookRunnerMock = {
+      outputs: {
+        "baseline-newton": { type: "result", result: bmwNotebookBaselineResult }
+      },
+      status: { "baseline-newton": "success" },
+      errors: {},
+      runCell: vi.fn().mockResolvedValue(undefined),
+      runAll: vi.fn().mockResolvedValue(undefined),
+      getResult: (cellId: string) => (cellId === "baseline-newton" ? bmwNotebookBaselineResult : null)
+    };
+
+    render(<App />);
+
+    const modelHeading = screen.getAllByRole("heading", { name: /bmw model/i })[0];
+    const modelCell = modelHeading.closest("article");
+    expect(modelCell).not.toBeNull();
+    if (!modelCell) {
+      throw new Error("Expected BMW model article.");
+    }
+
+    await user.click(within(modelCell).getByRole("button", { name: /^show$/i }));
+    await user.click(within(modelCell).getByRole("button", { name: /^Y\b/i }));
+
+    expect(screen.getByRole("heading", { name: /^Y$/ })).toBeInTheDocument();
+    expect(screen.getByText(/this endogenous flow variable/i)).toBeInTheDocument();
+  });
+
   it("shows variable descriptions for lowercase rate tokens in the BMW transaction-flow matrix", () => {
     window.location.hash = "#/notebook";
     notebookRunnerMock = {
@@ -307,6 +389,43 @@ describe("App", () => {
 
     fireEvent.mouseEnter(rmToken);
     expect(screen.getByRole("tooltip")).toHaveTextContent("Rate of interest on bank deposits");
+  });
+
+  it("opens the notebook variable inspector from matrix table variables", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    notebookRunnerMock = {
+      outputs: {
+        "baseline-newton": { type: "result", result: bmwNotebookBaselineResult }
+      },
+      status: { "baseline-newton": "success" },
+      errors: {},
+      runCell: vi.fn().mockResolvedValue(undefined),
+      runAll: vi.fn().mockResolvedValue(undefined),
+      getResult: (cellId: string) => (cellId === "baseline-newton" ? bmwNotebookBaselineResult : null)
+    };
+
+    render(<App />);
+
+    const matrixHeading = screen.getByRole("heading", { name: /bmw transactions-flow matrix/i });
+    const matrixCell = matrixHeading.closest("article");
+    expect(matrixCell).not.toBeNull();
+    if (!matrixCell) {
+      throw new Error("Expected BMW transactions-flow matrix article.");
+    }
+
+    const rmToken = within(matrixCell)
+      .getAllByText("rm")
+      .find((node) => node.className.includes("formula-token"));
+    expect(rmToken).toBeDefined();
+    if (!rmToken) {
+      throw new Error("Expected matrix token for rm.");
+    }
+
+    await user.click(rmToken);
+
+    expect(screen.getByText("Selected variable")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^rm$/i })).toBeInTheDocument();
   });
 
   it("loads a notebook template from the hash path", () => {

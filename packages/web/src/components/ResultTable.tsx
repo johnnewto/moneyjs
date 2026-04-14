@@ -11,6 +11,7 @@ interface ResultRow {
 }
 
 interface ResultTableProps {
+  onSelectVariable?(variableName: string): void;
   selectedIndex?: number;
   title: string;
   rows: ResultRow[];
@@ -19,6 +20,7 @@ interface ResultTableProps {
 }
 
 export function ResultTable({
+  onSelectVariable,
   title,
   rows,
   selectedIndex = 0,
@@ -41,12 +43,27 @@ export function ResultTable({
           {rows.map((row) => (
             <tr key={row.name}>
               <td>
-                <VariableLabel
-                  description={row.description}
-                  name={row.name}
-                  variableDescriptions={variableDescriptions}
-                  variableUnitMetadata={variableUnitMetadata}
-                />
+                {onSelectVariable ? (
+                  <button
+                    type="button"
+                    className="result-variable-button"
+                    onClick={() => onSelectVariable(row.name)}
+                  >
+                    <VariableLabel
+                      description={row.description}
+                      name={row.name}
+                      variableDescriptions={variableDescriptions}
+                      variableUnitMetadata={variableUnitMetadata}
+                    />
+                  </button>
+                ) : (
+                  <VariableLabel
+                    description={row.description}
+                    name={row.name}
+                    variableDescriptions={variableDescriptions}
+                    variableUnitMetadata={variableUnitMetadata}
+                  />
+                )}
               </td>
               <td>{formatNumber(row.start, row.name, variableUnitMetadata)}</td>
               <td>{formatNumber(row.selected, row.name, variableUnitMetadata)}</td>

@@ -20,6 +20,7 @@ import { ResultTable } from "../components/ResultTable";
 import { ScenarioEditor } from "../components/ScenarioEditor";
 import { SolverPanel } from "../components/SolverPanel";
 import { ValidationSummary } from "../components/ValidationSummary";
+import { VariableInspector } from "../components/VariableInspector";
 import { useSolver } from "../hooks/useSolver";
 import { NotebookApp } from "../notebook/NotebookApp";
 import { useAppRoute } from "./routes";
@@ -35,6 +36,7 @@ import {
 } from "../lib/editorModel";
 import type { UnitMeta } from "../lib/unitMeta";
 import { buildVariableDescriptions, getVariableDescription } from "../lib/variableDescriptions";
+import { buildVariableInspectorData } from "../lib/variableInspector";
 import { buildVariableUnitMetadata } from "../lib/units";
 
 import "../styles/app.css";
@@ -161,6 +163,7 @@ export function WorkspaceApp() {
   ]);
   const [chartAxisMode, setChartAxisMode] = useState<ChartAxisMode>("shared");
   const [selectedPeriodIndex, setSelectedPeriodIndex] = useState(0);
+  const [selectedVariable, setSelectedVariable] = useState<string | null>(null);
   const solver = useSolver();
   const validationIssues = validateEditorState(editor);
   const buildDiagnostics = diagnoseBuildRuntime(editor);
@@ -224,6 +227,13 @@ export function WorkspaceApp() {
         ])
       )
     : {};
+  const selectedVariableData = buildVariableInspectorData({
+    currentValues: currentValueMap,
+    editor,
+    selectedVariable,
+    variableDescriptions,
+    variableUnitMetadata
+  });
 
   useEffect(() => {
     setSelectedPeriodIndex((current) => Math.min(current, maxResultPeriodIndex));
@@ -383,6 +393,7 @@ export function WorkspaceApp() {
             equations={editor.equations}
             issues={equationIssueMap}
             onChange={(equations) => setEditor((current) => ({ ...current, equations }))}
+            onSelectVariable={setSelectedVariable}
             parameterNames={editor.externals.map((external) => external.name)}
             variableDescriptions={variableDescriptions}
             variableUnitMetadata={variableUnitMetadata}
@@ -421,6 +432,7 @@ export function WorkspaceApp() {
                 variableUnitMetadata={variableUnitMetadata}
               />
               <ResultTable
+                onSelectVariable={setSelectedVariable}
                 title="All Series"
                 rows={resultRows}
                 selectedIndex={selectedPeriodIndex}
@@ -432,6 +444,13 @@ export function WorkspaceApp() {
         </div>
 
         <aside className="workspace-sidebar">
+          <VariableInspector
+            data={selectedVariableData}
+            onSelectVariable={setSelectedVariable}
+            variableDescriptions={variableDescriptions}
+            variableUnitMetadata={variableUnitMetadata}
+          />
+
           <section className="control-panel">
             <div className="panel-header">
               <div>

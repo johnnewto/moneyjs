@@ -82,6 +82,13 @@ export interface NotebookCellViewProps {
   onSelectedPeriodIndexChange(nextIndex: number): void;
   onModelChange(cellId: string, editor: EditorState): void;
   onCellChange(cellId: string, updater: (cell: NotebookCell) => NotebookCell): void;
+  onVariableInspectRequest(args: {
+    currentValues: Record<string, number | undefined>;
+    editor: EditorState;
+    selectedVariable: string;
+    variableDescriptions: VariableDescriptions;
+    variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
+  }): void;
   runner: ReturnType<typeof useNotebookRunner>;
   selectedPeriodIndex: number;
 }
@@ -97,7 +104,8 @@ export function NotebookCellView({
   runner,
   selectedPeriodIndex,
   onModelChange,
-  onCellChange
+  onCellChange,
+  onVariableInspectRequest
 }: NotebookCellViewProps) {
   const status = runner.status[cell.id] ?? "idle";
   const error = runner.errors[cell.id];
@@ -458,6 +466,7 @@ export function NotebookCellView({
               findInitialValuesCell(cells, cell.modelId)?.initialValues.length ?? 0
             }
             onEditingChange={setIsLinkedEditorEditing}
+            onVariableInspectRequest={onVariableInspectRequest}
             solverCell={findSolverCell(cells, cell.modelId)}
             title={cell.title}
             onChange={(equations) =>
@@ -486,6 +495,7 @@ export function NotebookCellView({
               )
             }
             title={cell.title}
+            onVariableInspectRequest={onVariableInspectRequest}
           />
         ) : null}
         {isCollapsed ? null : cell.type === "solver" ? (
@@ -566,19 +576,23 @@ export function NotebookCellView({
         {isCollapsed ? null : cell.type === "table" ? (
           <TableCellView
             cell={cell}
+            cells={cells}
             runner={runner}
             selectedPeriodIndex={selectedPeriodIndex}
             variableDescriptions={variableDescriptions}
             variableUnitMetadata={variableUnitMetadata}
+            onVariableInspectRequest={onVariableInspectRequest}
           />
         ) : null}
         {isCollapsed ? null : cell.type === "matrix" ? (
           <MatrixCellView
             cell={cell}
+            cells={cells}
             runner={runner}
             selectedPeriodIndex={selectedPeriodIndex}
             variableDescriptions={variableDescriptions}
             variableUnitMetadata={variableUnitMetadata}
+            onVariableInspectRequest={onVariableInspectRequest}
           />
         ) : null}
         {isCollapsed ? null : cell.type === "sequence" ? (
@@ -603,6 +617,7 @@ function ModelCellView({
   onEditingChange,
   onChange,
   onToggleCollapsed,
+  onVariableInspectRequest,
   title
 }: {
   cell: ModelCell;
@@ -610,6 +625,13 @@ function ModelCellView({
   onEditingChange?(isEditing: boolean): void;
   onChange(editor: EditorState): void;
   onToggleCollapsed(): void;
+  onVariableInspectRequest(args: {
+    currentValues: Record<string, number | undefined>;
+    editor: EditorState;
+    selectedVariable: string;
+    variableDescriptions: VariableDescriptions;
+    variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
+  }): void;
   title: string;
 }) {
   const [draftEditor, setDraftEditor] = useState(cell.editor);
@@ -734,6 +756,15 @@ function ModelCellView({
             isEmbedded
             issues={equationIssueMap}
             onChange={(equations) => setDraftEditor((current) => ({ ...current, equations }))}
+            onSelectVariable={(selectedVariable) =>
+              onVariableInspectRequest({
+                currentValues,
+                editor: draftEditor,
+                selectedVariable,
+                variableDescriptions,
+                variableUnitMetadata
+              })
+            }
             parameterNames={draftEditor.externals.map((external) => external.name)}
             showHeading={false}
             showTraceHelp={false}
@@ -776,18 +807,33 @@ function ModelCellView({
                 >
                   <span className="notebook-model-view-name" role="cell">
                     {equation.name ? (
-                      <VariableLabel
-                        className={
-                          traceRole && equation.name.trim()
-                            ? `formula-token trace-token-${
-                                activeTrace?.tokenStates.get(equation.name.trim()) ?? "root"
-                              }`
-                            : undefined
-                        }
-                        name={equation.name}
-                        variableDescriptions={variableDescriptions}
-                        variableUnitMetadata={variableUnitMetadata}
-                      />
+                      <button
+                        type="button"
+                        className="result-variable-button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onVariableInspectRequest({
+                            currentValues,
+                            editor: cell.editor,
+                            selectedVariable: equation.name.trim(),
+                            variableDescriptions,
+                            variableUnitMetadata
+                          });
+                        }}
+                      >
+                        <VariableLabel
+                          className={
+                            traceRole && equation.name.trim()
+                              ? `formula-token trace-token-${
+                                  activeTrace?.tokenStates.get(equation.name.trim()) ?? "root"
+                                }`
+                              : undefined
+                          }
+                          name={equation.name}
+                          variableDescriptions={variableDescriptions}
+                          variableUnitMetadata={variableUnitMetadata}
+                        />
+                      </button>
                     ) : (
                       "?"
                     )}
@@ -798,7 +844,16 @@ function ModelCellView({
                           equation.expression,
                           parameterNameSet,
                           traceRole ? activeTrace?.tokenStates : undefined,
-                          variableDescriptions
+                          variableDescriptions,
+                          undefined,
+                          (selectedVariable) =>
+                            onVariableInspectRequest({
+                              currentValues,
+                              editor: cell.editor,
+                              selectedVariable,
+                              variableDescriptions,
+                              variableUnitMetadata
+                            })
                         )
                       : " "}
                   </span>
@@ -825,6 +880,7 @@ function EquationsCellView({
   externals,
   initialValuesCount,
   onEditingChange,
+  onVariableInspectRequest,
   solverCell,
   title,
   onChange,
@@ -835,6 +891,13 @@ function EquationsCellView({
   externals: ExternalsCell["externals"];
   initialValuesCount: number;
   onEditingChange?(isEditing: boolean): void;
+  onVariableInspectRequest(args: {
+    currentValues: Record<string, number | undefined>;
+    editor: EditorState;
+    selectedVariable: string;
+    variableDescriptions: VariableDescriptions;
+    variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
+  }): void;
   solverCell: SolverCell | null;
   title: string;
   onChange(equations: EquationsCell["equations"]): void;
@@ -975,6 +1038,15 @@ function EquationsCellView({
             isEmbedded
             issues={equationIssueMap}
             onChange={setDraftEquations}
+            onSelectVariable={(selectedVariable) =>
+              onVariableInspectRequest({
+                currentValues,
+                editor,
+                selectedVariable,
+                variableDescriptions,
+                variableUnitMetadata
+              })
+            }
             parameterNames={externals.map((external) => external.name)}
             showHeading={false}
             showTraceHelp={false}
@@ -1017,18 +1089,33 @@ function EquationsCellView({
                 >
                   <span className="notebook-model-view-name" role="cell">
                     {equation.name ? (
-                      <VariableLabel
-                        className={
-                          traceRole && equation.name.trim()
-                            ? `formula-token trace-token-${
-                                activeTrace?.tokenStates.get(equation.name.trim()) ?? "root"
-                              }`
-                            : undefined
-                        }
-                        name={equation.name}
-                        variableDescriptions={variableDescriptions}
-                        variableUnitMetadata={variableUnitMetadata}
-                      />
+                      <button
+                        type="button"
+                        className="result-variable-button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onVariableInspectRequest({
+                            currentValues,
+                            editor,
+                            selectedVariable: equation.name.trim(),
+                            variableDescriptions,
+                            variableUnitMetadata
+                          });
+                        }}
+                      >
+                        <VariableLabel
+                          className={
+                            traceRole && equation.name.trim()
+                              ? `formula-token trace-token-${
+                                  activeTrace?.tokenStates.get(equation.name.trim()) ?? "root"
+                                }`
+                              : undefined
+                          }
+                          name={equation.name}
+                          variableDescriptions={variableDescriptions}
+                          variableUnitMetadata={variableUnitMetadata}
+                        />
+                      </button>
                     ) : (
                       "?"
                     )}
@@ -1040,7 +1127,15 @@ function EquationsCellView({
                           parameterNameSet,
                           traceRole ? activeTrace?.tokenStates : undefined,
                           variableDescriptions,
-                          variableUnitMetadata
+                          variableUnitMetadata,
+                          (selectedVariable) =>
+                            onVariableInspectRequest({
+                              currentValues,
+                              editor,
+                              selectedVariable,
+                              variableDescriptions,
+                              variableUnitMetadata
+                            })
                         )
                       : " "}
                   </span>
@@ -2178,6 +2273,23 @@ function resolveModelVariableUnitMetadataForRunCell(cells: NotebookCell[], cell:
   });
 }
 
+function resolveEditorStateForRunCellId(cells: NotebookCell[], sourceRunCellId: string): EditorState | null {
+  const sourceRunCell = cells.find((entry) => entry.id === sourceRunCellId);
+  if (!sourceRunCell || sourceRunCell.type !== "run") {
+    return null;
+  }
+
+  return buildEditorStateForNotebookModel(
+    {
+      id: "notebook",
+      title: "notebook",
+      metadata: { version: 1 },
+      cells
+    },
+    sourceRunCell
+  );
+}
+
 function resolveModelVariableDescriptionsForModelId(
   cells: NotebookCell[],
   modelId: string
@@ -2197,21 +2309,38 @@ function resolveModelVariableUnitMetadataForModelId(cells: NotebookCell[], model
 
 function TableCellView({
   cell,
+  cells,
   runner,
   selectedPeriodIndex,
   variableDescriptions,
-  variableUnitMetadata
+  variableUnitMetadata,
+  onVariableInspectRequest
 }: {
   cell: TableCell;
+  cells: NotebookCell[];
   runner: ReturnType<typeof useNotebookRunner>;
   selectedPeriodIndex: number;
   variableDescriptions: VariableDescriptions;
   variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
+  onVariableInspectRequest(args: {
+    currentValues: Record<string, number | undefined>;
+    editor: EditorState;
+    selectedVariable: string;
+    variableDescriptions: VariableDescriptions;
+    variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
+  }): void;
 }) {
   const result = runner.getResult(cell.sourceRunCellId);
   if (!result) {
     return <div className="status-hint">Run the source cell to populate this summary table.</div>;
   }
+  const editor = resolveEditorStateForRunCellId(cells, cell.sourceRunCellId);
+  const currentValues = Object.fromEntries(
+    Object.entries(result.series).map(([name, values]) => [
+      name,
+      values[Math.min(selectedPeriodIndex, Math.max(values.length - 1, 0))]
+    ])
+  );
 
   const rows = cell.variables.map((name) => {
     const values = result.series[name] ?? [];
@@ -2229,6 +2358,18 @@ function TableCellView({
       title={cell.title}
       rows={rows}
       selectedIndex={selectedPeriodIndex}
+      onSelectVariable={(selectedVariable) => {
+        if (!editor) {
+          return;
+        }
+        onVariableInspectRequest({
+          currentValues,
+          editor,
+          selectedVariable,
+          variableDescriptions,
+          variableUnitMetadata
+        });
+      }}
       variableDescriptions={variableDescriptions}
       variableUnitMetadata={variableUnitMetadata}
     />
@@ -2237,18 +2378,37 @@ function TableCellView({
 
 function MatrixCellView({
   cell,
+  cells,
   runner,
   selectedPeriodIndex,
   variableDescriptions,
-  variableUnitMetadata
+  variableUnitMetadata,
+  onVariableInspectRequest
 }: {
   cell: MatrixCell;
+  cells: NotebookCell[];
   runner: ReturnType<typeof useNotebookRunner>;
   selectedPeriodIndex: number;
   variableDescriptions: VariableDescriptions;
   variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
+  onVariableInspectRequest(args: {
+    currentValues: Record<string, number | undefined>;
+    editor: EditorState;
+    selectedVariable: string;
+    variableDescriptions: VariableDescriptions;
+    variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
+  }): void;
 }) {
   const result = cell.sourceRunCellId ? runner.getResult(cell.sourceRunCellId) : null;
+  const editor = cell.sourceRunCellId ? resolveEditorStateForRunCellId(cells, cell.sourceRunCellId) : null;
+  const currentValues = result
+    ? Object.fromEntries(
+        Object.entries(result.series).map(([name, values]) => [
+          name,
+          values[Math.min(selectedPeriodIndex, Math.max(values.length - 1, 0))]
+        ])
+      )
+    : {};
   const evaluatedMatrix = useMemo(
     () => buildEvaluatedMatrix(cell, result, selectedPeriodIndex),
     [cell, result, selectedPeriodIndex]
@@ -2263,12 +2423,34 @@ function MatrixCellView({
             <tr>
               <th scope="col" />
               {cell.columns.map((column) => (
-                <th key={column} scope="col">
-                  <VariableLabel
-                    name={column}
-                    variableDescriptions={variableDescriptions}
-                    variableUnitMetadata={variableUnitMetadata}
-                  />
+              <th key={column} scope="col">
+                  {editor ? (
+                    <button
+                      type="button"
+                      className="result-variable-button"
+                      onClick={() =>
+                        onVariableInspectRequest({
+                          currentValues,
+                          editor,
+                          selectedVariable: column,
+                          variableDescriptions,
+                          variableUnitMetadata
+                        })
+                      }
+                    >
+                      <VariableLabel
+                        name={column}
+                        variableDescriptions={variableDescriptions}
+                        variableUnitMetadata={variableUnitMetadata}
+                      />
+                    </button>
+                  ) : (
+                    <VariableLabel
+                      name={column}
+                      variableDescriptions={variableDescriptions}
+                      variableUnitMetadata={variableUnitMetadata}
+                    />
+                  )}
                 </th>
               ))}
             </tr>
@@ -2298,7 +2480,17 @@ function MatrixCellView({
                           new Set(),
                           undefined,
                           variableDescriptions,
-                          variableUnitMetadata
+                          variableUnitMetadata,
+                          editor
+                            ? (selectedVariable) =>
+                                onVariableInspectRequest({
+                                  currentValues,
+                                  editor,
+                                  selectedVariable,
+                                  variableDescriptions,
+                                  variableUnitMetadata
+                                })
+                            : undefined
                         )}
                       </span>
                       {entry.resolved ? (

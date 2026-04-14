@@ -30,6 +30,10 @@ import {
   type EditorState
 } from "../lib/editorModel";
 import { PeriodScrubber } from "../components/PeriodScrubber";
+import { VariableInspector } from "../components/VariableInspector";
+import { buildVariableInspectorData } from "../lib/variableInspector";
+import type { VariableDescriptions } from "../lib/variableDescriptions";
+import { buildVariableUnitMetadata } from "../lib/units";
 
 export function NotebookApp() {
   const [notebookDocument, setNotebookDocument] = useState(() =>
@@ -43,6 +47,16 @@ export function NotebookApp() {
   const [autoRunRevision, setAutoRunRevision] = useState(0);
   const [isDataPanelOpen, setIsDataPanelOpen] = useState(false);
   const [activeEditorCellId, setActiveEditorCellId] = useState<string | null>(null);
+  const [activeRailTab, setActiveRailTab] = useState<"inspect" | "contents" | "preview">(
+    "inspect"
+  );
+  const [inspectorContext, setInspectorContext] = useState<{
+    currentValues: Record<string, number | undefined>;
+    editor: EditorState;
+    selectedVariable: string;
+    variableDescriptions: VariableDescriptions;
+    variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
+  } | null>(null);
   const [importPreview, setImportPreview] = useState<{
     document: NotebookDocument;
     source: "json" | "markdown";
@@ -56,6 +70,15 @@ export function NotebookApp() {
         : []
     )
   );
+  const selectedVariableData = inspectorContext
+    ? buildVariableInspectorData({
+        currentValues: inspectorContext.currentValues,
+        editor: inspectorContext.editor,
+        selectedVariable: inspectorContext.selectedVariable,
+        variableDescriptions: inspectorContext.variableDescriptions,
+        variableUnitMetadata: inspectorContext.variableUnitMetadata
+      })
+    : null;
 
   useEffect(() => {
     setSelectedPeriodIndex((current) => Math.min(current, maxResultPeriodIndex));
@@ -77,11 +100,38 @@ export function NotebookApp() {
     return () => window.clearTimeout(timeoutId);
   }, [uiMessage]);
 
+  useEffect(() => {
+    if (activeEditorCellId) {
+      setActiveRailTab("contents");
+    }
+  }, [activeEditorCellId]);
+
+  useEffect(() => {
+    if (!importPreview && activeRailTab === "preview") {
+      setActiveRailTab("inspect");
+      return;
+    }
+    if (importPreview) {
+      setActiveRailTab("preview");
+    }
+  }, [activeRailTab, importPreview]);
+
   function updateCell(cellId: string, updater: (cell: NotebookCell) => NotebookCell): void {
     setNotebookDocument((current) => ({
       ...current,
       cells: current.cells.map((cell) => (cell.id === cellId ? updater(cell) : cell))
     }));
+  }
+
+  function handleVariableInspectRequest(args: {
+    currentValues: Record<string, number | undefined>;
+    editor: EditorState;
+    selectedVariable: string;
+    variableDescriptions: VariableDescriptions;
+    variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
+  }): void {
+    setInspectorContext(args);
+    setActiveRailTab("inspect");
   }
 
   function updateModelCell(cellId: string, editor: EditorState): void {
@@ -436,6 +486,14 @@ export function NotebookApp() {
                 >
                   Import
                 </button>
+                <button
+                  type="button"
+                  className="notebook-run-button"
+                  aria-pressed={activeRailTab === "contents"}
+                  onClick={() => setActiveRailTab("contents")}
+                >
+                  Contents
+                </button>
                 <a
                   className="notebook-toolbar-link notebook-run-button notebook-action-desktop"
                   href="#/workspace"
@@ -580,6 +638,7 @@ export function NotebookApp() {
                 onActiveEditorCellIdChange={setActiveEditorCellId}
                 onModelChange={updateModelCell}
                 onCellChange={updateCell}
+                onVariableInspectRequest={handleVariableInspectRequest}
                 selectedPeriodIndex={selectedPeriodIndex}
               />
             ))}
@@ -597,21 +656,71 @@ export function NotebookApp() {
             </div>
           </div>
 
-          <ol className="notebook-outline-list">
-            {notebookDocument.cells.map((cell, index) => (
-              <li
-                key={cell.id}
-                className={activeEditorCellId === cell.id ? "notebook-outline-item-is-active" : ""}
+          <div className="notebook-rail-tabs" role="tablist" aria-label="Notebook sidebar panels">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeRailTab === "inspect"}
+              className={`notebook-rail-tab${activeRailTab === "inspect" ? " is-active" : ""}`}
+              onClick={() => setActiveRailTab("inspect")}
+            >
+              Inspect
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeRailTab === "contents"}
+              className={`notebook-rail-tab${activeRailTab === "contents" ? " is-active" : ""}`}
+              onClick={() => setActiveRailTab("contents")}
+            >
+              Contents
+            </button>
+            {importPreview ? (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeRailTab === "preview"}
+                className={`notebook-rail-tab${activeRailTab === "preview" ? " is-active" : ""}`}
+                onClick={() => setActiveRailTab("preview")}
               >
-                <button type="button" onClick={() => scrollToCell(cell.id)}>
-                  <span className="outline-index">{index + 1}</span>
-                  <span>{cell.title}</span>
-                </button>
-              </li>
-            ))}
-          </ol>
+                Preview
+              </button>
+            ) : null}
+          </div>
 
-          {importPreview ? (
+          {activeRailTab === "inspect" ? (
+            <VariableInspector
+              data={selectedVariableData}
+              onSelectVariable={(variableName) => {
+                setActiveRailTab("inspect");
+                setInspectorContext((current) =>
+                  current ? { ...current, selectedVariable: variableName } : current
+                );
+              }}
+              variableDescriptions={inspectorContext?.variableDescriptions}
+              variableUnitMetadata={inspectorContext?.variableUnitMetadata}
+            />
+          ) : null}
+
+          {activeRailTab === "contents" ? (
+            <section className="notebook-sidebar-panel" id="notebook-outline-panel" role="tabpanel">
+              <ol className="notebook-outline-list">
+                {notebookDocument.cells.map((cell, index) => (
+                  <li
+                    key={cell.id}
+                    className={activeEditorCellId === cell.id ? "notebook-outline-item-is-active" : ""}
+                  >
+                    <button type="button" onClick={() => scrollToCell(cell.id)}>
+                      <span className="outline-index">{index + 1}</span>
+                      <span>{cell.title}</span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ) : null}
+
+          {importPreview && activeRailTab === "preview" ? (
             <section className="editor-panel notebook-preview-panel">
               <div className="panel-header">
                 <div>

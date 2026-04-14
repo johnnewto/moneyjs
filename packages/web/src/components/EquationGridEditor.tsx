@@ -13,6 +13,7 @@ interface EquationGridEditorProps {
   issues: Record<string, string | ValidationIssue | undefined>;
   isEmbedded?: boolean;
   onChange(next: EquationRow[]): void;
+  onSelectVariable?(variableName: string): void;
   parameterNames?: string[];
   showHeading?: boolean;
   showTraceHelp?: boolean;
@@ -27,6 +28,7 @@ export function EquationGridEditor({
   issues,
   isEmbedded = false,
   onChange,
+  onSelectVariable,
   parameterNames = [],
   showHeading = true,
   showTraceHelp = true,
@@ -123,6 +125,7 @@ export function EquationGridEditor({
                     parameterNames={parameterNameSet}
                     placeholder="Y"
                     value={equation.name}
+                    onSelectVariable={onSelectVariable}
                     variableDescriptions={variableDescriptions}
                     variableUnitMetadata={variableUnitMetadata}
                   />
@@ -140,6 +143,7 @@ export function EquationGridEditor({
                     parameterNames={parameterNameSet}
                     placeholder="Cs + Gs"
                     value={equation.expression}
+                    onSelectVariable={onSelectVariable}
                     variableDescriptions={variableDescriptions}
                   />
                   <input
@@ -211,6 +215,7 @@ interface HighlightedFormulaInputProps {
   inputRef(node: HTMLTextAreaElement | null): void;
   onChange(value: string): void;
   onEnter(): void;
+  onSelectVariable?(variableName: string): void;
   parameterNames: Set<string>;
   placeholder: string;
   value: string;
@@ -226,6 +231,7 @@ function HighlightedFormulaInput({
   inputRef,
   onChange,
   onEnter,
+  onSelectVariable,
   parameterNames,
   placeholder,
   value,
@@ -248,7 +254,8 @@ function HighlightedFormulaInput({
               parameterNames,
               highlightedTokens,
               variableDescriptions,
-              variableUnitMetadata
+              variableUnitMetadata,
+              onSelectVariable
             )
           : placeholder}
       </div>
@@ -278,7 +285,8 @@ export function highlightFormula(
   parameterNames: Set<string>,
   highlightedTokens?: Map<string, TraceTokenRole>,
   variableDescriptions?: VariableDescriptions,
-  variableUnitMetadata?: VariableUnitMetadata
+  variableUnitMetadata?: VariableUnitMetadata,
+  onSelectVariable?: (variableName: string) => void
 ): ReactNode[] {
   const parts: ReactNode[] = [];
   const tokenPattern = /([A-Za-z_][A-Za-z0-9_]*|\d+(?:\.\d+)?(?:e[+-]?\d+)?)/gi;
@@ -307,13 +315,37 @@ export function highlightFormula(
             variableUnitMetadata?.get(normalizedToken)
           )
         : undefined;
+    const tokenClassName = `formula-token ${tokenClass}${traceClass ? ` trace-token-${traceClass}` : ""}${
+      onSelectVariable &&
+      tokenClass !== "formula-function" &&
+      tokenClass !== "formula-number" &&
+      tokenClass !== "formula-default"
+        ? " is-clickable"
+        : ""
+    }`;
     parts.push(
       <InstantTooltip
         key={`${token}-${index}`}
-        className={`formula-token ${tokenClass}${traceClass ? ` trace-token-${traceClass}` : ""}`}
+        className={tokenClassName}
         tooltip={tokenDescription}
       >
-        {token}
+        <span
+          className={tokenClassName}
+          onMouseDown={(event) => {
+            if (
+              !onSelectVariable ||
+              tokenClass === "formula-function" ||
+              tokenClass === "formula-number" ||
+              tokenClass === "formula-default"
+            ) {
+              return;
+            }
+            event.preventDefault();
+            onSelectVariable(normalizedToken);
+          }}
+        >
+          {token}
+        </span>
       </InstantTooltip>
     );
     lastIndex = index + token.length;

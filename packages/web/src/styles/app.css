@@ -776,6 +776,21 @@ textarea {
   gap: 0.35rem;
 }
 
+.result-variable-button {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+.result-variable-button:hover .variable-label-inline {
+  text-decoration: underline;
+  text-decoration-color: rgba(37, 99, 235, 0.32);
+}
+
 .unit-badge {
   color: #64748b;
   display: inline;
@@ -826,7 +841,7 @@ textarea {
   background: transparent;
   color: #0f172a;
   inset: 0;
-  pointer-events: none;
+  pointer-events: auto;
   position: absolute;
 }
 
@@ -880,6 +895,156 @@ textarea {
 
 .formula-number {
   color: #7c3aed;
+}
+
+.formula-token.is-clickable {
+  cursor: pointer;
+}
+
+.formula-token.is-clickable:hover {
+  text-decoration: underline;
+  text-decoration-color: rgba(37, 99, 235, 0.45);
+}
+
+.variable-inspector-panel {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.variable-inspector-body {
+  display: grid;
+  gap: 1rem;
+}
+
+.variable-inspector-empty {
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.variable-inspector-hero {
+  align-items: start;
+  display: flex;
+  gap: 0.85rem;
+  justify-content: space-between;
+}
+
+.variable-inspector-hero h3,
+.inspector-section h3 {
+  margin: 0;
+}
+
+.variable-inspector-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  justify-content: flex-end;
+}
+
+.inspector-badge {
+  background: rgba(20, 33, 61, 0.08);
+  border-radius: 999px;
+  color: #14213d;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 0.32rem 0.58rem;
+}
+
+.inspector-badge.is-muted {
+  background: rgba(148, 163, 184, 0.18);
+  color: #475569;
+}
+
+.inspector-section {
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+  display: grid;
+  gap: 0.55rem;
+  padding-top: 0.9rem;
+}
+
+.inspector-section p {
+  color: #334155;
+  margin: 0;
+}
+
+.inspector-facts {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  margin: 0;
+}
+
+.inspector-facts dt {
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.18rem;
+  text-transform: uppercase;
+}
+
+.inspector-facts dd {
+  color: #0f172a;
+  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+  margin: 0;
+}
+
+.inspector-equation {
+  background: rgba(248, 250, 252, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  border-radius: 14px;
+  color: #0f172a;
+  display: block;
+  font: 0.88rem/1.45 "IBM Plex Mono", "SFMono-Regular", monospace;
+  padding: 0.75rem 0.85rem;
+  white-space: break-spaces;
+}
+
+.inspector-helper {
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
+.inspector-generated-explanation {
+  background: rgba(255, 248, 220, 0.45);
+  border: 1px solid rgba(245, 158, 11, 0.24);
+  border-radius: 14px;
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.7rem 0.8rem;
+}
+
+.inspector-chip-group {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.inspector-chip-label {
+  color: #475569;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.inspector-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.inspector-chip {
+  background: rgba(219, 234, 254, 0.72);
+  border: 1px solid rgba(96, 165, 250, 0.28);
+  border-radius: 999px;
+  color: #1d4ed8;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.83rem;
+  font-weight: 700;
+  padding: 0.34rem 0.62rem;
+}
+
+.inspector-empty-note {
+  color: #64748b;
+  font-size: 0.88rem;
 }
 
 .trace-token-root {
@@ -1544,6 +1709,8 @@ textarea {
 
 .notebook-outline {
   order: 2;
+  display: grid;
+  gap: 0.9rem;
   position: sticky;
   top: 1rem;
 }
@@ -1634,6 +1801,44 @@ textarea {
 .notebook-outline-list button span:last-child {
   font-size: 0.92rem;
   line-height: 1.25;
+}
+
+.notebook-sidebar-panel {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.notebook-rail-tabs {
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.notebook-rail-tab {
+  align-items: center;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(241, 245, 249, 0.96));
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 14px;
+  color: #14213d;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-weight: 700;
+  justify-content: center;
+  padding: 0.62rem 0.75rem;
+  text-align: center;
+  width: 100%;
+}
+
+.notebook-rail-tab:hover {
+  background: linear-gradient(180deg, #ffffff, #eef4fb);
+  border-color: rgba(100, 116, 139, 0.34);
+}
+
+.notebook-rail-tab.is-active {
+  background: linear-gradient(180deg, #14213d, #1f335f);
+  border-color: rgba(20, 33, 61, 0.8);
+  color: #fff;
 }
 
 .notebook-canvas {
