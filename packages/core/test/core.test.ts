@@ -9,6 +9,11 @@ import {
 } from "../src/fixtures/sim";
 import { validateShock } from "../src/engine/validate";
 import { buildOrderedBlocks } from "../src/graph/blocks";
+import {
+  classifySectorEdge,
+  createSectorTopology,
+  mergeSectorTopologies
+} from "../src/graph/sectors";
 import { analyzeParsedEquation } from "../src/parser/analyze";
 import { parseEquation, parseExpression } from "../src/parser/parse";
 import { runBaseline } from "../src/engine/runBaseline";
@@ -140,6 +145,59 @@ describe("graph", () => {
     expect(ordered.blocks).toHaveLength(2);
     expect(ordered.blocks[0]?.equationNames).toEqual(["x"]);
     expect(ordered.blocks[1]?.equationNames).toEqual(["y"]);
+  });
+});
+
+describe("sector topology", () => {
+  it("merges matrix-derived assignments into reusable sector metadata", () => {
+    const transaction = createSectorTopology([
+      {
+        variable: "Cd",
+        sector: "Production firms",
+        source: "transaction-matrix",
+        confidence: "high",
+        accountKind: "flow"
+      },
+      {
+        variable: "Mh",
+        sector: "Households",
+        source: "transaction-matrix",
+        confidence: "high",
+        accountKind: "stock"
+      }
+    ]);
+    const balance = createSectorTopology([
+      {
+        variable: "Mh",
+        sector: "Households",
+        source: "balance-matrix",
+        confidence: "high",
+        accountKind: "stock"
+      },
+      {
+        variable: "Ls",
+        sector: "Banks",
+        source: "balance-matrix",
+        confidence: "high",
+        accountKind: "stock"
+      }
+    ]);
+
+    const topology = mergeSectorTopologies([transaction, balance]);
+
+    expect(topology.variables.Mh).toMatchObject({
+      sector: "Households",
+      source: "balance-matrix",
+      confidence: "high",
+      accountKind: "stock"
+    });
+    expect(topology.variables.Cd?.sector).toBe("Production firms");
+    expect(topology.variables.Ls?.sector).toBe("Banks");
+    expect(classifySectorEdge(topology, "Mh", "Ls")).toEqual({
+      sourceSector: "Households",
+      targetSector: "Banks",
+      crossSector: true
+    });
   });
 });
 

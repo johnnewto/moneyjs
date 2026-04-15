@@ -660,6 +660,12 @@ function validateCellSourceShape(
       if (!Array.isArray((parsed as MatrixCell).columns)) {
         throw new Error("Matrix cells require columns to be an array.");
       }
+      if (
+        (parsed as MatrixCell).sectors != null &&
+        !Array.isArray((parsed as MatrixCell).sectors)
+      ) {
+        throw new Error("Matrix cells require sectors to be an array when provided.");
+      }
       if (!Array.isArray((parsed as MatrixCell).rows)) {
         throw new Error("Matrix cells require rows to be an array.");
       }

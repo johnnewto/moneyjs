@@ -51,6 +51,7 @@ import {
 } from "./modelSections";
 import { resolveSequenceDiagram } from "./sequence";
 import { buildDependencyGraph } from "./dependencyGraph";
+import { buildDependencySectorTopology } from "./dependencySectors";
 import {
   applySourceHelper,
   buildNotebookCellHelpText,
@@ -2009,6 +2010,18 @@ function EquationSyntaxHelpContent() {
         </ul>
       </section>
       <section>
+        <h4>Equation Roles</h4>
+        <ul className="notebook-help-list">
+          <li>Use the `Role` column to declare how an equation should be interpreted.</li>
+          <li>`Accumulation` is for stock updates such as `lag(Mh) + (YD - Cd) * dt`.</li>
+          <li>`Identity` is for accounting or closure relations such as `Y = C + I + G`.</li>
+          <li>`Definition` is for direct mappings or algebraic definitions such as `rm = rl`.</li>
+          <li>`Target` is for desired or notional levels such as `KT = kappa * lag(Y)`.</li>
+          <li>`Behavioral` is for decision rules such as `Cd = alpha0 + alpha1 * YD + alpha2 * lag(Mh)`.</li>
+          <li>`Auto` leaves the role inferred from the equation structure and description.</li>
+        </ul>
+      </section>
+      <section>
         <h4>Examples</h4>
         <pre className="notebook-help-code">{`YD = Y - TX + lag(r) * lag(Bh)
 Mh = lag(Mh) + (YD - Cd) * dt
@@ -2672,6 +2685,13 @@ function DependencySequenceCellView({
   cells: NotebookCell[];
   variableDescriptions: VariableDescriptions;
 }) {
+  const [viewMode, setViewMode] = useState<"layered" | "strips">(cell.source.viewMode ?? "layered");
+  const [showExogenous, setShowExogenous] = useState(true);
+
+  useEffect(() => {
+    setViewMode(cell.source.viewMode ?? "layered");
+  }, [cell.source.viewMode]);
+
   const graph = useMemo(() => {
     const editor = buildEditorStateForNotebookModel(
       {
@@ -2692,6 +2712,25 @@ function DependencySequenceCellView({
           layerCount: 0
         };
   }, [cell.source, cells]);
+  const visibleGraph = useMemo(() => filterDependencyGraphForView(graph, showExogenous), [graph, showExogenous]);
+  const sectorTopology = useMemo(
+    () =>
+      buildDependencySectorTopology({
+        cells,
+        dependencyCell: cell,
+        graph: visibleGraph
+      }),
+    [cell, cells, visibleGraph]
+  );
+  const stripCount = useMemo(
+    () =>
+      sectorTopology.sectors.filter((sector) =>
+        visibleGraph.nodes.some(
+          (node) => (sectorTopology.variables[node.name]?.sector ?? "Unmapped") === sector
+        )
+      ).length,
+    [sectorTopology, visibleGraph.nodes]
+  );
 
   return (
     <div className="sequence-viewer">
@@ -2699,20 +2738,60 @@ function DependencySequenceCellView({
       <div className="sequence-toolbar">
         <div className="sequence-toolbar-meta">
           <span>
-            Nodes <strong>{graph.nodes.length}</strong>
+            Nodes <strong>{visibleGraph.nodes.length}</strong>
           </span>
           <span>
-            Edges <strong>{graph.edges.length}</strong>
+            Edges <strong>{visibleGraph.edges.length}</strong>
           </span>
-          <span>
-            Layers <strong>{graph.layerCount}</strong>
-          </span>
+          {viewMode === "layered" ? (
+            <span>
+              Layers <strong>{visibleGraph.layerCount}</strong>
+            </span>
+          ) : (
+            <span>
+              Strips <strong>{stripCount}</strong>
+            </span>
+          )}
+        </div>
+        <div className="sequence-toolbar-actions">
+          <button
+            type="button"
+            className={`notebook-run-button notebook-source-toggle${
+              viewMode === "layered" ? " is-active" : ""
+            }`}
+            onClick={() => setViewMode("layered")}
+          >
+            Layered DAG
+          </button>
+          <button
+            type="button"
+            className={`notebook-run-button notebook-source-toggle${
+              viewMode === "strips" ? " is-active" : ""
+            }`}
+            onClick={() => setViewMode("strips")}
+          >
+            Sector strips
+          </button>
+          <button
+            type="button"
+            className={`notebook-run-button notebook-source-toggle${
+              showExogenous ? " is-active" : ""
+            }`}
+            onClick={() => setShowExogenous((current) => !current)}
+          >
+            {showExogenous ? "Hide exogenous" : "Show exogenous"}
+          </button>
         </div>
       </div>
-      <DependencyGraphCanvas graph={graph} variableDescriptions={variableDescriptions} />
-      {graph.errors.length ? (
+      <DependencyGraphCanvas
+        graph={visibleGraph}
+        sectorTopology={sectorTopology}
+        variableDescriptions={variableDescriptions}
+        viewMode={viewMode}
+      />
+      {visibleGraph.errors.length ? (
         <ul className="validation-list">
-          {graph.errors.map((error) => (
+          {visibleGraph.errors.map((error) => (
             <li key={error}>{error}</li>
           ))}
         </ul>
@@ -2720,6 +2799,33 @@ function DependencySequenceCellView({
       {cell.note ? <p className="notebook-matrix-note">{cell.note}</p> : null}
     </div>
   );
+}
+
+function filterDependencyGraphForView(
+  graph: ReturnType<typeof buildDependencyGraph>,
+  showExogenous: boolean
+): ReturnType<typeof buildDependencyGraph> {
+  if (showExogenous) {
+    return graph;
+  }
+
+  const visibleNodes = graph.nodes.filter((node) => node.variableType !== "exogenous");
+  const visibleNodeIds = new Set(visibleNodes.map((node) => node.id));
+  const visibleEdges = graph.edges.filter(
+    (edge) => visibleNodeIds.has(edge.sourceId) && visibleNodeIds.has(edge.targetId)
+  );
+  const minLayer = visibleNodes.reduce((result, node) => Math.min(result, node.layer), Infinity);
+  const normalizedNodes =
+    Number.isFinite(minLayer) && minLayer > 0
+      ? visibleNodes.map((node) => ({ ...node, layer: node.layer - minLayer }))
+      : visibleNodes;
+
+  return {
+    nodes: normalizedNodes,
+    edges: visibleEdges,
+    errors: graph.errors,
+    layerCount: normalizedNodes.reduce((maxLayer, node) => Math.max(maxLayer, node.layer), -1) + 1
+  };
 }
 
 function MatrixSequenceCellView({

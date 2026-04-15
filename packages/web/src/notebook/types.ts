@@ -108,6 +108,7 @@ export interface TableCell extends NotebookCellBase {
 export interface MatrixCell extends NotebookCellBase {
   type: "matrix";
   columns: string[];
+  sectors?: string[];
   sourceRunCellId?: string;
   rows: Array<{
     label: string;
@@ -141,6 +142,11 @@ export type SequenceCellSource =
       modelId?: string;
       sourceModelId?: string;
       sourceModelCellId?: string;
+      viewMode?: "layered" | "strips";
+      stripMapping?: {
+        transactionMatrixCellId?: string;
+        balanceMatrixCellId?: string;
+      };
     };
 
 export type NotebookCellOutput =

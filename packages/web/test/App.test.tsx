@@ -199,6 +199,9 @@ describe("App", () => {
     expect(within(dialog).getByText(/core forms/i)).toBeInTheDocument();
     expect(within(dialog).getAllByText(/I\(flowExpr\)/i).length).toBeGreaterThan(0);
     expect(within(dialog).getByText(/stock-flow guidance/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/equation roles/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Auto/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/inferred from the equation structure and description/i)).toBeInTheDocument();
 
     await user.click(document.body);
     expect(screen.queryByRole("dialog", { name: /equation syntax/i })).not.toBeInTheDocument();

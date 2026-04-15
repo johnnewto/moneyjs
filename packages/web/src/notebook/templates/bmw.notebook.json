@@ -10,6 +10,7 @@
       "title": "BMW balance sheet",
       "sourceRunCellId": "baseline-newton",
       "columns": ["Households", "Production firms", "Banks", "Sum"],
+      "sectors": ["Households", "Firms", "Banks", ""],
       "rows": [
         { "label": "Money deposits", "values": ["+Mh", "", "-Ms", "0"] },
         { "label": "Loans", "values": ["", "-Ld", "+Ls", "0"] },
@@ -26,6 +27,7 @@
       "title": "BMW transactions-flow matrix",
       "sourceRunCellId": "baseline-newton",
       "columns": ["Households", "Firms_current", "Firms_capital", "Banks_current", "Banks_capital"],
+      "sectors": ["Households", "Firms", "Firms", "Banks", "Banks"],
       "rows": [
         { "label": "Consumption", "values": ["-Cs", "+Cd", "", "", ""] },
         { "label": "Investment", "values": ["", "+Is", "-Id", "", ""] },

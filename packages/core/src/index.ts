@@ -5,6 +5,7 @@ export * from "./parser/analyze";
 export * from "./parser/parse";
 export * from "./parser/dependencies";
 export * from "./graph/blocks";
+export * from "./graph/sectors";
 export * from "./engine/context";
 export * from "./engine/seriesStore";
 export * from "./engine/validate";
