@@ -9,6 +9,7 @@ import {
 } from "../src/fixtures/sim";
 import { validateShock } from "../src/engine/validate";
 import { buildOrderedBlocks } from "../src/graph/blocks";
+import { analyzeParsedEquation } from "../src/parser/analyze";
 import { parseEquation, parseExpression } from "../src/parser/parse";
 import { runBaseline } from "../src/engine/runBaseline";
 import { runScenario } from "../src/engine/runScenario";
@@ -89,6 +90,24 @@ describe("parser", () => {
 
   it("throws on unsupported functions", () => {
     expect(() => parseExpression("sin(x)")).toThrow("Unsupported function");
+  });
+
+  it("classifies accumulation, identity, definition, and target roles", () => {
+    expect(analyzeParsedEquation(parseEquation("Bs", "I(G - TX)")).role).toBe("accumulation");
+    expect(analyzeParsedEquation(parseEquation("Y", "C + I + G")).role).toBe("identity");
+    expect(analyzeParsedEquation(parseEquation("YD", "Y")).role).toBe("definition");
+    expect(
+      analyzeParsedEquation(parseEquation("KT", "kappa * lag(Y)"), {
+        description: "desired capital target"
+      }).role
+    ).toBe("target");
+  });
+
+  it("lets explicit analysis hints override inferred equation role", () => {
+    const equation = parseEquation("C", "alpha1 * YD + alpha2 * lag(V)");
+
+    expect(analyzeParsedEquation(equation).role).toBe("behavioral");
+    expect(analyzeParsedEquation(equation, { explicitRole: "definition" }).role).toBe("definition");
   });
 });
 

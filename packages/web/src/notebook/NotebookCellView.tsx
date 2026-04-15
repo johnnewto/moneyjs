@@ -1,9 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
-import { evaluateExpression, parseExpression, type SimulationResult } from "@sfcr/core";
+import {
+  analyzeParsedEquation,
+  evaluateExpression,
+  parseEquation,
+  parseExpression,
+  type EquationRole,
+  type SimulationResult
+} from "@sfcr/core";
 
 import { EquationGridEditor } from "../components/EquationGridEditor";
+import { DependencyGraphCanvas } from "../components/DependencyGraphCanvas";
 import {
   buildActiveTrace,
   buildTraceModel,
@@ -42,6 +50,7 @@ import {
   findSolverCell
 } from "./modelSections";
 import { resolveSequenceDiagram } from "./sequence";
+import { buildDependencyGraph } from "./dependencyGraph";
 import {
   applySourceHelper,
   buildNotebookCellHelpText,
@@ -799,6 +808,7 @@ function ModelCellView({
               <span role="columnheader">Variable</span>
               <span role="columnheader">Expression</span>
               <span role="columnheader">Current</span>
+              <span role="columnheader">Role</span>
             </div>
             {cell.editor.equations.map((equation, index) => {
               const issue =
@@ -883,6 +893,9 @@ function ModelCellView({
                       currentValues[equation.name.trim()],
                       variableUnitMetadata
                     )}
+                  </span>
+                  <span className="notebook-model-view-kind" role="cell">
+                    {formatEquationRoleLabel(equation)}
                   </span>
                 </div>
               );
@@ -1100,6 +1113,7 @@ function EquationsCellView({
               <span role="columnheader">Variable</span>
               <span role="columnheader">Expression</span>
               <span role="columnheader">Current</span>
+              <span role="columnheader">Role</span>
             </div>
             {cell.equations.map((equation, index) => {
               const issue =
@@ -1185,6 +1199,9 @@ function EquationsCellView({
                       currentValues[equation.name.trim()],
                       variableUnitMetadata
                     )}
+                  </span>
+                  <span className="notebook-model-view-kind" role="cell">
+                    {formatEquationRoleLabel(equation)}
                   </span>
                 </div>
               );
@@ -1714,6 +1731,40 @@ function NotebookHelpButton({
   helpText: string;
 }) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isDialogOpen || !dialogContent) {
+      return;
+    }
+
+    function handlePointerDown(event: MouseEvent): void {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      if (dialogRef.current?.contains(target)) {
+        return;
+      }
+
+      setIsDialogOpen(false);
+    }
+
+    function handleEscape(event: KeyboardEvent): void {
+      if (event.key === "Escape") {
+        setIsDialogOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [dialogContent, isDialogOpen]);
 
   if (dialogContent) {
     return (
@@ -1732,6 +1783,7 @@ function NotebookHelpButton({
               aria-modal="true"
               className="notebook-help-dialog"
               onClick={(event) => event.stopPropagation()}
+              ref={dialogRef}
               role="dialog"
             >
               <div className="notebook-help-dialog-header">
@@ -2580,6 +2632,113 @@ function SequenceCellView({
   selectedPeriodIndex: number;
   variableDescriptions: VariableDescriptions;
 }) {
+  if (cell.source.kind === "dependency") {
+    const dependencyCell: SequenceCell & {
+      source: Extract<SequenceCell["source"], { kind: "dependency" }>;
+    } = {
+      ...cell,
+      source: cell.source
+    };
+    return (
+      <DependencySequenceCellView
+        cell={dependencyCell}
+        cells={cells}
+        variableDescriptions={variableDescriptions}
+      />
+    );
+  }
+
+  return (
+    <MatrixSequenceCellView
+      cell={cell}
+      cells={cells}
+      maxPeriodIndex={maxPeriodIndex}
+      onSelectedPeriodIndexChange={onSelectedPeriodIndexChange}
+      runner={runner}
+      selectedPeriodIndex={selectedPeriodIndex}
+      variableDescriptions={variableDescriptions}
+    />
+  );
+}
+
+function DependencySequenceCellView({
+  cell,
+  cells,
+  variableDescriptions
+}: {
+  cell: SequenceCell & {
+    source: Extract<SequenceCell["source"], { kind: "dependency" }>;
+  };
+  cells: NotebookCell[];
+  variableDescriptions: VariableDescriptions;
+}) {
+  const graph = useMemo(() => {
+    const editor = buildEditorStateForNotebookModel(
+      {
+        id: "sequence-dependency-view",
+        title: "Dependency graph source",
+        metadata: { version: 1 },
+        cells
+      },
+      cell.source
+    );
+
+    return editor
+      ? buildDependencyGraph(editor)
+      : {
+          nodes: [],
+          edges: [],
+          errors: ["Dependency graph source model could not be resolved."],
+          layerCount: 0
+        };
+  }, [cell.source, cells]);
+
+  return (
+    <div className="sequence-viewer">
+      {cell.description ? <p className="notebook-markdown">{cell.description}</p> : null}
+      <div className="sequence-toolbar">
+        <div className="sequence-toolbar-meta">
+          <span>
+            Nodes <strong>{graph.nodes.length}</strong>
+          </span>
+          <span>
+            Edges <strong>{graph.edges.length}</strong>
+          </span>
+          <span>
+            Layers <strong>{graph.layerCount}</strong>
+          </span>
+        </div>
+      </div>
+      <DependencyGraphCanvas graph={graph} variableDescriptions={variableDescriptions} />
+      {graph.errors.length ? (
+        <ul className="validation-list">
+          {graph.errors.map((error) => (
+            <li key={error}>{error}</li>
+          ))}
+        </ul>
+      ) : null}
+      {cell.note ? <p className="notebook-matrix-note">{cell.note}</p> : null}
+    </div>
+  );
+}
+
+function MatrixSequenceCellView({
+  cell,
+  cells,
+  maxPeriodIndex,
+  onSelectedPeriodIndexChange,
+  runner,
+  selectedPeriodIndex,
+  variableDescriptions
+}: {
+  cell: SequenceCell;
+  cells: NotebookCell[];
+  maxPeriodIndex: number;
+  onSelectedPeriodIndexChange(nextIndex: number): void;
+  runner: ReturnType<typeof useNotebookRunner>;
+  selectedPeriodIndex: number;
+  variableDescriptions: VariableDescriptions;
+}) {
   const diagram = useMemo(
     () =>
       resolveSequenceDiagram(
@@ -2906,6 +3065,45 @@ function formatNotebookCurrentValue(
   return formatNamedValueWithUnits(name, value, variableUnitMetadata?.get(name.trim()), {
     maximumFractionDigits: 6
   });
+}
+
+function formatEquationRoleLabel(equation: {
+  name: string;
+  expression: string;
+  desc?: string;
+  role?: EquationRole;
+}): string {
+  const name = equation.name.trim();
+  const expression = equation.expression.trim();
+  if (!name || !expression) {
+    return equation.role ? formatEquationRole(equation.role) : "Auto";
+  }
+
+  try {
+    return formatEquationRole(
+      analyzeParsedEquation(parseEquation(name, expression), {
+        description: equation.desc?.trim(),
+        explicitRole: equation.role
+      }).role
+    );
+  } catch {
+    return equation.role ? formatEquationRole(equation.role) : "Auto";
+  }
+}
+
+function formatEquationRole(role: EquationRole): string {
+  switch (role) {
+    case "accumulation":
+      return "Accumulation";
+    case "identity":
+      return "Identity";
+    case "target":
+      return "Target";
+    case "definition":
+      return "Definition";
+    case "behavioral":
+      return "Behavioral";
+  }
 }
 
 function formatResolvedMatrixValue(

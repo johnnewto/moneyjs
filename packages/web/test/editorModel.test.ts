@@ -4,6 +4,7 @@ import {
   diagnoseBuildRuntime,
   editorStateFromJson,
   editorStateFromModel,
+  buildRuntimeConfig,
   runtimeDocumentToJson,
   validateEditorState
 } from "../src/lib/editorModel";
@@ -61,6 +62,21 @@ describe("editor model validation", () => {
     expect(restored.externals).toHaveLength(original.externals.length);
     expect(restored.scenario.shocks).toHaveLength(original.scenario.shocks.length);
     expect(json).toMatch(/\{ "name": "[^"]+", "expression": "[^"]+" \}/);
+  });
+
+  it("preserves explicit equation roles between editor and runtime config", () => {
+    const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
+    editor.equations[0] = {
+      ...editor.equations[0]!,
+      role: "identity"
+    };
+
+    const runtime = buildRuntimeConfig(editor);
+
+    expect(runtime.model.equations[0]).toMatchObject({
+      name: editor.equations[0]!.name,
+      role: "identity"
+    });
   });
 
   it("rejects malformed shock rows", () => {

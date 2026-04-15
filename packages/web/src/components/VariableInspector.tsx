@@ -46,6 +46,18 @@ export function VariableInspector({
           <InspectorSection title={data.description?.trim() || "Equation"}>
             {data.definingEquation ? (
               <>
+                {data.equationRoleLabel ? (
+                  <dl className="inspector-facts">
+                    <div>
+                      <dt>Equation role</dt>
+                      <dd>{data.equationRoleLabel}</dd>
+                    </div>
+                    <div>
+                      <dt>Role source</dt>
+                      <dd>{data.equationRoleSourceLabel ?? "Unknown"}</dd>
+                    </div>
+                  </dl>
+                ) : null}
                 <code className="inspector-equation">
                   <VariableLabel
                     name={data.definingEquation.name}

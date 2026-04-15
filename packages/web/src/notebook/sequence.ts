@@ -71,6 +71,14 @@ export function resolveSequenceDiagram(
     return parseSequencePlantUml(cell.source.source);
   }
 
+  if (cell.source.kind !== "matrix") {
+    return {
+      participants: [],
+      steps: [],
+      errors: [`Unsupported sequence source kind '${cell.source.kind}'.`]
+    };
+  }
+
   const matrixCell = resolveMatrixCell(cell.source.matrixCellId);
   if (!matrixCell) {
     return {

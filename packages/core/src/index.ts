@@ -1,6 +1,7 @@
 export * from "./model/types";
 export * from "./model/schema";
 export * from "./parser/ast";
+export * from "./parser/analyze";
 export * from "./parser/parse";
 export * from "./parser/dependencies";
 export * from "./graph/blocks";

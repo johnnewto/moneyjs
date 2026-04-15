@@ -144,7 +144,10 @@ describe("App", () => {
     expect(screen.getAllByText("Expression").length).toBeGreaterThan(0);
     const yToken = screen
       .getAllByText("Y")
-      .find((node) => node.className.includes("formula-token"));
+      .find(
+        (node): node is HTMLElement =>
+          node instanceof HTMLElement && node.classList.contains("formula-token")
+      );
     expect(yToken).toBeDefined();
     if (!yToken) {
       throw new Error("Expected formula token for Y");
@@ -197,7 +200,7 @@ describe("App", () => {
     expect(within(dialog).getAllByText(/I\(flowExpr\)/i).length).toBeGreaterThan(0);
     expect(within(dialog).getByText(/stock-flow guidance/i)).toBeInTheDocument();
 
-    await user.click(within(dialog).getByRole("button", { name: /^close$/i }));
+    await user.click(document.body);
     expect(screen.queryByRole("dialog", { name: /equation syntax/i })).not.toBeInTheDocument();
   });
 
@@ -389,11 +392,32 @@ describe("App", () => {
     }
 
     await user.click(within(modelCell).getByRole("button", { name: /^show$/i }));
+    expect(within(modelCell).getByText(/^Role$/i)).toBeInTheDocument();
+
+    const yRowButton = within(modelCell).getByRole("button", { name: /^Y\b/i });
+    const yRow = yRowButton.closest('[role="row"]');
+    expect(yRow).not.toBeNull();
+    if (!(yRow instanceof HTMLElement)) {
+      throw new Error("Expected Y row in model equations table.");
+    }
+    expect(within(yRow).getByText(/^Identity$/i)).toBeInTheDocument();
+
     await user.click(within(modelCell).getByRole("button", { name: /^Y\b/i }));
 
-    expect(screen.getByRole("heading", { name: /^Y\b/i })).toBeInTheDocument();
-    expect(screen.getByText(/^Endogenous$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^Flow$/i)).toBeInTheDocument();
+    const inspectorHeading = screen.getByRole("heading", { name: /^Y\b/i });
+    expect(inspectorHeading).toBeInTheDocument();
+    const selectedVariableLabel = screen.getByText(/^Selected variable$/i);
+    const inspector = selectedVariableLabel.closest(".variable-inspector-panel");
+    expect(inspector).not.toBeNull();
+    if (!(inspector instanceof HTMLElement)) {
+      throw new Error("Expected variable inspector container.");
+    }
+
+    expect(within(inspector).getByText(/^Endogenous$/i)).toBeInTheDocument();
+    expect(within(inspector).getByText(/^Flow$/i)).toBeInTheDocument();
+    expect(within(inspector).getByText(/^Equation role$/i)).toBeInTheDocument();
+    expect(within(inspector).getByText(/^Identity$/i)).toBeInTheDocument();
+    expect(within(inspector).getByText(/^Declared$/i)).toBeInTheDocument();
   });
 
   it("shows variable descriptions for lowercase rate tokens in the BMW transaction-flow matrix", () => {
@@ -697,11 +721,18 @@ describe("App", () => {
 
     await user.click(within(runArticle).getByRole("button", { name: /^edit$/i }));
 
-    const titleEditor = screen.getByRole("textbox", {
-      name: /title editor for baseline run with newton/i
-    }) as HTMLInputElement;
+    const sourceEditor = screen.getByRole("textbox", {
+      name: /source editor for baseline run with newton/i
+    }) as HTMLTextAreaElement;
 
-    fireEvent.change(titleEditor, { target: { value: "Updated baseline run" } });
+    fireEvent.change(sourceEditor, {
+      target: {
+        value: sourceEditor.value.replace(
+          '"title": "Baseline run with Newton"',
+          '"title": "Updated baseline run"'
+        )
+      }
+    });
     await user.click(screen.getByRole("button", { name: /^apply$/i }));
 
     expect(screen.getByRole("heading", { name: /updated baseline run/i })).toBeInTheDocument();
@@ -781,7 +812,7 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: /axis snap/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /shared range/i })).toBeInTheDocument();
     expect(screen.getByText(/live validation: ready to apply/i)).toBeInTheDocument();
-    expect(screen.getByText(/^syntax help$/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^help$/i })).toBeInTheDocument();
 
     const sourceEditor = screen.getByRole("textbox", {
       name: /source editor for baseline headline variables/i
@@ -856,7 +887,7 @@ describe("App", () => {
     await user.keyboard("{Escape}");
     expect(screen.queryByLabelText(/source insert actions/i)).not.toBeInTheDocument();
 
-    await user.click(screen.getByText(/^syntax help$/i));
+    await user.click(screen.getByRole("button", { name: /^help$/i }));
     expect(screen.getByText(/required fields:/i)).toBeInTheDocument();
   });
 });

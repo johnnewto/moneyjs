@@ -135,6 +135,12 @@ export type SequenceCellSource =
       sourceRunCellId?: string;
       includeZeroFlows?: boolean;
       aliases?: Record<string, string>;
+    }
+  | {
+      kind: "dependency";
+      modelId?: string;
+      sourceModelId?: string;
+      sourceModelCellId?: string;
     };
 
 export type NotebookCellOutput =

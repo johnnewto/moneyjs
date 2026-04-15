@@ -189,6 +189,27 @@ describe("EquationGridEditor", () => {
     ]);
   });
 
+  it("edits explicit equation roles from the grid", () => {
+    const onChange = vi.fn();
+
+    render(
+      <EquationGridEditor
+        equations={[{ id: "eq-y", name: "Y", expression: "C + I" }]}
+        issues={{}}
+        onChange={onChange}
+        parameterNames={[]}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText(/^equation role$/i), {
+      target: { value: "identity" }
+    });
+
+    expect(onChange).toHaveBeenCalledWith([
+      { id: "eq-y", name: "Y", expression: "C + I", role: "identity" }
+    ]);
+  });
+
   it("adds instant tooltips to described variable tokens", () => {
     render(
       <EquationGridEditor

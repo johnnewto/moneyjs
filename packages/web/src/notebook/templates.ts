@@ -4,6 +4,7 @@ import gl6DisNotebookJson from "./templates/gl6-dis.notebook.json";
 import gl7InsoutNotebookJson from "./templates/gl7-insout.notebook.json";
 import gl8GrowthNotebookJson from "./templates/gl8-growth.notebook.json";
 import predatorPreyNotebookJson from "./templates/predator-prey.notebook.json";
+import simpleEpidemicNotebookJson from "./templates/simple-epidemic.notebook.json";
 import solverOverviewNotebookJson from "./templates/solver-overview.notebook.json";
 import { notebookFromJson } from "./document";
 import type { NotebookDocument } from "./types";
@@ -15,6 +16,7 @@ export type NotebookTemplateId =
   | "gl7-insout"
   | "gl8-growth"
   | "predator-prey"
+  | "simple-epidemic"
   | "solver-overview";
 export const DEFAULT_NOTEBOOK_TEMPLATE_ID: NotebookTemplateId = "bmw";
 
@@ -65,6 +67,13 @@ export const NOTEBOOK_TEMPLATES: Record<NotebookTemplateId, NotebookTemplateDefi
     description:
       "Minimal reference notebook with lagged predator-prey dynamics, one baseline run, and one scenario shock.",
     document: notebookFromJson(JSON.stringify(predatorPreyNotebookJson))
+  },
+  "simple-epidemic": {
+    id: "simple-epidemic",
+    label: "Simple epidemic",
+    description:
+      "Runnable version of the legacy simple epidemic model with stock equations, a contact lookup approximation, and a baseline chart.",
+    document: notebookFromJson(JSON.stringify(simpleEpidemicNotebookJson))
   },
   "solver-overview": {
     id: "solver-overview",

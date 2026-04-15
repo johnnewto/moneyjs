@@ -1,4 +1,4 @@
-import { parseEquation } from "@sfcr/core";
+import { analyzeParsedEquation, parseEquation, type EquationRole } from "@sfcr/core";
 
 import type {
   EditorState,
@@ -18,6 +18,8 @@ export interface VariableInspectorData {
   kind: "equation" | "external" | "initial-only" | "unknown";
   roleLabel: string;
   roleSummary: string;
+  equationRoleLabel: string | null;
+  equationRoleSourceLabel: string | null;
   currentValue?: number;
   initialValue?: number;
   definingEquation: EquationRow | null;
@@ -97,6 +99,9 @@ export function buildVariableInspectorData(args: {
   const generatedEquationExplanation = definingEquation
     ? buildGeneratedEquationExplanation(definingEquation, args.variableDescriptions)
     : null;
+  const equationRoleMeta = definingEquation
+    ? buildEquationRoleMeta(definingEquation)
+    : { label: null, sourceLabel: null };
 
   return {
     name: selectedVariable,
@@ -110,6 +115,8 @@ export function buildVariableInspectorData(args: {
       kind,
       stockFlow
     }),
+    equationRoleLabel: equationRoleMeta.label,
+    equationRoleSourceLabel: equationRoleMeta.sourceLabel,
     currentValue,
     initialValue,
     definingEquation,
@@ -141,6 +148,33 @@ function buildGeneratedEquationExplanation(
     return explainEquationExpression(name, parsed.sourceExpression, variableDescriptions);
   } catch {
     return null;
+  }
+}
+
+function buildEquationRoleMeta(equation: EquationRow): {
+  label: string | null;
+  sourceLabel: string | null;
+} {
+  const name = equation.name.trim();
+  const expression = equation.expression.trim();
+  if (!name || !expression) {
+    return { label: null, sourceLabel: null };
+  }
+
+  try {
+    const parsed = parseEquation(name, expression);
+    const analysis = analyzeParsedEquation(parsed, {
+      description: equation.desc?.trim(),
+      explicitRole: equation.role
+    });
+    return {
+      label: formatEquationRole(analysis.role),
+      sourceLabel: equation.role ? "Declared" : "Inferred"
+    };
+  } catch {
+    return equation.role
+      ? { label: formatEquationRole(equation.role), sourceLabel: "Declared" }
+      : { label: null, sourceLabel: null };
   }
 }
 
@@ -226,4 +260,19 @@ function pluralize(count: number, noun: string): string {
 
 function capitalize(value: string): string {
   return value.slice(0, 1).toUpperCase() + value.slice(1);
+}
+
+function formatEquationRole(role: EquationRole): string {
+  switch (role) {
+    case "accumulation":
+      return "Accumulation";
+    case "identity":
+      return "Identity";
+    case "target":
+      return "Target";
+    case "definition":
+      return "Definition";
+    case "behavioral":
+      return "Behavioral";
+  }
 }

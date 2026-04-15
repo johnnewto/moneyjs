@@ -1,8 +1,11 @@
+import type { EquationRole } from "../parser/analyze";
+
 export type SolverMethod = "GAUSS_SEIDEL" | "BROYDEN" | "NEWTON";
 
 export interface EquationDef {
   name: string;
   expression: string;
+  role?: EquationRole;
 }
 
 export type ExternalDef =

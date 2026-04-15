@@ -1,5 +1,6 @@
 import {
   parseEquation,
+  type EquationRole,
   type ExternalDef,
   type ModelDefinition,
   type ScenarioDefinition,
@@ -16,6 +17,7 @@ export interface EquationRow {
   name: string;
   desc?: string;
   expression: string;
+  role?: EquationRole;
   unitMeta?: UnitMeta;
 }
 
@@ -93,7 +95,8 @@ export function editorStateFromModel(
       id: `eq-${index}-${equation.name}`,
       name: equation.name,
       desc: "",
-      expression: equation.expression
+      expression: equation.expression,
+      role: equation.role
     })),
     externals: Object.entries(model.externals).map(([name, external], index) => ({
       id: `ext-${index}-${name}`,
@@ -148,7 +151,8 @@ export function buildRuntimeConfig(editor: EditorState): {
     .filter((equation) => equation.name.trim() !== "" && equation.expression.trim() !== "")
     .map((equation) => ({
       name: equation.name.trim(),
-      expression: equation.expression.trim()
+      expression: equation.expression.trim(),
+      ...(equation.role ? { role: equation.role } : {})
     }));
 
   const externals = Object.fromEntries(

@@ -1,0 +1,162 @@
+{
+  "id": "simple-epidemic-notebook",
+  "title": "Simple Epidemic Notebook",
+  "metadata": { "version": 1, "template": "simple-epidemic" },
+  "cells": [
+    {
+      "id": "intro",
+      "type": "markdown",
+      "title": "Overview",
+      "source": "This notebook captures the legacy SIMPLE EPIDEMIC MODEL as a runnable browser notebook. The original model used `DT = 0.25` days and a `TABLE(...)` contact lookup. In this notebook the quarter-day step is folded into per-step rates, the contact lookup is represented as a piecewise linear interpolation over the original table points, and the infection-flow calculation uses lagged stocks so the model runs as a stable explicit update in the current browser solver."
+    },
+    {
+      "id": "equations",
+      "type": "equations",
+      "title": "Simple epidemic model",
+      "modelId": "simple-epidemic",
+      "equations": [
+        {
+          "id": "eq-0-total",
+          "name": "total",
+          "desc": "Total population.",
+          "expression": "susceptible + sick + recovered"
+        },
+        {
+          "id": "eq-1-susceptible_share",
+          "name": "susceptible_share",
+          "desc": "Lagged share of population still susceptible, used by the contact lookup.",
+          "expression": "lag(susceptible) / total_population"
+        },
+        {
+          "id": "eq-2-contacts",
+          "name": "contacts",
+          "desc": "Piecewise linear contact function based on the original lookup table.",
+          "expression": "if (susceptible_share < 0.2) { 14 * susceptible_share } else { if (susceptible_share < 0.4) { 2.8 + 13.5 * (susceptible_share - 0.2) } else { if (susceptible_share < 0.6) { 5.5 + 12.5 * (susceptible_share - 0.4) } else { if (susceptible_share < 0.8) { 8 + 7.5 * (susceptible_share - 0.6) } else { 9.5 + 2.5 * (susceptible_share - 0.8) } } } }"
+        },
+        {
+          "id": "eq-3-infections",
+          "name": "infections",
+          "desc": "New infections per simulation step from lagged stocks. The original daily infection rate is scaled by the quarter-day step.",
+          "expression": "lag(sick) * contacts * frsick_step"
+        },
+        {
+          "id": "eq-4-cure",
+          "name": "cure",
+          "desc": "Recoveries per simulation step from the lagged sick stock. The original daily cure rate is scaled by the quarter-day step.",
+          "expression": "lag(sick) * cure_rate_step"
+        },
+        {
+          "id": "eq-5-susceptible",
+          "name": "susceptible",
+          "desc": "Susceptible population stock.",
+          "expression": "lag(susceptible) - infections"
+        },
+        {
+          "id": "eq-6-sick",
+          "name": "sick",
+          "desc": "Sick population stock.",
+          "expression": "lag(sick) + infections - cure"
+        },
+        {
+          "id": "eq-7-recovered",
+          "name": "recovered",
+          "desc": "Recovered population stock.",
+          "expression": "lag(recovered) + cure"
+        }
+      ],
+      "collapsed": true
+    },
+    {
+      "id": "solver",
+      "type": "solver",
+      "title": "Solver",
+      "modelId": "simple-epidemic",
+      "options": {
+        "periods": 200,
+        "solverMethod": "GAUSS_SEIDEL",
+        "toleranceText": "1e-10",
+        "maxIterations": 100,
+        "defaultInitialValueText": "1e-15",
+        "hiddenLeftVariable": "",
+        "hiddenRightVariable": "",
+        "hiddenToleranceText": "0.00001",
+        "relativeHiddenTolerance": false
+      },
+      "collapsed": true
+    },
+    {
+      "id": "externals",
+      "type": "externals",
+      "title": "Externals",
+      "modelId": "simple-epidemic",
+      "externals": [
+        {
+          "id": "ext-0-frsick-step",
+          "name": "frsick_step",
+          "desc": "Per-step infection factor from the original `FRSICK = 0.05` with `DT = 0.25`.",
+          "kind": "constant",
+          "valueText": "0.0125"
+        },
+        {
+          "id": "ext-1-cure-rate-step",
+          "name": "cure_rate_step",
+          "desc": "Per-step cure rate from the original `DUR = 10` days with `DT = 0.25`.",
+          "kind": "constant",
+          "valueText": "0.025"
+        },
+        {
+          "id": "ext-2-total-population",
+          "name": "total_population",
+          "desc": "Constant total population used in the lagged contact-share lookup.",
+          "kind": "constant",
+          "valueText": "1000"
+        }
+      ],
+      "collapsed": true
+    },
+    {
+      "id": "initial-values",
+      "type": "initial-values",
+      "title": "Initial values",
+      "modelId": "simple-epidemic",
+      "initialValues": [
+        { "id": "init-0-susceptible", "name": "susceptible", "valueText": "988" },
+        { "id": "init-1-sick", "name": "sick", "valueText": "2" },
+        { "id": "init-2-recovered", "name": "recovered", "valueText": "10" }
+      ],
+      "collapsed": true
+    },
+    {
+      "id": "baseline-run",
+      "type": "run",
+      "title": "Baseline run",
+      "mode": "baseline",
+      "resultKey": "simple_epidemic_baseline",
+      "description": "Baseline epidemic run over 200 quarter-day steps, corresponding to 50 days.",
+      "sourceModelId": "simple-epidemic"
+    },
+    {
+      "id": "baseline-chart",
+      "type": "chart",
+      "title": "Epidemic stocks and flows",
+      "sourceRunCellId": "baseline-run",
+      "variables": ["susceptible", "sick", "recovered", "infections", "cure"],
+      "axisMode": "separate",
+      "axisSnapTolarance": 0.5,
+      "seriesRanges": {
+        "susceptible": { "includeZero": true },
+        "sick": { "includeZero": true },
+        "recovered": { "includeZero": true },
+        "infections": { "includeZero": true },
+        "cure": { "includeZero": true }
+      }
+    },
+    {
+      "id": "baseline-table",
+      "type": "table",
+      "title": "Baseline variable summary",
+      "sourceRunCellId": "baseline-run",
+      "variables": ["susceptible", "sick", "recovered", "infections", "cure", "contacts"]
+    }
+  ]
+}

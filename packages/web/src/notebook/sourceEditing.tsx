@@ -131,6 +131,10 @@ export function buildSourceHelperActions(
           label: "Matrix source",
           insert: '"source": {\n  "kind": "matrix",\n  "matrixCellId": "matrix-1"\n}'
         },
+        {
+          label: "Dependency source",
+          insert: '"source": {\n  "kind": "dependency",\n  "modelId": "main"\n}'
+        },
         { label: "Collapsed true", insert: '"collapsed": true' }
       ];
     case "equations":
@@ -334,7 +338,8 @@ This cell owns the initial-values section for one notebook model. Hide/show only
 
 Source can be:
 - { "kind": "plantuml", "source": "..." }
-- { "kind": "matrix", "matrixCellId": "matrix-1" }`;
+- { "kind": "matrix", "matrixCellId": "matrix-1" }
+- { "kind": "dependency", "modelId": "main" }`;
     case "model":
       return "";
   }
@@ -380,7 +385,7 @@ export function buildNotebookCellHelpText(cell: NotebookCell): string {
     case "matrix":
       return "Matrix cell that evaluates transaction or balance-sheet style formulas against the selected run result.";
     case "sequence":
-      return "Sequence diagram cell that animates flows derived from a matrix cell and its linked run result.";
+      return "Sequence viewer cell for either matrix-derived transaction flows or a layered equation dependency graph.";
     default:
       return "Notebook cell help is not available for this cell type.";
   }
@@ -662,6 +667,17 @@ function validateCellSourceShape(
     case "sequence":
       if (!(parsed as SequenceCell).source || typeof (parsed as SequenceCell).source !== "object") {
         throw new Error("Sequence cells require a source object.");
+      }
+      const source = (parsed as SequenceCell).source;
+      if (
+        source.kind === "dependency" &&
+        typeof source.modelId !== "string" &&
+        typeof source.sourceModelId !== "string" &&
+        typeof source.sourceModelCellId !== "string"
+      ) {
+        throw new Error(
+          "Dependency sequence sources require modelId, sourceModelId, or sourceModelCellId."
+        );
       }
       return;
     case "markdown":

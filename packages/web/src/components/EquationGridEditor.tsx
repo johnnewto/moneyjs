@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 
+import type { EquationRole } from "@sfcr/core";
 import type { EquationRow, ValidationIssue } from "../lib/editorModel";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
 import { formatVariableTooltip, type VariableUnitMetadata } from "../lib/unitMeta";
@@ -72,6 +73,7 @@ export function EquationGridEditor({
           <span>#</span>
           <span>Variable</span>
           <span>Expression</span>
+          <span>Role</span>
           <span>Description</span>
           <span>Status</span>
           <span />
@@ -98,7 +100,7 @@ export function EquationGridEditor({
                   onClick={(event) => {
                     if (
                       event.target instanceof HTMLElement &&
-                      event.target.closest("textarea,input,button")
+                      event.target.closest("textarea,input,button,select")
                     ) {
                       return;
                     }
@@ -146,6 +148,28 @@ export function EquationGridEditor({
                     onSelectVariable={onSelectVariable}
                     variableDescriptions={variableDescriptions}
                   />
+                  <label className="equation-grid-role-cell">
+                    <select
+                      aria-label="Equation role"
+                      className="equation-grid-role-select"
+                      onChange={(event) =>
+                        updateRow(
+                          equations,
+                          index,
+                          { role: normalizeEquationRole(event.target.value) },
+                          onChange
+                        )
+                      }
+                      value={equation.role ?? ""}
+                    >
+                      <option value="">Auto</option>
+                      {EQUATION_ROLE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <input
                     aria-label={`Equation ${index + 1} description`}
                     className="equation-grid-description"
@@ -206,6 +230,14 @@ export function EquationGridEditor({
     </section>
   );
 }
+
+const EQUATION_ROLE_OPTIONS: Array<{ value: EquationRole; label: string }> = [
+  { value: "accumulation", label: "Accumulation" },
+  { value: "identity", label: "Identity" },
+  { value: "target", label: "Target" },
+  { value: "definition", label: "Definition" },
+  { value: "behavioral", label: "Behavioral" }
+];
 
 interface HighlightedFormulaInputProps {
   ariaLabel: string;
@@ -603,6 +635,19 @@ function updateRow(
 
 function removeRow<T>(rows: T[], index: number): T[] {
   return rows.filter((_, rowIndex) => rowIndex !== index);
+}
+
+function normalizeEquationRole(value: string): EquationRole | undefined {
+  switch (value) {
+    case "accumulation":
+    case "identity":
+    case "target":
+    case "definition":
+    case "behavioral":
+      return value;
+    default:
+      return undefined;
+  }
 }
 
 function resolveEquationIssue(
