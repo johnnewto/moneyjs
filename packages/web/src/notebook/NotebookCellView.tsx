@@ -51,6 +51,7 @@ import {
 } from "./modelSections";
 import { resolveSequenceDiagram } from "./sequence";
 import { buildDependencyGraph } from "./dependencyGraph";
+import { buildDependencyRowTopology } from "./dependencyRows";
 import { buildDependencySectorTopology } from "./dependencySectors";
 import {
   applySourceHelper,
@@ -2685,11 +2686,20 @@ function DependencySequenceCellView({
   cells: NotebookCell[];
   variableDescriptions: VariableDescriptions;
 }) {
-  const [viewMode, setViewMode] = useState<"layered" | "strips">(cell.source.viewMode ?? "layered");
+  const [layoutMode, setLayoutMode] = useState<"layered" | "strips">(
+    cell.source.viewMode === "strips" ? "strips" : "layered"
+  );
+  const [showAccountingStrips, setShowAccountingStrips] = useState(
+    cell.source.viewMode === "horizontal-strips"
+  );
   const [showExogenous, setShowExogenous] = useState(true);
+  const [showDebugOverlay, setShowDebugOverlay] = useState(false);
+  const isDevEnvironment =
+    ((import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV ?? false) === true;
 
   useEffect(() => {
-    setViewMode(cell.source.viewMode ?? "layered");
+    setLayoutMode(cell.source.viewMode === "strips" ? "strips" : "layered");
+    setShowAccountingStrips(cell.source.viewMode === "horizontal-strips");
   }, [cell.source.viewMode]);
 
   const graph = useMemo(() => {
@@ -2722,14 +2732,30 @@ function DependencySequenceCellView({
       }),
     [cell, cells, visibleGraph]
   );
-  const stripCount = useMemo(
+  const rowTopology = useMemo(
     () =>
-      sectorTopology.sectors.filter((sector) =>
+      buildDependencyRowTopology({
+        cells,
+        dependencyCell: cell,
+        graph: visibleGraph
+      }),
+    [cell, cells, visibleGraph]
+  );
+  const stripCount = useMemo(
+    () => {
+      if (showAccountingStrips) {
+        return rowTopology.bands.filter((band) =>
+          visibleGraph.nodes.some((node) => rowTopology.variables[node.name]?.primaryBand === band)
+        ).length;
+      }
+
+      return sectorTopology.sectors.filter((sector) =>
         visibleGraph.nodes.some(
           (node) => (sectorTopology.variables[node.name]?.sector ?? "Unmapped") === sector
         )
-      ).length,
-    [sectorTopology, visibleGraph.nodes]
+      ).length;
+    },
+    [layoutMode, rowTopology, sectorTopology, showAccountingStrips, visibleGraph.nodes]
   );
 
   return (
@@ -2743,7 +2769,7 @@ function DependencySequenceCellView({
           <span>
             Edges <strong>{visibleGraph.edges.length}</strong>
           </span>
-          {viewMode === "layered" ? (
+          {layoutMode === "layered" && !showAccountingStrips ? (
             <span>
               Layers <strong>{visibleGraph.layerCount}</strong>
             </span>
@@ -2757,20 +2783,29 @@ function DependencySequenceCellView({
           <button
             type="button"
             className={`notebook-run-button notebook-source-toggle${
-              viewMode === "layered" ? " is-active" : ""
+              layoutMode === "layered" ? " is-active" : ""
             }`}
-            onClick={() => setViewMode("layered")}
+            onClick={() => setLayoutMode("layered")}
           >
             Layered DAG
           </button>
           <button
             type="button"
             className={`notebook-run-button notebook-source-toggle${
-              viewMode === "strips" ? " is-active" : ""
+              layoutMode === "strips" ? " is-active" : ""
             }`}
-            onClick={() => setViewMode("strips")}
+            onClick={() => setLayoutMode("strips")}
           >
             Sector strips
+          </button>
+          <button
+            type="button"
+            className={`notebook-run-button notebook-source-toggle${
+              showAccountingStrips ? " is-active" : ""
+            }`}
+            onClick={() => setShowAccountingStrips((current) => !current)}
+          >
+            Accounting strips
           </button>
           <button
             type="button"
@@ -2781,13 +2816,27 @@ function DependencySequenceCellView({
           >
             {showExogenous ? "Hide exogenous" : "Show exogenous"}
           </button>
+          {isDevEnvironment ? (
+            <button
+              type="button"
+              className={`notebook-run-button notebook-source-toggle${
+                showDebugOverlay ? " is-active" : ""
+              }`}
+              onClick={() => setShowDebugOverlay((current) => !current)}
+            >
+              {showDebugOverlay ? "Hide debug overlay" : "Show debug overlay"}
+            </button>
+          ) : null}
         </div>
       </div>
       <DependencyGraphCanvas
         graph={visibleGraph}
         sectorTopology={sectorTopology}
+        rowTopology={rowTopology}
         variableDescriptions={variableDescriptions}
-        viewMode={viewMode}
+        viewMode={layoutMode}
+        showAccountingStrips={showAccountingStrips}
+        debugOverlay={showDebugOverlay}
       />
       {visibleGraph.errors.length ? (
         <ul className="validation-list">

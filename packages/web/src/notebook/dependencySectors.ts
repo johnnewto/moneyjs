@@ -10,7 +10,7 @@ import type { MatrixCell, NotebookCell, SequenceCell } from "./types";
 import type { ParsedDependencyGraph } from "./dependencyGraph";
 import { resolveNotebookModelKey, resolveRunCellModelKey } from "./modelSections";
 
-interface ResolvedStripMappingSources {
+export interface ResolvedStripMappingSources {
   transactionMatrix: MatrixCell | null;
   balanceMatrix: MatrixCell | null;
 }
@@ -66,7 +66,7 @@ export function buildDependencySectorTopology(args: {
   );
 }
 
-function resolveStripMappingSources(
+export function resolveStripMappingSources(
   cells: NotebookCell[],
   dependencyCell: SequenceCell & {
     source: Extract<SequenceCell["source"], { kind: "dependency" }>;

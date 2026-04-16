@@ -2,31 +2,65 @@
 
 ## Goal
 
-Add a separate equation dependency viewer without changing the existing
+Provide a dedicated equation dependency viewer without changing the existing
 transaction-flow sequence diagram. The sequence diagram remains the
-matrix/flow narrative view. The new viewer focuses on equation structure.
+matrix/flow narrative view. The dependency graph focuses on equation
+structure, solver-relevant dependencies, and explanatory grouping.
+
+## Current Implementation
+
+The dependency graph path is now implemented and lives in:
+
+- [packages/web/src/notebook/dependencyGraph.ts](/home/john/repos/sfcr/packages/web/src/notebook/dependencyGraph.ts)
+- [packages/web/src/components/DependencyGraphCanvas.tsx](/home/john/repos/sfcr/packages/web/src/components/DependencyGraphCanvas.tsx)
+- [packages/web/src/notebook/dependencySectors.ts](/home/john/repos/sfcr/packages/web/src/notebook/dependencySectors.ts)
+
+The sequence cell path resolves dependency sources from notebook models and
+renders them in the notebook viewer through:
+
+- [packages/web/src/notebook/NotebookCellView.tsx](/home/john/repos/sfcr/packages/web/src/notebook/NotebookCellView.tsx)
+
+Current supported dependency view modes:
+
+- `layered`
+- `strips`
 
 ## Concepts To Keep Separate
 
-The notebook currently blends three different kinds of ordering:
+The notebook still contains three distinct orderings that should not be
+collapsed into one:
 
 - notebook equation order
 - solver / dependency order
 - viewer spatial order
 
-For learning, those should be related but not identical.
+The current implementation intentionally relates them without making them
+identical.
 
-## First-Pass Approach
+## What The Current Graph Builds
 
-Build a dedicated dependency graph path that:
+`buildDependencyGraph(...)` currently:
 
-- extracts `lhs`, current RHS dependencies, lag dependencies, and equation index
-- classifies each equation/node with a small educational role taxonomy
+- parses notebook equations with the existing core parser
+- extracts current and lagged dependencies
+- includes exogenous inputs where they are graph-relevant
+- computes strongly connected components for cyclic detection
 - computes stable dependency layers
-- sorts nodes within each layer by notebook order
-- renders deterministic coordinates in a dedicated canvas
+- classifies nodes into variable types
+- preserves notebook equation index and deterministic ordering metadata
 
-The intended layout rule is:
+The graph output currently includes:
+
+- nodes with type, role, layer, degree, cycle flags, dependency names, and
+  optional descriptions
+- edges that distinguish current and lagged dependencies
+- graph-level parse and resolution errors
+
+## Current Layout Modes
+
+### Layered
+
+The default layered mode uses:
 
 - primary axis: dependency depth
 - secondary axis: notebook order within layer
@@ -38,74 +72,99 @@ x = layer * layerGap
 y = withinLayerOrder * rowGap
 ```
 
-## Node Classification
+This remains the clearest pure structural reading of the graph.
 
-Classification should be first-class model data, not just visual styling.
-The initial role set should be:
+### Strips
+
+The current `strips` mode is sector-oriented rather than row-oriented.
+
+It:
+
+- derives sector assignments from transaction and balance matrices
+- maps variables to sectors using matrix columns and sector labels
+- auto-discovers nearby matrix cells when explicit strip mapping is absent
+- places mapped nodes into sector strips
+- applies a 1D relaxation pass for unmapped nodes so they can float between
+  sector strips rather than being forced into arbitrary buckets
+
+This is the existing implementation that motivates the proposed
+horizontal-strip extension.
+
+## Current Node Classification
+
+Node classification is already first-class graph data, not just visual
+styling.
+
+Current `VariableType` values are:
 
 ```ts
-type EquationKind =
-  | "parameter"
-  | "auxiliary"
-  | "flow"
-  | "stock"
-  | "identity"
-  | "initial";
+type VariableType = "parameter" | "auxiliary" | "flow" | "stock" | "exogenous";
 ```
 
-For the first pass, these roles can be inferred heuristically from existing
-equation AST and dependency information:
+Related equation role metadata is also preserved from parser analysis and used
+for tooltips and interpretation.
 
-- `parameter`: no endogenous current dependencies
-- `stock`: accumulation / self-lag pattern
-- `flow`: directly involved in accumulation structure
-- `identity`: algebraic balancing combination
-- `auxiliary`: derived variable that does not fit the above
-- `initial`: metadata attached to stock nodes rather than a full graph node
-
-Classification should influence both:
+The current classification influences:
 
 - node styling
-- layer biasing when multiple placements are otherwise valid
+- graph summaries
+- strip subtitles
+- ordering within strip layouts
 
-## Why This Shape
+## Why The Current Shape Works
 
-This follows the same teaching logic used in classic dynamic-system models:
+The existing viewer follows a pragmatic teaching shape:
 
-- parameters / exogenous inputs first
-- auxiliaries and flows in the middle
-- stocks / accumulation results last
+- exogenous and parameter-like inputs first
+- derived variables and flows in the middle
+- stocks and accumulation results later
 
-That gives a clearer causal picture than equal spacing or force-directed layout.
+That gives a clearer causal picture than a generic free 2D force layout, while
+still allowing limited soft placement in the strip view.
 
-## First-Pass Scope
+## Current Scope
 
-Ship:
+Already shipped:
 
 - equation dependency graph generation
-- layered layout
-- stable rendering
+- deterministic layered layout
+- deterministic sector-strip layout
+- current vs lagged edge rendering
+- cycle-aware graph construction
 - notebook-order intra-layer sorting
-- first-class node classification used by layout and styling
+- matrix-driven sector mapping
+- 1D relaxation for unmapped strip nodes
 
-Defer:
+Still deferred or only partially explored:
 
-- split-pane linked interactions
-- local reordering on hover
-- edge bundling
-- multiple layout modes such as notebook / dependency / hybrid
+- tighter linking between transaction-flow sequence view and dependency graph
+- richer interaction around ambiguous node placement
+- row-based accounting strips
+- explicit multi-membership for variables across multiple accounting groups
+- edge bundling or stronger clutter reduction for larger models
 
-## Expected File Shape
+## Current File Shape
 
-Keep the existing sequence path intact:
+The existing matrix-sequence path remains intact:
 
 - `packages/web/src/notebook/sequence.ts`
 - `packages/web/src/components/SequenceDiagramCanvas.tsx`
 
-Add a parallel dependency path:
+The dependency path exists in parallel:
 
 - `packages/web/src/notebook/dependencyGraph.ts`
 - `packages/web/src/components/DependencyGraphCanvas.tsx`
+- `packages/web/src/notebook/dependencySectors.ts`
 
-Reuse existing parser and dependency primitives from `packages/core` where
-possible instead of introducing a new parser.
+This continues to reuse parser and dependency primitives from `packages/core`
+rather than introducing a second parser stack in the web package.
+
+## Next Extension
+
+The next planned extension is a row-oriented horizontal-strip view derived from
+transaction-matrix rows and balance-matrix rows, reusing the same soft 1D force
+idea currently used for sector-strip positioning.
+
+That follow-on plan is documented in:
+
+- [devdocs/dependency-horizontal-strips-plan.md](/home/john/repos/sfcr/devdocs/dependency-horizontal-strips-plan.md)
