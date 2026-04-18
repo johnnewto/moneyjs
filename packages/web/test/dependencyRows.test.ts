@@ -154,5 +154,108 @@ describe("dependency row topology", () => {
       "dLd",
       "rl*Ld"
     ]);
+
+    const groupedTopology = buildDependencyRowTopology({
+      bandGrouping: "family",
+      cells,
+      dependencyCell,
+      graph
+    });
+
+    expect(groupedTopology.variables.Mh?.primaryBand).toBe("Deposits");
+    expect(new Set(groupedTopology.variables.Mh?.memberships.map((membership) => membership.band))).toEqual(
+      new Set(["Deposits"])
+    );
+    expect(
+      groupedTopology.variables.Mh?.memberships.map((membership) => membership.originalBand).sort()
+    ).toEqual(["Ch. deposits", "Interest on deposits", "Money deposits"]);
+    expect(groupedTopology.variables.Ld?.primaryBand).toBe("Loans");
+    expect(new Set(groupedTopology.variables.Ld?.memberships.map((membership) => membership.band))).toEqual(
+      new Set(["Loans"])
+    );
+    expect(
+      groupedTopology.variables.Ld?.memberships.map((membership) => membership.originalBand).sort()
+    ).toEqual(["Ch. loans", "Interest loans", "Loans"]);
+
+    const groupedProxies = buildAccountingProxyNodes(groupedTopology);
+    expect(
+      groupedProxies
+        .filter((proxy) => proxy.canonicalVariable === "Ld")
+        .map((proxy) => proxy.band)
+    ).toEqual(["Loans", "Loans", "Loans"]);
+
+    const gl6Cells: NotebookCell[] = [
+      {
+        id: "balance-sheet-dis",
+        type: "matrix",
+        title: "DIS balance sheet",
+        columns: ["Households", "Production firms", "Banks", "Sum"],
+        rows: [
+          { label: "Money", values: ["+Mh", "", "-Ms", "0"] },
+          { label: "Loans", values: ["", "-Ld", "+Ls", "0"] },
+          { label: "Inventories", values: ["", "+INV", "", "+INV"] }
+        ]
+      },
+      {
+        id: "transaction-flow-dis",
+        type: "matrix",
+        title: "DIS transactions-flow matrix",
+        columns: ["Households", "Firms_current", "Firms_capital", "Banks_current", "Banks_capital"],
+        rows: [
+          { label: "Consumption", values: ["-C", "+C", "", "", ""] },
+          { label: "Ch. Inventories", values: ["", "+d(INV)", "-d(INV)", "", ""] },
+          { label: "Entrepreneurial Profits", values: ["+EF", "-EF", "", "", ""] },
+          { label: "Banks profits", values: ["+EFb", "", "", "-EFb", ""] }
+        ]
+      },
+      {
+        id: "equations-dis",
+        type: "equations",
+        title: "DIS model",
+        modelId: "equations-dis",
+        equations: [
+          { id: "eq-inv-level", name: "INV", expression: "inv * UC" },
+          { id: "eq-inv-stock", name: "inv", expression: "lag(inv) + (y - s)" },
+          { id: "eq-ef", name: "EF", expression: "S - WB" },
+          { id: "eq-efb", name: "EFb", expression: "lag(rl) * lag(Ls) - lag(rm) * lag(Mh)" }
+        ]
+      }
+    ];
+    const gl6DependencyCell: SequenceCell & {
+      source: Extract<SequenceCell["source"], { kind: "dependency" }>;
+    } = {
+      id: "equation-dependency-graph-dis",
+      type: "sequence",
+      title: "DIS equation dependency graph",
+      source: { kind: "dependency", modelId: "equations-dis" }
+    };
+    const gl6Graph = buildDependencyGraph({
+      equations: gl6Cells.find((cell) => cell.id === "equations-dis" && cell.type === "equations")!.equations,
+      externals: [],
+      initialValues: []
+    });
+
+    const groupedDisTopology = buildDependencyRowTopology({
+      bandGrouping: "family",
+      cells: gl6Cells,
+      dependencyCell: gl6DependencyCell,
+      graph: gl6Graph
+    });
+
+    expect(groupedDisTopology.variables.INV?.primaryBand).toBe("Inventories");
+    expect(
+      new Set(groupedDisTopology.variables.INV?.memberships.map((membership) => membership.band))
+    ).toEqual(new Set(["Inventories"]));
+    expect(
+      groupedDisTopology.variables.INV?.memberships.map((membership) => membership.originalBand).sort()
+    ).toEqual(["Ch. Inventories", "Inventories"]);
+    expect(groupedDisTopology.variables.EF?.primaryBand).toBe("Profits");
+    expect(groupedDisTopology.variables.EFb?.primaryBand).toBe("Profits");
+    expect(
+      groupedDisTopology.variables.EF?.memberships.map((membership) => membership.originalBand)
+    ).toEqual(["Entrepreneurial Profits"]);
+    expect(
+      groupedDisTopology.variables.EFb?.memberships.map((membership) => membership.originalBand)
+    ).toEqual(["Banks profits"]);
   });
 });

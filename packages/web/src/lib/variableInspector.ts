@@ -6,6 +6,10 @@ import type {
   ExternalRow,
   InitialValueRow
 } from "./editorModel";
+import type { NotebookCell } from "../notebook/types";
+import {
+  buildDerivedAccountingTermsFromCells
+} from "../notebook/dependencyRows";
 import type { VariableDescriptions } from "./variableDescriptions";
 import type { VariableUnitMetadata } from "./unitMeta";
 import { explainEquationExpression } from "./equationExplanation";
@@ -30,6 +34,7 @@ export interface VariableInspectorData {
   };
   affectedBy: string[];
   affects: string[];
+  affectsAccountingTerms: string[];
   appearsInEquations: EquationRow[];
   externalDefinition: ExternalRow | null;
   isStockFlowLabel: string | null;
@@ -43,6 +48,7 @@ interface EquationAnalysis {
 export function buildVariableInspectorData(args: {
   currentValues?: Record<string, number | undefined>;
   editor: EditorState;
+  notebookCells?: NotebookCell[];
   selectedVariable: string | null;
   variableDescriptions: VariableDescriptions;
   variableUnitMetadata: VariableUnitMetadata;
@@ -78,6 +84,11 @@ export function buildVariableInspectorData(args: {
     ...equationInputs.lagDependencies
   ]);
   const affects = uniqueSorted(appearsInEquations.map((equation) => equation.name.trim()));
+  const affectsAccountingTerms = uniqueSorted(
+    buildDerivedAccountingTermsFromCells(args.notebookCells ?? [])
+      .filter((term) => term.canonicalVariable === selectedVariable)
+      .map((term) => term.label)
+  );
   const description =
     args.variableDescriptions.get(selectedVariable) ??
     definingEquation?.desc?.trim() ??
@@ -127,6 +138,7 @@ export function buildVariableInspectorData(args: {
     },
     affectedBy,
     affects,
+    affectsAccountingTerms,
     appearsInEquations,
     externalDefinition,
     isStockFlowLabel: stockFlow ? capitalize(stockFlow) : null

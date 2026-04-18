@@ -143,6 +143,11 @@ export type SequenceCellSource =
       sourceModelId?: string;
       sourceModelCellId?: string;
       viewMode?: "layered" | "strips" | "horizontal-strips";
+      sectorGrouping?: "none" | "family";
+      showAccountingStrips?: boolean;
+      accountingBandGrouping?: "none" | "family";
+      showExogenous?: boolean;
+      showDebugOverlay?: boolean;
       stripMapping?: {
         transactionMatrixCellId?: string;
         balanceMatrixCellId?: string;

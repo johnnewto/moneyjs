@@ -491,7 +491,49 @@ describe("App", () => {
     await user.click(rmToken);
 
     expect(screen.getByText("Selected variable")).toBeInTheDocument();
+    const inspectorHeading = screen.getByRole("heading", { name: /^rm\b/i });
+    expect(inspectorHeading).toBeInTheDocument();
+    const selectedVariableLabel = screen.getByText(/^Selected variable$/i);
+    const inspector = selectedVariableLabel.closest(".variable-inspector-panel");
+    expect(inspector).not.toBeNull();
+    if (!(inspector instanceof HTMLElement)) {
+      throw new Error("Expected variable inspector container.");
+    }
+
+    expect(within(inspector).getByText(/^Accounting terms$/i)).toBeInTheDocument();
+    expect(within(inspector).getByText(/^rm\*Mh$/i)).toBeInTheDocument();
+    expect(within(inspector).getByText(/^rm\*Ms$/i)).toBeInTheDocument();
+    expect(within(inspector).getByRole("button", { name: /^YD\b/i })).toBeInTheDocument();
+  });
+
+  it("opens the notebook variable inspector from dependency graph nodes", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    notebookRunnerMock = {
+      outputs: {
+        "baseline-newton": { type: "result", result: bmwNotebookBaselineResult }
+      },
+      status: { "baseline-newton": "success" },
+      errors: {},
+      runCell: vi.fn().mockResolvedValue(undefined),
+      runAll: vi.fn().mockResolvedValue(undefined),
+      getResult: (cellId: string) => (cellId === "baseline-newton" ? bmwNotebookBaselineResult : null)
+    };
+
+    render(<App />);
+
+    const dependencyHeading = screen.getByRole("heading", { name: /bmw equation dependency graph/i });
+    const dependencyCell = dependencyHeading.closest("article");
+    expect(dependencyCell).not.toBeNull();
+    if (!(dependencyCell instanceof HTMLElement)) {
+      throw new Error("Expected BMW equation dependency graph article.");
+    }
+
+    await user.click(within(dependencyCell).getByText(/^rm$/i));
+
+    expect(screen.getByText("Selected variable")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^rm\b/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^YD\b/i })).toBeInTheDocument();
   });
 
   it("loads a notebook template from the hash path", () => {
@@ -517,6 +559,9 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: /dis balance sheet/i })).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /dis transactions-flow matrix/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /dis equation dependency graph/i })
     ).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { name: /^dis model$/i }).length).toBeGreaterThan(0);
     expect(window.location.hash).toBe("#/notebook/gl6-dis");
@@ -566,6 +611,43 @@ describe("App", () => {
     expect(
       screen.getByDisplayValue(/\{ "id": "intro", "type": "markdown", "title": "Overview", "source":/i)
     ).toBeInTheDocument();
+  });
+
+  it("persists dependency toolbar choices into the notebook document", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    const sequenceHeading = screen.getByRole("heading", { name: /bmw equation dependency graph/i });
+    const sequenceCell = sequenceHeading.closest("article");
+    expect(sequenceCell).not.toBeNull();
+    if (!(sequenceCell instanceof HTMLElement)) {
+      throw new Error("Expected BMW equation dependency graph article.");
+    }
+
+    const showButton = within(sequenceCell).queryByRole("button", { name: /^show$/i });
+    if (showButton) {
+      await user.click(showButton);
+    }
+
+    expect(within(sequenceCell).getByRole("button", { name: /sector strips/i })).toHaveClass("is-active");
+    expect(within(sequenceCell).getByRole("button", { name: /accounting bands/i })).toHaveClass("is-active");
+    expect(within(sequenceCell).getByRole("button", { name: /raw sectors/i })).toBeInTheDocument();
+    expect(within(sequenceCell).getByRole("button", { name: /grouped bands/i })).toHaveClass("is-active");
+    expect(within(sequenceCell).getByRole("button", { name: /show exogenous/i })).toBeInTheDocument();
+
+    await user.click(within(sequenceCell).getByRole("button", { name: /raw sectors/i }));
+    expect(within(sequenceCell).getByRole("button", { name: /grouped sectors/i })).toHaveClass("is-active");
+
+    await user.click(screen.getByRole("button", { name: /^export$/i }));
+
+    const exportArea = screen.getByDisplayValue(/"title": "BMW Browser Notebook"/i) as HTMLTextAreaElement;
+    expect(exportArea.value).toContain('"viewMode": "strips"');
+    expect(exportArea.value).toContain('"sectorGrouping": "family"');
+    expect(exportArea.value).toContain('"showAccountingStrips": true');
+    expect(exportArea.value).toContain('"accountingBandGrouping": "family"');
+    expect(exportArea.value).toContain('"showExogenous": false');
   });
 
   it("exports notebook Markdown into the import area", async () => {

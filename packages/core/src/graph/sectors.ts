@@ -133,21 +133,27 @@ function mergeVariableSectorInfos(entries: ReadonlyArray<VariableSectorInfo>): V
     }
   });
 
+  const accountKind = pickAccountKind(entries);
   const distinctSectorCount = sectorCounts.size;
   const highestCount = Math.max(0, ...sectorCounts.values());
+  const highestCountTies = [...sectorCounts.values()].filter((count) => count === highestCount).length;
   const confidence: SectorConfidence =
     winner.source === "fallback"
       ? "fallback"
       : distinctSectorCount <= 1 || highestCount === entries.length
         ? "high"
         : "mixed";
+  const sector =
+    accountKind === "auxiliary" && highestCountTies > 1 && highestCount > 0
+      ? DEFAULT_SECTOR
+      : winner.sector;
 
   return {
     variable: winner.variable,
-    sector: winner.sector,
+    sector,
     source: winner.source,
     confidence,
-    accountKind: pickAccountKind(entries)
+    accountKind
   };
 }
 

@@ -26,6 +26,31 @@ example:
 - `Fixed capital`
 - `Balance (net worth)`
 
+## Current Status
+
+Implemented in the current codebase:
+
+- row-based accounting membership extraction from transaction and balance
+  matrices
+- conservative inferred memberships for structurally important variables
+- hidden `Exogenous` and `Unmapped` accounting rows in the visible strip view
+- `Accounting strips` as a modifier that can be combined with both
+  `Layered DAG` and `Sector strips`
+- accounting proxy nodes for multi-role variables such as `Mh`, `Ld`, and
+  related row-expression or change forms
+- deterministic accounting-strip layouts in both layered and sector-strip
+  modes
+- hover highlighting, proxy sibling links, obstacle-aware edge routing, and
+  debug diagnostics
+- development-only overlay and BMW-oriented regression diagnostics
+
+Still open or exploratory:
+
+- additional tuning of exogenous multi-target weighting
+- stronger semantics for two-target midpoint placement such as `rl`
+- broader layout cleanup beyond the current local heuristics
+- any constrained annealing or optimization pass
+
 ## Why Add It
 
 The current dependency graph is equation-first. The proposed horizontal-strip
@@ -82,6 +107,8 @@ interface VariableGroupMembership {
 
 ## Phase 1: Generalize The Mapping Layer
 
+Status: implemented
+
 Current state:
 
 - [packages/web/src/notebook/dependencySectors.ts](/home/john/repos/sfcr/packages/web/src/notebook/dependencySectors.ts)
@@ -100,6 +127,8 @@ This is the main enabling refactor. Without it, row-based strips will force
 arbitrary and misleading hard assignments.
 
 ## Phase 2: Extract Row Memberships From Matrices
+
+Status: implemented
 
 Add a row-oriented extractor in parallel to the current sector extractor.
 
@@ -128,6 +157,8 @@ For BMW this should produce explicit memberships such as:
 - `rl`, `Ld`, `Ls` -> `Interest loans`
 
 ## Phase 3: Add Conservative Inference
+
+Status: implemented in a conservative first pass
 
 Literal row extraction will not cover all structurally important variables.
 BMW already has examples:
@@ -166,7 +197,16 @@ Important constraint:
 - prefer leaving variables weakly assigned or unmapped over making a confident
   but wrong accounting claim
 
+Current implementation note:
+
+- the first-pass inference already covers examples such as `YD`, `W`, `Nd`,
+  `Ns`, `DA`, and `KT`
+- hidden `Unmapped` and `Exogenous` rows are no longer shown as visible bands
+  in the accounting-strip layout
+
 ## Phase 4: Define Horizontal Band Ordering
+
+Status: implemented
 
 The first implementation should prefer stable and user-facing ordering over a
 derived heuristic.
@@ -183,7 +223,15 @@ Why:
 - it is deterministic
 - it avoids introducing another opaque ranking rule
 
+Current implementation note:
+
+- visible ordering follows transaction rows first, then balance rows
+- utility rows such as `Exogenous` and `Unmapped` are retained in topology
+  metadata but hidden from the visible accounting strip scaffold
+
 ## Phase 5: Build The Layout Algorithm
+
+Status: implemented as deterministic heuristic layout, still tunable
 
 Add a new dependency view mode, conceptually `horizontal-strips`.
 
@@ -212,7 +260,22 @@ Vertical relaxation forces:
 This should remain a constrained 1D problem on `y`, not a full 2D force
 layout.
 
+Current implementation note:
+
+- the layout is no longer purely 1D on `y`
+- accounting-strip layouts now use deterministic constrained heuristics for:
+  - vertical accounting anchoring
+  - within-cell spreading
+  - proxy ordering
+  - soft placement for unmapped and exogenous nodes
+  - exogenous barycentric and weighted floating placement
+
+This is still not a free 2D force layout, but it is more than a single 1D
+vertical relaxation pass.
+
 ## Phase 6: Rendering Changes
+
+Status: implemented
 
 In
 [packages/web/src/components/DependencyGraphCanvas.tsx](/home/john/repos/sfcr/packages/web/src/components/DependencyGraphCanvas.tsx):
@@ -232,7 +295,18 @@ Recommended UI behavior:
 
 Avoid trying to encode every membership directly on the node face.
 
+Current implementation note:
+
+- the shipped UI did not add a separate `horizontal-strips` base mode
+- instead, `Accounting strips` became a modifier that can be layered onto
+  either `Layered DAG` or `Sector strips`
+- membership provenance is available in tooltips and diagnostics
+- a development-only debug overlay now renders collision boxes, exogenous
+  envelopes, barycenter guides, and overlap links
+
 ## Phase 7: Notebook Schema Support
+
+Status: partially implemented, simplified
 
 Current dependency cell source shape is defined in
 [packages/web/src/notebook/types.ts](/home/john/repos/sfcr/packages/web/src/notebook/types.ts).
@@ -255,7 +329,17 @@ stripMapping?: {
 The first pass can keep defaults simple and rely on auto-discovery of the same
 matrices the sector-strip mode already uses.
 
+Current implementation note:
+
+- the current UI uses existing dependency-cell view configuration plus runtime
+  toggles
+- explicit new notebook schema fields for row-orientation were not added
+- the implementation instead reuses the existing dependency source and
+  auto-discovery path, with accounting strips controlled in the viewer
+
 ## Phase 8: BMW-Specific Expectations
+
+Status: implemented and actively used as the primary tuning fixture
 
 BMW is a good first target because it has a compact set of meaningful
 accounting rows and a manageable amount of ambiguity.
@@ -275,6 +359,8 @@ equation nodes.
 
 ## Phase 9: Tests
 
+Status: implemented in part, still expandable
+
 Extend the current tests around dependency strip mapping, especially:
 
 - [packages/web/test/dependencySectors.test.ts](/home/john/repos/sfcr/packages/web/test/dependencySectors.test.ts)
@@ -291,7 +377,17 @@ Add tests for:
 
 BMW should be the first notebook fixture used for end-to-end validation.
 
+Current implementation note:
+
+- BMW is already used for row-topology tests and dependency-graph diagnostics
+- the dependency graph now has regression checks for reusable layout
+  diagnostics and overlap metrics
+- snapshot-like visual testing is still not used; tests remain geometry and
+  diagnostics based
+
 ## Phase 10: Rollout Strategy
+
+Status: mostly completed through step 5, with follow-on tuning ongoing
 
 Recommended delivery order:
 
@@ -318,7 +414,8 @@ Mitigations:
 - start with BMW and other small teaching notebooks before generalizing
 
 ## Optional Constrained Annealing Pass
-## Optional Constrained Annealing Pass
+
+Status: not implemented
 
 If the cheaper routing and placement heuristics stop paying off, add a small
 constrained optimization pass rather than a free-form force or annealing

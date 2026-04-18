@@ -51,8 +51,11 @@ import {
 } from "./modelSections";
 import { resolveSequenceDiagram } from "./sequence";
 import { buildDependencyGraph } from "./dependencyGraph";
-import { buildDependencyRowTopology } from "./dependencyRows";
-import { buildDependencySectorTopology } from "./dependencySectors";
+import { buildDependencyProxyDisplayOccurrences, buildDependencyRowTopology } from "./dependencyRows";
+import {
+  buildDependencySectorDisplayOccurrences,
+  buildDependencySectorTopology
+} from "./dependencySectors";
 import {
   applySourceHelper,
   buildNotebookCellHelpText,
@@ -630,8 +633,11 @@ export function NotebookCellView({
           <SequenceCellView
             cell={cell}
             cells={cells}
+            getModelCurrentValues={getModelCurrentValues}
             maxPeriodIndex={maxPeriodIndex}
+            onCellChange={onCellChange}
             onSelectedPeriodIndexChange={onSelectedPeriodIndexChange}
+            onVariableInspectRequest={onVariableInspectRequest}
             runner={runner}
             selectedPeriodIndex={selectedPeriodIndex}
             variableDescriptions={variableDescriptions}
@@ -2632,16 +2638,32 @@ function MatrixCellView({
 function SequenceCellView({
   cell,
   cells,
+  getModelCurrentValues,
   maxPeriodIndex,
+  onCellChange,
   onSelectedPeriodIndexChange,
+  onVariableInspectRequest,
   runner,
   selectedPeriodIndex,
   variableDescriptions
 }: {
   cell: SequenceCell;
   cells: NotebookCell[];
+  getModelCurrentValues(ref: {
+    modelId?: string;
+    sourceModelId?: string;
+    sourceModelCellId?: string;
+  }): Record<string, number | undefined>;
   maxPeriodIndex: number;
+  onCellChange(cellId: string, updater: (cell: NotebookCell) => NotebookCell): void;
   onSelectedPeriodIndexChange(nextIndex: number): void;
+  onVariableInspectRequest(args: {
+    currentValues: Record<string, number | undefined>;
+    editor: EditorState;
+    selectedVariable: string;
+    variableDescriptions: VariableDescriptions;
+    variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
+  }): void;
   runner: ReturnType<typeof useNotebookRunner>;
   selectedPeriodIndex: number;
   variableDescriptions: VariableDescriptions;
@@ -2657,6 +2679,9 @@ function SequenceCellView({
       <DependencySequenceCellView
         cell={dependencyCell}
         cells={cells}
+        getModelCurrentValues={getModelCurrentValues}
+        onCellChange={onCellChange}
+        onVariableInspectRequest={onVariableInspectRequest}
         variableDescriptions={variableDescriptions}
       />
     );
@@ -2678,50 +2703,143 @@ function SequenceCellView({
 function DependencySequenceCellView({
   cell,
   cells,
+  getModelCurrentValues,
+  onCellChange,
+  onVariableInspectRequest,
   variableDescriptions
 }: {
   cell: SequenceCell & {
     source: Extract<SequenceCell["source"], { kind: "dependency" }>;
   };
   cells: NotebookCell[];
+  getModelCurrentValues(ref: {
+    modelId?: string;
+    sourceModelId?: string;
+    sourceModelCellId?: string;
+  }): Record<string, number | undefined>;
+  onCellChange(cellId: string, updater: (cell: NotebookCell) => NotebookCell): void;
+  onVariableInspectRequest(args: {
+    currentValues: Record<string, number | undefined>;
+    editor: EditorState;
+    selectedVariable: string;
+    variableDescriptions: VariableDescriptions;
+    variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
+  }): void;
   variableDescriptions: VariableDescriptions;
 }) {
-  const [layoutMode, setLayoutMode] = useState<"layered" | "strips">(
-    cell.source.viewMode === "strips" ? "strips" : "layered"
-  );
-  const [showAccountingStrips, setShowAccountingStrips] = useState(
-    cell.source.viewMode === "horizontal-strips"
-  );
-  const [showExogenous, setShowExogenous] = useState(true);
-  const [showDebugOverlay, setShowDebugOverlay] = useState(false);
+  const layoutMode = cell.source.viewMode === "layered" ? "layered" : "strips";
+  const sectorGrouping = cell.source.sectorGrouping === "family" ? "family" : "none";
+  const showAccountingStrips = cell.source.showAccountingStrips ?? true;
+  const accountingBandGrouping = cell.source.accountingBandGrouping === "none" ? "none" : "family";
+  const showExogenous = cell.source.showExogenous ?? false;
+  const showDebugOverlay = cell.source.showDebugOverlay ?? false;
   const isDevEnvironment =
     ((import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV ?? false) === true;
 
-  useEffect(() => {
-    setLayoutMode(cell.source.viewMode === "strips" ? "strips" : "layered");
-    setShowAccountingStrips(cell.source.viewMode === "horizontal-strips");
-  }, [cell.source.viewMode]);
+  function updateDependencySource(
+    updater: (
+      source: Extract<SequenceCell["source"], { kind: "dependency" }>
+    ) => Extract<SequenceCell["source"], { kind: "dependency" }>
+  ): void {
+    onCellChange(cell.id, (current) => {
+      if (current.type !== "sequence" || current.source.kind !== "dependency") {
+        return current;
+      }
 
+      return {
+        ...current,
+        source: updater(current.source)
+      };
+    });
+  }
+
+  function setPersistedLayoutMode(nextLayoutMode: "layered" | "strips"): void {
+    updateDependencySource((source) => ({
+      ...source,
+      viewMode: nextLayoutMode
+    }));
+  }
+
+  function togglePersistedAccountingStrips(): void {
+    updateDependencySource((source) => ({
+      ...source,
+      viewMode: source.viewMode === "horizontal-strips" ? "layered" : source.viewMode,
+      showAccountingStrips:
+        !(source.showAccountingStrips ?? source.viewMode === "horizontal-strips")
+    }));
+  }
+
+  function togglePersistedSectorGrouping(): void {
+    updateDependencySource((source) => ({
+      ...source,
+      sectorGrouping: source.sectorGrouping === "family" ? "none" : "family"
+    }));
+  }
+
+  function togglePersistedBandGrouping(): void {
+    updateDependencySource((source) => ({
+      ...source,
+      accountingBandGrouping: source.accountingBandGrouping === "family" ? "none" : "family"
+    }));
+  }
+
+  function togglePersistedExogenous(): void {
+    updateDependencySource((source) => ({
+      ...source,
+      showExogenous: !(source.showExogenous ?? true)
+    }));
+  }
+
+  function togglePersistedDebugOverlay(): void {
+    updateDependencySource((source) => ({
+      ...source,
+      showDebugOverlay: !(source.showDebugOverlay ?? false)
+    }));
+  }
+
+  const dependencyEditor = useMemo(
+    () =>
+      buildEditorStateForNotebookModel(
+        {
+          id: "sequence-dependency-view",
+          title: "Dependency graph source",
+          metadata: { version: 1 },
+          cells
+        },
+        cell.source
+      ),
+    [cell.source, cells]
+  );
+  const dependencyVariableDescriptions = useMemo(
+    () =>
+      dependencyEditor
+        ? buildVariableDescriptions({
+            equations: dependencyEditor.equations,
+            externals: dependencyEditor.externals
+          })
+        : variableDescriptions,
+    [dependencyEditor, variableDescriptions]
+  );
+  const dependencyVariableUnitMetadata = useMemo(
+    () =>
+      dependencyEditor
+        ? buildVariableUnitMetadata({
+            equations: dependencyEditor.equations,
+            externals: dependencyEditor.externals
+          })
+        : new Map(),
+    [dependencyEditor]
+  );
   const graph = useMemo(() => {
-    const editor = buildEditorStateForNotebookModel(
-      {
-        id: "sequence-dependency-view",
-        title: "Dependency graph source",
-        metadata: { version: 1 },
-        cells
-      },
-      cell.source
-    );
-
-    return editor
-      ? buildDependencyGraph(editor)
+    return dependencyEditor
+      ? buildDependencyGraph(dependencyEditor)
       : {
           nodes: [],
           edges: [],
           errors: ["Dependency graph source model could not be resolved."],
           layerCount: 0
         };
-  }, [cell.source, cells]);
+  }, [dependencyEditor]);
   const visibleGraph = useMemo(() => filterDependencyGraphForView(graph, showExogenous), [graph, showExogenous]);
   const sectorTopology = useMemo(
     () =>
@@ -2730,16 +2848,36 @@ function DependencySequenceCellView({
         dependencyCell: cell,
         graph: visibleGraph
       }),
-    [cell, cells, visibleGraph]
+    [cell, cells, sectorGrouping, visibleGraph]
   );
+  const sectorDisplayOccurrences = useMemo(() => {
+    const directOccurrences = buildDependencySectorDisplayOccurrences({
+      cells,
+      dependencyCell: cell,
+      graph: visibleGraph
+    });
+    const proxyOccurrences = buildDependencyProxyDisplayOccurrences(cells, sectorGrouping);
+    const merged = new Map<string, Array<(typeof directOccurrences)[string][number]>>();
+
+    Object.entries(directOccurrences).forEach(([variable, occurrences]) => {
+      merged.set(variable, [...occurrences]);
+    });
+    Object.entries(proxyOccurrences).forEach(([variable, occurrences]) => {
+      const bucket = merged.get(variable) ?? [];
+      merged.set(variable, [...bucket, ...occurrences]);
+    });
+
+    return Object.fromEntries(merged.entries());
+  }, [cell, cells, sectorGrouping, visibleGraph]);
   const rowTopology = useMemo(
     () =>
       buildDependencyRowTopology({
+        bandGrouping: accountingBandGrouping,
         cells,
         dependencyCell: cell,
         graph: visibleGraph
       }),
-    [cell, cells, visibleGraph]
+    [accountingBandGrouping, cell, cells, visibleGraph]
   );
   const stripCount = useMemo(
     () => {
@@ -2757,6 +2895,19 @@ function DependencySequenceCellView({
     },
     [layoutMode, rowTopology, sectorTopology, showAccountingStrips, visibleGraph.nodes]
   );
+
+  function handleNodeInspect(node: import("../components/dependencyGraphLayout").PositionedNode): void {
+    if (!dependencyEditor) {
+      return;
+    }
+    onVariableInspectRequest({
+      currentValues: getModelCurrentValues(cell.source),
+      editor: dependencyEditor,
+      selectedVariable: node.canonicalName ?? node.name,
+      variableDescriptions: dependencyVariableDescriptions,
+      variableUnitMetadata: dependencyVariableUnitMetadata
+    });
+  }
 
   return (
     <div className="sequence-viewer">
@@ -2785,7 +2936,7 @@ function DependencySequenceCellView({
             className={`notebook-run-button notebook-source-toggle${
               layoutMode === "layered" ? " is-active" : ""
             }`}
-            onClick={() => setLayoutMode("layered")}
+            onClick={() => setPersistedLayoutMode("layered")}
           >
             Layered DAG
           </button>
@@ -2794,7 +2945,7 @@ function DependencySequenceCellView({
             className={`notebook-run-button notebook-source-toggle${
               layoutMode === "strips" ? " is-active" : ""
             }`}
-            onClick={() => setLayoutMode("strips")}
+            onClick={() => setPersistedLayoutMode("strips")}
           >
             Sector strips
           </button>
@@ -2803,16 +2954,34 @@ function DependencySequenceCellView({
             className={`notebook-run-button notebook-source-toggle${
               showAccountingStrips ? " is-active" : ""
             }`}
-            onClick={() => setShowAccountingStrips((current) => !current)}
+            onClick={togglePersistedAccountingStrips}
           >
-            Accounting strips
+            Accounting bands
+          </button>
+          <button
+            type="button"
+            className={`notebook-run-button notebook-source-toggle${
+              sectorGrouping === "family" ? " is-active" : ""
+            }`}
+            onClick={togglePersistedSectorGrouping}
+          >
+            {sectorGrouping === "family" ? "Grouped sectors" : "Raw sectors"}
+          </button>
+          <button
+            type="button"
+            className={`notebook-run-button notebook-source-toggle${
+              accountingBandGrouping === "family" ? " is-active" : ""
+            }`}
+            onClick={togglePersistedBandGrouping}
+          >
+            {accountingBandGrouping === "family" ? "Grouped bands" : "Raw bands"}
           </button>
           <button
             type="button"
             className={`notebook-run-button notebook-source-toggle${
               showExogenous ? " is-active" : ""
             }`}
-            onClick={() => setShowExogenous((current) => !current)}
+            onClick={togglePersistedExogenous}
           >
             {showExogenous ? "Hide exogenous" : "Show exogenous"}
           </button>
@@ -2822,7 +2991,7 @@ function DependencySequenceCellView({
               className={`notebook-run-button notebook-source-toggle${
                 showDebugOverlay ? " is-active" : ""
               }`}
-              onClick={() => setShowDebugOverlay((current) => !current)}
+              onClick={togglePersistedDebugOverlay}
             >
               {showDebugOverlay ? "Hide debug overlay" : "Show debug overlay"}
             </button>
@@ -2831,9 +3000,11 @@ function DependencySequenceCellView({
       </div>
       <DependencyGraphCanvas
         graph={visibleGraph}
+        onNodeClick={handleNodeInspect}
+        sectorDisplayOccurrences={sectorDisplayOccurrences}
         sectorTopology={sectorTopology}
         rowTopology={rowTopology}
-        variableDescriptions={variableDescriptions}
+        variableDescriptions={dependencyVariableDescriptions}
         viewMode={layoutMode}
         showAccountingStrips={showAccountingStrips}
         debugOverlay={showDebugOverlay}

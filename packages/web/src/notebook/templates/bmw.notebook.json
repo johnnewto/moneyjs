@@ -42,7 +42,7 @@
       "note": "Signs and row structure follow the BMW transactions-flow matrix in the sfcr article."
     },
     { "id": "transaction-flow-sequence", "type": "sequence", "title": "BMW transaction flow sequence", "source": { "kind": "matrix", "matrixCellId": "transaction-flow" }, "description": "Canvas-rendered sequence view generated from the transactions-flow matrix at the selected simulation period.", "note": "Use Reset and Next step to manually reveal flows in order." },
-    { "id": "equation-dependency-graph", "type": "sequence", "title": "BMW equation dependency graph", "source": { "kind": "dependency", "modelId": "equations-newton" }, "description": "Layered dependency view of the BMW equations. Left-to-right position shows dependency depth and top-to-bottom order follows the notebook equation list within each layer.", "note": "Use this alongside the transaction-flow sequence to compare accounting flows with equation structure." },
+    { "id": "equation-dependency-graph", "type": "sequence", "title": "BMW equation dependency graph", "source": { "kind": "dependency", "modelId": "equations-newton", "viewMode": "strips", "showAccountingStrips": true, "accountingBandGrouping": "family", "showExogenous": false }, "description": "Layered dependency view of the BMW equations. Left-to-right position shows dependency depth and top-to-bottom order follows the notebook equation list within each layer.", "note": "Use this alongside the transaction-flow sequence to compare accounting flows with equation structure." },
     {
       "id": "equations-newton",
       "type": "equations",

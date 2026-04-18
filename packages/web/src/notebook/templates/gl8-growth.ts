@@ -610,7 +610,14 @@ export const gl8GrowthNotebook: NotebookDocument = {
       id: "equation-dependency-graph",
       type: "sequence",
       title: "GROWTH equation dependency graph",
-      source: { kind: "dependency", modelId: "equations" },
+      source: {
+        kind: "dependency",
+        modelId: "equations",
+        viewMode: "strips",
+        showAccountingStrips: true,
+        accountingBandGrouping: "family",
+        showExogenous: false
+      },
       description:
         "Layered dependency view of the GROWTH equations. Left-to-right position shows dependency depth and top-to-bottom order follows the notebook equation list within each layer.",
       note:

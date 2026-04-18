@@ -74,6 +74,7 @@ export function NotebookApp() {
     ? buildVariableInspectorData({
         currentValues: inspectorContext.currentValues,
         editor: inspectorContext.editor,
+        notebookCells: notebookDocument.cells,
         selectedVariable: inspectorContext.selectedVariable,
         variableDescriptions: inspectorContext.variableDescriptions,
         variableUnitMetadata: inspectorContext.variableUnitMetadata

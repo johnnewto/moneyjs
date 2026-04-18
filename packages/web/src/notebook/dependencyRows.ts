@@ -1,10 +1,16 @@
 import type { NotebookCell, SequenceCell } from "./types";
 import type { ParsedDependencyGraph } from "./dependencyGraph";
-import { resolveStripMappingSources } from "./dependencySectors";
+import type {
+  DependencySectorDisplayOccurrences,
+  DependencySectorGroupingMode
+} from "./dependencySectors";
+import { buildGroupedSectorByOriginalSector, resolveStripMappingSources } from "./dependencySectors";
 
 const IGNORED_TOKENS = new Set(["d", "dt", "max", "min", "abs", "sqrt", "log", "exp"]);
 const EXOGENOUS_BAND = "Exogenous";
 const UNMAPPED_BAND = "Unmapped";
+
+export type DependencyBandGroupingMode = "none" | "family";
 
 export type DependencyRowMembershipSource =
   | "transaction-row"
@@ -17,6 +23,7 @@ export type DependencyRowMembershipConfidence = "high" | "medium" | "low" | "fal
 
 export interface DependencyRowMembership {
   band: string;
+  originalBand?: string;
   weight: number;
   source: DependencyRowMembershipSource;
   confidence: DependencyRowMembershipConfidence;
@@ -49,12 +56,17 @@ export interface AccountingProxyNode {
   source: "transaction-row" | "balance-row";
 }
 
+export interface DerivedAccountingTerm extends AccountingProxyNode {
+  references: Array<{ name: string; current: boolean; lagged: boolean }>;
+}
+
 interface DirectedAdjacency {
   incoming: Map<string, Array<{ id: string; weight: number }>>;
   outgoing: Map<string, Array<{ id: string; weight: number }>>;
 }
 
 export function buildDependencyRowTopology(args: {
+  bandGrouping?: DependencyBandGroupingMode;
   cells: NotebookCell[];
   dependencyCell: SequenceCell & {
     source: Extract<SequenceCell["source"], { kind: "dependency" }>;
@@ -62,9 +74,17 @@ export function buildDependencyRowTopology(args: {
   graph: ParsedDependencyGraph;
 }): DependencyRowTopology {
   const sources = resolveStripMappingSources(args.cells, args.dependencyCell);
+  const bandGrouping = args.bandGrouping ?? args.dependencyCell.source.accountingBandGrouping ?? "none";
   const bandOrder: string[] = [];
   const bandOrderSet = new Set<string>();
   const membershipsByVariable = new Map<string, Map<string, MutableMembership>>();
+  const groupedBandByOriginalBand = buildGroupedBandByOriginalBand(
+    [
+      ...(sources.transactionMatrix?.rows.map((row) => ({ label: row.label, values: row.values })) ?? []),
+      ...(sources.balanceMatrix?.rows.map((row) => ({ label: row.label, values: row.values })) ?? [])
+    ],
+    bandGrouping
+  );
 
   const pushBand = (band: string): void => {
     if (!band || bandOrderSet.has(band)) {
@@ -80,9 +100,11 @@ export function buildDependencyRowTopology(args: {
   ): void => {
     const byBand = membershipsByVariable.get(variable) ?? new Map<string, MutableMembership>();
     membershipsByVariable.set(variable, byBand);
-    const previous = byBand.get(membership.band);
+    const membershipKey = buildMembershipKey(membership);
+    const previous = byBand.get(membershipKey);
     const next: MutableMembership = {
       band: membership.band,
+      originalBand: membership.originalBand,
       weight: membership.weight,
       source: membership.source,
       confidence: membership.confidence,
@@ -92,12 +114,13 @@ export function buildDependencyRowTopology(args: {
       proxyKind: membership.proxyKind
     };
     if (!previous) {
-      byBand.set(membership.band, next);
+      byBand.set(membershipKey, next);
       return;
     }
 
-    byBand.set(membership.band, {
+    byBand.set(membershipKey, {
       band: membership.band,
+      originalBand: previous.originalBand ?? next.originalBand,
       weight: Math.max(previous.weight, next.weight),
       source: choosePreferredSource(previous.source, next.source),
       confidence: choosePreferredConfidence(previous.confidence, next.confidence),
@@ -113,22 +136,24 @@ export function buildDependencyRowTopology(args: {
     source: "transaction-row" | "balance-row"
   ): void => {
     rows.forEach((row) => {
-      const band = normalizeBandLabel(row.label);
-      if (!band) {
+      const originalBand = normalizeBandLabel(row.label);
+      if (!originalBand) {
         return;
       }
+      const band = groupedBandByOriginalBand.get(originalBand) ?? originalBand;
       pushBand(band);
       row.values.forEach((value) => {
         extractVariableNames(value).forEach((variable) => {
           addMembership(variable, {
             band,
+            originalBand,
             weight: 1,
             source,
             confidence: "high",
             explicit: true,
             expression: value.trim(),
             proxyLabel: buildCompactProxyLabel(variable, value),
-            proxyKind: classifyProxyKind(variable, band, value)
+            proxyKind: classifyProxyKind(variable, originalBand, value)
           });
         });
       });
@@ -290,6 +315,116 @@ function inferMemberships(
     }));
 }
 
+function buildMembershipKey(
+  membership: Pick<MutableMembership, "band" | "originalBand" | "source">
+): string {
+  if (membership.originalBand) {
+    return `${membership.source}:${membership.originalBand}`;
+  }
+  return `band:${membership.band}`;
+}
+
+function buildGroupedBandByOriginalBand(
+  rows: Array<{ label: string; values: string[] }>,
+  mode: DependencyBandGroupingMode
+): Map<string, string> {
+  if (mode !== "family") {
+    return new Map();
+  }
+
+  const candidates = new Map<
+    string,
+    Array<{ originalBand: string; variableFamilies: Set<string> }>
+  >();
+
+  rows.forEach((row) => {
+    const originalBand = normalizeBandLabel(row.label);
+    if (!originalBand) {
+      return;
+    }
+    const familyBand = inferFamilyBand(originalBand);
+    if (!familyBand) {
+      return;
+    }
+    const bucket = candidates.get(familyBand) ?? [];
+    bucket.push({
+      originalBand,
+      variableFamilies: new Set(extractVariableFamilies(row.values))
+    });
+    candidates.set(familyBand, bucket);
+  });
+
+  const groupedBandByOriginalBand = new Map<string, string>();
+  candidates.forEach((rowsForFamily, familyBand) => {
+    if (rowsForFamily.length < 2) {
+      return;
+    }
+
+    const familyOverlapCounts = new Map<string, number>();
+    rowsForFamily.forEach((row) => {
+      row.variableFamilies.forEach((variableFamily) => {
+        familyOverlapCounts.set(variableFamily, (familyOverlapCounts.get(variableFamily) ?? 0) + 1);
+      });
+    });
+
+    const isConfirmed = Array.from(familyOverlapCounts.values()).some((count) => count >= 2);
+    if (!isConfirmed) {
+      return;
+    }
+
+    rowsForFamily.forEach((row) => {
+      groupedBandByOriginalBand.set(row.originalBand, familyBand);
+    });
+  });
+
+  return groupedBandByOriginalBand;
+}
+
+function inferFamilyBand(band: string): string | null {
+  const normalized = band.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+  if (/\bloan(s)?\b/.test(normalized)) {
+    return "Loans";
+  }
+  if (/\bdeposit(s)?\b/.test(normalized)) {
+    return "Deposits";
+  }
+  if (/\binventor(y|ies)\b/.test(normalized)) {
+    return "Inventories";
+  }
+  if (/\bprofit(s)?\b/.test(normalized)) {
+    return "Profits";
+  }
+  return null;
+}
+
+function extractVariableFamilies(values: string[]): string[] {
+  const families = new Set<string>();
+  values.forEach((value) => {
+    extractVariableNames(value).forEach((variable) => {
+      const family = normalizeVariableFamily(variable);
+      if (family) {
+        families.add(family);
+      }
+    });
+  });
+  return Array.from(families);
+}
+
+function normalizeVariableFamily(variable: string): string | null {
+  let next = variable.replace(/\[[^\]]+\]/g, "");
+  if (/^d[A-Z]/.test(next)) {
+    next = next.slice(1);
+  }
+  if (next.length > 1 && /[a-z]$/.test(next)) {
+    next = next.slice(0, -1);
+  }
+  const normalized = next.toLowerCase();
+  if (!normalized || IGNORED_TOKENS.has(normalized)) {
+    return null;
+  }
+  return normalized;
+}
+
 function normalizeBandLabel(label: string): string {
   const trimmed = label.trim();
   if (!trimmed || trimmed.toLowerCase() === "sum") {
@@ -298,11 +433,39 @@ function normalizeBandLabel(label: string): string {
   return trimmed.replace(/\s+/g, " ");
 }
 
+export function extractDependencyExpressionReferences(
+  source: string
+): Array<{ name: string; current: boolean; lagged: boolean }> {
+  return extractVariableNames(source).map((name) => ({
+    name,
+    current: hasCurrentDependencyReference(source, name),
+    lagged: hasLaggedDependencyReference(source, name)
+  }));
+}
+
 function extractVariableNames(source: string): string[] {
   const tokens = source.match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? [];
   return Array.from(
     new Set(tokens.filter((token) => !IGNORED_TOKENS.has(token.toLowerCase())))
   );
+}
+
+function hasLaggedDependencyReference(source: string, variable: string): boolean {
+  const escaped = escapeRegExp(variable);
+  return new RegExp(`lag\\s*\\(\\s*${escaped}\\s*\\)|\\b${escaped}\\s*\\[-1\\]`, "i").test(source);
+}
+
+function hasCurrentDependencyReference(source: string, variable: string): boolean {
+  const escaped = escapeRegExp(variable);
+  const withoutLaggedReferences = source.replace(
+    new RegExp(`lag\\s*\\(\\s*${escaped}\\s*\\)|\\b${escaped}\\s*\\[-1\\]`, "ig"),
+    " "
+  );
+  return new RegExp(`\\b${escaped}\\b`).test(withoutLaggedReferences);
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function choosePreferredSource(
@@ -335,6 +498,7 @@ function choosePreferredConfidence(
 function stripExplicitFlag(membership: MutableMembership): DependencyRowMembership {
   return {
     band: membership.band,
+    originalBand: membership.originalBand,
     weight: membership.weight,
     source: membership.source,
     confidence: membership.confidence,
@@ -357,11 +521,18 @@ function compareMemberships(
   if (leftIndex !== rightIndex) {
     return (leftIndex === -1 ? Number.MAX_SAFE_INTEGER : leftIndex) - (rightIndex === -1 ? Number.MAX_SAFE_INTEGER : rightIndex);
   }
+  if ((left.originalBand ?? left.band) !== (right.originalBand ?? right.band)) {
+    return (left.originalBand ?? left.band).localeCompare(right.originalBand ?? right.band);
+  }
   return left.band.localeCompare(right.band);
 }
 
 export function buildAccountingProxyNodes(rowTopology: DependencyRowTopology): AccountingProxyNode[] {
-  const proxies: AccountingProxyNode[] = [];
+  return buildDerivedAccountingTerms(rowTopology).map(({ references: _references, ...proxy }) => proxy);
+}
+
+export function buildDerivedAccountingTerms(rowTopology: DependencyRowTopology): DerivedAccountingTerm[] {
+  const terms: DerivedAccountingTerm[] = [];
 
   Object.entries(rowTopology.variables).forEach(([variable, assignment]) => {
     if (!assignment) {
@@ -373,30 +544,173 @@ export function buildAccountingProxyNodes(rowTopology: DependencyRowTopology): A
         membership.expression &&
         membership.proxyLabel
     );
-    const distinctKinds = new Set(explicitMemberships.map((membership) => membership.proxyKind ?? "row-expression"));
+    const distinctKinds = new Set(
+      explicitMemberships.map((membership) => membership.proxyKind ?? "row-expression")
+    );
     if (explicitMemberships.length < 2 || distinctKinds.size < 2) {
       return;
     }
 
     explicitMemberships.forEach((membership) => {
-      const source =
-        membership.source === "balance-row" ? "balance-row" : "transaction-row";
-      proxies.push({
-        id: `proxy:${variable}:${membership.band}`,
+      const source = membership.source === "balance-row" ? "balance-row" : "transaction-row";
+      terms.push({
+        id: `proxy:${variable}:${membership.originalBand ?? membership.band}`,
         canonicalVariable: variable,
         band: membership.band,
         label: membership.proxyLabel ?? variable,
         fullExpression: membership.expression ?? variable,
         proxyKind: membership.proxyKind ?? "row-expression",
-        source
+        source,
+        references: extractDependencyExpressionReferences(membership.expression ?? variable)
       });
     });
   });
 
-  return proxies;
+  return terms;
 }
 
-function buildCompactProxyLabel(variable: string, expression: string): string {
+export function buildDerivedAccountingTermsFromCells(cells: NotebookCell[]): DerivedAccountingTerm[] {
+  const terms = new Map<string, DerivedAccountingTerm>();
+
+  cells.forEach((cell) => {
+    if (cell.type !== "matrix") {
+      return;
+    }
+
+    const source = inferDerivedTermSource(cell.title);
+    cell.rows.forEach((row) => {
+      const band = normalizeBandLabel(row.label);
+      if (!band) {
+        return;
+      }
+
+      row.values.forEach((value, valueIndex) => {
+        const expression = value.trim();
+        if (!expression) {
+          return;
+        }
+
+        const references = extractDependencyExpressionReferences(expression);
+        references.forEach((reference) => {
+          const label = buildAccountingReferenceLabel(reference.name, expression);
+          const id = `derived:${cell.id}:${row.label}:${valueIndex}:${reference.name}`;
+          terms.set(id, {
+            id,
+            canonicalVariable: reference.name,
+            band,
+            label,
+            fullExpression: expression,
+            proxyKind: classifyProxyKind(reference.name, band, expression),
+            source,
+            references
+          });
+        });
+      });
+    });
+  });
+
+  return Array.from(terms.values());
+}
+
+export function buildDependencyProxyDisplayOccurrences(
+  cells: NotebookCell[],
+  sectorGrouping: DependencySectorGroupingMode = "none"
+): DependencySectorDisplayOccurrences {
+  const occurrencesByVariable = new Map<string, Array<{
+    displayLabel: string;
+    kind: "proxy";
+    sector: string;
+    sign: "+" | "-" | "neutral";
+    sourceCellKey: string;
+    sourceExpression: string;
+    sourceRowLabel: string;
+    variable: string;
+  }>>();
+  const seenByVariable = new Map<string, Set<string>>();
+  const rawOccurrences: Array<{
+    displayLabel: string;
+    kind: "proxy";
+    sector: string;
+    sign: "+" | "-" | "neutral";
+    sourceCellKey: string;
+    sourceExpression: string;
+    sourceRowLabel: string;
+    variable: string;
+  }> = [];
+
+  cells.forEach((cell) => {
+    if (cell.type !== "matrix") {
+      return;
+    }
+
+    cell.rows.forEach((row) => {
+      const band = normalizeBandLabel(row.label);
+      if (!band) {
+        return;
+      }
+
+      row.values.forEach((value, columnIndex) => {
+        const expression = value.trim();
+        if (!expression) {
+          return;
+        }
+
+        const sector = normalizeMatrixOccurrenceSector(cell, columnIndex);
+        if (!sector) {
+          return;
+        }
+
+        const sign = inferDisplayOccurrenceSign(expression);
+        const references = extractDependencyExpressionReferences(expression);
+        references.forEach((reference) => {
+          const displayLabel = buildAccountingReferenceLabel(reference.name, expression);
+          if (displayLabel === reference.name) {
+            return;
+          }
+
+          const occurrence = {
+            displayLabel,
+            kind: "proxy" as const,
+            sector,
+            sign,
+            sourceCellKey: `${cell.id}:${row.label}:${sector}:${expression}`,
+            sourceExpression: expression,
+            sourceRowLabel: row.label,
+            variable: reference.name
+          };
+          rawOccurrences.push(occurrence);
+        });
+      });
+    });
+  });
+
+  const groupedSectorByOriginalSector = buildGroupedSectorByOriginalSector(
+    rawOccurrences.map((entry) => ({
+      variable: entry.variable,
+      sector: entry.sector,
+      source: "fallback",
+      confidence: "fallback"
+    })),
+    sectorGrouping
+  );
+
+  rawOccurrences.forEach((entry) => {
+    const sector = groupedSectorByOriginalSector.get(entry.sector) ?? entry.sector;
+    const bucket = occurrencesByVariable.get(entry.variable) ?? [];
+    const seen = seenByVariable.get(entry.variable) ?? new Set<string>();
+    const occurrenceKey = `${entry.displayLabel}::${sector}::${entry.sign}`;
+    if (!seen.has(occurrenceKey)) {
+      bucket.push({ ...entry, sector });
+      occurrencesByVariable.set(entry.variable, bucket);
+      seen.add(occurrenceKey);
+      seenByVariable.set(entry.variable, seen);
+    }
+  });
+
+  return Object.fromEntries(occurrencesByVariable.entries());
+}
+
+export function buildCompactProxyLabel(variable: string, expression: string): string {
   const compact = expression.replace(/\s+/g, "");
   if (compact.includes(`d(${variable})`)) {
     return `d${variable}`;
@@ -406,6 +720,38 @@ function buildCompactProxyLabel(variable: string, expression: string): string {
     return `${rateMatch?.[1] ?? "r"}*${variable}`;
   }
   return variable;
+}
+
+export function buildAccountingReferenceLabel(variable: string, expression: string): string {
+  const compact = expression.replace(/\s+/g, "").replace(/^[-+]/, "");
+  if (compact.includes(`d(${variable})`)) {
+    return `d${variable}`;
+  }
+
+  return compact
+    .replace(/lag\(([^)]+)\)/g, "$1[-1]")
+    .replace(/\[-1\]/g, "")
+    .replace(/^\((.*)\)$/g, "$1");
+}
+
+function inferDerivedTermSource(title: string): "transaction-row" | "balance-row" {
+  return /balance/i.test(title) ? "balance-row" : "transaction-row";
+}
+
+function inferDisplayOccurrenceSign(expression: string): "+" | "-" | "neutral" {
+  const trimmed = expression.trim();
+  if (trimmed.startsWith("+")) {
+    return "+";
+  }
+  if (trimmed.startsWith("-")) {
+    return "-";
+  }
+  return "neutral";
+}
+
+function normalizeMatrixOccurrenceSector(cell: Extract<NotebookCell, { type: "matrix" }>, columnIndex: number): string {
+  const sector = cell.sectors?.[columnIndex] ?? cell.columns[columnIndex] ?? "";
+  return sector.trim().replace(/_/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function classifyProxyKind(

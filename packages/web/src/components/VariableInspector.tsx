@@ -120,6 +120,11 @@ export function VariableInspector({
               values={data.affects}
               onSelectVariable={onSelectVariable}
             />
+            <StaticChipList
+              emptyLabel="No accounting matrix terms reference this variable yet."
+              label="Accounting terms"
+              values={data.affectsAccountingTerms}
+            />
           </InspectorSection>
         </div>
       ) : (
@@ -128,6 +133,33 @@ export function VariableInspector({
         </div>
       )}
     </section>
+  );
+}
+
+function StaticChipList({
+  emptyLabel,
+  label,
+  values
+}: {
+  emptyLabel: string;
+  label: string;
+  values: string[];
+}) {
+  return (
+    <div className="inspector-chip-group">
+      <div className="inspector-chip-label">{label}</div>
+      {values.length > 0 ? (
+        <div className="inspector-chip-list">
+          {values.map((value) => (
+            <span key={value} className="inspector-chip">
+              {value}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <div className="inspector-empty-note">{emptyLabel}</div>
+      )}
+    </div>
   );
 }
 

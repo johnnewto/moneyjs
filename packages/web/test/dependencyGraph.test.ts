@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { buildDependencyGraphLayoutSnapshot } from "../src/components/DependencyGraphCanvas";
 import { buildDependencyGraph } from "../src/notebook/dependencyGraph";
-import { buildDependencyRowTopology } from "../src/notebook/dependencyRows";
-import { buildDependencySectorTopology } from "../src/notebook/dependencySectors";
+import { buildDependencyProxyDisplayOccurrences, buildDependencyRowTopology } from "../src/notebook/dependencyRows";
+import {
+  buildDependencySectorDisplayOccurrences,
+  buildDependencySectorTopology
+} from "../src/notebook/dependencySectors";
 import type { NotebookCell, SequenceCell } from "../src/notebook/types";
 
 describe("dependency graph viewer", () => {
@@ -135,11 +138,14 @@ describe("dependency graph viewer", () => {
   it("produces reusable layout diagnostics for BMW accounting strips", () => {
     const { cells, dependencyCell, graph } = buildBmwDependencyScenario();
     const sectorTopology = buildDependencySectorTopology({ cells, dependencyCell, graph });
+    const directOccurrences = buildDependencySectorDisplayOccurrences({ cells, dependencyCell, graph });
+    const proxyOccurrences = buildDependencyProxyDisplayOccurrences(cells);
     const rowTopology = buildDependencyRowTopology({ cells, dependencyCell, graph });
     const snapshot = buildDependencyGraphLayoutSnapshot({
       availableWidth: 1440,
       graph,
       rowTopology,
+      sectorDisplayOccurrences: mergeDisplayOccurrences(directOccurrences, proxyOccurrences),
       sectorTopology,
       showAccountingStrips: true,
       viewMode: "strips"
@@ -208,8 +214,127 @@ describe("dependency graph viewer", () => {
           Number.isFinite(entry.finalY)
       )
     ).toBe(true);
+
+    const depositInterestProxy = snapshot.renderGraph?.nodes.find(
+      (node) => node.canonicalName === "Ms" && node.label === "-rm*Ms"
+    );
+    expect(depositInterestProxy).toBeDefined();
+    expect(
+      snapshot.renderGraph?.edges.find(
+        (edge) => edge.sourceId === "rm" && edge.targetId === depositInterestProxy?.id
+      )
+    ).toMatchObject({ current: false, lagged: true });
+  });
+
+  it("adds signed direct occurrences for mixed-sector flow nodes in strip view", () => {
+    const cells: NotebookCell[] = [
+      {
+        id: "transaction-flow",
+        type: "matrix",
+        title: "Consumption flow matrix",
+        columns: ["Households", "Firms_current", "Sum"],
+        sectors: ["Households", "Firms", ""],
+        rows: [{ label: "Consumption", values: ["-C", "+C", "0"] }]
+      },
+      {
+        id: "equations",
+        type: "equations",
+        title: "Simple model",
+        modelId: "equations",
+        equations: [
+          { id: "eq-c", name: "C", expression: "alpha0" },
+          { id: "eq-y", name: "Y", expression: "C" }
+        ]
+      }
+    ];
+    const dependencyCell: SequenceCell & {
+      source: Extract<SequenceCell["source"], { kind: "dependency" }>;
+    } = {
+      id: "equation-dependency-graph",
+      type: "sequence",
+      title: "Simple dependency graph",
+      source: { kind: "dependency", modelId: "equations" }
+    };
+    const graph = buildDependencyGraph({
+      equations: cells.find((cell) => cell.id === "equations" && cell.type === "equations")!.equations,
+      externals: [{ id: "ext-alpha0", name: "alpha0", kind: "constant", valueText: "1" }],
+      initialValues: []
+    });
+    const sectorTopology = buildDependencySectorTopology({ cells, dependencyCell, graph });
+    const sectorDisplayOccurrences = buildDependencySectorDisplayOccurrences({ cells, dependencyCell, graph });
+    const snapshot = buildDependencyGraphLayoutSnapshot({
+      availableWidth: 960,
+      graph,
+      sectorDisplayOccurrences,
+      sectorTopology,
+      viewMode: "strips"
+    });
+
+    const consumptionNodes = snapshot.layout.nodes.filter(
+      (node) => (node.canonicalName ?? node.name) === "C"
+    );
+    expect(consumptionNodes).toHaveLength(2);
+    expect(new Set(consumptionNodes.map((node) => node.x)).size).toBe(2);
+    expect(consumptionNodes.map((node) => node.label).sort()).toEqual(["+C", "-C"]);
+    expect(consumptionNodes.map((node) => node.occurrenceSign).sort()).toEqual(["+", "-"]);
+    expect(consumptionNodes.map((node) => node.displaySector).sort()).toEqual(["Firms", "Households"]);
+    expect(snapshot.renderGraph?.siblingEdges).toHaveLength(1);
+    expect(
+      snapshot.renderGraph?.edges.filter((edge) => {
+        const sourceNode = snapshot.renderGraph?.nodes.find((node) => node.id === edge.sourceId);
+        return (sourceNode?.canonicalName ?? sourceNode?.name) === "C" && edge.targetId === "Y";
+      })
+    ).toHaveLength(1);
+  });
+
+  it("adds signed proxy occurrences for accounting-derived terms in strip view", () => {
+    const { cells, dependencyCell, graph } = buildBmwDependencyScenario();
+    const sectorTopology = buildDependencySectorTopology({ cells, dependencyCell, graph });
+    const directOccurrences = buildDependencySectorDisplayOccurrences({ cells, dependencyCell, graph });
+    const proxyOccurrences = buildDependencyProxyDisplayOccurrences(cells);
+    const rowTopology = buildDependencyRowTopology({ cells, dependencyCell, graph });
+    const snapshot = buildDependencyGraphLayoutSnapshot({
+      availableWidth: 1440,
+      graph,
+      rowTopology,
+      sectorDisplayOccurrences: mergeDisplayOccurrences(directOccurrences, proxyOccurrences),
+      sectorTopology,
+      showAccountingStrips: true,
+      viewMode: "strips"
+    });
+
+    const positiveDepositProxy = snapshot.layout.nodes.find(
+      (node) => node.canonicalName === "Mh" && node.label === "+rm*Mh"
+    );
+    const negativeDepositProxy = snapshot.layout.nodes.find(
+      (node) => node.canonicalName === "Ms" && node.label === "-rm*Ms"
+    );
+
+    expect(positiveDepositProxy).toBeDefined();
+    expect(negativeDepositProxy).toBeDefined();
+    expect(positiveDepositProxy?.occurrenceSign).toBe("+");
+    expect(negativeDepositProxy?.occurrenceSign).toBe("-");
+    expect(positiveDepositProxy?.mirrorSector).toBe("Households");
+    expect(negativeDepositProxy?.mirrorSector).toBe("Banks");
   });
 });
+
+function mergeDisplayOccurrences(
+  directOccurrences: ReturnType<typeof buildDependencySectorDisplayOccurrences>,
+  proxyOccurrences: ReturnType<typeof buildDependencyProxyDisplayOccurrences>
+): ReturnType<typeof buildDependencySectorDisplayOccurrences> {
+  const merged = new Map<string, Array<(typeof directOccurrences)[string][number]>>();
+
+  Object.entries(directOccurrences).forEach(([variable, occurrences]) => {
+    merged.set(variable, [...occurrences]);
+  });
+  Object.entries(proxyOccurrences).forEach(([variable, occurrences]) => {
+    const bucket = merged.get(variable) ?? [];
+    merged.set(variable, [...bucket, ...occurrences]);
+  });
+
+  return Object.fromEntries(merged.entries());
+}
 
 function buildBmwDependencyScenario(): {
   cells: NotebookCell[];
@@ -261,11 +386,14 @@ function buildBmwDependencyScenario(): {
         { id: "eq-cs", name: "Cs", expression: "Cd" },
         { id: "eq-cd", name: "Cd", expression: "alpha0 + alpha1 * YD + alpha2 * lag(Mh)" },
         { id: "eq-is", name: "Is", expression: "Id" },
+        { id: "eq-ls", name: "Ls", expression: "lag(Ls) + d(Ld) * dt" },
+        { id: "eq-y", name: "Y", expression: "Cs + Is" },
         { id: "eq-wbd", name: "WBd", expression: "Y - lag(rl) * lag(Ld) - AF" },
         { id: "eq-af", name: "AF", expression: "delta * lag(K)" },
         { id: "eq-ld", name: "Ld", expression: "lag(Ld) + (Id - AF) * dt" },
         { id: "eq-yd", name: "YD", expression: "WBs + lag(rm) * lag(Mh)" },
         { id: "eq-mh", name: "Mh", expression: "lag(Mh) + (YD - Cd) * dt" },
+        { id: "eq-ms", name: "Ms", expression: "lag(Ms) + d(Ls) * dt" },
         { id: "eq-rm", name: "rm", expression: "rl" },
         { id: "eq-wbs", name: "WBs", expression: "W * Ns" },
         { id: "eq-nd", name: "Nd", expression: "Y / pr" },

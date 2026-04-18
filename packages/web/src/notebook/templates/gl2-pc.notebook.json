@@ -38,6 +38,8 @@
       "note": "Validated against the baseline simulation from the source vignette."
     },
     { "id": "transaction-flow-sequence", "type": "sequence", "title": "PC transaction flow sequence", "source": { "kind": "matrix", "matrixCellId": "transaction-flow" }, "description": "Sequence view generated from the PC transactions-flow matrix at the selected simulation period." },
+    { "id": "equation-dependency-graph", "type": "sequence", "title": "PC  dependency graph", 
+    "source": { "kind": "dependency", "modelId": "pc-baseline", "viewMode": "strips", "showAccountingStrips": true, "accountingBandGrouping": "family", "showExogenous": false }, "description": "Layered dependency view of the pc equations.", "note": "" },
     {
       "id": "equations",
       "type": "equations",
