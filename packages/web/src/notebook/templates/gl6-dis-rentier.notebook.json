@@ -1,49 +1,58 @@
 {
-  "id": "gl6-dis-notebook",
-  "title": "GL6 DIS Notebook",
-  "metadata": { "version": 1, "template": "gl6-dis" },
+  "id": "gl6-dis-rentier-notebook",
+  "title": "GL6 DIS Rentier Notebook",
+  "metadata": { "version": 1, "template": "gl6-dis-rentier" },
   "cells": [
-    { "id": "intro", "type": "markdown", "title": "Overview", "source": "This notebook presents the Godley and Lavoie DIS model as an executable browser notebook. It focuses on how expected sales, inventory adjustment, bank credit, and household wealth accumulation interact through a stock-flow consistent structure, and includes the baseline model, accounting matrices, and two scenario experiments from the chapter." },
+    {
+      "id": "intro",
+      "type": "markdown",
+      "title": "Overview",
+      "source": "This notebook adds a distributive DIS variant with two household classes. Workers receive wages and maintain a high propensity to consume, while rentiers receive firms' profits and bond interest, save more heavily, and allocate wealth between money and government bonds. Government spending supports demand, taxes withdraw income from both classes, and deficits accumulate as money and bonds held by the private sector."
+    },
     {
       "id": "balance-sheet",
       "type": "matrix",
-      "title": "DIS balance sheet",
+      "title": "DIS rentier balance sheet",
       "sourceRunCellId": "baseline-run",
-      "columns": ["Households", "Production firms", "Banks", "Sum"],
+      "columns": ["Workers", "Rentiers", "Government", "Sum"],
       "rows": [
-        { "label": "Money", "values": ["+Mh", "", "-Ms", "0"] },
-        { "label": "Loans", "values": ["", "-Ld", "+Ls", "0"] },
-        { "label": "Inventories", "values": ["", "+INV", "", "+INV"] },
-        { "label": "Balance", "values": ["-Mh", "", "", "-Mh"] }
+        { "label": "Money", "values": ["+Mhw", "+Mhr", "-Hs", "0"] },
+        { "label": "Government bonds", "values": ["", "+Bh", "-Bs", "0"] },
+        { "label": "Net worth", "values": ["-Vw", "-Vr", "+D", "0"] }
       ],
-      "description": "Balance-sheet matrix for the DIS model, showing how household deposits, firm inventories, and bank liabilities align across sectors.",
-      "note": "Use this view to track how inventory finance and household wealth accumulation are mirrored by the banking system in the baseline simulation."
+      "description": "Stylized balance-sheet matrix for the distributive DIS model with workers, rentiers, and the government.",
+      "note": "Workers hold their saving as money, while rentiers split wealth between money and government bonds."
     },
     {
       "id": "transaction-flow",
       "type": "matrix",
-      "title": "DIS transactions-flow matrix",
+      "title": "DIS rentier transactions-flow matrix",
       "sourceRunCellId": "baseline-run",
-      "columns": ["Households", "Firms_current", "Firms_capital", "Banks_current", "Banks_capital"],
+      "columns": ["Workers", "Rentiers", "Firms", "Government"],
       "rows": [
-        { "label": "Consumption", "values": ["-C", "+C", "", "", ""] },
-        { "label": "Ch. Inventories", "values": ["", "+d(INV)", "-d(INV)", "", ""] },
-        { "label": "Wages", "values": ["+WB", "-WB", "", "", ""] },
-        { "label": "Interest on loans", "values": ["", "-rl[-1] * Ld[-1]", "", "+rl[-1] * Ls[-1]", ""] },
-        { "label": "Entrepreneurial Profits", "values": ["+EF", "-EF", "", "", ""] },
-        { "label": "Banks profits", "values": ["+EFb", "", "", "-EFb", ""] },
-        { "label": "Interest on deposits", "values": ["+rm[-1] * Mh[-1]", "", "", "-rm[-1] * Mh[-1]", ""] },
-        { "label": "Change loans", "values": ["", "", "+d(Ld)", "", "-d(Ls)"] },
-        { "label": "Change deposits", "values": ["-d(Mh)", "", "", "", "+d(Ms)"] }
+        { "label": "Consumption", "values": ["-Cw", "-Cr", "+C", ""] },
+        { "label": "Government spending", "values": ["", "", "+G", "-G"] },
+        { "label": "Wages", "values": ["+WB", "", "-WB", ""] },
+        { "label": "Profits", "values": ["", "+F", "-F", ""] },
+        { "label": "Taxes", "values": ["-Tw", "-Tr", "", "+T"] },
+        { "label": "Bond interest", "values": ["", "+lag(rb) * lag(Bh)", "", "-lag(rb) * lag(Bs)"] },
+        { "label": "Change money", "values": ["-d(Mhw)", "-d(Mhr)", "", "+d(Hs)"] },
+        { "label": "Change bonds", "values": ["", "-d(Bh)", "", "+d(Bs)"] }
       ],
-      "description": "Transactions-flow matrix for the DIS model, tracing consumption, wages, interest, profits, and financing flows across households, firms, and banks.",
-      "note": "This view makes the model's stock-flow consistency explicit by pairing each income, credit, and wealth flow with its offsetting entry."
+      "description": "Transactions-flow matrix for the rentier extension, showing class-based income distribution and government-liability financing.",
+      "note": "The money-versus-bonds split appears only on the rentier side, reflecting class-based portfolio behavior."
     },
-    { "id": "transaction-flow-sequence", "type": "sequence", "title": "DIS transaction flow sequence", "source": { "kind": "matrix", "matrixCellId": "transaction-flow" }, "description": "Sequence view of the DIS transactions-flow matrix, showing how spending, income, and financial positions propagate through the selected period." },
+    {
+      "id": "transaction-flow-sequence",
+      "type": "sequence",
+      "title": "DIS rentier transaction flow sequence",
+      "source": { "kind": "matrix", "matrixCellId": "transaction-flow" },
+      "description": "Sequence view of the distributive DIS accounting flows for the selected period."
+    },
     {
       "id": "equation-dependency-graph",
       "type": "sequence",
-      "title": "DIS equation dependency graph",
+      "title": "DIS rentier equation dependency graph",
       "source": {
         "kind": "dependency",
         "modelId": "equations",
@@ -53,136 +62,191 @@
         "accountingBandGrouping": "family",
         "showExogenous": false
       },
-      "description": "Dependency view of the DIS equations, highlighting how expected sales, inventories, pricing, bank credit, and household income feed back through the model over time.",
-      "note": "Use this alongside the transactions-flow matrix to connect the accounting structure with the model's dynamic adjustment mechanisms."
+      "description": "Dependency view showing how wages, profits, taxes, government debt, and portfolio allocation interact in the rentier variant.",
+      "note": "The largest same-period feedback block comes from output, disposable incomes, and class-specific consumption."
     },
     {
       "id": "equations",
       "type": "equations",
-      "title": "DIS model",
+      "title": "DIS rentier model",
       "modelId": "equations",
       "equations": [
-        { "id": "eq-0-y", "name": "y", "desc": "Output determined by expected sales and inventory adjustment.", "expression": "s_E + inv_E - lag(inv)" },
-        { "id": "eq-1-inv_T", "name": "inv_T", "desc": "Target inventory stock as a ratio of expected sales.", "expression": "sigma_T * s_E" },
-        { "id": "eq-2-inv_E", "name": "inv_E", "desc": "Expected inventory stock adjusts toward the target.", "expression": "lag(inv) + gamma * (inv_T - lag(inv))" },
-        { "id": "eq-3-inv", "name": "inv", "desc": "Realized inventories evolve with production minus sales.", "expression": "lag(inv) + (y - s)" },
-        { "id": "eq-4-s_E", "name": "s_E", "desc": "Expected sales formed adaptively.", "expression": "beta * lag(s) + (1 - beta) * lag(s_E)" },
-        { "id": "eq-5-s", "name": "s", "desc": "Real sales equal real consumption demand.", "expression": "c" },
-        { "id": "eq-6-N", "name": "N", "desc": "Employment from output and productivity.", "expression": "y / pr" },
-        { "id": "eq-7-WB", "name": "WB", "desc": "Wage bill.", "expression": "N * W" },
-        { "id": "eq-8-UC", "name": "UC", "desc": "Unit cost.", "expression": "WB / y" },
-        { "id": "eq-9-INV", "name": "INV", "desc": "Nominal inventories.", "expression": "inv * UC" },
-        { "id": "eq-10-S", "name": "S", "desc": "Nominal sales.", "expression": "p * s" },
-        { "id": "eq-11-p", "name": "p", "desc": "Price level.", "expression": "(1 + phi) * NHUC" },
-        { "id": "eq-12-NHUC", "name": "NHUC", "desc": "Normalized historic unit cost.", "expression": "(1 - sigma_T) * UC + sigma_T * (1 + lag(rl)) * lag(UC)" },
-        { "id": "eq-13-EF", "name": "EF", "desc": "Entrepreneurial profits.", "expression": "S - WB + (INV - lag(INV)) - lag(rl) * lag(INV)" },
-        { "id": "eq-14-Ld", "name": "Ld", "desc": "Demand for loans.", "expression": "INV" },
-        { "id": "eq-15-Ls", "name": "Ls", "desc": "Supply of loans.", "expression": "Ld" },
-        { "id": "eq-16-Ms", "name": "Ms", "desc": "Supply of deposits.", "expression": "Ls" },
-        { "id": "eq-17-rm", "name": "rm", "desc": "Deposit rate.", "expression": "rl - add" },
-        { "id": "eq-18-EFb", "name": "EFb", "desc": "Bank profits.", "expression": "lag(rl) * lag(Ls) - lag(rm) * lag(Mh)" },
-        { "id": "eq-19-YD", "name": "YD", "desc": "Disposable income.", "expression": "WB + EF + EFb + lag(rm) * lag(Mh)" },
-        { "id": "eq-20-Mh", "name": "Mh", "desc": "Household deposits.", "expression": "lag(Mh) + YD - C" },
-        { "id": "eq-21-ydhs", "name": "ydhs", "desc": "Haig-Simons real disposable income.", "expression": "c + (mh - lag(mh))" },
-        { "id": "eq-22-C", "name": "C", "desc": "Nominal consumption.", "expression": "c * p" },
-        { "id": "eq-23-mh", "name": "mh", "desc": "Real household wealth.", "expression": "Mh / p" },
-        { "id": "eq-24-c", "name": "c", "desc": "Real consumption demand.", "expression": "alpha0 + alpha1 * ydhs_E + alpha2 * lag(mh)" },
-        { "id": "eq-25-ydhs_E", "name": "ydhs_E", "desc": "Expected Haig-Simons disposable income.", "expression": "epsilon * lag(ydhs) + (1 - epsilon) * lag(ydhs_E)" }
+        { "id": "eq-0-lambda_b", "name": "lambda_b", "desc": "Rentier target share of wealth allocated to government bonds.", "expression": "lambda0 + lambda1 * rb" },
+        { "id": "eq-1-C", "name": "C", "desc": "Total consumption demand.", "expression": "Cw + Cr" },
+        { "id": "eq-2-Y", "name": "Y", "desc": "Output set by aggregate demand.", "expression": "C + G" },
+        { "id": "eq-3-WB", "name": "WB", "desc": "Wage bill paid to workers.", "expression": "omega * Y" },
+        { "id": "eq-4-F", "name": "F", "desc": "Firms' profits distributed to rentiers.", "expression": "Y - WB" },
+        { "id": "eq-5-Tw", "name": "Tw", "desc": "Taxes paid by workers.", "expression": "theta_w * WB" },
+        { "id": "eq-6-Tr", "name": "Tr", "desc": "Taxes paid by rentiers on profit and bond income.", "expression": "theta_r * (F + lag(rb) * lag(Bh))" },
+        { "id": "eq-7-YDw", "name": "YDw", "desc": "Workers' disposable income.", "expression": "WB - Tw" },
+        { "id": "eq-8-YDr", "name": "YDr", "desc": "Rentiers' disposable income.", "expression": "F + lag(rb) * lag(Bh) - Tr" },
+        { "id": "eq-9-Cw", "name": "Cw", "desc": "Workers' consumption out of income and lagged money balances.", "expression": "alpha_w * YDw + alpha_wv * lag(Vw)" },
+        { "id": "eq-10-Cr", "name": "Cr", "desc": "Rentiers' consumption out of income and lagged wealth.", "expression": "alpha_r * YDr + alpha_rv * lag(Vr)" },
+        { "id": "eq-11-Vw", "name": "Vw", "desc": "Workers' money wealth.", "expression": "lag(Vw) + YDw - Cw" },
+        { "id": "eq-12-Vr", "name": "Vr", "desc": "Rentiers' total wealth.", "expression": "lag(Vr) + YDr - Cr" },
+        { "id": "eq-13-V", "name": "V", "desc": "Total private wealth.", "expression": "Vw + Vr" },
+        { "id": "eq-14-Bh", "name": "Bh", "desc": "Rentiers' holdings of government bonds.", "expression": "lambda_b * Vr" },
+        { "id": "eq-15-Mhr", "name": "Mhr", "desc": "Rentiers' money balances.", "expression": "Vr - Bh" },
+        { "id": "eq-16-Mhw", "name": "Mhw", "desc": "Workers' money balances.", "expression": "Vw" },
+        { "id": "eq-17-Mh", "name": "Mh", "desc": "Aggregate money holdings of households.", "expression": "Mhw + Mhr" },
+        { "id": "eq-18-T", "name": "T", "desc": "Total taxes collected by government.", "expression": "Tw + Tr" },
+        { "id": "eq-19-D", "name": "D", "desc": "Government debt accumulated from the deficit plus bond interest.", "expression": "lag(D) + G + lag(rb) * lag(Bs) - T" },
+        { "id": "eq-20-Bs", "name": "Bs", "desc": "Government bond supply, supplied on demand to rentiers.", "expression": "Bh" },
+        { "id": "eq-21-Hs", "name": "Hs", "desc": "Government money liability as the residual part of debt.", "expression": "D - Bs" },
+        { "id": "eq-22-gap", "name": "gap", "desc": "Accounting gap between private money demand and government money supply.", "expression": "Mh - Hs" },
+        { "id": "eq-23-profit_share", "name": "profit_share", "desc": "Share of output accruing as profits.", "expression": "F / Y" },
+        { "id": "eq-24-worker_share", "name": "worker_share", "desc": "Share of output accruing as wages.", "expression": "WB / Y" }
       ],
       "collapsed": true
     },
-    { "id": "solver", "type": "solver", "title": "Solver", "modelId": "equations", "options": { "periods": 100, "solverMethod": "GAUSS_SEIDEL", "toleranceText": "1e-10", "maxIterations": 100, "defaultInitialValueText": "1e-15", "hiddenLeftVariable": "Mh", "hiddenRightVariable": "Ms", "hiddenToleranceText": "0.00001", "relativeHiddenTolerance": false }, "collapsed": true },
+    {
+      "id": "solver",
+      "type": "solver",
+      "title": "Solver",
+      "modelId": "equations",
+      "options": {
+        "periods": 80,
+        "solverMethod": "NEWTON",
+        "toleranceText": "1e-10",
+        "maxIterations": 200,
+        "defaultInitialValueText": "1e-15",
+        "hiddenLeftVariable": "",
+        "hiddenRightVariable": "",
+        "hiddenToleranceText": "0.00001",
+        "relativeHiddenTolerance": false
+      },
+      "collapsed": true
+    },
     {
       "id": "externals-equations",
       "type": "externals",
       "title": "Externals",
       "modelId": "equations",
       "externals": [
-        { "id": "ext-0-rl", "name": "rl", "desc": "Interest rate on loans.", "kind": "constant", "valueText": "0.025" },
-        { "id": "ext-1-pr", "name": "pr", "desc": "Labor productivity.", "kind": "constant", "valueText": "1" },
-        { "id": "ext-2-W", "name": "W", "desc": "Money wage.", "kind": "constant", "valueText": "0.75" },
-        { "id": "ext-3-add", "name": "add", "desc": "Spread between loan and deposit rates.", "kind": "constant", "valueText": "0.02" },
-        { "id": "ext-4-alpha0", "name": "alpha0", "desc": "Autonomous consumption.", "kind": "constant", "valueText": "15" },
-        { "id": "ext-5-alpha1", "name": "alpha1", "desc": "Propensity to consume out of expected disposable income.", "kind": "constant", "valueText": "0.8" },
-        { "id": "ext-6-alpha2", "name": "alpha2", "desc": "Propensity to consume out of wealth.", "kind": "constant", "valueText": "0.1" },
-        { "id": "ext-7-beta", "name": "beta", "desc": "Speed of sales expectations adjustment.", "kind": "constant", "valueText": "0.75" },
-        { "id": "ext-8-epsilon", "name": "epsilon", "desc": "Speed of income expectations adjustment.", "kind": "constant", "valueText": "0.75" },
-        { "id": "ext-9-gamma", "name": "gamma", "desc": "Speed of inventory adjustment.", "kind": "constant", "valueText": "0.25" },
-        { "id": "ext-10-phi", "name": "phi", "desc": "Costing margin.", "kind": "constant", "valueText": "0.25" },
-        { "id": "ext-11-sigma_T", "name": "sigma_T", "desc": "Target inventory-to-sales ratio.", "kind": "constant", "valueText": "0.15" }
+        { "id": "ext-0-G", "name": "G", "desc": "Government spending.", "kind": "constant", "valueText": "25" },
+        { "id": "ext-1-rb", "name": "rb", "desc": "Interest rate on government bonds.", "kind": "constant", "valueText": "0.02" },
+        { "id": "ext-2-omega", "name": "omega", "desc": "Wage share in current output.", "kind": "constant", "valueText": "0.72" },
+        { "id": "ext-3-theta_w", "name": "theta_w", "desc": "Tax rate on wage income.", "kind": "constant", "valueText": "0.2" },
+        { "id": "ext-4-theta_r", "name": "theta_r", "desc": "Tax rate on rentier income.", "kind": "constant", "valueText": "0.3" },
+        { "id": "ext-5-alpha_w", "name": "alpha_w", "desc": "Workers' propensity to consume out of current disposable income.", "kind": "constant", "valueText": "0.96" },
+        { "id": "ext-6-alpha_wv", "name": "alpha_wv", "desc": "Workers' propensity to consume out of lagged wealth.", "kind": "constant", "valueText": "0.02" },
+        { "id": "ext-7-alpha_r", "name": "alpha_r", "desc": "Rentiers' propensity to consume out of current disposable income.", "kind": "constant", "valueText": "0.55" },
+        { "id": "ext-8-alpha_rv", "name": "alpha_rv", "desc": "Rentiers' propensity to consume out of lagged wealth.", "kind": "constant", "valueText": "0.03" },
+        { "id": "ext-9-lambda0", "name": "lambda0", "desc": "Base portfolio preference for government bonds.", "kind": "constant", "valueText": "0.35" },
+        { "id": "ext-10-lambda1", "name": "lambda1", "desc": "Interest sensitivity of rentier bond demand.", "kind": "constant", "valueText": "2.5" }
       ],
       "collapsed": true
     },
-    { "id": "initial-values-equations", "type": "initial-values", "title": "Initial values", "modelId": "equations", "initialValues": [], "collapsed": true },
-    { "id": "baseline-run", "type": "run", "title": "Baseline run", "mode": "baseline", "resultKey": "gl6_dis_baseline", "description": "Baseline DIS simulation showing how inventory adjustment, bank credit, and household wealth co-evolve under the Mh = Ms closure condition.", "sourceModelId": "equations" },
     {
-      "id": "baseline-chart",
-      "type": "chart",
-      "title": "Baseline headline variables",
-      "sourceRunCellId": "baseline-run",
-      "variables": ["ydhs", "c", "p", "Mh"],
-      "axisMode": "separate",
-      "axisSnapTolarance": 0.5,
-      "seriesRanges": { "p": { "includeZero": true } }
+      "id": "initial-values-equations",
+      "type": "initial-values",
+      "title": "Initial values",
+      "modelId": "equations",
+      "initialValues": [
+        { "id": "init-0-Vw", "name": "Vw", "valueText": "5" },
+        { "id": "init-1-Vr", "name": "Vr", "valueText": "60" },
+        { "id": "init-2-Bh", "name": "Bh", "valueText": "24" },
+        { "id": "init-3-Bs", "name": "Bs", "valueText": "24" },
+        { "id": "init-4-D", "name": "D", "valueText": "65" },
+        { "id": "init-5-Mhw", "name": "Mhw", "valueText": "5" },
+        { "id": "init-6-Mhr", "name": "Mhr", "valueText": "36" },
+        { "id": "init-7-Mh", "name": "Mh", "valueText": "41" },
+        { "id": "init-8-Hs", "name": "Hs", "valueText": "41" }
+      ],
+      "collapsed": true
     },
-    { "id": "baseline-table", "type": "table", "title": "Baseline variable summary", "sourceRunCellId": "baseline-run", "variables": ["y", "ydhs", "c", "p", "Mh", "INV"] },
-    { "id": "scenario-1-note", "type": "markdown", "title": "Scenario 1", "source": "Scenario 1 raises the costing margin `phi` from 0.25 to 0.35 between periods 5 and 40." },
     {
-      "id": "scenario-1-run",
+      "id": "baseline-run",
       "type": "run",
-      "title": "Scenario 1: costing margin shock",
-      "mode": "scenario",
-      "scenario": {
-        "shocks": [
-          {
-            "rangeInclusive": [5, 40],
-            "variables": { "phi": { "kind": "constant", "value": 0.35 } }
-          }
-        ]
-      },
-      "baselineRunCellId": "baseline-run",
-      "periods": 40,
-      "resultKey": "gl6_dis_s1",
+      "title": "Baseline run",
+      "mode": "baseline",
+      "resultKey": "gl6_dis_rentier_baseline",
+      "description": "Baseline distributive DIS simulation with workers, rentiers, taxes, and a bond-money portfolio split.",
       "sourceModelId": "equations"
     },
     {
-      "id": "scenario-1-chart",
+      "id": "baseline-chart",
       "type": "chart",
-      "title": "Scenario 1 consumption and income",
-      "sourceRunCellId": "scenario-1-run",
-      "variables": ["c", "ydhs", "p"],
+      "title": "Baseline distribution and portfolio variables",
+      "sourceRunCellId": "baseline-run",
+      "variables": ["Y", "Cw", "Cr", "Vr", "Bh", "Mh", "gap"],
       "axisMode": "separate",
       "axisSnapTolarance": 0.5,
-      "seriesRanges": { "p": { "includeZero": true } }
+      "seriesRanges": { "gap": { "includeZero": true } }
     },
-    { "id": "scenario-2-note", "type": "markdown", "title": "Scenario 2", "source": "Scenario 2 raises the target inventories-to-sales ratio `sigma_T` from 0.15 to 0.25 between periods 5 and 50." },
     {
-      "id": "scenario-2-run",
+      "id": "baseline-table",
+      "type": "table",
+      "title": "Baseline variable summary",
+      "sourceRunCellId": "baseline-run",
+      "variables": ["Y", "WB", "F", "YDw", "YDr", "Vw", "Vr", "Bh", "Mh", "D", "gap"]
+    },
+    {
+      "id": "scenario-1-note",
+      "type": "markdown",
+      "title": "Scenario 1",
+      "source": "Scenario 1 raises government spending `G` from 25 to 30 between periods 10 and 40 to show how a larger deficit supports demand, profits, and private wealth."
+    },
+    {
+      "id": "scenario-1-run",
       "type": "run",
-      "title": "Scenario 2: inventory target shock",
+      "title": "Scenario 1: fiscal expansion",
       "mode": "scenario",
       "scenario": {
         "shocks": [
           {
-            "rangeInclusive": [5, 50],
-            "variables": { "sigma_T": { "kind": "constant", "value": 0.25 } }
+            "rangeInclusive": [10, 40],
+            "variables": { "G": { "kind": "constant", "value": 30 } }
           }
         ]
       },
       "baselineRunCellId": "baseline-run",
       "periods": 50,
-      "resultKey": "gl6_dis_s2",
+      "resultKey": "gl6_dis_rentier_s1",
+      "sourceModelId": "equations"
+    },
+    {
+      "id": "scenario-1-chart",
+      "type": "chart",
+      "title": "Scenario 1 output and wealth",
+      "sourceRunCellId": "scenario-1-run",
+      "variables": ["Y", "F", "Vr", "D"],
+      "axisMode": "separate",
+      "axisSnapTolarance": 0.5
+    },
+    {
+      "id": "scenario-2-note",
+      "type": "markdown",
+      "title": "Scenario 2",
+      "source": "Scenario 2 raises the base rentier preference for government bonds `lambda0` from 0.35 to 0.5 between periods 10 and 45, shifting wealth away from money and toward bonds."
+    },
+    {
+      "id": "scenario-2-run",
+      "type": "run",
+      "title": "Scenario 2: stronger bond preference",
+      "mode": "scenario",
+      "scenario": {
+        "shocks": [
+          {
+            "rangeInclusive": [10, 45],
+            "variables": { "lambda0": { "kind": "constant", "value": 0.5 } }
+          }
+        ]
+      },
+      "baselineRunCellId": "baseline-run",
+      "periods": 55,
+      "resultKey": "gl6_dis_rentier_s2",
       "sourceModelId": "equations"
     },
     {
       "id": "scenario-2-chart",
       "type": "chart",
-      "title": "Scenario 2 inventories and income",
+      "title": "Scenario 2 portfolio composition",
       "sourceRunCellId": "scenario-2-run",
-      "variables": ["ydhs", "c", "inv", "inv_E"],
+      "variables": ["Bh", "Mh", "Vr", "gap"],
       "axisMode": "separate",
       "axisSnapTolarance": 0.5,
-      "seriesRanges": { "inv": { "includeZero": true }, "inv_E": { "includeZero": true } }
+      "seriesRanges": { "gap": { "includeZero": true } }
     }
   ]
 }

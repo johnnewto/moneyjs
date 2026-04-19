@@ -1,0 +1,276 @@
+{
+  "id": "gl6-dis-rentier-v2-notebook",
+  "title": "GL6 DIS Rentier Split v2",
+  "metadata": { "version": 1, "template": "gl6-dis-rentier-v2" },
+  "cells": [
+    {
+      "id": "intro",
+      "type": "markdown",
+      "title": "Overview",
+      "source": "This notebook presents a rentier-split extension of the Godley and Lavoie DIS model. It preserves the original inventory, pricing, bank credit, and wealth dynamics, while splitting households into workers and rentiers so that wages, profits, deposit interest, consumption, and wealth accumulation can be tracked separately."
+    },
+    {
+      "id": "balance-sheet",
+      "type": "matrix",
+      "title": "DIS rentier balance sheet",
+      "sourceRunCellId": "baseline-run",
+      "columns": ["Workers", "Rentiers", "Production firms", "Banks", "Sum"],
+      "rows": [
+        { "label": "Money deposits", "values": ["+Mhw", "+Mhr", "", "-Ms", "0"] },
+        { "label": "Loans", "values": ["", "", "-Ld", "+Ls", "0"] },
+        { "label": "Inventories", "values": ["", "", "+INV", "", "+INV"] },
+        { "label": "Balance", "values": ["-Mhw", "-Mhr", "", "", "-Mh"] }
+      ],
+      "description": "Balance-sheet matrix for the rentier-split DIS model, separating worker and rentier deposit holdings while keeping firms, inventories, and banks explicit.",
+      "note": "This makes wealth distribution visible: workers and rentiers hold distinct money stocks, while bank liabilities and firm borrowing remain stock-flow consistent."
+    },
+    {
+      "id": "transaction-flow",
+      "type": "matrix",
+      "title": "DIS rentier transactions-flow matrix",
+      "sourceRunCellId": "baseline-run",
+      "columns": ["Workers", "Rentiers", "Firms_current", "Firms_capital", "Banks_current", "Banks_capital"],
+      "rows": [
+        { "label": "Consumption by workers", "values": ["-Cw", "", "+Cw", "", "", ""] },
+        { "label": "Consumption by rentiers", "values": ["", "-Cr", "+Cr", "", "", ""] },
+        { "label": "Ch. Inventories", "values": ["", "", "+d(INV)", "-d(INV)", "", ""] },
+        { "label": "Wages", "values": ["+WB", "", "-WB", "", "", ""] },
+        { "label": "Interest on loans", "values": ["", "", "-rl[-1] * Ld[-1]", "", "+rl[-1] * Ls[-1]", ""] },
+        { "label": "Entrepreneurial profits", "values": ["", "+EF", "-EF", "", "", ""] },
+        { "label": "Bank profits", "values": ["", "+EFb", "", "", "-EFb", ""] },
+        { "label": "Interest on worker deposits", "values": ["+rm[-1] * Mhw[-1]", "", "", "", "-rm[-1] * Mhw[-1]", ""] },
+        { "label": "Interest on rentier deposits", "values": ["", "+rm[-1] * Mhr[-1]", "", "", "-rm[-1] * Mhr[-1]", ""] },
+        { "label": "Change loans", "values": ["", "", "", "+d(Ld)", "", "-d(Ls)"] },
+        { "label": "Change deposits", "values": ["-d(Mhw)", "-d(Mhr)", "", "", "", "+d(Ms)"] }
+      ],
+      "description": "Transactions-flow matrix for the rentier-split DIS model, separating wages, profits, deposit interest, consumption, and wealth accumulation between workers and rentiers.",
+      "note": "Use this to show that wages primarily fund worker consumption while profits, bank profits, and deposit interest accrue to rentiers, making distributional feedbacks visible in the accounting."
+    },
+    {
+      "id": "transaction-flow-sequence",
+      "type": "sequence",
+      "title": "DIS rentier transaction flow sequence",
+      "source": { "kind": "matrix", "matrixCellId": "transaction-flow" },
+      "description": "Sequence view of the rentier-split DIS transactions-flow matrix, showing how spending, income, and financial positions propagate through the selected period."
+    },
+    {
+      "id": "equation-dependency-graph",
+      "type": "sequence",
+      "title": "DIS rentier equation dependency graph",
+      "source": {
+        "kind": "dependency",
+        "modelId": "equations",
+        "viewMode": "strips",
+        "sectorGrouping": "family",
+        "showAccountingStrips": true,
+        "accountingBandGrouping": "family",
+        "showExogenous": false
+      },
+      "description": "Dependency view of the rentier-split DIS equations, highlighting how expected sales, inventories, pricing, bank credit, wage income, profits, deposit interest, and wealth feed back through the model over time.",
+      "note": "Use this alongside the transactions-flow matrix to connect the accounting structure with the model's dynamic distributional adjustment mechanisms."
+    },
+    {
+      "id": "equations",
+      "type": "equations",
+      "title": "DIS rentier model",
+      "modelId": "equations",
+      "equations": [
+        { "id": "eq-0-y", "name": "y", "desc": "Output determined by expected sales and inventory adjustment.", "expression": "s_E + inv_E - lag(inv)" },
+        { "id": "eq-1-inv_T", "name": "inv_T", "desc": "Target inventory stock as a ratio of expected sales.", "expression": "sigma_T * s_E" },
+        { "id": "eq-2-inv_E", "name": "inv_E", "desc": "Expected inventory stock adjusts toward the target.", "expression": "lag(inv) + gamma * (inv_T - lag(inv))" },
+        { "id": "eq-3-inv", "name": "inv", "desc": "Realized inventories evolve with production minus sales.", "expression": "lag(inv) + (y - s)" },
+        { "id": "eq-4-s_E", "name": "s_E", "desc": "Expected sales formed adaptively.", "expression": "beta * lag(s) + (1 - beta) * lag(s_E)" },
+        { "id": "eq-5-s", "name": "s", "desc": "Real sales equal real consumption demand.", "expression": "c" },
+        { "id": "eq-6-N", "name": "N", "desc": "Employment from output and productivity.", "expression": "y / pr" },
+        { "id": "eq-7-WB", "name": "WB", "desc": "Wage bill.", "expression": "N * W" },
+        { "id": "eq-8-UC", "name": "UC", "desc": "Unit cost.", "expression": "WB / y" },
+        { "id": "eq-9-INV", "name": "INV", "desc": "Nominal inventories.", "expression": "inv * UC" },
+        { "id": "eq-10-S", "name": "S", "desc": "Nominal sales.", "expression": "p * s" },
+        { "id": "eq-11-p", "name": "p", "desc": "Price level.", "expression": "(1 + phi) * NHUC" },
+        { "id": "eq-12-NHUC", "name": "NHUC", "desc": "Normalized historic unit cost.", "expression": "(1 - sigma_T) * UC + sigma_T * (1 + lag(rl)) * lag(UC)" },
+        { "id": "eq-13-EF", "name": "EF", "desc": "Entrepreneurial profits.", "expression": "S - WB + (INV - lag(INV)) - lag(rl) * lag(INV)" },
+        { "id": "eq-14-Ld", "name": "Ld", "desc": "Demand for loans.", "expression": "INV" },
+        { "id": "eq-15-Ls", "name": "Ls", "desc": "Supply of loans.", "expression": "Ld" },
+        { "id": "eq-16-Ms", "name": "Ms", "desc": "Supply of deposits.", "expression": "Ls" },
+        { "id": "eq-17-rm", "name": "rm", "desc": "Deposit rate.", "expression": "rl - add" },
+        { "id": "eq-18-EFb", "name": "EFb", "desc": "Bank profits.", "expression": "lag(rl) * lag(Ls) - lag(rm) * lag(Mh)" },
+        { "id": "eq-19-YDw", "name": "YDw", "desc": "Worker disposable income.", "expression": "WB + lag(rm) * lag(Mhw)" },
+        { "id": "eq-20-YDr", "name": "YDr", "desc": "Rentier disposable income.", "expression": "EF + EFb + lag(rm) * lag(Mhr)" },
+        { "id": "eq-21-Mhw", "name": "Mhw", "desc": "Worker deposits.", "expression": "lag(Mhw) + YDw - Cw" },
+        { "id": "eq-22-Mhr", "name": "Mhr", "desc": "Rentier deposits.", "expression": "lag(Mhr) + YDr - Cr" },
+        { "id": "eq-23-Mh", "name": "Mh", "desc": "Aggregate household deposits.", "expression": "Mhw + Mhr" },
+        { "id": "eq-24-mhw", "name": "mhw", "desc": "Real worker wealth.", "expression": "Mhw / p" },
+        { "id": "eq-25-mhr", "name": "mhr", "desc": "Real rentier wealth.", "expression": "Mhr / p" },
+        { "id": "eq-26-ydhsw", "name": "ydhsw", "desc": "Worker Haig-Simons real disposable income.", "expression": "c_w + (mhw - lag(mhw))" },
+        { "id": "eq-27-ydhsr", "name": "ydhsr", "desc": "Rentier Haig-Simons real disposable income.", "expression": "c_r + (mhr - lag(mhr))" },
+        { "id": "eq-28-ydhsw_E", "name": "ydhsw_E", "desc": "Expected worker Haig-Simons income.", "expression": "epsilon * lag(ydhsw) + (1 - epsilon) * lag(ydhsw_E)" },
+        { "id": "eq-29-ydhsr_E", "name": "ydhsr_E", "desc": "Expected rentier Haig-Simons income.", "expression": "epsilon * lag(ydhsr) + (1 - epsilon) * lag(ydhsr_E)" },
+        { "id": "eq-30-c_w", "name": "c_w", "desc": "Real worker consumption demand.", "expression": "alpha0w + alpha1w * ydhsw_E + alpha2w * lag(mhw)" },
+        { "id": "eq-31-c_r", "name": "c_r", "desc": "Real rentier consumption demand.", "expression": "alpha0r + alpha1r * ydhsr_E + alpha2r * lag(mhr)" },
+        { "id": "eq-32-c", "name": "c", "desc": "Real aggregate consumption demand.", "expression": "c_w + c_r" },
+        { "id": "eq-33-Cw", "name": "Cw", "desc": "Nominal worker consumption.", "expression": "c_w * p" },
+        { "id": "eq-34-Cr", "name": "Cr", "desc": "Nominal rentier consumption.", "expression": "c_r * p" },
+        { "id": "eq-35-ydhs", "name": "ydhs", "desc": "Aggregate Haig-Simons real disposable income.", "expression": "ydhsw + ydhsr" }
+      ],
+      "collapsed": true
+    },
+    {
+      "id": "solver",
+      "type": "solver",
+      "title": "Solver",
+      "modelId": "equations",
+      "options": {
+        "periods": 100,
+        "solverMethod": "NEWTON",
+        "toleranceText": "1e-10",
+        "maxIterations": 200,
+        "defaultInitialValueText": "1e-15",
+        "hiddenLeftVariable": "",
+        "hiddenRightVariable": "",
+        "hiddenToleranceText": "0.00001",
+        "relativeHiddenTolerance": false
+      },
+      "collapsed": true
+    },
+    {
+      "id": "externals-equations",
+      "type": "externals",
+      "title": "Externals",
+      "modelId": "equations",
+      "externals": [
+        { "id": "ext-0-rl", "name": "rl", "desc": "Interest rate on loans.", "kind": "constant", "valueText": "0.025" },
+        { "id": "ext-1-pr", "name": "pr", "desc": "Labor productivity.", "kind": "constant", "valueText": "1" },
+        { "id": "ext-2-W", "name": "W", "desc": "Money wage.", "kind": "constant", "valueText": "0.75" },
+        { "id": "ext-3-add", "name": "add", "desc": "Spread between loan and deposit rates.", "kind": "constant", "valueText": "0.02" },
+        { "id": "ext-4-alpha0w", "name": "alpha0w", "desc": "Autonomous worker consumption.", "kind": "constant", "valueText": "10" },
+        { "id": "ext-5-alpha1w", "name": "alpha1w", "desc": "Worker propensity to consume out of expected disposable income.", "kind": "constant", "valueText": "0.85" },
+        { "id": "ext-6-alpha2w", "name": "alpha2w", "desc": "Worker propensity to consume out of wealth.", "kind": "constant", "valueText": "0.05" },
+        { "id": "ext-7-alpha0r", "name": "alpha0r", "desc": "Autonomous rentier consumption.", "kind": "constant", "valueText": "5" },
+        { "id": "ext-8-alpha1r", "name": "alpha1r", "desc": "Rentier propensity to consume out of expected disposable income.", "kind": "constant", "valueText": "0.7" },
+        { "id": "ext-9-alpha2r", "name": "alpha2r", "desc": "Rentier propensity to consume out of wealth.", "kind": "constant", "valueText": "0.2" },
+        { "id": "ext-10-beta", "name": "beta", "desc": "Speed of sales expectations adjustment.", "kind": "constant", "valueText": "0.75" },
+        { "id": "ext-11-epsilon", "name": "epsilon", "desc": "Speed of income expectations adjustment.", "kind": "constant", "valueText": "0.75" },
+        { "id": "ext-12-gamma", "name": "gamma", "desc": "Speed of inventory adjustment.", "kind": "constant", "valueText": "0.25" },
+        { "id": "ext-13-phi", "name": "phi", "desc": "Costing margin.", "kind": "constant", "valueText": "0.25" },
+        { "id": "ext-14-sigma_T", "name": "sigma_T", "desc": "Target inventory-to-sales ratio.", "kind": "constant", "valueText": "0.15" }
+      ],
+      "collapsed": true
+    },
+    {
+      "id": "initial-values-equations",
+      "type": "initial-values",
+      "title": "Initial values",
+      "modelId": "equations",
+      "initialValues": [
+        { "name": "Mhw", "valueText": "40" },
+        { "name": "Mhr", "valueText": "60" },
+        { "name": "Mh", "valueText": "100" },
+        { "name": "inv", "valueText": "15" },
+        { "name": "s_E", "valueText": "100" },
+        { "name": "ydhsw_E", "valueText": "40" },
+        { "name": "ydhsr_E", "valueText": "35" }
+      ],
+      "collapsed": true
+    },
+    {
+      "id": "baseline-run",
+      "type": "run",
+      "title": "Baseline run",
+      "mode": "baseline",
+      "resultKey": "gl6_dis_rentier_baseline",
+      "description": "Baseline rentier-split DIS simulation showing how inventory adjustment, bank credit, and worker/rentier wealth co-evolve under the Mh = Ms closure condition.",
+      "sourceModelId": "equations"
+    },
+    {
+      "id": "baseline-chart",
+      "type": "chart",
+      "title": "Baseline distribution variables",
+      "sourceRunCellId": "baseline-run",
+      "variables": ["ydhsw", "ydhsr", "c_w", "c_r", "Mhw", "Mhr"],
+      "axisMode": "separate",
+      "axisSnapTolarance": 0.5,
+      "seriesRanges": {
+        "Mhw": { "includeZero": true },
+        "Mhr": { "includeZero": true }
+      }
+    },
+    {
+      "id": "baseline-table",
+      "type": "table",
+      "title": "Baseline variable summary",
+      "sourceRunCellId": "baseline-run",
+      "variables": ["y", "ydhs", "ydhsw", "ydhsr", "c", "c_w", "c_r", "p", "Mh", "Mhw", "Mhr", "INV"]
+    },
+    {
+      "id": "scenario-1-note",
+      "type": "markdown",
+      "title": "Scenario 1",
+      "source": "Scenario 1 raises the costing margin `phi` from 0.25 to 0.35 between periods 5 and 40."
+    },
+    {
+      "id": "scenario-1-run",
+      "type": "run",
+      "title": "Scenario 1: costing margin shock",
+      "mode": "scenario",
+      "scenario": {
+        "shocks": [
+          {
+            "rangeInclusive": [5, 40],
+            "variables": { "phi": { "kind": "constant", "value": 0.35 } }
+          }
+        ]
+      },
+      "baselineRunCellId": "baseline-run",
+      "periods": 40,
+      "resultKey": "gl6_dis_rentier_s1",
+      "sourceModelId": "equations"
+    },
+    {
+      "id": "scenario-1-chart",
+      "type": "chart",
+      "title": "Scenario 1 distribution and prices",
+      "sourceRunCellId": "scenario-1-run",
+      "variables": ["c_w", "c_r", "ydhsw", "ydhsr", "p"],
+      "axisMode": "separate",
+      "axisSnapTolarance": 0.5,
+      "seriesRanges": { "p": { "includeZero": true } }
+    },
+    {
+      "id": "scenario-2-note",
+      "type": "markdown",
+      "title": "Scenario 2",
+      "source": "Scenario 2 raises the target inventories-to-sales ratio `sigma_T` from 0.15 to 0.25 between periods 5 and 50."
+    },
+    {
+      "id": "scenario-2-run",
+      "type": "run",
+      "title": "Scenario 2: inventory target shock",
+      "mode": "scenario",
+      "scenario": {
+        "shocks": [
+          {
+            "rangeInclusive": [5, 50],
+            "variables": { "sigma_T": { "kind": "constant", "value": 0.25 } }
+          }
+        ]
+      },
+      "baselineRunCellId": "baseline-run",
+      "periods": 50,
+      "resultKey": "gl6_dis_rentier_s2",
+      "sourceModelId": "equations"
+    },
+    {
+      "id": "scenario-2-chart",
+      "type": "chart",
+      "title": "Scenario 2 inventories and distribution",
+      "sourceRunCellId": "scenario-2-run",
+      "variables": ["ydhsw", "ydhsr", "inv", "inv_E", "Mhw", "Mhr"],
+      "axisMode": "separate",
+      "axisSnapTolarance": 0.5,
+      "seriesRanges": {
+        "inv": { "includeZero": true },
+        "inv_E": { "includeZero": true }
+      }
+    }
+  ]
+}

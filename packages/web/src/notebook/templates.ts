@@ -1,6 +1,8 @@
 import bmwNotebookJson from "./templates/bmw.notebook.json";
 import gl2PcNotebookJson from "./templates/gl2-pc.notebook.json";
 import gl6DisNotebookJson from "./templates/gl6-dis.notebook.json";
+import gl6DisRentierNotebookJson from "./templates/gl6-dis-rentier.notebook.json";
+import gl6DisRentierV2NotebookJson from "./templates/gl6-dis-rentier.notebook.v2.json";
 import gl7InsoutNotebookJson from "./templates/gl7-insout.notebook.json";
 import gl8GrowthNotebookJson from "./templates/gl8-growth.notebook.json";
 import predatorPreyNotebookJson from "./templates/predator-prey.notebook.json";
@@ -13,6 +15,8 @@ export type NotebookTemplateId =
   | "bmw"
   | "gl2-pc"
   | "gl6-dis"
+  | "gl6-dis-rentier"
+  | "gl6-dis-rentier-v2"
   | "gl7-insout"
   | "gl8-growth"
   | "predator-prey"
@@ -46,6 +50,19 @@ export const NOTEBOOK_TEMPLATES: Record<NotebookTemplateId, NotebookTemplateDefi
     label: "GL6 DIS",
     description: "DIS notebook based on the gl6-dis article baseline, matrices, and two scenarios.",
     document: notebookFromJson(JSON.stringify(gl6DisNotebookJson))
+  },
+  "gl6-dis-rentier": {
+    id: "gl6-dis-rentier",
+    label: "GL6 DIS Rentier",
+    description:
+      "Two-household DIS notebook with workers, rentiers, taxes, and a money-versus-bonds portfolio split.",
+    document: notebookFromJson(JSON.stringify(gl6DisRentierNotebookJson))
+  },
+  "gl6-dis-rentier-v2": {
+    id: "gl6-dis-rentier-v2",
+    label: "GL6 DIS Rentier v2",
+    description: "Separate v2 notebook entry for the DIS rentier template.",
+    document: notebookFromJson(JSON.stringify(gl6DisRentierV2NotebookJson))
   },
   "gl7-insout": {
     id: "gl7-insout",
