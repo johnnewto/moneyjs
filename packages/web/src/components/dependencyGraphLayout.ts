@@ -511,12 +511,28 @@ function buildSectorOccurrenceRenderGraph(
 
   renderGraph.nodes.forEach((node) => {
     const canonicalName = node.canonicalName ?? node.name;
-    const occurrences = (sectorDisplayOccurrences[canonicalName] ?? []).filter(
-      (occurrence) =>
-        occurrence.displayLabel === node.label &&
-        occurrence.sector !== "Exogenous" &&
-        occurrence.sector !== "Unmapped"
-    );
+    const dedupedOccurrences = new Map<string, DependencySectorDisplayOccurrence>();
+    (sectorDisplayOccurrences[canonicalName] ?? []).forEach((occurrence) => {
+      const matchesNode = node.isProxy
+        ? occurrence.displayLabel === node.label &&
+          (occurrence.kind === "proxy" ||
+            (occurrence.kind === "direct" && occurrence.displayLabel === canonicalName))
+        : occurrence.displayLabel === node.label ||
+          (occurrence.kind === "direct" && node.label === canonicalName && occurrence.variable === canonicalName);
+      if (
+        !matchesNode ||
+        occurrence.sector === "Exogenous" ||
+        occurrence.sector === "Unmapped"
+      ) {
+        return;
+      }
+
+      const occurrenceKey = `${occurrence.displayLabel}::${occurrence.sector}::${occurrence.sign}`;
+      if (!dedupedOccurrences.has(occurrenceKey)) {
+        dedupedOccurrences.set(occurrenceKey, occurrence);
+      }
+    });
+    const occurrences = Array.from(dedupedOccurrences.values());
     const primarySector = resolveDisplaySector(node, sectorTopology);
     const orderedOccurrences = [...occurrences].sort((left, right) => {
       if (left.sector === primarySector && right.sector !== primarySector) {
@@ -537,7 +553,7 @@ function buildSectorOccurrenceRenderGraph(
     const primaryNode: DisplayNode = {
       ...node,
       canonicalName,
-      label: formatOccurrenceLabel(node.label, primaryOccurrence?.sign),
+      label: formatOccurrenceLabel(primaryOccurrence?.displayLabel ?? node.label, primaryOccurrence?.sign),
       mirrorSector: primaryOccurrence?.sector,
       occurrenceKey: primaryOccurrence?.sourceCellKey,
       occurrenceSign: primaryOccurrence?.sign
@@ -555,7 +571,7 @@ function buildSectorOccurrenceRenderGraph(
         id: mirrorId,
         canonicalName,
         isMirror: true,
-        label: formatOccurrenceLabel(node.label, occurrence.sign),
+        label: formatOccurrenceLabel(occurrence.displayLabel, occurrence.sign),
         mirrorSector: occurrence.sector,
         occurrenceKey: occurrence.sourceCellKey,
         occurrenceSign: occurrence.sign

@@ -19,6 +19,7 @@ export interface VariableInspectorData {
   name: string;
   description?: string;
   unitLabel?: string | null;
+  parameterNames: string[];
   kind: "equation" | "external" | "initial-only" | "unknown";
   roleLabel: string;
   roleSummary: string;
@@ -36,6 +37,11 @@ export interface VariableInspectorData {
   affects: string[];
   affectsAccountingTerms: string[];
   appearsInEquations: EquationRow[];
+  relatedEquations: Array<{
+    equation: EquationRow;
+    role: "root" | "input" | "output" | "both";
+    tokenRoles: Map<string, "root" | "input" | "output" | "both">;
+  }>;
   externalDefinition: ExternalRow | null;
   isStockFlowLabel: string | null;
 }
@@ -44,6 +50,8 @@ interface EquationAnalysis {
   currentDependencies: string[];
   lagDependencies: string[];
 }
+
+type InspectorTraceRole = "root" | "input" | "output" | "both";
 
 export function buildVariableInspectorData(args: {
   currentValues?: Record<string, number | undefined>;
@@ -113,11 +121,21 @@ export function buildVariableInspectorData(args: {
   const equationRoleMeta = definingEquation
     ? buildEquationRoleMeta(definingEquation)
     : { label: null, sourceLabel: null };
+  const parameterNames = uniqueSorted(args.editor.externals.map((external) => external.name.trim()));
+  const relatedEquations = buildRelatedEquations({
+    editor: args.editor,
+    equationAnalysis,
+    equationInputs,
+    appearsInEquations,
+    definingEquation,
+    selectedVariable
+  });
 
   return {
     name: selectedVariable,
     description,
     unitLabel,
+    parameterNames,
     kind,
     roleLabel: formatRoleLabel(kind),
     roleSummary: buildRoleSummary({
@@ -140,9 +158,95 @@ export function buildVariableInspectorData(args: {
     affects,
     affectsAccountingTerms,
     appearsInEquations,
+    relatedEquations,
     externalDefinition,
     isStockFlowLabel: stockFlow ? capitalize(stockFlow) : null
   };
+}
+
+function buildRelatedEquations(args: {
+  editor: EditorState;
+  equationAnalysis: Map<string, EquationAnalysis>;
+  equationInputs: EquationAnalysis;
+  appearsInEquations: EquationRow[];
+  definingEquation: EquationRow | null;
+  selectedVariable: string;
+}): VariableInspectorData["relatedEquations"] {
+  const rowsByOutput = new Map<string, EquationRow[]>();
+  args.editor.equations.forEach((equation) => {
+    const output = equation.name.trim();
+    if (!output) {
+      return;
+    }
+    rowsByOutput.set(output, [...(rowsByOutput.get(output) ?? []), equation]);
+  });
+
+  const entries = new Map<
+    string,
+    {
+      equation: EquationRow;
+      role: InspectorTraceRole;
+      tokenRoles: Map<string, InspectorTraceRole>;
+      order: number;
+    }
+  >();
+
+  const orderById = new Map(args.editor.equations.map((equation, index) => [equation.id, index]));
+
+  function addEntry(
+    equation: EquationRow,
+    role: InspectorTraceRole,
+    tokenAssignments: Array<[string, InspectorTraceRole]>
+  ): void {
+    const existing = entries.get(equation.id);
+    const tokenRoles = existing?.tokenRoles ?? new Map<string, InspectorTraceRole>();
+    tokenAssignments.forEach(([token, tokenRole]) => {
+      const normalizedToken = token.trim();
+      if (!normalizedToken) {
+        return;
+      }
+      tokenRoles.set(
+        normalizedToken,
+        mergeInspectorTraceRole(tokenRoles.get(normalizedToken), tokenRole)
+      );
+    });
+
+    entries.set(equation.id, {
+      equation,
+      role: mergeInspectorTraceRole(existing?.role, role),
+      tokenRoles,
+      order: orderById.get(equation.id) ?? Number.MAX_SAFE_INTEGER
+    });
+  }
+
+  if (args.definingEquation) {
+    const definingAnalysis = args.equationAnalysis.get(args.definingEquation.id);
+    addEntry(args.definingEquation, "root", [
+      [args.selectedVariable, "root"],
+      ...((definingAnalysis?.currentDependencies ?? []).map((token) => [token, "input"] as const)),
+      ...((definingAnalysis?.lagDependencies ?? []).map((token) => [token, "input"] as const))
+    ]);
+
+    uniqueSorted([
+      ...args.equationInputs.currentDependencies,
+      ...args.equationInputs.lagDependencies
+    ]).forEach((dependency) => {
+      (rowsByOutput.get(dependency) ?? []).forEach((equation) => {
+        addEntry(equation, "input", [[dependency, "input"]]);
+      });
+    });
+  }
+
+  args.appearsInEquations.forEach((equation) => {
+    addEntry(equation, "output", [
+      [args.selectedVariable, "output"],
+      [equation.name.trim(), "output"]
+    ]);
+  });
+
+  return [...entries.values()]
+    .sort((left, right) => left.order - right.order)
+    .map(({ equation, role, tokenRoles }) => ({ equation, role, tokenRoles }));
 }
 
 function buildGeneratedEquationExplanation(
@@ -264,6 +368,25 @@ function formatRoleLabel(kind: VariableInspectorData["kind"]): string {
 
 function uniqueSorted(values: string[]): string[] {
   return [...new Set(values.filter(Boolean))].sort((left, right) => left.localeCompare(right));
+}
+
+function mergeInspectorTraceRole(
+  currentRole: InspectorTraceRole | undefined,
+  nextRole: InspectorTraceRole
+): InspectorTraceRole {
+  if (!currentRole || currentRole === nextRole) {
+    return nextRole;
+  }
+  if (currentRole === "both" || nextRole === "both") {
+    return "both";
+  }
+  if (currentRole === "root") {
+    return nextRole === "root" ? "root" : nextRole;
+  }
+  if (nextRole === "root") {
+    return currentRole;
+  }
+  return "both";
 }
 
 function pluralize(count: number, noun: string): string {

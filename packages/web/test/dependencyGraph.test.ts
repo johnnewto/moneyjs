@@ -287,6 +287,132 @@ describe("dependency graph viewer", () => {
     ).toHaveLength(1);
   });
 
+  it("preserves delta notation for signed direct accounting occurrences", () => {
+    const cells: NotebookCell[] = [
+      {
+        id: "balance-sheet",
+        type: "matrix",
+        title: "DIS balance sheet",
+        columns: ["Firms", "Sum"],
+        sectors: ["Firms", ""],
+        rows: [{ label: "Inventories", values: ["+INV", "0"] }]
+      },
+      {
+        id: "transaction-flow",
+        type: "matrix",
+        title: "DIS transactions-flow matrix",
+        columns: ["Firms_current", "Firms_capital", "Sum"],
+        sectors: ["Firms", "Firms", ""],
+        rows: [{ label: "Ch. Inventories", values: ["+d(INV)", "-d(INV)", "0"] }]
+      },
+      {
+        id: "equations",
+        type: "equations",
+        title: "DIS model",
+        modelId: "equations",
+        equations: [
+          { id: "eq-inv", name: "INV", expression: "inv * UC" },
+          { id: "eq-ef", name: "EF", expression: "INV" }
+        ]
+      }
+    ];
+    const dependencyCell: SequenceCell & {
+      source: Extract<SequenceCell["source"], { kind: "dependency" }>;
+    } = {
+      id: "equation-dependency-graph",
+      type: "sequence",
+      title: "DIS equation dependency graph",
+      source: { kind: "dependency", modelId: "equations" }
+    };
+    const graph = buildDependencyGraph({
+      equations: cells.find((cell) => cell.id === "equations" && cell.type === "equations")!.equations,
+      externals: [],
+      initialValues: []
+    });
+    const sectorTopology = buildDependencySectorTopology({ cells, dependencyCell, graph });
+    const directOccurrences = buildDependencySectorDisplayOccurrences({ cells, dependencyCell, graph });
+    const proxyOccurrences = buildDependencyProxyDisplayOccurrences(cells);
+    const snapshot = buildDependencyGraphLayoutSnapshot({
+      availableWidth: 960,
+      graph,
+      sectorDisplayOccurrences: mergeDisplayOccurrences(directOccurrences, proxyOccurrences),
+      sectorTopology,
+      viewMode: "strips"
+    });
+
+    const inventoryNodes = snapshot.layout.nodes.filter(
+      (node) => (node.canonicalName ?? node.name) === "INV"
+    );
+
+    expect(inventoryNodes).toHaveLength(3);
+    expect(inventoryNodes.map((node) => node.label).sort()).toEqual(["+INV", "+dINV", "-dINV"]);
+    expect(inventoryNodes.map((node) => node.occurrenceSign).sort()).toEqual(["+", "+", "-"]);
+  });
+
+  it("does not duplicate direct delta labels on proxy nodes in accounting strip view", () => {
+    const cells: NotebookCell[] = [
+      {
+        id: "balance-sheet",
+        type: "matrix",
+        title: "DIS balance sheet",
+        columns: ["Firms", "Sum"],
+        sectors: ["Firms", ""],
+        rows: [{ label: "Inventories", values: ["+INV", "0"] }]
+      },
+      {
+        id: "transaction-flow",
+        type: "matrix",
+        title: "DIS transactions-flow matrix",
+        columns: ["Firms_current", "Firms_capital", "Sum"],
+        sectors: ["Firms", "Firms", ""],
+        rows: [{ label: "Ch. Inventories", values: ["+d(INV)", "-d(INV)", "0"] }]
+      },
+      {
+        id: "equations",
+        type: "equations",
+        title: "DIS model",
+        modelId: "equations",
+        equations: [
+          { id: "eq-inv", name: "INV", expression: "inv * UC" },
+          { id: "eq-ef", name: "EF", expression: "INV" }
+        ]
+      }
+    ];
+    const dependencyCell: SequenceCell & {
+      source: Extract<SequenceCell["source"], { kind: "dependency" }>;
+    } = {
+      id: "equation-dependency-graph",
+      type: "sequence",
+      title: "DIS equation dependency graph",
+      source: { kind: "dependency", modelId: "equations" }
+    };
+    const graph = buildDependencyGraph({
+      equations: cells.find((cell) => cell.id === "equations" && cell.type === "equations")!.equations,
+      externals: [],
+      initialValues: []
+    });
+    const sectorTopology = buildDependencySectorTopology({ cells, dependencyCell, graph });
+    const directOccurrences = buildDependencySectorDisplayOccurrences({ cells, dependencyCell, graph });
+    const proxyOccurrences = buildDependencyProxyDisplayOccurrences(cells);
+    const rowTopology = buildDependencyRowTopology({ cells, dependencyCell, graph });
+    const snapshot = buildDependencyGraphLayoutSnapshot({
+      availableWidth: 960,
+      graph,
+      rowTopology,
+      sectorDisplayOccurrences: mergeDisplayOccurrences(directOccurrences, proxyOccurrences),
+      sectorTopology,
+      showAccountingStrips: true,
+      viewMode: "strips"
+    });
+
+    const inventoryNodes = snapshot.layout.nodes.filter(
+      (node) => (node.canonicalName ?? node.name) === "INV"
+    );
+
+    expect(inventoryNodes).toHaveLength(3);
+    expect(inventoryNodes.map((node) => node.label).sort()).toEqual(["+INV", "+dINV", "-dINV"]);
+  });
+
   it("adds signed proxy occurrences for accounting-derived terms in strip view", () => {
     const { cells, dependencyCell, graph } = buildBmwDependencyScenario();
     const sectorTopology = buildDependencySectorTopology({ cells, dependencyCell, graph });

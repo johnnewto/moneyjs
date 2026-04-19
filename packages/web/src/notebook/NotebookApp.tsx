@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { detectNotebookSourceFormat, notebookToJson, notebookToMarkdown, parseNotebookSource } from "./document";
 import {
@@ -31,11 +31,14 @@ import {
 } from "../lib/editorModel";
 import { PeriodScrubber } from "../components/PeriodScrubber";
 import { VariableInspector } from "../components/VariableInspector";
+import { useDragScroll } from "../hooks/useDragScroll";
+import { usePanelSplitter } from "../hooks/usePanelSplitter";
 import { buildVariableInspectorData } from "../lib/variableInspector";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
 import { buildVariableUnitMetadata } from "../lib/units";
 
 export function NotebookApp() {
+  const mainColumnRef = useRef<HTMLDivElement | null>(null);
   const [notebookDocument, setNotebookDocument] = useState(() =>
     createNotebookFromTemplate(resolveNotebookTemplateIdFromHash(window.location.hash))
   );
@@ -80,6 +83,14 @@ export function NotebookApp() {
         variableUnitMetadata: inspectorContext.variableUnitMetadata
       })
     : null;
+  const notebookMainDragScroll = useDragScroll<HTMLDivElement>();
+  const notebookRailDragScroll = useDragScroll<HTMLElement>();
+  const notebookPanelSplitter = usePanelSplitter({
+    defaultLeftWidthPercent: 62,
+    minLeftWidthPx: 640,
+    minRightWidthPx: 320,
+    storageKey: "sfcr:notebook-panel-split"
+  });
 
   useEffect(() => {
     setSelectedPeriodIndex((current) => Math.min(current, maxResultPeriodIndex));
@@ -342,6 +353,18 @@ export function NotebookApp() {
     );
   }
 
+  async function handleRunAll(): Promise<void> {
+    const startTime = performance.now();
+
+    try {
+      await runner.runAll();
+      const durationMs = performance.now() - startTime;
+      setUiMessage(`Ran all notebook cells in ${formatElapsedTime(durationMs)}.`);
+    } catch (error) {
+      setUiMessage(error instanceof Error ? error.message : "Unable to run notebook cells");
+    }
+  }
+
   function getCurrentValueMapForModelRef(ref: {
     modelId?: string;
     sourceModelId?: string;
@@ -380,10 +403,25 @@ export function NotebookApp() {
       return;
     }
 
+    const mainColumn = mainColumnRef.current;
     const scrubber = document.querySelector(".notebook-scrubber-slot");
     const scrubberHeight =
       scrubber instanceof HTMLElement ? scrubber.getBoundingClientRect().height : 0;
     const extraOffset = 0;
+
+    if (mainColumn) {
+      const mainColumnRect = mainColumn.getBoundingClientRect();
+      const cellRect = cell.getBoundingClientRect();
+      const targetTop =
+        mainColumn.scrollTop + cellRect.top - mainColumnRect.top - scrubberHeight - extraOffset;
+
+      mainColumn.scrollTo({
+        behavior: "smooth",
+        top: Math.max(targetTop, 0)
+      });
+      return;
+    }
+
     const targetTop =
       window.scrollY + cell.getBoundingClientRect().top - scrubberHeight - extraOffset;
 
@@ -407,7 +445,8 @@ export function NotebookApp() {
               uiMessage.toLowerCase().includes("imported") ||
               uiMessage.toLowerCase().includes("exported") ||
               uiMessage.toLowerCase().includes("downloaded") ||
-              uiMessage.toLowerCase().includes("loaded")
+              uiMessage.toLowerCase().includes("loaded") ||
+              uiMessage.toLowerCase().includes("ran all")
                 ? "is-success"
                 : "is-error"
             }`}
@@ -426,8 +465,16 @@ export function NotebookApp() {
         </section>
       ) : null}
 
-      <div className="notebook-layout">
-        <div className="notebook-main-column">
+      <div ref={notebookPanelSplitter.layoutRef} className="notebook-layout">
+        <div
+          ref={(node) => {
+            mainColumnRef.current = node;
+            notebookMainDragScroll.dragScrollRef.current = node;
+          }}
+          className={`notebook-main-column ${notebookMainDragScroll.dragScrollProps.className}`}
+          onClickCapture={notebookMainDragScroll.dragScrollProps.onClickCapture}
+          onMouseDown={notebookMainDragScroll.dragScrollProps.onMouseDown}
+        >
           {maxResultPeriodIndex > 0 ? (
             <div className="notebook-scrubber-slot">
               <PeriodScrubber
@@ -461,7 +508,7 @@ export function NotebookApp() {
                     ))}
                   </select>
                 </label>
-                <button type="button" className="notebook-run-button" onClick={() => void runner.runAll()}>
+                <button type="button" className="notebook-run-button" onClick={() => void handleRunAll()}>
                   Run all
                 </button>
                 <button
@@ -646,10 +693,15 @@ export function NotebookApp() {
           </section>
         </div>
 
+        <div {...notebookPanelSplitter.splitterProps} />
+
         <aside
+          ref={notebookRailDragScroll.dragScrollRef}
           className={`notebook-outline notebook-rail editor-panel${
             activeEditorCellId ? " notebook-outline-has-active-editor" : ""
-          }`}
+          } ${notebookRailDragScroll.dragScrollProps.className}`}
+          onClickCapture={notebookRailDragScroll.dragScrollProps.onClickCapture}
+          onMouseDown={notebookRailDragScroll.dragScrollProps.onMouseDown}
         >
           <div className="panel-header">
             <div>
@@ -763,6 +815,14 @@ function inferFormatFromFileName(fileName: string): "json" | "markdown" | null {
     return "markdown";
   }
   return null;
+}
+
+function formatElapsedTime(durationMs: number): string {
+  if (durationMs < 1000) {
+    return `${Math.round(durationMs)} ms`;
+  }
+
+  return `${(durationMs / 1000).toFixed(durationMs >= 10_000 ? 1 : 2)} s`;
 }
 
 function resolveNotebookTemplateIdFromHash(hash: string): NotebookTemplateId {

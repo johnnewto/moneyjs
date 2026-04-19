@@ -83,7 +83,33 @@ describe("EquationGridEditor", () => {
     expect(cRow).not.toHaveClass("trace-input");
   });
 
-  it("shows both input and output traces on ctrl-click", () => {
+  it("shows both input and output traces on click", () => {
+    render(
+      <EquationGridEditor
+        equations={[
+          { id: "eq-y", name: "Y", expression: "C + I" },
+          { id: "eq-c", name: "C", expression: "alpha1 * YD" },
+          { id: "eq-tax", name: "Tax", expression: "tau * Y" }
+        ]}
+        issues={{}}
+        onChange={vi.fn()}
+        parameterNames={["tau"]}
+      />
+    );
+
+    const rows = screen.getAllByRole("row");
+    const yRow = rows[1];
+    const cRow = rows[2];
+    const taxRow = rows[3];
+
+    fireEvent.click(yRow);
+
+    expect(yRow).toHaveClass("trace-root");
+    expect(cRow).toHaveClass("trace-input");
+    expect(taxRow).toHaveClass("trace-output");
+  });
+
+  it("shows only input traces on ctrl-click", () => {
     render(
       <EquationGridEditor
         equations={[
@@ -106,7 +132,7 @@ describe("EquationGridEditor", () => {
 
     expect(yRow).toHaveClass("trace-root");
     expect(cRow).toHaveClass("trace-input");
-    expect(taxRow).toHaveClass("trace-output");
+    expect(taxRow).not.toHaveClass("trace-output");
   });
 
   it("keeps a pinned trace active even while hovering another row", () => {
@@ -154,16 +180,18 @@ describe("EquationGridEditor", () => {
       throw new Error("Expected equation row for traced expression");
     }
 
-    fireEvent.click(yRow);
+    fireEvent.click(yRow, { ctrlKey: true });
 
     const tauTokens = within(yRow).getAllByText("tau");
     const yTokens = within(yRow).getAllByText("Y");
     const cTokens = within(yRow).getAllByText("C");
+    const iTokens = within(yRow).getAllByText("I");
 
     expect(tauTokens[0]).toHaveClass("formula-parameter");
     expect(yTokens[0]).toHaveClass("formula-uppercase");
     expect(yTokens.some((token) => token.className.includes("trace-token-root"))).toBe(true);
     expect(cTokens.some((token) => token.className.includes("trace-token-input"))).toBe(true);
+    expect(iTokens.some((token) => token.className.includes("trace-token-output"))).toBe(false);
   });
 
   it("renders and edits a description column", () => {

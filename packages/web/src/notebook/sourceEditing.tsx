@@ -353,13 +353,13 @@ export function buildNotebookCellHelpText(cell: NotebookCell): string {
       return [
         "Combined model cell with equations, externals, initial values, and solver settings.",
         "Use Edit to switch between the compact model view and the editor.",
-        "Hover previews inputs. Click pins inputs, Shift+click pins outputs, Ctrl/Cmd+click shows both."
+        "Hover previews inputs. Click shows both, Shift+click pins outputs, Ctrl/Cmd+click pins inputs."
       ].join("\n");
     case "equations":
       return [
         "Equation ledger for the linked model.",
         "Use Edit to switch between the compact read-only view and the equation editor.",
-        "Hover previews inputs. Click pins inputs, Shift+click pins outputs, Ctrl/Cmd+click shows both."
+        "Hover previews inputs. Click shows both, Shift+click pins outputs, Ctrl/Cmd+click pins inputs."
       ].join("\n");
     case "solver":
       return [

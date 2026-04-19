@@ -81,6 +81,7 @@ import type {
   TableCell
 } from "./types";
 import { useNotebookRunner } from "./useNotebookRunner";
+import { useDragScroll } from "../hooks/useDragScroll";
 
 export interface NotebookCellViewProps {
   activeEditorCellId: string | null;
@@ -1740,6 +1741,7 @@ function NotebookHelpButton({
 }) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const dialogRef = useRef<HTMLDivElement | null>(null);
+  const helpDialogDragScroll = useDragScroll<HTMLDivElement>();
 
   useEffect(() => {
     if (!isDialogOpen || !dialogContent) {
@@ -1807,7 +1809,14 @@ function NotebookHelpButton({
                   Close
                 </button>
               </div>
-              <div className="notebook-help-dialog-body">{dialogContent}</div>
+              <div
+                ref={helpDialogDragScroll.dragScrollRef}
+                className={`notebook-help-dialog-body ${helpDialogDragScroll.dragScrollProps.className}`}
+                onClickCapture={helpDialogDragScroll.dragScrollProps.onClickCapture}
+                onMouseDown={helpDialogDragScroll.dragScrollProps.onMouseDown}
+              >
+                {dialogContent}
+              </div>
             </div>
           </div>
         ) : null}
@@ -2519,6 +2528,7 @@ function MatrixCellView({
     variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
   }): void;
 }) {
+  const matrixDragScroll = useDragScroll<HTMLDivElement>();
   const result = cell.sourceRunCellId ? runner.getResult(cell.sourceRunCellId) : null;
   const editor = cell.sourceRunCellId ? resolveEditorStateForRunCellId(cells, cell.sourceRunCellId) : null;
   const currentValues = result
@@ -2537,7 +2547,12 @@ function MatrixCellView({
   return (
     <div className="notebook-matrix">
       {cell.description ? <p className="notebook-markdown">{cell.description}</p> : null}
-      <div className="notebook-matrix-wrap">
+      <div
+        ref={matrixDragScroll.dragScrollRef}
+        className={`notebook-matrix-wrap ${matrixDragScroll.dragScrollProps.className}`}
+        onClickCapture={matrixDragScroll.dragScrollProps.onClickCapture}
+        onMouseDown={matrixDragScroll.dragScrollProps.onMouseDown}
+      >
         <table className="notebook-matrix-table">
           <thead>
             <tr>

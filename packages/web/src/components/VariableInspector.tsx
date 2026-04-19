@@ -46,18 +46,6 @@ export function VariableInspector({
           <InspectorSection title={data.description?.trim() || "Equation"}>
             {data.definingEquation ? (
               <>
-                {data.equationRoleLabel ? (
-                  <dl className="inspector-facts">
-                    <div>
-                      <dt>Equation role</dt>
-                      <dd>{data.equationRoleLabel}</dd>
-                    </div>
-                    <div>
-                      <dt>Role source</dt>
-                      <dd>{data.equationRoleSourceLabel ?? "Unknown"}</dd>
-                    </div>
-                  </dl>
-                ) : null}
                 <code className="inspector-equation">
                   <VariableLabel
                     name={data.definingEquation.name}
@@ -79,9 +67,6 @@ export function VariableInspector({
                     <p>{data.generatedEquationExplanation}</p>
                   </div>
                 ) : null}
-                <p className="inspector-helper">
-                  {data.definingEquation.desc?.trim() || "No equation note has been entered."}
-                </p>
               </>
             ) : data.externalDefinition ? (
               <p>
@@ -93,39 +78,120 @@ export function VariableInspector({
           </InspectorSection>
 
           <InspectorSection title="Flows Affecting It">
-            <VariableChipList
-              emptyLabel="No direct current-period drivers detected."
-              label="Current-period drivers"
-              variableDescriptions={variableDescriptions}
-              variableUnitMetadata={variableUnitMetadata}
-              values={data.equationInputs.current}
-              onSelectVariable={onSelectVariable}
-            />
-            <VariableChipList
-              emptyLabel="No lagged drivers detected."
-              label="Lagged drivers"
-              variableDescriptions={variableDescriptions}
-              variableUnitMetadata={variableUnitMetadata}
-              values={data.equationInputs.lagged}
-              onSelectVariable={onSelectVariable}
-            />
+            <div className="inspector-chip-grid">
+              <VariableChipList
+                emptyLabel="No direct current-period drivers detected."
+                label="Current-period drivers"
+                variableDescriptions={variableDescriptions}
+                variableUnitMetadata={variableUnitMetadata}
+                values={data.equationInputs.current}
+                onSelectVariable={onSelectVariable}
+              />
+              <VariableChipList
+                emptyLabel="No lagged drivers detected."
+                label="Lagged drivers"
+                variableDescriptions={variableDescriptions}
+                variableUnitMetadata={variableUnitMetadata}
+                values={data.equationInputs.lagged}
+                onSelectVariable={onSelectVariable}
+              />
+            </div>
           </InspectorSection>
 
           <InspectorSection title="Directly Affects">
-            <VariableChipList
-              emptyLabel="No downstream equations reference this variable yet."
-              label="Downstream variables"
-              variableDescriptions={variableDescriptions}
-              variableUnitMetadata={variableUnitMetadata}
-              values={data.affects}
-              onSelectVariable={onSelectVariable}
-            />
-            <StaticChipList
-              emptyLabel="No accounting matrix terms reference this variable yet."
-              label="Accounting terms"
-              values={data.affectsAccountingTerms}
-            />
+            <div className="inspector-chip-grid">
+              <VariableChipList
+                emptyLabel="No downstream equations reference this variable yet."
+                label="Downstream variables"
+                variableDescriptions={variableDescriptions}
+                variableUnitMetadata={variableUnitMetadata}
+                values={data.affects}
+                onSelectVariable={onSelectVariable}
+              />
+              <StaticChipList
+                emptyLabel="No accounting matrix terms reference this variable yet."
+                label="Accounting terms"
+                values={data.affectsAccountingTerms}
+              />
+            </div>
           </InspectorSection>
+
+          <InspectorSection title="Affected equations">
+            {data.relatedEquations.length > 0 ? (
+              <div className="inspector-related-equation-list">
+                {data.relatedEquations.map((entry) => (
+                  <article
+                    key={entry.equation.id}
+                    className={`inspector-related-equation trace-${entry.role}`}
+                  >
+                    <div className="inspector-related-equation-meta">
+                      <button
+                        type="button"
+                        aria-label={`Inspect variable ${entry.equation.name.trim()}`}
+                        className="result-variable-button inspector-related-equation-title"
+                        onClick={() => onSelectVariable(entry.equation.name.trim())}
+                      >
+                        <span className="inspector-related-equation-title-name">
+                          <VariableLabel
+                            name={entry.equation.name}
+                            variableDescriptions={variableDescriptions}
+                            variableUnitMetadata={variableUnitMetadata}
+                          />
+                        </span>
+                        <span className="inspector-related-equation-title-separator" aria-hidden="true">
+                          |
+                        </span>
+                        <span className="inspector-related-equation-title-description">
+                          {getRelatedEquationTitleDescription(entry.equation.name.trim(), entry.equation.desc, variableDescriptions)}
+                        </span>
+                        <span className="inspector-related-equation-title-separator" aria-hidden="true">
+                          |
+                        </span>
+                        <span className="inspector-related-equation-title-role">
+                          {formatRelatedEquationRole(entry.role)}
+                        </span>
+                      </button>
+                    </div>
+                    <code className="inspector-equation">
+                      <VariableLabel
+                        name={entry.equation.name}
+                        variableDescriptions={variableDescriptions}
+                        variableUnitMetadata={variableUnitMetadata}
+                      />
+                      {" = "}
+                      {highlightFormula(
+                        entry.equation.expression,
+                        new Set(data.parameterNames),
+                        entry.tokenRoles,
+                        variableDescriptions,
+                        variableUnitMetadata,
+                        onSelectVariable
+                      )}
+                    </code>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="inspector-empty-note">
+                No related equations are available for this variable yet.
+              </div>
+            )}
+          </InspectorSection>
+
+          {data.equationRoleLabel ? (
+            <InspectorSection title="Equation metadata">
+              <dl className="inspector-facts">
+                <div>
+                  <dt>Equation role</dt>
+                  <dd>{data.equationRoleLabel}</dd>
+                </div>
+                <div>
+                  <dt>Role source</dt>
+                  <dd>{data.equationRoleSourceLabel ?? "Unknown"}</dd>
+                </div>
+              </dl>
+            </InspectorSection>
+          ) : null}
         </div>
       ) : (
         <div className="variable-inspector-empty">
@@ -133,6 +199,31 @@ export function VariableInspector({
         </div>
       )}
     </section>
+  );
+}
+
+function formatRelatedEquationRole(role: "root" | "input" | "output" | "both"): string {
+  switch (role) {
+    case "root":
+      return "Defining";
+    case "input":
+      return "Upstream";
+    case "output":
+      return "Downstream";
+    case "both":
+      return "Both";
+  }
+}
+
+function getRelatedEquationTitleDescription(
+  variableName: string,
+  equationDescription: string | undefined,
+  variableDescriptions?: VariableDescriptions
+): string {
+  return (
+    variableDescriptions?.get(variableName)?.trim() ||
+    equationDescription?.trim() ||
+    "No description"
   );
 }
 
@@ -202,6 +293,7 @@ function VariableChipList({
             <button
               key={value}
               type="button"
+              aria-label={`Inspect variable ${value}`}
               className="inspector-chip"
               onClick={() => onSelectVariable(value)}
             >

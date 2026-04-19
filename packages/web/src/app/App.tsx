@@ -21,6 +21,8 @@ import { ScenarioEditor } from "../components/ScenarioEditor";
 import { SolverPanel } from "../components/SolverPanel";
 import { ValidationSummary } from "../components/ValidationSummary";
 import { VariableInspector } from "../components/VariableInspector";
+import { useDragScroll } from "../hooks/useDragScroll";
+import { usePanelSplitter } from "../hooks/usePanelSplitter";
 import { useSolver } from "../hooks/useSolver";
 import { NotebookApp } from "../notebook/NotebookApp";
 import { useAppRoute } from "./routes";
@@ -234,6 +236,14 @@ export function WorkspaceApp() {
     variableDescriptions,
     variableUnitMetadata
   });
+  const workspaceMainDragScroll = useDragScroll<HTMLDivElement>();
+  const workspaceSidebarDragScroll = useDragScroll<HTMLElement>();
+  const workspacePanelSplitter = usePanelSplitter({
+    defaultLeftWidthPercent: 57,
+    minLeftWidthPx: 520,
+    minRightWidthPx: 360,
+    storageKey: "sfcr:workspace-panel-split"
+  });
 
   useEffect(() => {
     setSelectedPeriodIndex((current) => Math.min(current, maxResultPeriodIndex));
@@ -385,8 +395,16 @@ export function WorkspaceApp() {
         </a>
       </nav>
 
-      <div className="workspace-layout">
-        <div className="workspace-main">
+      <div
+        ref={workspacePanelSplitter.layoutRef}
+        className="workspace-layout"
+      >
+        <div
+          ref={workspaceMainDragScroll.dragScrollRef}
+          className={`workspace-main ${workspaceMainDragScroll.dragScrollProps.className}`}
+          onClickCapture={workspaceMainDragScroll.dragScrollProps.onClickCapture}
+          onMouseDown={workspaceMainDragScroll.dragScrollProps.onMouseDown}
+        >
           <EquationGridEditor
             buildError={buildDiagnostics.modelError}
             currentValues={currentValueMap}
@@ -443,7 +461,14 @@ export function WorkspaceApp() {
           ) : null}
         </div>
 
-        <aside className="workspace-sidebar">
+        <div {...workspacePanelSplitter.splitterProps} />
+
+        <aside
+          ref={workspaceSidebarDragScroll.dragScrollRef}
+          className={`workspace-sidebar ${workspaceSidebarDragScroll.dragScrollProps.className}`}
+          onClickCapture={workspaceSidebarDragScroll.dragScrollProps.onClickCapture}
+          onMouseDown={workspaceSidebarDragScroll.dragScrollProps.onMouseDown}
+        >
           <VariableInspector
             data={selectedVariableData}
             onSelectVariable={setSelectedVariable}

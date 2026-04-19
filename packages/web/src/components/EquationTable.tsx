@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { useDragScroll } from "../hooks/useDragScroll";
 import type { EquationRow } from "../lib/editorModel";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
 import { InstantTooltip } from "./InstantTooltip";
@@ -20,6 +21,7 @@ export function EquationTable({
 }: EquationTableProps) {
   const [selectedEquationId, setSelectedEquationId] = useState<string>(equations[0]?.id ?? "");
   const [query, setQuery] = useState("");
+  const equationListDragScroll = useDragScroll<HTMLDivElement>();
 
   const filteredEquations = equations.filter((equation) => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -103,7 +105,12 @@ export function EquationTable({
             <span>{invalidEquationCount} flagged</span>
           </div>
 
-          <div className="equation-list" role="list" aria-label="Equation list">
+          <div
+            ref={equationListDragScroll.dragScrollRef}
+            className={`equation-list ${equationListDragScroll.dragScrollProps.className}`}
+            onClickCapture={equationListDragScroll.dragScrollProps.onClickCapture}
+            onMouseDown={equationListDragScroll.dragScrollProps.onMouseDown}
+          >
             {filteredEquations.map((equation, index) => {
               const actualIndex = equations.findIndex((entry) => entry.id === equation.id);
               const hasIssue =

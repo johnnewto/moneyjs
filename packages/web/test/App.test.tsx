@@ -163,7 +163,7 @@ describe("App", () => {
     }
 
     const equationsHelpText = within(equationsCell).getByText(
-      /hover previews inputs\. click pins inputs, shift\+click pins outputs, ctrl\/cmd\+click shows both\./i
+      /hover previews inputs\. click shows both, shift\+click pins outputs, ctrl\/cmd\+click pins inputs\./i
     );
     expect(equationsHelpText).not.toBeVisible();
 
@@ -288,6 +288,22 @@ describe("App", () => {
     });
   });
 
+  it("shows a toast with wall time after running all notebook cells", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    notebookRunnerMock.runAll.mockClear();
+
+    await user.click(screen.getByRole("button", { name: /^run all$/i }));
+
+    await waitFor(() => {
+      expect(notebookRunnerMock.runAll).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole("status")).toHaveTextContent(/ran all notebook cells in /i);
+    });
+  });
+
   it("switches the notebook rail to the contents tab", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";
@@ -303,6 +319,24 @@ describe("App", () => {
       "true"
     );
     expect(screen.getAllByRole("button", { name: /bmw model/i }).length).toBeGreaterThan(0);
+  });
+
+  it("wires drag-scroll surfaces in notebook mode", () => {
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    const notebookSheet = screen.getByRole("region", { name: /notebook sheet/i }).parentElement;
+    expect(notebookSheet).not.toBeNull();
+    expect(notebookSheet?.className).toContain("notebook-main-column");
+    expect(notebookSheet?.className).toContain("drag-scroll-surface");
+
+    const notebookRail = screen.getByRole("tablist", {
+      name: /notebook sidebar panels/i
+    }).parentElement;
+    expect(notebookRail).not.toBeNull();
+    expect(notebookRail?.className).toContain("notebook-outline");
+    expect(notebookRail?.className).toContain("drag-scroll-surface");
   });
 
   it("renders BMW transaction-flow matrix values with flow units inferred from the full expression", () => {
@@ -501,9 +535,19 @@ describe("App", () => {
     }
 
     expect(within(inspector).getByText(/^Accounting terms$/i)).toBeInTheDocument();
+    const affectedEquationsHeading = within(inspector).getByText(/^Affected equations$/i);
+    expect(affectedEquationsHeading).toBeInTheDocument();
     expect(within(inspector).getByText(/^rm\*Mh$/i)).toBeInTheDocument();
     expect(within(inspector).getByText(/^rm\*Ms$/i)).toBeInTheDocument();
-    expect(within(inspector).getByRole("button", { name: /^YD\b/i })).toBeInTheDocument();
+    const affectedEquationsSection = affectedEquationsHeading.closest(".inspector-section");
+    expect(affectedEquationsSection).not.toBeNull();
+    if (!(affectedEquationsSection instanceof HTMLElement)) {
+      throw new Error("Expected affected equations section.");
+    }
+    expect(
+      within(affectedEquationsSection).getByRole("button", { name: /^Inspect variable YD$/i })
+    ).toBeInTheDocument();
+    expect(inspector.querySelector(".inspector-related-equation.trace-output")).not.toBeNull();
   });
 
   it("opens the notebook variable inspector from dependency graph nodes", async () => {
@@ -533,7 +577,21 @@ describe("App", () => {
 
     expect(screen.getByText("Selected variable")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^rm\b/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^YD\b/i })).toBeInTheDocument();
+    const inspectorHeading = screen.getByText(/^Selected variable$/i);
+    const inspector = inspectorHeading.closest(".variable-inspector-panel");
+    expect(inspector).not.toBeNull();
+    if (!(inspector instanceof HTMLElement)) {
+      throw new Error("Expected variable inspector container.");
+    }
+    const affectedEquationsHeading = within(inspector).getByText(/^Affected equations$/i);
+    const affectedEquationsSection = affectedEquationsHeading.closest(".inspector-section");
+    expect(affectedEquationsSection).not.toBeNull();
+    if (!(affectedEquationsSection instanceof HTMLElement)) {
+      throw new Error("Expected affected equations section.");
+    }
+    expect(
+      within(affectedEquationsSection).getByRole("button", { name: /^Inspect variable YD$/i })
+    ).toBeInTheDocument();
   });
 
   it("loads a notebook template from the hash path", () => {

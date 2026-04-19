@@ -59,7 +59,7 @@ export function EquationGridEditor({
             {showHeading ? <h2>Equations</h2> : null}
             {showTraceHelp ? (
               <p className="panel-subtitle">
-                Hover previews inputs. Click pins inputs, Shift+click pins outputs, Ctrl/Cmd+click shows both.
+                Hover previews inputs. Click shows both, Shift+click pins outputs, Ctrl/Cmd+click pins inputs.
               </p>
             ) : null}
           </div>
@@ -540,7 +540,7 @@ export function togglePinnedTrace(
   rowId: string,
   event: MouseEvent<HTMLElement>
 ): PinnedTrace | null {
-  const mode = event.metaKey || event.ctrlKey ? "both" : event.shiftKey ? "outputs" : "inputs";
+  const mode = event.metaKey || event.ctrlKey ? "inputs" : event.shiftKey ? "outputs" : "both";
   if (current?.rowId === rowId && current.mode === mode) {
     return null;
   }

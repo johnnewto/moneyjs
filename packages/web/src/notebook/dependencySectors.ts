@@ -134,7 +134,7 @@ export function buildDependencySectorDisplayOccurrences(args: {
     const sector = groupedSectorByOriginalSector.get(entry.sector) ?? entry.sector;
     const bucket = occurrencesByVariable.get(entry.variable) ?? [];
     const seen = seenByVariable.get(entry.variable) ?? new Set<string>();
-    const occurrenceKey = `${sector}::${entry.sign}`;
+    const occurrenceKey = `${entry.displayLabel}::${sector}::${entry.sign}`;
     if (!seen.has(occurrenceKey)) {
       bucket.push({ ...entry, sector });
       occurrencesByVariable.set(entry.variable, bucket);
@@ -314,10 +314,10 @@ function collectDisplaySectorOccurrencesFromMatrix(
         return;
       }
 
-      extractDisplayVariableOccurrences(value).forEach(({ sign, variable }) => {
+      extractDisplayVariableOccurrences(value).forEach(({ sign, variable, displayLabel }) => {
         entries.push({
           sign,
-          displayLabel: variable,
+          displayLabel,
           kind: "direct",
           variable,
           sector,
@@ -470,23 +470,27 @@ function extractVariableNames(source: string): string[] {
 
 function extractDisplayVariableOccurrences(
   source: string
-): Array<{ sign: DependencySectorDisplayOccurrenceSign; variable: string }> {
+): Array<{
+  sign: DependencySectorDisplayOccurrenceSign;
+  variable: string;
+  displayLabel: string;
+}> {
   const trimmed = source.trim();
   const sign = trimmed.startsWith("-") ? "-" : trimmed.startsWith("+") ? "+" : "neutral";
   const normalized = trimmed.replace(/^[-+]+\s*/, "");
   const deltaMatch = normalized.match(/^d\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)$/i);
   if (deltaMatch?.[1]) {
-    return [{ sign, variable: deltaMatch[1] }];
+    return [{ sign, variable: deltaMatch[1], displayLabel: `d${deltaMatch[1]}` }];
   }
 
   const lagMatch = normalized.match(/^lag\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)$/i);
   if (lagMatch?.[1]) {
-    return [{ sign, variable: lagMatch[1] }];
+    return [{ sign, variable: lagMatch[1], displayLabel: lagMatch[1] }];
   }
 
   const variableMatch = normalized.match(/^([A-Za-z_][A-Za-z0-9_]*)(?:\s*\[-1\])?$/);
   if (variableMatch?.[1]) {
-    return [{ sign, variable: variableMatch[1] }];
+    return [{ sign, variable: variableMatch[1], displayLabel: variableMatch[1] }];
   }
 
   return [];
