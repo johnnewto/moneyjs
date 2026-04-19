@@ -122,4 +122,50 @@ describe("sequence diagrams", () => {
       magnitude: 147.26
     });
   });
+
+  it("keeps explicit matrix flow direction when the runtime value is negative", () => {
+    const matrixCell: MatrixCell = {
+      id: "flows",
+      type: "matrix",
+      title: "Flows",
+      sourceRunCellId: "run-1",
+      columns: ["Rentiers", "Banks_current", "Sum"],
+      rows: [
+        { label: "Bank profits", values: ["+EFb", "-EFb", "0"] },
+        { label: "Sum", values: ["0", "0", "0"] }
+      ]
+    };
+    const result: SimulationResult = {
+      series: {
+        EFb: new Float64Array([-0.2])
+      },
+      blocks: [],
+      model: {
+        equations: [],
+        externals: {},
+        initialValues: {}
+      },
+      options: {
+        periods: 1,
+        solverMethod: "NEWTON",
+        tolerance: 1e-6,
+        maxIterations: 40
+      }
+    };
+
+    const diagram = buildSequenceDiagramFromMatrix(matrixCell, result, 0);
+
+    expect(diagram.errors).toEqual([]);
+    expect(diagram.steps).toEqual([
+      {
+        type: "message",
+        senderId: "Banks_current",
+        receiverId: "Rentiers",
+        label: "Bank profits (-0.20)",
+        lineStyle: "solid",
+        color: "#65d3b1",
+        magnitude: -0.2
+      }
+    ]);
+  });
 });

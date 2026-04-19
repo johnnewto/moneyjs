@@ -1,5 +1,6 @@
 import type { VariableDescriptions } from "../lib/variableDescriptions";
-import { formatValueWithUnits, type VariableUnitMetadata } from "../lib/unitMeta";
+import type { VariableUnitMetadata } from "../lib/unitMeta";
+import { NumericValueText } from "./NumericValueText";
 import { VariableLabel } from "./VariableLabel";
 
 interface ResultRow {
@@ -50,6 +51,7 @@ export function ResultTable({
                     onClick={() => onSelectVariable(row.name)}
                   >
                     <VariableLabel
+                      currentValues={{ [row.name]: row.selected }}
                       description={row.description}
                       name={row.name}
                       variableDescriptions={variableDescriptions}
@@ -58,6 +60,7 @@ export function ResultTable({
                   </button>
                 ) : (
                   <VariableLabel
+                    currentValues={{ [row.name]: row.selected }}
                     description={row.description}
                     name={row.name}
                     variableDescriptions={variableDescriptions}
@@ -65,26 +68,31 @@ export function ResultTable({
                   />
                 )}
               </td>
-              <td>{formatNumber(row.start, row.name, variableUnitMetadata)}</td>
-              <td>{formatNumber(row.selected, row.name, variableUnitMetadata)}</td>
-              <td>{formatNumber(row.end, row.name, variableUnitMetadata)}</td>
+              <td>
+                <NumericValueText
+                  unitMeta={variableUnitMetadata?.get(row.name)}
+                  value={row.start}
+                  options={{ maximumFractionDigits: 6 }}
+                />
+              </td>
+              <td>
+                <NumericValueText
+                  unitMeta={variableUnitMetadata?.get(row.name)}
+                  value={row.selected}
+                  options={{ maximumFractionDigits: 6 }}
+                />
+              </td>
+              <td>
+                <NumericValueText
+                  unitMeta={variableUnitMetadata?.get(row.name)}
+                  value={row.end}
+                  options={{ maximumFractionDigits: 6 }}
+                />
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
     </section>
   );
-}
-
-function formatNumber(
-  value: number,
-  variableName: string,
-  variableUnitMetadata?: VariableUnitMetadata
-): string {
-  if (!Number.isFinite(value)) {
-    return "NaN";
-  }
-  return formatValueWithUnits(value, variableUnitMetadata?.get(variableName), {
-    maximumFractionDigits: 6
-  });
 }

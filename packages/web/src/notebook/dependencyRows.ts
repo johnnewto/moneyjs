@@ -427,7 +427,8 @@ function normalizeVariableFamily(variable: string): string | null {
 
 function normalizeBandLabel(label: string): string {
   const trimmed = label.trim();
-  if (!trimmed || trimmed.toLowerCase() === "sum") {
+  const lower = trimmed.toLowerCase();
+  if (!trimmed || lower === "sum" || lower === "balance" || lower === "total") {
     return "";
   }
   return trimmed.replace(/\s+/g, " ");

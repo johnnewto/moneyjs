@@ -44,6 +44,7 @@ const STEP_GAP = 40;
 const FOOTER_GAP = 72;
 const HORIZONTAL_COMPACTNESS = 0.82;
 const BOTTOM_BOX_TOP_GAP = -12;
+const NEGATIVE_MESSAGE_LABEL_COLOR = "#b42318";
 
 export function SequenceDiagramCanvas({
   diagram,
@@ -263,6 +264,7 @@ function MessageShape({
   const labelY = isSelfMessage ? y - 12 : y - 13;
   const labelWidth = isSelfMessage ? 128 : Math.max(92, Math.abs(receiver.x - sender.x) - 16);
   const labelLines = wrapText(step.label, labelWidth, 12);
+  const labelColor = step.magnitude != null && step.magnitude < 0 ? NEGATIVE_MESSAGE_LABEL_COLOR : "#111827";
 
   const path = isSelfMessage
     ? `M ${sender.x} ${y} H ${sender.x + 46} V ${y + 24} H ${sender.x + 10}`
@@ -311,7 +313,7 @@ function MessageShape({
       <text
         x={labelX}
         y={labelY}
-        fill="#111827"
+        fill={labelColor}
         fontFamily="IBM Plex Sans, Segoe UI, sans-serif"
         fontSize={12}
         fontWeight={500}

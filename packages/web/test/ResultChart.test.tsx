@@ -11,6 +11,18 @@ afterEach(() => {
   cleanup();
 });
 
+function hasTextContent(expected: RegExp) {
+  return (_content: string, node: Element | null) => {
+    if (!node?.textContent || !expected.test(node.textContent)) {
+      return false;
+    }
+
+    return Array.from(node.children).every(
+      (child) => !child.textContent || !expected.test(child.textContent)
+    );
+  };
+}
+
 describe("ResultChart", () => {
   it("renders a shared left axis by default", () => {
     render(
@@ -27,7 +39,7 @@ describe("ResultChart", () => {
       screen.getByRole("img", { name: /simulation result chart with shared left axis/i })
     ).toBeInTheDocument();
     expect(screen.getByText("Value")).toBeInTheDocument();
-    expect(screen.getByText(/Shared axis: .* to /i)).toBeInTheDocument();
+    expect(screen.getByText(hasTextContent(/Shared axis: .* to /i))).toBeInTheDocument();
   });
 
   it("renders multiple left-axis labels in separate mode", () => {
@@ -48,7 +60,7 @@ describe("ResultChart", () => {
     expect(screen.getAllByText("P").length).toBeGreaterThan(0);
     expect(screen.getAllByText("POLR").length).toBeGreaterThan(0);
     expect(screen.getAllByText("NR").length).toBeGreaterThan(0);
-    expect(screen.getByText(/P: .* to /i)).toBeInTheDocument();
+    expect(screen.getByText(hasTextContent(/P: .* to /i))).toBeInTheDocument();
   });
 
   it("keeps separate-axis tick rows aligned by using the same tick count on each axis", () => {
@@ -84,7 +96,7 @@ describe("ResultChart", () => {
       />
     );
 
-    expect(screen.getByText(/Shared axis: -1\.00 to 26\.0/i)).toBeInTheDocument();
+    expect(screen.getByText(hasTextContent(/Shared axis: -1\.00 to 26\.0/i))).toBeInTheDocument();
   });
 
   it("supports manual shared and per-series ranges", () => {
@@ -103,8 +115,8 @@ describe("ResultChart", () => {
       />
     );
 
-    expect(screen.getByText(/P: 0\.000 to 10\.0/i)).toBeInTheDocument();
-    expect(screen.getByText(/POLR: -1\.00 to 26\.0/i)).toBeInTheDocument();
+    expect(screen.getByText(hasTextContent(/P: 0\.000 to 10\.0/i))).toBeInTheDocument();
+    expect(screen.getByText(hasTextContent(/POLR: -1\.00 to 26\.0/i))).toBeInTheDocument();
   });
 
   it("snaps similar separate auto axes when enabled", () => {
@@ -119,8 +131,8 @@ describe("ResultChart", () => {
       />
     );
 
-    expect(screen.getByText(/A: 9\.76 to 17\.2/i)).toBeInTheDocument();
-    expect(screen.getByText(/B: 9\.76 to 17\.2/i)).toBeInTheDocument();
+    expect(screen.getByText(hasTextContent(/A: 9\.76 to 17\.2/i))).toBeInTheDocument();
+    expect(screen.getByText(hasTextContent(/B: 9\.76 to 17\.2/i))).toBeInTheDocument();
   });
 
   it("does not snap manual per-series ranges", () => {
@@ -138,8 +150,8 @@ describe("ResultChart", () => {
       />
     );
 
-    expect(screen.getByText(/A: 0\.000 to 20\.0/i)).toBeInTheDocument();
-    expect(screen.getByText(/B: 10\.8 to 17\.2/i)).toBeInTheDocument();
+    expect(screen.getByText(hasTextContent(/A: 0\.000 to 20\.0/i))).toBeInTheDocument();
+    expect(screen.getByText(hasTextContent(/B: 10\.8 to 17\.2/i))).toBeInTheDocument();
   });
 
   it("uses the supplied auto time-range defaults", () => {
@@ -154,7 +166,7 @@ describe("ResultChart", () => {
     );
 
     expect(screen.getByText(/Time axis: 3 to 5/i)).toBeInTheDocument();
-    expect(screen.getByText(/Shared axis: 6\.56 to 18\.4/i)).toBeInTheDocument();
+    expect(screen.getByText(hasTextContent(/Shared axis: 6\.56 to 18\.4/i))).toBeInTheDocument();
   });
 
   it("supports manual time ranges", () => {
@@ -169,7 +181,7 @@ describe("ResultChart", () => {
     );
 
     expect(screen.getByText(/Time axis: 2 to 4/i)).toBeInTheDocument();
-    expect(screen.getByText(/Shared axis: 5\.60 to 16\.4/i)).toBeInTheDocument();
+    expect(screen.getByText(hasTextContent(/Shared axis: 5\.60 to 16\.4/i))).toBeInTheDocument();
   });
 
   it("uses nice y-axis tick spacing with 0 or 5 endings", () => {
@@ -198,7 +210,7 @@ describe("ResultChart", () => {
       />
     );
 
-    expect(screen.getByText(/Shared axis: 0\.100 to 0\.300/i)).toBeInTheDocument();
+    expect(screen.getByText(hasTextContent(/Shared axis: 0\.100 to 0\.300/i))).toBeInTheDocument();
   });
 
   it("highlights the nearest trace and shows a hover tooltip", () => {
@@ -223,7 +235,7 @@ describe("ResultChart", () => {
     fireEvent.mouseMove(chart, { clientX: 330, clientY: 250 });
 
     expect(screen.getByText(/A • Period 2/i)).toBeInTheDocument();
-    expect(screen.getByText(/Value: 12\.0/i)).toBeInTheDocument();
+    expect(screen.getByText(hasTextContent(/Value:\s*12\.0/i))).toBeInTheDocument();
     expect(screen.getByText("A").closest(".legend-item")).toHaveClass("is-active");
     expect(screen.getByText("B").closest(".legend-item")).toHaveClass("is-dimmed");
   });
@@ -251,7 +263,48 @@ describe("ResultChart", () => {
     fireEvent.mouseMove(chart, { clientX: 330, clientY: 250 });
 
     expect(screen.getByText(/Y • Description/i)).toBeInTheDocument();
-    expect(screen.getByText(/Value: 12\.0/i)).toBeInTheDocument();
+    expect(screen.getByText(hasTextContent(/Value:\s*12\.0/i))).toBeInTheDocument();
+  });
+
+  it("colors negative hover values red", () => {
+    render(
+      <ResultChart
+        series={[
+          { name: "A", values: [-10, -12, -14, -16] },
+          { name: "B", values: [30, 32, 34, 36] }
+        ]}
+      />
+    );
+
+    const chart = screen.getByRole("img", { name: /simulation result chart with shared left axis/i });
+    chart.getBoundingClientRect = () =>
+      ({
+        left: 0,
+        top: 0,
+        width: 900,
+        height: 360
+      }) as DOMRect;
+
+    fireEvent.mouseMove(chart, { clientX: 330, clientY: 250 });
+
+    const negativeValue = screen.getByText("-12.0");
+    expect(negativeValue).toHaveAttribute("fill", "#b42318");
+  });
+
+  it("colors negative scale bounds red", () => {
+    const { container } = render(
+      <ResultChart
+        series={[
+          { name: "A", values: [-10, -12, -14, -16] },
+          { name: "B", values: [30, 32, 34, 36] }
+        ]}
+      />
+    );
+
+    const negativeBound = container.querySelector(".chart-scale .numeric-value-negative");
+    expect(negativeBound).not.toBeNull();
+    expect(negativeBound).toHaveTextContent(/-/);
+    expect(negativeBound).toHaveClass("numeric-value-negative");
   });
 
   it("highlights the matching legend and axis in multi-axis mode on hover", () => {

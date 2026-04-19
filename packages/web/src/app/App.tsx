@@ -470,6 +470,7 @@ export function WorkspaceApp() {
           onMouseDown={workspaceSidebarDragScroll.dragScrollProps.onMouseDown}
         >
           <VariableInspector
+            currentValues={currentValueMap}
             data={selectedVariableData}
             onSelectVariable={setSelectedVariable}
             variableDescriptions={variableDescriptions}

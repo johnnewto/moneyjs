@@ -206,17 +206,19 @@ export function buildSequenceDiagramFromMatrix(
 
     const negatives = rowValues.filter(
       (entry) =>
-        entry.direction === -1 || (entry.value != null && entry.value < -1e-9)
+        entry.direction === -1 ||
+        (entry.direction == null && entry.value != null && entry.value < -1e-9)
     );
     const positives = rowValues.filter(
       (entry) =>
-        entry.direction === 1 || (entry.value != null && entry.value > 1e-9)
+        entry.direction === 1 ||
+        (entry.direction == null && entry.value != null && entry.value > 1e-9)
     );
     const ambiguousEntries = rowValues.filter((entry) => entry.value == null);
 
     if (negatives.length === 1 && positives.length >= 1) {
       positives.forEach((positive, positiveIndex) => {
-        const magnitude = positive.value ?? null;
+        const magnitude = resolveFlowMagnitude(positive, negatives[0]);
         if (!includeZeroFlows && magnitude != null && Math.abs(magnitude) < 1e-9) {
           return;
         }
@@ -235,7 +237,7 @@ export function buildSequenceDiagramFromMatrix(
 
     if (positives.length === 1 && negatives.length >= 1) {
       negatives.forEach((negative, negativeIndex) => {
-        const magnitude = negative.value == null ? null : Math.abs(negative.value);
+        const magnitude = resolveFlowMagnitude(positives[0], negative);
         if (!includeZeroFlows && magnitude != null && Math.abs(magnitude) < 1e-9) {
           return;
         }
@@ -253,7 +255,7 @@ export function buildSequenceDiagramFromMatrix(
     }
 
     if (negatives.length === 1 && positives.length === 1) {
-      const magnitude = positives[0].value ?? Math.abs(negatives[0].value ?? 0);
+      const magnitude = resolveFlowMagnitude(positives[0], negatives[0]);
       if (!includeZeroFlows && magnitude != null && Math.abs(magnitude) < 1e-9) {
         return;
       }
@@ -292,6 +294,19 @@ export function buildSequenceDiagramFromMatrix(
     steps,
     errors: []
   };
+}
+
+function resolveFlowMagnitude(
+  positive: { value: number | null },
+  negative: { value: number | null }
+): number | null {
+  if (positive.value != null) {
+    return positive.value;
+  }
+  if (negative.value != null) {
+    return -negative.value;
+  }
+  return null;
 }
 
 function parseParticipantDeclaration(

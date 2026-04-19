@@ -2890,6 +2890,10 @@ body.panel-splitter-body-lock {
   font-size: 0.76rem;
 }
 
+.numeric-value-negative {
+  color: #b42318;
+}
+
 .matrix-balance-error {
   background: rgba(254, 242, 242, 0.85);
   color: #991b1b;

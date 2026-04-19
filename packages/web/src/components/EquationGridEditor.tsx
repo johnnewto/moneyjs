@@ -3,7 +3,7 @@ import { useMemo, useRef, useState, type MouseEvent, type ReactNode } from "reac
 import type { EquationRole } from "@sfcr/core";
 import type { EquationRow, ValidationIssue } from "../lib/editorModel";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
-import { formatVariableTooltip, type VariableUnitMetadata } from "../lib/unitMeta";
+import { resolveVariableTooltip, type VariableUnitMetadata } from "../lib/unitMeta";
 import { getVariableUnitLabel } from "../lib/units";
 import { InstantTooltip } from "./InstantTooltip";
 
@@ -24,7 +24,7 @@ interface EquationGridEditorProps {
 
 export function EquationGridEditor({
   buildError = null,
-  currentValues: _currentValues = {},
+  currentValues = {},
   equations,
   issues,
   isEmbedded = false,
@@ -127,6 +127,7 @@ export function EquationGridEditor({
                     parameterNames={parameterNameSet}
                     placeholder="Y"
                     value={equation.name}
+                    currentValues={currentValues}
                     onSelectVariable={onSelectVariable}
                     variableDescriptions={variableDescriptions}
                     variableUnitMetadata={variableUnitMetadata}
@@ -145,8 +146,10 @@ export function EquationGridEditor({
                     parameterNames={parameterNameSet}
                     placeholder="Cs + Gs"
                     value={equation.expression}
+                    currentValues={currentValues}
                     onSelectVariable={onSelectVariable}
                     variableDescriptions={variableDescriptions}
+                    variableUnitMetadata={variableUnitMetadata}
                   />
                   <label className="equation-grid-role-cell">
                     <select
@@ -242,6 +245,7 @@ const EQUATION_ROLE_OPTIONS: Array<{ value: EquationRole; label: string }> = [
 interface HighlightedFormulaInputProps {
   ariaLabel: string;
   className?: string;
+  currentValues?: Record<string, number | undefined>;
   displayTokens?: Map<string, string>;
   footer?: ReactNode;
   highlightedTokens?: Map<string, TraceTokenRole>;
@@ -259,6 +263,7 @@ interface HighlightedFormulaInputProps {
 function HighlightedFormulaInput({
   ariaLabel,
   className = "",
+  currentValues,
   displayTokens,
   footer,
   highlightedTokens,
@@ -290,7 +295,8 @@ function HighlightedFormulaInput({
               variableDescriptions,
               variableUnitMetadata,
               onSelectVariable,
-              displayTokens
+              displayTokens,
+              currentValues
             )
           : placeholder}
       </div>
@@ -322,7 +328,8 @@ export function highlightFormula(
   variableDescriptions?: VariableDescriptions,
   variableUnitMetadata?: VariableUnitMetadata,
   onSelectVariable?: (variableName: string) => void,
-  displayTokens?: Map<string, string>
+  displayTokens?: Map<string, string>,
+  currentValues?: Record<string, number | undefined>
 ): ReactNode[] {
   const parts: ReactNode[] = [];
   const tokenPattern = /([A-Za-z_][A-Za-z0-9_]*|\d+(?:\.\d+)?(?:e[+-]?\d+)?)/gi;
@@ -348,10 +355,12 @@ export function highlightFormula(
       tokenClass !== "formula-number" &&
       tokenClass !== "formula-default" &&
       hasVariableMetadata
-        ? formatVariableTooltip(
-            variableDescriptions?.get(normalizedToken),
-            variableUnitMetadata?.get(normalizedToken)
-          )
+        ? resolveVariableTooltip({
+            name: normalizedToken,
+            variableDescriptions,
+            variableUnitMetadata,
+            currentValues
+          })
         : undefined;
     const tokenClassName = `formula-token ${tokenClass}${traceClass ? ` trace-token-${traceClass}` : ""}${
       onSelectVariable &&

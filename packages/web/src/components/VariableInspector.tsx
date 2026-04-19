@@ -7,6 +7,7 @@ import { highlightFormula } from "./EquationGridEditor";
 import { VariableLabel } from "./VariableLabel";
 
 interface VariableInspectorProps {
+  currentValues?: Record<string, number | undefined>;
   data: VariableInspectorData | null;
   onSelectVariable(variableName: string): void;
   variableDescriptions?: VariableDescriptions;
@@ -14,6 +15,7 @@ interface VariableInspectorProps {
 }
 
 export function VariableInspector({
+  currentValues,
   data,
   onSelectVariable,
   variableDescriptions,
@@ -28,6 +30,7 @@ export function VariableInspector({
               <div className="eyebrow">Selected variable</div>
               <h3>
                 <VariableLabel
+                  currentValues={currentValues}
                   name={data.name}
                   variableDescriptions={variableDescriptions}
                   variableUnitMetadata={variableUnitMetadata}
@@ -48,6 +51,7 @@ export function VariableInspector({
               <>
                 <code className="inspector-equation">
                   <VariableLabel
+                    currentValues={currentValues}
                     name={data.definingEquation.name}
                     variableDescriptions={variableDescriptions}
                     variableUnitMetadata={variableUnitMetadata}
@@ -58,7 +62,10 @@ export function VariableInspector({
                     new Set<string>(),
                     undefined,
                     variableDescriptions,
-                    variableUnitMetadata
+                    variableUnitMetadata,
+                    undefined,
+                    undefined,
+                    currentValues
                   )}
                 </code>
                 {data.generatedEquationExplanation ? (
@@ -80,6 +87,7 @@ export function VariableInspector({
           <InspectorSection title="Flows Affecting It">
             <div className="inspector-chip-grid">
               <VariableChipList
+                currentValues={currentValues}
                 emptyLabel="No direct current-period drivers detected."
                 label="Current-period drivers"
                 variableDescriptions={variableDescriptions}
@@ -88,6 +96,7 @@ export function VariableInspector({
                 onSelectVariable={onSelectVariable}
               />
               <VariableChipList
+                currentValues={currentValues}
                 emptyLabel="No lagged drivers detected."
                 label="Lagged drivers"
                 variableDescriptions={variableDescriptions}
@@ -101,6 +110,7 @@ export function VariableInspector({
           <InspectorSection title="Directly Affects">
             <div className="inspector-chip-grid">
               <VariableChipList
+                currentValues={currentValues}
                 emptyLabel="No downstream equations reference this variable yet."
                 label="Downstream variables"
                 variableDescriptions={variableDescriptions}
@@ -133,6 +143,7 @@ export function VariableInspector({
                       >
                         <span className="inspector-related-equation-title-name">
                           <VariableLabel
+                            currentValues={currentValues}
                             name={entry.equation.name}
                             variableDescriptions={variableDescriptions}
                             variableUnitMetadata={variableUnitMetadata}
@@ -154,6 +165,7 @@ export function VariableInspector({
                     </div>
                     <code className="inspector-equation">
                       <VariableLabel
+                        currentValues={currentValues}
                         name={entry.equation.name}
                         variableDescriptions={variableDescriptions}
                         variableUnitMetadata={variableUnitMetadata}
@@ -165,7 +177,9 @@ export function VariableInspector({
                         entry.tokenRoles,
                         variableDescriptions,
                         variableUnitMetadata,
-                        onSelectVariable
+                        onSelectVariable,
+                        undefined,
+                        currentValues
                       )}
                     </code>
                   </article>
@@ -270,6 +284,7 @@ function InspectorSection({
 }
 
 function VariableChipList({
+  currentValues,
   emptyLabel,
   label,
   onSelectVariable,
@@ -277,6 +292,7 @@ function VariableChipList({
   variableUnitMetadata,
   values
 }: {
+  currentValues?: Record<string, number | undefined>;
   emptyLabel: string;
   label: string;
   onSelectVariable(variableName: string): void;
@@ -298,6 +314,7 @@ function VariableChipList({
               onClick={() => onSelectVariable(value)}
             >
               <VariableLabel
+                currentValues={currentValues}
                 name={value}
                 variableDescriptions={variableDescriptions}
                 variableUnitMetadata={variableUnitMetadata}

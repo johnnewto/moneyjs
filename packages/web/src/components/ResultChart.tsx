@@ -481,7 +481,10 @@ export function ResultChart({
                 {hoverTooltip.description ? hoverTooltip.description : `Period ${hoverTooltip.period}`}
               </text>
               <text x="10" y="31" fill="#e2e8f0" fontSize="11">
-                Value: {formatAxisValue(hoverTooltip.value)}
+                <tspan>Value: </tspan>
+                <tspan fill={hoverTooltip.value < 0 ? "#b42318" : "#e2e8f0"}>
+                  {formatAxisValue(hoverTooltip.value)}
+                </tspan>
               </text>
               {hoverTooltip.unitLabel ? (
                 <text x="10" y="46" fill="#cbd5e1" fontSize="11">
@@ -511,7 +514,9 @@ export function ResultChart({
           Time axis: {resolvedTimeRange.startPeriodInclusive + periodLabelOffset} to {resolvedTimeRange.endPeriodInclusive + periodLabelOffset}
         </span>
         {axisMode === "shared" ? (
-          <span>Shared axis: {formatAxisValue(sharedMetrics.min)} to {formatAxisValue(sharedMetrics.max)}</span>
+          <span>
+            Shared axis: <span className={sharedMetrics.min < 0 ? "numeric-value-negative" : undefined}>{formatAxisValue(sharedMetrics.min)}</span> to <span className={sharedMetrics.max < 0 ? "numeric-value-negative" : undefined}>{formatAxisValue(sharedMetrics.max)}</span>
+          </span>
         ) : (
           axisMetrics.map((entry) => (
             <InstantTooltip
@@ -523,7 +528,7 @@ export function ResultChart({
                 variableUnitMetadata?.get(entry.name)
               )}
             >
-              {entry.name}: {formatAxisValue(entry.min)} to {formatAxisValue(entry.max)}
+              {entry.name}: <span className={entry.min < 0 ? "numeric-value-negative" : undefined}>{formatAxisValue(entry.min)}</span> to <span className={entry.max < 0 ? "numeric-value-negative" : undefined}>{formatAxisValue(entry.max)}</span>
             </InstantTooltip>
           ))
         )}

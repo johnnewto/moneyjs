@@ -1,13 +1,15 @@
 import type { ReactNode } from "react";
 
 import type { VariableDescriptions } from "../lib/variableDescriptions";
-import { formatVariableTooltip, type VariableUnitMetadata } from "../lib/unitMeta";
+import { resolveVariableTooltip, type VariableUnitMetadata } from "../lib/unitMeta";
 import { getVariableUnitLabel } from "../lib/units";
 import { InstantTooltip } from "./InstantTooltip";
 
 interface VariableLabelProps {
   children?: ReactNode;
   className?: string;
+  currentValue?: number;
+  currentValues?: Record<string, number | undefined>;
   description?: string;
   name: string;
   variableDescriptions?: VariableDescriptions;
@@ -17,16 +19,22 @@ interface VariableLabelProps {
 export function VariableLabel({
   children,
   className,
+  currentValue,
+  currentValues,
   description,
   name,
   variableDescriptions,
   variableUnitMetadata
 }: VariableLabelProps) {
   const normalizedName = name.trim();
-  const tooltip = formatVariableTooltip(
-    description ?? (normalizedName ? variableDescriptions?.get(normalizedName) : undefined),
-    normalizedName ? variableUnitMetadata?.get(normalizedName) : undefined
-  );
+  const tooltip = resolveVariableTooltip({
+    name,
+    description,
+    variableDescriptions,
+    variableUnitMetadata,
+    currentValue,
+    currentValues
+  });
   const unitLabel = normalizedName ? getVariableUnitLabel(variableUnitMetadata ?? new Map(), normalizedName) : null;
 
   return (

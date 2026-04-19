@@ -27,6 +27,7 @@ import { SequenceDiagramCanvas } from "../components/SequenceDiagramCanvas";
 import { SolverPanel } from "../components/SolverPanel";
 import { InstantTooltip } from "../components/InstantTooltip";
 import { VariableLabel } from "../components/VariableLabel";
+import { NumericValueText } from "../components/NumericValueText";
 import {
   buildRuntimeConfig,
   diagnoseBuildRuntime,
@@ -39,7 +40,6 @@ import {
   type VariableDescriptions
 } from "../lib/variableDescriptions";
 import { buildVariableUnitMetadata, inferUnits } from "../lib/units";
-import { formatNamedValueWithUnits, formatValueWithUnits } from "../lib/unitMeta";
 import {
   buildEditorStateForNotebookModel,
   buildEditorStateFromSections,
@@ -868,6 +868,7 @@ function ModelCellView({
                                 }`
                               : undefined
                           }
+                          currentValues={currentValues}
                           name={equation.name}
                           variableDescriptions={variableDescriptions}
                           variableUnitMetadata={variableUnitMetadata}
@@ -892,7 +893,9 @@ function ModelCellView({
                               selectedVariable,
                               variableDescriptions,
                               variableUnitMetadata
-                            })
+                            }),
+                          undefined,
+                          currentValues
                         )
                       : " "}
                   </span>
@@ -1166,6 +1169,7 @@ function EquationsCellView({
                         }}
                       >
                         <VariableLabel
+                          currentValues={currentValues}
                           className={
                             traceRole && equation.name.trim()
                               ? `formula-token trace-token-${
@@ -1185,20 +1189,21 @@ function EquationsCellView({
                   <span className="notebook-model-view-expression" role="cell">
                     {equation.expression
                       ? highlightFormula(
-                        equation.expression,
-                        parameterNameSet,
-                        traceRole ? activeTrace?.tokenStates : undefined,
-                        variableDescriptions,
-                        variableUnitMetadata,
-                        (selectedVariable) =>
-                          onVariableInspectRequest({
-                            currentValues,
-                            editor,
-                            selectedVariable,
-                            variableDescriptions,
-                            variableUnitMetadata
+                          equation.expression,
+                          parameterNameSet,
+                          traceRole ? activeTrace?.tokenStates : undefined,
+                          variableDescriptions,
+                          variableUnitMetadata,
+                          (selectedVariable) =>
+                            onVariableInspectRequest({
+                              currentValues,
+                              editor,
+                              selectedVariable,
+                              variableDescriptions,
+                              variableUnitMetadata
                             }),
-                        showExternalValues ? externalDisplayValues : undefined
+                          showExternalValues ? externalDisplayValues : undefined,
+                          currentValues
                         )
                       : " "}
                   </span>
@@ -1532,6 +1537,7 @@ function ExternalsCellView({
                 >
                   <span className="notebook-model-view-name" role="cell">
                     <VariableLabel
+                      currentValues={currentValues}
                       name={external.name || "?"}
                       variableDescriptions={variableDescriptions}
                       variableUnitMetadata={variableUnitMetadata}
@@ -2574,6 +2580,7 @@ function MatrixCellView({
                       }
                     >
                       <VariableLabel
+                        currentValues={currentValues}
                         name={column}
                         variableDescriptions={variableDescriptions}
                         variableUnitMetadata={variableUnitMetadata}
@@ -2581,6 +2588,7 @@ function MatrixCellView({
                     </button>
                   ) : (
                     <VariableLabel
+                      currentValues={currentValues}
                       name={column}
                       variableDescriptions={variableDescriptions}
                       variableUnitMetadata={variableUnitMetadata}
@@ -2625,7 +2633,9 @@ function MatrixCellView({
                                   variableDescriptions,
                                   variableUnitMetadata
                                 })
-                            : undefined
+                            : undefined,
+                          undefined,
+                          currentValues
                         )}
                       </span>
                       {entry.resolved ? (
@@ -3402,10 +3412,21 @@ function formatNotebookCurrentValue(
   name: string,
   value: number | undefined,
   variableUnitMetadata?: ReturnType<typeof buildVariableUnitMetadata>
-): string {
-  return formatNamedValueWithUnits(name, value, variableUnitMetadata?.get(name.trim()), {
-    maximumFractionDigits: 6
-  });
+): React.JSX.Element | string {
+  const trimmedName = name.trim();
+  if (!trimmedName) {
+    return "";
+  }
+
+  return (
+    <NumericValueText
+      prefix={`${trimmedName} = `}
+      fallback="--"
+      unitMeta={variableUnitMetadata?.get(trimmedName)}
+      value={value}
+      options={{ maximumFractionDigits: 6 }}
+    />
+  );
 }
 
 function formatEquationRoleLabel(equation: {
@@ -3451,7 +3472,7 @@ function formatResolvedMatrixValue(
   source: string,
   resolved: string,
   variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>
-): string {
+): React.JSX.Element | string {
   const valueText = resolved.replace(/^=\s*/, "");
   const numericValue = Number(valueText.replace(/,/g, ""));
   if (!Number.isFinite(numericValue)) {
@@ -3459,10 +3480,17 @@ function formatResolvedMatrixValue(
   }
 
   const unitMeta = inferMatrixExpressionUnitMeta(source, variableUnitMetadata);
-  return `= ${formatValueWithUnits(numericValue, unitMeta, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  })}`;
+  return (
+    <NumericValueText
+      prefix="= "
+      unitMeta={unitMeta}
+      value={numericValue}
+      options={{
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }}
+    />
+  );
 }
 
 function inferMatrixExpressionUnitMeta(

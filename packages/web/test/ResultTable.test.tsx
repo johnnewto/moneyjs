@@ -32,8 +32,7 @@ describe("ResultTable", () => {
 
     fireEvent.mouseEnter(screen.getByText("Y"));
 
-    expect(screen.getByRole("tooltip")).toHaveTextContent("Income = GDP");
-    expect(screen.getByRole("tooltip")).toHaveTextContent("$/yr");
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Income = GDP : $120/yr");
     expect(screen.getByText("$/yr")).toBeInTheDocument();
   });
 });

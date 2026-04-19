@@ -1,3 +1,5 @@
+import type { VariableDescriptions } from "./variableDescriptions";
+
 export type BaseDimension = "money" | "items" | "time";
 export type StockFlowKind = "stock" | "flow" | "aux";
 export type UnitSignature = Partial<Record<BaseDimension, number>>;
@@ -158,14 +160,49 @@ export function formatUnitText(unitMeta?: UnitMeta): string | null {
   return formatSignature(signature);
 }
 
-export function formatVariableTooltip(description?: string, unitMeta?: UnitMeta): string | undefined {
+export function formatVariableTooltip(
+  description?: string,
+  unitMeta?: UnitMeta,
+  currentValue?: number
+): string | undefined {
   const normalizedDescription = description?.trim();
   const unitLabel = formatUnitText(unitMeta);
+  const currentValueLabel =
+    currentValue != null && Number.isFinite(currentValue)
+      ? formatValueWithUnits(currentValue, unitMeta)
+      : null;
+
+  if (normalizedDescription && currentValueLabel) {
+    return `${normalizedDescription} : ${currentValueLabel}`;
+  }
+  if (currentValueLabel) {
+    return currentValueLabel;
+  }
 
   if (normalizedDescription && unitLabel) {
     return `${normalizedDescription}\n${unitLabel}`;
   }
   return normalizedDescription ?? unitLabel ?? undefined;
+}
+
+export function resolveVariableTooltip(args: {
+  name: string;
+  description?: string;
+  variableDescriptions?: VariableDescriptions;
+  variableUnitMetadata?: VariableUnitMetadata;
+  currentValue?: number;
+  currentValues?: Record<string, number | undefined>;
+}): string | undefined {
+  const normalizedName = args.name.trim();
+  const resolvedDescription =
+    args.description ??
+    (normalizedName ? args.variableDescriptions?.get(normalizedName) : undefined);
+  const unitMeta = normalizedName ? args.variableUnitMetadata?.get(normalizedName) : undefined;
+  const resolvedCurrentValue =
+    args.currentValue ??
+    (normalizedName ? args.currentValues?.[normalizedName] : undefined);
+
+  return formatVariableTooltip(resolvedDescription, unitMeta, resolvedCurrentValue);
 }
 
 export function formatValueWithUnits(

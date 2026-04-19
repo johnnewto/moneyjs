@@ -1,5 +1,6 @@
 import type { InitialValueRow } from "../lib/editorModel";
-import { formatNamedValueWithUnits, type VariableUnitMetadata } from "../lib/unitMeta";
+import type { VariableUnitMetadata } from "../lib/unitMeta";
+import { NumericValueText } from "./NumericValueText";
 
 interface InitialValuesEditorProps {
   currentValues?: Record<string, number | undefined>;
@@ -69,11 +70,7 @@ export function InitialValuesEditor({
               placeholder="Value"
             />
             <span className="initial-grid-current">
-              {formatCurrentValue(
-                initialValue.name,
-                currentValues[initialValue.name.trim()],
-                variableUnitMetadata
-              )}
+              {renderCurrentValue(initialValue.name, currentValues[initialValue.name.trim()], variableUnitMetadata)}
             </span>
             <span
               className={`initial-grid-status${
@@ -127,12 +124,23 @@ function removeRow<T>(rows: T[], index: number): T[] {
   return rows.filter((_, rowIndex) => rowIndex !== index);
 }
 
-function formatCurrentValue(
+function renderCurrentValue(
   name: string,
   value: number | undefined,
   variableUnitMetadata?: VariableUnitMetadata
-): string {
-  return formatNamedValueWithUnits(name, value, variableUnitMetadata?.get(name.trim()), {
-    maximumFractionDigits: 6
-  });
+): React.JSX.Element | string {
+  const trimmedName = name.trim();
+  if (!trimmedName) {
+    return "";
+  }
+
+  return (
+    <NumericValueText
+      prefix={`${trimmedName} = `}
+      fallback="--"
+      unitMeta={variableUnitMetadata?.get(trimmedName)}
+      value={value}
+      options={{ maximumFractionDigits: 6 }}
+    />
+  );
 }

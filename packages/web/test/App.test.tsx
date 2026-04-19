@@ -489,6 +489,8 @@ describe("App", () => {
 
     fireEvent.mouseEnter(rmToken);
     expect(screen.getByRole("tooltip")).toHaveTextContent("Rate of interest on bank deposits");
+    expect(screen.getByRole("tooltip").textContent).toMatch(/Rate of interest on bank deposits\s*:\s*[-$\d]/i);
+    fireEvent.mouseLeave(rmToken);
   });
 
   it("opens the notebook variable inspector from matrix table variables", async () => {
@@ -548,6 +550,23 @@ describe("App", () => {
       within(affectedEquationsSection).getByRole("button", { name: /^Inspect variable YD$/i })
     ).toBeInTheDocument();
     expect(inspector.querySelector(".inspector-related-equation.trace-output")).not.toBeNull();
+
+    const mhToken = within(affectedEquationsSection)
+      .getAllByText("Mh")
+      .find((node) => node.className.includes("formula-token"));
+    expect(mhToken).toBeDefined();
+    if (!mhToken) {
+      throw new Error("Expected inspector RHS token for Mh.");
+    }
+
+    fireEvent.mouseEnter(mhToken);
+    const inspectorTooltip = screen.getAllByRole("tooltip").at(-1);
+    expect(inspectorTooltip).toBeDefined();
+    if (!inspectorTooltip) {
+      throw new Error("Expected inspector tooltip.");
+    }
+    expect(inspectorTooltip).toHaveTextContent("Bank deposits held by households");
+    expect(inspectorTooltip.textContent).toMatch(/Bank deposits held by households\s*:\s*[$\d-]/i);
   });
 
   it("opens the notebook variable inspector from dependency graph nodes", async () => {

@@ -743,6 +743,7 @@ export function NotebookApp() {
 
           {activeRailTab === "inspect" ? (
             <VariableInspector
+              currentValues={inspectorContext?.currentValues}
               data={selectedVariableData}
               onSelectVariable={(variableName) => {
                 setActiveRailTab("inspect");

@@ -145,6 +145,17 @@ export function DependencyGraphCanvas({
           >
             <path d="M 0 0 L 6 3 L 0 6 z" fill="#64748b" />
           </marker>
+          <marker
+            id="debug-arrow"
+            markerWidth="5"
+            markerHeight="5"
+            refX="4"
+            refY="2.5"
+            orient="auto"
+            markerUnits="strokeWidth"
+          >
+            <path d="M 0 0 L 5 2.5 L 0 5 z" fill="rgba(16, 185, 129, 0.7)" />
+          </marker>
         </defs>
 
         <rect x={0} y={0} width={layout.width} height={layout.height} fill="#fcfdfd" />
@@ -344,6 +355,42 @@ function DependencyGraphDebugOverlay({
           />
         );
       })}
+      {diagnostics.cellSpreadEntries.map((cell) => (
+        <g key={`debug-cell-${cell.cellKey}`}>
+          <rect
+            x={cell.cellX - cell.cellWidth / 2}
+            y={cell.cellY - cell.cellHeight / 2}
+            width={cell.cellWidth}
+            height={cell.cellHeight}
+            fill="rgba(16, 185, 129, 0.06)"
+            stroke="rgba(16, 185, 129, 0.4)"
+            strokeDasharray="3 3"
+            strokeWidth={1}
+          />
+          {cell.nodes.map((n) => (
+            <g key={`debug-spread-${n.id}`}>
+              <circle
+                cx={n.beforeX}
+                cy={n.beforeY}
+                r={3}
+                fill="none"
+                stroke="rgba(239, 68, 68, 0.5)"
+                strokeWidth={1}
+              />
+              <line
+                x1={n.beforeX}
+                y1={n.beforeY}
+                x2={n.afterX}
+                y2={n.afterY}
+                stroke="rgba(16, 185, 129, 0.6)"
+                strokeWidth={1.2}
+                markerEnd="url(#debug-arrow)"
+              />
+              <circle cx={n.afterX} cy={n.afterY} r={2.5} fill="rgba(16, 185, 129, 0.7)" />
+            </g>
+          ))}
+        </g>
+      ))}
     </g>
   );
 }

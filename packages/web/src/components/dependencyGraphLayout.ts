@@ -60,6 +60,7 @@ interface GraphLayout {
   labels: GraphColumnLabel[];
   bands: GraphBand[];
   nodes: PositionedNode[];
+  cellSpreadDiagnostics?: CellSpreadDiagnosticEntry[];
 }
 
 interface RenderGraph {
@@ -106,11 +107,31 @@ interface ExogenousPlacementDiagnostic {
   isBoundSaturated: boolean;
 }
 
+export interface CellSpreadDiagnosticEntry {
+  cellKey: string;
+  cellX: number;
+  cellY: number;
+  cellWidth: number;
+  cellHeight: number;
+  columns: number;
+  rows: number;
+  nodeCount: number;
+  nodes: Array<{
+    id: string;
+    name: string;
+    beforeX: number;
+    beforeY: number;
+    afterX: number;
+    afterY: number;
+  }>;
+}
+
 export interface DependencyLayoutDiagnostics {
   nodeBoxes: DependencyNodeBox[];
   overlapPairs: DependencyOverlapPair[];
   maxOverlapRatio: number;
   exogenousPlacements: ExogenousPlacementDiagnostic[];
+  cellSpreadEntries: CellSpreadDiagnosticEntry[];
 }
 
 interface DependencyGraphLayoutSnapshot {
@@ -139,7 +160,7 @@ const ROW_GAP = 84;
 const STRIP_INNER_GAP = 34;
 const STRIP_PADDING_X = 24;
 const STRIP_MIN_WIDTH = 212;
-const HORIZONTAL_BAND_HEIGHT = 88;
+const HORIZONTAL_BAND_HEIGHT = 148;
 const HORIZONTAL_BAND_GAP = 18;
 const HORIZONTAL_LABEL_X = 22;
 const RELAXATION_ITERATIONS = 48;
@@ -201,14 +222,19 @@ export function buildDependencyGraphLayoutSnapshot({
       }
     : layout;
 
+  const diagnostics = computeDependencyLayoutDiagnostics(layoutWithDisplaySectors.nodes, graphForLayout, {
+    horizontalMaxX: layoutWithDisplaySectors.width - SIDE_PADDING - NODE_WIDTH / 2,
+    horizontalMinX: SIDE_PADDING + NODE_WIDTH / 2,
+    hardMinHorizontalGap: NODE_WIDTH + 16
+  });
+  if (layout.cellSpreadDiagnostics) {
+    diagnostics.cellSpreadEntries = layout.cellSpreadDiagnostics;
+  }
+
   return {
     layout: layoutWithDisplaySectors,
     renderGraph,
-    diagnostics: computeDependencyLayoutDiagnostics(layoutWithDisplaySectors.nodes, graphForLayout, {
-      horizontalMaxX: layoutWithDisplaySectors.width - SIDE_PADDING - NODE_WIDTH / 2,
-      horizontalMinX: SIDE_PADDING + NODE_WIDTH / 2,
-      hardMinHorizontalGap: NODE_WIDTH + 16
-    })
+    diagnostics
   };
 }
 
@@ -318,7 +344,8 @@ export function computeDependencyLayoutDiagnostics(
     nodeBoxes,
     overlapPairs,
     maxOverlapRatio: overlapPairs.reduce((max, pair) => Math.max(max, pair.overlapRatio), 0),
-    exogenousPlacements
+    exogenousPlacements,
+    cellSpreadEntries: []
   };
 }
 
@@ -670,7 +697,7 @@ function buildSectorAccountingDependencyGraphLayout(
     }
     return left.order - right.order;
   });
-  finalizeAccountingLayoutNodes(nodes, {
+  const cellSpreadDiagnostics = finalizeAccountingLayoutNodes(nodes, {
     bandCenterByName,
     cellHalfWidth: Math.max(56, (sectorLayout.stripWidth - NODE_WIDTH) / 2 - 4),
     collisionResolver: resolveVerticalCollisionsByX,
@@ -686,6 +713,7 @@ function buildSectorAccountingDependencyGraphLayout(
     height,
     nodeWidth: NODE_WIDTH,
     nodeHeight: NODE_HEIGHT,
+    cellSpreadDiagnostics,
     labels: [
       ...sectorLayout.sectorNames.map((sector, index) => ({
         id: `sector-${sector}`,
@@ -741,7 +769,7 @@ function buildHorizontalStripDependencyGraphLayout(
       }
       return left.order - right.order;
     });
-  finalizeAccountingLayoutNodes(nodes, {
+  const cellSpreadDiagnostics = finalizeAccountingLayoutNodes(nodes, {
     bandCenterByName,
     cellHalfWidth: Math.max(52, COLUMN_GAP / 2 - NODE_WIDTH / 2 - 6),
     collisionResolver: resolveVerticalCollisionsByX,
@@ -757,6 +785,7 @@ function buildHorizontalStripDependencyGraphLayout(
     height,
     nodeWidth: NODE_WIDTH,
     nodeHeight: NODE_HEIGHT,
+    cellSpreadDiagnostics,
     labels: buildAccountingBandLabels(bandNames, bandCenters, graph, rowTopology),
     bands: buildAccountingBandRenderBands(bandNames, bandCenters, width, false),
     nodes
@@ -1265,7 +1294,7 @@ function finalizeAccountingLayoutNodes(
     rowTopology: DependencyRowTopology;
     softAnchorYByNodeId: Map<string, number>;
   }
-): void {
+): CellSpreadDiagnosticEntry[] {
   nodes.forEach((node) => {
     node.y = computeInitialBandY(
       node,
@@ -1282,8 +1311,9 @@ function finalizeAccountingLayoutNodes(
     args.bandCenterByName,
     args.softAnchorYByNodeId
   );
-  spreadNodesWithinAccountingCells(nodes, args.rowTopology, {
-    cellHalfWidth: args.cellHalfWidth
+  const cellSpreadDiagnostics = spreadNodesWithinAccountingCells(nodes, args.rowTopology, {
+    cellHalfWidth: args.cellHalfWidth,
+    bandCenterByName: args.bandCenterByName
   });
   applyExogenousTargetPlacement(nodes, args.graph, args.rowTopology, args.bandCenterByName, {
     cellHalfWidth: args.cellHalfWidth,
@@ -1295,6 +1325,7 @@ function finalizeAccountingLayoutNodes(
     horizontalMinX: args.horizontalMinX,
     horizontalMaxX: args.horizontalMaxX
   });
+  return cellSpreadDiagnostics;
 }
 
 function resolveResidualOverlaps(
@@ -1579,9 +1610,11 @@ function spreadNodesWithinAccountingCells(
   rowTopology: DependencyRowTopology,
   args: {
     cellHalfWidth: number;
+    bandCenterByName: Map<string, number>;
   }
-): void {
+): CellSpreadDiagnosticEntry[] {
   const groups = new Map<string, PositionedNode[]>();
+  const diagnostics: CellSpreadDiagnosticEntry[] = [];
 
   nodes.forEach((node) => {
     const primaryBand = rowTopology.variables[node.name]?.primaryBand ?? "Unmapped";
@@ -1592,10 +1625,23 @@ function spreadNodesWithinAccountingCells(
     groups.set(key, bucket);
   });
 
-  groups.forEach((bucket) => {
+  groups.forEach((bucket, key) => {
     if (bucket.length <= 1) {
       return;
     }
+
+    const [bandName, anchorXStr] = key.split("::");
+    const keyAnchorX = Number(anchorXStr);
+    const keyAnchorY = args.bandCenterByName.get(bandName) ?? bucket[0].y;
+
+    const beforePositions = bucket.map((node) => ({
+      id: node.id,
+      name: node.name,
+      beforeX: node.x,
+      beforeY: node.y,
+      afterX: node.x,
+      afterY: node.y
+    }));
 
     bucket.sort((left, right) => {
       const leftCanonical = left.canonicalName ?? left.name;
@@ -1620,30 +1666,49 @@ function spreadNodesWithinAccountingCells(
       return left.label.localeCompare(right.label);
     });
     const anchorX = bucket.reduce((sum, node) => sum + node.x, 0) / bucket.length;
-    const availableWidth = args.cellHalfWidth * 2;
-    const preferredSlotWidth = NODE_WIDTH + 6;
-    const maxColumns = Math.max(1, Math.floor((availableWidth + 16) / preferredSlotWidth));
-    const columns = Math.min(bucket.length, Math.max(2, maxColumns));
+    const anchorY = bucket.reduce((sum, node) => sum + node.y, 0) / bucket.length;
+    const isUnmapped = bandName === "Unmapped" || bandName === "Exogenous";
+    const cellWidth = isUnmapped ? args.cellHalfWidth * 4 : args.cellHalfWidth * 2;
+    const cellHeight = isUnmapped
+      ? Math.max(HORIZONTAL_BAND_HEIGHT * 2, (HORIZONTAL_BAND_HEIGHT - NODE_HEIGHT) * 3)
+      : HORIZONTAL_BAND_HEIGHT - NODE_HEIGHT;
+    const aspect = cellHeight > 0 ? cellWidth / cellHeight : 1;
+    const maxSafeColumns = Math.max(1, Math.floor(cellWidth / (NODE_WIDTH + 6)) + 1);
+    const columns = Math.min(
+      bucket.length,
+      maxSafeColumns,
+      Math.max(1, Math.round(Math.sqrt(bucket.length * aspect)))
+    );
     const rows = Math.ceil(bucket.length / columns);
-    const columnGap =
-      columns <= 1
-        ? 0
-        : Math.min(NODE_WIDTH + 26, availableWidth / Math.max(1, columns - 1));
-    const rowGap = Math.min(14, HORIZONTAL_BAND_HEIGHT / Math.max(3, rows + 1));
+    const colStep = columns <= 1 ? 0 : cellWidth / (columns - 1);
+    const rowStep = rows <= 1 ? 0 : cellHeight / (rows - 1);
 
     bucket.forEach((node, index) => {
-      const column = index % columns;
+      const col = index % columns;
       const row = Math.floor(index / columns);
-      const rowBucketSize = row === rows - 1 ? bucket.length - row * columns : columns;
-      const rowCenterOffset = rowGap * (row - (rows - 1) / 2);
-      const columnOffset =
-        rowBucketSize <= 1
-          ? 0
-          : (column - (rowBucketSize - 1) / 2) * columnGap;
-      node.x = anchorX + columnOffset;
-      node.y += rowCenterOffset;
+      node.x = columns <= 1 ? anchorX : anchorX - cellWidth / 2 + col * colStep;
+      node.y = rows <= 1 ? anchorY : anchorY - cellHeight / 2 + row * rowStep;
+    });
+
+    bucket.forEach((node, index) => {
+      beforePositions[index].afterX = node.x;
+      beforePositions[index].afterY = node.y;
+    });
+
+    diagnostics.push({
+      cellKey: key,
+      cellX: keyAnchorX,
+      cellY: keyAnchorY,
+      cellWidth,
+      cellHeight,
+      columns,
+      rows,
+      nodeCount: bucket.length,
+      nodes: beforePositions
     });
   });
+
+  return diagnostics;
 }
 
 function applyExogenousTargetPlacement(
