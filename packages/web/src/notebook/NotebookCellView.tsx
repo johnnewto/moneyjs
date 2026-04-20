@@ -2752,10 +2752,16 @@ function DependencySequenceCellView({
   }): void;
   variableDescriptions: VariableDescriptions;
 }) {
-  const layoutMode = cell.source.viewMode === "layered" ? "layered" : "strips";
+  const layoutMode =
+    cell.source.viewMode === "layered"
+      ? "layered"
+      : cell.source.viewMode === "matrix-upstream"
+        ? "matrix-upstream"
+        : "strips";
   const sectorGrouping = cell.source.sectorGrouping === "family" ? "family" : "none";
   const showAccountingStrips = cell.source.showAccountingStrips ?? true;
   const accountingBandGrouping = cell.source.accountingBandGrouping === "none" ? "none" : "family";
+  const ignoreInferredBandsForPlacement = cell.source.ignoreInferredBandsForPlacement ?? false;
   const showExogenous = cell.source.showExogenous ?? false;
   const showDebugOverlay = cell.source.showDebugOverlay ?? false;
   const isDevEnvironment =
@@ -2778,20 +2784,30 @@ function DependencySequenceCellView({
     });
   }
 
-  function setPersistedLayoutMode(nextLayoutMode: "layered" | "strips"): void {
+  function setPersistedLayoutMode(nextLayoutMode: "layered" | "strips" | "matrix-upstream"): void {
     updateDependencySource((source) => ({
       ...source,
-      viewMode: nextLayoutMode
+      viewMode: nextLayoutMode,
+      showAccountingStrips:
+        nextLayoutMode === "matrix-upstream" ? true : source.showAccountingStrips
     }));
   }
 
   function togglePersistedAccountingStrips(): void {
-    updateDependencySource((source) => ({
-      ...source,
-      viewMode: source.viewMode === "horizontal-strips" ? "layered" : source.viewMode,
-      showAccountingStrips:
-        !(source.showAccountingStrips ?? source.viewMode === "horizontal-strips")
-    }));
+    updateDependencySource((source) => {
+      const nextShowAccountingStrips =
+        !(source.showAccountingStrips ?? source.viewMode === "horizontal-strips");
+      return {
+        ...source,
+        viewMode:
+          !nextShowAccountingStrips && source.viewMode === "matrix-upstream"
+            ? "layered"
+            : source.viewMode === "horizontal-strips"
+              ? "layered"
+              : source.viewMode,
+        showAccountingStrips: nextShowAccountingStrips
+      };
+    });
   }
 
   function togglePersistedSectorGrouping(): void {
@@ -2805,6 +2821,13 @@ function DependencySequenceCellView({
     updateDependencySource((source) => ({
       ...source,
       accountingBandGrouping: source.accountingBandGrouping === "family" ? "none" : "family"
+    }));
+  }
+
+  function togglePersistedIgnoreInferredBandsForPlacement(): void {
+    updateDependencySource((source) => ({
+      ...source,
+      ignoreInferredBandsForPlacement: !(source.ignoreInferredBandsForPlacement ?? false)
     }));
   }
 
@@ -2908,7 +2931,14 @@ function DependencySequenceCellView({
     () => {
       if (showAccountingStrips) {
         return rowTopology.bands.filter((band) =>
-          visibleGraph.nodes.some((node) => rowTopology.variables[node.name]?.primaryBand === band)
+          visibleGraph.nodes.some((node) => {
+            const assignment = rowTopology.variables[node.name];
+            const memberships = ignoreInferredBandsForPlacement
+              ? (assignment?.memberships ?? []).filter((membership) => membership.source !== "inferred")
+              : (assignment?.memberships ?? []);
+            const primaryBand = memberships[0]?.band ?? "Unmapped";
+            return primaryBand === band;
+          })
         ).length;
       }
 
@@ -2918,7 +2948,14 @@ function DependencySequenceCellView({
         )
       ).length;
     },
-    [layoutMode, rowTopology, sectorTopology, showAccountingStrips, visibleGraph.nodes]
+    [
+      ignoreInferredBandsForPlacement,
+      layoutMode,
+      rowTopology,
+      sectorTopology,
+      showAccountingStrips,
+      visibleGraph.nodes
+    ]
   );
 
   function handleNodeInspect(node: import("../components/dependencyGraphLayout").PositionedNode): void {
@@ -2977,6 +3014,15 @@ function DependencySequenceCellView({
           <button
             type="button"
             className={`notebook-run-button notebook-source-toggle${
+              layoutMode === "matrix-upstream" ? " is-active" : ""
+            }`}
+            onClick={() => setPersistedLayoutMode("matrix-upstream")}
+          >
+            Matrix upstream
+          </button>
+          <button
+            type="button"
+            className={`notebook-run-button notebook-source-toggle${
               showAccountingStrips ? " is-active" : ""
             }`}
             onClick={togglePersistedAccountingStrips}
@@ -3000,6 +3046,15 @@ function DependencySequenceCellView({
             onClick={togglePersistedBandGrouping}
           >
             {accountingBandGrouping === "family" ? "Grouped bands" : "Raw bands"}
+          </button>
+          <button
+            type="button"
+            className={`notebook-run-button notebook-source-toggle${
+              ignoreInferredBandsForPlacement ? " is-active" : ""
+            }`}
+            onClick={togglePersistedIgnoreInferredBandsForPlacement}
+          >
+            {ignoreInferredBandsForPlacement ? "Ignore inferred bands" : "Place inferred bands"}
           </button>
           <button
             type="button"
@@ -3032,6 +3087,7 @@ function DependencySequenceCellView({
         variableDescriptions={dependencyVariableDescriptions}
         viewMode={layoutMode}
         showAccountingStrips={showAccountingStrips}
+        ignoreInferredBandsForPlacement={ignoreInferredBandsForPlacement}
         debugOverlay={showDebugOverlay}
       />
       {visibleGraph.errors.length ? (

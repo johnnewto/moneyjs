@@ -287,6 +287,108 @@ describe("dependency graph viewer", () => {
     ).toHaveLength(1);
   });
 
+  it("renders signed direct interest products as rate-times-stock labels in strip view", () => {
+    const cells: NotebookCell[] = [
+      {
+        id: "transaction-flow",
+        type: "matrix",
+        title: "PC transactions-flow matrix",
+        columns: ["Government", "Central_bank", "Sum"],
+        sectors: ["Government", "Central bank", ""],
+        rows: [{ label: "CB profits", values: ["+lag(r) * lag(Bcb)", "-lag(r) * lag(Bcb)", "0"] }]
+      },
+      {
+        id: "equations",
+        type: "equations",
+        title: "Simple PC model",
+        modelId: "equations",
+        equations: [
+          { id: "eq-bcb", name: "Bcb", expression: "Bs - Bh" },
+          { id: "eq-f", name: "F", expression: "Bcb" }
+        ]
+      }
+    ];
+    const dependencyCell: SequenceCell & {
+      source: Extract<SequenceCell["source"], { kind: "dependency" }>;
+    } = {
+      id: "equation-dependency-graph",
+      type: "sequence",
+      title: "Simple dependency graph",
+      source: { kind: "dependency", modelId: "equations" }
+    };
+    const graph = buildDependencyGraph({
+      equations: cells.find((cell) => cell.id === "equations" && cell.type === "equations")!.equations,
+      externals: [
+        { id: "ext-bs", name: "Bs", kind: "constant", valueText: "1" },
+        { id: "ext-bh", name: "Bh", kind: "constant", valueText: "1" },
+        { id: "ext-r", name: "r", kind: "constant", valueText: "0.03" }
+      ],
+      initialValues: []
+    });
+    const sectorTopology = buildDependencySectorTopology({ cells, dependencyCell, graph });
+    const sectorDisplayOccurrences = buildDependencySectorDisplayOccurrences({ cells, dependencyCell, graph });
+    const snapshot = buildDependencyGraphLayoutSnapshot({
+      availableWidth: 960,
+      graph,
+      sectorDisplayOccurrences,
+      sectorTopology,
+      viewMode: "strips"
+    });
+
+    const billsNodes = snapshot.layout.nodes.filter(
+      (node) => (node.canonicalName ?? node.name) === "Bcb"
+    );
+
+    expect(billsNodes).toHaveLength(2);
+    expect(billsNodes.map((node) => node.label).sort()).toEqual(["+r*Bcb", "-r*Bcb"]);
+  });
+
+  it("applies a single unambiguous signed occurrence label outside strip mode", () => {
+    const cells: NotebookCell[] = [
+      {
+        id: "transaction-flow",
+        type: "matrix",
+        title: "Wages flow matrix",
+        columns: ["Households", "Firms", "Sum"],
+        sectors: ["Households", "Firms", ""],
+        rows: [{ label: "Wages", values: ["+WBs", "-WBd", "0"] }]
+      },
+      {
+        id: "equations",
+        type: "equations",
+        title: "Simple wages model",
+        modelId: "equations",
+        equations: [
+          { id: "eq-wbs", name: "WBs", expression: "Ns" },
+          { id: "eq-y", name: "Y", expression: "WBs" }
+        ]
+      }
+    ];
+    const dependencyCell: SequenceCell & {
+      source: Extract<SequenceCell["source"], { kind: "dependency" }>;
+    } = {
+      id: "equation-dependency-graph",
+      type: "sequence",
+      title: "Simple dependency graph",
+      source: { kind: "dependency", modelId: "equations" }
+    };
+    const graph = buildDependencyGraph({
+      equations: cells.find((cell) => cell.id === "equations" && cell.type === "equations")!.equations,
+      externals: [{ id: "ext-ns", name: "Ns", kind: "constant", valueText: "1" }],
+      initialValues: []
+    });
+    const sectorDisplayOccurrences = buildDependencySectorDisplayOccurrences({ cells, dependencyCell, graph });
+    const snapshot = buildDependencyGraphLayoutSnapshot({
+      availableWidth: 960,
+      graph,
+      sectorDisplayOccurrences,
+      viewMode: "layered"
+    });
+
+    expect(snapshot.layout.nodes.find((node) => node.name === "WBs")?.label).toBe("+WBs");
+    expect(snapshot.layout.nodes.find((node) => node.name === "Y")?.label).toBe("Y");
+  });
+
   it("preserves delta notation for signed direct accounting occurrences", () => {
     const cells: NotebookCell[] = [
       {
@@ -442,6 +544,109 @@ describe("dependency graph viewer", () => {
     expect(negativeDepositProxy?.occurrenceSign).toBe("-");
     expect(positiveDepositProxy?.mirrorSector).toBe("Households");
     expect(negativeDepositProxy?.mirrorSector).toBe("Banks");
+  });
+
+  it("places explicit matrix terms before their upstream shells in matrix-upstream mode", () => {
+    const { cells, dependencyCell, graph } = buildBmwDependencyScenario();
+    const rowTopology = buildDependencyRowTopology({ cells, dependencyCell, graph });
+    const snapshot = buildDependencyGraphLayoutSnapshot({
+      availableWidth: 1440,
+      graph,
+      rowTopology,
+      showAccountingStrips: true,
+      viewMode: "matrix-upstream"
+    });
+
+    const nodeByLabel = new Map(snapshot.layout.nodes.map((node) => [node.label, node]));
+    const cd = nodeByLabel.get("Cd");
+    const yd = nodeByLabel.get("YD");
+    const wbs = nodeByLabel.get("WBs");
+    const w = nodeByLabel.get("W");
+    const id = nodeByLabel.get("Id");
+    const kt = nodeByLabel.get("KT");
+
+    expect(cd).toBeDefined();
+  expect(yd).toBeDefined();
+    expect(wbs).toBeDefined();
+    expect(w).toBeDefined();
+    expect(id).toBeDefined();
+    expect(kt).toBeDefined();
+
+  expect(yd!.x).toBeGreaterThan(cd!.x);
+    expect(w!.x).toBeGreaterThan(wbs!.x);
+    expect(kt!.x).toBeGreaterThan(id!.x);
+  });
+
+  it("can ignore inferred memberships when placing nodes in accounting bands", () => {
+    const cells: NotebookCell[] = [
+      {
+        id: "transaction-flow",
+        type: "matrix",
+        title: "Simple transactions-flow matrix",
+        columns: ["Households", "Firms", "Sum"],
+        sectors: ["Households", "Firms", ""],
+        rows: [
+          { label: "Alpha", values: ["+A", "", "0"] },
+          { label: "Beta", values: ["", "+B", "0"] }
+        ]
+      },
+      {
+        id: "equations",
+        type: "equations",
+        title: "Simple model",
+        modelId: "equations",
+        equations: [
+          { id: "eq-a", name: "A", expression: "a0" },
+          { id: "eq-b", name: "B", expression: "b0" },
+          { id: "eq-x", name: "X", expression: "A + lag(B)" }
+        ]
+      }
+    ];
+    const dependencyCell: SequenceCell & {
+      source: Extract<SequenceCell["source"], { kind: "dependency" }>;
+    } = {
+      id: "equation-dependency-graph",
+      type: "sequence",
+      title: "Simple dependency graph",
+      source: { kind: "dependency", modelId: "equations" }
+    };
+    const graph = buildDependencyGraph({
+      equations: cells.find((cell) => cell.id === "equations" && cell.type === "equations")!.equations,
+      externals: [
+        { id: "ext-a0", name: "a0", kind: "constant", valueText: "1" },
+        { id: "ext-b0", name: "b0", kind: "constant", valueText: "1" }
+      ],
+      initialValues: []
+    });
+    const rowTopology = buildDependencyRowTopology({ cells, dependencyCell, graph });
+    const anchoredSnapshot = buildDependencyGraphLayoutSnapshot({
+      availableWidth: 960,
+      graph,
+      rowTopology,
+      showAccountingStrips: true,
+      viewMode: "layered"
+    });
+    const relaxedSnapshot = buildDependencyGraphLayoutSnapshot({
+      availableWidth: 960,
+      graph,
+      rowTopology,
+      showAccountingStrips: true,
+      ignoreInferredBandsForPlacement: true,
+      viewMode: "layered"
+    });
+
+    const anchoredX = anchoredSnapshot.layout.nodes.find((node) => node.name === "X");
+    const relaxedX = relaxedSnapshot.layout.nodes.find((node) => node.name === "X");
+    const alphaNode = anchoredSnapshot.layout.nodes.find((node) => node.name === "A");
+    const betaNode = anchoredSnapshot.layout.nodes.find((node) => node.name === "B");
+
+    expect(anchoredX).toBeDefined();
+    expect(relaxedX).toBeDefined();
+    expect(alphaNode).toBeDefined();
+    expect(betaNode).toBeDefined();
+    expect(anchoredX!.y).toBeLessThan(relaxedX!.y - 20);
+    expect(relaxedX!.y).toBeGreaterThan(alphaNode!.y);
+    expect(relaxedX!.y).toBeLessThan(betaNode!.y);
   });
 });
 

@@ -142,10 +142,11 @@ export type SequenceCellSource =
       modelId?: string;
       sourceModelId?: string;
       sourceModelCellId?: string;
-      viewMode?: "layered" | "strips" | "horizontal-strips";
+      viewMode?: "layered" | "strips" | "horizontal-strips" | "matrix-upstream";
       sectorGrouping?: "none" | "family";
       showAccountingStrips?: boolean;
       accountingBandGrouping?: "none" | "family";
+      ignoreInferredBandsForPlacement?: boolean;
       showExogenous?: boolean;
       showDebugOverlay?: boolean;
       stripMapping?: {

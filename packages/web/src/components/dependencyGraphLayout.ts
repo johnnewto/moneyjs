@@ -146,8 +146,9 @@ export interface DependencyGraphLayoutSnapshotArgs {
   sectorDisplayOccurrences?: DependencySectorDisplayOccurrences | null;
   sectorTopology?: SectorTopology | null;
   rowTopology?: DependencyRowTopology | null;
-  viewMode?: "layered" | "strips";
+  viewMode?: "layered" | "strips" | "matrix-upstream";
   showAccountingStrips?: boolean;
+  ignoreInferredBandsForPlacement?: boolean;
 }
 
 const SIDE_PADDING = 54;
@@ -156,6 +157,8 @@ const BOTTOM_PADDING = 40;
 const NODE_WIDTH = 56;
 const NODE_HEIGHT = 40;
 const COLUMN_GAP = 188;
+const MATRIX_SURFACE_GAP = 268;
+const MATRIX_SURFACE_CELL_HALF_WIDTH = 96;
 const ROW_GAP = 84;
 const STRIP_INNER_GAP = 34;
 const STRIP_PADDING_X = 24;
@@ -188,11 +191,18 @@ export function buildDependencyGraphLayoutSnapshot({
   sectorTopology,
   rowTopology,
   viewMode = "layered",
-  showAccountingStrips = false
+  showAccountingStrips = false,
+  ignoreInferredBandsForPlacement = false
 }: DependencyGraphLayoutSnapshotArgs): DependencyGraphLayoutSnapshot {
   let renderGraph: RenderGraph | null = null;
   if (showAccountingStrips && rowTopology) {
     renderGraph = buildAccountingRenderGraph(graph, rowTopology);
+  }
+  if (viewMode !== "strips" && sectorDisplayOccurrences) {
+    renderGraph = buildGlobalOccurrenceLabelRenderGraph(
+      renderGraph ?? buildBaseRenderGraph(graph),
+      sectorDisplayOccurrences
+    );
   }
   if (viewMode === "strips" && sectorTopology && sectorDisplayOccurrences) {
     renderGraph = buildSectorOccurrenceRenderGraph(
@@ -205,12 +215,30 @@ export function buildDependencyGraphLayoutSnapshot({
     ? { ...graph, nodes: renderGraph.nodes, edges: renderGraph.edges }
     : graph;
   const layout =
-    viewMode === "strips" && sectorTopology
+    viewMode === "matrix-upstream" && rowTopology
+      ? buildMatrixUpstreamDependencyGraphLayout(
+          graphForLayout,
+          availableWidth,
+          rowTopology,
+          ignoreInferredBandsForPlacement
+        )
+      : viewMode === "strips" && sectorTopology
       ? showAccountingStrips && rowTopology
-        ? buildSectorAccountingDependencyGraphLayout(graphForLayout, availableWidth, sectorTopology, rowTopology)
+        ? buildSectorAccountingDependencyGraphLayout(
+            graphForLayout,
+            availableWidth,
+            sectorTopology,
+            rowTopology,
+            ignoreInferredBandsForPlacement
+          )
         : buildStripDependencyGraphLayout(graphForLayout, availableWidth, sectorTopology)
       : showAccountingStrips && rowTopology
-        ? buildHorizontalStripDependencyGraphLayout(graphForLayout, availableWidth, rowTopology)
+        ? buildHorizontalStripDependencyGraphLayout(
+            graphForLayout,
+            availableWidth,
+            rowTopology,
+            ignoreInferredBandsForPlacement
+          )
         : buildLayeredDependencyGraphLayout(graphForLayout, availableWidth);
   const layoutWithDisplaySectors = sectorTopology
     ? {
@@ -622,6 +650,59 @@ function buildSectorOccurrenceRenderGraph(
   };
 }
 
+function buildGlobalOccurrenceLabelRenderGraph(
+  renderGraph: RenderGraph,
+  sectorDisplayOccurrences: DependencySectorDisplayOccurrences
+): RenderGraph {
+  let hasLabelUpdates = false;
+
+  const nodes = renderGraph.nodes.map((node) => {
+    const occurrences = collectMatchingOccurrences(node, sectorDisplayOccurrences);
+    const uniqueLabels = Array.from(
+      new Set(occurrences.map((occurrence) => formatOccurrenceLabel(occurrence.displayLabel, occurrence.sign)))
+    );
+    if (uniqueLabels.length !== 1) {
+      return node;
+    }
+
+    const nextLabel = uniqueLabels[0] ?? node.label;
+    const nextOccurrenceSign = occurrences[0]?.sign;
+    if (nextLabel === node.label && nextOccurrenceSign === node.occurrenceSign) {
+      return node;
+    }
+
+    hasLabelUpdates = true;
+    return {
+      ...node,
+      label: nextLabel,
+      occurrenceSign: nextOccurrenceSign
+    };
+  });
+
+  return hasLabelUpdates ? { ...renderGraph, nodes } : renderGraph;
+}
+
+function collectMatchingOccurrences(
+  node: DisplayNode,
+  sectorDisplayOccurrences: DependencySectorDisplayOccurrences
+): DependencySectorDisplayOccurrence[] {
+  const canonicalName = node.canonicalName ?? node.name;
+  return (sectorDisplayOccurrences[canonicalName] ?? []).filter((occurrence) => {
+    if (node.isProxy) {
+      return (
+        occurrence.displayLabel === node.label &&
+        (occurrence.kind === "proxy" ||
+          (occurrence.kind === "direct" && occurrence.displayLabel === canonicalName))
+      );
+    }
+
+    return (
+      occurrence.displayLabel === node.label ||
+      (occurrence.kind === "direct" && node.label === canonicalName && occurrence.variable === canonicalName)
+    );
+  });
+}
+
 function formatOccurrenceLabel(
   label: string,
   sign: DependencySectorDisplayOccurrence["sign"] | undefined
@@ -683,14 +764,21 @@ function buildSectorAccountingDependencyGraphLayout(
   graph: Pick<ParsedDependencyGraph, "nodes" | "edges">,
   availableWidth: number,
   sectorTopology: SectorTopology,
-  rowTopology: DependencyRowTopology
+  rowTopology: DependencyRowTopology,
+  ignoreInferredBandsForPlacement: boolean
 ): GraphLayout {
   const sectorLayout = buildSectorStripScaffold(graph, availableWidth, sectorTopology);
   const { bandCenterByName, bandCenters, bandNames, height } = buildAccountingBandLayoutData(
     graph.nodes,
-    rowTopology
+    rowTopology,
+    ignoreInferredBandsForPlacement
   );
-  const softAnchorYByNodeId = buildSoftAccountingAnchorYByNode(graph, rowTopology, bandCenterByName);
+  const softAnchorYByNodeId = buildSoftAccountingAnchorYByNode(
+    graph,
+    rowTopology,
+    bandCenterByName,
+    ignoreInferredBandsForPlacement
+  );
   const nodes = Array.from(sectorLayout.nodesById.values()).sort((left, right) => {
     if (left.x !== right.x) {
       return left.x - right.x;
@@ -704,6 +792,7 @@ function buildSectorAccountingDependencyGraphLayout(
     graph,
     horizontalMaxX: sectorLayout.width - SIDE_PADDING - NODE_WIDTH / 2,
     horizontalMinX: SIDE_PADDING + NODE_WIDTH / 2,
+    ignoreInferredBandsForPlacement,
     rowTopology,
     softAnchorYByNodeId
   });
@@ -721,7 +810,13 @@ function buildSectorAccountingDependencyGraphLayout(
         label: sector,
         subtitle: buildSectorSubtitle(sector, graph, sectorTopology)
       })),
-      ...buildAccountingBandLabels(bandNames, bandCenters, graph, rowTopology)
+      ...buildAccountingBandLabels(
+        bandNames,
+        bandCenters,
+        graph,
+        rowTopology,
+        ignoreInferredBandsForPlacement
+      )
     ],
     bands: [
       ...sectorLayout.sectorNames.map((sector, index) => {
@@ -745,7 +840,8 @@ function buildSectorAccountingDependencyGraphLayout(
 function buildHorizontalStripDependencyGraphLayout(
   graph: Pick<ParsedDependencyGraph, "nodes" | "edges">,
   availableWidth: number,
-  rowTopology: DependencyRowTopology
+  rowTopology: DependencyRowTopology,
+  ignoreInferredBandsForPlacement: boolean
 ): GraphLayout {
   const maxLayer = Math.max(0, ...graph.nodes.map((node) => node.layer));
   const width = Math.max(
@@ -754,14 +850,27 @@ function buildHorizontalStripDependencyGraphLayout(
   );
   const { bandCenterByName, bandCenters, bandNames, height } = buildAccountingBandLayoutData(
     graph.nodes,
-    rowTopology
+    rowTopology,
+    ignoreInferredBandsForPlacement
   );
-  const softAnchorYByNodeId = buildSoftAccountingAnchorYByNode(graph, rowTopology, bandCenterByName);
+  const softAnchorYByNodeId = buildSoftAccountingAnchorYByNode(
+    graph,
+    rowTopology,
+    bandCenterByName,
+    ignoreInferredBandsForPlacement
+  );
   const nodes = graph.nodes
     .map((node) => ({
       ...node,
       x: SIDE_PADDING + NODE_WIDTH / 2 + node.layer * COLUMN_GAP,
-      y: computeInitialBandY(node, rowTopology, bandCenterByName, softAnchorYByNodeId, node.id)
+      y: computeInitialBandY(
+        node,
+        rowTopology,
+        bandCenterByName,
+        ignoreInferredBandsForPlacement,
+        softAnchorYByNodeId,
+        node.id
+      )
     }))
     .sort((left, right) => {
       if (left.layer !== right.layer) {
@@ -776,6 +885,7 @@ function buildHorizontalStripDependencyGraphLayout(
     graph,
     horizontalMaxX: width - SIDE_PADDING - NODE_WIDTH / 2,
     horizontalMinX: SIDE_PADDING + NODE_WIDTH / 2,
+    ignoreInferredBandsForPlacement,
     rowTopology,
     softAnchorYByNodeId
   });
@@ -786,10 +896,343 @@ function buildHorizontalStripDependencyGraphLayout(
     nodeWidth: NODE_WIDTH,
     nodeHeight: NODE_HEIGHT,
     cellSpreadDiagnostics,
-    labels: buildAccountingBandLabels(bandNames, bandCenters, graph, rowTopology),
+    labels: buildAccountingBandLabels(
+      bandNames,
+      bandCenters,
+      graph,
+      rowTopology,
+      ignoreInferredBandsForPlacement
+    ),
     bands: buildAccountingBandRenderBands(bandNames, bandCenters, width, false),
     nodes
   };
+}
+
+function buildMatrixUpstreamDependencyGraphLayout(
+  graph: Pick<ParsedDependencyGraph, "nodes" | "edges">,
+  availableWidth: number,
+  rowTopology: DependencyRowTopology,
+  ignoreInferredBandsForPlacement: boolean
+): GraphLayout {
+  const { distanceByNodeId, maxDistance } = buildMatrixUpstreamDistances(graph, rowTopology);
+  const layoutSpan = getMatrixUpstreamLayoutSpan(maxDistance);
+  const width = Math.max(
+    availableWidth,
+    SIDE_PADDING * 2 + MATRIX_SURFACE_CELL_HALF_WIDTH + layoutSpan + NODE_WIDTH + 24
+  );
+  const { bandCenterByName, bandCenters, bandNames, height } = buildAccountingBandLayoutData(
+    graph.nodes,
+    rowTopology,
+    ignoreInferredBandsForPlacement
+  );
+  const softAnchorYByNodeId = buildSoftAccountingAnchorYByNode(
+    graph,
+    rowTopology,
+    bandCenterByName,
+    ignoreInferredBandsForPlacement
+  );
+  const horizontalMinX = SIDE_PADDING + NODE_WIDTH / 2 + MATRIX_SURFACE_CELL_HALF_WIDTH;
+  const horizontalMaxX = width - SIDE_PADDING - NODE_WIDTH / 2;
+  const nodes = graph.nodes
+    .map((node) => ({
+      ...node,
+      x: getMatrixUpstreamShellX(distanceByNodeId.get(node.id) ?? 0, horizontalMinX),
+      y: computeInitialBandY(
+        node,
+        rowTopology,
+        bandCenterByName,
+        ignoreInferredBandsForPlacement,
+        softAnchorYByNodeId,
+        node.id
+      )
+    }))
+    .sort((left, right) => {
+      const leftDistance = distanceByNodeId.get(left.id) ?? 0;
+      const rightDistance = distanceByNodeId.get(right.id) ?? 0;
+      if (leftDistance !== rightDistance) {
+        return leftDistance - rightDistance;
+      }
+      return left.order - right.order;
+    });
+
+  relaxMatrixUpstreamXPositions(nodes, graph, distanceByNodeId, {
+    horizontalMinX,
+    horizontalMaxX,
+    maxDistance
+  });
+
+  const cellSpreadDiagnostics = finalizeAccountingLayoutNodes(nodes, {
+    bandCenterByName,
+    cellHalfWidth: MATRIX_SURFACE_CELL_HALF_WIDTH,
+    collisionResolver: resolveVerticalCollisionsByX,
+    graph,
+    horizontalMaxX,
+    horizontalMinX,
+    rowTopology,
+    softAnchorYByNodeId
+  });
+  enforceMatrixUpstreamShellOrder(nodes, graph, distanceByNodeId, {
+    horizontalMinX,
+    horizontalMaxX,
+    maxDistance
+  });
+
+  return {
+    width,
+    height,
+    nodeWidth: NODE_WIDTH,
+    nodeHeight: NODE_HEIGHT,
+    cellSpreadDiagnostics,
+    labels: [
+      ...Array.from({ length: maxDistance + 1 }, (_, distance) => ({
+        id: `matrix-upstream-${distance}`,
+        x: getMatrixUpstreamShellX(distance, horizontalMinX),
+        label: distance === 0 ? "Matrix surface" : `Upstream ${distance}`
+      })),
+      ...buildAccountingBandLabels(bandNames, bandCenters, graph, rowTopology)
+    ],
+    bands: buildAccountingBandRenderBands(bandNames, bandCenters, width, false),
+    nodes
+  };
+}
+
+function buildMatrixUpstreamDistances(
+  graph: Pick<ParsedDependencyGraph, "nodes" | "edges">,
+  rowTopology: DependencyRowTopology
+): { distanceByNodeId: Map<string, number>; maxDistance: number } {
+  const distanceByNodeId = new Map<string, number>();
+  const incomingByNodeId = new Map<string, string[]>();
+  graph.nodes.forEach((node) => incomingByNodeId.set(node.id, []));
+  graph.edges.forEach((edge) => {
+    incomingByNodeId.get(edge.targetId)?.push(edge.sourceId);
+  });
+
+  const queue: string[] = [];
+  graph.nodes.forEach((node) => {
+    const memberships = rowTopology.variables[node.name]?.memberships ?? [];
+    const isExplicitMatrixNode = memberships.some(
+      (membership) => membership.source === "transaction-row" || membership.source === "balance-row"
+    );
+    const isProxy = "isProxy" in node && node.isProxy === true;
+    if (isProxy || isExplicitMatrixNode) {
+      distanceByNodeId.set(node.id, 0);
+      queue.push(node.id);
+    }
+  });
+
+  while (queue.length > 0) {
+    const currentId = queue.shift();
+    if (currentId == null) {
+      break;
+    }
+    const currentDistance = distanceByNodeId.get(currentId);
+    if (currentDistance == null) {
+      continue;
+    }
+    (incomingByNodeId.get(currentId) ?? []).forEach((upstreamId) => {
+      const nextDistance = currentDistance + 1;
+      const previousDistance = distanceByNodeId.get(upstreamId);
+      if (previousDistance == null || nextDistance < previousDistance) {
+        distanceByNodeId.set(upstreamId, nextDistance);
+        queue.push(upstreamId);
+      }
+    });
+  }
+
+  const assignedMaxDistance = Array.from(distanceByNodeId.values()).reduce(
+    (max, distance) => Math.max(max, distance),
+    0
+  );
+  let fallbackDistance = assignedMaxDistance + 1;
+  graph.nodes
+    .filter((node) => !distanceByNodeId.has(node.id))
+    .sort((left, right) => {
+      if (left.layer !== right.layer) {
+        return left.layer - right.layer;
+      }
+      return left.order - right.order;
+    })
+    .forEach((node) => {
+      distanceByNodeId.set(node.id, fallbackDistance);
+      fallbackDistance += 1;
+    });
+
+  return {
+    distanceByNodeId,
+    maxDistance: Math.max(0, ...Array.from(distanceByNodeId.values()))
+  };
+}
+
+function relaxMatrixUpstreamXPositions(
+  nodes: PositionedNode[],
+  graph: Pick<ParsedDependencyGraph, "edges">,
+  distanceByNodeId: Map<string, number>,
+  bounds: { horizontalMinX: number; horizontalMaxX: number; maxDistance: number }
+): void {
+  if (nodes.length === 0) {
+    return;
+  }
+
+  const positions = new Map(nodes.map((node) => [node.id, node.x]));
+  const outgoing = new Map<string, Array<{ id: string; weight: number }>>();
+  const incoming = new Map<string, Array<{ id: string; weight: number }>>();
+  nodes.forEach((node) => {
+    outgoing.set(node.id, []);
+    incoming.set(node.id, []);
+  });
+  graph.edges.forEach((edge) => {
+    const weight = edge.current ? (edge.lagged ? 1.7 : 2.2) : 1;
+    outgoing.get(edge.sourceId)?.push({ id: edge.targetId, weight });
+    incoming.get(edge.targetId)?.push({ id: edge.sourceId, weight: weight * 0.35 });
+  });
+
+  for (let iteration = 0; iteration < RELAXATION_ITERATIONS; iteration += 1) {
+    const next = new Map(positions);
+
+    nodes.forEach((node) => {
+      const shell = distanceByNodeId.get(node.id) ?? bounds.maxDistance;
+      const currentX = positions.get(node.id) ?? node.x;
+      const shellX = getMatrixUpstreamShellX(shell, bounds.horizontalMinX);
+      const isAnchor = shell === 0;
+      if (isAnchor) {
+        next.set(node.id, clamp(currentX, shellX - MATRIX_SURFACE_CELL_HALF_WIDTH, shellX + MATRIX_SURFACE_CELL_HALF_WIDTH));
+        return;
+      }
+      let nextX = currentX + (shellX - currentX) * (isAnchor ? 0.72 : 0.22);
+
+      let weightedSum = 0;
+      let totalWeight = 0;
+      let downstreamMinX = Number.NEGATIVE_INFINITY;
+      (outgoing.get(node.id) ?? []).forEach((neighbor) => {
+        const neighborX = positions.get(neighbor.id);
+        if (neighborX == null) {
+          return;
+        }
+        const neighborShell = distanceByNodeId.get(neighbor.id) ?? 0;
+        const desiredX = getMatrixUpstreamShellX(shell, bounds.horizontalMinX);
+        const weight = neighbor.weight * (1 + 1 / (neighborShell + 1));
+        weightedSum += desiredX * weight;
+        totalWeight += weight;
+        downstreamMinX = Math.max(
+          downstreamMinX,
+          neighborX + getMatrixUpstreamShellStep(Math.max(1, shell - neighborShell)) * 0.68
+        );
+      });
+      (incoming.get(node.id) ?? []).forEach((neighbor) => {
+        const neighborX = positions.get(neighbor.id);
+        if (neighborX == null) {
+          return;
+        }
+        const neighborShell = distanceByNodeId.get(neighbor.id) ?? bounds.maxDistance;
+        const desiredX = getMatrixUpstreamShellX(shell, bounds.horizontalMinX);
+        weightedSum += desiredX * neighbor.weight;
+        totalWeight += neighbor.weight;
+      });
+
+      if (totalWeight > 0) {
+        nextX += ((weightedSum / totalWeight) - currentX) * (isAnchor ? 0.08 : 0.3);
+      }
+      if (Number.isFinite(downstreamMinX)) {
+        nextX = Math.max(nextX, downstreamMinX);
+      }
+
+      nodes.forEach((other) => {
+        if (other.id === node.id) {
+          return;
+        }
+        const otherX = positions.get(other.id) ?? other.x;
+        const otherY = other.y;
+        const minGap = NODE_WIDTH + 18;
+        if (Math.abs(currentX - otherX) >= minGap || Math.abs(node.y - otherY) > NODE_HEIGHT + 12) {
+          return;
+        }
+        nextX += (currentX <= otherX ? -1 : 1) * ((minGap - Math.abs(currentX - otherX)) / minGap) * 4;
+      });
+
+      next.set(node.id, clamp(nextX, bounds.horizontalMinX, bounds.horizontalMaxX));
+    });
+
+    next.forEach((value, key) => positions.set(key, value));
+  }
+
+  nodes.forEach((node) => {
+    const shell = distanceByNodeId.get(node.id) ?? bounds.maxDistance;
+    const shellX = getMatrixUpstreamShellX(shell, bounds.horizontalMinX);
+    node.x =
+      shell === 0
+        ? clamp(
+            positions.get(node.id) ?? node.x,
+            shellX - MATRIX_SURFACE_CELL_HALF_WIDTH,
+            shellX + MATRIX_SURFACE_CELL_HALF_WIDTH
+          )
+        : positions.get(node.id) ?? node.x;
+  });
+}
+
+function enforceMatrixUpstreamShellOrder(
+  nodes: PositionedNode[],
+  graph: Pick<ParsedDependencyGraph, "edges">,
+  distanceByNodeId: Map<string, number>,
+  bounds: { horizontalMinX: number; horizontalMaxX: number; maxDistance: number }
+): void {
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+
+  for (let iteration = 0; iteration < 4; iteration += 1) {
+    nodes
+      .slice()
+      .sort(
+        (left, right) =>
+          (distanceByNodeId.get(left.id) ?? bounds.maxDistance) -
+          (distanceByNodeId.get(right.id) ?? bounds.maxDistance)
+      )
+      .forEach((node) => {
+        const shell = distanceByNodeId.get(node.id) ?? bounds.maxDistance;
+        const shellX = getMatrixUpstreamShellX(shell, bounds.horizontalMinX);
+        if (shell === 0) {
+          node.x = clamp(
+            node.x,
+            shellX - MATRIX_SURFACE_CELL_HALF_WIDTH,
+            shellX + MATRIX_SURFACE_CELL_HALF_WIDTH
+          );
+          return;
+        }
+
+        let minX = shellX;
+        graph.edges.forEach((edge) => {
+          if (edge.sourceId !== node.id) {
+            return;
+          }
+          const downstream = nodeById.get(edge.targetId);
+          if (!downstream) {
+            return;
+          }
+          minX = Math.max(minX, downstream.x + COLUMN_GAP * 0.68);
+          minX = Math.max(minX, downstream.x + getMatrixUpstreamShellStep(1) * 0.68);
+        });
+        node.x = clamp(Math.max(node.x, minX), bounds.horizontalMinX, bounds.horizontalMaxX);
+      });
+  }
+}
+
+function getMatrixUpstreamLayoutSpan(maxDistance: number): number {
+  if (maxDistance <= 0) {
+    return 0;
+  }
+  return MATRIX_SURFACE_GAP + Math.max(0, maxDistance - 1) * COLUMN_GAP;
+}
+
+function getMatrixUpstreamShellStep(shellDelta: number): number {
+  if (shellDelta <= 0) {
+    return 0;
+  }
+  if (shellDelta === 1) {
+    return MATRIX_SURFACE_GAP;
+  }
+  return MATRIX_SURFACE_GAP + (shellDelta - 1) * COLUMN_GAP;
+}
+
+function getMatrixUpstreamShellX(shell: number, horizontalMinX: number): number {
+  return horizontalMinX + getMatrixUpstreamShellStep(shell);
 }
 
 function buildSectorStripScaffold(
@@ -911,7 +1354,8 @@ function buildSectorStripScaffold(
 
 function collectVisibleAccountingBands(
   nodes: Array<Pick<DisplayNode, "name" | "proxyBand">>,
-  rowTopology: DependencyRowTopology
+  rowTopology: DependencyRowTopology,
+  ignoreInferredBandsForPlacement: boolean
 ): string[] {
   return rowTopology.bands.filter((band) =>
     band !== "Unmapped" &&
@@ -920,7 +1364,10 @@ function collectVisibleAccountingBands(
       if (node.proxyBand === band) {
         return true;
       }
-      const assignment = rowTopology.variables[node.name];
+      const assignment = getPlacementAssignment(
+        rowTopology.variables[node.name],
+        ignoreInferredBandsForPlacement
+      );
       return assignment?.memberships.some((membership) => membership.band === band) ?? false;
     })
   );
@@ -928,14 +1375,15 @@ function collectVisibleAccountingBands(
 
 function buildAccountingBandLayoutData(
   nodes: Array<Pick<DisplayNode, "name" | "proxyBand">>,
-  rowTopology: DependencyRowTopology
+  rowTopology: DependencyRowTopology,
+  ignoreInferredBandsForPlacement: boolean
 ): {
   bandNames: string[];
   bandCenters: number[];
   bandCenterByName: Map<string, number>;
   height: number;
 } {
-  const bandNames = collectVisibleAccountingBands(nodes, rowTopology);
+  const bandNames = collectVisibleAccountingBands(nodes, rowTopology, ignoreInferredBandsForPlacement);
   const bandCenters = bandNames.map(
     (_, index) =>
       TOP_PADDING +
@@ -963,16 +1411,33 @@ function buildAccountingBandLabels(
   bandNames: string[],
   bandCenters: number[],
   graph: Pick<ParsedDependencyGraph, "nodes" | "edges">,
-  rowTopology: DependencyRowTopology
+  rowTopology: DependencyRowTopology,
+  ignoreInferredBandsForPlacement: boolean
 ): GraphColumnLabel[] {
   return bandNames.map((band, index) => ({
     id: `band-${band}`,
     x: HORIZONTAL_LABEL_X,
     y: (bandCenters[index] ?? TOP_PADDING) - 6,
     label: band,
-    subtitle: buildBandSubtitle(band, graph, rowTopology),
+    subtitle: buildBandSubtitle(band, graph, rowTopology, ignoreInferredBandsForPlacement),
     textAnchor: "start"
   }));
+}
+
+function getPlacementAssignment(
+  assignment: DependencyRowTopology["variables"][string],
+  ignoreInferredBandsForPlacement: boolean
+): DependencyRowTopology["variables"][string] {
+  if (!assignment || !ignoreInferredBandsForPlacement) {
+    return assignment;
+  }
+
+  const memberships = assignment.memberships.filter((membership) => membership.source !== "inferred");
+  return {
+    ...assignment,
+    primaryBand: memberships[0]?.band ?? "Unmapped",
+    memberships
+  };
 }
 
 function buildAccountingBandRenderBands(
@@ -999,13 +1464,17 @@ function buildAccountingBandRenderBands(
 function buildSoftAccountingAnchorYByNode(
   graph: { nodes: Array<DisplayNode>; edges: Array<DependencyGraphEdge> },
   rowTopology: DependencyRowTopology,
-  bandCenterByName: Map<string, number>
+  bandCenterByName: Map<string, number>,
+  ignoreInferredBandsForPlacement: boolean
 ): Map<string, number> {
   const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
   const scoresByNode = new Map<string, Map<string, number>>();
 
   graph.nodes.forEach((node) => {
-    const assignment = rowTopology.variables[node.name];
+    const assignment = getPlacementAssignment(
+      rowTopology.variables[node.name],
+      ignoreInferredBandsForPlacement
+    );
     const primaryBand = assignment?.primaryBand ?? "Unmapped";
     if ((primaryBand !== "Unmapped" && primaryBand !== "Exogenous") || node.proxyBand) {
       return;
@@ -1021,14 +1490,14 @@ function buildSoftAccountingAnchorYByNode(
     if (targetNode && scoresByNode.has(targetNode.id) && sourceNode) {
       accumulateSoftAnchorScores(
         scoresByNode.get(targetNode.id)!,
-        rowTopology.variables[sourceNode.name],
+        getPlacementAssignment(rowTopology.variables[sourceNode.name], ignoreInferredBandsForPlacement),
         weight
       );
     }
     if (sourceNode && scoresByNode.has(sourceNode.id) && targetNode) {
       accumulateSoftAnchorScores(
         scoresByNode.get(sourceNode.id)!,
-        rowTopology.variables[targetNode.name],
+        getPlacementAssignment(rowTopology.variables[targetNode.name], ignoreInferredBandsForPlacement),
         weight * 0.75
       );
     }
@@ -1237,6 +1706,7 @@ function computeInitialBandY(
   node: Pick<DisplayNode, "name" | "proxyBand">,
   rowTopology: DependencyRowTopology,
   bandCenterByName: Map<string, number>,
+  ignoreInferredBandsForPlacement: boolean,
   softAnchorYByNodeId?: Map<string, number>,
   nodeId?: string
 ): number {
@@ -1244,7 +1714,10 @@ function computeInitialBandY(
     return bandCenterByName.get(node.proxyBand) ?? averageBandCenter(bandCenterByName);
   }
 
-  const assignment = rowTopology.variables[node.name];
+  const assignment = getPlacementAssignment(
+    rowTopology.variables[node.name],
+    ignoreInferredBandsForPlacement
+  );
   const primaryBand = assignment?.primaryBand ?? "Unmapped";
   if ((primaryBand === "Unmapped" || primaryBand === "Exogenous") && nodeId) {
     const softAnchorY = softAnchorYByNodeId?.get(nodeId);
@@ -1291,6 +1764,7 @@ function finalizeAccountingLayoutNodes(
     graph: Pick<ParsedDependencyGraph, "nodes" | "edges">;
     horizontalMinX: number;
     horizontalMaxX: number;
+    ignoreInferredBandsForPlacement: boolean;
     rowTopology: DependencyRowTopology;
     softAnchorYByNodeId: Map<string, number>;
   }
@@ -1300,6 +1774,7 @@ function finalizeAccountingLayoutNodes(
       node,
       args.rowTopology,
       args.bandCenterByName,
+      args.ignoreInferredBandsForPlacement,
       args.softAnchorYByNodeId,
       node.id
     );
@@ -1309,16 +1784,19 @@ function finalizeAccountingLayoutNodes(
     args.graph,
     args.rowTopology,
     args.bandCenterByName,
+    args.ignoreInferredBandsForPlacement,
     args.softAnchorYByNodeId
   );
   const cellSpreadDiagnostics = spreadNodesWithinAccountingCells(nodes, args.rowTopology, {
     cellHalfWidth: args.cellHalfWidth,
-    bandCenterByName: args.bandCenterByName
+    bandCenterByName: args.bandCenterByName,
+    ignoreInferredBandsForPlacement: args.ignoreInferredBandsForPlacement
   });
   applyExogenousTargetPlacement(nodes, args.graph, args.rowTopology, args.bandCenterByName, {
     cellHalfWidth: args.cellHalfWidth,
     horizontalMinX: args.horizontalMinX,
-    horizontalMaxX: args.horizontalMaxX
+    horizontalMaxX: args.horizontalMaxX,
+    ignoreInferredBandsForPlacement: args.ignoreInferredBandsForPlacement
   });
   args.collisionResolver(nodes, args.bandCenterByName);
   resolveResidualOverlaps(nodes, args.rowTopology, args.bandCenterByName, {
@@ -1332,7 +1810,11 @@ function resolveResidualOverlaps(
   nodes: PositionedNode[],
   rowTopology: DependencyRowTopology,
   bandCenterByName: Map<string, number>,
-  bounds: { horizontalMinX: number; horizontalMaxX: number }
+  bounds: {
+    horizontalMinX: number;
+    horizontalMaxX: number;
+    ignoreInferredBandsForPlacement: boolean;
+  }
 ): void {
   if (nodes.length <= 1) {
     return;
@@ -1350,7 +1832,10 @@ function resolveResidualOverlaps(
     { xMin: number; xMax: number; yMin: number; yMax: number }
   >();
   nodes.forEach((node) => {
-    const assignment = rowTopology.variables[node.name];
+    const assignment = getPlacementAssignment(
+      rowTopology.variables[node.name],
+      bounds.ignoreInferredBandsForPlacement
+    );
     const primaryBand = node.proxyBand ?? assignment?.primaryBand;
     const bandCenter = primaryBand ? (bandCenterByName.get(primaryBand) ?? null) : null;
     const yMin =
@@ -1424,6 +1909,7 @@ function relaxHorizontalBandPositions(
   graph: Pick<ParsedDependencyGraph, "nodes" | "edges">,
   rowTopology: DependencyRowTopology,
   bandCenterByName: Map<string, number>,
+  ignoreInferredBandsForPlacement: boolean,
   softAnchorYByNodeId: Map<string, number>
 ): void {
   if (nodes.length === 0) {
@@ -1445,9 +1931,19 @@ function relaxHorizontalBandPositions(
     const next = new Map(positions);
 
     nodes.forEach((node) => {
-      const assignment = rowTopology.variables[node.name];
+      const assignment = getPlacementAssignment(
+        rowTopology.variables[node.name],
+        ignoreInferredBandsForPlacement
+      );
       const currentY = positions.get(node.id) ?? node.y;
-      const anchorY = computeInitialBandY(node, rowTopology, bandCenterByName, softAnchorYByNodeId, node.id);
+      const anchorY = computeInitialBandY(
+        node,
+        rowTopology,
+        bandCenterByName,
+        ignoreInferredBandsForPlacement,
+        softAnchorYByNodeId,
+        node.id
+      );
       const rigidity = getAccountingBandRigidity(assignment, node);
       let nextY = currentY + (anchorY - currentY) * (0.22 + rigidity * 0.2);
 
@@ -1611,13 +2107,18 @@ function spreadNodesWithinAccountingCells(
   args: {
     cellHalfWidth: number;
     bandCenterByName: Map<string, number>;
+    ignoreInferredBandsForPlacement: boolean;
   }
 ): CellSpreadDiagnosticEntry[] {
   const groups = new Map<string, PositionedNode[]>();
   const diagnostics: CellSpreadDiagnosticEntry[] = [];
 
   nodes.forEach((node) => {
-    const primaryBand = rowTopology.variables[node.name]?.primaryBand ?? "Unmapped";
+    const assignment = getPlacementAssignment(
+      rowTopology.variables[node.name],
+      args.ignoreInferredBandsForPlacement
+    );
+    const primaryBand = assignment?.primaryBand ?? "Unmapped";
     const anchorX = Math.round(node.x);
     const key = `${primaryBand}::${anchorX}`;
     const bucket = groups.get(key) ?? [];
@@ -1720,6 +2221,7 @@ function applyExogenousTargetPlacement(
     cellHalfWidth: number;
     horizontalMinX: number;
     horizontalMaxX: number;
+    ignoreInferredBandsForPlacement: boolean;
   }
 ): void {
   if (nodes.length === 0 || bandCenterByName.size === 0) {
@@ -1749,7 +2251,10 @@ function applyExogenousTargetPlacement(
   const maxY = Math.max(...bandCenterByName.values()) + HORIZONTAL_BAND_HEIGHT / 2 - NODE_HEIGHT / 2;
 
   nodes.forEach((node) => {
-    const assignment = rowTopology.variables[node.name];
+    const assignment = getPlacementAssignment(
+      rowTopology.variables[node.name],
+      args.ignoreInferredBandsForPlacement
+    );
     const isExogenous =
       node.variableType === "exogenous" ||
       (assignment?.primaryBand ?? "Unmapped") === "Exogenous";
@@ -2108,9 +2613,16 @@ function buildSectorSubtitle(
 function buildBandSubtitle(
   band: string,
   graph: Pick<ParsedDependencyGraph, "nodes" | "edges">,
-  rowTopology: DependencyRowTopology
+  rowTopology: DependencyRowTopology,
+  ignoreInferredBandsForPlacement: boolean
 ): string | undefined {
-  const nodes = graph.nodes.filter((node) => rowTopology.variables[node.name]?.primaryBand === band);
+  const nodes = graph.nodes.filter((node) => {
+    const assignment = getPlacementAssignment(
+      rowTopology.variables[node.name],
+      ignoreInferredBandsForPlacement
+    );
+    return assignment?.primaryBand === band;
+  });
   if (nodes.length === 0) {
     return undefined;
   }

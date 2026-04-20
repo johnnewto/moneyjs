@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { VariableDescriptions } from "../lib/variableDescriptions";
-import type { DependencyRowTopology } from "../notebook/dependencyRows";
+import type { DependencyRowMembership, DependencyRowTopology } from "../notebook/dependencyRows";
 import type { DependencySectorDisplayOccurrences } from "../notebook/dependencySectors";
 import type {
   DependencyGraphEdge,
@@ -23,8 +23,9 @@ interface DependencyGraphCanvasProps {
   rowTopology?: DependencyRowTopology | null;
   variableDescriptions?: VariableDescriptions;
   onNodeClick?(node: PositionedNode): void;
-  viewMode?: "layered" | "strips";
+  viewMode?: "layered" | "strips" | "matrix-upstream";
   showAccountingStrips?: boolean;
+  ignoreInferredBandsForPlacement?: boolean;
   debugOverlay?: boolean;
 }
 
@@ -42,6 +43,12 @@ const NODE_COLORS: Record<
   stock: { fill: "#fef3c7", stroke: "#d97706", accent: "#b45309" }
 };
 
+const MATRIX_BADGE_STYLES = {
+  transaction: { fill: "#0f766e", stroke: "#0b5f59", label: "T" },
+  balance: { fill: "#b45309", stroke: "#92400e", label: "B" },
+  both: { fill: "#334155", stroke: "#0f172a", label: "TB" }
+} as const;
+
 export function DependencyGraphCanvas({
   graph,
   sectorDisplayOccurrences,
@@ -51,6 +58,7 @@ export function DependencyGraphCanvas({
   onNodeClick,
   viewMode = "layered",
   showAccountingStrips = false,
+  ignoreInferredBandsForPlacement = false,
   debugOverlay = false
 }: DependencyGraphCanvasProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -65,9 +73,19 @@ export function DependencyGraphCanvas({
         sectorDisplayOccurrences,
         sectorTopology,
         showAccountingStrips,
+        ignoreInferredBandsForPlacement,
         viewMode
       }),
-    [graph, rowTopology, sectorDisplayOccurrences, sectorTopology, showAccountingStrips, viewMode, width]
+    [
+      graph,
+      rowTopology,
+      sectorDisplayOccurrences,
+      sectorTopology,
+      showAccountingStrips,
+      ignoreInferredBandsForPlacement,
+      viewMode,
+      width
+    ]
   );
   const { diagnostics, layout, renderGraph } = snapshot;
   const nodePositions = useMemo(
@@ -122,7 +140,9 @@ export function DependencyGraphCanvas({
         <svg
         className="sequence-canvas dependency-graph-canvas"
         aria-label={
-          viewMode === "strips" && showAccountingStrips
+          viewMode === "matrix-upstream"
+            ? "Dependency graph by matrix-upstream accounting shells"
+            : viewMode === "strips" && showAccountingStrips
             ? "Dependency graph by sector and accounting strips"
             : viewMode === "strips"
             ? "Dependency graph by sector strips"
@@ -417,6 +437,7 @@ function DependencyNodeShape({
   variableDescriptions?: VariableDescriptions;
 }) {
   const palette = NODE_COLORS[node.variableType];
+  const matrixBadge = getMatrixBadge(rowTopology?.variables[node.name]?.memberships);
   const left = node.x - nodeWidth / 2;
   const top = node.y - nodeHeight / 2;
   const opacity = isConnected ? 1 : 0.26;
@@ -447,6 +468,33 @@ function DependencyNodeShape({
         stroke={palette.stroke}
         strokeWidth={isHovered ? 2.8 : 2}
       />
+      {matrixBadge ? (
+        <g aria-label={`Matrix badge: ${matrixBadge.label}`}>
+          <rect
+            x={left + nodeWidth - 24}
+            y={top + 6}
+            width={18}
+            height={14}
+            rx={7}
+            ry={7}
+            fill={matrixBadge.fill}
+            stroke={matrixBadge.stroke}
+            strokeWidth={1}
+          />
+          <text
+            x={left + nodeWidth - 15}
+            y={top + 16}
+            fill="#ffffff"
+            fontFamily="IBM Plex Sans, Segoe UI, sans-serif"
+            fontSize={8.5}
+            fontWeight={700}
+            letterSpacing={matrixBadge.label === "TB" ? -0.1 : 0}
+            textAnchor="middle"
+          >
+            {matrixBadge.label}
+          </text>
+        </g>
+      ) : null}
       <text
         x={node.x}
         y={node.y + 5}
@@ -768,4 +816,26 @@ function buildNodeTitle(
     lines.push(`Lag deps: ${node.lagDependencyNames.join(", ")}`);
   }
   return lines.join("\n");
+}
+
+function getMatrixBadge(memberships?: DependencyRowMembership[]):
+  | (typeof MATRIX_BADGE_STYLES)[keyof typeof MATRIX_BADGE_STYLES]
+  | null {
+  if (!memberships?.length) {
+    return null;
+  }
+
+  const hasTransaction = memberships.some((membership) => membership.source === "transaction-row");
+  const hasBalance = memberships.some((membership) => membership.source === "balance-row");
+
+  if (hasTransaction && hasBalance) {
+    return MATRIX_BADGE_STYLES.both;
+  }
+  if (hasTransaction) {
+    return MATRIX_BADGE_STYLES.transaction;
+  }
+  if (hasBalance) {
+    return MATRIX_BADGE_STYLES.balance;
+  }
+  return null;
 }

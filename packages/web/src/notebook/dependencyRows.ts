@@ -5,6 +5,7 @@ import type {
   DependencySectorGroupingMode
 } from "./dependencySectors";
 import { buildGroupedSectorByOriginalSector, resolveStripMappingSources } from "./dependencySectors";
+import { buildNormalizedMatrixReferenceLabel } from "./matrixExpressionNormalization";
 
 const IGNORED_TOKENS = new Set(["d", "dt", "max", "min", "abs", "sqrt", "log", "exp"]);
 const EXOGENOUS_BAND = "Exogenous";
@@ -35,6 +36,7 @@ export interface DependencyRowMembership {
 export interface DependencyRowAssignment {
   primaryBand: string;
   memberships: DependencyRowMembership[];
+  proxyMemberships?: DependencyRowMembership[];
 }
 
 export interface DependencyRowTopology {
@@ -144,6 +146,7 @@ export function buildDependencyRowTopology(args: {
       pushBand(band);
       row.values.forEach((value) => {
         extractVariableNames(value).forEach((variable) => {
+          const proxyKind = classifyProxyKind(variable, originalBand, value);
           addMembership(variable, {
             band,
             originalBand,
@@ -152,8 +155,8 @@ export function buildDependencyRowTopology(args: {
             confidence: "high",
             explicit: true,
             expression: value.trim(),
-            proxyLabel: buildCompactProxyLabel(variable, value),
-            proxyKind: classifyProxyKind(variable, originalBand, value)
+            proxyLabel: buildCompactProxyLabel(variable, value, proxyKind),
+            proxyKind
           });
         });
       });
@@ -215,9 +218,11 @@ export function buildDependencyRowTopology(args: {
   const usedBands = new Set<string>();
 
   args.graph.nodes.forEach((node) => {
-    const memberships = Array.from(membershipsByVariable.get(node.name)?.values() ?? [])
+    const allMemberships = Array.from(membershipsByVariable.get(node.name)?.values() ?? [])
       .map(stripExplicitFlag)
       .sort((left, right) => compareMemberships(left, right, bandOrder));
+    const memberships = allMemberships.filter((membership) => isCanonicalMembership(membership, node.name));
+    const proxyMemberships = allMemberships.filter((membership) => !isCanonicalMembership(membership, node.name));
     if (memberships.length === 0) {
       variables[node.name] = {
         primaryBand: UNMAPPED_BAND,
@@ -228,17 +233,21 @@ export function buildDependencyRowTopology(args: {
             source: "fallback",
             confidence: "fallback"
           }
-        ]
+        ],
+        proxyMemberships
       };
       usedBands.add(UNMAPPED_BAND);
+      proxyMemberships.forEach((membership) => usedBands.add(membership.band));
       return;
     }
 
     variables[node.name] = {
       primaryBand: memberships[0]?.band ?? UNMAPPED_BAND,
-      memberships
+      memberships,
+      proxyMemberships
     };
     memberships.forEach((membership) => usedBands.add(membership.band));
+    proxyMemberships.forEach((membership) => usedBands.add(membership.band));
   });
 
   const orderedBands = bandOrder.filter((band) => usedBands.has(band));
@@ -428,7 +437,7 @@ function normalizeVariableFamily(variable: string): string | null {
 function normalizeBandLabel(label: string): string {
   const trimmed = label.trim();
   const lower = trimmed.toLowerCase();
-  if (!trimmed || lower === "sum" || lower === "balance" || lower === "total") {
+  if (!trimmed || lower === "sum" || lower === "total") {
     return "";
   }
   return trimmed.replace(/\s+/g, " ");
@@ -528,6 +537,13 @@ function compareMemberships(
   return left.band.localeCompare(right.band);
 }
 
+function isCanonicalMembership(membership: DependencyRowMembership, variable: string): boolean {
+  if (!membership.proxyLabel) {
+    return true;
+  }
+  return membership.proxyLabel === variable;
+}
+
 export function buildAccountingProxyNodes(rowTopology: DependencyRowTopology): AccountingProxyNode[] {
   return buildDerivedAccountingTerms(rowTopology).map(({ references: _references, ...proxy }) => proxy);
 }
@@ -539,7 +555,7 @@ export function buildDerivedAccountingTerms(rowTopology: DependencyRowTopology):
     if (!assignment) {
       return;
     }
-    const explicitMemberships = assignment.memberships.filter(
+    const explicitMemberships = [...assignment.memberships, ...(assignment.proxyMemberships ?? [])].filter(
       (membership) =>
         (membership.source === "transaction-row" || membership.source === "balance-row") &&
         membership.expression &&
@@ -593,7 +609,8 @@ export function buildDerivedAccountingTermsFromCells(cells: NotebookCell[]): Der
 
         const references = extractDependencyExpressionReferences(expression);
         references.forEach((reference) => {
-          const label = buildAccountingReferenceLabel(reference.name, expression);
+          const proxyKind = classifyProxyKind(reference.name, band, expression);
+          const label = buildAccountingReferenceLabel(reference.name, expression, proxyKind);
           const id = `derived:${cell.id}:${row.label}:${valueIndex}:${reference.name}`;
           terms.set(id, {
             id,
@@ -601,7 +618,7 @@ export function buildDerivedAccountingTermsFromCells(cells: NotebookCell[]): Der
             band,
             label,
             fullExpression: expression,
-            proxyKind: classifyProxyKind(reference.name, band, expression),
+            proxyKind,
             source,
             references
           });
@@ -664,7 +681,8 @@ export function buildDependencyProxyDisplayOccurrences(
         const sign = inferDisplayOccurrenceSign(expression);
         const references = extractDependencyExpressionReferences(expression);
         references.forEach((reference) => {
-          const displayLabel = buildAccountingReferenceLabel(reference.name, expression);
+          const proxyKind = classifyProxyKind(reference.name, band, expression);
+          const displayLabel = buildAccountingReferenceLabel(reference.name, expression, proxyKind);
           if (displayLabel === reference.name) {
             return;
           }
@@ -711,28 +729,21 @@ export function buildDependencyProxyDisplayOccurrences(
   return Object.fromEntries(occurrencesByVariable.entries());
 }
 
-export function buildCompactProxyLabel(variable: string, expression: string): string {
-  const compact = expression.replace(/\s+/g, "");
-  if (compact.includes(`d(${variable})`)) {
-    return `d${variable}`;
-  }
-  if (compact.includes(variable) && /(^|[^A-Za-z])(r[a-z]?|rm|rl)(\[-1\])?\*/i.test(compact)) {
-    const rateMatch = compact.match(/(rm|rl|r[a-z]?)(\[-1\])?\*/i);
-    return `${rateMatch?.[1] ?? "r"}*${variable}`;
-  }
-  return variable;
+export function buildCompactProxyLabel(
+  variable: string,
+  expression: string,
+  _proxyKind: "stock" | "change" | "interest" | "row-expression" = "row-expression"
+): string {
+  const label = buildNormalizedMatrixReferenceLabel(variable, expression);
+  return label === variable ? variable : label;
 }
 
-export function buildAccountingReferenceLabel(variable: string, expression: string): string {
-  const compact = expression.replace(/\s+/g, "").replace(/^[-+]/, "");
-  if (compact.includes(`d(${variable})`)) {
-    return `d${variable}`;
-  }
-
-  return compact
-    .replace(/lag\(([^)]+)\)/g, "$1[-1]")
-    .replace(/\[-1\]/g, "")
-    .replace(/^\((.*)\)$/g, "$1");
+export function buildAccountingReferenceLabel(
+  variable: string,
+  expression: string,
+  _proxyKind: "stock" | "change" | "interest" | "row-expression" = "row-expression"
+): string {
+  return buildNormalizedMatrixReferenceLabel(variable, expression);
 }
 
 function inferDerivedTermSource(title: string): "transaction-row" | "balance-row" {
@@ -761,10 +772,10 @@ function classifyProxyKind(
   expression: string
 ): "stock" | "change" | "interest" | "row-expression" {
   const compact = expression.replace(/\s+/g, "").toLowerCase();
-  if (compact.includes(`d(${variable.toLowerCase()})`)) {
+  if (compact.includes(`d(${variable.toLowerCase()})`) || /(^|[^a-z])(ch\.?|change)\b/i.test(band)) {
     return "change";
   }
-  if (band.toLowerCase().includes("interest") || /\brm|\brl/.test(compact)) {
+  if (/(^|[^a-z])(int\.?|interest)\b/i.test(band) || /\brm|\brl|\brb/.test(compact)) {
     return "interest";
   }
   if (band.toLowerCase().includes("deposit") || band.toLowerCase().includes("loan") || band.toLowerCase().includes("capital")) {

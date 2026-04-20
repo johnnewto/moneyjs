@@ -1,10 +1,22 @@
 import { describe, expect, it } from "vitest";
 
 import { buildDependencyGraph } from "../src/notebook/dependencyGraph";
-import { buildAccountingProxyNodes, buildDependencyRowTopology } from "../src/notebook/dependencyRows";
+import {
+  buildAccountingProxyNodes,
+  buildAccountingReferenceLabel,
+  buildCompactProxyLabel,
+  buildDependencyRowTopology
+} from "../src/notebook/dependencyRows";
 import type { NotebookCell, SequenceCell } from "../src/notebook/types";
 
 describe("dependency row topology", () => {
+  it("compacts current-minus-lag stock expressions into change and interest proxy labels", () => {
+    expect(buildCompactProxyLabel("Bs", "r * Bs", "interest")).toBe("r*Bs");
+    expect(buildAccountingReferenceLabel("Bs", "lag(r) * lag(Bs)", "interest")).toBe("r*Bs");
+    expect(buildCompactProxyLabel("Hs", "Hs - lag(Hs)", "change")).toBe("dHs");
+    expect(buildAccountingReferenceLabel("Hs", "Hs - Hs[-1]", "change")).toBe("dHs");
+  });
+
   it("builds accounting-row memberships from BMW transaction and balance matrices", () => {
     const cells: NotebookCell[] = [
       {
@@ -123,21 +135,13 @@ describe("dependency row topology", () => {
       "Depreciation"
     ]);
     expect(topology.variables.Cd?.primaryBand).toBe("Consumption");
-    expect(topology.variables.Mh?.memberships.map((membership) => membership.band).sort()).toEqual([
-      "Ch. deposits",
-      "Interest on deposits",
-      "Money deposits"
-    ]);
-    expect(topology.variables.Ld?.memberships.map((membership) => membership.band).sort()).toEqual([
-      "Ch. loans",
-      "Interest loans",
-      "Loans"
-    ]);
+    expect(topology.variables.Mh?.memberships.map((membership) => membership.band)).toEqual(["Money deposits"]);
+    expect(topology.variables.Ld?.memberships.map((membership) => membership.band)).toEqual(["Loans"]);
     expect(topology.variables.YD?.memberships.map((membership) => membership.band)).toEqual([
       "Wages",
       "Interest on deposits"
     ]);
-    expect(topology.variables.rl?.primaryBand).toBe("Interest loans");
+    expect(topology.variables.rl?.primaryBand).toBe("Exogenous");
     expect(topology.variables.rl?.memberships.map((membership) => membership.band)).toContain(
       "Exogenous"
     );
@@ -168,14 +172,14 @@ describe("dependency row topology", () => {
     );
     expect(
       groupedTopology.variables.Mh?.memberships.map((membership) => membership.originalBand).sort()
-    ).toEqual(["Ch. deposits", "Interest on deposits", "Money deposits"]);
+    ).toEqual(["Money deposits"]);
     expect(groupedTopology.variables.Ld?.primaryBand).toBe("Loans");
     expect(new Set(groupedTopology.variables.Ld?.memberships.map((membership) => membership.band))).toEqual(
       new Set(["Loans"])
     );
     expect(
       groupedTopology.variables.Ld?.memberships.map((membership) => membership.originalBand).sort()
-    ).toEqual(["Ch. loans", "Interest loans", "Loans"]);
+    ).toEqual(["Loans"]);
 
     const groupedProxies = buildAccountingProxyNodes(groupedTopology);
     expect(
@@ -248,7 +252,7 @@ describe("dependency row topology", () => {
     ).toEqual(new Set(["Inventories"]));
     expect(
       groupedDisTopology.variables.INV?.memberships.map((membership) => membership.originalBand).sort()
-    ).toEqual(["Ch. Inventories", "Inventories"]);
+    ).toEqual(["Inventories"]);
     expect(groupedDisTopology.variables.EF?.primaryBand).toBe("Profits");
     expect(groupedDisTopology.variables.EFb?.primaryBand).toBe("Profits");
     expect(

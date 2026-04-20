@@ -9,6 +9,7 @@ import {
 import type { MatrixCell, NotebookCell, SequenceCell } from "./types";
 import type { ParsedDependencyGraph } from "./dependencyGraph";
 import { resolveNotebookModelKey, resolveRunCellModelKey } from "./modelSections";
+import { extractNormalizedMatrixOccurrences } from "./matrixExpressionNormalization";
 
 export type DependencySectorGroupingMode = "none" | "family";
 export type DependencySectorDisplayOccurrenceSign = "+" | "-" | "neutral";
@@ -475,25 +476,7 @@ function extractDisplayVariableOccurrences(
   variable: string;
   displayLabel: string;
 }> {
-  const trimmed = source.trim();
-  const sign = trimmed.startsWith("-") ? "-" : trimmed.startsWith("+") ? "+" : "neutral";
-  const normalized = trimmed.replace(/^[-+]+\s*/, "");
-  const deltaMatch = normalized.match(/^d\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)$/i);
-  if (deltaMatch?.[1]) {
-    return [{ sign, variable: deltaMatch[1], displayLabel: `d${deltaMatch[1]}` }];
-  }
-
-  const lagMatch = normalized.match(/^lag\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)$/i);
-  if (lagMatch?.[1]) {
-    return [{ sign, variable: lagMatch[1], displayLabel: lagMatch[1] }];
-  }
-
-  const variableMatch = normalized.match(/^([A-Za-z_][A-Za-z0-9_]*)(?:\s*\[-1\])?$/);
-  if (variableMatch?.[1]) {
-    return [{ sign, variable: variableMatch[1], displayLabel: variableMatch[1] }];
-  }
-
-  return [];
+  return extractNormalizedMatrixOccurrences(source);
 }
 
 function mapVariableTypeToAccountKind(
