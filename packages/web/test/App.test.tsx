@@ -125,6 +125,7 @@ describe("App", () => {
 
     render(<App />);
 
+    expect(screen.getByRole("combobox", { name: /notebook template/i })).toHaveValue("bmw");
     expect(screen.getAllByText(/bmw browser notebook/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /^run all$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /validate/i })).toBeInTheDocument();
@@ -644,6 +645,29 @@ describe("App", () => {
     expect(window.location.hash).toBe("#/notebook/gl6-dis");
   });
 
+  it("enables the sectors strip-source button when active matrices provide sectors", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    await user.selectOptions(screen.getByLabelText(/notebook template/i), "gl6-dis");
+
+    const sequenceHeading = screen.getByRole("heading", { name: /dis equation dependency graph/i });
+    const sequenceCell = sequenceHeading.closest("article");
+    expect(sequenceCell).not.toBeNull();
+    if (!(sequenceCell instanceof HTMLElement)) {
+      throw new Error("Expected DIS equation dependency graph article.");
+    }
+
+    const showButton = within(sequenceCell).queryByRole("button", { name: /^show$/i });
+    if (showButton) {
+      await user.click(showButton);
+    }
+
+    expect(within(sequenceCell).getByRole("button", { name: /^columns$/i })).toBeEnabled();
+  });
+
   it("renders separate externals and initial-values cells for the growth notebook", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";
@@ -708,22 +732,20 @@ describe("App", () => {
       await user.click(showButton);
     }
 
-    expect(within(sequenceCell).getByRole("button", { name: /sector strips/i })).toHaveClass("is-active");
     expect(within(sequenceCell).getByRole("button", { name: /accounting bands/i })).toHaveClass("is-active");
-    expect(within(sequenceCell).getByRole("button", { name: /raw sectors/i })).toBeInTheDocument();
-    expect(within(sequenceCell).getByRole("button", { name: /grouped bands/i })).toHaveClass("is-active");
+    expect(within(sequenceCell).getByRole("button", { name: /^sectors$/i })).toHaveClass("is-active");
     expect(within(sequenceCell).getByRole("button", { name: /show exogenous/i })).toBeInTheDocument();
 
-    await user.click(within(sequenceCell).getByRole("button", { name: /raw sectors/i }));
-    expect(within(sequenceCell).getByRole("button", { name: /grouped sectors/i })).toHaveClass("is-active");
+    await user.click(within(sequenceCell).getByRole("button", { name: /^sectors$/i }));
+    expect(within(sequenceCell).getByRole("button", { name: /^columns$/i })).not.toHaveClass("is-active");
 
     await user.click(screen.getByRole("button", { name: /^export$/i }));
 
     const exportArea = screen.getByDisplayValue(/"title": "BMW Browser Notebook"/i) as HTMLTextAreaElement;
-    expect(exportArea.value).toContain('"viewMode": "strips"');
-    expect(exportArea.value).toContain('"sectorGrouping": "family"');
+    expect(exportArea.value).not.toContain('"viewMode": "strips"');
+    expect(exportArea.value).toContain('"stripSectorSource": "columns"');
     expect(exportArea.value).toContain('"showAccountingStrips": true');
-    expect(exportArea.value).toContain('"accountingBandGrouping": "family"');
+    expect(exportArea.value).not.toContain('"accountingBandGrouping": "family"');
     expect(exportArea.value).toContain('"showExogenous": false');
   });
 

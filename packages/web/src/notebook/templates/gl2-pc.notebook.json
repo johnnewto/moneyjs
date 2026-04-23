@@ -10,10 +10,11 @@
       "title": "PC balance sheet",
       "sourceRunCellId": "baseline-run",
       "columns": ["Households", "Firms", "Government", "Central bank", "Sum"],
+      "sectors": ["Households", "Firms", "Government", "Central bank", ""],
       "rows": [
-        { "label": "Money", "values": ["+Hh", "", "", "-Hs", "0"] },
-        { "label": "Bills", "values": ["+Bh", "", "-Bs", "+Bcb", "0"] },
-        { "label": "Balance", "values": ["-V", "", "+V", "", "0"] }
+        { "band": "Money", "label": "Money", "values": ["+Hh", "", "", "-Hs", "0"] },
+        { "band": "Bills", "label": "Bills", "values": ["+Bh", "", "-Bs", "+Bcb", "0"] },
+        { "band": "", "label": "Balance", "values": ["-V", "", "+V", "", "0"] }
       ],
       "description": "Balance-sheet matrix for model PC following the article structure.",
       "note": "Validated against the baseline simulation from the source vignette."
@@ -24,22 +25,23 @@
       "title": "PC transactions-flow matrix",
       "sourceRunCellId": "baseline-run",
       "columns": ["Households", "Firms", "Government", "CB current", "CB capital"],
+      "sectors": ["Households", "Firms", "Government", "Central bank", "Central bank"],
       "rows": [
-        { "label": "Consumption", "values": ["-C", "+C", "", "", ""] },
-        { "label": "Govt. expenditures", "values": ["", "+G", "-G", "", ""] },
-        { "label": "Income", "values": ["+Y", "-Y", "", "", ""] },
-        { "label": "Interest payments", "values": ["+lag(r) * lag(Bh)", "", "-lag(r) * lag(Bs)", "+lag(r) * lag(Bcb)", ""] },
-        { "label": "CB profits", "values": ["", "", "+lag(r) * lag(Bcb)", "-lag(r) * lag(Bcb)", ""] },
-        { "label": "Taxes", "values": ["-TX", "", "+TX", "", ""] },
-        { "label": "Change money", "values": ["-(Hh - lag(Hh))", "", "", "", "+(Hs - lag(Hs))"] },
-        { "label": "Change bills", "values": ["-(Bh - lag(Bh))", "", "+(Bs - lag(Bs))", "", "-(Bcb - lag(Bcb))"] }
+        { "band": "Consumption", "label": "Consumption", "values": ["-C", "+C", "", "", ""] },
+        { "band": "Government", "label": "Govt. expenditures", "values": ["", "+G", "-G", "", ""] },
+        { "band": "Income", "label": "Income", "values": ["+Y", "-Y", "", "", ""] },
+        { "band": "Interest", "label": "Interest payments", "values": ["+lag(r) * lag(Bh)", "", "-lag(r) * lag(Bs)", "+lag(r) * lag(Bcb)", ""] },
+        { "band": "Profits", "label": "CB profits", "values": ["", "", "+lag(r) * lag(Bcb)", "-lag(r) * lag(Bcb)", ""] },
+        { "band": "Taxes", "label": "Taxes", "values": ["-TX", "", "+TX", "", ""] },
+        { "band": "Money", "label": "Change money", "values": ["-(Hh - lag(Hh))", "", "", "", "+(Hs - lag(Hs))"] },
+        { "band": "Bills", "label": "Change bills", "values": ["-(Bh - lag(Bh))", "", "+(Bs - lag(Bs))", "", "-(Bcb - lag(Bcb))"] }
       ],
       "description": "Transactions-flow matrix for model PC following the article structure.",
       "note": "Validated against the baseline simulation from the source vignette."
     },
     { "id": "transaction-flow-sequence", "type": "sequence", "title": "PC transaction flow sequence", "source": { "kind": "matrix", "matrixCellId": "transaction-flow" }, "description": "Sequence view generated from the PC transactions-flow matrix at the selected simulation period." },
     { "id": "equation-dependency-graph", "type": "sequence", "title": "PC  dependency graph", 
-    "source": { "kind": "dependency", "modelId": "pc-baseline", "viewMode": "strips", "showAccountingStrips": true, "accountingBandGrouping": "family", "showExogenous": false }, "description": "Layered dependency view of the pc equations.", "note": "" },
+    "source": { "kind": "dependency", "modelId": "pc-baseline", "showAccountingStrips": true, "showExogenous": false }, "description": "Dependency view of the pc equations organized by sector strips and accounting bands.", "note": "" },
     {
       "id": "equations",
       "type": "equations",

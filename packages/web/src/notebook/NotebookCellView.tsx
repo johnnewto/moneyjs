@@ -54,7 +54,8 @@ import { buildDependencyGraph } from "./dependencyGraph";
 import { buildDependencyProxyDisplayOccurrences, buildDependencyRowTopology } from "./dependencyRows";
 import {
   buildDependencySectorDisplayOccurrences,
-  buildDependencySectorTopology
+  buildDependencySectorTopology,
+  resolveStripMappingSources
 } from "./dependencySectors";
 import {
   applySourceHelper,
@@ -2752,15 +2753,7 @@ function DependencySequenceCellView({
   }): void;
   variableDescriptions: VariableDescriptions;
 }) {
-  const layoutMode =
-    cell.source.viewMode === "layered"
-      ? "layered"
-      : cell.source.viewMode === "matrix-upstream"
-        ? "matrix-upstream"
-        : "strips";
-  const sectorGrouping = cell.source.sectorGrouping === "family" ? "family" : "none";
   const showAccountingStrips = cell.source.showAccountingStrips ?? true;
-  const accountingBandGrouping = cell.source.accountingBandGrouping === "none" ? "none" : "family";
   const ignoreInferredBandsForPlacement = cell.source.ignoreInferredBandsForPlacement ?? false;
   const showExogenous = cell.source.showExogenous ?? false;
   const showDebugOverlay = cell.source.showDebugOverlay ?? false;
@@ -2784,43 +2777,17 @@ function DependencySequenceCellView({
     });
   }
 
-  function setPersistedLayoutMode(nextLayoutMode: "layered" | "strips" | "matrix-upstream"): void {
-    updateDependencySource((source) => ({
-      ...source,
-      viewMode: nextLayoutMode,
-      showAccountingStrips:
-        nextLayoutMode === "matrix-upstream" ? true : source.showAccountingStrips
-    }));
-  }
-
   function togglePersistedAccountingStrips(): void {
-    updateDependencySource((source) => {
-      const nextShowAccountingStrips =
-        !(source.showAccountingStrips ?? source.viewMode === "horizontal-strips");
-      return {
-        ...source,
-        viewMode:
-          !nextShowAccountingStrips && source.viewMode === "matrix-upstream"
-            ? "layered"
-            : source.viewMode === "horizontal-strips"
-              ? "layered"
-              : source.viewMode,
-        showAccountingStrips: nextShowAccountingStrips
-      };
-    });
-  }
-
-  function togglePersistedSectorGrouping(): void {
     updateDependencySource((source) => ({
       ...source,
-      sectorGrouping: source.sectorGrouping === "family" ? "none" : "family"
+      showAccountingStrips: !(source.showAccountingStrips ?? true)
     }));
   }
 
-  function togglePersistedBandGrouping(): void {
+  function togglePersistedStripSectorSource(): void {
     updateDependencySource((source) => ({
       ...source,
-      accountingBandGrouping: source.accountingBandGrouping === "family" ? "none" : "family"
+      stripSectorSource: source.stripSectorSource === "columns" ? "sectors" : "columns"
     }));
   }
 
@@ -2889,22 +2856,43 @@ function DependencySequenceCellView({
         };
   }, [dependencyEditor]);
   const visibleGraph = useMemo(() => filterDependencyGraphForView(graph, showExogenous), [graph, showExogenous]);
+  const stripMappingSources = useMemo(() => resolveStripMappingSources(cells, cell), [cell, cells]);
+  const canUseSectorStripSource = useMemo(() => {
+    const activeMatrices = [stripMappingSources.transactionMatrix, stripMappingSources.balanceMatrix].filter(
+      (matrix): matrix is MatrixCell => matrix !== null
+    );
+
+    return activeMatrices.length > 0 && activeMatrices.every((matrix) => Array.isArray(matrix.sectors));
+  }, [stripMappingSources]);
+  const effectiveStripSectorSource = canUseSectorStripSource
+    ? (cell.source.stripSectorSource ?? "sectors")
+    : "columns";
+  const effectiveDependencyCell = useMemo(
+    () => ({
+      ...cell,
+      source: {
+        ...cell.source,
+        stripSectorSource: effectiveStripSectorSource
+      }
+    }),
+    [cell, effectiveStripSectorSource]
+  );
   const sectorTopology = useMemo(
     () =>
       buildDependencySectorTopology({
         cells,
-        dependencyCell: cell,
+        dependencyCell: effectiveDependencyCell,
         graph: visibleGraph
       }),
-    [cell, cells, sectorGrouping, visibleGraph]
+    [cells, effectiveDependencyCell, visibleGraph]
   );
   const sectorDisplayOccurrences = useMemo(() => {
     const directOccurrences = buildDependencySectorDisplayOccurrences({
       cells,
-      dependencyCell: cell,
+      dependencyCell: effectiveDependencyCell,
       graph: visibleGraph
     });
-    const proxyOccurrences = buildDependencyProxyDisplayOccurrences(cells, sectorGrouping);
+    const proxyOccurrences = buildDependencyProxyDisplayOccurrences(cells, effectiveStripSectorSource);
     const merged = new Map<string, Array<(typeof directOccurrences)[string][number]>>();
 
     Object.entries(directOccurrences).forEach(([variable, occurrences]) => {
@@ -2916,16 +2904,15 @@ function DependencySequenceCellView({
     });
 
     return Object.fromEntries(merged.entries());
-  }, [cell, cells, sectorGrouping, visibleGraph]);
+  }, [cells, effectiveDependencyCell, effectiveStripSectorSource, visibleGraph]);
   const rowTopology = useMemo(
     () =>
       buildDependencyRowTopology({
-        bandGrouping: accountingBandGrouping,
         cells,
         dependencyCell: cell,
         graph: visibleGraph
       }),
-    [accountingBandGrouping, cell, cells, visibleGraph]
+    [cell, cells, visibleGraph]
   );
   const stripCount = useMemo(
     () => {
@@ -2950,7 +2937,6 @@ function DependencySequenceCellView({
     },
     [
       ignoreInferredBandsForPlacement,
-      layoutMode,
       rowTopology,
       sectorTopology,
       showAccountingStrips,
@@ -2982,44 +2968,11 @@ function DependencySequenceCellView({
           <span>
             Edges <strong>{visibleGraph.edges.length}</strong>
           </span>
-          {layoutMode === "layered" && !showAccountingStrips ? (
-            <span>
-              Layers <strong>{visibleGraph.layerCount}</strong>
-            </span>
-          ) : (
-            <span>
-              Strips <strong>{stripCount}</strong>
-            </span>
-          )}
+          <span>
+            Strips <strong>{stripCount}</strong>
+          </span>
         </div>
         <div className="sequence-toolbar-actions">
-          <button
-            type="button"
-            className={`notebook-run-button notebook-source-toggle${
-              layoutMode === "layered" ? " is-active" : ""
-            }`}
-            onClick={() => setPersistedLayoutMode("layered")}
-          >
-            Layered DAG
-          </button>
-          <button
-            type="button"
-            className={`notebook-run-button notebook-source-toggle${
-              layoutMode === "strips" ? " is-active" : ""
-            }`}
-            onClick={() => setPersistedLayoutMode("strips")}
-          >
-            Sector strips
-          </button>
-          <button
-            type="button"
-            className={`notebook-run-button notebook-source-toggle${
-              layoutMode === "matrix-upstream" ? " is-active" : ""
-            }`}
-            onClick={() => setPersistedLayoutMode("matrix-upstream")}
-          >
-            Matrix upstream
-          </button>
           <button
             type="button"
             className={`notebook-run-button notebook-source-toggle${
@@ -3032,20 +2985,12 @@ function DependencySequenceCellView({
           <button
             type="button"
             className={`notebook-run-button notebook-source-toggle${
-              sectorGrouping === "family" ? " is-active" : ""
+              effectiveStripSectorSource === "sectors" ? " is-active" : ""
             }`}
-            onClick={togglePersistedSectorGrouping}
+            onClick={togglePersistedStripSectorSource}
+            disabled={!canUseSectorStripSource}
           >
-            {sectorGrouping === "family" ? "Grouped sectors" : "Raw sectors"}
-          </button>
-          <button
-            type="button"
-            className={`notebook-run-button notebook-source-toggle${
-              accountingBandGrouping === "family" ? " is-active" : ""
-            }`}
-            onClick={togglePersistedBandGrouping}
-          >
-            {accountingBandGrouping === "family" ? "Grouped bands" : "Raw bands"}
+            {effectiveStripSectorSource === "sectors" ? "Sectors" : "Columns"}
           </button>
           <button
             type="button"
@@ -3085,7 +3030,6 @@ function DependencySequenceCellView({
         sectorTopology={sectorTopology}
         rowTopology={rowTopology}
         variableDescriptions={dependencyVariableDescriptions}
-        viewMode={layoutMode}
         showAccountingStrips={showAccountingStrips}
         ignoreInferredBandsForPlacement={ignoreInferredBandsForPlacement}
         debugOverlay={showDebugOverlay}

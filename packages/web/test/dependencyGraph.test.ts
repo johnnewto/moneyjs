@@ -147,8 +147,7 @@ describe("dependency graph viewer", () => {
       rowTopology,
       sectorDisplayOccurrences: mergeDisplayOccurrences(directOccurrences, proxyOccurrences),
       sectorTopology,
-      showAccountingStrips: true,
-      viewMode: "strips"
+      showAccountingStrips: true
     });
 
     if (process.env.SHOW_DEPENDENCY_DEBUG === "1") {
@@ -266,8 +265,7 @@ describe("dependency graph viewer", () => {
       availableWidth: 960,
       graph,
       sectorDisplayOccurrences,
-      sectorTopology,
-      viewMode: "strips"
+      sectorTopology
     });
 
     const consumptionNodes = snapshot.layout.nodes.filter(
@@ -331,8 +329,7 @@ describe("dependency graph viewer", () => {
       availableWidth: 960,
       graph,
       sectorDisplayOccurrences,
-      sectorTopology,
-      viewMode: "strips"
+      sectorTopology
     });
 
     const billsNodes = snapshot.layout.nodes.filter(
@@ -341,52 +338,6 @@ describe("dependency graph viewer", () => {
 
     expect(billsNodes).toHaveLength(2);
     expect(billsNodes.map((node) => node.label).sort()).toEqual(["+r*Bcb", "-r*Bcb"]);
-  });
-
-  it("applies a single unambiguous signed occurrence label outside strip mode", () => {
-    const cells: NotebookCell[] = [
-      {
-        id: "transaction-flow",
-        type: "matrix",
-        title: "Wages flow matrix",
-        columns: ["Households", "Firms", "Sum"],
-        sectors: ["Households", "Firms", ""],
-        rows: [{ label: "Wages", values: ["+WBs", "-WBd", "0"] }]
-      },
-      {
-        id: "equations",
-        type: "equations",
-        title: "Simple wages model",
-        modelId: "equations",
-        equations: [
-          { id: "eq-wbs", name: "WBs", expression: "Ns" },
-          { id: "eq-y", name: "Y", expression: "WBs" }
-        ]
-      }
-    ];
-    const dependencyCell: SequenceCell & {
-      source: Extract<SequenceCell["source"], { kind: "dependency" }>;
-    } = {
-      id: "equation-dependency-graph",
-      type: "sequence",
-      title: "Simple dependency graph",
-      source: { kind: "dependency", modelId: "equations" }
-    };
-    const graph = buildDependencyGraph({
-      equations: cells.find((cell) => cell.id === "equations" && cell.type === "equations")!.equations,
-      externals: [{ id: "ext-ns", name: "Ns", kind: "constant", valueText: "1" }],
-      initialValues: []
-    });
-    const sectorDisplayOccurrences = buildDependencySectorDisplayOccurrences({ cells, dependencyCell, graph });
-    const snapshot = buildDependencyGraphLayoutSnapshot({
-      availableWidth: 960,
-      graph,
-      sectorDisplayOccurrences,
-      viewMode: "layered"
-    });
-
-    expect(snapshot.layout.nodes.find((node) => node.name === "WBs")?.label).toBe("+WBs");
-    expect(snapshot.layout.nodes.find((node) => node.name === "Y")?.label).toBe("Y");
   });
 
   it("preserves delta notation for signed direct accounting occurrences", () => {
@@ -438,8 +389,7 @@ describe("dependency graph viewer", () => {
       availableWidth: 960,
       graph,
       sectorDisplayOccurrences: mergeDisplayOccurrences(directOccurrences, proxyOccurrences),
-      sectorTopology,
-      viewMode: "strips"
+      sectorTopology
     });
 
     const inventoryNodes = snapshot.layout.nodes.filter(
@@ -503,8 +453,7 @@ describe("dependency graph viewer", () => {
       rowTopology,
       sectorDisplayOccurrences: mergeDisplayOccurrences(directOccurrences, proxyOccurrences),
       sectorTopology,
-      showAccountingStrips: true,
-      viewMode: "strips"
+      showAccountingStrips: true
     });
 
     const inventoryNodes = snapshot.layout.nodes.filter(
@@ -527,8 +476,7 @@ describe("dependency graph viewer", () => {
       rowTopology,
       sectorDisplayOccurrences: mergeDisplayOccurrences(directOccurrences, proxyOccurrences),
       sectorTopology,
-      showAccountingStrips: true,
-      viewMode: "strips"
+      showAccountingStrips: true
     });
 
     const positiveDepositProxy = snapshot.layout.nodes.find(
@@ -544,37 +492,6 @@ describe("dependency graph viewer", () => {
     expect(negativeDepositProxy?.occurrenceSign).toBe("-");
     expect(positiveDepositProxy?.mirrorSector).toBe("Households");
     expect(negativeDepositProxy?.mirrorSector).toBe("Banks");
-  });
-
-  it("places explicit matrix terms before their upstream shells in matrix-upstream mode", () => {
-    const { cells, dependencyCell, graph } = buildBmwDependencyScenario();
-    const rowTopology = buildDependencyRowTopology({ cells, dependencyCell, graph });
-    const snapshot = buildDependencyGraphLayoutSnapshot({
-      availableWidth: 1440,
-      graph,
-      rowTopology,
-      showAccountingStrips: true,
-      viewMode: "matrix-upstream"
-    });
-
-    const nodeByLabel = new Map(snapshot.layout.nodes.map((node) => [node.label, node]));
-    const cd = nodeByLabel.get("Cd");
-    const yd = nodeByLabel.get("YD");
-    const wbs = nodeByLabel.get("WBs");
-    const w = nodeByLabel.get("W");
-    const id = nodeByLabel.get("Id");
-    const kt = nodeByLabel.get("KT");
-
-    expect(cd).toBeDefined();
-  expect(yd).toBeDefined();
-    expect(wbs).toBeDefined();
-    expect(w).toBeDefined();
-    expect(id).toBeDefined();
-    expect(kt).toBeDefined();
-
-  expect(yd!.x).toBeGreaterThan(cd!.x);
-    expect(w!.x).toBeGreaterThan(wbs!.x);
-    expect(kt!.x).toBeGreaterThan(id!.x);
   });
 
   it("can ignore inferred memberships when placing nodes in accounting bands", () => {
@@ -618,21 +535,22 @@ describe("dependency graph viewer", () => {
       ],
       initialValues: []
     });
+    const sectorTopology = buildDependencySectorTopology({ cells, dependencyCell, graph });
     const rowTopology = buildDependencyRowTopology({ cells, dependencyCell, graph });
     const anchoredSnapshot = buildDependencyGraphLayoutSnapshot({
       availableWidth: 960,
       graph,
       rowTopology,
-      showAccountingStrips: true,
-      viewMode: "layered"
+      sectorTopology,
+      showAccountingStrips: true
     });
     const relaxedSnapshot = buildDependencyGraphLayoutSnapshot({
       availableWidth: 960,
       graph,
       rowTopology,
+      sectorTopology,
       showAccountingStrips: true,
-      ignoreInferredBandsForPlacement: true,
-      viewMode: "layered"
+      ignoreInferredBandsForPlacement: true
     });
 
     const anchoredX = anchoredSnapshot.layout.nodes.find((node) => node.name === "X");

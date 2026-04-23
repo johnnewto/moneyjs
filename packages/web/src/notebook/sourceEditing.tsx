@@ -385,7 +385,7 @@ export function buildNotebookCellHelpText(cell: NotebookCell): string {
     case "matrix":
       return "Matrix cell that evaluates transaction or balance-sheet style formulas against the selected run result.";
     case "sequence":
-      return "Sequence viewer cell for either matrix-derived transaction flows or a layered equation dependency graph.";
+      return "Sequence viewer cell for either matrix-derived transaction flows or a sector-strip equation dependency graph.";
     default:
       return "Notebook cell help is not available for this cell type.";
   }

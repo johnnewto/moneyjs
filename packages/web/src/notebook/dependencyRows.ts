@@ -1,17 +1,15 @@
-import type { NotebookCell, SequenceCell } from "./types";
+import type { MatrixCell, NotebookCell, SequenceCell } from "./types";
 import type { ParsedDependencyGraph } from "./dependencyGraph";
 import type {
   DependencySectorDisplayOccurrences,
-  DependencySectorGroupingMode
+  DependencyStripSectorSourceMode
 } from "./dependencySectors";
-import { buildGroupedSectorByOriginalSector, resolveStripMappingSources } from "./dependencySectors";
+import { resolveMatrixStripSector, resolveStripMappingSources } from "./dependencySectors";
 import { buildNormalizedMatrixReferenceLabel } from "./matrixExpressionNormalization";
 
 const IGNORED_TOKENS = new Set(["d", "dt", "max", "min", "abs", "sqrt", "log", "exp"]);
 const EXOGENOUS_BAND = "Exogenous";
 const UNMAPPED_BAND = "Unmapped";
-
-export type DependencyBandGroupingMode = "none" | "family";
 
 export type DependencyRowMembershipSource =
   | "transaction-row"
@@ -68,7 +66,6 @@ interface DirectedAdjacency {
 }
 
 export function buildDependencyRowTopology(args: {
-  bandGrouping?: DependencyBandGroupingMode;
   cells: NotebookCell[];
   dependencyCell: SequenceCell & {
     source: Extract<SequenceCell["source"], { kind: "dependency" }>;
@@ -76,17 +73,13 @@ export function buildDependencyRowTopology(args: {
   graph: ParsedDependencyGraph;
 }): DependencyRowTopology {
   const sources = resolveStripMappingSources(args.cells, args.dependencyCell);
-  const bandGrouping = args.bandGrouping ?? args.dependencyCell.source.accountingBandGrouping ?? "none";
   const bandOrder: string[] = [];
   const bandOrderSet = new Set<string>();
   const membershipsByVariable = new Map<string, Map<string, MutableMembership>>();
-  const groupedBandByOriginalBand = buildGroupedBandByOriginalBand(
-    [
-      ...(sources.transactionMatrix?.rows.map((row) => ({ label: row.label, values: row.values })) ?? []),
-      ...(sources.balanceMatrix?.rows.map((row) => ({ label: row.label, values: row.values })) ?? [])
-    ],
-    bandGrouping
-  );
+  const matrixRows = [
+    ...(sources.transactionMatrix?.rows ?? []),
+    ...(sources.balanceMatrix?.rows ?? [])
+  ];
 
   const pushBand = (band: string): void => {
     if (!band || bandOrderSet.has(band)) {
@@ -134,15 +127,15 @@ export function buildDependencyRowTopology(args: {
   };
 
   const applyMatrixRows = (
-    rows: Array<{ label: string; values: string[] }>,
+    rows: MatrixCell["rows"],
     source: "transaction-row" | "balance-row"
   ): void => {
     rows.forEach((row) => {
-      const originalBand = normalizeBandLabel(row.label);
+      const originalBand = resolveOriginalBand(row);
       if (!originalBand) {
         return;
       }
-      const band = groupedBandByOriginalBand.get(originalBand) ?? originalBand;
+      const band = originalBand;
       pushBand(band);
       row.values.forEach((value) => {
         extractVariableNames(value).forEach((variable) => {
@@ -333,105 +326,14 @@ function buildMembershipKey(
   return `band:${membership.band}`;
 }
 
-function buildGroupedBandByOriginalBand(
-  rows: Array<{ label: string; values: string[] }>,
-  mode: DependencyBandGroupingMode
-): Map<string, string> {
-  if (mode !== "family") {
-    return new Map();
+function resolveOriginalBand(row: MatrixCell["rows"][number]): string | null {
+  if (row.band !== undefined) {
+    return normalizeBandLabel(row.band) || UNMAPPED_BAND;
   }
-
-  const candidates = new Map<
-    string,
-    Array<{ originalBand: string; variableFamilies: Set<string> }>
-  >();
-
-  rows.forEach((row) => {
-    const originalBand = normalizeBandLabel(row.label);
-    if (!originalBand) {
-      return;
-    }
-    const familyBand = inferFamilyBand(originalBand);
-    if (!familyBand) {
-      return;
-    }
-    const bucket = candidates.get(familyBand) ?? [];
-    bucket.push({
-      originalBand,
-      variableFamilies: new Set(extractVariableFamilies(row.values))
-    });
-    candidates.set(familyBand, bucket);
-  });
-
-  const groupedBandByOriginalBand = new Map<string, string>();
-  candidates.forEach((rowsForFamily, familyBand) => {
-    if (rowsForFamily.length < 2) {
-      return;
-    }
-
-    const familyOverlapCounts = new Map<string, number>();
-    rowsForFamily.forEach((row) => {
-      row.variableFamilies.forEach((variableFamily) => {
-        familyOverlapCounts.set(variableFamily, (familyOverlapCounts.get(variableFamily) ?? 0) + 1);
-      });
-    });
-
-    const isConfirmed = Array.from(familyOverlapCounts.values()).some((count) => count >= 2);
-    if (!isConfirmed) {
-      return;
-    }
-
-    rowsForFamily.forEach((row) => {
-      groupedBandByOriginalBand.set(row.originalBand, familyBand);
-    });
-  });
-
-  return groupedBandByOriginalBand;
-}
-
-function inferFamilyBand(band: string): string | null {
-  const normalized = band.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
-  if (/\bloan(s)?\b/.test(normalized)) {
-    return "Loans";
+  if (row.Band !== undefined) {
+    return normalizeBandLabel(row.Band) || UNMAPPED_BAND;
   }
-  if (/\bdeposit(s)?\b/.test(normalized)) {
-    return "Deposits";
-  }
-  if (/\binventor(y|ies)\b/.test(normalized)) {
-    return "Inventories";
-  }
-  if (/\bprofit(s)?\b/.test(normalized)) {
-    return "Profits";
-  }
-  return null;
-}
-
-function extractVariableFamilies(values: string[]): string[] {
-  const families = new Set<string>();
-  values.forEach((value) => {
-    extractVariableNames(value).forEach((variable) => {
-      const family = normalizeVariableFamily(variable);
-      if (family) {
-        families.add(family);
-      }
-    });
-  });
-  return Array.from(families);
-}
-
-function normalizeVariableFamily(variable: string): string | null {
-  let next = variable.replace(/\[[^\]]+\]/g, "");
-  if (/^d[A-Z]/.test(next)) {
-    next = next.slice(1);
-  }
-  if (next.length > 1 && /[a-z]$/.test(next)) {
-    next = next.slice(0, -1);
-  }
-  const normalized = next.toLowerCase();
-  if (!normalized || IGNORED_TOKENS.has(normalized)) {
-    return null;
-  }
-  return normalized;
+  return normalizeBandLabel(row.label) || null;
 }
 
 function normalizeBandLabel(label: string): string {
@@ -596,7 +498,7 @@ export function buildDerivedAccountingTermsFromCells(cells: NotebookCell[]): Der
 
     const source = inferDerivedTermSource(cell.title);
     cell.rows.forEach((row) => {
-      const band = normalizeBandLabel(row.label);
+      const band = resolveOriginalBand(row);
       if (!band) {
         return;
       }
@@ -632,7 +534,7 @@ export function buildDerivedAccountingTermsFromCells(cells: NotebookCell[]): Der
 
 export function buildDependencyProxyDisplayOccurrences(
   cells: NotebookCell[],
-  sectorGrouping: DependencySectorGroupingMode = "none"
+  stripSectorSource?: DependencyStripSectorSourceMode
 ): DependencySectorDisplayOccurrences {
   const occurrencesByVariable = new Map<string, Array<{
     displayLabel: string;
@@ -662,7 +564,7 @@ export function buildDependencyProxyDisplayOccurrences(
     }
 
     cell.rows.forEach((row) => {
-      const band = normalizeBandLabel(row.label);
+      const band = resolveOriginalBand(row);
       if (!band) {
         return;
       }
@@ -673,7 +575,7 @@ export function buildDependencyProxyDisplayOccurrences(
           return;
         }
 
-        const sector = normalizeMatrixOccurrenceSector(cell, columnIndex);
+        const sector = normalizeMatrixOccurrenceSector(cell, columnIndex, stripSectorSource);
         if (!sector) {
           return;
         }
@@ -703,23 +605,12 @@ export function buildDependencyProxyDisplayOccurrences(
     });
   });
 
-  const groupedSectorByOriginalSector = buildGroupedSectorByOriginalSector(
-    rawOccurrences.map((entry) => ({
-      variable: entry.variable,
-      sector: entry.sector,
-      source: "fallback",
-      confidence: "fallback"
-    })),
-    sectorGrouping
-  );
-
   rawOccurrences.forEach((entry) => {
-    const sector = groupedSectorByOriginalSector.get(entry.sector) ?? entry.sector;
     const bucket = occurrencesByVariable.get(entry.variable) ?? [];
     const seen = seenByVariable.get(entry.variable) ?? new Set<string>();
-    const occurrenceKey = `${entry.displayLabel}::${sector}::${entry.sign}`;
+    const occurrenceKey = `${entry.displayLabel}::${entry.sector}::${entry.sign}`;
     if (!seen.has(occurrenceKey)) {
-      bucket.push({ ...entry, sector });
+      bucket.push(entry);
       occurrencesByVariable.set(entry.variable, bucket);
       seen.add(occurrenceKey);
       seenByVariable.set(entry.variable, seen);
@@ -761,9 +652,12 @@ function inferDisplayOccurrenceSign(expression: string): "+" | "-" | "neutral" {
   return "neutral";
 }
 
-function normalizeMatrixOccurrenceSector(cell: Extract<NotebookCell, { type: "matrix" }>, columnIndex: number): string {
-  const sector = cell.sectors?.[columnIndex] ?? cell.columns[columnIndex] ?? "";
-  return sector.trim().replace(/_/g, " ").replace(/\s+/g, " ").trim();
+function normalizeMatrixOccurrenceSector(
+  cell: Extract<NotebookCell, { type: "matrix" }>,
+  columnIndex: number,
+  stripSectorSource?: DependencyStripSectorSourceMode
+): string {
+  return resolveMatrixStripSector(cell, columnIndex, stripSectorSource);
 }
 
 function classifyProxyKind(

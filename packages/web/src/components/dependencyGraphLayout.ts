@@ -1,4 +1,4 @@
-import type { SectorTopology } from "@sfcr/core";
+import { createSectorTopology, type SectorTopology } from "@sfcr/core";
 
 import {
   buildDerivedAccountingTerms,
@@ -146,7 +146,6 @@ export interface DependencyGraphLayoutSnapshotArgs {
   sectorDisplayOccurrences?: DependencySectorDisplayOccurrences | null;
   sectorTopology?: SectorTopology | null;
   rowTopology?: DependencyRowTopology | null;
-  viewMode?: "layered" | "strips" | "matrix-upstream";
   showAccountingStrips?: boolean;
   ignoreInferredBandsForPlacement?: boolean;
 }
@@ -190,24 +189,18 @@ export function buildDependencyGraphLayoutSnapshot({
   sectorDisplayOccurrences,
   sectorTopology,
   rowTopology,
-  viewMode = "layered",
   showAccountingStrips = false,
   ignoreInferredBandsForPlacement = false
 }: DependencyGraphLayoutSnapshotArgs): DependencyGraphLayoutSnapshot {
+  const activeSectorTopology = sectorTopology ?? buildFallbackSectorTopology(graph.nodes);
   let renderGraph: RenderGraph | null = null;
   if (showAccountingStrips && rowTopology) {
     renderGraph = buildAccountingRenderGraph(graph, rowTopology);
   }
-  if (viewMode !== "strips" && sectorDisplayOccurrences) {
-    renderGraph = buildGlobalOccurrenceLabelRenderGraph(
-      renderGraph ?? buildBaseRenderGraph(graph),
-      sectorDisplayOccurrences
-    );
-  }
-  if (viewMode === "strips" && sectorTopology && sectorDisplayOccurrences) {
+  if (sectorDisplayOccurrences) {
     renderGraph = buildSectorOccurrenceRenderGraph(
       renderGraph ?? buildBaseRenderGraph(graph),
-      sectorTopology,
+      activeSectorTopology,
       sectorDisplayOccurrences
     );
   }
@@ -215,40 +208,22 @@ export function buildDependencyGraphLayoutSnapshot({
     ? { ...graph, nodes: renderGraph.nodes, edges: renderGraph.edges }
     : graph;
   const layout =
-    viewMode === "matrix-upstream" && rowTopology
-      ? buildMatrixUpstreamDependencyGraphLayout(
+    showAccountingStrips && rowTopology
+      ? buildSectorAccountingDependencyGraphLayout(
           graphForLayout,
           availableWidth,
+          activeSectorTopology,
           rowTopology,
           ignoreInferredBandsForPlacement
         )
-      : viewMode === "strips" && sectorTopology
-      ? showAccountingStrips && rowTopology
-        ? buildSectorAccountingDependencyGraphLayout(
-            graphForLayout,
-            availableWidth,
-            sectorTopology,
-            rowTopology,
-            ignoreInferredBandsForPlacement
-          )
-        : buildStripDependencyGraphLayout(graphForLayout, availableWidth, sectorTopology)
-      : showAccountingStrips && rowTopology
-        ? buildHorizontalStripDependencyGraphLayout(
-            graphForLayout,
-            availableWidth,
-            rowTopology,
-            ignoreInferredBandsForPlacement
-          )
-        : buildLayeredDependencyGraphLayout(graphForLayout, availableWidth);
-  const layoutWithDisplaySectors = sectorTopology
-    ? {
-        ...layout,
-        nodes: layout.nodes.map((node) => ({
-          ...node,
-          displaySector: resolveDisplaySector(node, sectorTopology)
-        }))
-      }
-    : layout;
+      : buildStripDependencyGraphLayout(graphForLayout, availableWidth, activeSectorTopology);
+  const layoutWithDisplaySectors = {
+    ...layout,
+    nodes: layout.nodes.map((node) => ({
+      ...node,
+      displaySector: resolveDisplaySector(node, activeSectorTopology)
+    }))
+  };
 
   const diagnostics = computeDependencyLayoutDiagnostics(layoutWithDisplaySectors.nodes, graphForLayout, {
     horizontalMaxX: layoutWithDisplaySectors.width - SIDE_PADDING - NODE_WIDTH / 2,
@@ -264,6 +239,27 @@ export function buildDependencyGraphLayoutSnapshot({
     renderGraph,
     diagnostics
   };
+}
+
+function buildFallbackSectorTopology(
+  nodes: Array<Pick<DependencyGraphNode, "name" | "variableType">>
+): SectorTopology {
+  return createSectorTopology(
+    nodes.map((node) => ({
+      variable: node.name,
+      sector: node.variableType === "exogenous" ? "Exogenous" : "Unmapped",
+      source: node.variableType === "exogenous" ? "explicit" : "fallback",
+      confidence: node.variableType === "exogenous" ? "high" : "fallback",
+      accountKind:
+        node.variableType === "stock"
+          ? "stock"
+          : node.variableType === "flow"
+            ? "flow"
+            : node.variableType === "exogenous"
+              ? "exogenous"
+              : "auxiliary"
+    }))
+  );
 }
 
 function buildBaseRenderGraph(graph: ParsedDependencyGraph): RenderGraph {
@@ -374,64 +370,6 @@ export function computeDependencyLayoutDiagnostics(
     maxOverlapRatio: overlapPairs.reduce((max, pair) => Math.max(max, pair.overlapRatio), 0),
     exogenousPlacements,
     cellSpreadEntries: []
-  };
-}
-
-function buildLayeredDependencyGraphLayout(
-  graph: ParsedDependencyGraph,
-  availableWidth: number
-): GraphLayout {
-  const layerBuckets = new Map<number, DependencyGraphNode[]>();
-  graph.nodes.forEach((node) => {
-    const bucket = layerBuckets.get(node.layer) ?? [];
-    bucket.push(node);
-    layerBuckets.set(node.layer, bucket);
-  });
-
-  const maxLayer = Math.max(0, ...graph.nodes.map((node) => node.layer));
-  const maxRows = Math.max(1, ...Array.from(layerBuckets.values()).map((nodes) => nodes.length));
-  const contentWidth = Math.max(
-    availableWidth,
-    SIDE_PADDING * 2 + maxLayer * COLUMN_GAP + NODE_WIDTH + 24
-  );
-  const height = TOP_PADDING + BOTTOM_PADDING + (maxRows - 1) * ROW_GAP + NODE_HEIGHT;
-  const nodes: PositionedNode[] = [];
-
-  layerBuckets.forEach((bucket, layer) => {
-    bucket.forEach((node, index) => {
-      nodes.push({
-        ...node,
-        x: SIDE_PADDING + NODE_WIDTH / 2 + layer * COLUMN_GAP,
-        y: TOP_PADDING + NODE_HEIGHT / 2 + index * ROW_GAP
-      });
-    });
-  });
-
-  return {
-    width: contentWidth,
-    height,
-    nodeWidth: NODE_WIDTH,
-    nodeHeight: NODE_HEIGHT,
-    labels: Array.from({ length: maxLayer + 1 }, (_, layer) => ({
-      id: `layer-${layer}`,
-      x: SIDE_PADDING + NODE_WIDTH / 2 + layer * COLUMN_GAP,
-      label: layer === 0 ? "Layer 0 / Exogenous" : `Layer ${layer}`
-    })),
-    bands: Array.from({ length: maxLayer + 1 }, (_, layer) => ({
-      id: `band-layer-${layer}`,
-      x: SIDE_PADDING - 6 + layer * COLUMN_GAP,
-      y: TOP_PADDING - 10,
-      width: NODE_WIDTH + 12,
-      height: height - TOP_PADDING - BOTTOM_PADDING + 20,
-      fill: "rgba(248, 250, 252, 0.65)",
-      stroke: "rgba(148, 163, 184, 0.18)"
-    })),
-    nodes: nodes.sort((left, right) => {
-      if (left.layer !== right.layer) {
-        return left.layer - right.layer;
-      }
-      return left.order - right.order;
-    })
   };
 }
 
@@ -650,59 +588,6 @@ function buildSectorOccurrenceRenderGraph(
   };
 }
 
-function buildGlobalOccurrenceLabelRenderGraph(
-  renderGraph: RenderGraph,
-  sectorDisplayOccurrences: DependencySectorDisplayOccurrences
-): RenderGraph {
-  let hasLabelUpdates = false;
-
-  const nodes = renderGraph.nodes.map((node) => {
-    const occurrences = collectMatchingOccurrences(node, sectorDisplayOccurrences);
-    const uniqueLabels = Array.from(
-      new Set(occurrences.map((occurrence) => formatOccurrenceLabel(occurrence.displayLabel, occurrence.sign)))
-    );
-    if (uniqueLabels.length !== 1) {
-      return node;
-    }
-
-    const nextLabel = uniqueLabels[0] ?? node.label;
-    const nextOccurrenceSign = occurrences[0]?.sign;
-    if (nextLabel === node.label && nextOccurrenceSign === node.occurrenceSign) {
-      return node;
-    }
-
-    hasLabelUpdates = true;
-    return {
-      ...node,
-      label: nextLabel,
-      occurrenceSign: nextOccurrenceSign
-    };
-  });
-
-  return hasLabelUpdates ? { ...renderGraph, nodes } : renderGraph;
-}
-
-function collectMatchingOccurrences(
-  node: DisplayNode,
-  sectorDisplayOccurrences: DependencySectorDisplayOccurrences
-): DependencySectorDisplayOccurrence[] {
-  const canonicalName = node.canonicalName ?? node.name;
-  return (sectorDisplayOccurrences[canonicalName] ?? []).filter((occurrence) => {
-    if (node.isProxy) {
-      return (
-        occurrence.displayLabel === node.label &&
-        (occurrence.kind === "proxy" ||
-          (occurrence.kind === "direct" && occurrence.displayLabel === canonicalName))
-      );
-    }
-
-    return (
-      occurrence.displayLabel === node.label ||
-      (occurrence.kind === "direct" && node.label === canonicalName && occurrence.variable === canonicalName)
-    );
-  });
-}
-
 function formatOccurrenceLabel(
   label: string,
   sign: DependencySectorDisplayOccurrence["sign"] | undefined
@@ -835,404 +720,6 @@ function buildSectorAccountingDependencyGraphLayout(
     ],
     nodes
   };
-}
-
-function buildHorizontalStripDependencyGraphLayout(
-  graph: Pick<ParsedDependencyGraph, "nodes" | "edges">,
-  availableWidth: number,
-  rowTopology: DependencyRowTopology,
-  ignoreInferredBandsForPlacement: boolean
-): GraphLayout {
-  const maxLayer = Math.max(0, ...graph.nodes.map((node) => node.layer));
-  const width = Math.max(
-    availableWidth,
-    SIDE_PADDING * 2 + maxLayer * COLUMN_GAP + NODE_WIDTH + 24
-  );
-  const { bandCenterByName, bandCenters, bandNames, height } = buildAccountingBandLayoutData(
-    graph.nodes,
-    rowTopology,
-    ignoreInferredBandsForPlacement
-  );
-  const softAnchorYByNodeId = buildSoftAccountingAnchorYByNode(
-    graph,
-    rowTopology,
-    bandCenterByName,
-    ignoreInferredBandsForPlacement
-  );
-  const nodes = graph.nodes
-    .map((node) => ({
-      ...node,
-      x: SIDE_PADDING + NODE_WIDTH / 2 + node.layer * COLUMN_GAP,
-      y: computeInitialBandY(
-        node,
-        rowTopology,
-        bandCenterByName,
-        ignoreInferredBandsForPlacement,
-        softAnchorYByNodeId,
-        node.id
-      )
-    }))
-    .sort((left, right) => {
-      if (left.layer !== right.layer) {
-        return left.layer - right.layer;
-      }
-      return left.order - right.order;
-    });
-  const cellSpreadDiagnostics = finalizeAccountingLayoutNodes(nodes, {
-    bandCenterByName,
-    cellHalfWidth: Math.max(52, COLUMN_GAP / 2 - NODE_WIDTH / 2 - 6),
-    collisionResolver: resolveVerticalCollisionsByX,
-    graph,
-    horizontalMaxX: width - SIDE_PADDING - NODE_WIDTH / 2,
-    horizontalMinX: SIDE_PADDING + NODE_WIDTH / 2,
-    ignoreInferredBandsForPlacement,
-    rowTopology,
-    softAnchorYByNodeId
-  });
-
-  return {
-    width,
-    height,
-    nodeWidth: NODE_WIDTH,
-    nodeHeight: NODE_HEIGHT,
-    cellSpreadDiagnostics,
-    labels: buildAccountingBandLabels(
-      bandNames,
-      bandCenters,
-      graph,
-      rowTopology,
-      ignoreInferredBandsForPlacement
-    ),
-    bands: buildAccountingBandRenderBands(bandNames, bandCenters, width, false),
-    nodes
-  };
-}
-
-function buildMatrixUpstreamDependencyGraphLayout(
-  graph: Pick<ParsedDependencyGraph, "nodes" | "edges">,
-  availableWidth: number,
-  rowTopology: DependencyRowTopology,
-  ignoreInferredBandsForPlacement: boolean
-): GraphLayout {
-  const { distanceByNodeId, maxDistance } = buildMatrixUpstreamDistances(graph, rowTopology);
-  const layoutSpan = getMatrixUpstreamLayoutSpan(maxDistance);
-  const width = Math.max(
-    availableWidth,
-    SIDE_PADDING * 2 + MATRIX_SURFACE_CELL_HALF_WIDTH + layoutSpan + NODE_WIDTH + 24
-  );
-  const { bandCenterByName, bandCenters, bandNames, height } = buildAccountingBandLayoutData(
-    graph.nodes,
-    rowTopology,
-    ignoreInferredBandsForPlacement
-  );
-  const softAnchorYByNodeId = buildSoftAccountingAnchorYByNode(
-    graph,
-    rowTopology,
-    bandCenterByName,
-    ignoreInferredBandsForPlacement
-  );
-  const horizontalMinX = SIDE_PADDING + NODE_WIDTH / 2 + MATRIX_SURFACE_CELL_HALF_WIDTH;
-  const horizontalMaxX = width - SIDE_PADDING - NODE_WIDTH / 2;
-  const nodes = graph.nodes
-    .map((node) => ({
-      ...node,
-      x: getMatrixUpstreamShellX(distanceByNodeId.get(node.id) ?? 0, horizontalMinX),
-      y: computeInitialBandY(
-        node,
-        rowTopology,
-        bandCenterByName,
-        ignoreInferredBandsForPlacement,
-        softAnchorYByNodeId,
-        node.id
-      )
-    }))
-    .sort((left, right) => {
-      const leftDistance = distanceByNodeId.get(left.id) ?? 0;
-      const rightDistance = distanceByNodeId.get(right.id) ?? 0;
-      if (leftDistance !== rightDistance) {
-        return leftDistance - rightDistance;
-      }
-      return left.order - right.order;
-    });
-
-  relaxMatrixUpstreamXPositions(nodes, graph, distanceByNodeId, {
-    horizontalMinX,
-    horizontalMaxX,
-    maxDistance
-  });
-
-  const cellSpreadDiagnostics = finalizeAccountingLayoutNodes(nodes, {
-    bandCenterByName,
-    cellHalfWidth: MATRIX_SURFACE_CELL_HALF_WIDTH,
-    collisionResolver: resolveVerticalCollisionsByX,
-    graph,
-    horizontalMaxX,
-    horizontalMinX,
-    rowTopology,
-    softAnchorYByNodeId
-  });
-  enforceMatrixUpstreamShellOrder(nodes, graph, distanceByNodeId, {
-    horizontalMinX,
-    horizontalMaxX,
-    maxDistance
-  });
-
-  return {
-    width,
-    height,
-    nodeWidth: NODE_WIDTH,
-    nodeHeight: NODE_HEIGHT,
-    cellSpreadDiagnostics,
-    labels: [
-      ...Array.from({ length: maxDistance + 1 }, (_, distance) => ({
-        id: `matrix-upstream-${distance}`,
-        x: getMatrixUpstreamShellX(distance, horizontalMinX),
-        label: distance === 0 ? "Matrix surface" : `Upstream ${distance}`
-      })),
-      ...buildAccountingBandLabels(bandNames, bandCenters, graph, rowTopology)
-    ],
-    bands: buildAccountingBandRenderBands(bandNames, bandCenters, width, false),
-    nodes
-  };
-}
-
-function buildMatrixUpstreamDistances(
-  graph: Pick<ParsedDependencyGraph, "nodes" | "edges">,
-  rowTopology: DependencyRowTopology
-): { distanceByNodeId: Map<string, number>; maxDistance: number } {
-  const distanceByNodeId = new Map<string, number>();
-  const incomingByNodeId = new Map<string, string[]>();
-  graph.nodes.forEach((node) => incomingByNodeId.set(node.id, []));
-  graph.edges.forEach((edge) => {
-    incomingByNodeId.get(edge.targetId)?.push(edge.sourceId);
-  });
-
-  const queue: string[] = [];
-  graph.nodes.forEach((node) => {
-    const memberships = rowTopology.variables[node.name]?.memberships ?? [];
-    const isExplicitMatrixNode = memberships.some(
-      (membership) => membership.source === "transaction-row" || membership.source === "balance-row"
-    );
-    const isProxy = "isProxy" in node && node.isProxy === true;
-    if (isProxy || isExplicitMatrixNode) {
-      distanceByNodeId.set(node.id, 0);
-      queue.push(node.id);
-    }
-  });
-
-  while (queue.length > 0) {
-    const currentId = queue.shift();
-    if (currentId == null) {
-      break;
-    }
-    const currentDistance = distanceByNodeId.get(currentId);
-    if (currentDistance == null) {
-      continue;
-    }
-    (incomingByNodeId.get(currentId) ?? []).forEach((upstreamId) => {
-      const nextDistance = currentDistance + 1;
-      const previousDistance = distanceByNodeId.get(upstreamId);
-      if (previousDistance == null || nextDistance < previousDistance) {
-        distanceByNodeId.set(upstreamId, nextDistance);
-        queue.push(upstreamId);
-      }
-    });
-  }
-
-  const assignedMaxDistance = Array.from(distanceByNodeId.values()).reduce(
-    (max, distance) => Math.max(max, distance),
-    0
-  );
-  let fallbackDistance = assignedMaxDistance + 1;
-  graph.nodes
-    .filter((node) => !distanceByNodeId.has(node.id))
-    .sort((left, right) => {
-      if (left.layer !== right.layer) {
-        return left.layer - right.layer;
-      }
-      return left.order - right.order;
-    })
-    .forEach((node) => {
-      distanceByNodeId.set(node.id, fallbackDistance);
-      fallbackDistance += 1;
-    });
-
-  return {
-    distanceByNodeId,
-    maxDistance: Math.max(0, ...Array.from(distanceByNodeId.values()))
-  };
-}
-
-function relaxMatrixUpstreamXPositions(
-  nodes: PositionedNode[],
-  graph: Pick<ParsedDependencyGraph, "edges">,
-  distanceByNodeId: Map<string, number>,
-  bounds: { horizontalMinX: number; horizontalMaxX: number; maxDistance: number }
-): void {
-  if (nodes.length === 0) {
-    return;
-  }
-
-  const positions = new Map(nodes.map((node) => [node.id, node.x]));
-  const outgoing = new Map<string, Array<{ id: string; weight: number }>>();
-  const incoming = new Map<string, Array<{ id: string; weight: number }>>();
-  nodes.forEach((node) => {
-    outgoing.set(node.id, []);
-    incoming.set(node.id, []);
-  });
-  graph.edges.forEach((edge) => {
-    const weight = edge.current ? (edge.lagged ? 1.7 : 2.2) : 1;
-    outgoing.get(edge.sourceId)?.push({ id: edge.targetId, weight });
-    incoming.get(edge.targetId)?.push({ id: edge.sourceId, weight: weight * 0.35 });
-  });
-
-  for (let iteration = 0; iteration < RELAXATION_ITERATIONS; iteration += 1) {
-    const next = new Map(positions);
-
-    nodes.forEach((node) => {
-      const shell = distanceByNodeId.get(node.id) ?? bounds.maxDistance;
-      const currentX = positions.get(node.id) ?? node.x;
-      const shellX = getMatrixUpstreamShellX(shell, bounds.horizontalMinX);
-      const isAnchor = shell === 0;
-      if (isAnchor) {
-        next.set(node.id, clamp(currentX, shellX - MATRIX_SURFACE_CELL_HALF_WIDTH, shellX + MATRIX_SURFACE_CELL_HALF_WIDTH));
-        return;
-      }
-      let nextX = currentX + (shellX - currentX) * (isAnchor ? 0.72 : 0.22);
-
-      let weightedSum = 0;
-      let totalWeight = 0;
-      let downstreamMinX = Number.NEGATIVE_INFINITY;
-      (outgoing.get(node.id) ?? []).forEach((neighbor) => {
-        const neighborX = positions.get(neighbor.id);
-        if (neighborX == null) {
-          return;
-        }
-        const neighborShell = distanceByNodeId.get(neighbor.id) ?? 0;
-        const desiredX = getMatrixUpstreamShellX(shell, bounds.horizontalMinX);
-        const weight = neighbor.weight * (1 + 1 / (neighborShell + 1));
-        weightedSum += desiredX * weight;
-        totalWeight += weight;
-        downstreamMinX = Math.max(
-          downstreamMinX,
-          neighborX + getMatrixUpstreamShellStep(Math.max(1, shell - neighborShell)) * 0.68
-        );
-      });
-      (incoming.get(node.id) ?? []).forEach((neighbor) => {
-        const neighborX = positions.get(neighbor.id);
-        if (neighborX == null) {
-          return;
-        }
-        const neighborShell = distanceByNodeId.get(neighbor.id) ?? bounds.maxDistance;
-        const desiredX = getMatrixUpstreamShellX(shell, bounds.horizontalMinX);
-        weightedSum += desiredX * neighbor.weight;
-        totalWeight += neighbor.weight;
-      });
-
-      if (totalWeight > 0) {
-        nextX += ((weightedSum / totalWeight) - currentX) * (isAnchor ? 0.08 : 0.3);
-      }
-      if (Number.isFinite(downstreamMinX)) {
-        nextX = Math.max(nextX, downstreamMinX);
-      }
-
-      nodes.forEach((other) => {
-        if (other.id === node.id) {
-          return;
-        }
-        const otherX = positions.get(other.id) ?? other.x;
-        const otherY = other.y;
-        const minGap = NODE_WIDTH + 18;
-        if (Math.abs(currentX - otherX) >= minGap || Math.abs(node.y - otherY) > NODE_HEIGHT + 12) {
-          return;
-        }
-        nextX += (currentX <= otherX ? -1 : 1) * ((minGap - Math.abs(currentX - otherX)) / minGap) * 4;
-      });
-
-      next.set(node.id, clamp(nextX, bounds.horizontalMinX, bounds.horizontalMaxX));
-    });
-
-    next.forEach((value, key) => positions.set(key, value));
-  }
-
-  nodes.forEach((node) => {
-    const shell = distanceByNodeId.get(node.id) ?? bounds.maxDistance;
-    const shellX = getMatrixUpstreamShellX(shell, bounds.horizontalMinX);
-    node.x =
-      shell === 0
-        ? clamp(
-            positions.get(node.id) ?? node.x,
-            shellX - MATRIX_SURFACE_CELL_HALF_WIDTH,
-            shellX + MATRIX_SURFACE_CELL_HALF_WIDTH
-          )
-        : positions.get(node.id) ?? node.x;
-  });
-}
-
-function enforceMatrixUpstreamShellOrder(
-  nodes: PositionedNode[],
-  graph: Pick<ParsedDependencyGraph, "edges">,
-  distanceByNodeId: Map<string, number>,
-  bounds: { horizontalMinX: number; horizontalMaxX: number; maxDistance: number }
-): void {
-  const nodeById = new Map(nodes.map((node) => [node.id, node]));
-
-  for (let iteration = 0; iteration < 4; iteration += 1) {
-    nodes
-      .slice()
-      .sort(
-        (left, right) =>
-          (distanceByNodeId.get(left.id) ?? bounds.maxDistance) -
-          (distanceByNodeId.get(right.id) ?? bounds.maxDistance)
-      )
-      .forEach((node) => {
-        const shell = distanceByNodeId.get(node.id) ?? bounds.maxDistance;
-        const shellX = getMatrixUpstreamShellX(shell, bounds.horizontalMinX);
-        if (shell === 0) {
-          node.x = clamp(
-            node.x,
-            shellX - MATRIX_SURFACE_CELL_HALF_WIDTH,
-            shellX + MATRIX_SURFACE_CELL_HALF_WIDTH
-          );
-          return;
-        }
-
-        let minX = shellX;
-        graph.edges.forEach((edge) => {
-          if (edge.sourceId !== node.id) {
-            return;
-          }
-          const downstream = nodeById.get(edge.targetId);
-          if (!downstream) {
-            return;
-          }
-          minX = Math.max(minX, downstream.x + COLUMN_GAP * 0.68);
-          minX = Math.max(minX, downstream.x + getMatrixUpstreamShellStep(1) * 0.68);
-        });
-        node.x = clamp(Math.max(node.x, minX), bounds.horizontalMinX, bounds.horizontalMaxX);
-      });
-  }
-}
-
-function getMatrixUpstreamLayoutSpan(maxDistance: number): number {
-  if (maxDistance <= 0) {
-    return 0;
-  }
-  return MATRIX_SURFACE_GAP + Math.max(0, maxDistance - 1) * COLUMN_GAP;
-}
-
-function getMatrixUpstreamShellStep(shellDelta: number): number {
-  if (shellDelta <= 0) {
-    return 0;
-  }
-  if (shellDelta === 1) {
-    return MATRIX_SURFACE_GAP;
-  }
-  return MATRIX_SURFACE_GAP + (shellDelta - 1) * COLUMN_GAP;
-}
-
-function getMatrixUpstreamShellX(shell: number, horizontalMinX: number): number {
-  return horizontalMinX + getMatrixUpstreamShellStep(shell);
 }
 
 function buildSectorStripScaffold(
@@ -1801,7 +1288,8 @@ function finalizeAccountingLayoutNodes(
   args.collisionResolver(nodes, args.bandCenterByName);
   resolveResidualOverlaps(nodes, args.rowTopology, args.bandCenterByName, {
     horizontalMinX: args.horizontalMinX,
-    horizontalMaxX: args.horizontalMaxX
+    horizontalMaxX: args.horizontalMaxX,
+    ignoreInferredBandsForPlacement: args.ignoreInferredBandsForPlacement
   });
   return cellSpreadDiagnostics;
 }

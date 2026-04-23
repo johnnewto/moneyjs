@@ -23,7 +23,6 @@ interface DependencyGraphCanvasProps {
   rowTopology?: DependencyRowTopology | null;
   variableDescriptions?: VariableDescriptions;
   onNodeClick?(node: PositionedNode): void;
-  viewMode?: "layered" | "strips" | "matrix-upstream";
   showAccountingStrips?: boolean;
   ignoreInferredBandsForPlacement?: boolean;
   debugOverlay?: boolean;
@@ -56,7 +55,6 @@ export function DependencyGraphCanvas({
   rowTopology,
   variableDescriptions,
   onNodeClick,
-  viewMode = "layered",
   showAccountingStrips = false,
   ignoreInferredBandsForPlacement = false,
   debugOverlay = false
@@ -73,8 +71,7 @@ export function DependencyGraphCanvas({
         sectorDisplayOccurrences,
         sectorTopology,
         showAccountingStrips,
-        ignoreInferredBandsForPlacement,
-        viewMode
+        ignoreInferredBandsForPlacement
       }),
     [
       graph,
@@ -83,7 +80,6 @@ export function DependencyGraphCanvas({
       sectorTopology,
       showAccountingStrips,
       ignoreInferredBandsForPlacement,
-      viewMode,
       width
     ]
   );
@@ -140,15 +136,9 @@ export function DependencyGraphCanvas({
         <svg
         className="sequence-canvas dependency-graph-canvas"
         aria-label={
-          viewMode === "matrix-upstream"
-            ? "Dependency graph by matrix-upstream accounting shells"
-            : viewMode === "strips" && showAccountingStrips
+          showAccountingStrips
             ? "Dependency graph by sector and accounting strips"
-            : viewMode === "strips"
-            ? "Dependency graph by sector strips"
-            : showAccountingStrips
-              ? "Dependency graph by accounting strips"
-              : "Dependency graph"
+            : "Dependency graph by sector strips"
         }
         role="img"
         viewBox={`0 0 ${layout.width} ${layout.height}`}

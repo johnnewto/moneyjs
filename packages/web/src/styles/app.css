@@ -1647,6 +1647,34 @@ body.panel-splitter-body-lock {
   line-height: 1.15;
 }
 
+.notebook-rail-header {
+  display: grid;
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.notebook-rail-template-picker {
+  display: block;
+}
+
+.notebook-rail-template-picker select {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 10px;
+  box-sizing: border-box;
+  color: #334155;
+  font: inherit;
+  margin: 0;
+  min-height: 2rem;
+  padding: 0.3rem 0.75rem;
+  width: 100%;
+}
+
+.notebook-rail-template-picker select:hover,
+.notebook-rail-template-picker select:focus {
+  border-color: rgba(100, 116, 139, 0.4);
+}
+
 .notebook-outline-list li + li {
   border-top: 1px solid rgba(148, 163, 184, 0.16);
 }

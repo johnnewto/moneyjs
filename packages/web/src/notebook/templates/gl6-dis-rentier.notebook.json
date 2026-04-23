@@ -15,10 +15,11 @@
       "title": "DIS rentier balance sheet",
       "sourceRunCellId": "baseline-run",
       "columns": ["Workers", "Rentiers", "Government", "Sum"],
+      "sectors": ["Workers", "Rentiers", "Government", ""],
       "rows": [
-        { "label": "Money", "values": ["+Mhw", "+Mhr", "-Hs", "0"] },
-        { "label": "Government bonds", "values": ["", "+Bh", "-Bs", "0"] },
-        { "label": "Net worth", "values": ["-Vw", "-Vr", "+D", "0"] }
+        { "band": "Money", "label": "Money", "values": ["+Mhw", "+Mhr", "-Hs", "0"] },
+        { "band": "Bonds", "label": "Government bonds", "values": ["", "+Bh", "-Bs", "0"] },
+        { "band": "Net worth", "label": "Net worth", "values": ["-Vw", "-Vr", "+D", "0"] }
       ],
       "description": "Stylized balance-sheet matrix for the distributive DIS model with workers, rentiers, and the government.",
       "note": "Workers hold their saving as money, while rentiers split wealth between money and government bonds."
@@ -29,15 +30,16 @@
       "title": "DIS rentier transactions-flow matrix",
       "sourceRunCellId": "baseline-run",
       "columns": ["Workers", "Rentiers", "Firms", "Government"],
+      "sectors": ["Workers", "Rentiers", "Firms", "Government"],
       "rows": [
-        { "label": "Consumption", "values": ["-Cw", "-Cr", "+C", ""] },
-        { "label": "Government spending", "values": ["", "", "+G", "-G"] },
-        { "label": "Wages", "values": ["+WB", "", "-WB", ""] },
-        { "label": "Profits", "values": ["", "+F", "-F", ""] },
-        { "label": "Taxes", "values": ["-Tw", "-Tr", "", "+T"] },
-        { "label": "Bond interest", "values": ["", "+lag(rb) * lag(Bh)", "", "-lag(rb) * lag(Bs)"] },
-        { "label": "Change money", "values": ["-d(Mhw)", "-d(Mhr)", "", "+d(Hs)"] },
-        { "label": "Change bonds", "values": ["", "-d(Bh)", "", "+d(Bs)"] }
+        { "band": "Consumption", "label": "Consumption", "values": ["-Cw", "-Cr", "+C", ""] },
+        { "band": "Government", "label": "Government spending", "values": ["", "", "+G", "-G"] },
+        { "band": "Wages", "label": "Wages", "values": ["+WB", "", "-WB", ""] },
+        { "band": "Profits", "label": "Profits", "values": ["", "+F", "-F", ""] },
+        { "band": "Taxes", "label": "Taxes", "values": ["-Tw", "-Tr", "", "+T"] },
+        { "band": "Bond interest", "label": "Bond interest", "values": ["", "+lag(rb) * lag(Bh)", "", "-lag(rb) * lag(Bs)"] },
+        { "band": "Money", "label": "Change money", "values": ["-d(Mhw)", "-d(Mhr)", "", "+d(Hs)"] },
+        { "band": "Bonds", "label": "Change bonds", "values": ["", "-d(Bh)", "", "+d(Bs)"] }
       ],
       "description": "Transactions-flow matrix for the rentier extension, showing class-based income distribution and government-liability financing.",
       "note": "The money-versus-bonds split appears only on the rentier side, reflecting class-based portfolio behavior."
@@ -56,10 +58,8 @@
       "source": {
         "kind": "dependency",
         "modelId": "equations",
-        "viewMode": "strips",
-        "sectorGrouping": "family",
+        "stripSectorSource": "columns",
         "showAccountingStrips": true,
-        "accountingBandGrouping": "family",
         "showExogenous": false
       },
       "description": "Dependency view showing how wages, profits, taxes, government debt, and portfolio allocation interact in the rentier variant.",

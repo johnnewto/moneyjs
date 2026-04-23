@@ -493,21 +493,6 @@ export function NotebookApp() {
               </div>
 
               <div className="notebook-app-bar-actions">
-                <label className="notebook-action-desktop">
-                  <span className="sr-only">Notebook template</span>
-                  <select
-                    aria-label="Notebook template"
-                    value={currentTemplateId}
-                    onChange={(event) => handleTemplateChange(event.target.value)}
-                  >
-                    {currentTemplateId ? null : <option value="">Custom notebook</option>}
-                    {Object.values(NOTEBOOK_TEMPLATES).map((template) => (
-                      <option key={template.id} value={template.id}>
-                        {template.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
                 <button type="button" className="notebook-run-button" onClick={() => void handleRunAll()}>
                   Run all
                 </button>
@@ -704,8 +689,22 @@ export function NotebookApp() {
           onMouseDown={notebookRailDragScroll.dragScrollProps.onMouseDown}
         >
           <div className="panel-header">
-            <div>
-              <p className="panel-subtitle">{notebookDocument.title}</p>
+            <div className="notebook-rail-header">
+              <label className="notebook-rail-template-picker">
+                <span className="sr-only">Notebook template</span>
+                <select
+                  aria-label="Notebook template"
+                  value={currentTemplateId}
+                  onChange={(event) => handleTemplateChange(event.target.value)}
+                >
+                  {currentTemplateId ? null : <option value="">Custom notebook</option>}
+                  {Object.values(NOTEBOOK_TEMPLATES).map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
           </div>
 

@@ -111,6 +111,8 @@ export interface MatrixCell extends NotebookCellBase {
   sectors?: string[];
   sourceRunCellId?: string;
   rows: Array<{
+    band?: string;
+    Band?: string;
     label: string;
     values: string[];
   }>;
@@ -142,10 +144,8 @@ export type SequenceCellSource =
       modelId?: string;
       sourceModelId?: string;
       sourceModelCellId?: string;
-      viewMode?: "layered" | "strips" | "horizontal-strips" | "matrix-upstream";
-      sectorGrouping?: "none" | "family";
+      stripSectorSource?: "columns" | "sectors";
       showAccountingStrips?: boolean;
-      accountingBandGrouping?: "none" | "family";
       ignoreInferredBandsForPlacement?: boolean;
       showExogenous?: boolean;
       showDebugOverlay?: boolean;

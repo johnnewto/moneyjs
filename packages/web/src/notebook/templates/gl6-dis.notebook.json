@@ -10,11 +10,12 @@
       "title": "DIS balance sheet",
       "sourceRunCellId": "baseline-run",
       "columns": ["Households", "Production firms", "Banks", "Sum"],
+      "sectors": ["Households", "Production firms", "Banks", ""],
       "rows": [
-        { "label": "Money", "values": ["+Mh", "", "-Ms", "0"] },
-        { "label": "Loans", "values": ["", "-Ld", "+Ls", "0"] },
-        { "label": "Inventories", "values": ["", "+INV", "", "+INV"] },
-        { "label": "Balance", "values": ["-Mh", "", "", "-Mh"] }
+        { "band": "Money", "label": "Money", "values": ["+Mh", "", "-Ms", "0"] },
+        { "band": "Loans", "label": "Loans", "values": ["", "-Ld", "+Ls", "0"] },
+        { "band": "Inventories", "label": "Inventories", "values": ["", "+INV", "", "+INV"] },
+        { "band": "Balance", "label": "Balance", "values": ["-Mh", "", "", "-Mh"] }
       ],
       "description": "Balance-sheet matrix for the DIS model, showing how household deposits, firm inventories, and bank liabilities align across sectors.",
       "note": "Use this view to track how inventory finance and household wealth accumulation are mirrored by the banking system in the baseline simulation."
@@ -25,16 +26,17 @@
       "title": "DIS transactions-flow matrix",
       "sourceRunCellId": "baseline-run",
       "columns": ["Households", "Firms_current", "Firms_capital", "Banks_current", "Banks_capital"],
+      "sectors": ["Households", "Production firms", "Production firms", "Banks", "Banks"],
       "rows": [
-        { "label": "Consumption", "values": ["-C", "+C", "", "", ""] },
-        { "label": "Ch. Inventories", "values": ["", "+d(INV)", "-d(INV)", "", ""] },
-        { "label": "Wages", "values": ["+WB", "-WB", "", "", ""] },
-        { "label": "Interest on loans", "values": ["", "-rl[-1] * Ld[-1]", "", "+rl[-1] * Ls[-1]", ""] },
-        { "label": "Entrepreneurial Profits", "values": ["+EF", "-EF", "", "", ""] },
-        { "label": "Banks profits", "values": ["+EFb", "", "", "-EFb", ""] },
-        { "label": "Interest on deposits", "values": ["+rm[-1] * Mh[-1]", "", "", "-rm[-1] * Mh[-1]", ""] },
-        { "label": "Change loans", "values": ["", "", "+d(Ld)", "", "-d(Ls)"] },
-        { "label": "Change deposits", "values": ["-d(Mh)", "", "", "", "+d(Ms)"] }
+        { "band": "Consumption", "label": "Consumption", "values": ["-C", "+C", "", "", ""] },
+        { "band": "Inventories", "label": "Ch. Inventories", "values": ["", "+d(INV)", "-d(INV)", "", ""] },
+        { "band": "Wages", "label": "Wages", "values": ["+WB", "-WB", "", "", ""] },
+        { "band": "Interest", "label": "Interest on loans", "values": ["", "-rl[-1] * Ld[-1]", "", "+rl[-1] * Ls[-1]", ""] },
+        { "band": "Profits", "label": "Entrepreneurial Profits", "values": ["+EF", "-EF", "", "", ""] },
+        { "band": "Profits", "label": "Banks profits", "values": ["+EFb", "", "", "-EFb", ""] },
+        { "band": "Interest", "label": "Interest on deposits", "values": ["+rm[-1] * Mh[-1]", "", "", "-rm[-1] * Mh[-1]", ""] },
+        { "band": "Loans", "label": "Change loans", "values": ["", "", "+d(Ld)", "", "-d(Ls)"] },
+        { "band": "Deposits", "label": "Change deposits", "values": ["-d(Mh)", "", "", "", "+d(Ms)"] }
       ],
       "description": "Transactions-flow matrix for the DIS model, tracing consumption, wages, interest, profits, and financing flows across households, firms, and banks.",
       "note": "This view makes the model's stock-flow consistency explicit by pairing each income, credit, and wealth flow with its offsetting entry."
@@ -47,10 +49,8 @@
       "source": {
         "kind": "dependency",
         "modelId": "equations",
-        "viewMode": "strips",
-        "sectorGrouping": "family",
+        "stripSectorSource": "columns",
         "showAccountingStrips": true,
-        "accountingBandGrouping": "family",
         "showExogenous": false
       },
       "description": "Dependency view of the DIS equations, highlighting how expected sales, inventories, pricing, bank credit, and household income feed back through the model over time.",

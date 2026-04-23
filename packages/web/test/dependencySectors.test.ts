@@ -113,55 +113,131 @@ describe("dependency sector topology", () => {
     });
   });
 
-  it("groups whitelisted sector families and aliases when requested", () => {
+  it("treats an empty sector entry as unmapped instead of falling back to the column label", () => {
     const cells: NotebookCell[] = [
       {
-        id: "transaction-flow",
+        id: "transaction-flow-empty-sector",
         type: "matrix",
-        title: "Alias sectors flow matrix",
-        columns: ["CB", "Central bank", "Treasury", "Banks_current", "Banks_capital", "Sum"],
-        rows: [
-          { label: "Reserves", values: ["+Rcb", "+Rb", "", "", "", "0"] },
-          { label: "Bills", values: ["", "+Bcb", "+Bt", "", "", "0"] },
-          { label: "Deposits", values: ["", "", "", "+Ms", "+Ls", "0"] }
-        ]
+        title: "Empty sector flow matrix",
+        columns: ["Households", "Banks_current", "Sum"],
+        sectors: ["Households", "", ""],
+        rows: [{ label: "Flow", values: ["-Hh", "+Xs", "0"] }]
       },
       {
-        id: "equations",
+        id: "equations-empty-sector",
         type: "equations",
-        title: "Grouped sectors model",
-        modelId: "grouped-sectors-model",
+        title: "Empty sector model",
+        modelId: "empty-sector-model",
         equations: [
-          { id: "eq-rcb", name: "Rcb", expression: "lag(Rcb)" },
-          { id: "eq-rb", name: "Rb", expression: "lag(Rb)" },
-          { id: "eq-bcb", name: "Bcb", expression: "lag(Bcb)" },
-          { id: "eq-bt", name: "Bt", expression: "lag(Bt)" },
-          { id: "eq-ms", name: "Ms", expression: "lag(Ms)" },
-          { id: "eq-ls", name: "Ls", expression: "lag(Ls)" }
+          { id: "eq-hh", name: "Hh", expression: "lag(Hh)" },
+          { id: "eq-xs", name: "Xs", expression: "lag(Xs)" }
         ]
       }
     ];
     const dependencyCell: SequenceCell & {
       source: Extract<SequenceCell["source"], { kind: "dependency" }>;
     } = {
-      id: "equation-dependency-graph",
+      id: "equation-dependency-graph-empty-sector",
       type: "sequence",
-      title: "Grouped sectors dependency graph",
-      source: { kind: "dependency", modelId: "grouped-sectors-model", sectorGrouping: "family" }
+      title: "Empty sector dependency graph",
+      source: { kind: "dependency", modelId: "empty-sector-model" }
     };
 
     const graph = buildDependencyGraph({
-      equations: cells.find((cell) => cell.id === "equations" && cell.type === "equations")!.equations,
+      equations: cells.find((cell) => cell.id === "equations-empty-sector" && cell.type === "equations")!
+        .equations,
       externals: [],
       initialValues: []
     });
     const topology = buildDependencySectorTopology({ cells, dependencyCell, graph });
 
-    expect(topology.variables.Rcb?.sector).toBe("Central bank");
-    expect(topology.variables.Rb?.sector).toBe("Central bank");
-    expect(topology.variables.Bcb?.sector).toBe("Central bank");
-    expect(topology.variables.Bt?.sector).toBe("Treasury");
-    expect(topology.variables.Ms?.sector).toBe("Banks");
-    expect(topology.variables.Ls?.sector).toBe("Banks");
+    expect(topology.variables.Hh?.sector).toBe("Households");
+    expect(topology.variables.Xs?.sector).toBe("Unmapped");
+  });
+
+  it("can map strips directly from columns instead of sectors", () => {
+    const cells: NotebookCell[] = [
+      {
+        id: "transaction-flow-columns",
+        type: "matrix",
+        title: "Columns flow matrix",
+        columns: ["Households", "Custom_current", "Custom_capital", "Sum"],
+        sectors: ["Households", "Custom", "Custom", ""],
+        rows: [{ label: "Flow", values: ["-Hh", "+Xc", "+Xk", "0"] }]
+      },
+      {
+        id: "equations-columns",
+        type: "equations",
+        title: "Columns sectors model",
+        modelId: "columns-sectors-model",
+        equations: [
+          { id: "eq-hh", name: "Hh", expression: "lag(Hh)" },
+          { id: "eq-xc", name: "Xc", expression: "lag(Xc)" },
+          { id: "eq-xk", name: "Xk", expression: "lag(Xk)" }
+        ]
+      }
+    ];
+    const dependencyCell: SequenceCell & {
+      source: Extract<SequenceCell["source"], { kind: "dependency" }>;
+    } = {
+      id: "equation-dependency-graph-columns",
+      type: "sequence",
+      title: "Columns dependency graph",
+      source: { kind: "dependency", modelId: "columns-sectors-model", stripSectorSource: "columns" }
+    };
+
+    const graph = buildDependencyGraph({
+      equations: cells.find((cell) => cell.id === "equations-columns" && cell.type === "equations")!
+        .equations,
+      externals: [],
+      initialValues: []
+    });
+    const topology = buildDependencySectorTopology({ cells, dependencyCell, graph });
+
+    expect(topology.variables.Xc?.sector).toBe("Custom current");
+    expect(topology.variables.Xk?.sector).toBe("Custom capital");
+  });
+
+  it("can map strips directly from sectors without falling back to columns", () => {
+    const cells: NotebookCell[] = [
+      {
+        id: "transaction-flow-sectors",
+        type: "matrix",
+        title: "Sectors flow matrix",
+        columns: ["Households", "Custom_current", "Custom_capital", "Sum"],
+        sectors: ["Households", "Custom", "", ""],
+        rows: [{ label: "Flow", values: ["-Hh", "+Xc", "+Xk", "0"] }]
+      },
+      {
+        id: "equations-sectors",
+        type: "equations",
+        title: "Direct sectors model",
+        modelId: "direct-sectors-model",
+        equations: [
+          { id: "eq-hh", name: "Hh", expression: "lag(Hh)" },
+          { id: "eq-xc", name: "Xc", expression: "lag(Xc)" },
+          { id: "eq-xk", name: "Xk", expression: "lag(Xk)" }
+        ]
+      }
+    ];
+    const dependencyCell: SequenceCell & {
+      source: Extract<SequenceCell["source"], { kind: "dependency" }>;
+    } = {
+      id: "equation-dependency-graph-sectors",
+      type: "sequence",
+      title: "Sectors dependency graph",
+      source: { kind: "dependency", modelId: "direct-sectors-model", stripSectorSource: "sectors" }
+    };
+
+    const graph = buildDependencyGraph({
+      equations: cells.find((cell) => cell.id === "equations-sectors" && cell.type === "equations")!
+        .equations,
+      externals: [],
+      initialValues: []
+    });
+    const topology = buildDependencySectorTopology({ cells, dependencyCell, graph });
+
+    expect(topology.variables.Xc?.sector).toBe("Custom");
+    expect(topology.variables.Xk?.sector).toBe("Unmapped");
   });
 });

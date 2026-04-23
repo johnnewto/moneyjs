@@ -15,11 +15,12 @@
       "title": "DIS rentier balance sheet",
       "sourceRunCellId": "baseline-run",
       "columns": ["Workers", "Rentiers", "Production firms", "Banks", "Sum"],
+      "sectors": ["Workers", "Rentiers", "Production firms", "Banks", ""],
       "rows": [
-        { "label": "Money deposits", "values": ["+Mhw", "+Mhr", "", "-Ms", "0"] },
-        { "label": "Loans", "values": ["", "", "-Ld", "+Ls", "0"] },
-        { "label": "Inventories", "values": ["", "", "+INV", "", "+INV"] },
-        { "label": "Balance", "values": ["-Mhw", "-Mhr", "", "", "-Mh"] }
+        { "band": "Money", "label": "Money deposits", "values": ["+Mhw", "+Mhr", "", "-Ms", "0"] },
+        { "band": "Loans", "label": "Loans", "values": ["", "", "-Ld", "+Ls", "0"] },
+        { "band": "Inventories", "label": "Inventories", "values": ["", "", "+INV", "", "+INV"] },
+        { "band": "Balance", "label": "Balance", "values": ["-Mhw", "-Mhr", "", "", "-Mh"] }
       ],
       "description": "Balance-sheet matrix for the rentier-split DIS model, separating worker and rentier deposit holdings while keeping firms, inventories, and banks explicit.",
       "note": "This makes wealth distribution visible: workers and rentiers hold distinct money stocks, while bank liabilities and firm borrowing remain stock-flow consistent."
@@ -30,18 +31,19 @@
       "title": "DIS rentier transactions-flow matrix",
       "sourceRunCellId": "baseline-run",
       "columns": ["Workers", "Rentiers", "Firms_current", "Firms_capital", "Banks_current", "Banks_capital"],
+      "sectors": ["Workers", "Rentiers", "Production firms", "Production firms", "Banks", "Banks"],
       "rows": [
-        { "label": "Consumption by workers", "values": ["-Cw", "", "+Cw", "", "", ""] },
-        { "label": "Consumption by rentiers", "values": ["", "-Cr", "+Cr", "", "", ""] },
-        { "label": "Ch. Inventories", "values": ["", "", "+d(INV)", "-d(INV)", "", ""] },
-        { "label": "Wages", "values": ["+WB", "", "-WB", "", "", ""] },
-        { "label": "Interest on loans", "values": ["", "", "-rl[-1] * Ld[-1]", "", "+rl[-1] * Ls[-1]", ""] },
-        { "label": "Entrepreneurial profits", "values": ["", "+EF", "-EF", "", "", ""] },
-        { "label": "Bank profits", "values": ["", "+EFb", "", "", "-EFb", ""] },
-        { "label": "Interest on worker deposits", "values": ["+rm[-1] * Mhw[-1]", "", "", "", "-rm[-1] * Mhw[-1]", ""] },
-        { "label": "Interest on rentier deposits", "values": ["", "+rm[-1] * Mhr[-1]", "", "", "-rm[-1] * Mhr[-1]", ""] },
-        { "label": "Change loans", "values": ["", "", "", "+d(Ld)", "", "-d(Ls)"] },
-        { "label": "Change deposits", "values": ["-d(Mhw)", "-d(Mhr)", "", "", "", "+d(Ms)"] }
+        { "band": "Consumption", "label": "Consumption by workers", "values": ["-Cw", "", "+Cw", "", "", ""] },
+        { "band": "Consumption", "label": "Consumption by rentiers", "values": ["", "-Cr", "+Cr", "", "", ""] },
+        { "band": "Inventories", "label": "Ch. Inventories", "values": ["", "", "+d(INV)", "-d(INV)", "", ""] },
+        { "band": "Wages", "label": "Wages", "values": ["+WB", "", "-WB", "", "", ""] },
+        { "band": "Interest", "label": "Interest on loans", "values": ["", "", "-rl[-1] * Ld[-1]", "", "+rl[-1] * Ls[-1]", ""] },
+        { "band": "Profits", "label": "Entrepreneurial profits", "values": ["", "+EF", "-EF", "", "", ""] },
+        { "band": "Profits", "label": "Bank profits", "values": ["", "+EFb", "", "", "-EFb", ""] },
+        { "band": "Interest", "label": "Interest on worker deposits", "values": ["+rm[-1] * Mhw[-1]", "", "", "", "-rm[-1] * Mhw[-1]", ""] },
+        { "band": "Interest", "label": "Interest on rentier deposits", "values": ["", "+rm[-1] * Mhr[-1]", "", "", "-rm[-1] * Mhr[-1]", ""] },
+        { "band": "Loans", "label": "Change loans", "values": ["", "", "", "+d(Ld)", "", "-d(Ls)"] },
+        { "band": "Deposits", "label": "Change deposits", "values": ["-d(Mhw)", "-d(Mhr)", "", "", "", "+d(Ms)"] }
       ],
       "description": "Transactions-flow matrix for the rentier-split DIS model, separating wages, profits, deposit interest, consumption, and wealth accumulation between workers and rentiers.",
       "note": "Use this to show that wages primarily fund worker consumption while profits, bank profits, and deposit interest accrue to rentiers, making distributional feedbacks visible in the accounting."
@@ -60,10 +62,8 @@
       "source": {
         "kind": "dependency",
         "modelId": "equations",
-        "viewMode": "strips",
-        "sectorGrouping": "family",
+        "stripSectorSource": "columns",
         "showAccountingStrips": true,
-        "accountingBandGrouping": "family",
         "showExogenous": false
       },
       "description": "Dependency view of the rentier-split DIS equations, highlighting how expected sales, inventories, pricing, bank credit, wage income, profits, deposit interest, and wealth feed back through the model over time.",

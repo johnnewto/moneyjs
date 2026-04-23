@@ -166,9 +166,9 @@ describe("dependency row topology", () => {
       graph
     });
 
-    expect(groupedTopology.variables.Mh?.primaryBand).toBe("Deposits");
+    expect(groupedTopology.variables.Mh?.primaryBand).toBe("Money deposits");
     expect(new Set(groupedTopology.variables.Mh?.memberships.map((membership) => membership.band))).toEqual(
-      new Set(["Deposits"])
+      new Set(["Money deposits"])
     );
     expect(
       groupedTopology.variables.Mh?.memberships.map((membership) => membership.originalBand).sort()
@@ -186,7 +186,7 @@ describe("dependency row topology", () => {
       groupedProxies
         .filter((proxy) => proxy.canonicalVariable === "Ld")
         .map((proxy) => proxy.band)
-    ).toEqual(["Loans", "Loans", "Loans"]);
+    ).toEqual(["Loans", "Interest loans", "Ch. loans"]);
 
     const gl6Cells: NotebookCell[] = [
       {
@@ -253,13 +253,113 @@ describe("dependency row topology", () => {
     expect(
       groupedDisTopology.variables.INV?.memberships.map((membership) => membership.originalBand).sort()
     ).toEqual(["Inventories"]);
-    expect(groupedDisTopology.variables.EF?.primaryBand).toBe("Profits");
-    expect(groupedDisTopology.variables.EFb?.primaryBand).toBe("Profits");
+    expect(groupedDisTopology.variables.EF?.primaryBand).toBe("Entrepreneurial Profits");
+    expect(groupedDisTopology.variables.EFb?.primaryBand).toBe("Banks profits");
     expect(
       groupedDisTopology.variables.EF?.memberships.map((membership) => membership.originalBand)
     ).toEqual(["Entrepreneurial Profits"]);
     expect(
       groupedDisTopology.variables.EFb?.memberships.map((membership) => membership.originalBand)
     ).toEqual(["Banks profits"]);
+  });
+
+  it("prefers row.band over row.label for authoritative accounting bands", () => {
+    const cells: NotebookCell[] = [
+      {
+        id: "transaction-flow-band-authority",
+        type: "matrix",
+        title: "Band authority matrix",
+        columns: ["Households", "Banks", "Sum"],
+        rows: [{ band: "Funding", label: "Money deposits", values: ["+Mh", "-Ms", "0"] }]
+      },
+      {
+        id: "equations-band-authority",
+        type: "equations",
+        title: "Band authority model",
+        modelId: "band-authority-model",
+        equations: [
+          { id: "eq-mh", name: "Mh", expression: "lag(Mh)" },
+          { id: "eq-ms", name: "Ms", expression: "lag(Ms)" }
+        ]
+      }
+    ];
+    const dependencyCell: SequenceCell & {
+      source: Extract<SequenceCell["source"], { kind: "dependency" }>;
+    } = {
+      id: "equation-dependency-graph-band-authority",
+      type: "sequence",
+      title: "Band authority dependency graph",
+      source: { kind: "dependency", modelId: "band-authority-model" }
+    };
+
+    const graph = buildDependencyGraph({
+      equations: cells.find((cell) => cell.id === "equations-band-authority" && cell.type === "equations")!
+        .equations,
+      externals: [],
+      initialValues: []
+    });
+
+    const rawTopology = buildDependencyRowTopology({
+      bandGrouping: "none",
+      cells,
+      dependencyCell,
+      graph
+    });
+
+    expect(rawTopology.variables.Mh?.primaryBand).toBe("Funding");
+    expect(rawTopology.variables.Ms?.primaryBand).toBe("Funding");
+    expect(new Set(rawTopology.variables.Mh?.memberships.map((membership) => membership.originalBand))).toEqual(
+      new Set(["Funding"])
+    );
+  });
+
+  it("treats an empty row.band as unmapped instead of falling back to the label", () => {
+    const cells: NotebookCell[] = [
+      {
+        id: "transaction-flow-empty-band",
+        type: "matrix",
+        title: "Empty band matrix",
+        columns: ["Households", "Banks", "Sum"],
+        rows: [{ band: "", label: "Money deposits", values: ["+Mh", "-Ms", "0"] }]
+      },
+      {
+        id: "equations-empty-band",
+        type: "equations",
+        title: "Empty band model",
+        modelId: "empty-band-model",
+        equations: [
+          { id: "eq-mh", name: "Mh", expression: "lag(Mh)" },
+          { id: "eq-ms", name: "Ms", expression: "lag(Ms)" }
+        ]
+      }
+    ];
+    const dependencyCell: SequenceCell & {
+      source: Extract<SequenceCell["source"], { kind: "dependency" }>;
+    } = {
+      id: "equation-dependency-graph-empty-band",
+      type: "sequence",
+      title: "Empty band dependency graph",
+      source: { kind: "dependency", modelId: "empty-band-model" }
+    };
+
+    const graph = buildDependencyGraph({
+      equations: cells.find((cell) => cell.id === "equations-empty-band" && cell.type === "equations")!
+        .equations,
+      externals: [],
+      initialValues: []
+    });
+
+    const topology = buildDependencyRowTopology({
+      bandGrouping: "none",
+      cells,
+      dependencyCell,
+      graph
+    });
+
+    expect(topology.variables.Mh?.primaryBand).toBe("Unmapped");
+    expect(topology.variables.Ms?.primaryBand).toBe("Unmapped");
+    expect(new Set(topology.variables.Mh?.memberships.map((membership) => membership.originalBand))).toEqual(
+      new Set(["Unmapped"])
+    );
   });
 });
