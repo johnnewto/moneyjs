@@ -2,6 +2,10 @@ import { createRoot } from "react-dom/client";
 
 import { App } from "./app/App";
 
+if (window.location.pathname === "/ai" || window.location.pathname === "/ai/") {
+  window.location.replace("/ai/index.html");
+}
+
 const container = document.getElementById("root");
 
 if (!container) {

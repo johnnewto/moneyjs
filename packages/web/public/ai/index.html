@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SFCR AI Resources</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f7fb;
+        --panel: rgba(255, 255, 255, 0.92);
+        --ink: #14213d;
+        --muted: #52607a;
+        --line: rgba(20, 33, 61, 0.14);
+        --accent: #0f766e;
+        --accent-soft: rgba(15, 118, 110, 0.1);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+        background:
+          radial-gradient(circle at top left, rgba(15, 118, 110, 0.08), transparent 32%),
+          linear-gradient(180deg, #fbfcfe 0%, var(--bg) 100%);
+        color: var(--ink);
+      }
+
+      main {
+        margin: 0 auto;
+        max-width: 960px;
+        padding: 3rem 1.25rem 4rem;
+      }
+
+      header {
+        margin-bottom: 1.75rem;
+      }
+
+      .eyebrow {
+        color: var(--accent);
+        display: inline-block;
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        font-size: clamp(2rem, 4vw, 3rem);
+        line-height: 1.05;
+        margin: 0.35rem 0 0.75rem;
+      }
+
+      p {
+        color: var(--muted);
+        font-size: 1rem;
+        line-height: 1.65;
+        margin: 0;
+      }
+
+      .hero {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        box-shadow: 0 22px 60px rgba(20, 33, 61, 0.08);
+        padding: 1.4rem;
+      }
+
+      .grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        margin-top: 1.25rem;
+      }
+
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 1rem;
+      }
+
+      .card h2 {
+        font-size: 1rem;
+        margin: 0 0 0.45rem;
+      }
+
+      .card p {
+        font-size: 0.94rem;
+      }
+
+      .link-list {
+        display: grid;
+        gap: 0.85rem;
+        list-style: none;
+        margin: 1.5rem 0 0;
+        padding: 0;
+      }
+
+      .link-list a {
+        color: var(--ink);
+        font-weight: 600;
+        text-decoration: none;
+      }
+
+      .link-list a:hover {
+        text-decoration: underline;
+      }
+
+      code {
+        background: var(--accent-soft);
+        border-radius: 8px;
+        color: var(--ink);
+        display: inline-block;
+        font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+        font-size: 0.9rem;
+        padding: 0.12rem 0.35rem;
+      }
+
+      .callout {
+        background: rgba(255, 255, 255, 0.72);
+        border-left: 4px solid var(--accent);
+        border-radius: 16px;
+        margin-top: 1.5rem;
+        padding: 1rem 1rem 1rem 1.1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <span class="eyebrow">AI Discovery</span>
+        <h1>SFCR notebook authoring resources</h1>
+        <p>
+          This page is the human-readable landing page for browser-based AI clients and notebook authors.
+          For automated discovery, start with <code>/.well-known/sfcr.json</code>.
+        </p>
+      </header>
+
+      <section class="hero" aria-label="Primary entry points">
+        <div class="grid">
+          <article class="card">
+            <h2>Canonical JSON index</h2>
+            <p><a href="/.well-known/sfcr.json">/.well-known/sfcr.json</a></p>
+          </article>
+          <article class="card">
+            <h2>Notebook manifest</h2>
+            <p><a href="/.well-known/sfcr-notebook-guide.json">/.well-known/sfcr-notebook-guide.json</a></p>
+          </article>
+          <article class="card">
+            <h2>Authoring guide</h2>
+            <p><a href="/notebook-guide.md">/notebook-guide.md</a></p>
+          </article>
+          <article class="card">
+            <h2>JSON schema</h2>
+            <p><a href="/sfcr-notebook.schema.json">/sfcr-notebook.schema.json</a></p>
+          </article>
+        </div>
+      </section>
+
+      <section aria-label="Resources">
+        <ul class="link-list">
+          <li>
+            <a href="/ai-prompts/create-sfcr-notebook.md">Prompt for ChatGPT or Claude</a>
+            <p>Copy-paste prompt that tells the model how to generate a valid notebook JSON document.</p>
+          </li>
+          <li>
+            <a href="/notebook-examples/bmw.notebook.json">BMW example notebook</a>
+            <p>Reference for sectors, accounting bands, baseline runs, and scenarios.</p>
+          </li>
+          <li>
+            <a href="/notebook-examples/gl6-dis-rentier.notebook.v2.json">GL6 DIS rentier example notebook</a>
+            <p>Reference for multi-household layouts, distributional flows, and matrix structures.</p>
+          </li>
+        </ul>
+      </section>
+
+      <section class="callout" aria-label="Usage guidance">
+        <p>
+          Recommended flow: fetch <code>/.well-known/sfcr.json</code>, then read the guide, schema, and one example before generating JSON.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

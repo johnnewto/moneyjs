@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "indexUrl": "/.well-known/sfcr.json",
+  "title": "SFCR Notebook Authoring Guide",
+  "audience": ["browser-based AI assistants", "LLM chat tools", "notebook authors"],
+  "purpose": "Create valid SFCR notebook JSON documents, especially SFC models with matrix sectors and accounting bands.",
+  "guideUrl": "/notebook-guide.md",
+  "schemaUrl": "/sfcr-notebook.schema.json",
+  "promptUrl": "/ai-prompts/create-sfcr-notebook.md",
+  "preferredFormat": "markdown",
+  "examples": [
+    {
+      "id": "bmw",
+      "label": "BMW notebook",
+      "url": "/notebook-examples/bmw.notebook.json",
+      "focus": ["sectors", "bands", "baseline run", "scenario runs"]
+    },
+    {
+      "id": "gl6-dis-rentier-v2",
+      "label": "GL6 DIS rentier split v2",
+      "url": "/notebook-examples/gl6-dis-rentier.notebook.v2.json",
+      "focus": ["multi-household sectors", "distribution", "inventory dynamics", "matrix bands"]
+    }
+  ],
+  "instructions": [
+    "Fetch guideUrl first and follow its schema and naming conventions.",
+    "Use the BMW example when generating matrix cells with sectors and bands.",
+    "Use the rentier example when the model splits households or tracks distributional flows.",
+    "Validate the final JSON against schemaUrl before returning it.",
+    "Return a single JSON notebook document with metadata.version set to 1."
+  ]
+}

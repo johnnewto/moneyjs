@@ -1,0 +1,61 @@
+{
+  "id": "bmw-notebook",
+  "title": "BMW Browser Notebook",
+  "metadata": { "version": 1, "template": "bmw" },
+  "cells": [
+    { "id": "intro", "type": "markdown", "title": "Overview", "source": "This browser notebook adapts the BMW vignette into executable model, run, and chart cells. It focuses on a Newton baseline and two scenario comparisons." },
+    {
+      "id": "balance-sheet",
+      "type": "matrix",
+      "title": "BMW balance sheet",
+      "sourceRunCellId": "baseline-newton",
+      "columns": ["Households", "Production firms", "Banks", "Sum"],
+      "sectors": ["Households", "Firms", "Banks", ""],
+      "rows": [
+        { "band": "Deposits", "label": "Money deposits", "values": ["+Mh", "", "-Ms", "0"] },
+        { "band": "Loans", "label": "Loans", "values": ["", "-Ld", "+Ls", "0"] },
+        { "band": "Investment", "label": "Fixed capital", "values": ["", "+K", "", "+K"] },
+        { "band": "Balance", "label": "Balance (net worth)", "values": ["-Vh", "-V", "0", "0"] },
+        { "band": "Sum", "label": "Sum", "values": ["0", "0", "0", "0"] }
+      ],
+      "description": "Balance-sheet matrix for the BMW model, following the sfcr article presentation.",
+      "note": "Source structure adapted from the sfcr BMW article balance-sheet display."
+    },
+    {
+      "id": "transaction-flow",
+      "type": "matrix",
+      "title": "BMW transactions-flow matrix",
+      "sourceRunCellId": "baseline-newton",
+      "columns": ["Households", "Firms_current", "Firms_capital", "Banks_current", "Banks_capital"],
+      "sectors": ["Households", "Firms", "Firms", "Banks", "Banks"],
+      "rows": [
+        { "band": "Consumption", "label": "Consumption", "values": ["-Cs", "+Cd", "", "", ""] },
+        { "band": "Investment", "label": "Investment", "values": ["", "+Is", "-Id", "", ""] },
+        { "band": "Wages", "label": "Wages", "values": ["+WBs", "-WBd", "", "", ""] },
+        { "band": "Depreciation", "label": "Depreciation", "values": ["", "-AF", "+AF", "", ""] },
+        { "band": "Loans", "label": "Interest loans", "values": ["", "-rl[-1] * Ld[-1]", "", "+rl[-1] * Ls[-1]", ""] },
+        { "band": "Deposits", "label": "Interest on deposits", "values": ["+rm[-1] * Mh[-1]", "", "", "-rm[-1] * Ms[-1]", ""] },
+        { "band": "Loans", "label": "Ch. loans", "values": ["", "", "+d(Ld)", "", "-d(Ls)"] },
+        { "band": "Deposits", "label": "Ch. deposits", "values": ["-d(Mh)", "", "", "", "+d(Ms)"] }
+      ],
+      "description": "Transactions-flow matrix for the BMW model, shown in the same accounting style as the sfcr article.",
+      "note": "Signs and row structure follow the BMW transactions-flow matrix in the sfcr article."
+    },
+    {
+      "id": "transaction-flow-sequence",
+      "type": "sequence",
+      "title": "BMW transaction flow sequence",
+      "source": { "kind": "matrix", "matrixCellId": "transaction-flow" },
+      "description": "Canvas-rendered sequence view generated from the transactions-flow matrix at the selected simulation period.",
+      "note": "Use Reset and Next step to manually reveal flows in order."
+    },
+    {
+      "id": "equation-dependency-graph",
+      "type": "sequence",
+      "title": "BMW equation dependency graph",
+      "source": { "kind": "dependency", "modelId": "equations-newton", "showAccountingStrips": true, "showExogenous": false },
+      "description": "Dependency view of the BMW equations organized by sector strips and accounting bands.",
+      "note": "Use this alongside the transaction-flow sequence to compare accounting flows with equation structure."
+    }
+  ]
+}

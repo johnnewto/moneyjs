@@ -37,6 +37,13 @@ import { buildVariableInspectorData } from "../lib/variableInspector";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
 import { buildVariableUnitMetadata } from "../lib/units";
 
+const NOTEBOOK_AI_INDEX_URL = "/.well-known/sfcr.json";
+const NOTEBOOK_AI_LANDING_URL = "/ai/index.html";
+const NOTEBOOK_AI_GUIDE_URL = "/notebook-guide.md";
+const NOTEBOOK_AI_MANIFEST_URL = "/.well-known/sfcr-notebook-guide.json";
+const NOTEBOOK_AI_SCHEMA_URL = "/sfcr-notebook.schema.json";
+const NOTEBOOK_AI_PROMPT_URL = "/ai-prompts/create-sfcr-notebook.md";
+
 export function NotebookApp() {
   const mainColumnRef = useRef<HTMLDivElement | null>(null);
   const [notebookDocument, setNotebookDocument] = useState(() =>
@@ -529,6 +536,22 @@ export function NotebookApp() {
                 </button>
                 <a
                   className="notebook-toolbar-link notebook-run-button notebook-action-desktop"
+                  href={NOTEBOOK_AI_LANDING_URL}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  AI resources
+                </a>
+                <a
+                  className="notebook-toolbar-link notebook-run-button notebook-action-desktop"
+                  href={NOTEBOOK_AI_GUIDE_URL}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  AI guide
+                </a>
+                <a
+                  className="notebook-toolbar-link notebook-run-button notebook-action-desktop"
                   href="#/workspace"
                 >
                   Workspace
@@ -600,6 +623,11 @@ export function NotebookApp() {
                   Close
                 </button>
               </div>
+            </div>
+
+            <div className="status-hint">
+              Browser-based AI should start with <a href={NOTEBOOK_AI_INDEX_URL}>/.well-known/sfcr.json</a>.
+              {" "}For manual browsing, see <a href={NOTEBOOK_AI_LANDING_URL}>/ai/index.html</a>. That index links the authoring guide at <a href={NOTEBOOK_AI_GUIDE_URL}>/notebook-guide.md</a>, the notebook manifest at <a href={NOTEBOOK_AI_MANIFEST_URL}>/.well-known/sfcr-notebook-guide.json</a>, the schema at <a href={NOTEBOOK_AI_SCHEMA_URL}>/sfcr-notebook.schema.json</a>, and the prompt at <a href={NOTEBOOK_AI_PROMPT_URL}>/ai-prompts/create-sfcr-notebook.md</a>.
             </div>
 
             <textarea

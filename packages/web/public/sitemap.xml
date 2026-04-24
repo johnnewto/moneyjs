@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>/ai/index.html</loc>
+  </url>
+  <url>
+    <loc>/.well-known/sfcr.json</loc>
+  </url>
+  <url>
+    <loc>/.well-known/sfcr-notebook-guide.json</loc>
+  </url>
+  <url>
+    <loc>/notebook-guide.md</loc>
+  </url>
+  <url>
+    <loc>/sfcr-notebook.schema.json</loc>
+  </url>
+  <url>
+    <loc>/ai-prompts/create-sfcr-notebook.md</loc>
+  </url>
+  <url>
+    <loc>/notebook-examples/bmw.notebook.json</loc>
+  </url>
+  <url>
+    <loc>/notebook-examples/gl6-dis-rentier.notebook.v2.json</loc>
+  </url>
+</urlset>
