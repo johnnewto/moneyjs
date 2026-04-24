@@ -41,10 +41,35 @@ You can also run the web app explicitly:
 pnpm web:dev
 ```
 
+For a local preview of the current production build at the root path:
+
+```bash
+pnpm web:build
+pnpm web:preview
+```
+
+For a GitHub Pages-style preview with the `/moneyjs/` base path:
+
+```bash
+pnpm web:preview:pages
+```
+
+That preview runs on:
+
+```text
+http://localhost:4173/moneyjs/
+```
+
 The dev server will print a local URL, typically:
 
 ```text
 http://localhost:5173
+```
+
+The chat builder can also be opened directly at the Pages-style local route:
+
+```text
+http://localhost:5173/moneyjs/#/chat-builder
 ```
 
 ## Building
@@ -65,6 +90,12 @@ For a GitHub Pages deployment, build the app with the repository base path:
 
 ```bash
 VITE_BASE_PATH=/moneyjs/ pnpm web:build
+```
+
+Equivalent root script:
+
+```bash
+pnpm web:build:pages
 ```
 
 ## Testing And Typechecking

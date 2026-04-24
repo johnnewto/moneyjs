@@ -113,58 +113,59 @@ describe("App", () => {
     const user = userEvent.setup();
     window.location.hash = "#/chat-builder";
     window.localStorage.setItem("sfcr:chat-builder-api-key", "sk-existing-chat-builder");
+    const origin = window.location.origin;
     const fetchMock = vi.fn(async (input: string) => {
-      if (input === "/.well-known/sfcr.json") {
+      if (input === `${origin}/.well-known/sfcr.json`) {
         return {
           ok: true,
           json: async () => ({
             resources: {
               notebooks: {
-                manifest: "/.well-known/sfcr-notebook-guide.json",
-                guide: "/notebook-guide.md",
-                schema: "/sfcr-notebook.schema.json",
-                prompt: "/ai-prompts/create-sfcr-notebook.md",
-                examples: [{ id: "bmw", url: "/notebook-examples/bmw.notebook.json" }]
+                manifest: "./sfcr-notebook-guide.json",
+                guide: "../notebook-guide.md",
+                schema: "../sfcr-notebook.schema.json",
+                prompt: "../ai-prompts/create-sfcr-notebook.md",
+                examples: [{ id: "bmw", url: "../notebook-examples/bmw.notebook.json" }]
               }
             }
           })
         };
       }
 
-      if (input === "/.well-known/sfcr-notebook-guide.json") {
+      if (input === `${origin}/.well-known/sfcr-notebook-guide.json`) {
         return {
           ok: true,
           json: async () => ({
-            guideUrl: "/notebook-guide.md",
-            schemaUrl: "/sfcr-notebook.schema.json",
-            promptUrl: "/ai-prompts/create-sfcr-notebook.md",
-            examples: [{ id: "bmw", url: "/notebook-examples/bmw.notebook.json" }]
+            guideUrl: "../notebook-guide.md",
+            schemaUrl: "../sfcr-notebook.schema.json",
+            promptUrl: "../ai-prompts/create-sfcr-notebook.md",
+            examples: [{ id: "bmw", url: "../notebook-examples/bmw.notebook.json" }]
           })
         };
       }
 
-      if (input === "/notebook-guide.md") {
+      if (input === `${origin}/notebook-guide.md`) {
         return {
           ok: true,
           text: async () => "# AI Guide: Creating SFC Model JSON Notebooks"
         };
       }
 
-      if (input === "/sfcr-notebook.schema.json") {
+      if (input === `${origin}/sfcr-notebook.schema.json`) {
         return {
           ok: true,
           text: async () => '{"title":"SFCR notebook schema"}'
         };
       }
 
-      if (input === "/ai-prompts/create-sfcr-notebook.md") {
+      if (input === `${origin}/ai-prompts/create-sfcr-notebook.md`) {
         return {
           ok: true,
           text: async () => "# SFCR notebook JSON generation prompt"
         };
       }
 
-      if (input === "/notebook-examples/bmw.notebook.json") {
+      if (input === `${origin}/notebook-examples/bmw.notebook.json`) {
         return {
           ok: true,
           text: async () => '{"id":"bmw","title":"BMW notebook"}'
@@ -276,20 +277,22 @@ describe("App", () => {
       expect(fetchMock).toHaveBeenCalledWith("https://api.openai.com/v1/responses", expect.any(Object));
     });
 
-    expect(fetchMock).toHaveBeenCalledWith("/.well-known/sfcr.json");
-    expect(fetchMock).toHaveBeenCalledWith("/.well-known/sfcr-notebook-guide.json");
-    expect(fetchMock).toHaveBeenCalledWith("/notebook-guide.md");
-    expect(fetchMock).toHaveBeenCalledWith("/sfcr-notebook.schema.json");
-    expect(fetchMock).toHaveBeenCalledWith("/ai-prompts/create-sfcr-notebook.md");
-    expect(fetchMock).toHaveBeenCalledWith("/notebook-examples/bmw.notebook.json");
+    expect(fetchMock).toHaveBeenCalledWith(`${origin}/.well-known/sfcr.json`);
+    expect(fetchMock).toHaveBeenCalledWith(`${origin}/.well-known/sfcr-notebook-guide.json`);
+    expect(fetchMock).toHaveBeenCalledWith(`${origin}/notebook-guide.md`);
+    expect(fetchMock).toHaveBeenCalledWith(`${origin}/sfcr-notebook.schema.json`);
+    expect(fetchMock).toHaveBeenCalledWith(`${origin}/ai-prompts/create-sfcr-notebook.md`);
+    expect(fetchMock).toHaveBeenCalledWith(`${origin}/notebook-examples/bmw.notebook.json`);
 
     const openAiCall = fetchMock.mock.calls.find(
       ([url]) => url === "https://api.openai.com/v1/responses"
-    );
-    const [url, request] = openAiCall ?? [];
+    ) as [string, RequestInit?] | undefined;
+    const url = openAiCall?.[0];
+    const request = openAiCall?.[1];
+    const requestHeaders = request?.headers as Record<string, string> | undefined;
     expect(url).toBe("https://api.openai.com/v1/responses");
-    expect(request?.headers?.Authorization).toBe("Bearer sk-existing-chat-builder");
-    expect(request?.headers?.["Content-Type"]).toBe("application/json");
+    expect(requestHeaders?.Authorization).toBe("Bearer sk-existing-chat-builder");
+    expect(requestHeaders?.["Content-Type"]).toBe("application/json");
     expect(request?.body).toContain("gpt-4.1");
     expect(request?.body).toContain("Build a small SFC model with government spending and a baseline chart.");
     expect(request?.body).toContain("SFCR discovery bundle");
@@ -345,37 +348,38 @@ describe("App", () => {
     const user = userEvent.setup();
     window.location.hash = "#/chat-builder";
     window.localStorage.setItem("sfcr:chat-builder-api-key", "sk-existing-chat-builder");
+    const origin = window.location.origin;
     const fetchMock = vi.fn(async (input: string) => {
-      if (input === "/.well-known/sfcr.json") {
+      if (input === `${origin}/.well-known/sfcr.json`) {
         return {
           ok: true,
           json: async () => ({
             resources: {
               notebooks: {
-                manifest: "/.well-known/sfcr-notebook-guide.json",
-                guide: "/notebook-guide.md",
-                schema: "/sfcr-notebook.schema.json",
-                prompt: "/ai-prompts/create-sfcr-notebook.md"
+                manifest: "./sfcr-notebook-guide.json",
+                guide: "../notebook-guide.md",
+                schema: "../sfcr-notebook.schema.json",
+                prompt: "../ai-prompts/create-sfcr-notebook.md"
               }
             }
           })
         };
       }
 
-      if (input === "/.well-known/sfcr-notebook-guide.json") {
+      if (input === `${origin}/.well-known/sfcr-notebook-guide.json`) {
         return {
           ok: true,
-          json: async () => ({ guideUrl: "/notebook-guide.md", schemaUrl: "/sfcr-notebook.schema.json", promptUrl: "/ai-prompts/create-sfcr-notebook.md" })
+          json: async () => ({ guideUrl: "../notebook-guide.md", schemaUrl: "../sfcr-notebook.schema.json", promptUrl: "../ai-prompts/create-sfcr-notebook.md" })
         };
       }
 
-      if (input === "/notebook-guide.md") {
+      if (input === `${origin}/notebook-guide.md`) {
         return { ok: true, text: async () => "# Guide" };
       }
-      if (input === "/sfcr-notebook.schema.json") {
+      if (input === `${origin}/sfcr-notebook.schema.json`) {
         return { ok: true, text: async () => "{}" };
       }
-      if (input === "/ai-prompts/create-sfcr-notebook.md") {
+      if (input === `${origin}/ai-prompts/create-sfcr-notebook.md`) {
         return { ok: true, text: async () => "# Prompt" };
       }
       if (input === "https://api.openai.com/v1/responses") {
@@ -476,6 +480,10 @@ describe("App", () => {
     expect(screen.getAllByText(/bmw browser notebook/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /^run all$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /validate/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /chat builder/i })).toHaveAttribute(
+      "href",
+      "#/chat-builder"
+    );
     expect(screen.getByRole("heading", { name: /bmw balance sheet/i })).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /bmw transactions-flow matrix/i })

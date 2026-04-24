@@ -562,6 +562,12 @@ export function NotebookApp() {
                 >
                   Workspace
                 </a>
+                <a
+                  className="notebook-toolbar-link notebook-run-button notebook-action-desktop"
+                  href="#/chat-builder"
+                >
+                  Chat builder
+                </a>
               </div>
             </div>
           </section>

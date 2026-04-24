@@ -703,6 +703,20 @@ interface SfcrNotebookManifest {
   }>;
 }
 
+const APP_BASE_URL = import.meta.env.BASE_URL;
+
+function resolveAppResourceUrl(path: string): string {
+  return new URL(`${APP_BASE_URL}${path.replace(/^\/+/, "")}`, window.location.origin).toString();
+}
+
+function resolveDocumentResourceUrl(baseUrl: string, resourceUrl: string): string {
+  try {
+    return new URL(resourceUrl, baseUrl).toString();
+  } catch {
+    return resourceUrl;
+  }
+}
+
 async function fetchJsonResource<T>(url: string): Promise<T> {
   const response = await fetch(url);
   if (!response.ok) {
@@ -722,25 +736,35 @@ async function fetchTextResource(url: string): Promise<string> {
 }
 
 async function loadChatBuilderResourceBundle(): Promise<string> {
-  const discovery = await fetchJsonResource<SfcrDiscoveryIndex>("/.well-known/sfcr.json");
+  const discoveryUrl = resolveAppResourceUrl(".well-known/sfcr.json");
+  const discovery = await fetchJsonResource<SfcrDiscoveryIndex>(discoveryUrl);
   const notebookResources = discovery.resources?.notebooks;
 
   if (!notebookResources?.manifest || !notebookResources.guide || !notebookResources.schema || !notebookResources.prompt) {
     throw new Error("SFCR discovery index is missing notebook resources.");
   }
 
-  const notebookManifest = await fetchJsonResource<SfcrNotebookManifest>(notebookResources.manifest);
+  const manifestUrl = resolveDocumentResourceUrl(discoveryUrl, notebookResources.manifest);
+  const guideUrl = resolveDocumentResourceUrl(discoveryUrl, notebookResources.guide);
+  const schemaUrl = resolveDocumentResourceUrl(discoveryUrl, notebookResources.schema);
+  const promptUrl = resolveDocumentResourceUrl(discoveryUrl, notebookResources.prompt);
+
+  const notebookManifest = await fetchJsonResource<SfcrNotebookManifest>(manifestUrl);
   const exampleUrls = [
-    ...(notebookManifest.examples?.map((example) => example.url).filter((url): url is string => Boolean(url)) ??
+    ...(notebookManifest.examples
+      ?.map((example) => (example.url ? resolveDocumentResourceUrl(manifestUrl, example.url) : null))
+      .filter((url): url is string => Boolean(url)) ??
       []),
-    ...(notebookResources.examples?.map((example) => example.url).filter((url): url is string => Boolean(url)) ??
+    ...(notebookResources.examples
+      ?.map((example) => (example.url ? resolveDocumentResourceUrl(discoveryUrl, example.url) : null))
+      .filter((url): url is string => Boolean(url)) ??
       [])
   ].filter((url, index, all) => all.indexOf(url) === index);
 
   const [guideText, schemaText, promptText, ...exampleTexts] = await Promise.all([
-    fetchTextResource(notebookResources.guide),
-    fetchTextResource(notebookResources.schema),
-    fetchTextResource(notebookResources.prompt),
+    fetchTextResource(guideUrl),
+    fetchTextResource(schemaUrl),
+    fetchTextResource(promptUrl),
     ...exampleUrls.map((url) => fetchTextResource(url))
   ]);
 
@@ -819,7 +843,7 @@ async function requestChatBuilderDraft(args: {
   };
 
   if (typeof result.output_text === "string" && result.output_text.trim() !== "") {
-    return result.output_text.trim();
+    return normalizeChatBuilderDraftPlan(result.output_text.trim());
   }
 
   const contentText = result.output

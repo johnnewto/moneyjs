@@ -9,7 +9,10 @@
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "web:dev": "pnpm --filter @sfcr/web dev",
-    "web:build": "pnpm --filter @sfcr/web build"
+    "web:build": "pnpm --filter @sfcr/web build",
+    "web:preview": "pnpm --filter @sfcr/web exec vite preview --port 4173",
+    "web:build:pages": "VITE_BASE_PATH=/moneyjs/ pnpm --filter @sfcr/web build",
+    "web:preview:pages": "pnpm web:build:pages && node ./scripts/preview-pages.mjs"
   },
   "devDependencies": {
     "turbo": "^2.5.0",
