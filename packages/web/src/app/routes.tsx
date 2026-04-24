@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
 
-export type AppRoute = "workspace" | "notebook";
+export type AppRoute = "workspace" | "notebook" | "chat-builder";
 
 export function getRouteFromHash(hash: string): AppRoute {
+  if (hash.startsWith("#/chat-builder")) {
+    return "chat-builder";
+  }
+
   return hash.startsWith("#/workspace") ? "workspace" : "notebook";
 }
 

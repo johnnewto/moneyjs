@@ -25,6 +25,8 @@ import { useDragScroll } from "../hooks/useDragScroll";
 import { usePanelSplitter } from "../hooks/usePanelSplitter";
 import { useSolver } from "../hooks/useSolver";
 import { NotebookApp } from "../notebook/NotebookApp";
+import { notebookToJson } from "../notebook/document";
+import type { NotebookDocument } from "../notebook/types";
 import { useAppRoute } from "./routes";
 import {
   buildRuntimeConfig,
@@ -33,7 +35,11 @@ import {
   editorStateFromModel,
   runtimeDocumentToJson,
   validateEditorState,
+  type EditorOptions,
   type EditorState,
+  type EquationRow,
+  type ExternalRow,
+  type InitialValueRow,
   type RuntimeDocument
 } from "../lib/editorModel";
 import type { UnitMeta } from "../lib/unitMeta";
@@ -143,6 +149,10 @@ interface PresetConfig {
 
 export function App() {
   const route = useAppRoute();
+
+  if (route === "chat-builder") {
+    return <ChatBuilderApp />;
+  }
 
   if (route === "notebook") {
     return <NotebookApp />;
@@ -390,6 +400,9 @@ export function WorkspaceApp() {
         <a className="mode-switch-link is-active" href="#/workspace">
           Workspace
         </a>
+        <a className="mode-switch-link" href="#/chat-builder">
+          Chat builder
+        </a>
         <a className="mode-switch-link" href="#/notebook">
           Notebook
         </a>
@@ -588,6 +601,1017 @@ export function WorkspaceApp() {
               variableUnitMetadata={variableUnitMetadata}
             />
           ) : null}
+        </aside>
+      </div>
+    </main>
+  );
+}
+
+interface ChatMessage {
+  id: string;
+  role: "assistant" | "user";
+  text: string;
+}
+
+const CHAT_BUILDER_SAMPLE_MESSAGES: ChatMessage[] = [
+  {
+    id: "assistant-1",
+    role: "assistant",
+    text:
+      "Describe the SFC model you want to build or paste the current draft you want to revise. This experimental surface will turn the conversation into notebook model sections rather than freeform JSON."
+  },
+  {
+    id: "user-1",
+    role: "user",
+    text:
+      "Build a simple closed-economy model with household consumption out of income and wealth, plus a government spending shock scenario."
+  },
+  {
+    id: "assistant-2",
+    role: "assistant",
+    text:
+      "The draft preview on the right shows the model sections this route will own first: equations, solver options, externals, initial values, and a baseline run. Validation and repair will run before anything is applied to a notebook."
+  }
+];
+
+const CHAT_BUILDER_SECTION_NAMES = [
+  "Equations",
+  "Solver options",
+  "Externals",
+  "Initial values",
+  "Baseline run",
+  "Chart preview"
+];
+
+interface ChatBuilderDraftPlan {
+  assistantText: string;
+  equations: EquationRow[];
+  externals: ExternalRow[];
+  initialValues: InitialValueRow[];
+  sections: string[];
+  solverOptions: Partial<EditorOptions> | null;
+  summary: string;
+}
+
+const CHAT_BUILDER_INITIAL_MESSAGES: ChatMessage[] = [
+  {
+    id: "assistant-1",
+    role: "assistant",
+    text:
+      "Describe the SFC model you want to build or paste the current draft you want to revise. This experimental surface will turn the conversation into notebook model sections rather than freeform JSON."
+  }
+];
+
+const CHAT_BUILDER_MODEL_STORAGE_KEY = "sfcr:chat-builder-model";
+const CHAT_BUILDER_API_KEY_STORAGE_KEY = "sfcr:chat-builder-api-key";
+const CHAT_BUILDER_DEFAULT_MODEL = "gpt-4.1";
+const CHAT_BUILDER_DEFAULT_SOLVER_OPTIONS: EditorOptions = {
+  periods: 100,
+  solverMethod: "GAUSS_SEIDEL",
+  toleranceText: "1e-15",
+  maxIterations: 200,
+  defaultInitialValueText: "1e-15",
+  hiddenLeftVariable: "",
+  hiddenRightVariable: "",
+  hiddenToleranceText: "0.00001",
+  relativeHiddenTolerance: false
+};
+
+interface SfcrDiscoveryIndex {
+  resources?: {
+    notebooks?: {
+      manifest?: string;
+      guide?: string;
+      schema?: string;
+      prompt?: string;
+      examples?: Array<{
+        id?: string;
+        url?: string;
+      }>;
+    };
+  };
+}
+
+interface SfcrNotebookManifest {
+  guideUrl?: string;
+  schemaUrl?: string;
+  promptUrl?: string;
+  examples?: Array<{
+    id?: string;
+    label?: string;
+    url?: string;
+  }>;
+}
+
+async function fetchJsonResource<T>(url: string): Promise<T> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ${url}`);
+  }
+
+  return (await response.json()) as T;
+}
+
+async function fetchTextResource(url: string): Promise<string> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ${url}`);
+  }
+
+  return response.text();
+}
+
+async function loadChatBuilderResourceBundle(): Promise<string> {
+  const discovery = await fetchJsonResource<SfcrDiscoveryIndex>("/.well-known/sfcr.json");
+  const notebookResources = discovery.resources?.notebooks;
+
+  if (!notebookResources?.manifest || !notebookResources.guide || !notebookResources.schema || !notebookResources.prompt) {
+    throw new Error("SFCR discovery index is missing notebook resources.");
+  }
+
+  const notebookManifest = await fetchJsonResource<SfcrNotebookManifest>(notebookResources.manifest);
+  const exampleUrls = [
+    ...(notebookManifest.examples?.map((example) => example.url).filter((url): url is string => Boolean(url)) ??
+      []),
+    ...(notebookResources.examples?.map((example) => example.url).filter((url): url is string => Boolean(url)) ??
+      [])
+  ].filter((url, index, all) => all.indexOf(url) === index);
+
+  const [guideText, schemaText, promptText, ...exampleTexts] = await Promise.all([
+    fetchTextResource(notebookResources.guide),
+    fetchTextResource(notebookResources.schema),
+    fetchTextResource(notebookResources.prompt),
+    ...exampleUrls.map((url) => fetchTextResource(url))
+  ]);
+
+  return [
+    "SFCR discovery bundle:",
+    JSON.stringify(discovery, null, 2),
+    "\nNotebook manifest:",
+    JSON.stringify(notebookManifest, null, 2),
+    "\nNotebook guide:",
+    guideText,
+    "\nNotebook schema:",
+    schemaText,
+    "\nNotebook generation prompt:",
+    promptText,
+    ...exampleTexts.map((exampleText, index) => `\nNotebook example ${index + 1}:\n${exampleText}`)
+  ].join("\n");
+}
+
+async function requestChatBuilderDraft(args: {
+  apiKey: string;
+  model: string;
+  messages: ChatMessage[];
+  prompt: string;
+}): Promise<ChatBuilderDraftPlan> {
+  const resourceBundle = await loadChatBuilderResourceBundle();
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${args.apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: args.model,
+      store: false,
+      instructions:
+        "You are helping draft a stock-flow consistent model builder conversation. Reply with a JSON object when possible. Use fields assistantText, summary, sections, equations, externals, initialValues, and solverOptions. Equations should contain name, expression, optional desc, and optional role. Externals should contain name, kind, valueText, and optional desc. Initial values should contain name and valueText. Solver options should use periods, solverMethod, toleranceText, maxIterations, defaultInitialValueText, hiddenLeftVariable, hiddenRightVariable, hiddenToleranceText, and relativeHiddenTolerance when relevant. Use the provided SFCR discovery bundle, notebook guide, schema, prompt, and examples as the source of truth for format and conventions. If you cannot produce JSON, return concise plain text.\n\n" +
+        resourceBundle,
+      input: [
+        ...args.messages.map((message) => ({
+          role: message.role,
+          content: message.text
+        })),
+        {
+          role: "user",
+          content: args.prompt
+        }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    let message = "Failed to start draft request.";
+
+    try {
+      const error = (await response.json()) as {
+        error?: {
+          message?: string;
+        };
+      };
+      message = error.error?.message ?? message;
+    } catch {
+      // Ignore secondary parsing failures and preserve the fallback error message.
+    }
+
+    throw new Error(message);
+  }
+
+  const result = (await response.json()) as {
+    output?: Array<{
+      content?: Array<{
+        type?: string;
+        text?: string;
+      }>;
+    }>;
+    output_text?: string;
+  };
+
+  if (typeof result.output_text === "string" && result.output_text.trim() !== "") {
+    return result.output_text.trim();
+  }
+
+  const contentText = result.output
+    ?.flatMap((entry) => entry.content ?? [])
+    .find((entry) => typeof entry.text === "string" && entry.text.trim() !== "")?.text;
+
+  if (typeof contentText === "string" && contentText.trim() !== "") {
+    return normalizeChatBuilderDraftPlan(contentText.trim());
+  }
+
+  throw new Error("The model response did not include any assistant text.");
+}
+
+function normalizeChatBuilderDraftPlan(rawText: string): ChatBuilderDraftPlan {
+  try {
+    const parsed = JSON.parse(rawText) as {
+      assistantText?: unknown;
+      equations?: unknown;
+      externals?: unknown;
+      initialValues?: unknown;
+      summary?: unknown;
+      sections?: unknown;
+      solverOptions?: unknown;
+    };
+
+    const assistantText =
+      typeof parsed.assistantText === "string" && parsed.assistantText.trim() !== ""
+        ? parsed.assistantText.trim()
+        : typeof parsed.summary === "string" && parsed.summary.trim() !== ""
+          ? parsed.summary.trim()
+          : rawText;
+
+    const summary =
+      typeof parsed.summary === "string" && parsed.summary.trim() !== ""
+        ? parsed.summary.trim()
+        : assistantText;
+
+    const sections = Array.isArray(parsed.sections)
+      ? parsed.sections
+          .filter((value): value is string => typeof value === "string")
+          .map((value) => value.trim())
+          .filter((value) => value !== "")
+      : [];
+
+    const equations = Array.isArray(parsed.equations)
+      ? parsed.equations.flatMap((entry, index) => normalizeDraftEquation(entry, index))
+      : [];
+
+    const externals = Array.isArray(parsed.externals)
+      ? parsed.externals.flatMap((entry, index) => normalizeDraftExternal(entry, index))
+      : [];
+
+    const initialValues = Array.isArray(parsed.initialValues)
+      ? parsed.initialValues.flatMap((entry, index) => normalizeDraftInitialValue(entry, index))
+      : [];
+
+    const solverOptions = normalizeDraftSolverOptions(parsed.solverOptions);
+
+    return {
+      assistantText,
+      equations,
+      externals,
+      initialValues,
+      summary,
+      sections: sections.length > 0 ? sections : inferDraftSections({ equations, externals, initialValues, solverOptions })
+      ,
+      solverOptions
+    };
+  } catch {
+    return {
+      assistantText: rawText,
+      equations: [],
+      externals: [],
+      initialValues: [],
+      summary: rawText,
+      sections: CHAT_BUILDER_SECTION_NAMES,
+      solverOptions: null
+    };
+  }
+}
+
+function normalizeDraftEquation(entry: unknown, index: number): EquationRow[] {
+  if (!entry || typeof entry !== "object") {
+    return [];
+  }
+
+  const candidate = entry as Partial<EquationRow>;
+  if (typeof candidate.name !== "string" || typeof candidate.expression !== "string") {
+    return [];
+  }
+
+  return [
+    {
+      id: typeof candidate.id === "string" && candidate.id.trim() !== "" ? candidate.id : `draft-eq-${index}-${candidate.name.trim()}`,
+      name: candidate.name.trim(),
+      expression: candidate.expression.trim(),
+      ...(typeof candidate.desc === "string" && candidate.desc.trim() !== "" ? { desc: candidate.desc.trim() } : {}),
+      ...(typeof candidate.role === "string" ? { role: candidate.role as EquationRow["role"] } : {})
+    }
+  ];
+}
+
+function normalizeDraftExternal(entry: unknown, index: number): ExternalRow[] {
+  if (!entry || typeof entry !== "object") {
+    return [];
+  }
+
+  const candidate = entry as Partial<ExternalRow>;
+  if (typeof candidate.name !== "string" || typeof candidate.valueText !== "string") {
+    return [];
+  }
+
+  const kind = candidate.kind === "series" ? "series" : "constant";
+
+  return [
+    {
+      id: typeof candidate.id === "string" && candidate.id.trim() !== "" ? candidate.id : `draft-ext-${index}-${candidate.name.trim()}`,
+      name: candidate.name.trim(),
+      kind,
+      valueText: candidate.valueText.trim(),
+      ...(typeof candidate.desc === "string" && candidate.desc.trim() !== "" ? { desc: candidate.desc.trim() } : {})
+    }
+  ];
+}
+
+function normalizeDraftInitialValue(entry: unknown, index: number): InitialValueRow[] {
+  if (!entry || typeof entry !== "object") {
+    return [];
+  }
+
+  const candidate = entry as Partial<InitialValueRow>;
+  if (typeof candidate.name !== "string" || typeof candidate.valueText !== "string") {
+    return [];
+  }
+
+  return [
+    {
+      id: typeof candidate.id === "string" && candidate.id.trim() !== "" ? candidate.id : `draft-init-${index}-${candidate.name.trim()}`,
+      name: candidate.name.trim(),
+      valueText: candidate.valueText.trim()
+    }
+  ];
+}
+
+function normalizeDraftSolverOptions(entry: unknown): Partial<EditorOptions> | null {
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+
+  const candidate = entry as Partial<EditorOptions>;
+  const next: Partial<EditorOptions> = {};
+
+  if (typeof candidate.periods === "number") {
+    next.periods = candidate.periods;
+  }
+  if (typeof candidate.solverMethod === "string") {
+    next.solverMethod = candidate.solverMethod as EditorOptions["solverMethod"];
+  }
+  if (typeof candidate.toleranceText === "string") {
+    next.toleranceText = candidate.toleranceText;
+  }
+  if (typeof candidate.maxIterations === "number") {
+    next.maxIterations = candidate.maxIterations;
+  }
+  if (typeof candidate.defaultInitialValueText === "string") {
+    next.defaultInitialValueText = candidate.defaultInitialValueText;
+  }
+  if (typeof candidate.hiddenLeftVariable === "string") {
+    next.hiddenLeftVariable = candidate.hiddenLeftVariable;
+  }
+  if (typeof candidate.hiddenRightVariable === "string") {
+    next.hiddenRightVariable = candidate.hiddenRightVariable;
+  }
+  if (typeof candidate.hiddenToleranceText === "string") {
+    next.hiddenToleranceText = candidate.hiddenToleranceText;
+  }
+  if (typeof candidate.relativeHiddenTolerance === "boolean") {
+    next.relativeHiddenTolerance = candidate.relativeHiddenTolerance;
+  }
+
+  return Object.keys(next).length > 0 ? next : null;
+}
+
+function inferDraftSections(args: {
+  equations: EquationRow[];
+  externals: ExternalRow[];
+  initialValues: InitialValueRow[];
+  solverOptions: Partial<EditorOptions> | null;
+}): string[] {
+  const sections: string[] = [];
+
+  if (args.equations.length > 0) {
+    sections.push("Equations");
+  }
+  if (args.solverOptions) {
+    sections.push("Solver options");
+  }
+  if (args.externals.length > 0) {
+    sections.push("Externals");
+  }
+  if (args.initialValues.length > 0) {
+    sections.push("Initial values");
+  }
+
+  return sections.length > 0 ? sections : CHAT_BUILDER_SECTION_NAMES;
+}
+
+function buildDraftEditorState(args: {
+  equations: EquationRow[];
+  externals: ExternalRow[];
+  initialValues: InitialValueRow[];
+  solverOptions: Partial<EditorOptions> | null;
+}): EditorState | null {
+  if (
+    args.equations.length === 0 &&
+    args.externals.length === 0 &&
+    args.initialValues.length === 0 &&
+    !args.solverOptions
+  ) {
+    return null;
+  }
+
+  return {
+    equations: args.equations,
+    externals: args.externals,
+    initialValues: args.initialValues,
+    options: {
+      ...CHAT_BUILDER_DEFAULT_SOLVER_OPTIONS,
+      ...(args.solverOptions ?? {})
+    },
+    scenario: { shocks: [] }
+  };
+}
+
+function slugifyChatBuilderText(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "chat-builder-draft";
+}
+
+function buildDraftNotebookDocument(args: {
+  editor: EditorState;
+  draftFocus: string;
+  summary: string;
+}): NotebookDocument {
+  const notebookId = slugifyChatBuilderText(args.draftFocus || args.summary);
+  const modelId = `${notebookId}-model`;
+  const runCellId = `${notebookId}-baseline-run`;
+  const chartVariables = args.editor.equations.slice(0, 3).map((equation) => equation.name);
+
+  return {
+    id: notebookId,
+    title: `Chat Builder Draft: ${args.draftFocus || "SFC model"}`,
+    metadata: { version: 1 },
+    cells: [
+      {
+        id: `${notebookId}-overview`,
+        type: "markdown",
+        title: "Overview",
+        source: args.summary
+      },
+      {
+        id: `${notebookId}-equations`,
+        type: "equations",
+        title: "Equations",
+        modelId,
+        equations: args.editor.equations
+      },
+      {
+        id: `${notebookId}-solver`,
+        type: "solver",
+        title: "Solver options",
+        modelId,
+        options: args.editor.options
+      },
+      {
+        id: `${notebookId}-externals`,
+        type: "externals",
+        title: "Externals",
+        modelId,
+        externals: args.editor.externals
+      },
+      {
+        id: `${notebookId}-initial-values`,
+        type: "initial-values",
+        title: "Initial values",
+        modelId,
+        initialValues: args.editor.initialValues
+      },
+      {
+        id: runCellId,
+        type: "run",
+        title: "Baseline run",
+        mode: "baseline",
+        resultKey: `${notebookId}_baseline`,
+        sourceModelId: modelId,
+        description: args.summary
+      },
+      {
+        id: `${notebookId}-baseline-chart`,
+        type: "chart",
+        title: "Baseline chart",
+        sourceRunCellId: runCellId,
+        variables: chartVariables
+      }
+    ]
+  };
+}
+
+function ChatBuilderApp() {
+  const [messages, setMessages] = useState<ChatMessage[]>(CHAT_BUILDER_INITIAL_MESSAGES);
+  const [promptText, setPromptText] = useState(CHAT_BUILDER_SAMPLE_MESSAGES[1]?.text ?? "");
+  const [draftStatus, setDraftStatus] = useState("Waiting for a prompt.");
+  const [draftFocus, setDraftFocus] = useState("No draft has been created yet.");
+  const [draftSummary, setDraftSummary] = useState(
+    "The model preview will summarize the generated notebook sections here."
+  );
+  const [draftSections, setDraftSections] = useState<string[]>(CHAT_BUILDER_SECTION_NAMES);
+  const [draftEquations, setDraftEquations] = useState<EquationRow[]>([]);
+  const [draftExternals, setDraftExternals] = useState<ExternalRow[]>([]);
+  const [draftInitialValues, setDraftInitialValues] = useState<InitialValueRow[]>([]);
+  const [draftSolverOptions, setDraftSolverOptions] = useState<Partial<EditorOptions> | null>(null);
+  const [draftArtifactJson, setDraftArtifactJson] = useState<string | null>(null);
+  const [draftActionMessage, setDraftActionMessage] = useState<string | null>(null);
+  const [draftError, setDraftError] = useState<string | null>(null);
+  const [isDrafting, setIsDrafting] = useState(false);
+  const [selectedModel, setSelectedModel] = useState(() => {
+    if (typeof window === "undefined") {
+      return CHAT_BUILDER_DEFAULT_MODEL;
+    }
+
+    return window.localStorage.getItem(CHAT_BUILDER_MODEL_STORAGE_KEY) ?? CHAT_BUILDER_DEFAULT_MODEL;
+  });
+  const [apiKeyInput, setApiKeyInput] = useState(() => {
+    if (typeof window === "undefined") {
+      return "";
+    }
+
+    return window.localStorage.getItem(CHAT_BUILDER_API_KEY_STORAGE_KEY) ?? "";
+  });
+  const [savedApiKey, setSavedApiKey] = useState(() => {
+    if (typeof window === "undefined") {
+      return "";
+    }
+
+    return window.localStorage.getItem(CHAT_BUILDER_API_KEY_STORAGE_KEY) ?? "";
+  });
+  const [connectionMessage, setConnectionMessage] = useState<string | null>(null);
+  const chatMainDragScroll = useDragScroll<HTMLDivElement>();
+  const chatSidebarDragScroll = useDragScroll<HTMLElement>();
+  const chatPanelSplitter = usePanelSplitter({
+    defaultLeftWidthPercent: 54,
+    minLeftWidthPx: 520,
+    minRightWidthPx: 320,
+    storageKey: "sfcr:chat-builder-panel-split"
+  });
+
+  const hasSavedApiKey = savedApiKey.trim().length > 0;
+  const canSaveApiKey = apiKeyInput.trim().length > 0 && apiKeyInput !== savedApiKey;
+  const canStartDraft = hasSavedApiKey && promptText.trim().length > 0 && !isDrafting;
+  const draftEditorState = buildDraftEditorState({
+    equations: draftEquations,
+    externals: draftExternals,
+    initialValues: draftInitialValues,
+    solverOptions: draftSolverOptions
+  });
+  const draftValidationIssues = draftEditorState ? validateEditorState(draftEditorState) : [];
+  const draftBuildDiagnostics = draftEditorState
+    ? diagnoseBuildRuntime(draftEditorState)
+    : { issues: [], modelError: null };
+  const draftAllIssues = [...draftValidationIssues, ...draftBuildDiagnostics.issues];
+  const draftBlockingIssues = draftAllIssues.filter(
+    (issue) => (issue.severity ?? "error") === "error"
+  );
+  const canApplyDraft =
+    draftEditorState != null &&
+    draftBlockingIssues.length === 0 &&
+    !draftBuildDiagnostics.modelError &&
+    !isDrafting;
+  const draftNotebookDocument = draftEditorState
+    ? buildDraftNotebookDocument({
+        editor: draftEditorState,
+        draftFocus,
+        summary: draftSummary
+      })
+    : null;
+
+  function handleModelChange(nextModel: string): void {
+    setSelectedModel(nextModel);
+    window.localStorage.setItem(CHAT_BUILDER_MODEL_STORAGE_KEY, nextModel);
+  }
+
+  function handleSaveApiKey(): void {
+    const trimmedKey = apiKeyInput.trim();
+    if (!trimmedKey) {
+      return;
+    }
+
+    window.localStorage.setItem(CHAT_BUILDER_API_KEY_STORAGE_KEY, trimmedKey);
+    setApiKeyInput(trimmedKey);
+    setSavedApiKey(trimmedKey);
+    setConnectionMessage("API key saved locally for this browser.");
+  }
+
+  async function handleStartDraft(): Promise<void> {
+    const trimmedPrompt = promptText.trim();
+    if (!trimmedPrompt || !hasSavedApiKey) {
+      return;
+    }
+
+    const userMessage: ChatMessage = {
+      id: `user-${messages.length + 1}`,
+      role: "user",
+      text: trimmedPrompt
+    };
+
+    const nextMessages = [...messages, userMessage];
+
+    setMessages(nextMessages);
+    setDraftActionMessage(null);
+    setDraftArtifactJson(null);
+    setDraftError(null);
+    setIsDrafting(true);
+    setDraftStatus("Requesting draft from model...");
+    setDraftFocus(trimmedPrompt);
+    setPromptText("");
+
+    try {
+      const draftPlan = await requestChatBuilderDraft({
+        apiKey: savedApiKey,
+        model: selectedModel,
+        messages,
+        prompt: trimmedPrompt
+      });
+
+      setMessages((current) => [
+        ...current,
+        {
+          id: `assistant-${current.length + 1}`,
+          role: "assistant",
+          text: draftPlan.assistantText
+        }
+      ]);
+      setDraftEquations(draftPlan.equations);
+      setDraftExternals(draftPlan.externals);
+      setDraftInitialValues(draftPlan.initialValues);
+      setDraftSummary(draftPlan.summary);
+      setDraftSections(draftPlan.sections);
+      setDraftSolverOptions(draftPlan.solverOptions);
+      setDraftStatus("Draft generated from model response.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to start draft.";
+      setDraftError(message);
+      setDraftStatus("Draft request failed.");
+      setMessages((current) => [
+        ...current,
+        {
+          id: `assistant-${current.length + 1}`,
+          role: "assistant",
+          text: `Draft request failed: ${message}`
+        }
+      ]);
+    } finally {
+      setIsDrafting(false);
+    }
+  }
+
+  function handleApplyDraftNotebook(): void {
+    if (!draftNotebookDocument || !canApplyDraft) {
+      return;
+    }
+
+    const nextJson = notebookToJson(draftNotebookDocument);
+    setDraftArtifactJson(nextJson);
+    setDraftActionMessage("Applied validated draft to notebook JSON preview.");
+  }
+
+  function handleExportSections(): void {
+    if (!canApplyDraft) {
+      return;
+    }
+
+    const exported = JSON.stringify(
+      {
+        summary: draftSummary,
+        sections: draftSections,
+        equations: draftEquations,
+        externals: draftExternals,
+        initialValues: draftInitialValues,
+        solverOptions: draftSolverOptions
+      },
+      null,
+      2
+    );
+
+    navigator.clipboard
+      .writeText(exported)
+      .then(() => setDraftActionMessage("Copied validated draft sections to the clipboard."))
+      .catch(() => setDraftActionMessage("Prepared validated draft sections, but clipboard access failed."));
+  }
+
+  return (
+    <main className="app-shell">
+      <header className="app-header">
+        <div>
+          <div className="app-kicker">Experimental model generation</div>
+          <h1>sfcr Chat Builder</h1>
+          <p>
+            Use a dedicated chat workspace to draft or revise stock-flow consistent notebook
+            sections, then validate them before applying them to a notebook.
+          </p>
+        </div>
+
+        <div className="app-header-stats" aria-label="Chat builder statistics">
+          <div className="hero-stat">
+            <span className="hero-stat-label">Mode</span>
+            <strong>Experimental</strong>
+          </div>
+          <div className="hero-stat">
+            <span className="hero-stat-label">Output</span>
+            <strong>Sections</strong>
+          </div>
+          <div className="hero-stat">
+            <span className="hero-stat-label">Status</span>
+            <strong>Shell</strong>
+          </div>
+        </div>
+      </header>
+
+      <nav className="mode-switch" aria-label="Application modes">
+        <a className="mode-switch-link" href="#/workspace">
+          Workspace
+        </a>
+        <a className="mode-switch-link is-active" href="#/chat-builder">
+          Chat builder
+        </a>
+        <a className="mode-switch-link" href="#/notebook">
+          Notebook
+        </a>
+      </nav>
+
+      <div ref={chatPanelSplitter.layoutRef} className="workspace-layout">
+        <section
+          ref={chatMainDragScroll.dragScrollRef}
+          className={`workspace-main ${chatMainDragScroll.dragScrollProps.className}`}
+          onClickCapture={chatMainDragScroll.dragScrollProps.onClickCapture}
+          onMouseDown={chatMainDragScroll.dragScrollProps.onMouseDown}
+          aria-label="Chat builder conversation"
+        >
+          <section className="control-panel chat-panel">
+            <div className="panel-header">
+              <div>
+                <h2>Conversation</h2>
+                <p className="panel-subtitle">
+                  This pane will host streaming prompts, repair feedback, and revision requests.
+                </p>
+              </div>
+            </div>
+
+            <section className="meta-panel" aria-label="Chat builder connection settings">
+              <label className="field" htmlFor="chat-builder-model-select">
+                <span>Model</span>
+                <select
+                  id="chat-builder-model-select"
+                  value={selectedModel}
+                  onChange={(event) => handleModelChange(event.target.value)}
+                >
+                  <option value="gpt-4.1">GPT-4.1 (fast model)</option>
+                  <option value="o3">o3 (strong model)</option>
+                </select>
+              </label>
+
+              <label className="field" htmlFor="chat-builder-api-key">
+                <span>API Key</span>
+                <input
+                  id="chat-builder-api-key"
+                  type="password"
+                  value={apiKeyInput}
+                  onChange={(event) => {
+                    setApiKeyInput(event.target.value);
+                    setConnectionMessage(null);
+                  }}
+                  placeholder="Enter your OpenAI API key..."
+                />
+              </label>
+
+              <div className="button-row chat-connection-actions">
+                <button type="button" onClick={handleSaveApiKey} disabled={!canSaveApiKey}>
+                  Save
+                </button>
+              </div>
+
+              <div className={connectionMessage ? "success-text" : "status-hint"}>
+                {connectionMessage ??
+                  (hasSavedApiKey
+                    ? "API key is stored locally and ready for future model calls."
+                    : "Add an API key before starting a draft.")}
+              </div>
+              {draftError ? <div className="field-error">{draftError}</div> : null}
+            </section>
+
+            <div className="chat-thread" role="log" aria-label="Chat transcript">
+              {messages.map((message) => (
+                <article
+                  key={message.id}
+                  className={`chat-message ${message.role === "assistant" ? "chat-message-assistant" : "chat-message-user"}`}
+                >
+                  <div className="chat-message-role">{message.role === "assistant" ? "Assistant" : "You"}</div>
+                  <p>{message.text}</p>
+                </article>
+              ))}
+            </div>
+
+            <form className="chat-composer" aria-label="Chat builder composer">
+              <label className="field" htmlFor="chat-builder-prompt">
+                <span>Prompt</span>
+                <textarea
+                  id="chat-builder-prompt"
+                  rows={5}
+                  value={promptText}
+                  onChange={(event) => setPromptText(event.target.value)}
+                  placeholder="Describe the model or paste the current notebook sections to revise."
+                />
+              </label>
+
+              <div className="button-row">
+                <button type="button" disabled={isDrafting}>
+                  Attach text file
+                </button>
+                <button type="button" disabled={!canStartDraft} onClick={() => void handleStartDraft()}>
+                  {isDrafting ? "Starting..." : "Start draft"}
+                </button>
+              </div>
+            </form>
+          </section>
+        </section>
+
+        <div {...chatPanelSplitter.splitterProps} />
+
+        <aside
+          ref={chatSidebarDragScroll.dragScrollRef}
+          className={`workspace-sidebar ${chatSidebarDragScroll.dragScrollProps.className}`}
+          onClickCapture={chatSidebarDragScroll.dragScrollProps.onClickCapture}
+          onMouseDown={chatSidebarDragScroll.dragScrollProps.onMouseDown}
+        >
+          <section className="status-panel chat-preview-panel">
+            <div className="panel-header">
+              <div>
+                <h2>Draft Model Preview</h2>
+                <p className="panel-subtitle">
+                  Generated notebook sections stay here until validation passes and you apply them.
+                </p>
+              </div>
+            </div>
+
+            <div className="chat-preview-summary">
+              <div>Status: {draftStatus}</div>
+              <div>
+                Validation: {draftEditorState == null ? "waiting for draft" : canApplyDraft ? "ready" : "issues found"}
+              </div>
+              <div>Apply flow: {canApplyDraft ? "ready when action is implemented" : "blocked by validation"}</div>
+              <div>Connection: {hasSavedApiKey ? "API key saved" : "API key required"}</div>
+              <div>Draft focus: {draftFocus}</div>
+            </div>
+
+            {draftBuildDiagnostics.modelError ? (
+              <div className="field-error">{draftBuildDiagnostics.modelError}</div>
+            ) : null}
+
+            {draftAllIssues.length > 0 ? (
+              <section className="meta-panel chat-preview-block">
+                <div>Draft validation issues</div>
+                <ul className="chat-preview-detail-list">
+                  {draftAllIssues.slice(0, 8).map((issue) => (
+                    <li key={`${issue.path}-${issue.message}`}>
+                      <span>{issue.message}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            {draftActionMessage ? <div className="success-text">{draftActionMessage}</div> : null}
+
+            <div className="meta-panel chat-preview-meta">
+              <div>Assistant summary</div>
+              <p>{draftSummary}</p>
+            </div>
+
+            <ol className="chat-preview-list">
+              {draftSections.map((name) => (
+                <li key={name}>{name}</li>
+              ))}
+            </ol>
+
+            {draftEquations.length > 0 ? (
+              <section className="meta-panel chat-preview-block">
+                <div>Draft equations</div>
+                <ul className="chat-preview-detail-list">
+                  {draftEquations.map((equation) => (
+                    <li key={equation.id}>
+                      <strong>{equation.name}</strong>
+                      <span className="chat-preview-code"> = {equation.expression}</span>
+                      {equation.desc ? <div className="status-hint">{equation.desc}</div> : null}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            {draftExternals.length > 0 ? (
+              <section className="meta-panel chat-preview-block">
+                <div>Draft externals</div>
+                <ul className="chat-preview-detail-list">
+                  {draftExternals.map((external) => (
+                    <li key={external.id}>
+                      <strong>{external.name}</strong>
+                      <span>
+                        {` (${external.kind}) `}
+                        <span className="chat-preview-code">= {external.valueText}</span>
+                      </span>
+                      {external.desc ? <div className="status-hint">{external.desc}</div> : null}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            {draftInitialValues.length > 0 ? (
+              <section className="meta-panel chat-preview-block">
+                <div>Draft initial values</div>
+                <ul className="chat-preview-detail-list">
+                  {draftInitialValues.map((initialValue) => (
+                    <li key={initialValue.id}>
+                      <strong>{initialValue.name}</strong>
+                      <span className="chat-preview-code"> = {initialValue.valueText}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            {draftSolverOptions ? (
+              <section className="meta-panel chat-preview-block">
+                <div>Draft solver options</div>
+                <div className="chat-preview-option-grid">
+                  {draftSolverOptions.periods != null ? <div>Periods: {draftSolverOptions.periods}</div> : null}
+                  {draftSolverOptions.solverMethod ? (
+                    <div>Method: {draftSolverOptions.solverMethod}</div>
+                  ) : null}
+                  {draftSolverOptions.toleranceText ? (
+                    <div>Tolerance: {draftSolverOptions.toleranceText}</div>
+                  ) : null}
+                  {draftSolverOptions.maxIterations != null ? (
+                    <div>Max iterations: {draftSolverOptions.maxIterations}</div>
+                  ) : null}
+                  {draftSolverOptions.defaultInitialValueText ? (
+                    <div>Default initial value: {draftSolverOptions.defaultInitialValueText}</div>
+                  ) : null}
+                </div>
+              </section>
+            ) : null}
+
+            <div className="meta-panel">
+              <div>Current target: dedicated split-pane experiment</div>
+              <div>Planned artifact: native SFCR model sections</div>
+              <div>Notebook mutation: explicit only</div>
+            </div>
+
+            <div className="button-row">
+              <button type="button" disabled={!canApplyDraft} onClick={handleApplyDraftNotebook}>
+                Apply to draft notebook
+              </button>
+              <button type="button" disabled={!canApplyDraft} onClick={handleExportSections}>
+                Export sections
+              </button>
+            </div>
+
+            {draftArtifactJson ? (
+              <section className="meta-panel chat-preview-block">
+                <div>Draft notebook JSON</div>
+                <textarea
+                  className="chat-preview-textarea"
+                  readOnly
+                  value={draftArtifactJson}
+                  aria-label="Draft notebook JSON"
+                  rows={14}
+                />
+              </section>
+            ) : null}
+          </section>
         </aside>
       </div>
     </main>

@@ -102,6 +102,35 @@ The GitHub Actions workflow in `.github/workflows/deploy-pages.yml` publishes `p
 
 If the repository name changes, update the `VITE_BASE_PATH` value in that workflow so it matches the new Pages path.
 
+### AI Discovery Endpoints
+
+The browser app publishes AI-facing notebook authoring resources for browser-based tools such as ChatGPT or Claude.
+
+Canonical GitHub Pages URLs:
+
+- `https://johnnewto.github.io/moneyjs/.well-known/sfcr.json`
+- `https://johnnewto.github.io/moneyjs/ai/index.html`
+- `https://johnnewto.github.io/moneyjs/.well-known/sfcr-notebook-guide.json`
+- `https://johnnewto.github.io/moneyjs/notebook-guide.md`
+- `https://johnnewto.github.io/moneyjs/sfcr-notebook.schema.json`
+- `https://johnnewto.github.io/moneyjs/ai-prompts/create-sfcr-notebook.md`
+
+Example notebook references:
+
+- `https://johnnewto.github.io/moneyjs/notebook-examples/bmw.notebook.json`
+- `https://johnnewto.github.io/moneyjs/notebook-examples/gl6-dis-rentier.notebook.v2.json`
+
+Local development equivalents:
+
+- `http://localhost:5173/.well-known/sfcr.json`
+- `http://localhost:5173/ai/index.html`
+
+Recommended discovery flow for AI clients:
+
+1. Fetch `/.well-known/sfcr.json` first.
+2. Follow that index to the notebook manifest, guide, schema, prompt, and examples.
+3. Validate generated notebook JSON against the published schema before returning it.
+
 ## Project Layout
 
 ```text

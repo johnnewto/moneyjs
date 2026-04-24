@@ -283,6 +283,116 @@ body.panel-splitter-body-lock {
   position: relative;
 }
 
+.chat-panel,
+.chat-preview-panel {
+  align-content: start;
+  min-height: 100%;
+}
+
+.chat-thread {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 1rem;
+}
+
+.chat-message {
+  border: 1px solid rgba(20, 33, 61, 0.12);
+  border-radius: 20px;
+  padding: 0.9rem 1rem;
+}
+
+.chat-message-assistant {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.chat-message-user {
+  background: rgba(15, 118, 110, 0.1);
+}
+
+.chat-message-role {
+  color: #6b7280;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.35rem;
+  text-transform: uppercase;
+}
+
+.chat-message p {
+  margin: 0;
+}
+
+.chat-composer {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.chat-composer textarea {
+  min-height: 8rem;
+  resize: vertical;
+}
+
+.chat-preview-summary {
+  color: #475569;
+  display: grid;
+  gap: 0.4rem;
+  margin: 0.25rem 0 1rem;
+}
+
+.chat-preview-list {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0 0 1rem;
+  padding-left: 1.35rem;
+}
+
+.chat-preview-meta {
+  margin: 0 0 1rem;
+}
+
+.chat-preview-meta p {
+  margin: 0.35rem 0 0;
+}
+
+.chat-preview-block {
+  margin: 0 0 1rem;
+}
+
+.chat-preview-detail-list {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0.45rem 0 0;
+  padding-left: 1.1rem;
+}
+
+.chat-preview-code {
+  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+}
+
+.chat-preview-option-grid {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.45rem;
+}
+
+.chat-preview-textarea {
+  background: #fffdf7;
+  border: 1px solid #bcc6d3;
+  border-radius: 14px;
+  color: inherit;
+  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+  margin-top: 0.45rem;
+  min-height: 16rem;
+  padding: 0.75rem 0.85rem;
+  resize: vertical;
+  width: 100%;
+}
+
+.chat-connection-actions {
+  grid-template-columns: minmax(0, 180px);
+}
+
 .drag-scroll-surface {
   cursor: grab;
 }

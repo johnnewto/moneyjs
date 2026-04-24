@@ -4,19 +4,19 @@
   "purpose": "Entry point for browser-based AI clients that need to create SFCR notebook JSON models.",
   "resources": {
     "notebooks": {
-      "manifest": "/.well-known/sfcr-notebook-guide.json",
-      "guide": "/notebook-guide.md",
-      "schema": "/sfcr-notebook.schema.json",
-      "prompt": "/ai-prompts/create-sfcr-notebook.md",
+      "manifest": "./sfcr-notebook-guide.json",
+      "guide": "../notebook-guide.md",
+      "schema": "../sfcr-notebook.schema.json",
+      "prompt": "../ai-prompts/create-sfcr-notebook.md",
       "examples": [
         {
           "id": "bmw",
-          "url": "/notebook-examples/bmw.notebook.json",
+          "url": "../notebook-examples/bmw.notebook.json",
           "focus": ["sectors", "bands", "baseline", "scenarios"]
         },
         {
           "id": "gl6-dis-rentier-v2",
-          "url": "/notebook-examples/gl6-dis-rentier.notebook.v2.json",
+          "url": "../notebook-examples/gl6-dis-rentier.notebook.v2.json",
           "focus": ["distribution", "multi-household sectors", "bands"]
         }
       ]

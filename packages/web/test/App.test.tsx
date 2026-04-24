@@ -42,6 +42,7 @@ vi.mock("../src/notebook/useNotebookRunner", () => ({
 describe("App", () => {
   beforeEach(() => {
     window.location.hash = "#/workspace";
+    window.localStorage.clear();
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
       value: {
@@ -62,6 +63,7 @@ describe("App", () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     cleanup();
   });
 
@@ -72,6 +74,351 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: /run baseline/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /equations/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /import \/ export/i })).toBeInTheDocument();
+  });
+
+  it("renders the experimental chat builder route", () => {
+    window.location.hash = "#/chat-builder";
+
+    render(<App />);
+
+    expect(screen.getByRole("heading", { name: /sfcr chat builder/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /conversation/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /draft model preview/i })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /prompt/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /start draft/i })).toBeInTheDocument();
+  });
+
+  it("stores a chat builder API key locally and enables draft start", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/chat-builder";
+
+    render(<App />);
+
+    const apiKeyInput = screen.getByLabelText(/api key/i);
+    const saveButton = screen.getByRole("button", { name: /^save$/i });
+    const startDraftButton = screen.getByRole("button", { name: /start draft/i });
+
+    expect(startDraftButton).toBeDisabled();
+    await user.type(apiKeyInput, "sk-test-chat-builder");
+    expect(saveButton).toBeEnabled();
+
+    await user.click(saveButton);
+
+    expect(window.localStorage.getItem("sfcr:chat-builder-api-key")).toBe("sk-test-chat-builder");
+    expect(screen.getByText(/api key saved locally for this browser/i)).toBeInTheDocument();
+    expect(startDraftButton).toBeEnabled();
+  });
+
+  it("requests a draft from the model and updates the chat builder preview", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/chat-builder";
+    window.localStorage.setItem("sfcr:chat-builder-api-key", "sk-existing-chat-builder");
+    const fetchMock = vi.fn(async (input: string) => {
+      if (input === "/.well-known/sfcr.json") {
+        return {
+          ok: true,
+          json: async () => ({
+            resources: {
+              notebooks: {
+                manifest: "/.well-known/sfcr-notebook-guide.json",
+                guide: "/notebook-guide.md",
+                schema: "/sfcr-notebook.schema.json",
+                prompt: "/ai-prompts/create-sfcr-notebook.md",
+                examples: [{ id: "bmw", url: "/notebook-examples/bmw.notebook.json" }]
+              }
+            }
+          })
+        };
+      }
+
+      if (input === "/.well-known/sfcr-notebook-guide.json") {
+        return {
+          ok: true,
+          json: async () => ({
+            guideUrl: "/notebook-guide.md",
+            schemaUrl: "/sfcr-notebook.schema.json",
+            promptUrl: "/ai-prompts/create-sfcr-notebook.md",
+            examples: [{ id: "bmw", url: "/notebook-examples/bmw.notebook.json" }]
+          })
+        };
+      }
+
+      if (input === "/notebook-guide.md") {
+        return {
+          ok: true,
+          text: async () => "# AI Guide: Creating SFC Model JSON Notebooks"
+        };
+      }
+
+      if (input === "/sfcr-notebook.schema.json") {
+        return {
+          ok: true,
+          text: async () => '{"title":"SFCR notebook schema"}'
+        };
+      }
+
+      if (input === "/ai-prompts/create-sfcr-notebook.md") {
+        return {
+          ok: true,
+          text: async () => "# SFCR notebook JSON generation prompt"
+        };
+      }
+
+      if (input === "/notebook-examples/bmw.notebook.json") {
+        return {
+          ok: true,
+          text: async () => '{"id":"bmw","title":"BMW notebook"}'
+        };
+      }
+
+      if (input === "https://api.openai.com/v1/responses") {
+        return {
+          ok: true,
+          json: async () => ({
+            output: [
+              {
+                content: [
+                  {
+                    text: JSON.stringify({
+                      assistantText:
+                        "Draft plan: create equations, solver options, externals, initial values, and a baseline run.",
+                      summary:
+                        "Closed-economy draft with a government spending shock and a baseline chart.",
+                      equations: [
+                        {
+                          name: "Y",
+                          expression: "Cd + G",
+                          desc: "Income equals demand"
+                        },
+                        {
+                          name: "YD",
+                          expression: "Y",
+                          desc: "Disposable income"
+                        },
+                        {
+                          name: "Cd",
+                          expression: "alpha1 * YD + alpha2 * lag(Hh)",
+                          desc: "Consumption out of income and wealth"
+                        },
+                        {
+                          name: "Hh",
+                          expression: "lag(Hh) + YD - Cd",
+                          desc: "Household wealth"
+                        }
+                      ],
+                      externals: [
+                        {
+                          name: "G",
+                          kind: "series",
+                          valueText: "20, 20, 20, 30, 30, 20",
+                          desc: "Government spending path"
+                        },
+                        {
+                          name: "alpha1",
+                          kind: "constant",
+                          valueText: "0.6"
+                        },
+                        {
+                          name: "alpha2",
+                          kind: "constant",
+                          valueText: "0.4"
+                        }
+                      ],
+                      initialValues: [
+                        {
+                          name: "Hh",
+                          valueText: "80"
+                        }
+                      ],
+                      solverOptions: {
+                        periods: 24,
+                        solverMethod: "NEWTON",
+                        toleranceText: "1e-8",
+                        maxIterations: 120,
+                        defaultInitialValueText: "0.1"
+                      },
+                      sections: [
+                        "Overview markdown",
+                        "Equations",
+                        "Solver options",
+                        "Externals",
+                        "Initial values",
+                        "Baseline run",
+                        "Baseline chart"
+                      ]
+                    })
+                  }
+                ]
+              }
+            ]
+          })
+        };
+      }
+
+      throw new Error(`Unexpected fetch call: ${input}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    const clipboardWriteSpy = vi.spyOn(navigator.clipboard, "writeText");
+
+    const promptInput = screen.getByRole("textbox", { name: /prompt/i });
+    const startDraftButton = screen.getByRole("button", { name: /start draft/i });
+
+    await user.clear(promptInput);
+    await user.type(
+      promptInput,
+      "Build a small SFC model with government spending and a baseline chart."
+    );
+    await user.click(startDraftButton);
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("https://api.openai.com/v1/responses", expect.any(Object));
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith("/.well-known/sfcr.json");
+    expect(fetchMock).toHaveBeenCalledWith("/.well-known/sfcr-notebook-guide.json");
+    expect(fetchMock).toHaveBeenCalledWith("/notebook-guide.md");
+    expect(fetchMock).toHaveBeenCalledWith("/sfcr-notebook.schema.json");
+    expect(fetchMock).toHaveBeenCalledWith("/ai-prompts/create-sfcr-notebook.md");
+    expect(fetchMock).toHaveBeenCalledWith("/notebook-examples/bmw.notebook.json");
+
+    const openAiCall = fetchMock.mock.calls.find(
+      ([url]) => url === "https://api.openai.com/v1/responses"
+    );
+    const [url, request] = openAiCall ?? [];
+    expect(url).toBe("https://api.openai.com/v1/responses");
+    expect(request?.headers?.Authorization).toBe("Bearer sk-existing-chat-builder");
+    expect(request?.headers?.["Content-Type"]).toBe("application/json");
+    expect(request?.body).toContain("gpt-4.1");
+    expect(request?.body).toContain("Build a small SFC model with government spending and a baseline chart.");
+    expect(request?.body).toContain("SFCR discovery bundle");
+    expect(request?.body).toContain("AI Guide: Creating SFC Model JSON Notebooks");
+    expect(request?.body).toContain("SFCR notebook JSON generation prompt");
+    expect(request?.body).toContain('{\\"title\\":\\"SFCR notebook schema\\"}');
+    expect(request?.body).toContain('{\\"id\\":\\"bmw\\",\\"title\\":\\"BMW notebook\\"}');
+
+    expect(screen.getByText(/draft generated from model response\./i)).toBeInTheDocument();
+    expect(
+      screen.getAllByText(/build a small sfc model with government spending and a baseline chart\./i)
+    ).toHaveLength(2);
+    expect(
+      screen.getByText(
+        /draft plan: create equations, solver options, externals, initial values, and a baseline run\./i
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/closed-economy draft with a government spending shock and a baseline chart\./i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/overview markdown/i)).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem").map((item) => item.textContent?.trim())).toContain(
+      "Baseline chart"
+    );
+    expect(screen.getByText(/draft equations/i)).toBeInTheDocument();
+    expect(screen.getByText(/income equals demand/i)).toBeInTheDocument();
+    expect(screen.getByText(/consumption out of income and wealth/i)).toBeInTheDocument();
+    expect(screen.getByText(/draft externals/i)).toBeInTheDocument();
+    expect(screen.getByText(/government spending path/i)).toBeInTheDocument();
+    expect(screen.getByText(/draft initial values/i)).toBeInTheDocument();
+    expect(screen.getByText(/draft solver options/i)).toBeInTheDocument();
+    expect(screen.getByText(/periods: 24/i)).toBeInTheDocument();
+    expect(screen.getByText(/method: NEWTON/i)).toBeInTheDocument();
+    expect(screen.getByText(/validation: ready/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /apply to draft notebook/i })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /export sections/i })).toBeEnabled();
+
+    await user.click(screen.getByRole("button", { name: /apply to draft notebook/i }));
+    expect(screen.getByText(/applied validated draft to notebook json preview\./i)).toBeInTheDocument();
+    expect(
+      (screen.getByRole("textbox", { name: /draft notebook json/i }) as HTMLTextAreaElement).value
+    ).toContain('"type": "equations"');
+
+    await user.click(screen.getByRole("button", { name: /export sections/i }));
+    await waitFor(() => {
+      expect(clipboardWriteSpy).toHaveBeenCalled();
+    });
+    expect(screen.getByText(/copied validated draft sections to the clipboard\./i)).toBeInTheDocument();
+    expect(promptInput).toHaveValue("");
+  });
+
+  it("shows validation issues and blocks actions for an invalid draft", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/chat-builder";
+    window.localStorage.setItem("sfcr:chat-builder-api-key", "sk-existing-chat-builder");
+    const fetchMock = vi.fn(async (input: string) => {
+      if (input === "/.well-known/sfcr.json") {
+        return {
+          ok: true,
+          json: async () => ({
+            resources: {
+              notebooks: {
+                manifest: "/.well-known/sfcr-notebook-guide.json",
+                guide: "/notebook-guide.md",
+                schema: "/sfcr-notebook.schema.json",
+                prompt: "/ai-prompts/create-sfcr-notebook.md"
+              }
+            }
+          })
+        };
+      }
+
+      if (input === "/.well-known/sfcr-notebook-guide.json") {
+        return {
+          ok: true,
+          json: async () => ({ guideUrl: "/notebook-guide.md", schemaUrl: "/sfcr-notebook.schema.json", promptUrl: "/ai-prompts/create-sfcr-notebook.md" })
+        };
+      }
+
+      if (input === "/notebook-guide.md") {
+        return { ok: true, text: async () => "# Guide" };
+      }
+      if (input === "/sfcr-notebook.schema.json") {
+        return { ok: true, text: async () => "{}" };
+      }
+      if (input === "/ai-prompts/create-sfcr-notebook.md") {
+        return { ok: true, text: async () => "# Prompt" };
+      }
+      if (input === "https://api.openai.com/v1/responses") {
+        return {
+          ok: true,
+          json: async () => ({
+            output: [
+              {
+                content: [
+                  {
+                    text: JSON.stringify({
+                      assistantText: "Draft with missing equation expression.",
+                      summary: "Invalid draft.",
+                      equations: [{ name: "Y", expression: "" }],
+                      externals: [{ name: "G", kind: "constant", valueText: "20" }],
+                      sections: ["Equations", "Externals"]
+                    })
+                  }
+                ]
+              }
+            ]
+          })
+        };
+      }
+
+      throw new Error(`Unexpected fetch call: ${input}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    const promptInput = screen.getByRole("textbox", { name: /prompt/i });
+    await user.clear(promptInput);
+    await user.type(promptInput, "Build an invalid draft.");
+    await user.click(screen.getByRole("button", { name: /start draft/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/validation: issues found/i)).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/equation expression is required\./i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /apply to draft notebook/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /export sections/i })).toBeDisabled();
   });
 
   it("switches presets and updates visible editor content", async () => {

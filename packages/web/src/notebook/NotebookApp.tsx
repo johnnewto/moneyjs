@@ -37,12 +37,18 @@ import { buildVariableInspectorData } from "../lib/variableInspector";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
 import { buildVariableUnitMetadata } from "../lib/units";
 
-const NOTEBOOK_AI_INDEX_URL = "/.well-known/sfcr.json";
-const NOTEBOOK_AI_LANDING_URL = "/ai/index.html";
-const NOTEBOOK_AI_GUIDE_URL = "/notebook-guide.md";
-const NOTEBOOK_AI_MANIFEST_URL = "/.well-known/sfcr-notebook-guide.json";
-const NOTEBOOK_AI_SCHEMA_URL = "/sfcr-notebook.schema.json";
-const NOTEBOOK_AI_PROMPT_URL = "/ai-prompts/create-sfcr-notebook.md";
+const APP_BASE_URL = import.meta.env.BASE_URL;
+
+function resolveAppHref(path: string): string {
+  return `${APP_BASE_URL}${path.replace(/^\/+/, "")}`;
+}
+
+const NOTEBOOK_AI_INDEX_URL = resolveAppHref(".well-known/sfcr.json");
+const NOTEBOOK_AI_LANDING_URL = resolveAppHref("ai/index.html");
+const NOTEBOOK_AI_GUIDE_URL = resolveAppHref("notebook-guide.md");
+const NOTEBOOK_AI_MANIFEST_URL = resolveAppHref(".well-known/sfcr-notebook-guide.json");
+const NOTEBOOK_AI_SCHEMA_URL = resolveAppHref("sfcr-notebook.schema.json");
+const NOTEBOOK_AI_PROMPT_URL = resolveAppHref("ai-prompts/create-sfcr-notebook.md");
 
 export function NotebookApp() {
   const mainColumnRef = useRef<HTMLDivElement | null>(null);
@@ -626,8 +632,8 @@ export function NotebookApp() {
             </div>
 
             <div className="status-hint">
-              Browser-based AI should start with <a href={NOTEBOOK_AI_INDEX_URL}>/.well-known/sfcr.json</a>.
-              {" "}For manual browsing, see <a href={NOTEBOOK_AI_LANDING_URL}>/ai/index.html</a>. That index links the authoring guide at <a href={NOTEBOOK_AI_GUIDE_URL}>/notebook-guide.md</a>, the notebook manifest at <a href={NOTEBOOK_AI_MANIFEST_URL}>/.well-known/sfcr-notebook-guide.json</a>, the schema at <a href={NOTEBOOK_AI_SCHEMA_URL}>/sfcr-notebook.schema.json</a>, and the prompt at <a href={NOTEBOOK_AI_PROMPT_URL}>/ai-prompts/create-sfcr-notebook.md</a>.
+              Browser-based AI should start with <a href={NOTEBOOK_AI_INDEX_URL}>{NOTEBOOK_AI_INDEX_URL}</a>.
+              {" "}For manual browsing, see <a href={NOTEBOOK_AI_LANDING_URL}>{NOTEBOOK_AI_LANDING_URL}</a>. That index links the authoring guide at <a href={NOTEBOOK_AI_GUIDE_URL}>{NOTEBOOK_AI_GUIDE_URL}</a>, the notebook manifest at <a href={NOTEBOOK_AI_MANIFEST_URL}>{NOTEBOOK_AI_MANIFEST_URL}</a>, the schema at <a href={NOTEBOOK_AI_SCHEMA_URL}>{NOTEBOOK_AI_SCHEMA_URL}</a>, and the prompt at <a href={NOTEBOOK_AI_PROMPT_URL}>{NOTEBOOK_AI_PROMPT_URL}</a>.
             </div>
 
             <textarea
