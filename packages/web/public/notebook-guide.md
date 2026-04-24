@@ -4,6 +4,14 @@
 
 This guide provides comprehensive instructions for creating Stock-Flow Consistent (SFC) model notebooks in JSON format for the SFCR browser application.
 
+For public AI clients, the recommended bootstrap order is:
+
+1. Fetch the discovery JSON in `.well-known/`.
+2. Fetch the manifest or this guide.
+3. Start from `notebook-examples/starter.notebook.json` for the minimum valid notebook shape.
+4. Use the schema to validate the final notebook JSON.
+5. Use the larger examples for sector, band, and scenario patterns instead of copying them wholesale.
+
 ## Notebook Structure
 
 ### Top-Level Schema
@@ -26,6 +34,16 @@ This guide provides comprehensive instructions for creating Stock-Flow Consisten
 - `metadata.version`: must be `1`
 - `metadata.template`: optional template identifier
 - `cells`: array of cell objects (described below)
+
+## Starter Template
+
+Use `notebook-examples/starter.notebook.json` when generating a new notebook from scratch. It provides the minimum valid scaffold with an intro cell, balance-sheet and transactions-flow matrices, a transaction-flow sequence, a dependency graph, an equation cell, a solver cell, externals, initial values, and a baseline run cell.
+
+Use the starter template first for structure, then borrow targeted patterns from the larger public examples:
+
+- Use the BMW notebook for sector and band matrices, plus baseline and scenario run layout.
+- Use the GL6-DIS rentier notebook when the model splits households or needs distributional structure.
+- Treat those examples as pattern references, not as whole-notebook defaults.
 
 ---
 
@@ -798,4 +816,4 @@ Creating an SFC notebook JSON requires:
 6. **Accounting:** Balance-sheet and transactions-flow matrices with sectors and bands
 7. **Consistency:** Proper cell ID references throughout
 
-Follow the patterns in existing templates (BMW, GL6-DIS, predator-prey) for reference, and use this guide to understand the schema and conventions.
+Start from the starter template, then follow the patterns in existing examples (BMW, GL6-DIS, predator-prey) when you need richer sector, band, or scenario structures.

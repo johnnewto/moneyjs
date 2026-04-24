@@ -1,0 +1,146 @@
+{
+  "id": "starter-notebook",
+  "title": "SFCR Starter Notebook",
+  "metadata": {
+    "version": 1,
+    "template": "starter"
+  },
+  "cells": [
+    {
+      "id": "intro",
+      "type": "markdown",
+      "title": "Overview",
+      "source": "Use this starter notebook as the minimum valid scaffold for new SFCR models. Replace placeholder equations, externals, and initial values with your model-specific content."
+    },
+    {
+      "id": "balance-sheet",
+      "type": "matrix",
+      "title": "Starter balance sheet",
+      "sourceRunCellId": "baseline-run",
+      "columns": ["Households", "Government", "Sum"],
+      "sectors": ["Households", "Government", ""],
+      "rows": [
+        {
+          "band": "Deposits",
+          "label": "Money deposits",
+          "values": ["+Y", "-Y", "0"]
+        },
+        {
+          "band": "Sum",
+          "label": "Sum",
+          "values": ["0", "0", "0"]
+        }
+      ],
+      "description": "Minimal balance-sheet style matrix for the starter notebook. Replace sector labels and row formulas with your model structure."
+    },
+    {
+      "id": "transaction-flow",
+      "type": "matrix",
+      "title": "Starter transactions-flow matrix",
+      "sourceRunCellId": "baseline-run",
+      "columns": ["Households", "Government", "Sum"],
+      "sectors": ["Households", "Government", ""],
+      "rows": [
+        {
+          "band": "Income",
+          "label": "Income",
+          "values": ["+Y", "-Y", "0"]
+        },
+        {
+          "band": "Spending",
+          "label": "Government spending",
+          "values": ["-G", "+G", "0"]
+        }
+      ],
+      "description": "Minimal transactions-flow matrix for the starter notebook. Expand this into the accounting layout your model requires."
+    },
+    {
+      "id": "transaction-flow-sequence",
+      "type": "sequence",
+      "title": "Starter transaction flow sequence",
+      "source": {
+        "kind": "matrix",
+        "matrixCellId": "transaction-flow"
+      },
+      "description": "Sequence view generated from the starter transactions-flow matrix."
+    },
+    {
+      "id": "equation-dependency-graph",
+      "type": "sequence",
+      "title": "Starter equation dependency graph",
+      "source": {
+        "kind": "dependency",
+        "modelId": "main-model",
+        "showAccountingStrips": true,
+        "showExogenous": false
+      },
+      "description": "Dependency view of the starter equations organized by accounting strips."
+    },
+    {
+      "id": "equations-main",
+      "type": "equations",
+      "title": "Model equations",
+      "modelId": "main-model",
+      "equations": [
+        {
+          "id": "eq-0-y",
+          "name": "Y",
+          "expression": "G"
+        }
+      ]
+    },
+    {
+      "id": "solver-main",
+      "type": "solver",
+      "title": "Solver options",
+      "modelId": "main-model",
+      "options": {
+        "periods": 20,
+        "solverMethod": "NEWTON",
+        "toleranceText": "1e-10",
+        "maxIterations": 100,
+        "defaultInitialValueText": "1e-15",
+        "hiddenLeftVariable": "",
+        "hiddenRightVariable": "",
+        "hiddenToleranceText": "1e-8",
+        "relativeHiddenTolerance": false
+      }
+    },
+    {
+      "id": "externals-main",
+      "type": "externals",
+      "title": "Externals",
+      "modelId": "main-model",
+      "externals": [
+        {
+          "id": "ext-0-g",
+          "name": "G",
+          "kind": "constant",
+          "valueText": "20"
+        }
+      ]
+    },
+    {
+      "id": "initial-values-main",
+      "type": "initial-values",
+      "title": "Initial values",
+      "modelId": "main-model",
+      "initialValues": [
+        {
+          "id": "init-0-y",
+          "name": "Y",
+          "valueText": "20"
+        }
+      ]
+    },
+    {
+      "id": "baseline-run",
+      "type": "run",
+      "title": "Baseline run",
+      "mode": "baseline",
+      "resultKey": "baseline_result",
+      "sourceModelId": "main-model",
+      "description": "Baseline run for the starter scaffold."
+    }
+  ]
+}

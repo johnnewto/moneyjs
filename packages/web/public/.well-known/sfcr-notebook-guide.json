@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": "1.1.0",
   "indexUrl": "./sfcr.json",
   "title": "SFCR Notebook Authoring Guide",
   "audience": ["browser-based AI assistants", "LLM chat tools", "notebook authors"],
@@ -7,6 +7,11 @@
   "guideUrl": "../notebook-guide.md",
   "schemaUrl": "../sfcr-notebook.schema.json",
   "promptUrl": "../ai-prompts/create-sfcr-notebook.md",
+  "schemaVersion": "1.0.0",
+  "starterTemplateUrl": "../notebook-examples/starter.notebook.json",
+  "supportedFormats": ["sfcr-notebook-json"],
+  "supportedNotebookKinds": ["baseline", "scenario-analysis"],
+  "supportedFeatures": ["sectors", "bands", "equations", "initial-values", "scenarios"],
   "preferredFormat": "markdown",
   "examples": [
     {
@@ -24,6 +29,7 @@
   ],
   "instructions": [
     "Fetch guideUrl first and follow its schema and naming conventions.",
+    "Start from starterTemplateUrl for the minimum valid notebook shape, then adapt from examples only when needed.",
     "Use the BMW example when generating matrix cells with sectors and bands.",
     "Use the rentier example when the model splits households or tracks distributional flows.",
     "Validate the final JSON against schemaUrl before returning it.",

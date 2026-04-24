@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": "1.1.0",
   "service": "SFCR AI discovery index",
   "purpose": "Entry point for browser-based AI clients that need to create SFCR notebook JSON models.",
   "resources": {
@@ -8,7 +8,13 @@
       "guide": "../notebook-guide.md",
       "schema": "../sfcr-notebook.schema.json",
       "prompt": "../ai-prompts/create-sfcr-notebook.md",
+      "starterTemplate": "../notebook-examples/starter.notebook.json",
       "examples": [
+        {
+          "id": "starter",
+          "url": "../notebook-examples/starter.notebook.json",
+          "focus": ["minimum valid scaffold", "matrices", "sequences", "baseline"]
+        },
         {
           "id": "bmw",
           "url": "../notebook-examples/bmw.notebook.json",
@@ -22,9 +28,21 @@
       ]
     }
   },
+  "contract": {
+    "schemaUrl": "../sfcr-notebook.schema.json",
+    "schemaVersion": "1.0.0",
+    "manifestUrl": "./sfcr-notebook-guide.json",
+    "manifestVersion": "1.1.0"
+  },
+  "capabilities": {
+    "supportedFormats": ["sfcr-notebook-json"],
+    "supportedNotebookKinds": ["baseline", "scenario-analysis"],
+    "supportedFeatures": ["sectors", "bands", "equations", "initial-values", "scenarios"]
+  },
   "instructions": [
     "Fetch resources.notebooks.manifest or resources.notebooks.guide first.",
-    "Use the schema to validate generated notebook JSON.",
+    "Use resources.notebooks.starterTemplate as the default notebook shape unless a specific example is a better fit.",
+    "Use contract.schemaUrl to validate generated notebook JSON.",
     "Use the examples when generating sector and band matrices."
   ]
 }
