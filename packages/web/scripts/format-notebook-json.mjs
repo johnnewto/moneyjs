@@ -12,6 +12,7 @@ const defaultFiles = [
   "src/notebook/templates/gl6-dis.notebook.json",
   "src/notebook/templates/gl7-insout.notebook.json",
   "src/notebook/templates/gl8-growth.notebook.json",
+  "src/notebook/templates/opensimplest.notebook.json",
   "src/notebook/templates/simple-epidemic.notebook.json"
 ].map((relativePath) => path.resolve(webRoot, relativePath));
 

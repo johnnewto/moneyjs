@@ -8,6 +8,7 @@ package-lock.json
 packages/*/dist/
 packages/*/node_modules/
 packages/*/.turbo/
+packages/*/.dev.vars
 
 # Java / Gradle build outputs
 references/java/.gradle/

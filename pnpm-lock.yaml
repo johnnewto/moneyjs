@@ -26,6 +26,8 @@ importers:
         specifier: workspace:*
         version: link:../core
 
+  packages/chat-api: {}
+
   packages/web:
     dependencies:
       '@sfcr/core':

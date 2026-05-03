@@ -1,0 +1,16 @@
+name = "sfcr-chat-api"
+main = "src/index.ts"
+compatibility_date = "2026-05-03"
+
+[vars]
+ALLOWED_ORIGINS = "http://localhost:5173,https://johnnewto.github.io"
+MAX_OUTPUT_TOKENS = "8000"
+OPENAI_MODEL_ALLOWLIST = "gpt-5.5,gpt-4.1,o3"
+
+[[ratelimits]]
+name = "CHAT_BUILDER_RATE_LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 10
+  period = 60

@@ -25,7 +25,8 @@ import { useDragScroll } from "../hooks/useDragScroll";
 import { usePanelSplitter } from "../hooks/usePanelSplitter";
 import { useSolver } from "../hooks/useSolver";
 import { NotebookApp } from "../notebook/NotebookApp";
-import { notebookToJson } from "../notebook/document";
+import { notebookFromJson, notebookToJson } from "../notebook/document";
+import { buildEditorStateForNotebookModel } from "../notebook/modelSections";
 import type { NotebookDocument } from "../notebook/types";
 import { useAppRoute } from "./routes";
 import {
@@ -648,6 +649,7 @@ interface ChatBuilderDraftPlan {
   equations: EquationRow[];
   externals: ExternalRow[];
   initialValues: InitialValueRow[];
+  notebookDocument: NotebookDocument | null;
   sections: string[];
   solverOptions: Partial<EditorOptions> | null;
   summary: string;
@@ -663,7 +665,6 @@ const CHAT_BUILDER_INITIAL_MESSAGES: ChatMessage[] = [
 ];
 
 const CHAT_BUILDER_MODEL_STORAGE_KEY = "sfcr:chat-builder-model";
-const CHAT_BUILDER_API_KEY_STORAGE_KEY = "sfcr:chat-builder-api-key";
 const CHAT_BUILDER_DEFAULT_MODEL = "gpt-4.1";
 const CHAT_BUILDER_DEFAULT_SOLVER_OPTIONS: EditorOptions = {
   periods: 100,
@@ -677,141 +678,54 @@ const CHAT_BUILDER_DEFAULT_SOLVER_OPTIONS: EditorOptions = {
   relativeHiddenTolerance: false
 };
 
-interface SfcrDiscoveryIndex {
-  resources?: {
-    notebooks?: {
-      manifest?: string;
-      guide?: string;
-      schema?: string;
-      prompt?: string;
-      examples?: Array<{
-        id?: string;
-        url?: string;
-      }>;
-    };
-  };
-}
-
-interface SfcrNotebookManifest {
-  guideUrl?: string;
-  schemaUrl?: string;
-  promptUrl?: string;
-  examples?: Array<{
-    id?: string;
-    label?: string;
-    url?: string;
-  }>;
-}
-
 const APP_BASE_URL = import.meta.env.BASE_URL;
+const CHAT_BUILDER_API_URL = resolveChatBuilderApiUrl();
+
+function resolveChatBuilderApiUrl(): string {
+  const configuredUrl = (import.meta.env.VITE_CHAT_BUILDER_API_URL ?? "").trim();
+  if (configuredUrl) {
+    return configuredUrl;
+  }
+
+  if (
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+  ) {
+    return "http://localhost:8787/v1/chat-builder/draft";
+  }
+
+  return "";
+}
 
 function resolveAppResourceUrl(path: string): string {
   return new URL(`${APP_BASE_URL}${path.replace(/^\/+/, "")}`, window.location.origin).toString();
 }
 
-function resolveDocumentResourceUrl(baseUrl: string, resourceUrl: string): string {
-  try {
-    return new URL(resourceUrl, baseUrl).toString();
-  } catch {
-    return resourceUrl;
-  }
-}
-
-async function fetchJsonResource<T>(url: string): Promise<T> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${url}`);
-  }
-
-  return (await response.json()) as T;
-}
-
-async function fetchTextResource(url: string): Promise<string> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${url}`);
-  }
-
-  return response.text();
-}
-
-async function loadChatBuilderResourceBundle(): Promise<string> {
-  const discoveryUrl = resolveAppResourceUrl(".well-known/sfcr.json");
-  const discovery = await fetchJsonResource<SfcrDiscoveryIndex>(discoveryUrl);
-  const notebookResources = discovery.resources?.notebooks;
-
-  if (!notebookResources?.manifest || !notebookResources.guide || !notebookResources.schema || !notebookResources.prompt) {
-    throw new Error("SFCR discovery index is missing notebook resources.");
-  }
-
-  const manifestUrl = resolveDocumentResourceUrl(discoveryUrl, notebookResources.manifest);
-  const guideUrl = resolveDocumentResourceUrl(discoveryUrl, notebookResources.guide);
-  const schemaUrl = resolveDocumentResourceUrl(discoveryUrl, notebookResources.schema);
-  const promptUrl = resolveDocumentResourceUrl(discoveryUrl, notebookResources.prompt);
-
-  const notebookManifest = await fetchJsonResource<SfcrNotebookManifest>(manifestUrl);
-  const exampleUrls = [
-    ...(notebookManifest.examples
-      ?.map((example) => (example.url ? resolveDocumentResourceUrl(manifestUrl, example.url) : null))
-      .filter((url): url is string => Boolean(url)) ??
-      []),
-    ...(notebookResources.examples
-      ?.map((example) => (example.url ? resolveDocumentResourceUrl(discoveryUrl, example.url) : null))
-      .filter((url): url is string => Boolean(url)) ??
-      [])
-  ].filter((url, index, all) => all.indexOf(url) === index);
-
-  const [guideText, schemaText, promptText, ...exampleTexts] = await Promise.all([
-    fetchTextResource(guideUrl),
-    fetchTextResource(schemaUrl),
-    fetchTextResource(promptUrl),
-    ...exampleUrls.map((url) => fetchTextResource(url))
-  ]);
-
-  return [
-    "SFCR discovery bundle:",
-    JSON.stringify(discovery, null, 2),
-    "\nNotebook manifest:",
-    JSON.stringify(notebookManifest, null, 2),
-    "\nNotebook guide:",
-    guideText,
-    "\nNotebook schema:",
-    schemaText,
-    "\nNotebook generation prompt:",
-    promptText,
-    ...exampleTexts.map((exampleText, index) => `\nNotebook example ${index + 1}:\n${exampleText}`)
-  ].join("\n");
-}
-
 async function requestChatBuilderDraft(args: {
-  apiKey: string;
+  betaPassword: string;
   model: string;
   messages: ChatMessage[];
+  onTextDelta?: (delta: string) => void;
   prompt: string;
 }): Promise<ChatBuilderDraftPlan> {
-  const resourceBundle = await loadChatBuilderResourceBundle();
-  const response = await fetch("https://api.openai.com/v1/responses", {
+  if (!CHAT_BUILDER_API_URL) {
+    throw new Error("Chat builder API endpoint is not configured.");
+  }
+
+  const response = await fetch(CHAT_BUILDER_API_URL, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${args.apiKey}`,
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
+      ...(args.betaPassword.trim() ? { betaPassword: args.betaPassword.trim() } : {}),
+      discoveryUrl: resolveAppResourceUrl(".well-known/sfcr.json"),
       model: args.model,
-      store: false,
-      instructions:
-        "You are helping draft a stock-flow consistent model builder conversation. Reply with a JSON object when possible. Use fields assistantText, summary, sections, equations, externals, initialValues, and solverOptions. Equations should contain name, expression, optional desc, and optional role. Externals should contain name, kind, valueText, and optional desc. Initial values should contain name and valueText. Solver options should use periods, solverMethod, toleranceText, maxIterations, defaultInitialValueText, hiddenLeftVariable, hiddenRightVariable, hiddenToleranceText, and relativeHiddenTolerance when relevant. Use the provided SFCR discovery bundle, notebook guide, schema, prompt, and examples as the source of truth for format and conventions. If you cannot produce JSON, return concise plain text.\n\n" +
-        resourceBundle,
-      input: [
-        ...args.messages.map((message) => ({
-          role: message.role,
-          content: message.text
-        })),
-        {
-          role: "user",
-          content: args.prompt
-        }
-      ]
+      messages: args.messages.map((message) => ({
+        role: message.role,
+        text: message.text
+      })),
+      prompt: args.prompt
     })
   });
 
@@ -820,16 +734,27 @@ async function requestChatBuilderDraft(args: {
 
     try {
       const error = (await response.json()) as {
-        error?: {
+        error?: string | {
           message?: string;
         };
       };
-      message = error.error?.message ?? message;
+      message =
+        typeof error.error === "string"
+          ? error.error
+          : error.error?.message ?? message;
     } catch {
       // Ignore secondary parsing failures and preserve the fallback error message.
     }
 
     throw new Error(message);
+  }
+
+  const contentType = response.headers.get("Content-Type") ?? "";
+  if (response.body && contentType.includes("text/event-stream")) {
+    const streamedText = await readChatBuilderSseResponse(response, args.onTextDelta);
+    if (streamedText.trim() !== "") {
+      return normalizeChatBuilderDraftPlan(streamedText.trim());
+    }
   }
 
   const result = (await response.json()) as {
@@ -857,7 +782,102 @@ async function requestChatBuilderDraft(args: {
   throw new Error("The model response did not include any assistant text.");
 }
 
+async function readChatBuilderSseResponse(
+  response: Response,
+  onTextDelta: ((delta: string) => void) | undefined
+): Promise<string> {
+  if (!response.body) {
+    return "";
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let text = "";
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+    const chunks = buffer.split("\n\n");
+    buffer = chunks.pop() ?? "";
+
+    for (const chunk of chunks) {
+      const eventText = parseChatBuilderSseChunk(chunk);
+      if (eventText) {
+        text += eventText;
+        onTextDelta?.(eventText);
+      }
+    }
+  }
+
+  buffer += decoder.decode();
+  const remainingText = parseChatBuilderSseChunk(buffer);
+  if (remainingText) {
+    text += remainingText;
+    onTextDelta?.(remainingText);
+  }
+
+  return text;
+}
+
+function parseChatBuilderSseChunk(chunk: string): string {
+  const dataLines = chunk
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => line.slice(5).trimStart());
+
+  let text = "";
+  for (const data of dataLines) {
+    if (!data || data === "[DONE]") {
+      continue;
+    }
+
+    try {
+      const event = JSON.parse(data) as {
+        delta?: unknown;
+        item?: unknown;
+        output?: unknown;
+        response?: unknown;
+        text?: unknown;
+        type?: unknown;
+      };
+
+      if (event.type === "response.output_text.delta" && typeof event.delta === "string") {
+        text += event.delta;
+      }
+    } catch {
+      // Ignore malformed stream frames and continue reading later frames.
+    }
+  }
+
+  return text;
+}
+
 function normalizeChatBuilderDraftPlan(rawText: string): ChatBuilderDraftPlan {
+  const notebookJson = extractJsonObjectText(rawText);
+  if (notebookJson) {
+    try {
+      const notebookDocument = notebookFromJson(notebookJson);
+      const editor = extractPrimaryEditorStateFromNotebook(notebookDocument);
+      return {
+        assistantText: `Generated notebook: ${notebookDocument.title}`,
+        equations: editor?.equations ?? [],
+        externals: editor?.externals ?? [],
+        initialValues: editor?.initialValues ?? [],
+        notebookDocument,
+        summary: summarizeNotebookDocument(notebookDocument),
+        sections: inferNotebookSections(notebookDocument),
+        solverOptions: editor?.options ?? null
+      };
+    } catch {
+      // Fall through to legacy draft-plan parsing.
+    }
+  }
+
   try {
     const parsed = JSON.parse(rawText) as {
       assistantText?: unknown;
@@ -907,9 +927,9 @@ function normalizeChatBuilderDraftPlan(rawText: string): ChatBuilderDraftPlan {
       equations,
       externals,
       initialValues,
+      notebookDocument: null,
       summary,
-      sections: sections.length > 0 ? sections : inferDraftSections({ equations, externals, initialValues, solverOptions })
-      ,
+      sections: sections.length > 0 ? sections : inferDraftSections({ equations, externals, initialValues, solverOptions }),
       solverOptions
     };
   } catch {
@@ -918,11 +938,72 @@ function normalizeChatBuilderDraftPlan(rawText: string): ChatBuilderDraftPlan {
       equations: [],
       externals: [],
       initialValues: [],
+      notebookDocument: null,
       summary: rawText,
       sections: CHAT_BUILDER_SECTION_NAMES,
       solverOptions: null
     };
   }
+}
+
+function extractJsonObjectText(rawText: string): string | null {
+  const trimmed = rawText.trim();
+  const fenceMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
+  const candidate = fenceMatch?.[1]?.trim() ?? trimmed;
+
+  if (candidate.startsWith("{") && candidate.endsWith("}")) {
+    return candidate;
+  }
+
+  const start = candidate.indexOf("{");
+  const end = candidate.lastIndexOf("}");
+  if (start >= 0 && end > start) {
+    return candidate.slice(start, end + 1);
+  }
+
+  return null;
+}
+
+function extractPrimaryEditorStateFromNotebook(document: NotebookDocument): EditorState | null {
+  const runCell = document.cells.find((cell) => cell.type === "run");
+  if (runCell?.type === "run") {
+    const editor = buildEditorStateForNotebookModel(document, runCell);
+    if (editor) {
+      return editor;
+    }
+  }
+
+  const equationsCell = document.cells.find((cell) => cell.type === "equations");
+  if (equationsCell?.type === "equations") {
+    return buildEditorStateForNotebookModel(document, { modelId: equationsCell.modelId });
+  }
+
+  const legacyModelCell = document.cells.find((cell) => cell.type === "model");
+  return legacyModelCell?.type === "model" ? legacyModelCell.editor : null;
+}
+
+function inferNotebookSections(document: NotebookDocument): string[] {
+  const sections = document.cells.map((cell) => cell.title.trim()).filter(Boolean);
+  return sections.length > 0 ? sections : CHAT_BUILDER_SECTION_NAMES;
+}
+
+function summarizeNotebookDocument(document: NotebookDocument): string {
+  const counts = document.cells.reduce(
+    (current, cell) => ({
+      ...current,
+      [cell.type]: (current[cell.type] ?? 0) + 1
+    }),
+    {} as Record<string, number>
+  );
+  const parts = [
+    `${document.cells.length} cells`,
+    counts.matrix ? `${counts.matrix} matrix cells` : null,
+    counts.sequence ? `${counts.sequence} sequence cells` : null,
+    counts.equations ? `${counts.equations} equation cells` : null,
+    counts.run ? `${counts.run} run cells` : null
+  ].filter((part): part is string => Boolean(part));
+
+  return `${document.title} (${parts.join(", ")}).`;
 }
 
 function normalizeDraftEquation(entry: unknown, index: number): EquationRow[] {
@@ -1167,10 +1248,12 @@ function ChatBuilderApp() {
   const [draftExternals, setDraftExternals] = useState<ExternalRow[]>([]);
   const [draftInitialValues, setDraftInitialValues] = useState<InitialValueRow[]>([]);
   const [draftSolverOptions, setDraftSolverOptions] = useState<Partial<EditorOptions> | null>(null);
+  const [draftNotebookDocument, setDraftNotebookDocument] = useState<NotebookDocument | null>(null);
   const [draftArtifactJson, setDraftArtifactJson] = useState<string | null>(null);
   const [draftActionMessage, setDraftActionMessage] = useState<string | null>(null);
   const [draftError, setDraftError] = useState<string | null>(null);
   const [isDrafting, setIsDrafting] = useState(false);
+  const [betaPasswordInput, setBetaPasswordInput] = useState("");
   const [selectedModel, setSelectedModel] = useState(() => {
     if (typeof window === "undefined") {
       return CHAT_BUILDER_DEFAULT_MODEL;
@@ -1178,21 +1261,11 @@ function ChatBuilderApp() {
 
     return window.localStorage.getItem(CHAT_BUILDER_MODEL_STORAGE_KEY) ?? CHAT_BUILDER_DEFAULT_MODEL;
   });
-  const [apiKeyInput, setApiKeyInput] = useState(() => {
-    if (typeof window === "undefined") {
-      return "";
-    }
-
-    return window.localStorage.getItem(CHAT_BUILDER_API_KEY_STORAGE_KEY) ?? "";
-  });
-  const [savedApiKey, setSavedApiKey] = useState(() => {
-    if (typeof window === "undefined") {
-      return "";
-    }
-
-    return window.localStorage.getItem(CHAT_BUILDER_API_KEY_STORAGE_KEY) ?? "";
-  });
-  const [connectionMessage, setConnectionMessage] = useState<string | null>(null);
+  const [connectionMessage] = useState<string | null>(() =>
+    CHAT_BUILDER_API_URL
+      ? "Serverless endpoint configured. OpenAI requests will be proxied off-browser."
+      : null
+  );
   const chatMainDragScroll = useDragScroll<HTMLDivElement>();
   const chatSidebarDragScroll = useDragScroll<HTMLElement>();
   const chatPanelSplitter = usePanelSplitter({
@@ -1202,9 +1275,8 @@ function ChatBuilderApp() {
     storageKey: "sfcr:chat-builder-panel-split"
   });
 
-  const hasSavedApiKey = savedApiKey.trim().length > 0;
-  const canSaveApiKey = apiKeyInput.trim().length > 0 && apiKeyInput !== savedApiKey;
-  const canStartDraft = hasSavedApiKey && promptText.trim().length > 0 && !isDrafting;
+  const hasChatBuilderEndpoint = CHAT_BUILDER_API_URL.length > 0;
+  const canStartDraft = hasChatBuilderEndpoint && promptText.trim().length > 0 && !isDrafting;
   const draftEditorState = buildDraftEditorState({
     equations: draftEquations,
     externals: draftExternals,
@@ -1224,34 +1296,32 @@ function ChatBuilderApp() {
     draftBlockingIssues.length === 0 &&
     !draftBuildDiagnostics.modelError &&
     !isDrafting;
-  const draftNotebookDocument = draftEditorState
+  const fallbackDraftNotebookDocument = draftEditorState
     ? buildDraftNotebookDocument({
         editor: draftEditorState,
         draftFocus,
         summary: draftSummary
       })
     : null;
+  const activeDraftNotebookDocument = draftNotebookDocument ?? fallbackDraftNotebookDocument;
+  const draftNotebookCellCounts = activeDraftNotebookDocument
+    ? activeDraftNotebookDocument.cells.reduce(
+        (current, cell) => ({
+          ...current,
+          [cell.type]: (current[cell.type] ?? 0) + 1
+        }),
+        {} as Record<string, number>
+      )
+    : {};
 
   function handleModelChange(nextModel: string): void {
     setSelectedModel(nextModel);
     window.localStorage.setItem(CHAT_BUILDER_MODEL_STORAGE_KEY, nextModel);
   }
 
-  function handleSaveApiKey(): void {
-    const trimmedKey = apiKeyInput.trim();
-    if (!trimmedKey) {
-      return;
-    }
-
-    window.localStorage.setItem(CHAT_BUILDER_API_KEY_STORAGE_KEY, trimmedKey);
-    setApiKeyInput(trimmedKey);
-    setSavedApiKey(trimmedKey);
-    setConnectionMessage("API key saved locally for this browser.");
-  }
-
   async function handleStartDraft(): Promise<void> {
     const trimmedPrompt = promptText.trim();
-    if (!trimmedPrompt || !hasSavedApiKey) {
+    if (!trimmedPrompt || !hasChatBuilderEndpoint) {
       return;
     }
 
@@ -1267,30 +1337,66 @@ function ChatBuilderApp() {
     setDraftActionMessage(null);
     setDraftArtifactJson(null);
     setDraftError(null);
+    setDraftNotebookDocument(null);
     setIsDrafting(true);
-    setDraftStatus("Requesting draft from model...");
+    setDraftStatus("Requesting draft from serverless endpoint...");
     setDraftFocus(trimmedPrompt);
     setPromptText("");
 
     try {
+      const assistantMessageId = `assistant-${nextMessages.length + 1}`;
+      let streamedAssistantText = "";
       const draftPlan = await requestChatBuilderDraft({
-        apiKey: savedApiKey,
+        betaPassword: betaPasswordInput,
         model: selectedModel,
         messages,
-        prompt: trimmedPrompt
+        prompt: trimmedPrompt,
+        onTextDelta: (delta) => {
+          streamedAssistantText += delta;
+          setDraftStatus("Streaming draft from model...");
+          setMessages((current) => {
+            const existingMessage = current.find((message) => message.id === assistantMessageId);
+            if (existingMessage) {
+              return current.map((message) =>
+                message.id === assistantMessageId
+                  ? { ...message, text: streamedAssistantText || "Receiving draft..." }
+                  : message
+              );
+            }
+
+            return [
+              ...current,
+              {
+                id: assistantMessageId,
+                role: "assistant",
+                text: streamedAssistantText || "Receiving draft..."
+              }
+            ];
+          });
+        }
       });
 
-      setMessages((current) => [
-        ...current,
-        {
-          id: `assistant-${current.length + 1}`,
-          role: "assistant",
-          text: draftPlan.assistantText
+      setMessages((current) => {
+        const hasStreamingMessage = current.some((message) => message.id === assistantMessageId);
+        if (hasStreamingMessage) {
+          return current.map((message) =>
+            message.id === assistantMessageId ? { ...message, text: draftPlan.assistantText } : message
+          );
         }
-      ]);
+
+        return [
+          ...current,
+          {
+            id: assistantMessageId,
+            role: "assistant",
+            text: draftPlan.assistantText
+          }
+        ];
+      });
       setDraftEquations(draftPlan.equations);
       setDraftExternals(draftPlan.externals);
       setDraftInitialValues(draftPlan.initialValues);
+      setDraftNotebookDocument(draftPlan.notebookDocument);
       setDraftSummary(draftPlan.summary);
       setDraftSections(draftPlan.sections);
       setDraftSolverOptions(draftPlan.solverOptions);
@@ -1313,11 +1419,11 @@ function ChatBuilderApp() {
   }
 
   function handleApplyDraftNotebook(): void {
-    if (!draftNotebookDocument || !canApplyDraft) {
+    if (!activeDraftNotebookDocument || !canApplyDraft) {
       return;
     }
 
-    const nextJson = notebookToJson(draftNotebookDocument);
+    const nextJson = notebookToJson(activeDraftNotebookDocument);
     setDraftArtifactJson(nextJson);
     setDraftActionMessage("Applied validated draft to notebook JSON preview.");
   }
@@ -1412,36 +1518,36 @@ function ChatBuilderApp() {
                   value={selectedModel}
                   onChange={(event) => handleModelChange(event.target.value)}
                 >
+                  <option value="gpt-5.5">GPT-5.5 (flagship model)</option>
                   <option value="gpt-4.1">GPT-4.1 (fast model)</option>
                   <option value="o3">o3 (strong model)</option>
                 </select>
               </label>
 
-              <label className="field" htmlFor="chat-builder-api-key">
-                <span>API Key</span>
+              <label className="field" htmlFor="chat-builder-api-endpoint">
+                <span>Serverless endpoint</span>
                 <input
-                  id="chat-builder-api-key"
-                  type="password"
-                  value={apiKeyInput}
-                  onChange={(event) => {
-                    setApiKeyInput(event.target.value);
-                    setConnectionMessage(null);
-                  }}
-                  placeholder="Enter your OpenAI API key..."
+                  id="chat-builder-api-endpoint"
+                  type="url"
+                  value={CHAT_BUILDER_API_URL || "Not configured"}
+                  readOnly
                 />
               </label>
 
-              <div className="button-row chat-connection-actions">
-                <button type="button" onClick={handleSaveApiKey} disabled={!canSaveApiKey}>
-                  Save
-                </button>
-              </div>
+              <label className="field" htmlFor="chat-builder-beta-password">
+                <span>Beta password</span>
+                <input
+                  id="chat-builder-beta-password"
+                  type="password"
+                  value={betaPasswordInput}
+                  onChange={(event) => setBetaPasswordInput(event.target.value)}
+                  placeholder="Required only when the API gate is enabled"
+                />
+              </label>
 
               <div className={connectionMessage ? "success-text" : "status-hint"}>
                 {connectionMessage ??
-                  (hasSavedApiKey
-                    ? "API key is stored locally and ready for future model calls."
-                    : "Add an API key before starting a draft.")}
+                  "Set VITE_CHAT_BUILDER_API_URL before starting a draft. OpenAI keys stay in the Worker."}
               </div>
               {draftError ? <div className="field-error">{draftError}</div> : null}
             </section>
@@ -1506,7 +1612,7 @@ function ChatBuilderApp() {
                 Validation: {draftEditorState == null ? "waiting for draft" : canApplyDraft ? "ready" : "issues found"}
               </div>
               <div>Apply flow: {canApplyDraft ? "ready when action is implemented" : "blocked by validation"}</div>
-              <div>Connection: {hasSavedApiKey ? "API key saved" : "API key required"}</div>
+              <div>Connection: {hasChatBuilderEndpoint ? "serverless endpoint ready" : "endpoint required"}</div>
               <div>Draft focus: {draftFocus}</div>
             </div>
 
@@ -1539,6 +1645,23 @@ function ChatBuilderApp() {
                 <li key={name}>{name}</li>
               ))}
             </ol>
+
+            {activeDraftNotebookDocument ? (
+              <section className="meta-panel chat-preview-block">
+                <div>Notebook cells</div>
+                <div className="chat-preview-option-grid">
+                  <div>Total: {activeDraftNotebookDocument.cells.length}</div>
+                  {draftNotebookCellCounts.matrix ? <div>Matrices: {draftNotebookCellCounts.matrix}</div> : null}
+                  {draftNotebookCellCounts.sequence ? (
+                    <div>Sequences: {draftNotebookCellCounts.sequence}</div>
+                  ) : null}
+                  {draftNotebookCellCounts.equations ? (
+                    <div>Equation cells: {draftNotebookCellCounts.equations}</div>
+                  ) : null}
+                  {draftNotebookCellCounts.run ? <div>Runs: {draftNotebookCellCounts.run}</div> : null}
+                </div>
+              </section>
+            ) : null}
 
             {draftEquations.length > 0 ? (
               <section className="meta-panel chat-preview-block">

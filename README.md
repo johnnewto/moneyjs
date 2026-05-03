@@ -74,6 +74,24 @@ http://localhost:5173/moneyjs/#/chat-builder
 
 ## Building
 
+Use Node.js 22 or newer. Wrangler requires Node 22 for the chat-builder Worker, and the GitHub Pages workflow also builds with Node 22.
+
+With `fnm`:
+
+```bash
+fnm install
+fnm use
+corepack enable
+```
+
+With `nvm`, the same repo version file also works:
+
+```bash
+nvm install
+nvm use
+corepack enable
+```
+
 Build the browser-focused project from the repo root:
 
 ```bash
@@ -90,6 +108,12 @@ For a GitHub Pages deployment, build the app with the repository base path:
 
 ```bash
 VITE_BASE_PATH=/moneyjs/ pnpm web:build
+```
+
+To enable the chat builder on GitHub Pages, point the static frontend at the Cloudflare Worker proxy:
+
+```bash
+VITE_BASE_PATH=/moneyjs/ VITE_CHAT_BUILDER_API_URL=https://sfcr-chat-api.<account>.workers.dev/v1/chat-builder/draft pnpm web:build
 ```
 
 Equivalent root script:
@@ -132,6 +156,45 @@ This repository is configured to deploy the browser app to:
 The GitHub Actions workflow in `.github/workflows/deploy-pages.yml` publishes `packages/web/dist` whenever `main` is updated.
 
 If the repository name changes, update the `VITE_BASE_PATH` value in that workflow so it matches the new Pages path.
+
+### Chat Builder API
+
+The chat builder uses a Cloudflare Worker in `packages/chat-api` so the OpenAI API key is never stored in or sent from the browser.
+
+Detailed usage notes are in `devdocs/chat-builder-serverless.md`.
+
+Local Worker development:
+
+```bash
+cp packages/chat-api/.dev.vars.example packages/chat-api/.dev.vars
+```
+
+Edit `packages/chat-api/.dev.vars` and set `OPENAI_API_KEY`. Set `BETA_PASSWORD` when you want the browser beta gate enabled locally, then start the GLIBC-friendly local Node adapter:
+
+```bash
+pnpm chat-api:dev
+```
+
+Deploy the Worker:
+
+```bash
+pnpm chat-api:deploy
+```
+
+Configure the Worker secret before using it:
+
+```bash
+cd packages/chat-api
+pnpm dlx wrangler secret put OPENAI_API_KEY
+```
+
+Optional beta gate:
+
+```bash
+pnpm dlx wrangler secret put BETA_PASSWORD
+```
+
+The Worker streams OpenAI Responses API events to the browser, caps each response with `MAX_OUTPUT_TOKENS`, and accepts only allowlisted origins and models. Configure `ALLOWED_ORIGINS`, `MAX_OUTPUT_TOKENS`, and `OPENAI_MODEL_ALLOWLIST` in `packages/chat-api/wrangler.toml` or Cloudflare. `wrangler.toml` also defines a Cloudflare Workers Rate Limiting binding for 10 draft requests per minute per rate-limit key.
 
 ### AI Discovery Endpoints
 

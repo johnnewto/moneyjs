@@ -223,8 +223,12 @@ function buildRelatedEquations(args: {
     const definingAnalysis = args.equationAnalysis.get(args.definingEquation.id);
     addEntry(args.definingEquation, "root", [
       [args.selectedVariable, "root"],
-      ...((definingAnalysis?.currentDependencies ?? []).map((token) => [token, "input"] as const)),
-      ...((definingAnalysis?.lagDependencies ?? []).map((token) => [token, "input"] as const))
+      ...((definingAnalysis?.currentDependencies ?? []).map(
+        (token): [string, InspectorTraceRole] => [token, "input"]
+      )),
+      ...((definingAnalysis?.lagDependencies ?? []).map(
+        (token): [string, InspectorTraceRole] => [token, "input"]
+      ))
     ]);
 
     uniqueSorted([

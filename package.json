@@ -2,8 +2,14 @@
   "name": "sfcr-workspace",
   "private": true,
   "packageManager": "pnpm@10.8.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
-    "build": "pnpm --filter @sfcr/core build && pnpm --filter @sfcr/web build",
+    "build": "pnpm --filter @sfcr/core build && pnpm --filter @sfcr/chat-api build && pnpm --filter @sfcr/web build",
+    "chat-api:dev": "pnpm --filter @sfcr/chat-api dev",
+    "chat-api:dev:wrangler": "pnpm --filter @sfcr/chat-api dev:wrangler",
+    "chat-api:deploy": "pnpm --filter @sfcr/chat-api deploy",
     "dev": "pnpm web:dev",
     "lint": "turbo run lint",
     "test": "turbo run test",

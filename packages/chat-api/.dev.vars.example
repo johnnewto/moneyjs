@@ -1,0 +1,5 @@
+OPENAI_API_KEY=sk-your-key
+ALLOWED_ORIGINS=http://localhost:5173,https://johnnewto.github.io
+BETA_PASSWORD=
+MAX_OUTPUT_TOKENS=8000
+OPENAI_MODEL_ALLOWLIST=gpt-5.5,gpt-4.1,o3

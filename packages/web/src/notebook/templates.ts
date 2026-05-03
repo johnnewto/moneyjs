@@ -5,6 +5,7 @@ import gl6DisRentierNotebookJson from "./templates/gl6-dis-rentier.notebook.json
 import gl6DisRentierV2NotebookJson from "./templates/gl6-dis-rentier.notebook.v2.json";
 import gl7InsoutNotebookJson from "./templates/gl7-insout.notebook.json";
 import gl8GrowthNotebookJson from "./templates/gl8-growth.notebook.json";
+import opensimplestNotebookJson from "./templates/opensimplest.notebook.json";
 import predatorPreyNotebookJson from "./templates/predator-prey.notebook.json";
 import simpleEpidemicNotebookJson from "./templates/simple-epidemic.notebook.json";
 import solverOverviewNotebookJson from "./templates/solver-overview.notebook.json";
@@ -19,6 +20,7 @@ export type NotebookTemplateId =
   | "gl6-dis-rentier-v2"
   | "gl7-insout"
   | "gl8-growth"
+  | "opensimplest"
   | "predator-prey"
   | "simple-epidemic"
   | "solver-overview";
@@ -77,6 +79,13 @@ export const NOTEBOOK_TEMPLATES: Record<NotebookTemplateId, NotebookTemplateDefi
     description:
       "GROWTH notebook based on the gl8-growth article baseline, accounting matrices, and selected policy experiments.",
     document: notebookFromJson(JSON.stringify(gl8GrowthNotebookJson))
+  },
+  opensimplest: {
+    id: "opensimplest",
+    label: "OPENSIMPLEST",
+    description:
+      "Compact open-economy SFC notebook with four sectors, portfolio allocation, exchange-rate adjustment, and an export-shock scenario.",
+    document: notebookFromJson(JSON.stringify(opensimplestNotebookJson))
   },
   "predator-prey": {
     id: "predator-prey",

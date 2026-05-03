@@ -85,175 +85,160 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: /conversation/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /draft model preview/i })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /prompt/i })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /gpt-5\.5/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/beta password/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /start draft/i })).toBeInTheDocument();
   });
 
-  it("stores a chat builder API key locally and enables draft start", async () => {
-    const user = userEvent.setup();
+  it("uses the serverless chat builder endpoint and enables draft start", () => {
     window.location.hash = "#/chat-builder";
 
     render(<App />);
 
-    const apiKeyInput = screen.getByLabelText(/api key/i);
-    const saveButton = screen.getByRole("button", { name: /^save$/i });
+    const endpointInput = screen.getByLabelText(/serverless endpoint/i);
     const startDraftButton = screen.getByRole("button", { name: /start draft/i });
 
-    expect(startDraftButton).toBeDisabled();
-    await user.type(apiKeyInput, "sk-test-chat-builder");
-    expect(saveButton).toBeEnabled();
-
-    await user.click(saveButton);
-
-    expect(window.localStorage.getItem("sfcr:chat-builder-api-key")).toBe("sk-test-chat-builder");
-    expect(screen.getByText(/api key saved locally for this browser/i)).toBeInTheDocument();
+    expect(endpointInput).toHaveValue("http://localhost:8787/v1/chat-builder/draft");
+    expect(screen.queryByLabelText(/api key/i)).not.toBeInTheDocument();
+    expect(window.localStorage.getItem("sfcr:chat-builder-api-key")).toBeNull();
+    expect(window.localStorage.getItem("sfcr:chat-builder-beta-password")).toBeNull();
+    expect(screen.getByText(/serverless endpoint configured/i)).toBeInTheDocument();
     expect(startDraftButton).toBeEnabled();
   });
 
   it("requests a draft from the model and updates the chat builder preview", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/chat-builder";
-    window.localStorage.setItem("sfcr:chat-builder-api-key", "sk-existing-chat-builder");
     const origin = window.location.origin;
     const fetchMock = vi.fn(async (input: string) => {
-      if (input === `${origin}/.well-known/sfcr.json`) {
-        return {
-          ok: true,
-          json: async () => ({
-            resources: {
-              notebooks: {
-                manifest: "./sfcr-notebook-guide.json",
-                guide: "../notebook-guide.md",
-                schema: "../sfcr-notebook.schema.json",
-                prompt: "../ai-prompts/create-sfcr-notebook.md",
-                examples: [{ id: "bmw", url: "../notebook-examples/bmw.notebook.json" }]
-              }
-            }
-          })
-        };
-      }
-
-      if (input === `${origin}/.well-known/sfcr-notebook-guide.json`) {
-        return {
-          ok: true,
-          json: async () => ({
-            guideUrl: "../notebook-guide.md",
-            schemaUrl: "../sfcr-notebook.schema.json",
-            promptUrl: "../ai-prompts/create-sfcr-notebook.md",
-            examples: [{ id: "bmw", url: "../notebook-examples/bmw.notebook.json" }]
-          })
-        };
-      }
-
-      if (input === `${origin}/notebook-guide.md`) {
-        return {
-          ok: true,
-          text: async () => "# AI Guide: Creating SFC Model JSON Notebooks"
-        };
-      }
-
-      if (input === `${origin}/sfcr-notebook.schema.json`) {
-        return {
-          ok: true,
-          text: async () => '{"title":"SFCR notebook schema"}'
-        };
-      }
-
-      if (input === `${origin}/ai-prompts/create-sfcr-notebook.md`) {
-        return {
-          ok: true,
-          text: async () => "# SFCR notebook JSON generation prompt"
-        };
-      }
-
-      if (input === `${origin}/notebook-examples/bmw.notebook.json`) {
-        return {
-          ok: true,
-          text: async () => '{"id":"bmw","title":"BMW notebook"}'
-        };
-      }
-
-      if (input === "https://api.openai.com/v1/responses") {
-        return {
-          ok: true,
-          json: async () => ({
-            output: [
-              {
-                content: [
-                  {
-                    text: JSON.stringify({
-                      assistantText:
-                        "Draft plan: create equations, solver options, externals, initial values, and a baseline run.",
-                      summary:
-                        "Closed-economy draft with a government spending shock and a baseline chart.",
-                      equations: [
-                        {
-                          name: "Y",
-                          expression: "Cd + G",
-                          desc: "Income equals demand"
-                        },
-                        {
-                          name: "YD",
-                          expression: "Y",
-                          desc: "Disposable income"
-                        },
-                        {
-                          name: "Cd",
-                          expression: "alpha1 * YD + alpha2 * lag(Hh)",
-                          desc: "Consumption out of income and wealth"
-                        },
-                        {
-                          name: "Hh",
-                          expression: "lag(Hh) + YD - Cd",
-                          desc: "Household wealth"
-                        }
-                      ],
-                      externals: [
-                        {
-                          name: "G",
-                          kind: "series",
-                          valueText: "20, 20, 20, 30, 30, 20",
-                          desc: "Government spending path"
-                        },
-                        {
-                          name: "alpha1",
-                          kind: "constant",
-                          valueText: "0.6"
-                        },
-                        {
-                          name: "alpha2",
-                          kind: "constant",
-                          valueText: "0.4"
-                        }
-                      ],
-                      initialValues: [
-                        {
-                          name: "Hh",
-                          valueText: "80"
-                        }
-                      ],
-                      solverOptions: {
-                        periods: 24,
-                        solverMethod: "NEWTON",
-                        toleranceText: "1e-8",
-                        maxIterations: 120,
-                        defaultInitialValueText: "0.1"
-                      },
-                      sections: [
-                        "Overview markdown",
-                        "Equations",
-                        "Solver options",
-                        "Externals",
-                        "Initial values",
-                        "Baseline run",
-                        "Baseline chart"
-                      ]
-                    })
+      if (input === "http://localhost:8787/v1/chat-builder/draft") {
+        return new Response(
+          `data: ${JSON.stringify({
+            type: "response.output_text.delta",
+            delta: JSON.stringify({
+              id: "closed-economy-draft",
+              title: "Closed Economy Draft",
+              metadata: { version: 1 },
+              cells: [
+                {
+                  id: "overview",
+                  type: "markdown",
+                  title: "Overview markdown",
+                  source: "Closed-economy draft with a government spending shock and a baseline chart."
+                },
+                {
+                  id: "balance-sheet",
+                  type: "matrix",
+                  title: "Balance sheet",
+                  columns: ["Households", "Government", "Sum"],
+                  sectors: ["Households", "Government", "Sum"],
+                  rows: [
+                    { band: "Money", label: "Household wealth", values: ["+Hh", "-Hh", "0"] },
+                    { band: "Balance", label: "Sum", values: ["+Hh", "-Hh", "0"] }
+                  ],
+                  description: "Balance-sheet matrix for the draft model."
+                },
+                {
+                  id: "transaction-flow",
+                  type: "matrix",
+                  title: "Transactions-flow matrix",
+                  columns: ["Households", "Government", "Sum"],
+                  sectors: ["Households", "Government", "Sum"],
+                  rows: [
+                    { band: "Consumption", label: "Consumption", values: ["-Cd", "+Cd", "0"] },
+                    { band: "Government", label: "Government spending", values: ["+G", "-G", "0"] },
+                    { band: "Balance", label: "Saving", values: ["+YD - Cd", "-G + Cd", "0"] }
+                  ],
+                  description: "Transactions-flow matrix for the draft model."
+                },
+                {
+                  id: "transaction-flow-sequence",
+                  type: "sequence",
+                  title: "Transaction flow sequence",
+                  source: { kind: "matrix", matrixCellId: "transaction-flow" }
+                },
+                {
+                  id: "equations",
+                  type: "equations",
+                  title: "Equations",
+                  modelId: "draft-model",
+                  equations: [
+                    { id: "eq-Y", name: "Y", expression: "Cd + G", desc: "Income equals demand" },
+                    { id: "eq-YD", name: "YD", expression: "Y", desc: "Disposable income" },
+                    {
+                      id: "eq-Cd",
+                      name: "Cd",
+                      expression: "alpha1 * YD + alpha2 * lag(Hh)",
+                      desc: "Consumption out of income and wealth"
+                    },
+                    { id: "eq-Hh", name: "Hh", expression: "lag(Hh) + YD - Cd", desc: "Household wealth" }
+                  ]
+                },
+                {
+                  id: "solver",
+                  type: "solver",
+                  title: "Solver options",
+                  modelId: "draft-model",
+                  options: {
+                    periods: 24,
+                    solverMethod: "NEWTON",
+                    toleranceText: "1e-8",
+                    maxIterations: 120,
+                    defaultInitialValueText: "0.1",
+                    hiddenLeftVariable: "",
+                    hiddenRightVariable: "",
+                    hiddenToleranceText: "0.00001",
+                    relativeHiddenTolerance: false
                   }
-                ]
-              }
-            ]
-          })
-        };
+                },
+                {
+                  id: "externals",
+                  type: "externals",
+                  title: "Externals",
+                  modelId: "draft-model",
+                  externals: [
+                    {
+                      id: "ext-G",
+                      name: "G",
+                      kind: "series",
+                      valueText: "20, 20, 20, 30, 30, 20",
+                      desc: "Government spending path"
+                    },
+                    { id: "ext-alpha1", name: "alpha1", kind: "constant", valueText: "0.6" },
+                    { id: "ext-alpha2", name: "alpha2", kind: "constant", valueText: "0.4" }
+                  ]
+                },
+                {
+                  id: "initial-values",
+                  type: "initial-values",
+                  title: "Initial values",
+                  modelId: "draft-model",
+                  initialValues: [{ id: "init-Hh", name: "Hh", valueText: "80" }]
+                },
+                {
+                  id: "baseline-run",
+                  type: "run",
+                  title: "Baseline run",
+                  mode: "baseline",
+                  resultKey: "draft_baseline",
+                  sourceModelId: "draft-model"
+                },
+                {
+                  id: "baseline-chart",
+                  type: "chart",
+                  title: "Baseline chart",
+                  sourceRunCellId: "baseline-run",
+                  variables: ["Y", "Cd", "Hh"]
+                }
+              ]
+            })
+          })}\n\n`,
+          {
+            headers: {
+              "Content-Type": "text/event-stream"
+            }
+          }
+        );
       }
 
       throw new Error(`Unexpected fetch call: ${input}`);
@@ -264,8 +249,10 @@ describe("App", () => {
     const clipboardWriteSpy = vi.spyOn(navigator.clipboard, "writeText");
 
     const promptInput = screen.getByRole("textbox", { name: /prompt/i });
+    const betaPasswordInput = screen.getByLabelText(/beta password/i);
     const startDraftButton = screen.getByRole("button", { name: /start draft/i });
 
+    await user.type(betaPasswordInput, "beta-test-password");
     await user.clear(promptInput);
     await user.type(
       promptInput,
@@ -274,32 +261,32 @@ describe("App", () => {
     await user.click(startDraftButton);
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("https://api.openai.com/v1/responses", expect.any(Object));
+      expect(fetchMock).toHaveBeenCalledWith(
+        "http://localhost:8787/v1/chat-builder/draft",
+        expect.any(Object)
+      );
     });
 
-    expect(fetchMock).toHaveBeenCalledWith(`${origin}/.well-known/sfcr.json`);
-    expect(fetchMock).toHaveBeenCalledWith(`${origin}/.well-known/sfcr-notebook-guide.json`);
-    expect(fetchMock).toHaveBeenCalledWith(`${origin}/notebook-guide.md`);
-    expect(fetchMock).toHaveBeenCalledWith(`${origin}/sfcr-notebook.schema.json`);
-    expect(fetchMock).toHaveBeenCalledWith(`${origin}/ai-prompts/create-sfcr-notebook.md`);
-    expect(fetchMock).toHaveBeenCalledWith(`${origin}/notebook-examples/bmw.notebook.json`);
-
-    const openAiCall = fetchMock.mock.calls.find(
-      ([url]) => url === "https://api.openai.com/v1/responses"
+    const chatApiCall = fetchMock.mock.calls.find(
+      ([url]) => url === "http://localhost:8787/v1/chat-builder/draft"
     ) as [string, RequestInit?] | undefined;
-    const url = openAiCall?.[0];
-    const request = openAiCall?.[1];
+    const url = chatApiCall?.[0];
+    const request = chatApiCall?.[1];
     const requestHeaders = request?.headers as Record<string, string> | undefined;
-    expect(url).toBe("https://api.openai.com/v1/responses");
-    expect(requestHeaders?.Authorization).toBe("Bearer sk-existing-chat-builder");
+    expect(url).toBe("http://localhost:8787/v1/chat-builder/draft");
+    expect(requestHeaders?.Authorization).toBeUndefined();
     expect(requestHeaders?.["Content-Type"]).toBe("application/json");
-    expect(request?.body).toContain("gpt-4.1");
-    expect(request?.body).toContain("Build a small SFC model with government spending and a baseline chart.");
-    expect(request?.body).toContain("SFCR discovery bundle");
-    expect(request?.body).toContain("AI Guide: Creating SFC Model JSON Notebooks");
-    expect(request?.body).toContain("SFCR notebook JSON generation prompt");
-    expect(request?.body).toContain('{\\"title\\":\\"SFCR notebook schema\\"}');
-    expect(request?.body).toContain('{\\"id\\":\\"bmw\\",\\"title\\":\\"BMW notebook\\"}');
+    const requestBody = JSON.parse(String(request?.body)) as {
+      betaPassword?: string;
+      discoveryUrl?: string;
+      model?: string;
+      prompt?: string;
+    };
+    expect(requestBody.betaPassword).toBe("beta-test-password");
+    expect(requestBody.model).toBe("gpt-4.1");
+    expect(requestBody.discoveryUrl).toBe(`${origin}/.well-known/sfcr.json`);
+    expect(requestBody.prompt).toBe("Build a small SFC model with government spending and a baseline chart.");
+    expect(window.localStorage.getItem("sfcr:chat-builder-beta-password")).toBeNull();
 
     expect(screen.getByText(/draft generated from model response\./i)).toBeInTheDocument();
     expect(
@@ -307,16 +294,21 @@ describe("App", () => {
     ).toHaveLength(2);
     expect(
       screen.getByText(
-        /draft plan: create equations, solver options, externals, initial values, and a baseline run\./i
+        /generated notebook: closed economy draft/i
       )
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/closed-economy draft with a government spending shock and a baseline chart\./i)
+      screen.getByText(/closed economy draft \(10 cells, 2 matrix cells, 1 sequence cells, 1 equation cells, 1 run cells\)\./i)
     ).toBeInTheDocument();
     expect(screen.getByText(/overview markdown/i)).toBeInTheDocument();
     expect(screen.getAllByRole("listitem").map((item) => item.textContent?.trim())).toContain(
       "Baseline chart"
     );
+    expect(screen.getAllByRole("listitem").map((item) => item.textContent?.trim())).toContain(
+      "Balance sheet"
+    );
+    expect(screen.getByText(/matrices: 2/i)).toBeInTheDocument();
+    expect(screen.getByText(/sequences: 1/i)).toBeInTheDocument();
     expect(screen.getByText(/draft equations/i)).toBeInTheDocument();
     expect(screen.getByText(/income equals demand/i)).toBeInTheDocument();
     expect(screen.getByText(/consumption out of income and wealth/i)).toBeInTheDocument();
@@ -335,6 +327,9 @@ describe("App", () => {
     expect(
       (screen.getByRole("textbox", { name: /draft notebook json/i }) as HTMLTextAreaElement).value
     ).toContain('"type": "equations"');
+    expect(
+      (screen.getByRole("textbox", { name: /draft notebook json/i }) as HTMLTextAreaElement).value
+    ).toContain('"type": "matrix"');
 
     await user.click(screen.getByRole("button", { name: /export sections/i }));
     await waitFor(() => {
@@ -347,62 +342,25 @@ describe("App", () => {
   it("shows validation issues and blocks actions for an invalid draft", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/chat-builder";
-    window.localStorage.setItem("sfcr:chat-builder-api-key", "sk-existing-chat-builder");
-    const origin = window.location.origin;
     const fetchMock = vi.fn(async (input: string) => {
-      if (input === `${origin}/.well-known/sfcr.json`) {
-        return {
-          ok: true,
-          json: async () => ({
-            resources: {
-              notebooks: {
-                manifest: "./sfcr-notebook-guide.json",
-                guide: "../notebook-guide.md",
-                schema: "../sfcr-notebook.schema.json",
-                prompt: "../ai-prompts/create-sfcr-notebook.md"
-              }
+      if (input === "http://localhost:8787/v1/chat-builder/draft") {
+        return new Response(
+          `data: ${JSON.stringify({
+            type: "response.output_text.delta",
+            delta: JSON.stringify({
+              assistantText: "Draft with missing equation expression.",
+              summary: "Invalid draft.",
+              equations: [{ name: "Y", expression: "" }],
+              externals: [{ name: "G", kind: "constant", valueText: "20" }],
+              sections: ["Equations", "Externals"]
+            })
+          })}\n\n`,
+          {
+            headers: {
+              "Content-Type": "text/event-stream"
             }
-          })
-        };
-      }
-
-      if (input === `${origin}/.well-known/sfcr-notebook-guide.json`) {
-        return {
-          ok: true,
-          json: async () => ({ guideUrl: "../notebook-guide.md", schemaUrl: "../sfcr-notebook.schema.json", promptUrl: "../ai-prompts/create-sfcr-notebook.md" })
-        };
-      }
-
-      if (input === `${origin}/notebook-guide.md`) {
-        return { ok: true, text: async () => "# Guide" };
-      }
-      if (input === `${origin}/sfcr-notebook.schema.json`) {
-        return { ok: true, text: async () => "{}" };
-      }
-      if (input === `${origin}/ai-prompts/create-sfcr-notebook.md`) {
-        return { ok: true, text: async () => "# Prompt" };
-      }
-      if (input === "https://api.openai.com/v1/responses") {
-        return {
-          ok: true,
-          json: async () => ({
-            output: [
-              {
-                content: [
-                  {
-                    text: JSON.stringify({
-                      assistantText: "Draft with missing equation expression.",
-                      summary: "Invalid draft.",
-                      equations: [{ name: "Y", expression: "" }],
-                      externals: [{ name: "G", kind: "constant", valueText: "20" }],
-                      sections: ["Equations", "Externals"]
-                    })
-                  }
-                ]
-              }
-            ]
-          })
-        };
+          }
+        );
       }
 
       throw new Error(`Unexpected fetch call: ${input}`);
