@@ -41,11 +41,14 @@ Common commands:
 - `pnpm test`
 - `pnpm --filter @sfcr/core test`
 - `pnpm --filter @sfcr/web test`
+- `pnpm --filter @sfcr/web exec vitest run test/<file>.test.tsx`
 
 ## Validation
 - After code changes, run the most relevant checks for the affected package.
 - For changes that cross package boundaries, run workspace `typecheck` and `test`.
 - If a task affects browser behavior, prefer validating through the web app path rather than only the references.
+- For narrow `packages/web` validation, prefer direct Vitest execution such as `pnpm --filter @sfcr/web exec vitest run test/AssistantMarkdown.test.tsx` instead of routing through the package `test` script.
+- For CSS-only or small component-only changes in `packages/web`, run the smallest related test file first, then widen only if the change touches shared UI infrastructure.
 
 ## Reference Code
 Use `references/java/` and `references/r-sfcr/` for:
