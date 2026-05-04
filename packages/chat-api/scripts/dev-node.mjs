@@ -12,6 +12,7 @@ const env = {
   ALLOWED_ORIGINS: "http://localhost:5173,https://johnnewto.github.io",
   CHAT_BUILDER_SYSTEM_PROMPT: () => readFile(resolve(packageDir, "prompts/chat-builder-system.md"), "utf8"),
   MAX_OUTPUT_TOKENS: "8000",
+  NOTEBOOK_ASSISTANT_SYSTEM_PROMPT: () => readFile(resolve(packageDir, "prompts/notebook-assistant-system.md"), "utf8"),
   OPENAI_MODEL_ALLOWLIST: "gpt-5.5,gpt-4.1,o3",
   ...process.env,
   ...(await readDevVars(resolve(packageDir, ".dev.vars")))

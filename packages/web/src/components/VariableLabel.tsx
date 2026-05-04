@@ -4,6 +4,7 @@ import type { VariableDescriptions } from "../lib/variableDescriptions";
 import { resolveVariableTooltip, type VariableUnitMetadata } from "../lib/unitMeta";
 import { getVariableUnitLabel } from "../lib/units";
 import { InstantTooltip } from "./InstantTooltip";
+import { VariableMathLabel } from "./VariableMathLabel";
 
 interface VariableLabelProps {
   children?: ReactNode;
@@ -40,7 +41,7 @@ export function VariableLabel({
   return (
     <InstantTooltip className={className} tooltip={tooltip}>
       <span className="variable-label-inline">
-        <span>{children ?? name}</span>
+        <span>{children ?? <VariableMathLabel name={name} />}</span>
         {unitLabel ? <span className="unit-badge">{unitLabel}</span> : null}
       </span>
     </InstantTooltip>

@@ -53,8 +53,6 @@ function explainBinary(
       return `${left} minus ${right}`;
     case "/":
       return `${left} divided by ${right}`;
-    case "^":
-      return `${left} raised to the power of ${right}`;
     case ">":
       return `${left} is greater than ${right}`;
     case ">=":
@@ -105,6 +103,10 @@ function explainFunction(
       return `the absolute value of ${explainedArgs[0] ?? "the expression"}`;
     case "sqrt":
       return `the square root of ${explainedArgs[0] ?? "the expression"}`;
+    case "pow":
+      return `${explainedArgs[0] ?? "the expression"} raised to the power of ${
+        explainedArgs[1] ?? "the exponent"
+      }`;
     case "log":
       return `the logarithm of ${explainedArgs[0] ?? "the expression"}`;
     case "exp":

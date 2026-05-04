@@ -33,7 +33,7 @@ export interface ResolvedStripMappingSources {
 }
 
 const SUM_COLUMN_NAMES = new Set(["sum", "total"]);
-const IGNORED_TOKENS = new Set(["d", "dt", "max", "min", "abs", "sqrt", "log", "exp"]);
+const IGNORED_TOKENS = new Set(["d", "dt", "max", "min", "abs", "sqrt", "log", "exp", "pow"]);
 const EXOGENOUS_SECTOR = "Exogenous";
 const UNMAPPED_SECTOR = "Unmapped";
 
@@ -353,7 +353,7 @@ function normalizeSectorName(column: string): string {
 }
 
 function extractVariableNames(source: string): string[] {
-  const tokens = source.match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? [];
+  const tokens = source.match(/[A-Za-z_][A-Za-z0-9_.^{}]*/g) ?? [];
   return Array.from(
     new Set(tokens.filter((token) => !IGNORED_TOKENS.has(token.toLowerCase())))
   );

@@ -6,6 +6,7 @@ import type { VariableDescriptions } from "../lib/variableDescriptions";
 import { resolveVariableTooltip, type VariableUnitMetadata } from "../lib/unitMeta";
 import { getVariableUnitLabel } from "../lib/units";
 import { InstantTooltip } from "./InstantTooltip";
+import { renderVariableMathLabel } from "./VariableMathLabel";
 
 interface EquationGridEditorProps {
   buildError?: string | null;
@@ -332,7 +333,7 @@ export function highlightFormula(
   currentValues?: Record<string, number | undefined>
 ): ReactNode[] {
   const parts: ReactNode[] = [];
-  const tokenPattern = /([A-Za-z_][A-Za-z0-9_]*|\d+(?:\.\d+)?(?:e[+-]?\d+)?)/gi;
+  const tokenPattern = /([A-Za-z_][A-Za-z0-9_.^{}]*|\d+(?:\.\d+)?(?:e[+-]?\d+)?)/gi;
   let lastIndex = 0;
 
   for (const match of source.matchAll(tokenPattern)) {
@@ -347,6 +348,12 @@ export function highlightFormula(
     const normalizedToken = token.trim();
     const renderedToken =
       tokenClass === "formula-parameter" ? displayTokens?.get(normalizedToken) ?? token : token;
+    const renderedTokenNode =
+      tokenClass === "formula-function" ||
+      tokenClass === "formula-number" ||
+      tokenClass === "formula-default"
+        ? renderedToken
+        : renderVariableMathLabel(String(renderedToken));
     const traceClass = highlightedTokens?.get(normalizedToken) ?? null;
     const hasVariableMetadata =
       variableDescriptions?.has(normalizedToken) || variableUnitMetadata?.has(normalizedToken);
@@ -391,7 +398,7 @@ export function highlightFormula(
             onSelectVariable(normalizedToken);
           }}
         >
-          {renderedToken}
+          {renderedTokenNode}
         </span>
       </InstantTooltip>
     );
@@ -605,12 +612,12 @@ function mergeTraceRole(
 
 function normalizeVariableName(source: string): string | null {
   const trimmed = source.trim();
-  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(trimmed) ? trimmed : null;
+  return /^[A-Za-z_][A-Za-z0-9_.^{}]*$/.test(trimmed) ? trimmed : null;
 }
 
 function extractVariableTokens(source: string): string[] {
   const tokens = new Set<string>();
-  const tokenPattern = /[A-Za-z_][A-Za-z0-9_]*/g;
+  const tokenPattern = /[A-Za-z_][A-Za-z0-9_.^{}]*/g;
 
   for (const match of source.matchAll(tokenPattern)) {
     const token = match[0];

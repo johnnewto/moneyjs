@@ -44,13 +44,14 @@ SFCR chat API local server listening on http://localhost:8787
 Draft endpoint: http://localhost:8787/v1/chat-builder/draft
 ```
 
-The chat-builder system prompt lives at:
+The local prompt files live at:
 
 ```text
 packages/chat-api/prompts/chat-builder-system.md
+packages/chat-api/prompts/notebook-assistant-system.md
 ```
 
-The local Node adapter reads this file on every request, so you can edit prompt wording and immediately retry from the browser without restarting `pnpm chat-api:dev`.
+The local Node adapter reads these files on every request, so you can edit prompt wording and immediately retry from the browser without restarting `pnpm chat-api:dev`.
 
 Start the web app in another terminal:
 
@@ -144,6 +145,14 @@ with:
 ```
 
 The API streams OpenAI Server-Sent Events back to the browser. The frontend reads `response.output_text.delta` events, accumulates the text, parses the final JSON as a full `NotebookDocument`, extracts the primary model sections for validation, and preserves the complete notebook JSON for preview. Balance-sheet matrices, transactions-flow matrices, sequence cells, charts, tables, and scenarios should therefore be returned as native notebook `cells`, not as a separate draft-only shape.
+
+The notebook rail Assistant uses a separate read-only endpoint:
+
+```text
+POST /v1/notebook-assistant/ask
+```
+
+It receives the current notebook JSON, selected variable context when available, recent assistant messages, and a user question. It shares the same OpenAI key, beta password gate, model allowlist, output-token cap, and Cloudflare rate-limit binding. The Assistant endpoint must answer or suggest only; it does not mutate notebook state.
 
 ## Production Deployment
 

@@ -2011,7 +2011,7 @@ function EquationSyntaxHelpContent() {
       <section>
         <h4>Operators</h4>
         <ul className="notebook-help-list">
-          <li>`+`, `-`, `*`, `/`, `^`</li>
+          <li>`+`, `-`, `*`, `/`</li>
           <li>Comparisons: `&gt;`, `&gt;=`, `&lt;`, `&lt;=`, `==`, `!=`</li>
           <li>Logical operators: `&&`, `||`</li>
         </ul>
@@ -2020,7 +2020,7 @@ function EquationSyntaxHelpContent() {
         <h4>Functions</h4>
         <ul className="notebook-help-list">
           <li>`min(a, b)`, `max(a, b)`</li>
-          <li>`abs(x)`, `sqrt(x)`, `exp(x)`, `log(x)`</li>
+          <li>`abs(x)`, `sqrt(x)`, `pow(x, n)`, `exp(x)`, `log(x)`</li>
           <li>`if (condition) {'{'}expr{'}'} else {'{'}expr{'}'}` for conditional logic</li>
         </ul>
       </section>
@@ -3512,7 +3512,7 @@ function inferMatrixExpressionUnitMeta(
 }
 
 function inferPrimaryVariableName(source: string): string | null {
-  const match = source.match(/[A-Za-z_][A-Za-z0-9_]*/);
+  const match = source.match(/[A-Za-z_][A-Za-z0-9_.^{}]*/);
   return match ? match[0] : null;
 }
 

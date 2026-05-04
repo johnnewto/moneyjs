@@ -4,6 +4,7 @@ import { formatVariableTooltip, type VariableUnitMetadata } from "../lib/unitMet
 import type { VariableDescriptions } from "../lib/variableDescriptions";
 import { getVariableUnitLabel } from "../lib/units";
 import { InstantTooltip } from "./InstantTooltip";
+import { VariableMathLabel, renderVariableMathSvgLabel } from "./VariableMathLabel";
 
 interface ChartSeries {
   name: string;
@@ -183,7 +184,7 @@ export function ResultChart({
               )}
             >
               <span className="legend-swatch" style={{ backgroundColor: entry.color }} />
-              {entry.name}
+              <VariableMathLabel name={entry.name} />
               {getVariableUnitLabel(variableUnitMetadata ?? new Map(), entry.name) ? (
                 <span className="unit-badge">
                   {getVariableUnitLabel(variableUnitMetadata ?? new Map(), entry.name)}
@@ -338,7 +339,7 @@ export function ResultChart({
                 fontWeight="700"
                 textAnchor="middle"
               >
-                {axisMode === "shared" ? "Value" : entry.name}
+                {axisMode === "shared" ? "Value" : renderVariableMathSvgLabel(entry.name)}
               </text>
 
               {(axisMode === "shared" ? sharedMetrics.ticks : entry.ticks).map((tick) => {
@@ -477,7 +478,7 @@ export function ResultChart({
                 stroke={hoverTooltip.color}
               />
               <text x="10" y="16" fill="#f8fafc" fontSize="11" fontWeight="700">
-                {hoverTooltip.seriesName} •{" "}
+                {renderVariableMathSvgLabel(hoverTooltip.seriesName)} •{" "}
                 {hoverTooltip.description ? hoverTooltip.description : `Period ${hoverTooltip.period}`}
               </text>
               <text x="10" y="31" fill="#e2e8f0" fontSize="11">
@@ -528,7 +529,7 @@ export function ResultChart({
                 variableUnitMetadata?.get(entry.name)
               )}
             >
-              {entry.name}: <span className={entry.min < 0 ? "numeric-value-negative" : undefined}>{formatAxisValue(entry.min)}</span> to <span className={entry.max < 0 ? "numeric-value-negative" : undefined}>{formatAxisValue(entry.max)}</span>
+              <VariableMathLabel name={entry.name} />: <span className={entry.min < 0 ? "numeric-value-negative" : undefined}>{formatAxisValue(entry.min)}</span> to <span className={entry.max < 0 ? "numeric-value-negative" : undefined}>{formatAxisValue(entry.max)}</span>
             </InstantTooltip>
           ))
         )}

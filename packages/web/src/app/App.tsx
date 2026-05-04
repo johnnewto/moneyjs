@@ -17,6 +17,7 @@ import { ImportExportPanel } from "../components/ImportExportPanel";
 import { PeriodScrubber } from "../components/PeriodScrubber";
 import { ResultChart, type ChartAxisMode } from "../components/ResultChart";
 import { ResultTable } from "../components/ResultTable";
+import { AssistantMarkdown } from "../components/AssistantMarkdown";
 import { ScenarioEditor } from "../components/ScenarioEditor";
 import { SolverPanel } from "../components/SolverPanel";
 import { ValidationSummary } from "../components/ValidationSummary";
@@ -1559,7 +1560,11 @@ function ChatBuilderApp() {
                   className={`chat-message ${message.role === "assistant" ? "chat-message-assistant" : "chat-message-user"}`}
                 >
                   <div className="chat-message-role">{message.role === "assistant" ? "Assistant" : "You"}</div>
-                  <p>{message.text}</p>
+                  {message.role === "assistant" ? (
+                    <AssistantMarkdown text={message.text} />
+                  ) : (
+                    <p>{message.text}</p>
+                  )}
                 </article>
               ))}
             </div>

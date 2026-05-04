@@ -230,6 +230,26 @@ function inferFunctionUnits(
 
       return { signature: sqrtSignature, diagnostics };
     }
+    case "pow": {
+      const base = inferUnits(expr.args[0] ?? { type: "Number", value: 0 }, variableUnits);
+      const exponent = inferUnits(expr.args[1] ?? { type: "Number", value: 0 }, variableUnits);
+      const diagnostics = mergeDiagnostics(base, exponent);
+
+      if (exponent.signature != null && !signaturesEqual(exponent.signature, DIMENSIONLESS)) {
+        diagnostics.push({
+          severity: "error",
+          message: "pow() exponent must be dimensionless."
+        });
+      }
+      if (base.signature != null && !signaturesEqual(base.signature, DIMENSIONLESS)) {
+        diagnostics.push({
+          severity: "warning",
+          message: "pow() of non-dimensionless quantities is not fully supported."
+        });
+      }
+
+      return { signature: base.signature, diagnostics };
+    }
   }
 }
 
@@ -270,20 +290,6 @@ function inferBinaryUnits(
         return { signature: null, diagnostics };
       }
       return { signature: divideSignatures(left.signature, right.signature), diagnostics };
-    case "^":
-      if (right.signature != null && !signaturesEqual(right.signature, DIMENSIONLESS)) {
-        diagnostics.push({
-          severity: "error",
-          message: "Exponent must be dimensionless."
-        });
-      }
-      if (left.signature != null && !signaturesEqual(left.signature, DIMENSIONLESS)) {
-        diagnostics.push({
-          severity: "warning",
-          message: "Exponentiation of non-dimensionless quantities is not fully supported."
-        });
-      }
-      return { signature: left.signature, diagnostics };
     case ">":
     case ">=":
     case "<":

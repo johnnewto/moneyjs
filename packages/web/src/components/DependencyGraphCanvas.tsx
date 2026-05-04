@@ -13,6 +13,7 @@ import {
   type DependencyLayoutDiagnostics,
   type PositionedNode
 } from "./dependencyGraphLayout";
+import { renderVariableMathSvgLabel } from "./VariableMathLabel";
 
 export { buildDependencyGraphLayoutSnapshot } from "./dependencyGraphLayout";
 
@@ -494,7 +495,7 @@ function DependencyNodeShape({
         fontWeight={650}
         textAnchor="middle"
       >
-        {node.label}
+        {renderVariableMathSvgLabel(node.label)}
       </text>
     </g>
   );

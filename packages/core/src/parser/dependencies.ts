@@ -44,8 +44,6 @@ export function evaluateExpression(expr: Expr, context: SolverContext): number {
           return leftValue * rightValue;
         case "/":
           return leftValue / rightValue;
-        case "^":
-          return Math.pow(leftValue, rightValue);
         case ">":
           return truthy(leftValue > rightValue) ? 1 : 0;
         case ">=":
@@ -148,6 +146,8 @@ function evaluateFunction(name: string, values: number[]): number {
       return Math.min(values[0] ?? NaN, values[1] ?? NaN);
     case "max":
       return Math.max(values[0] ?? NaN, values[1] ?? NaN);
+    case "pow":
+      return Math.pow(values[0] ?? NaN, values[1] ?? NaN);
     default:
       throw new Error(`Unsupported function: ${name}`);
   }

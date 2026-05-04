@@ -63,6 +63,22 @@ describe("ResultChart", () => {
     expect(screen.getByText(hasTextContent(/P: .* to /i))).toBeInTheDocument();
   });
 
+  it("renders superscripted variable names in chart legends and scales", () => {
+    render(
+      <ResultChart
+        axisMode="separate"
+        series={[
+          { name: "H^P", values: [2, 3, 5, 4] },
+          { name: "B^{CB}", values: [10, 15, 25, 20] }
+        ]}
+      />
+    );
+
+    expect(screen.getByText("P", { selector: ".chart-legend sup" })).toBeInTheDocument();
+    expect(screen.getByText("CB", { selector: ".chart-legend sup" })).toBeInTheDocument();
+    expect(screen.getByText("CB", { selector: ".chart-scale sup" })).toBeInTheDocument();
+  });
+
   it("keeps separate-axis tick rows aligned by using the same tick count on each axis", () => {
     render(
       <ResultChart

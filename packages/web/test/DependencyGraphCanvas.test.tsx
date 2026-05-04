@@ -122,4 +122,34 @@ describe("DependencyGraphCanvas", () => {
     expect(screen.getByLabelText("Matrix badge: B")).toBeInTheDocument();
     expect(screen.getByLabelText("Matrix badge: TB")).toBeInTheDocument();
   });
+
+  it("renders superscripted node labels with the shared SVG renderer", () => {
+    const graph: ParsedDependencyGraph = {
+      nodes: [
+        {
+          id: "hp",
+          name: "H^P",
+          label: "H^P",
+          variableType: "stock",
+          equationRole: null,
+          equationIndex: 0,
+          layer: 0,
+          order: 0,
+          cluster: "equation",
+          degree: 0,
+          currentDependencyNames: [],
+          lagDependencyNames: [],
+          hasSelfLag: false,
+          isCyclic: false
+        }
+      ],
+      edges: [],
+      errors: [],
+      layerCount: 1
+    };
+
+    render(<DependencyGraphCanvas graph={graph} />);
+
+    expect(document.querySelector('tspan[baseline-shift="super"]')?.textContent).toBe("P");
+  });
 });

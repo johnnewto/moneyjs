@@ -42,7 +42,7 @@ export interface UnaryExpr {
 
 export interface BinaryExpr {
   type: "Binary";
-  op: "+" | "-" | "*" | "/" | "^" | ">" | ">=" | "<" | "<=" | "==" | "!=" | "&&" | "||";
+  op: "+" | "-" | "*" | "/" | ">" | ">=" | "<" | "<=" | "==" | "!=" | "&&" | "||";
   left: Expr;
   right: Expr;
 }
@@ -56,6 +56,6 @@ export interface IfExpr {
 
 export interface FunctionExpr {
   type: "Function";
-  name: "exp" | "log" | "abs" | "sqrt" | "min" | "max";
+  name: "exp" | "log" | "abs" | "sqrt" | "min" | "max" | "pow";
   args: Expr[];
 }

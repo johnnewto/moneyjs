@@ -1,4 +1,5 @@
 import { getBundledChatBuilderSystemPrompt } from "./chatBuilderSystemPrompt.ts";
+import { getBundledNotebookAssistantPrompt } from "./notebookAssistantPrompt.ts";
 
 interface Env {
   ALLOWED_ORIGINS?: string;
@@ -6,6 +7,7 @@ interface Env {
   CHAT_BUILDER_SYSTEM_PROMPT?: string | (() => string | Promise<string>);
   CHAT_BUILDER_RATE_LIMITER?: RateLimitBinding;
   MAX_OUTPUT_TOKENS?: string;
+  NOTEBOOK_ASSISTANT_SYSTEM_PROMPT?: string | (() => string | Promise<string>);
   OPENAI_API_KEY?: string;
   OPENAI_MODEL_ALLOWLIST?: string;
 }
@@ -27,6 +29,14 @@ interface ChatDraftRequest {
   prompt?: unknown;
 }
 
+interface NotebookAssistantRequest {
+  betaPassword?: unknown;
+  context?: unknown;
+  messages?: unknown;
+  model?: unknown;
+  question?: unknown;
+}
+
 interface SfcrDiscoveryIndex {
   resources?: {
     notebooks?: {
@@ -46,7 +56,7 @@ interface SfcrNotebookManifest {
   schemaUrl?: string;
 }
 
-const DEFAULT_ALLOWED_MODELS = ["gpt-5.5", "gpt-4.1", "o3"];
+const DEFAULT_ALLOWED_MODELS = ["gpt-5.4","gpt-5.5", "gpt-4.1", "o3"];
 const DEFAULT_MAX_OUTPUT_TOKENS = 8000;
 const MAX_PROMPT_LENGTH = 12000;
 const MAX_MESSAGE_COUNT = 12;
@@ -66,6 +76,10 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
   }
 
   const url = new URL(request.url);
+  if (url.pathname === "/v1/notebook-assistant/ask") {
+    return handleNotebookAssistantRequest(request, env, corsHeaders);
+  }
+
   if (url.pathname !== "/v1/chat-builder/draft") {
     return jsonResponse({ error: "Not found." }, 404, corsHeaders);
   }
@@ -153,6 +167,93 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
   }
 }
 
+async function handleNotebookAssistantRequest(
+  request: Request,
+  env: Env,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  if (request.method !== "POST") {
+    return jsonResponse({ error: "Method not allowed." }, 405, corsHeaders);
+  }
+
+  if (!corsHeaders["Access-Control-Allow-Origin"]) {
+    return jsonResponse({ error: "Origin is not allowed." }, 403, corsHeaders);
+  }
+
+  let payload: NotebookAssistantRequest;
+  try {
+    payload = (await request.json()) as NotebookAssistantRequest;
+  } catch {
+    return jsonResponse({ error: "Request body must be valid JSON." }, 400, corsHeaders);
+  }
+
+  if (!isBetaPasswordAllowed(payload, env)) {
+    return jsonResponse({ error: "Beta password is required." }, 403, corsHeaders);
+  }
+
+  const rateLimitResponse = await enforceChatBuilderRateLimit(request, env, corsHeaders);
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
+
+  if (!env.OPENAI_API_KEY) {
+    return jsonResponse({ error: "OPENAI_API_KEY is not configured." }, 500, corsHeaders);
+  }
+
+  const validation = validateNotebookAssistantRequest(payload, env);
+  if ("error" in validation) {
+    return jsonResponse({ error: validation.error }, 400, corsHeaders);
+  }
+
+  try {
+    const systemPrompt = await resolveNotebookAssistantSystemPrompt(env);
+    const openAiResponse = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: validation.model,
+        max_output_tokens: Math.min(resolveMaxOutputTokens(env), 3000),
+        store: false,
+        stream: true,
+        instructions: systemPrompt,
+        input: [
+          ...validation.messages.map((message) => ({
+            role: message.role,
+            content: message.text
+          })),
+          {
+            role: "user",
+            content: `Notebook context:\n${validation.context}\n\nQuestion:\n${validation.question}`
+          }
+        ]
+      })
+    });
+
+    if (!openAiResponse.ok || !openAiResponse.body) {
+      return jsonResponse(
+        { error: await readOpenAiError(openAiResponse) },
+        openAiResponse.status || 502,
+        corsHeaders
+      );
+    }
+
+    return new Response(openAiResponse.body, {
+      status: openAiResponse.status,
+      headers: {
+        ...corsHeaders,
+        "Cache-Control": "no-store",
+        "Content-Type": openAiResponse.headers.get("Content-Type") ?? "text/event-stream; charset=utf-8"
+      }
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to answer notebook question.";
+    return jsonResponse({ error: message }, 500, corsHeaders);
+  }
+}
+
 function isBetaPasswordAllowed(payload: ChatDraftRequest, env: Env): boolean {
   const configuredPassword = env.BETA_PASSWORD?.trim();
   if (!configuredPassword) {
@@ -209,6 +310,24 @@ async function resolveChatBuilderSystemPrompt(env: Env): Promise<string> {
   }
 
   return getBundledChatBuilderSystemPrompt();
+}
+
+async function resolveNotebookAssistantSystemPrompt(env: Env): Promise<string> {
+  if (typeof env.NOTEBOOK_ASSISTANT_SYSTEM_PROMPT === "function") {
+    const prompt = await env.NOTEBOOK_ASSISTANT_SYSTEM_PROMPT();
+    if (prompt.trim() !== "") {
+      return prompt;
+    }
+  }
+
+  if (
+    typeof env.NOTEBOOK_ASSISTANT_SYSTEM_PROMPT === "string" &&
+    env.NOTEBOOK_ASSISTANT_SYSTEM_PROMPT.trim() !== ""
+  ) {
+    return env.NOTEBOOK_ASSISTANT_SYSTEM_PROMPT;
+  }
+
+  return getBundledNotebookAssistantPrompt();
 }
 
 function buildCorsHeaders(request: Request, env: Env): Record<string, string> {
@@ -302,6 +421,74 @@ function validateDraftRequest(
     model,
     prompt
   };
+}
+
+function validateNotebookAssistantRequest(
+  payload: NotebookAssistantRequest,
+  env: Env
+):
+  | {
+      context: string;
+      messages: ChatMessage[];
+      model: string;
+      question: string;
+    }
+  | { error: string } {
+  if (typeof payload.model !== "string" || payload.model.trim() === "") {
+    return { error: "model is required." };
+  }
+
+  const model = payload.model.trim();
+  const allowedModels = parseList(env.OPENAI_MODEL_ALLOWLIST);
+  const modelAllowlist = allowedModels.length > 0 ? allowedModels : DEFAULT_ALLOWED_MODELS;
+  if (!modelAllowlist.includes(model)) {
+    return { error: "model is not allowed." };
+  }
+
+  if (typeof payload.question !== "string" || payload.question.trim() === "") {
+    return { error: "question is required." };
+  }
+
+  const question = payload.question.trim();
+  if (question.length > MAX_PROMPT_LENGTH) {
+    return { error: `question must be ${MAX_PROMPT_LENGTH} characters or fewer.` };
+  }
+
+  if (typeof payload.context !== "string" || payload.context.trim() === "") {
+    return { error: "context is required." };
+  }
+
+  const context = payload.context.trim();
+  if (context.length > 60000) {
+    return { error: "context is too large." };
+  }
+
+  if (!Array.isArray(payload.messages)) {
+    return { error: "messages must be an array." };
+  }
+
+  if (payload.messages.length > MAX_MESSAGE_COUNT) {
+    return { error: `messages must include ${MAX_MESSAGE_COUNT} items or fewer.` };
+  }
+
+  const messages: ChatMessage[] = [];
+  for (const message of payload.messages) {
+    if (!isRecord(message)) {
+      return { error: "messages must contain objects." };
+    }
+    if (message.role !== "assistant" && message.role !== "user") {
+      return { error: "message role must be assistant or user." };
+    }
+    if (typeof message.text !== "string") {
+      return { error: "message text must be a string." };
+    }
+    if (message.text.length > MAX_MESSAGE_LENGTH) {
+      return { error: `message text must be ${MAX_MESSAGE_LENGTH} characters or fewer.` };
+    }
+    messages.push({ role: message.role, text: message.text });
+  }
+
+  return { context, messages, model, question };
 }
 
 async function loadChatBuilderResourceBundle(discoveryUrl: string): Promise<string> {

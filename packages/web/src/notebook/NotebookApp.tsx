@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { detectNotebookSourceFormat, notebookToJson, notebookToMarkdown, parseNotebookSource } from "./document";
 import {
@@ -30,17 +30,248 @@ import {
   type EditorState
 } from "../lib/editorModel";
 import { PeriodScrubber } from "../components/PeriodScrubber";
+import { AssistantMarkdown } from "../components/AssistantMarkdown";
 import { VariableInspector } from "../components/VariableInspector";
+import { VariableMathLabel } from "../components/VariableMathLabel";
 import { useDragScroll } from "../hooks/useDragScroll";
 import { usePanelSplitter } from "../hooks/usePanelSplitter";
 import { buildVariableInspectorData } from "../lib/variableInspector";
-import type { VariableDescriptions } from "../lib/variableDescriptions";
+import { buildVariableDescriptions, type VariableDescriptions } from "../lib/variableDescriptions";
 import { buildVariableUnitMetadata } from "../lib/units";
 
 const APP_BASE_URL = import.meta.env.BASE_URL;
+const NOTEBOOK_ASSISTANT_API_URL = resolveNotebookAssistantApiUrl();
+const NOTEBOOK_ASSISTANT_DEFAULT_MODEL = "gpt-4.1";
+const NOTEBOOK_ASSISTANT_MODEL_STORAGE_KEY = "sfcr:notebook-assistant-model";
+
+type NotebookRailTab = "inspect" | "contents" | "assistant" | "preview";
+
+interface NotebookAssistantMessage {
+  id: string;
+  role: "assistant" | "user";
+  text: string;
+}
+
+const NOTEBOOK_ASSISTANT_INITIAL_MESSAGES: NotebookAssistantMessage[] = [
+  {
+    id: "assistant-1",
+    role: "assistant",
+    text: "Ask about the current notebook, selected variable, validation state, or run results. I will explain and suggest changes without applying them."
+  }
+];
 
 function resolveAppHref(path: string): string {
   return `${APP_BASE_URL}${path.replace(/^\/+/, "")}`;
+}
+
+function resolveNotebookAssistantApiUrl(): string {
+  const configuredAssistantUrl = (import.meta.env.VITE_NOTEBOOK_ASSISTANT_API_URL ?? "").trim();
+  if (configuredAssistantUrl) {
+    return configuredAssistantUrl;
+  }
+
+  const configuredChatUrl = (import.meta.env.VITE_CHAT_BUILDER_API_URL ?? "").trim();
+  if (configuredChatUrl) {
+    return configuredChatUrl.replace(/\/v1\/chat-builder\/draft\/?$/, "/v1/notebook-assistant/ask");
+  }
+
+  if (
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+  ) {
+    return "http://localhost:8787/v1/notebook-assistant/ask";
+  }
+
+  return "";
+}
+
+async function requestNotebookAssistantAnswer(args: {
+  betaPassword: string;
+  context: string;
+  messages: NotebookAssistantMessage[];
+  model: string;
+  onTextDelta?: (delta: string) => void;
+  question: string;
+}): Promise<string> {
+  if (!NOTEBOOK_ASSISTANT_API_URL) {
+    throw new Error("Notebook assistant API endpoint is not configured.");
+  }
+
+  const response = await fetch(NOTEBOOK_ASSISTANT_API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      ...(args.betaPassword.trim() ? { betaPassword: args.betaPassword.trim() } : {}),
+      context: args.context,
+      messages: args.messages.map((message) => ({
+        role: message.role,
+        text: message.text
+      })),
+      model: args.model,
+      question: args.question
+    })
+  });
+
+  if (!response.ok) {
+    let message = "Failed to ask notebook assistant.";
+
+    try {
+      const error = (await response.json()) as {
+        error?: string | {
+          message?: string;
+        };
+      };
+      message =
+        typeof error.error === "string"
+          ? error.error
+          : error.error?.message ?? message;
+    } catch {
+      // Keep fallback message.
+    }
+
+    throw new Error(message);
+  }
+
+  const contentType = response.headers.get("Content-Type") ?? "";
+  if (response.body && contentType.includes("text/event-stream")) {
+    const streamedText = await readNotebookAssistantSseResponse(response, args.onTextDelta);
+    if (streamedText.trim()) {
+      return streamedText.trim();
+    }
+  }
+
+  const result = (await response.json()) as {
+    output?: Array<{
+      content?: Array<{
+        text?: string;
+      }>;
+    }>;
+    output_text?: string;
+  };
+  const text =
+    typeof result.output_text === "string" && result.output_text.trim()
+      ? result.output_text
+      : result.output
+          ?.flatMap((entry) => entry.content ?? [])
+          .find((entry) => typeof entry.text === "string" && entry.text.trim())?.text;
+
+  if (!text) {
+    throw new Error("Assistant response did not include text.");
+  }
+
+  args.onTextDelta?.(text);
+  return text;
+}
+
+async function readNotebookAssistantSseResponse(
+  response: Response,
+  onTextDelta: ((delta: string) => void) | undefined
+): Promise<string> {
+  if (!response.body) {
+    return "";
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let text = "";
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+    const chunks = buffer.split("\n\n");
+    buffer = chunks.pop() ?? "";
+
+    for (const chunk of chunks) {
+      const eventText = parseNotebookAssistantSseChunk(chunk);
+      if (eventText) {
+        text += eventText;
+        onTextDelta?.(eventText);
+      }
+    }
+  }
+
+  buffer += decoder.decode();
+  const remainingText = parseNotebookAssistantSseChunk(buffer);
+  if (remainingText) {
+    text += remainingText;
+    onTextDelta?.(remainingText);
+  }
+
+  return text;
+}
+
+function parseNotebookAssistantSseChunk(chunk: string): string {
+  const dataLines = chunk
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => line.slice(5).trimStart());
+
+  let text = "";
+  for (const data of dataLines) {
+    if (!data || data === "[DONE]") {
+      continue;
+    }
+
+    try {
+      const event = JSON.parse(data) as { delta?: unknown; type?: unknown };
+      if (event.type === "response.output_text.delta" && typeof event.delta === "string") {
+        text += event.delta;
+      }
+    } catch {
+      // Ignore malformed stream frames.
+    }
+  }
+
+  return text;
+}
+
+function buildNotebookAssistantContext(args: {
+  document: NotebookDocument;
+  inspectorContext: {
+    currentValues: Record<string, number | undefined>;
+    selectedVariable: string;
+  } | null;
+  resultCount: number;
+  selectedPeriodIndex: number;
+  selectedVariable?: string;
+  uiMessage: string | null;
+}): string {
+  const notebookJson = notebookToJson(args.document);
+  return truncateNotebookAssistantContext(
+    [
+      `Notebook title: ${args.document.title}`,
+      `Notebook id: ${args.document.id}`,
+      `Cells: ${args.document.cells.length}`,
+      `Cell types: ${summarizeCellTypes(args.document.cells)}`,
+      `Selected period index: ${args.selectedPeriodIndex}`,
+      `Completed run result count: ${args.resultCount}`,
+      args.selectedVariable ? `Selected variable: ${args.selectedVariable}` : null,
+      args.inspectorContext
+        ? `Selected variable current values: ${JSON.stringify(args.inspectorContext.currentValues)}`
+        : null,
+      args.uiMessage ? `Current UI message: ${args.uiMessage}` : null,
+      "Notebook JSON:",
+      notebookJson
+    ]
+      .filter((line): line is string => Boolean(line))
+      .join("\n")
+  );
+}
+
+function truncateNotebookAssistantContext(context: string): string {
+  const maxLength = 56000;
+  if (context.length <= maxLength) {
+    return context;
+  }
+
+  return `${context.slice(0, maxLength)}\n\n[Context truncated for size.]`;
 }
 
 const NOTEBOOK_AI_INDEX_URL = resolveAppHref(".well-known/sfcr.json");
@@ -63,9 +294,24 @@ export function NotebookApp() {
   const [autoRunRevision, setAutoRunRevision] = useState(0);
   const [isDataPanelOpen, setIsDataPanelOpen] = useState(false);
   const [activeEditorCellId, setActiveEditorCellId] = useState<string | null>(null);
-  const [activeRailTab, setActiveRailTab] = useState<"inspect" | "contents" | "preview">(
-    "inspect"
+  const [activeRailTab, setActiveRailTab] = useState<NotebookRailTab>("inspect");
+  const [assistantMessages, setAssistantMessages] = useState<NotebookAssistantMessage[]>(
+    NOTEBOOK_ASSISTANT_INITIAL_MESSAGES
   );
+  const [assistantPromptText, setAssistantPromptText] = useState("");
+  const [assistantBetaPassword, setAssistantBetaPassword] = useState("");
+  const [assistantError, setAssistantError] = useState<string | null>(null);
+  const [isAssistantAsking, setIsAssistantAsking] = useState(false);
+  const [assistantModel, setAssistantModel] = useState(() => {
+    if (typeof window === "undefined") {
+      return NOTEBOOK_ASSISTANT_DEFAULT_MODEL;
+    }
+
+    return (
+      window.localStorage.getItem(NOTEBOOK_ASSISTANT_MODEL_STORAGE_KEY) ??
+      NOTEBOOK_ASSISTANT_DEFAULT_MODEL
+    );
+  });
   const [inspectorContext, setInspectorContext] = useState<{
     currentValues: Record<string, number | undefined>;
     editor: EditorState;
@@ -78,6 +324,10 @@ export function NotebookApp() {
     source: "json" | "markdown";
   } | null>(null);
   const runner = useNotebookRunner(notebookDocument);
+  const assistantVariableDescriptions = useMemo(
+    () => buildNotebookVariableDescriptions(notebookDocument.cells),
+    [notebookDocument.cells]
+  );
   const maxResultPeriodIndex = Math.max(
     0,
     ...Object.values(runner.outputs).flatMap((output) =>
@@ -375,6 +625,82 @@ export function NotebookApp() {
       setUiMessage(`Ran all notebook cells in ${formatElapsedTime(durationMs)}.`);
     } catch (error) {
       setUiMessage(error instanceof Error ? error.message : "Unable to run notebook cells");
+    }
+  }
+
+  function handleAssistantModelChange(nextModel: string): void {
+    setAssistantModel(nextModel);
+    window.localStorage.setItem(NOTEBOOK_ASSISTANT_MODEL_STORAGE_KEY, nextModel);
+  }
+
+  async function handleAskNotebookAssistant(): Promise<void> {
+    const question = assistantPromptText.trim();
+    if (!question || isAssistantAsking || !NOTEBOOK_ASSISTANT_API_URL) {
+      return;
+    }
+
+    const userMessage: NotebookAssistantMessage = {
+      id: `user-${assistantMessages.length + 1}`,
+      role: "user",
+      text: question
+    };
+    const nextMessages = [...assistantMessages, userMessage];
+    const assistantMessageId = `assistant-${nextMessages.length + 1}`;
+
+    setAssistantMessages(nextMessages);
+    setAssistantPromptText("");
+    setAssistantError(null);
+    setIsAssistantAsking(true);
+
+    try {
+      let streamedText = "";
+      await requestNotebookAssistantAnswer({
+        betaPassword: assistantBetaPassword,
+        context: buildNotebookAssistantContext({
+          document: notebookDocument,
+          inspectorContext,
+          resultCount: Object.values(runner.outputs).filter((output) => output?.type === "result").length,
+          selectedPeriodIndex,
+          selectedVariable: inspectorContext?.selectedVariable,
+          uiMessage
+        }),
+        messages: assistantMessages.slice(-8),
+        model: assistantModel,
+        onTextDelta: (delta) => {
+          streamedText += delta;
+          setAssistantMessages((current) => {
+            const existingMessage = current.find((message) => message.id === assistantMessageId);
+            if (existingMessage) {
+              return current.map((message) =>
+                message.id === assistantMessageId ? { ...message, text: streamedText } : message
+              );
+            }
+
+            return [
+              ...current,
+              {
+                id: assistantMessageId,
+                role: "assistant",
+                text: streamedText || "Thinking..."
+              }
+            ];
+          });
+        },
+        question
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to ask notebook assistant.";
+      setAssistantError(message);
+      setAssistantMessages((current) => [
+        ...current,
+        {
+          id: `assistant-${current.length + 1}`,
+          role: "assistant",
+          text: `Assistant request failed: ${message}`
+        }
+      ]);
+    } finally {
+      setIsAssistantAsking(false);
     }
   }
 
@@ -728,56 +1054,67 @@ export function NotebookApp() {
           onClickCapture={notebookRailDragScroll.dragScrollProps.onClickCapture}
           onMouseDown={notebookRailDragScroll.dragScrollProps.onMouseDown}
         >
-          <div className="panel-header">
-            <div className="notebook-rail-header">
-              <label className="notebook-rail-template-picker">
-                <span className="sr-only">Notebook template</span>
-                <select
-                  aria-label="Notebook template"
-                  value={currentTemplateId}
-                  onChange={(event) => handleTemplateChange(event.target.value)}
-                >
-                  {currentTemplateId ? null : <option value="">Custom notebook</option>}
-                  {Object.values(NOTEBOOK_TEMPLATES).map((template) => (
-                    <option key={template.id} value={template.id}>
-                      {template.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+          <div className="notebook-rail-sticky-panel">
+            <div className="panel-header">
+              <div className="notebook-rail-header">
+                <label className="notebook-rail-template-picker">
+                  <span className="notebook-rail-template-label">Notebook template</span>
+                  <select
+                    aria-label="Notebook template"
+                    value={currentTemplateId}
+                    onChange={(event) => handleTemplateChange(event.target.value)}
+                  >
+                    {currentTemplateId ? null : <option value="">Custom notebook</option>}
+                    {Object.values(NOTEBOOK_TEMPLATES).map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
             </div>
-          </div>
 
-          <div className="notebook-rail-tabs" role="tablist" aria-label="Notebook sidebar panels">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeRailTab === "inspect"}
-              className={`notebook-rail-tab${activeRailTab === "inspect" ? " is-active" : ""}`}
-              onClick={() => setActiveRailTab("inspect")}
-            >
-              Inspect
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeRailTab === "contents"}
-              className={`notebook-rail-tab${activeRailTab === "contents" ? " is-active" : ""}`}
-              onClick={() => setActiveRailTab("contents")}
-            >
-              Contents
-            </button>
-            {importPreview ? (
+            <div className="notebook-rail-tabs" role="tablist" aria-label="Notebook sidebar panels">
               <button
                 type="button"
                 role="tab"
-                aria-selected={activeRailTab === "preview"}
-                className={`notebook-rail-tab${activeRailTab === "preview" ? " is-active" : ""}`}
-                onClick={() => setActiveRailTab("preview")}
+                aria-selected={activeRailTab === "inspect"}
+                className={`notebook-rail-tab${activeRailTab === "inspect" ? " is-active" : ""}`}
+                onClick={() => setActiveRailTab("inspect")}
               >
-                Preview
+                Inspect
               </button>
-            ) : null}
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeRailTab === "contents"}
+                className={`notebook-rail-tab${activeRailTab === "contents" ? " is-active" : ""}`}
+                onClick={() => setActiveRailTab("contents")}
+              >
+                Contents
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeRailTab === "assistant"}
+                className={`notebook-rail-tab${activeRailTab === "assistant" ? " is-active" : ""}`}
+                onClick={() => setActiveRailTab("assistant")}
+              >
+                Assistant
+              </button>
+              {importPreview ? (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeRailTab === "preview"}
+                  className={`notebook-rail-tab${activeRailTab === "preview" ? " is-active" : ""}`}
+                  onClick={() => setActiveRailTab("preview")}
+                >
+                  Preview
+                </button>
+              ) : null}
+            </div>
           </div>
 
           {activeRailTab === "inspect" ? (
@@ -805,11 +1142,106 @@ export function NotebookApp() {
                   >
                     <button type="button" onClick={() => scrollToCell(cell.id)}>
                       <span className="outline-index">{index + 1}</span>
-                      <span>{cell.title}</span>
+                      <VariableMathLabel name={cell.title} />
                     </button>
                   </li>
                 ))}
               </ol>
+            </section>
+          ) : null}
+
+          {activeRailTab === "assistant" ? (
+            <section className="notebook-sidebar-panel notebook-assistant-panel" role="tabpanel">
+              <div className="panel-header">
+                <div>
+                  <h2>Assistant</h2>
+                  <p className="panel-subtitle">
+                    Read-only help for the current notebook context.
+                  </p>
+                </div>
+              </div>
+
+              <label className="field" htmlFor="notebook-assistant-model">
+                <span>Model</span>
+                <select
+                  id="notebook-assistant-model"
+                  value={assistantModel}
+                  onChange={(event) => handleAssistantModelChange(event.target.value)}
+                >
+                  <option value="gpt-5.5">GPT-5.5</option>
+                  <option value="gpt-4.1">GPT-4.1</option>
+                  <option value="o3">o3</option>
+                </select>
+              </label>
+
+              <label className="field" htmlFor="notebook-assistant-beta-password">
+                <span>Beta password</span>
+                <input
+                  id="notebook-assistant-beta-password"
+                  type="password"
+                  value={assistantBetaPassword}
+                  onChange={(event) => setAssistantBetaPassword(event.target.value)}
+                  placeholder="Required only when the API gate is enabled"
+                />
+              </label>
+
+              <div className="status-hint">
+                {NOTEBOOK_ASSISTANT_API_URL
+                  ? `Endpoint: ${NOTEBOOK_ASSISTANT_API_URL}`
+                  : "Set VITE_NOTEBOOK_ASSISTANT_API_URL or VITE_CHAT_BUILDER_API_URL to enable the assistant."}
+              </div>
+              {assistantError ? <div className="field-error">{assistantError}</div> : null}
+
+              <div className="chat-thread notebook-assistant-thread" role="log" aria-label="Notebook assistant conversation">
+                {assistantMessages.map((message) => (
+                  <article
+                    key={message.id}
+                    className={`chat-message ${
+                      message.role === "assistant" ? "chat-message-assistant" : "chat-message-user"
+                    }`}
+                  >
+                    <div className="chat-message-role">
+                      {message.role === "assistant" ? "Assistant" : "You"}
+                    </div>
+                    {message.role === "assistant" ? (
+                      <AssistantMarkdown
+                        text={message.text}
+                        variableDescriptions={assistantVariableDescriptions}
+                      />
+                    ) : (
+                      <p>{message.text}</p>
+                    )}
+                  </article>
+                ))}
+              </div>
+
+              <form
+                className="chat-composer"
+                aria-label="Notebook assistant composer"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void handleAskNotebookAssistant();
+                }}
+              >
+                <label className="field" htmlFor="notebook-assistant-question">
+                  <span>Question</span>
+                  <textarea
+                    id="notebook-assistant-question"
+                    rows={5}
+                    value={assistantPromptText}
+                    onChange={(event) => setAssistantPromptText(event.target.value)}
+                    placeholder="Ask about this notebook, a variable, a matrix, an error, or a result."
+                  />
+                </label>
+                <div className="button-row">
+                  <button
+                    type="submit"
+                    disabled={!assistantPromptText.trim() || isAssistantAsking || !NOTEBOOK_ASSISTANT_API_URL}
+                  >
+                    {isAssistantAsking ? "Asking..." : "Ask"}
+                  </button>
+                </div>
+              </form>
             </section>
           ) : null}
 
@@ -855,6 +1287,32 @@ function inferFormatFromFileName(fileName: string): "json" | "markdown" | null {
     return "markdown";
   }
   return null;
+}
+
+function buildNotebookVariableDescriptions(cells: NotebookCell[]): VariableDescriptions {
+  const descriptions: VariableDescriptions = new Map();
+
+  for (const cell of cells) {
+    const nextDescriptions =
+      cell.type === "model"
+        ? buildVariableDescriptions({
+            equations: cell.editor.equations,
+            externals: cell.editor.externals
+          })
+        : cell.type === "equations"
+          ? buildVariableDescriptions({ equations: cell.equations })
+          : cell.type === "externals"
+            ? buildVariableDescriptions({ externals: cell.externals })
+            : null;
+
+    for (const [name, description] of nextDescriptions ?? []) {
+      if (!descriptions.has(name)) {
+        descriptions.set(name, description);
+      }
+    }
+  }
+
+  return descriptions;
 }
 
 function formatElapsedTime(durationMs: number): string {

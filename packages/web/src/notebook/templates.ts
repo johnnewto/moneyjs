@@ -5,6 +5,7 @@ import gl6DisRentierNotebookJson from "./templates/gl6-dis-rentier.notebook.json
 import gl6DisRentierV2NotebookJson from "./templates/gl6-dis-rentier.notebook.v2.json";
 import gl7InsoutNotebookJson from "./templates/gl7-insout.notebook.json";
 import gl8GrowthNotebookJson from "./templates/gl8-growth.notebook.json";
+import opensimplestLevyNotebookJson from "./templates/opensimplest-levy.notebook.json";
 import opensimplestNotebookJson from "./templates/opensimplest.notebook.json";
 import predatorPreyNotebookJson from "./templates/predator-prey.notebook.json";
 import simpleEpidemicNotebookJson from "./templates/simple-epidemic.notebook.json";
@@ -20,6 +21,7 @@ export type NotebookTemplateId =
   | "gl6-dis-rentier-v2"
   | "gl7-insout"
   | "gl8-growth"
+  | "opensimplest-levy"
   | "opensimplest"
   | "predator-prey"
   | "simple-epidemic"
@@ -86,6 +88,13 @@ export const NOTEBOOK_TEMPLATES: Record<NotebookTemplateId, NotebookTemplateDefi
     description:
       "Compact open-economy SFC notebook with four sectors, portfolio allocation, exchange-rate adjustment, and an export-shock scenario.",
     document: notebookFromJson(JSON.stringify(opensimplestNotebookJson))
+  },
+  "opensimplest-levy": {
+    id: "opensimplest-levy",
+    label: "OPENSIMPLEST Levy",
+    description:
+      "Levy WP 1105 aligned OPENSIMPLEST notebook using paper-style superscript symbols, lagged interest-rate flows, and a 150-period baseline.",
+    document: notebookFromJson(JSON.stringify(opensimplestLevyNotebookJson))
   },
   "predator-prey": {
     id: "predator-prey",

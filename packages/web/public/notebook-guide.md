@@ -118,8 +118,9 @@ Defines the core model equations.
 - `lag(varName)`: previous period value
 - `d(varName)`: change in variable (current - lag)
 - `dt`: time step (usually equals 1)
-- Standard operators: `+`, `-`, `*`, `/`, `^`
-- Functions: `max()`, `min()`, `exp()`, `log()`, `abs()`
+- Standard operators: `+`, `-`, `*`, `/`
+- Exponentiation: `pow(base, exponent)`. The `^` character is reserved for paper-style variable notation such as `H^P`.
+- Functions: `max()`, `min()`, `pow()`, `sqrt()`, `exp()`, `log()`, `abs()`
 
 **Equation ordering:**
 - Order does NOT matter - the solver determines execution order

@@ -7,7 +7,7 @@ import type {
 import { resolveMatrixStripSector, resolveStripMappingSources } from "./dependencySectors";
 import { buildNormalizedMatrixReferenceLabel } from "./matrixExpressionNormalization";
 
-const IGNORED_TOKENS = new Set(["d", "dt", "max", "min", "abs", "sqrt", "log", "exp"]);
+const IGNORED_TOKENS = new Set(["d", "dt", "max", "min", "abs", "sqrt", "log", "exp", "pow"]);
 const EXOGENOUS_BAND = "Exogenous";
 const UNMAPPED_BAND = "Unmapped";
 
@@ -356,7 +356,7 @@ export function extractDependencyExpressionReferences(
 }
 
 function extractVariableNames(source: string): string[] {
-  const tokens = source.match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? [];
+  const tokens = source.match(/[A-Za-z_][A-Za-z0-9_.^{}]*/g) ?? [];
   return Array.from(
     new Set(tokens.filter((token) => !IGNORED_TOKENS.has(token.toLowerCase())))
   );

@@ -18,7 +18,6 @@ type TokenType =
   | "MINUS"
   | "STAR"
   | "SLASH"
-  | "CARET"
   | "LPAREN"
   | "RPAREN"
   | "LBRACE"
@@ -39,8 +38,9 @@ interface Token {
   text: string;
 }
 
-const LAG_PATTERN = /([A-Za-z_][A-Za-z0-9_\.]*)\[-1\]/g;
-const DIFF_PATTERN = /\bd\(([A-Za-z_][A-Za-z0-9_\.]*)\)/g;
+const IDENTIFIER_SOURCE = String.raw`[A-Za-z_][A-Za-z0-9_\.\^\{\}]*`;
+const LAG_PATTERN = new RegExp(`(${IDENTIFIER_SOURCE})\\[-1\\]`, "g");
+const DIFF_PATTERN = new RegExp(`\\bd\\(\\s*(${IDENTIFIER_SOURCE})\\s*\\)`, "g");
 
 class Lexer {
   private index = 0;
@@ -64,8 +64,6 @@ class Lexer {
         return this.single("STAR");
       case "/":
         return this.single("SLASH");
-      case "^":
-        return this.single("CARET");
       case "(":
         return this.single("LPAREN");
       case ")":
@@ -144,7 +142,7 @@ class Lexer {
     const start = this.index;
     while (this.index < this.source.length) {
       const c = this.source[this.index] ?? "";
-      if (/[A-Za-z0-9_.]/.test(c)) {
+      if (/[A-Za-z0-9_.^{}]/.test(c)) {
         this.index += 1;
       } else {
         break;
@@ -292,17 +290,7 @@ class Parser {
       return { type: "Unary", op: "-", expr: this.parseUnary() };
     }
 
-    return this.parsePower();
-  }
-
-  private parsePower(): Expr {
-    let expression = this.parsePrimary();
-    if (this.current.type === "CARET") {
-      this.advance();
-      const right = this.parseUnary();
-      expression = { type: "Binary", op: "^", left: expression, right };
-    }
-    return expression;
+    return this.parsePrimary();
   }
 
   private parsePrimary(): Expr {
@@ -363,6 +351,13 @@ class Parser {
         const second = this.parseTopLevelExpression();
         this.expect("RPAREN");
         return { type: "Function", name: identifier, args: [first, second] };
+      }
+      case "pow": {
+        const base = this.parseTopLevelExpression();
+        this.expect("COMMA");
+        const exponent = this.parseTopLevelExpression();
+        this.expect("RPAREN");
+        return { type: "Function", name: identifier, args: [base, exponent] };
       }
       default:
         throw new Error(`Unsupported function: ${identifier}`);

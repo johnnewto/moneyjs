@@ -635,6 +635,65 @@ describe("App", () => {
     expect(screen.getAllByRole("button", { name: /bmw model/i }).length).toBeGreaterThan(0);
   });
 
+  it("asks the notebook assistant with current notebook context", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    const fetchMock = vi.fn(async (input: string) => {
+      if (input === "http://localhost:8787/v1/notebook-assistant/ask") {
+        return new Response(
+          `data: ${JSON.stringify({
+            type: "response.output_text.delta",
+            delta:
+              "The BMW notebook includes:\n\n- equations\n- solver options\n\nVariable `Y` is the income anchor.\n\nX = exp(epsilon0 + epsilon1 * log(lag(XR)) + epsilon2 * log(Yf))\n\n| Area | Included |\n| --- | --- |\n| Matrices | yes |"
+          })}\n\n`,
+          {
+            headers: {
+              "Content-Type": "text/event-stream"
+            }
+          }
+        );
+      }
+
+      throw new Error(`Unexpected fetch call: ${input}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await user.click(screen.getByRole("tab", { name: /^assistant$/i }));
+    await user.type(screen.getByLabelText(/beta password/i), "beta-test-password");
+    await user.type(screen.getByRole("textbox", { name: /question/i }), "What is this notebook?");
+    await user.click(screen.getByRole("button", { name: /^ask$/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "http://localhost:8787/v1/notebook-assistant/ask",
+        expect.any(Object)
+      );
+    });
+
+    const request = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+    const body = JSON.parse(String(request?.body)) as {
+      betaPassword?: string;
+      context?: string;
+      model?: string;
+      question?: string;
+    };
+    expect(body.betaPassword).toBe("beta-test-password");
+    expect(body.model).toBe("gpt-4.1");
+    expect(body.question).toBe("What is this notebook?");
+    expect(body.context).toContain("Notebook title: BMW Browser Notebook");
+    expect(body.context).toContain('"type": "matrix"');
+    expect(window.localStorage.getItem("sfcr:notebook-assistant-beta-password")).toBeNull();
+    const assistantLog = within(screen.getByRole("log", { name: /notebook assistant conversation/i }));
+    const assistantLogElement = screen.getByRole("log", { name: /notebook assistant conversation/i });
+    expect(assistantLog.getByText(/the bmw notebook includes:/i)).toBeInTheDocument();
+    expect(assistantLog.getByText(/equations/i).closest("li")).not.toBeNull();
+    expect(assistantLogElement.querySelector(".katex")).toBeNull();
+    expect(assistantLogElement.querySelector(".assistant-variable-code .variable-label-inline")).not.toBeNull();
+    expect(assistantLog.getByRole("cell", { name: /matrices/i })).toBeInTheDocument();
+  });
+
   it("wires drag-scroll surfaces in notebook mode", () => {
     window.location.hash = "#/notebook";
 
@@ -647,7 +706,7 @@ describe("App", () => {
 
     const notebookRail = screen.getByRole("tablist", {
       name: /notebook sidebar panels/i
-    }).parentElement;
+    }).closest(".notebook-outline");
     expect(notebookRail).not.toBeNull();
     expect(notebookRail?.className).toContain("notebook-outline");
     expect(notebookRail?.className).toContain("drag-scroll-surface");
@@ -956,6 +1015,25 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { name: /^dis model$/i }).length).toBeGreaterThan(0);
     expect(window.location.hash).toBe("#/notebook/gl6-dis");
+  });
+
+  it("renders notebook contents titles through the shared math label component", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    await user.selectOptions(screen.getByLabelText(/notebook template/i), "opensimplest-levy");
+    await user.click(screen.getByRole("tab", { name: /^contents$/i }));
+
+    const outlinePanel = document.getElementById("notebook-outline-panel");
+    expect(outlinePanel).not.toBeNull();
+    if (!(outlinePanel instanceof HTMLElement)) {
+      throw new Error("Expected notebook outline panel.");
+    }
+
+    expect(within(outlinePanel).getByText(/^overview$/i).closest(".variable-math-label")).not.toBeNull();
+    expect(screen.getAllByText(/opensi?mplest levy/i).length).toBeGreaterThan(0);
   });
 
   it("enables the sectors strip-source button when active matrices provide sectors", async () => {

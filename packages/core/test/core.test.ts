@@ -43,9 +43,22 @@ describe("parser", () => {
   });
 
   it("preserves operator precedence", () => {
-    const equation = parseEquation("x", "a + b * c ^ d");
+    const equation = parseEquation("x", "a + b * pow(c, d)");
     expect(equation.expression.type).toBe("Binary");
     expect(new Set(equation.currentDependencies)).toEqual(new Set(["a", "b", "c", "d"]));
+  });
+
+  it("parses Levy-style superscript names as variables", () => {
+    const equation = parseEquation("H^P", "V - B^P - BF^{P} * xr + lag(B^{CB}) + d(H^S)");
+
+    expect(new Set(equation.currentDependencies)).toEqual(
+      new Set(["V", "B^P", "BF^{P}", "xr", "H^S"])
+    );
+    expect(new Set(equation.lagDependencies)).toEqual(new Set(["B^{CB}", "H^S"]));
+  });
+
+  it("requires pow() for exponentiation", () => {
+    expect(() => parseExpression("a ^ b")).toThrow("Unexpected character: ^");
   });
 
   it("normalizes R-style lag and diff syntax", () => {

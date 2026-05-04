@@ -4,6 +4,11 @@ Cloudflare Worker proxy for the browser chat builder. It keeps the OpenAI API ke
 
 Detailed usage notes are in `../../devdocs/chat-builder-serverless.md`.
 
+Endpoints:
+
+- `POST /v1/chat-builder/draft`: generate a full notebook draft.
+- `POST /v1/notebook-assistant/ask`: read-only Q&A about the current notebook.
+
 ## Local Development
 
 Create local secrets:
@@ -20,7 +25,12 @@ Start the local Node adapter:
 pnpm chat-api:dev
 ```
 
-The chat-builder system prompt is in `packages/chat-api/prompts/chat-builder-system.md`. In local Node development it is read on every request, so prompt edits do not require restarting `pnpm chat-api:dev`.
+Editable local prompts live in `packages/chat-api/prompts/`:
+
+- `chat-builder-system.md`: full notebook draft generation.
+- `notebook-assistant-system.md`: read-only notebook Q&A responses.
+
+In local Node development these files are read on every request, so prompt edits do not require restarting `pnpm chat-api:dev`.
 
 Point the web app at the Worker:
 

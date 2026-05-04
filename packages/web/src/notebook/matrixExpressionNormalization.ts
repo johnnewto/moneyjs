@@ -6,6 +6,8 @@ export interface NormalizedMatrixOccurrence {
   variable: string;
 }
 
+const IDENTIFIER_PATTERN = String.raw`[A-Za-z_][A-Za-z0-9_.^{}]*`;
+
 export function extractNormalizedMatrixOccurrences(expression: string): NormalizedMatrixOccurrence[] {
   const trimmed = expression.trim();
   const sign: NormalizedMatrixOccurrenceSign = trimmed.startsWith("-")
@@ -15,13 +17,16 @@ export function extractNormalizedMatrixOccurrences(expression: string): Normaliz
       : "neutral";
   const normalized = trimmed.replace(/^[-+]+\s*/, "").trim();
 
-  const deltaMatch = normalized.match(/^d\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)$/i);
+  const deltaMatch = normalized.match(new RegExp(`^d\\(\\s*(${IDENTIFIER_PATTERN})\\s*\\)$`, "i"));
   if (deltaMatch?.[1]) {
     return [{ sign, variable: deltaMatch[1], displayLabel: `d${deltaMatch[1]}` }];
   }
 
   const changeMatch = normalized.match(
-    /^\(?\s*([A-Za-z_][A-Za-z0-9_]*)\s*-\s*(?:lag\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)|([A-Za-z_][A-Za-z0-9_]*)\s*\[-1\])\s*\)?$/i
+    new RegExp(
+      `^\\(?\\s*(${IDENTIFIER_PATTERN})\\s*-\\s*(?:lag\\(\\s*(${IDENTIFIER_PATTERN})\\s*\\)|(${IDENTIFIER_PATTERN})\\s*\\[-1\\])\\s*\\)?$`,
+      "i"
+    )
   );
   const currentVariable = changeMatch?.[1];
   const laggedVariable = changeMatch?.[2] ?? changeMatch?.[3];
@@ -30,7 +35,10 @@ export function extractNormalizedMatrixOccurrences(expression: string): Normaliz
   }
 
   const productMatch = normalized.match(
-    /^(?:lag\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)|([A-Za-z_][A-Za-z0-9_]*)\s*\[-1\]|([A-Za-z_][A-Za-z0-9_]*))\s*\*\s*(?:lag\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)|([A-Za-z_][A-Za-z0-9_]*)\s*\[-1\]|([A-Za-z_][A-Za-z0-9_]*))$/i
+    new RegExp(
+      `^(?:lag\\(\\s*(${IDENTIFIER_PATTERN})\\s*\\)|(${IDENTIFIER_PATTERN})\\s*\\[-1\\]|(${IDENTIFIER_PATTERN}))\\s*\\*\\s*(?:lag\\(\\s*(${IDENTIFIER_PATTERN})\\s*\\)|(${IDENTIFIER_PATTERN})\\s*\\[-1\\]|(${IDENTIFIER_PATTERN}))$`,
+      "i"
+    )
   );
   if (productMatch) {
     const left = productMatch[1] ?? productMatch[2] ?? productMatch[3];
@@ -45,12 +53,12 @@ export function extractNormalizedMatrixOccurrences(expression: string): Normaliz
     }
   }
 
-  const lagMatch = normalized.match(/^lag\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)$/i);
+  const lagMatch = normalized.match(new RegExp(`^lag\\(\\s*(${IDENTIFIER_PATTERN})\\s*\\)$`, "i"));
   if (lagMatch?.[1]) {
     return [{ sign, variable: lagMatch[1], displayLabel: lagMatch[1] }];
   }
 
-  const variableMatch = normalized.match(/^([A-Za-z_][A-Za-z0-9_]*)(?:\s*\[-1\])?$/);
+  const variableMatch = normalized.match(new RegExp(`^(${IDENTIFIER_PATTERN})(?:\\s*\\[-1\\])?$`));
   if (variableMatch?.[1]) {
     return [{ sign, variable: variableMatch[1], displayLabel: variableMatch[1] }];
   }

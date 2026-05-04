@@ -55,6 +55,23 @@ describe("EquationGridEditor", () => {
     expect(screen.getByText("gnd")).toHaveClass("formula-default");
   });
 
+  it("renders superscripted variable tokens in the preview layer", () => {
+    render(
+      <EquationGridEditor
+        equations={[{ id: "eq-1", name: "H^P", expression: "B^{CB} + yd^{HS}" }]}
+        issues={{}}
+        onChange={vi.fn()}
+        parameterNames={[]}
+      />
+    );
+
+    const cbSuperscript = screen.getByText("CB", { selector: ".formula-token sup" });
+    const hsSuperscript = screen.getByText("HS", { selector: ".formula-token sup" });
+
+    expect(cbSuperscript).toBeInTheDocument();
+    expect(hsSuperscript).toBeInTheDocument();
+  });
+
   it("clears a pinned trace when the same row and mode are clicked again", () => {
     render(
       <EquationGridEditor
