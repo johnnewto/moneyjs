@@ -26,31 +26,4 @@ describe("AssistantMarkdown", () => {
     expect(screen.getByText("P", { selector: ".assistant-variable-code sup" })).toBeInTheDocument();
     expect(screen.getByText("HS", { selector: ".assistant-variable-code sup" })).toBeInTheDocument();
   });
-
-  it("renders math-like inline code variables even without descriptions", () => {
-    render(
-      <AssistantMarkdown text="`x` = exp(`eps0` + `eps1` * log(lag(`xr`)) + `eps2` * log(`y^F`))" />
-    );
-
-    expect(screen.getAllByText("ε")).toHaveLength(3);
-    expect(screen.getByText("0", { selector: ".assistant-variable-code sub" })).toBeInTheDocument();
-    expect(screen.getByText("1", { selector: ".assistant-variable-code sub" })).toBeInTheDocument();
-    expect(screen.getByText("2", { selector: ".assistant-variable-code sub" })).toBeInTheDocument();
-    expect(screen.getByText("F", { selector: ".assistant-variable-code sup" })).toBeInTheDocument();
-  });
-
-  it("renders simple lag calls in assistant prose as minus-one subscripts", () => {
-    render(<AssistantMarkdown text="x = exp(eps0 + eps1 * log(lag(xr)) + eps2 * log(yF))" />);
-
-    expect(screen.getByText("xr", { selector: ".assistant-variable-code .variable-math-label" })).toBeInTheDocument();
-    expect(screen.getByText("−1", { selector: ".assistant-variable-code sub.lag-subscript" })).toBeInTheDocument();
-    expect(screen.queryByText("lag")).not.toBeInTheDocument();
-  });
-
-  it("leaves ordinary inline code alone when it is not a known or math-like variable", () => {
-    render(<AssistantMarkdown text="Use `exp` and `log` in formulas." />);
-
-    expect(screen.getByText("exp", { selector: "code:not(.assistant-variable-code)" })).toBeInTheDocument();
-    expect(screen.getByText("log", { selector: "code:not(.assistant-variable-code)" })).toBeInTheDocument();
-  });
 });

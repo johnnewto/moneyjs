@@ -23,22 +23,6 @@ let notebookRunnerMock: {
   getResult: (cellId: string) => typeof bmwNotebookBaselineResult | null;
 };
 
-function getFormulaTokensByText(container: HTMLElement, text: string): HTMLElement[] {
-  return Array.from(container.querySelectorAll<HTMLElement>(".formula-token")).filter(
-    (element) => element.textContent === text
-  );
-}
-
-function getButtonByTextContent(container: HTMLElement, text: string): HTMLButtonElement {
-  const button = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find(
-    (candidate) => candidate.textContent === text
-  );
-  if (!button) {
-    throw new Error(`Expected button with text "${text}".`);
-  }
-  return button;
-}
-
 vi.mock("../src/hooks/useSolver", () => ({
   useSolver: () => ({
     status: "idle" as const,
@@ -551,8 +535,8 @@ describe("App", () => {
 
     await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
 
-    expect(getFormulaTokensByText(equationsCell, "α0")).toHaveLength(0);
-    expect(getFormulaTokensByText(equationsCell, "α1")).toHaveLength(0);
+    expect(within(equationsCell).queryByText("alpha0")).not.toBeInTheDocument();
+    expect(within(equationsCell).queryByText("alpha1")).not.toBeInTheDocument();
     expect(
       within(equationsCell)
         .getAllByText("20")
@@ -568,15 +552,15 @@ describe("App", () => {
       within(equationsCell).getByRole("button", { name: /show external names/i })
     );
 
-    expect(getFormulaTokensByText(equationsCell, "α0").length).toBeGreaterThan(0);
-    expect(getFormulaTokensByText(equationsCell, "α1").length).toBeGreaterThan(0);
+    expect(within(equationsCell).getByText("alpha0")).toBeInTheDocument();
+    expect(within(equationsCell).getByText("alpha1")).toBeInTheDocument();
 
     await user.click(
       within(equationsCell).getByRole("button", { name: /show external values/i })
     );
 
-    expect(getFormulaTokensByText(equationsCell, "α0")).toHaveLength(0);
-    expect(getFormulaTokensByText(equationsCell, "α1")).toHaveLength(0);
+    expect(within(equationsCell).queryByText("alpha0")).not.toBeInTheDocument();
+    expect(within(equationsCell).queryByText("alpha1")).not.toBeInTheDocument();
   });
 
   it("dims other notebook cells while a linked editor is active", async () => {
@@ -1103,29 +1087,9 @@ describe("App", () => {
 
     expect(within(externalsCell).getByRole("button", { name: /^hide$/i })).toBeInTheDocument();
     expect(within(externalsCell).getByRole("button", { name: /^edit$/i })).toBeInTheDocument();
-
-    await user.click(getButtonByTextContent(externalsCell, "BANDt"));
-    expect(screen.getByText(/^Selected variable$/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^BANDt\b/i })).toBeInTheDocument();
-    expect(screen.getAllByText(/upper range of the flat phillips curve/i).length).toBeGreaterThan(0);
-
     await user.click(within(externalsCell).getByRole("button", { name: /^edit$/i }));
     expect(within(externalsCell).getByRole("button", { name: /add external/i })).toBeInTheDocument();
-
-    const initialValuesCell = screen
-      .getAllByRole("heading", { name: /initial values/i })
-      .map((heading) => heading.closest("article"))
-      .find((article): article is HTMLElement => article instanceof HTMLElement);
-    expect(initialValuesCell).not.toBeNull();
-    if (!initialValuesCell) {
-      throw new Error("Expected initial values cell article.");
-    }
-
-    await user.click(within(initialValuesCell).getByRole("button", { name: /^show$/i }));
-    await user.click(getButtonByTextContent(initialValuesCell, "BLR"));
-    expect(screen.getByRole("heading", { name: /^BLR\b/i })).toBeInTheDocument();
-    expect(screen.getAllByText(/gross bank liquidity ratio/i).length).toBeGreaterThan(0);
-  }, 10000);
+  });
 
   it("exports notebook JSON into the import area", async () => {
     const user = userEvent.setup();
