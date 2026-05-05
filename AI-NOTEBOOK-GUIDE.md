@@ -99,6 +99,7 @@ Defines the core model equations.
 **Expression syntax:**
 - `lag(varName)`: previous period value
 - `d(varName)`: change in variable (current - lag)
+- `I(flowExpr)`: stock accumulation shorthand. On the equation left-hand side `X`, `X = I(flowExpr)` is equivalent to `X = lag(X) + flowExpr * dt`.
 - `dt`: time step (usually equals 1)
 - Standard operators: `+`, `-`, `*`, `/`
 - Exponentiation: `pow(base, exponent)`. The `^` character is reserved for paper-style variable notation such as `H^P`.

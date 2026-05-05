@@ -11,6 +11,20 @@ afterEach(() => {
   cleanup();
 });
 
+function getFormulaTokensByText(container: HTMLElement, text: string): HTMLElement[] {
+  return Array.from(container.querySelectorAll<HTMLElement>(".formula-token")).filter(
+    (element) => element.textContent === text
+  );
+}
+
+function getFormulaTokenByText(container: HTMLElement, text: string): HTMLElement {
+  const token = getFormulaTokensByText(container, text)[0];
+  if (!token) {
+    throw new Error(`Expected formula token "${text}"`);
+  }
+  return token;
+}
+
 describe("EquationGridEditor", () => {
   it("highlights dependent rows on hover and pins output traces on shift-click", () => {
     render(
@@ -43,7 +57,7 @@ describe("EquationGridEditor", () => {
   it("does not color functions or gnd as variables", () => {
     render(
       <EquationGridEditor
-        equations={[{ id: "eq-1", name: "Y", expression: "sin(x) + gnd + lag(K)" }]}
+        equations={[{ id: "eq-1", name: "Y", expression: "sin(x) + gnd + max(K)" }]}
         issues={{}}
         onChange={vi.fn()}
         parameterNames={[]}
@@ -51,7 +65,7 @@ describe("EquationGridEditor", () => {
     );
 
     expect(screen.getByText("sin")).toHaveClass("formula-function");
-    expect(screen.getByText("lag")).toHaveClass("formula-function");
+    expect(screen.getByText("max")).toHaveClass("formula-function");
     expect(screen.getByText("gnd")).toHaveClass("formula-default");
   });
 
@@ -70,6 +84,23 @@ describe("EquationGridEditor", () => {
 
     expect(cbSuperscript).toBeInTheDocument();
     expect(hsSuperscript).toBeInTheDocument();
+  });
+
+  it("renders simple lag calls as variable subscript minus one in the preview layer", () => {
+    render(
+      <EquationGridEditor
+        equations={[{ id: "eq-1", name: "YD", expression: "lag(r^F) * lag(B^{CB})" }]}
+        issues={{}}
+        onChange={vi.fn()}
+        parameterNames={[]}
+      />
+    );
+
+    expect(screen.getByDisplayValue("lag(r^F) * lag(B^{CB})")).toBeInTheDocument();
+    expect(screen.getByText("F", { selector: ".formula-token sup" })).toBeInTheDocument();
+    expect(screen.getByText("CB", { selector: ".formula-token sup" })).toBeInTheDocument();
+    expect(screen.getAllByText("−1", { selector: ".formula-token sub.lag-subscript" })).toHaveLength(2);
+    expect(screen.queryByText("lag")).not.toBeInTheDocument();
   });
 
   it("clears a pinned trace when the same row and mode are clicked again", () => {
@@ -199,7 +230,7 @@ describe("EquationGridEditor", () => {
 
     fireEvent.click(yRow, { ctrlKey: true });
 
-    const tauTokens = within(yRow).getAllByText("tau");
+    const tauTokens = getFormulaTokensByText(yRow, "τ");
     const yTokens = within(yRow).getAllByText("Y");
     const cTokens = within(yRow).getAllByText("C");
     const iTokens = within(yRow).getAllByText("I");
@@ -277,9 +308,11 @@ describe("EquationGridEditor", () => {
       />
     );
 
-    fireEvent.mouseEnter(screen.getByText("alpha1"));
+    const alphaToken = getFormulaTokenByText(document.body, "α1");
+
+    fireEvent.mouseEnter(alphaToken);
     expect(screen.getByRole("tooltip")).toHaveTextContent("Propensity to consume out of income");
-    fireEvent.mouseLeave(screen.getByText("alpha1"));
+    fireEvent.mouseLeave(alphaToken);
 
     const yToken = screen
       .getAllByText("Y")

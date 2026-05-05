@@ -1,9 +1,11 @@
+import type { ReactNode } from "react";
+
 import { formatValueWithUnits, type UnitMeta } from "../lib/unitMeta";
 
 interface NumericValueTextProps {
   className?: string;
   fallback?: string;
-  prefix?: string;
+  prefix?: ReactNode;
   unitMeta?: UnitMeta;
   value: number | undefined;
   options?: { maximumFractionDigits?: number; minimumFractionDigits?: number };

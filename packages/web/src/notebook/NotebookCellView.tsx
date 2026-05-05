@@ -556,8 +556,10 @@ export function NotebookCellView({
           <ExternalsCellView
             cell={cell}
             currentValues={getModelCurrentValues({ modelId: cell.modelId })}
+            editor={buildEditorStateForStandaloneModelSections(cells, cell.modelId)}
             issueMap={buildIssueMapForStandaloneModelSections(cells, cell.modelId)}
             onEditingChange={setIsLinkedEditorEditing}
+            onVariableInspectRequest={onVariableInspectRequest}
             title={cell.title}
             onChange={(externals) =>
               onCellChange(cell.id, (current) =>
@@ -577,8 +579,10 @@ export function NotebookCellView({
           <InitialValuesCellView
             cell={cell}
             currentValues={getModelCurrentValues({ modelId: cell.modelId })}
+            editor={buildEditorStateForStandaloneModelSections(cells, cell.modelId)}
             issueMap={buildIssueMapForStandaloneModelSections(cells, cell.modelId)}
             onEditingChange={setIsLinkedEditorEditing}
+            onVariableInspectRequest={onVariableInspectRequest}
             title={cell.title}
             variableDescriptions={variableDescriptions}
             variableUnitMetadata={variableUnitMetadata}
@@ -904,6 +908,7 @@ function ModelCellView({
                     {formatNotebookCurrentValue(
                       equation.name,
                       currentValues[equation.name.trim()],
+                      variableDescriptions,
                       variableUnitMetadata
                     )}
                   </span>
@@ -1212,6 +1217,7 @@ function EquationsCellView({
                     {formatNotebookCurrentValue(
                       equation.name,
                       currentValues[equation.name.trim()],
+                      variableDescriptions,
                       variableUnitMetadata
                     )}
                   </span>
@@ -1409,16 +1415,26 @@ function SolverCellView({
 function ExternalsCellView({
   cell,
   currentValues,
+  editor,
   issueMap,
   onEditingChange,
+  onVariableInspectRequest,
   title,
   onChange,
   onToggleCollapsed
 }: {
   cell: ExternalsCell;
   currentValues: Record<string, number | undefined>;
+  editor: EditorState;
   issueMap: Record<string, string | undefined>;
   onEditingChange?(isEditing: boolean): void;
+  onVariableInspectRequest(args: {
+    currentValues: Record<string, number | undefined>;
+    editor: EditorState;
+    selectedVariable: string;
+    variableDescriptions: VariableDescriptions;
+    variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
+  }): void;
   title: string;
   onChange(externals: EditorState["externals"]): void;
   onToggleCollapsed(): void;
@@ -1537,12 +1553,30 @@ function ExternalsCellView({
                   role="row"
                 >
                   <span className="notebook-model-view-name" role="cell">
-                    <VariableLabel
-                      currentValues={currentValues}
-                      name={external.name || "?"}
-                      variableDescriptions={variableDescriptions}
-                      variableUnitMetadata={variableUnitMetadata}
-                    />
+                    {external.name.trim() ? (
+                      <button
+                        type="button"
+                        className="result-variable-button"
+                        onClick={() =>
+                          onVariableInspectRequest({
+                            currentValues,
+                            editor,
+                            selectedVariable: external.name.trim(),
+                            variableDescriptions,
+                            variableUnitMetadata
+                          })
+                        }
+                      >
+                        <VariableLabel
+                          currentValues={currentValues}
+                          name={external.name}
+                          variableDescriptions={variableDescriptions}
+                          variableUnitMetadata={variableUnitMetadata}
+                        />
+                      </button>
+                    ) : (
+                      "?"
+                    )}
                   </span>
                   <span className="notebook-model-view-expression" role="cell">
                     {external.valueText || " "}
@@ -1551,6 +1585,7 @@ function ExternalsCellView({
                     {formatNotebookCurrentValue(
                       external.name,
                       currentValues[external.name.trim()],
+                      variableDescriptions,
                       variableUnitMetadata
                     )}
                   </span>
@@ -1570,8 +1605,10 @@ function ExternalsCellView({
 function InitialValuesCellView({
   cell,
   currentValues,
+  editor,
   issueMap,
   onEditingChange,
+  onVariableInspectRequest,
   title,
   variableDescriptions,
   variableUnitMetadata,
@@ -1580,8 +1617,16 @@ function InitialValuesCellView({
 }: {
   cell: InitialValuesCell;
   currentValues: Record<string, number | undefined>;
+  editor: EditorState;
   issueMap: Record<string, string | undefined>;
   onEditingChange?(isEditing: boolean): void;
+  onVariableInspectRequest(args: {
+    currentValues: Record<string, number | undefined>;
+    editor: EditorState;
+    selectedVariable: string;
+    variableDescriptions: VariableDescriptions;
+    variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
+  }): void;
   title: string;
   variableDescriptions: VariableDescriptions;
   variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
@@ -1667,7 +1712,17 @@ function InitialValuesCellView({
             isEmbedded
             issues={issueMap}
             onChange={setDraftInitialValues}
+            onSelectVariable={(selectedVariable) =>
+              onVariableInspectRequest({
+                currentValues,
+                editor: { ...editor, initialValues: draftInitialValues },
+                selectedVariable,
+                variableDescriptions,
+                variableUnitMetadata
+              })
+            }
             showHeading={false}
+            variableDescriptions={variableDescriptions}
             variableUnitMetadata={variableUnitMetadata}
           />
         </div>
@@ -1700,18 +1755,32 @@ function InitialValuesCellView({
                     .join(" ")}
                   role="row"
                 >
-                  <InstantTooltip
-                    as="span"
-                    className="notebook-model-view-name"
-                    role="cell"
-                    tooltip={
-                      initialValue.name
-                        ? getVariableDescription(variableDescriptions, initialValue.name)
-                        : undefined
-                    }
-                  >
-                    {initialValue.name || "?"}
-                  </InstantTooltip>
+                  <span className="notebook-model-view-name" role="cell">
+                    {initialValue.name.trim() ? (
+                      <button
+                        type="button"
+                        className="result-variable-button"
+                        onClick={() =>
+                          onVariableInspectRequest({
+                            currentValues,
+                            editor,
+                            selectedVariable: initialValue.name.trim(),
+                            variableDescriptions,
+                            variableUnitMetadata
+                          })
+                        }
+                      >
+                        <VariableLabel
+                          currentValues={currentValues}
+                          name={initialValue.name}
+                          variableDescriptions={variableDescriptions}
+                          variableUnitMetadata={variableUnitMetadata}
+                        />
+                      </button>
+                    ) : (
+                      "?"
+                    )}
+                  </span>
                   <span className="notebook-model-view-expression" role="cell">
                     {initialValue.valueText || " "}
                   </span>
@@ -1719,6 +1788,7 @@ function InitialValuesCellView({
                     {formatNotebookCurrentValue(
                       initialValue.name,
                       currentValues[initialValue.name.trim()],
+                      variableDescriptions,
                       variableUnitMetadata
                     )}
                   </span>
@@ -3411,6 +3481,7 @@ function formatMatrixNumber(value: number): string {
 function formatNotebookCurrentValue(
   name: string,
   value: number | undefined,
+  variableDescriptions?: VariableDescriptions,
   variableUnitMetadata?: ReturnType<typeof buildVariableUnitMetadata>
 ): React.JSX.Element | string {
   const trimmedName = name.trim();
@@ -3420,7 +3491,16 @@ function formatNotebookCurrentValue(
 
   return (
     <NumericValueText
-      prefix={`${trimmedName} = `}
+      prefix={
+        <>
+          <VariableLabel
+            name={trimmedName}
+            variableDescriptions={variableDescriptions}
+            variableUnitMetadata={variableUnitMetadata}
+          />{" "}
+          ={" "}
+        </>
+      }
       fallback="--"
       unitMeta={variableUnitMetadata?.get(trimmedName)}
       value={value}
@@ -3567,22 +3647,38 @@ function safeBuildRuntime(editor: EditorState) {
   }
 }
 
+function defaultNotebookEditorOptions(): EditorState["options"] {
+  return {
+    periods: 100,
+    solverMethod: "GAUSS_SEIDEL",
+    toleranceText: "1e-15",
+    maxIterations: 200,
+    defaultInitialValueText: "1e-15",
+    hiddenLeftVariable: "",
+    hiddenRightVariable: "",
+    hiddenToleranceText: "0.00001",
+    relativeHiddenTolerance: false
+  };
+}
+
+function buildEditorStateForStandaloneModelSections(cells: NotebookCell[], modelId: string): EditorState {
+  return buildEditorStateFromSections({
+    equations: findEquationsCell(cells, modelId)?.equations ?? [],
+    externals: findExternalsCell(cells, modelId)?.externals ?? [],
+    initialValues: findInitialValuesCell(cells, modelId)?.initialValues ?? [],
+    options: findSolverCell(cells, modelId)?.options ?? defaultNotebookEditorOptions()
+  });
+}
+
 function buildIssueMapForStandaloneModelSections(
   cells: NotebookCell[],
   modelId: string
 ): Record<string, string | undefined> {
-  const equationsCell = findEquationsCell(cells, modelId);
-  const solverCell = findSolverCell(cells, modelId);
-  if (!equationsCell || !solverCell) {
+  if (!findEquationsCell(cells, modelId)) {
     return {};
   }
 
-  const editor = buildEditorStateFromSections({
-    equations: equationsCell.equations,
-    externals: findExternalsCell(cells, modelId)?.externals ?? [],
-    initialValues: findInitialValuesCell(cells, modelId)?.initialValues ?? [],
-    options: solverCell.options
-  });
+  const editor = buildEditorStateForStandaloneModelSections(cells, modelId);
 
   return Object.fromEntries(
     [...validateEditorState(editor), ...diagnoseBuildRuntime(editor).issues].map((issue) => [

@@ -1,6 +1,8 @@
 import type { InitialValueRow } from "../lib/editorModel";
 import type { VariableUnitMetadata } from "../lib/unitMeta";
+import type { VariableDescriptions } from "../lib/variableDescriptions";
 import { NumericValueText } from "./NumericValueText";
+import { VariableLabel } from "./VariableLabel";
 
 interface InitialValuesEditorProps {
   currentValues?: Record<string, number | undefined>;
@@ -8,7 +10,9 @@ interface InitialValuesEditorProps {
   initialValues: InitialValueRow[];
   issues: Record<string, string | undefined>;
   onChange(next: InitialValueRow[]): void;
+  onSelectVariable?(variableName: string): void;
   showHeading?: boolean;
+  variableDescriptions?: VariableDescriptions;
   variableUnitMetadata?: VariableUnitMetadata;
 }
 
@@ -18,7 +22,9 @@ export function InitialValuesEditor({
   initialValues,
   issues,
   onChange,
+  onSelectVariable,
   showHeading = true,
+  variableDescriptions,
   variableUnitMetadata
 }: InitialValuesEditorProps) {
   return (
@@ -70,7 +76,13 @@ export function InitialValuesEditor({
               placeholder="Value"
             />
             <span className="initial-grid-current">
-              {renderCurrentValue(initialValue.name, currentValues[initialValue.name.trim()], variableUnitMetadata)}
+              {renderCurrentValue(
+                initialValue.name,
+                currentValues[initialValue.name.trim()],
+                variableDescriptions,
+                variableUnitMetadata,
+                onSelectVariable
+              )}
             </span>
             <span
               className={`initial-grid-status${
@@ -127,16 +139,41 @@ function removeRow<T>(rows: T[], index: number): T[] {
 function renderCurrentValue(
   name: string,
   value: number | undefined,
-  variableUnitMetadata?: VariableUnitMetadata
+  variableDescriptions?: VariableDescriptions,
+  variableUnitMetadata?: VariableUnitMetadata,
+  onSelectVariable?: (variableName: string) => void
 ): React.JSX.Element | string {
   const trimmedName = name.trim();
   if (!trimmedName) {
     return "";
   }
 
+  const label = (
+    <VariableLabel
+      name={trimmedName}
+      variableDescriptions={variableDescriptions}
+      variableUnitMetadata={variableUnitMetadata}
+    />
+  );
+
   return (
     <NumericValueText
-      prefix={`${trimmedName} = `}
+      prefix={
+        <>
+          {onSelectVariable ? (
+            <button
+              type="button"
+              className="result-variable-button"
+              onClick={() => onSelectVariable(trimmedName)}
+            >
+              {label}
+            </button>
+          ) : (
+            label
+          )}{" "}
+          ={" "}
+        </>
+      }
       fallback="--"
       unitMeta={variableUnitMetadata?.get(trimmedName)}
       value={value}

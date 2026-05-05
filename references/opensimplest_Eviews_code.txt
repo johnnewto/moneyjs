@@ -1,0 +1,334 @@
+
+
+Replication code
+The code below replicates the model and all figures in the article. Designed for Eviews14.
+	
+' =====================================================================
+' OPENSIMPLEST: The Smallest SFC Open Economy model
+' Francesco Zezza
+' Sapienza University of Rome and Levy Economics Institute
+' the code below replicates all figures in the article
+' =====================================================================
+
+close @all
+wfcreate(wf = simplest, page = v1) u 1 150
+
+' =====================================================================
+' Version 1
+' =====================================================================
+
+pageselect v1
+smpl @all
+
+' =====================================================================
+' ENDOGENOUS VARIABLES
+' =====================================================================
+
+series b_p
+b_p.label(d) Domestic bills held by households
+
+series b_cb
+b_cb.label(d) Domestic bills held by the central bank
+
+series b_s
+b_s.label(d) Total stock of domestic government bills
+
+series bw_p  
+bw_p.label(d) Foreign bills held by domestic households (in foreign currency)
+
+series pe
+pe.label(d) Household consumption
+
+series f_cb
+f_cb.label(d) Central bank profits
+
+series h_p
+h_p.label(d) Money balances held by households
+
+series h_s
+h_s.label(d) Money supply (high-powered money)
+
+series im
+im.label(d) Imports of goods and services
+
+series t
+t.label(d) Tax revenue
+
+series v
+v.label(d) Household net financial wealth
+
+series x
+x.label(d) Exports of goods and services
+
+series yd_r
+yd_r.label(d) Regular disposable income (excluding capital gains)
+
+series yd_hs
+yd_hs.label(d) Haig-Simons disposable income (including valuation effects)
+
+series y
+y.label(d) GDP / income (output)
+
+series ca
+ca.label(d) Current account balance (CA > 0 = surplus)
+
+series tb
+tb.label(d) Trade balance (exports - imports)
+
+series psbr
+psbr.label(d) Public Sector Borrowing Requirement (government deficit)
+
+series nafa
+nafa.label(d) Net acquisition of financial assets by domestic private sector (NAFA)
+
+series xr
+xr.label(d) Nominal exchange rate (domestic currency per unit of foreign currency)
+
+series b_w
+b_w.label(d) Foreign holdings of domestic government bills (residual from NETFA identity)
+
+series netfa
+netfa.label(d) Net foreign assets (country external position, NETFA)
+
+series sectoral_check
+sectoral_check.label(d) Sectoral balance identity (NAFA - PSBR - CA, should equal zero)
+
+' =====================================================================
+' EXOGENOUS VARIABLES
+' =====================================================================
+
+series g
+g.label(d) Government expenditure on goods and services
+
+series g_f
+g_f.label(d) Government expenditure growth rate (exogenous)
+
+series r
+r.label(d) Interest rate on domestic government bills
+
+series r_f
+r_f.label(d) Interest rate on foreign bills (exogenous)
+
+series y_f
+y_f.label(d) Foreign income (exogenous)
+
+series gy_f
+gy_f.label(d) Foreign income growth rate (exogenous)
+
+' =====================================================================
+' BEHAVIORAL PARAMETERS
+' =====================================================================
+
+series alpha1
+alpha1.label(d) Propensity to consume out of disposable income
+
+series alpha2  
+alpha2.label(d) Propensity to consume out of wealth
+
+series theta
+theta.label(d) Average tax rate on income
+
+series eps0
+eps0.label(d) Export equation constant term
+
+series eps1
+eps1.label(d) Export elasticity with respect to the exchange rate
+
+series eps2
+eps2.label(d) Export elasticity with respect to foreign income
+
+series mu0
+mu0.label(d) Import equation constant term
+
+series mu1
+mu1.label(d) Import elasticity with respect to the exchange rate
+
+series mu2
+mu2.label(d) Import elasticity with respect to domestic income
+
+series lambda10
+lambda10.label(d) Portfolio share parameter: domestic bills (baseline)
+
+series lambda11
+lambda11.label(d) Portfolio sensitivity to domestic interest rate (domestic bills)
+
+series lambda12
+lambda12.label(d) Portfolio sensitivity to foreign interest rate (domestic bills)
+
+series lambda20
+lambda20.label(d) Portfolio share parameter: foreign bills (baseline)
+
+series lambda21
+lambda21.label(d) Portfolio sensitivity to domestic interest rate (foreign bills)
+
+series lambda22
+lambda22.label(d) Portfolio sensitivity to foreign interest rate (foreign bills)
+
+' =====================================================================
+' PARAMETER VALUES
+' =====================================================================
+
+alpha1 = 0.75
+alpha2 = 0.13333  
+theta  = 0.2
+
+eps0 = -2.1
+eps1 =  0.7
+eps2 =  1.2
+
+mu0 = -2.1
+mu1 = 0.7
+mu2 =  1.2
+
+
+' NB: lambda10 and lambda20 DO NOT sum to one, because otherwise the CB holding would go negative. In two-country models, lambdas do sum to one since all demand for asset are specified
+lambda10 = 0.7
+lambda11 = 5
+lambda12 = 5
+lambda20 = 0.25
+lambda21 = 5
+lambda22 = 5
+
+' =====================================================================
+' EXCHANGE RATE ADJUSTMENT PARAMETERS
+' =====================================================================
+
+' xr adjustment speed (0.00272 = no adjustment, 0.0401 = immediate) 
+series phi  = 0.01
+' The model only converges to a steady state with values of phi [0.00272-0.401]
+' the lower phi, the higher the exports relative to imports, and thus the higher CA surplus. 
+' values of phi above 1.11 determine a CA deficit
+
+' =====================================================================
+' EXOGENOUS VALUES (BASELINE SCENARIO)
+' =====================================================================
+
+smpl 1 1
+xr = 1.141
+
+smpl @all
+g   = 16
+r   = 0.03
+r_f = 0.03
+y_f = 80
+
+
+' =====================================================================
+' INITIAL CONDITIONS (STEADY-STATE CALIBRATION)
+' =====================================================================
+
+smpl 1 1
+
+'y     = 80
+
+' Choose initial asset stocks (household bills, foreign bills, gov bills, foreign holdings)
+b_p  = 87.100
+bw_p = 21.775
+b_s  = 144.977 
+b_w  = 24.668
+
+
+' Compute NETFA consistently from bw_p, b_w and xr
+netfa = bw_p*xr - b_w
+
+' Enforce consistency: v = b_s + netfa so that h_p = h_s
+v = b_s + netfa
+
+' Household money from portfolio identity
+h_p = v - b_p - bw_p*xr
+
+' Central bank holdings and money supply from its balance sheet
+b_cb = b_s - b_p - b_w
+h_s  = b_cb
+
+' Set flows and checks at steady state
+f_cb = 0
+psbr = 0
+ca   = 0
+nafa = 0
+sectoral_check = 0
+
+series eps_log
+series eps_xr
+
+smpl @all
+eps_log = 1e-6
+eps_xr  = 1e-6
+
+' =====================================================================
+' MODEL EQUATIONS
+' =====================================================================
+
+model simplest
+
+' Income and wealth
+
+' 1. Disposable income
+simplest.append yd_r  = y + ( r(-1)*b_p(-1) + r_f(-1)*bw_p(-1)*xr ) - t
+' 2. Haig-Simons disposable income
+simplest.append yd_hs = yd_r + d(xr)*bw_p(-1)
+' 3. Wealth accumulation
+simplest.append v = v(-1) + yd_hs - pe
+' 4. Taxes
+simplest.append t = theta*(y + r(-1)*b_p(-1) + r_f(-1)*bw_p(-1)*xr)
+' 5. Income/output
+simplest.append y = pe + g + x - im
+' 6. Consumption
+simplest.append pe = alpha1*yd_hs + alpha2*v(-1)
+' 7. Private sector Net Acquisition of Financial Asset
+'simplest.append nafa = d(b_p) + d(bw_p)*xr + d(h_p)
+simplest.append nafa = psbr + ca
+
+
+' Trade
+' 8. Export
+simplest.append x  = exp(eps0 + eps1*log( xr(-1) ) + eps2*log( y_f ) )
+' 9. Import
+simplest.append im = exp(mu0 - mu1*log( xr(-1) ) + mu2*log( y ) )
+' 10. Trade balance
+simplest.append tb   = x - im
+
+' The following equations assure a more smooth convergence to steady-steate
+'simplest.append x  = exp(eps0 + eps1*log(@abs(xr(-1)) + eps_log) + eps2*log(@abs(y_f) + eps_log))
+'simplest.append im = exp(mu0 - mu1*log(@abs(xr(-1)) + eps_log) + mu2*log(@abs(y) + eps_log))
+
+' 11. Current Account Balance
+simplest.append ca   = tb + ( r_f(-1)*bw_p(-1)*xr - r(-1)*b_w(-1) ) 
+' 12. External position (i.e., Net Foreign Asset, NETFA, from CA + revaluations)
+simplest.append netfa = netfa(-1) + ca + ( d(xr)*bw_p(-1) )
+' 13. Foreign demand of domestic bills. From BSM
+simplest.append b_w   = bw_p*xr - netfa
+
+' Portfolio + money
+' 14. Demand for domestic bills
+simplest.append b_p  = v*(lambda10 + lambda11*r - lambda12*r_f)
+' 15. Demand for foreign bills
+simplest.append bw_p = v*(lambda20 - lambda21*r + lambda22*r_f)/xr
+' 16. Demand for money => determined residually
+simplest.append h_p  = v - b_p - bw_p*xr
+
+' CB, money supply
+' 17. CB profits
+simplest.append f_cb = r(-1)*b_cb(-1)
+' 18. CB holding of domestic bills
+simplest.append b_cb = b_s - b_p - b_w
+' 19. Money supply => NB: notice that h_s = h_p
+simplest.append h_s  = b_cb
+
+' Government
+' 20. Public Sector Borrowing Requirement (PSBR, i.e., the government deficit)
+simplest.append psbr = g + r(-1)*b_s(-1) - t - f_cb
+' 21. Supply of domestic bills
+simplest.append b_s  = b_s(-1) + psbr
+
+' 22. Exchange rate closure: CA-adjustment rule
+simplest.append xr = xr(-1) + phi*(-ca(-1))
+'simplest.append xr = xr(-1) + phi*(-ca)
+
+' Unnecessary equations, included for convenience
+
+' Notice that equation 7, 10, 11, and 20 are only included in the model for convenience of exposition, and to speed software computation
+
+' Accounting check
+simplest.append sectoral_check = nafa - psbr - ca
+
