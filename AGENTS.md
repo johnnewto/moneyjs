@@ -39,6 +39,8 @@ Common commands:
 - `pnpm web:build`
 - `pnpm typecheck`
 - `pnpm test`
+- `pnpm web:test:fast`
+- `pnpm web:test:integration`
 - `pnpm --filter @sfcr/core test`
 - `pnpm --filter @sfcr/web test`
 - `pnpm --filter @sfcr/web exec vitest run test/<file>.test.tsx`
@@ -47,6 +49,8 @@ Common commands:
 - After code changes, run the most relevant checks for the affected package.
 - For changes that cross package boundaries, run workspace `typecheck` and `test`.
 - If a task affects browser behavior, prefer validating through the web app path rather than only the references.
+- For most `packages/web` changes, prefer `pnpm web:test:fast` during iteration. It covers the broad non-notebook-integration suite quickly.
+- Run `pnpm web:test:integration` when changes affect notebook source import/export, linked cell editor behavior, or notebook navigation/inspection flows.
 - For narrow `packages/web` validation, prefer direct Vitest execution such as `pnpm --filter @sfcr/web exec vitest run test/AssistantMarkdown.test.tsx` instead of routing through the package `test` script.
 - For CSS-only or small component-only changes in `packages/web`, run the smallest related test file first, then widen only if the change touches shared UI infrastructure.
 
