@@ -11,6 +11,25 @@ afterEach(() => {
   cleanup();
 });
 
+describe("EquationGridEditor lag rendering", () => {
+  it("renders simple lag calls as variable subscript minus one in the preview layer", () => {
+    render(
+      <EquationGridEditor
+        equations={[{ id: "eq-1", name: "YD", expression: "lag(r^F) * lag(B^{CB})" }]}
+        issues={{}}
+        onChange={vi.fn()}
+        parameterNames={[]}
+      />
+    );
+
+    expect(screen.getByDisplayValue("lag(r^F) * lag(B^{CB})")).toBeInTheDocument();
+    expect(screen.getByText("F", { selector: ".formula-token sup" })).toBeInTheDocument();
+    expect(screen.getByText("CB", { selector: ".formula-token sup" })).toBeInTheDocument();
+    expect(screen.getAllByText("-1", { selector: ".formula-token sub.lag-subscript" })).toHaveLength(2);
+    expect(screen.queryByText("lag")).not.toBeInTheDocument();
+  });
+});
+
 function getFormulaTokensByText(container: HTMLElement, text: string): HTMLElement[] {
   return Array.from(container.querySelectorAll<HTMLElement>(".formula-token")).filter(
     (node) => node.textContent === text
@@ -57,8 +76,10 @@ describe("EquationGridEditor", () => {
     );
 
     expect(screen.getByText("sin")).toHaveClass("formula-function");
-    expect(screen.getByText("lag")).toHaveClass("formula-function");
     expect(screen.getByText("gnd")).toHaveClass("formula-default");
+    expect(screen.getByText("K")).toHaveClass("formula-uppercase");
+    expect(screen.getByText("-1", { selector: ".formula-token sub.lag-subscript" })).toBeInTheDocument();
+    expect(screen.queryByText("lag")).not.toBeInTheDocument();
   });
 
   it("renders superscripted variable tokens in the preview layer", () => {

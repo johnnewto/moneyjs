@@ -131,6 +131,15 @@ pnpm typecheck
 pnpm test
 ```
 
+Web test lanes:
+
+```bash
+pnpm web:test:fast
+pnpm web:test:integration
+```
+
+Use `pnpm web:test:fast` for quick feedback during most `packages/web` work. Use `pnpm web:test:integration` when a change affects notebook source flows, linked cell editors, or notebook navigation/inspection behavior.
+
 Core-only tests:
 
 ```bash

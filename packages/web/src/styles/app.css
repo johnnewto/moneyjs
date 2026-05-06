@@ -409,6 +409,12 @@ body.panel-splitter-body-lock {
   line-height: 0;
 }
 
+.formula-token .lag-subscript {
+  font-size: 0.78em;
+  font-weight: 650;
+  margin-left: 0.02em;
+}
+
 .assistant-markdown table {
   border-collapse: collapse;
   display: block;

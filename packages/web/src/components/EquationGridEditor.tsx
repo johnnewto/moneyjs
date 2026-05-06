@@ -333,27 +333,37 @@ export function highlightFormula(
   currentValues?: Record<string, number | undefined>
 ): ReactNode[] {
   const parts: ReactNode[] = [];
-  const tokenPattern = /([A-Za-z_][A-Za-z0-9_.^{}]*|\d+(?:\.\d+)?(?:e[+-]?\d+)?)/gi;
+  const tokenPattern =
+    /(lag\(\s*([A-Za-z_][A-Za-z0-9_.^{}]*)\s*\))|([A-Za-z_][A-Za-z0-9_.^{}]*|\d+(?:\.\d+)?(?:e[+-]?\d+)?)/gi;
   let lastIndex = 0;
 
   for (const match of source.matchAll(tokenPattern)) {
     const token = match[0];
+    const laggedVariable = match[2];
     const index = match.index ?? 0;
 
     if (index > lastIndex) {
       parts.push(source.slice(lastIndex, index));
     }
 
-    const tokenClass = classifyToken(token, parameterNames, source, index + token.length);
-    const normalizedToken = token.trim();
+    const normalizedToken = (laggedVariable ?? token).trim();
+    const tokenClass = laggedVariable
+      ? classifyVariableToken(normalizedToken, parameterNames)
+      : classifyToken(token, parameterNames, source, index + token.length);
     const renderedToken =
-      tokenClass === "formula-parameter" ? displayTokens?.get(normalizedToken) ?? token : token;
+      laggedVariable
+        ? displayTokens?.get(normalizedToken) ?? normalizedToken
+        : tokenClass === "formula-parameter"
+          ? displayTokens?.get(normalizedToken) ?? token
+          : token;
     const renderedTokenNode =
       tokenClass === "formula-function" ||
       tokenClass === "formula-number" ||
       tokenClass === "formula-default"
         ? renderedToken
-        : renderVariableMathLabel(String(renderedToken));
+        : laggedVariable
+          ? renderLaggedVariableMathLabel(String(renderedToken))
+          : renderVariableMathLabel(String(renderedToken));
     const traceClass = highlightedTokens?.get(normalizedToken) ?? null;
     const hasVariableMetadata =
       variableDescriptions?.has(normalizedToken) || variableUnitMetadata?.has(normalizedToken);
@@ -410,6 +420,28 @@ export function highlightFormula(
   }
 
   return parts;
+}
+
+function renderLaggedVariableMathLabel(name: string): ReactNode[] {
+  return [
+    ...renderVariableMathLabel(name),
+    <sub key={`lag-${name}`} className="lag-subscript">
+      -1
+    </sub>
+  ];
+}
+
+function classifyVariableToken(token: string, parameterNames: Set<string>): string {
+  if (parameterNames.has(token)) {
+    return "formula-parameter";
+  }
+  if (/^[A-Z]/.test(token)) {
+    return "formula-uppercase";
+  }
+  if (/^[a-z]/.test(token)) {
+    return "formula-lowercase";
+  }
+  return "formula-default";
 }
 
 function classifyToken(

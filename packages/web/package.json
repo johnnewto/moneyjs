@@ -9,6 +9,8 @@
     "format:notebooks": "node scripts/format-notebook-json.mjs",
     "units:report": "node scripts/unit-metadata-report.mjs",
     "lint": "tsc -p tsconfig.json --noEmit",
+    "test:fast": "vitest run test --exclude test/App.notebook-source.test.tsx --exclude test/App.notebook-cell-editors.test.tsx --exclude test/App.notebook-navigation.test.tsx",
+    "test:integration": "vitest run test/App.notebook-source.test.tsx test/App.notebook-cell-editors.test.tsx test/App.notebook-navigation.test.tsx",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
