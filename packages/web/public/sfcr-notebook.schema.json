@@ -121,7 +121,6 @@
       "required": ["label", "values"],
       "properties": {
         "band": { "type": "string" },
-        "Band": { "type": "string" },
         "label": { "type": "string" },
         "values": {
           "type": "array",

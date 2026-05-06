@@ -324,11 +324,15 @@ This cell owns the initial-values section for one notebook model. Hide/show only
 - variables: string[]`;
     case "matrix":
       return `Required fields:
-- title
-- id
-- type: "matrix"
-- columns: string[]
-- rows: [{ "label": string, "values": string[] }]`;
+    - title
+    - id
+    - type: "matrix"
+    - columns: string[]
+    - rows: [{ "label": string, "values": string[] }]
+
+    Behavior:
+    Use Grid mode in the source editor to edit columns, row labels, and values directly.
+    Switch to JSON only for bulk copy, paste, or advanced edits.`;
     case "sequence":
       return `Required fields:
 - title

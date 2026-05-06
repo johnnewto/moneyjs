@@ -5,7 +5,7 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { runBaseline as runCoreBaseline } from "@sfcr/core";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { bmwBaselineModel, bmwBaselineOptions } from "../../core/src/fixtures/bmw";
 import { App } from "../src/app/App";
@@ -39,7 +39,45 @@ vi.mock("../src/notebook/useNotebookRunner", () => ({
   useNotebookRunner: () => notebookRunnerMock
 }));
 
+function getNotebookSourceTextArea(): HTMLTextAreaElement {
+  return screen.getByTestId("notebook-source-text") as HTMLTextAreaElement;
+}
+
+async function setNotebookSourceFormat(
+  user: ReturnType<typeof userEvent.setup>,
+  format: "json" | "markdown"
+): Promise<void> {
+  const editorTab = screen.getByRole("tab", { name: /^editor$/i });
+  if (editorTab.getAttribute("aria-selected") !== "true") {
+    await user.click(editorTab);
+  }
+
+  const downloadButton = screen.getByRole("button", { name: /download /i });
+  const currentFormat = (downloadButton.textContent ?? "").toLowerCase().includes("markdown")
+    ? "markdown"
+    : "json";
+
+  if (currentFormat !== format) {
+    await user.click(screen.getByRole("button", { name: /source format is /i }));
+  }
+}
+
 describe("App", () => {
+  beforeAll(() => {
+    if (typeof Range !== "undefined") {
+      const emptyClientRects = {
+        length: 0,
+        item: () => null,
+        [Symbol.iterator]: function* emptyClientRectIterator() {
+          return;
+        }
+      } as DOMRectList;
+
+      Range.prototype.getClientRects ??= () => emptyClientRects;
+      Range.prototype.getBoundingClientRect ??= () => new DOMRect();
+    }
+  });
+
   beforeEach(() => {
     window.location.hash = "#/workspace";
     window.localStorage.clear();
@@ -581,6 +619,7 @@ describe("App", () => {
     const notebookSheet = screen.getByRole("region", { name: /notebook sheet/i });
     expect(notebookSheet.className).toContain("notebook-has-active-editor");
     expect(equationsCell.className).toContain("notebook-cell-is-active-editor");
+    await user.click(screen.getByRole("tab", { name: /^contents$/i }));
     const activeOutlineItem = screen
       .getAllByRole("button", { name: /bmw model/i })
       .map((button) => button.closest("li"))
@@ -618,15 +657,29 @@ describe("App", () => {
     });
   });
 
-  it("switches the notebook rail to the contents tab", async () => {
+  it("opens the notebook rail on the contents tab by default", () => {
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    expect(screen.getByRole("tab", { name: /^contents$/i })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+    expect(screen.getAllByRole("button", { name: /bmw model/i }).length).toBeGreaterThan(0);
+  });
+
+  it("switches the notebook rail back to the contents tab", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";
 
     render(<App />);
 
+    await user.click(screen.getByRole("tab", { name: /^assistant$/i }));
+
     expect(screen.queryByRole("button", { name: /bmw model/i })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /^contents$/i }));
+    await user.click(screen.getByRole("tab", { name: /^contents$/i }));
 
     expect(screen.getByRole("tab", { name: /^contents$/i })).toHaveAttribute(
       "aria-selected",
@@ -710,6 +763,23 @@ describe("App", () => {
     expect(notebookRail).not.toBeNull();
     expect(notebookRail?.className).toContain("notebook-outline");
     expect(notebookRail?.className).toContain("drag-scroll-surface");
+  });
+
+  it("orders notebook sidebar tabs with contents first and editor after assistant", () => {
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    const notebookRail = screen.getByRole("tablist", {
+      name: /notebook sidebar panels/i
+    });
+
+    expect(within(notebookRail).getAllByRole("tab").map((tab) => tab.textContent?.trim())).toEqual([
+      "Contents",
+      "Inspect",
+      "Assistant",
+      "Editor"
+    ]);
   });
 
   it("renders BMW transaction-flow matrix values with flow units inferred from the full expression", () => {
@@ -1091,18 +1161,108 @@ describe("App", () => {
     expect(within(externalsCell).getByRole("button", { name: /add external/i })).toBeInTheDocument();
   });
 
-  it("exports notebook JSON into the import area", async () => {
+  it("renders notebook JSON in the editor when JSON is selected", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";
 
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: /^export$/i }));
+    await setNotebookSourceFormat(user, "json");
 
-    expect(screen.getByDisplayValue(/"title": "BMW Browser Notebook"/i)).toBeInTheDocument();
-    expect(
-      screen.getByDisplayValue(/\{ "id": "intro", "type": "markdown", "title": "Overview", "source":/i)
-    ).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /notebook source editor/i })).toBeInTheDocument();
+    expect(getNotebookSourceTextArea().value).toMatch(/"title": "BMW Browser Notebook"/i);
+    expect(getNotebookSourceTextArea().value).toMatch(
+      /\{ "id": "intro", "type": "markdown", "title": "Overview", "source":/i
+    );
+    expect(document.querySelector(".notebook-code-editor .cm-lineWrapping")).toBeNull();
+    expect(document.querySelector(".notebook-code-editor .cm-scroller")).toBeTruthy();
+  });
+
+  it("renders and previews notebook JSON from the editor tab", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    expect(screen.getByRole("tab", { name: /^contents$/i })).toHaveAttribute("aria-selected", "true");
+
+    await user.click(screen.getByRole("tab", { name: /^editor$/i }));
+
+    expect(screen.getByRole("tab", { name: /^editor$/i })).toHaveAttribute("aria-selected", "true");
+
+    const textarea = getNotebookSourceTextArea();
+
+    expect(textarea.value).toContain('"title": "BMW Browser Notebook"');
+    expect(textarea.value).toContain('"type": "equations"');
+
+    fireEvent.change(textarea, {
+      target: { value: textarea.value.replace("BMW Browser Notebook", "JSON Notebook") }
+    });
+    await user.click(screen.getByRole("button", { name: /preview import/i }));
+
+    expect(screen.getByRole("heading", { name: /import preview/i })).toBeInTheDocument();
+    expect(screen.getByText(/Title: JSON Notebook/i)).toBeInTheDocument();
+  });
+
+  it("highlights the selected notebook cell in the JSON source editor without switching tabs", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    const overviewHeading = screen.getByRole("heading", { name: /^overview$/i });
+    const overviewArticle = overviewHeading.closest("article");
+    expect(overviewArticle).not.toBeNull();
+    if (!(overviewArticle instanceof HTMLElement)) {
+      throw new Error("Expected overview notebook cell article.");
+    }
+
+    await user.click(overviewArticle);
+
+    expect(screen.getByRole("tab", { name: /^contents$/i })).toHaveAttribute("aria-selected", "true");
+    expect(overviewArticle.className).toContain("notebook-cell-is-selected");
+
+    await user.click(screen.getByRole("tab", { name: /^editor$/i }));
+
+    await waitFor(() => {
+      expect(document.querySelector(".notebook-source-selected-cell-line")).not.toBeNull();
+    });
+  });
+
+  it("shows live schema validation and blocks applying invalid JSON", () => {
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    const textarea = getNotebookSourceTextArea();
+
+    fireEvent.change(textarea, {
+      target: { value: textarea.value.replace('"version": 1', '"version": 2') }
+    });
+
+    expect(screen.getByRole("region", { name: /notebook source validation/i })).toHaveTextContent(
+      /schema validation failed/i
+    );
+    expect(screen.getByRole("button", { name: /apply text/i })).toBeDisabled();
+  });
+
+  it("shows detailed model validation issues for invalid notebook JSON", () => {
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    const textarea = getNotebookSourceTextArea();
+
+    fireEvent.change(textarea, {
+      target: {
+        value: textarea.value.replace(/"expression":\s*"[^"]+"/, '"expression": ""')
+      }
+    });
+
+    expect(screen.getByRole("region", { name: /notebook source validation/i })).toHaveTextContent(
+      /equations\.0\.expression: equation expression is required\./i
+    );
+    expect(screen.getByRole("button", { name: /apply text/i })).toBeDisabled();
   });
 
   it("persists dependency toolbar choices into the notebook document", async () => {
@@ -1130,9 +1290,9 @@ describe("App", () => {
     await user.click(within(sequenceCell).getByRole("button", { name: /^sectors$/i }));
     expect(within(sequenceCell).getByRole("button", { name: /^columns$/i })).not.toHaveClass("is-active");
 
-    await user.click(screen.getByRole("button", { name: /^export$/i }));
+    await setNotebookSourceFormat(user, "json");
 
-    const exportArea = screen.getByDisplayValue(/"title": "BMW Browser Notebook"/i) as HTMLTextAreaElement;
+    const exportArea = getNotebookSourceTextArea();
     expect(exportArea.value).not.toContain('"viewMode": "strips"');
     expect(exportArea.value).toContain('"stripSectorSource": "columns"');
     expect(exportArea.value).toContain('"showAccountingStrips": true');
@@ -1140,23 +1300,21 @@ describe("App", () => {
     expect(exportArea.value).toContain('"showExogenous": false');
   });
 
-  it("exports notebook Markdown into the import area", async () => {
+  it("renders notebook Markdown in the editor when Markdown is selected", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";
 
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: /^import$/i }));
-    await user.click(screen.getByRole("button", { name: /^markdown$/i }));
-    await user.click(screen.getByRole("button", { name: /export to text/i }));
+    await setNotebookSourceFormat(user, "markdown");
 
-    expect(screen.getByDisplayValue(/```sfcr-equations/i)).toBeInTheDocument();
-    expect(screen.getByDisplayValue(/```sfcr-solver/i)).toBeInTheDocument();
-    expect(screen.getByDisplayValue(/```sfcr-externals/i)).toBeInTheDocument();
-    expect(screen.getByDisplayValue(/```sfcr-initial-values/i)).toBeInTheDocument();
-    expect(screen.getByDisplayValue(/```sfcr-matrix/i)).toBeInTheDocument();
-    expect(screen.getByDisplayValue(/```sfcr-sequence/i)).toBeInTheDocument();
-    expect(screen.getByDisplayValue(/# BMW Browser Notebook/i)).toBeInTheDocument();
+    expect(getNotebookSourceTextArea().value).toMatch(/```sfcr-equations/i);
+    expect(getNotebookSourceTextArea().value).toMatch(/```sfcr-solver/i);
+    expect(getNotebookSourceTextArea().value).toMatch(/```sfcr-externals/i);
+    expect(getNotebookSourceTextArea().value).toMatch(/```sfcr-initial-values/i);
+    expect(getNotebookSourceTextArea().value).toMatch(/```sfcr-matrix/i);
+    expect(getNotebookSourceTextArea().value).toMatch(/```sfcr-sequence/i);
+    expect(getNotebookSourceTextArea().value).toMatch(/# BMW Browser Notebook/i);
   });
 
   it("auto-detects Markdown during preview import even when JSON is selected", async () => {
@@ -1165,16 +1323,12 @@ describe("App", () => {
 
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: /^import$/i }));
-    await user.click(screen.getByRole("button", { name: /^markdown$/i }));
-    await user.click(screen.getByRole("button", { name: /export to text/i }));
-    const markdownTextarea = screen.getByPlaceholderText(
-      /paste notebook markdown with headings and fenced sfcr-\* blocks/i
-    ) as HTMLTextAreaElement;
+    await setNotebookSourceFormat(user, "markdown");
+    const markdownTextarea = getNotebookSourceTextArea();
     const markdownSource = markdownTextarea.value;
 
-    await user.click(screen.getByRole("button", { name: /^json$/i }));
-    fireEvent.change(screen.getByPlaceholderText(/paste a notebook json document/i), {
+    await setNotebookSourceFormat(user, "json");
+    fireEvent.change(getNotebookSourceTextArea(), {
       target: { value: markdownSource }
     });
     await user.click(screen.getByRole("button", { name: /preview import/i }));
@@ -1189,11 +1343,9 @@ describe("App", () => {
 
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: /^export$/i }));
+    await setNotebookSourceFormat(user, "json");
 
-    const textarea = screen.getByPlaceholderText(
-      /paste a notebook json document/i
-    ) as HTMLTextAreaElement;
+    const textarea = getNotebookSourceTextArea();
     const nextValue = textarea.value.replace("BMW Browser Notebook", "Imported Notebook");
 
     if (!nextValue) {
@@ -1217,11 +1369,9 @@ describe("App", () => {
 
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: /^export$/i }));
+    await setNotebookSourceFormat(user, "json");
 
-    const textarea = screen.getByPlaceholderText(
-      /paste a notebook json document/i
-    ) as HTMLTextAreaElement;
+    const textarea = getNotebookSourceTextArea();
     const originalValue = textarea.value;
     const editedValue = textarea.value.replace("BMW Browser Notebook", "Draft Notebook");
 
@@ -1229,16 +1379,19 @@ describe("App", () => {
 
     expect(screen.getByRole("button", { name: /apply text/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /discard text/i })).toBeInTheDocument();
+    await setNotebookSourceFormat(user, "markdown");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      /apply or discard the source draft before changing format/i
+    );
+    expect(getNotebookSourceTextArea()).toHaveValue(editedValue);
 
     await user.click(screen.getByRole("button", { name: /apply text/i }));
 
     expect(screen.getAllByText(/^Draft Notebook$/i).length).toBeGreaterThan(0);
 
-    await user.click(screen.getByRole("button", { name: /^export$/i }));
+    await setNotebookSourceFormat(user, "json");
 
-    const refreshedTextarea = screen.getByPlaceholderText(
-      /paste a notebook json document/i
-    ) as HTMLTextAreaElement;
+    const refreshedTextarea = getNotebookSourceTextArea();
     fireEvent.change(refreshedTextarea, { target: { value: originalValue } });
 
     await user.click(screen.getByRole("button", { name: /discard text/i }));
@@ -1278,7 +1431,7 @@ describe("App", () => {
     await user.click(applyButton);
 
     expect(screen.getByRole("heading", { name: /updated overview/i })).toBeInTheDocument();
-    expect(screen.getByText(/updated notebook overview\./i)).toBeInTheDocument();
+    expect(within(overviewArticle).getByText(/updated notebook overview\./i)).toBeInTheDocument();
   });
 
   it("edits a run cell title through the per-cell source editor", async () => {
@@ -1313,6 +1466,51 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: /updated baseline run/i })).toBeInTheDocument();
   });
 
+  it("edits a matrix cell through the grid source editor", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    const balanceSheetArticle = document.getElementById("balance-sheet");
+    expect(balanceSheetArticle).not.toBeNull();
+    if (!(balanceSheetArticle instanceof HTMLElement)) {
+      throw new Error("Expected balance sheet matrix article.");
+    }
+
+    await user.click(within(balanceSheetArticle).getByRole("button", { name: /^edit$/i }));
+
+    expect(
+      within(balanceSheetArticle).queryByRole("textbox", {
+        name: /source editor for bmw balance sheet/i
+      })
+    ).not.toBeInTheDocument();
+
+    const firstColumnInput = within(balanceSheetArticle).getByRole("textbox", {
+      name: /matrix column 1/i
+    }) as HTMLInputElement;
+    const firstSectorInput = within(balanceSheetArticle).getByRole("textbox", {
+      name: /matrix sector 1/i
+    }) as HTMLInputElement;
+
+    expect(
+      within(balanceSheetArticle).getByRole("button", {
+        name: /move matrix column 1 right/i
+      })
+    ).toBeInTheDocument();
+    expect(
+      within(balanceSheetArticle).getByRole("button", {
+        name: /move matrix row 1 down/i
+      })
+    ).toBeInTheDocument();
+
+    fireEvent.change(firstColumnInput, { target: { value: "Households edited" } });
+    fireEvent.change(firstSectorInput, { target: { value: "Households sector edited" } });
+    await user.click(within(balanceSheetArticle).getByRole("button", { name: /^apply$/i }));
+
+    expect(within(balanceSheetArticle).getByText(/households edited/i)).toBeInTheDocument();
+  });
+
   it("keeps linked equation edits local until apply and discards them on cancel", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";
@@ -1337,13 +1535,10 @@ describe("App", () => {
     fireEvent.change(firstVariableInput, { target: { value: draftValue } });
     expect(within(equationsCell).getByRole("button", { name: /^apply$/i })).toBeEnabled();
 
-    await user.click(screen.getByRole("button", { name: /^export$/i }));
-    const draftExport = screen.getByPlaceholderText(
-      /paste a notebook json document/i
-    ) as HTMLTextAreaElement;
+    await setNotebookSourceFormat(user, "json");
+    const draftExport = getNotebookSourceTextArea();
     expect(draftExport.value).not.toContain(`"name": "${draftValue}"`);
 
-    await user.click(screen.getByRole("button", { name: /^close$/i }));
     await user.click(within(equationsCell).getByRole("button", { name: /^cancel$/i }));
     await user.click(within(equationsCell).getByRole("button", { name: /^edit$/i }));
 
@@ -1358,10 +1553,8 @@ describe("App", () => {
     });
     await user.click(within(equationsCell).getByRole("button", { name: /^apply$/i }));
 
-    await user.click(screen.getByRole("button", { name: /^export$/i }));
-    const appliedExport = screen.getByPlaceholderText(
-      /paste a notebook json document/i
-    ) as HTMLTextAreaElement;
+    await setNotebookSourceFormat(user, "json");
+    const appliedExport = getNotebookSourceTextArea();
     expect(appliedExport.value).toContain(`"name": "${draftValue}"`);
   });
 

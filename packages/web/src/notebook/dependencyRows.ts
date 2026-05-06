@@ -330,9 +330,6 @@ function resolveOriginalBand(row: MatrixCell["rows"][number]): string | null {
   if (row.band !== undefined) {
     return normalizeBandLabel(row.band) || UNMAPPED_BAND;
   }
-  if (row.Band !== undefined) {
-    return normalizeBandLabel(row.Band) || UNMAPPED_BAND;
-  }
   return normalizeBandLabel(row.label) || null;
 }
 

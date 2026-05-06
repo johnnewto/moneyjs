@@ -442,7 +442,6 @@ For transactions-flow matrices with current/capital sub-columns:
   - Use empty string `""` for sum columns
 - `rows`: array of row objects
   - `band`: groups related rows (e.g., "Deposits", "Loans", "Consumption", "Investment")
-    - **Can also use `Band` (capitalized)** - both are supported
   - `label`: row description
   - `values`: array of expressions or constants
     - Use `"+VarName"` or `"-VarName"` for signs

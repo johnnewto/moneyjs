@@ -11,6 +11,12 @@ afterEach(() => {
   cleanup();
 });
 
+function getFormulaTokensByText(container: HTMLElement, text: string): HTMLElement[] {
+  return Array.from(container.querySelectorAll<HTMLElement>(".formula-token")).filter(
+    (node) => node.textContent === text
+  );
+}
+
 describe("EquationGridEditor", () => {
   it("highlights dependent rows on hover and pins output traces on shift-click", () => {
     render(
@@ -199,10 +205,10 @@ describe("EquationGridEditor", () => {
 
     fireEvent.click(yRow, { ctrlKey: true });
 
-    const tauTokens = within(yRow).getAllByText("tau");
-    const yTokens = within(yRow).getAllByText("Y");
-    const cTokens = within(yRow).getAllByText("C");
-    const iTokens = within(yRow).getAllByText("I");
+    const tauTokens = getFormulaTokensByText(yRow, "τ");
+    const yTokens = getFormulaTokensByText(yRow, "Y");
+    const cTokens = getFormulaTokensByText(yRow, "C");
+    const iTokens = getFormulaTokensByText(yRow, "I");
 
     expect(tauTokens[0]).toHaveClass("formula-parameter");
     expect(yTokens[0]).toHaveClass("formula-uppercase");
@@ -277,9 +283,15 @@ describe("EquationGridEditor", () => {
       />
     );
 
-    fireEvent.mouseEnter(screen.getByText("alpha1"));
+    const alphaToken = getFormulaTokensByText(document.body, "α1")[0];
+    expect(alphaToken).toBeDefined();
+    if (!alphaToken) {
+      throw new Error("Expected formula token for alpha1");
+    }
+
+    fireEvent.mouseEnter(alphaToken);
     expect(screen.getByRole("tooltip")).toHaveTextContent("Propensity to consume out of income");
-    fireEvent.mouseLeave(screen.getByText("alpha1"));
+    fireEvent.mouseLeave(alphaToken);
 
     const yToken = screen
       .getAllByText("Y")

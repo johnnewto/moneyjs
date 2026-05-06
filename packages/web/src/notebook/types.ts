@@ -112,7 +112,6 @@ export interface MatrixCell extends NotebookCellBase {
   sourceRunCellId?: string;
   rows: Array<{
     band?: string;
-    Band?: string;
     label: string;
     values: string[];
   }>;

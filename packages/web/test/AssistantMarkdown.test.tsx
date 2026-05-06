@@ -26,4 +26,40 @@ describe("AssistantMarkdown", () => {
     expect(screen.getByText("P", { selector: ".assistant-variable-code sup" })).toBeInTheDocument();
     expect(screen.getByText("HS", { selector: ".assistant-variable-code sup" })).toBeInTheDocument();
   });
+
+  it("renders math-like inline code variables even without descriptions", () => {
+    render(
+      <AssistantMarkdown text="`x` = exp(`eps0` + `eps1` * log(lag(`xr`)) + `eps2` * log(`y^F`))" />
+    );
+
+    expect(screen.getAllByText("ε")).toHaveLength(3);
+    expect(screen.getByText("0", { selector: ".assistant-variable-code sub" })).toBeInTheDocument();
+    expect(screen.getByText("1", { selector: ".assistant-variable-code sub" })).toBeInTheDocument();
+    expect(screen.getByText("2", { selector: ".assistant-variable-code sub" })).toBeInTheDocument();
+    expect(screen.getByText("F", { selector: ".assistant-variable-code sup" })).toBeInTheDocument();
+  });
+
+  it("leaves ordinary inline code alone when it is not a known or math-like variable", () => {
+    render(<AssistantMarkdown text="Use `exp` and `log` in formulas." />);
+
+    expect(screen.getByText("exp", { selector: "code:not(.assistant-variable-code)" })).toBeInTheDocument();
+    expect(screen.getByText("log", { selector: "code:not(.assistant-variable-code)" })).toBeInTheDocument();
+  });
+
+  it("renders equation code blocks without dark code-cell styling", () => {
+    const { container } = render(
+      <AssistantMarkdown text={"```\n`x` = exp(`eps0` + `eps1` * log(`y^F`))\n```"} />
+    );
+
+    expect(container.querySelector("pre > .assistant-equation-code")).not.toBeNull();
+    expect(screen.getAllByText("ε")).toHaveLength(2);
+    expect(screen.getByText("F", { selector: ".assistant-equation-code sup" })).toBeInTheDocument();
+  });
+
+  it("keeps ordinary code blocks as code blocks", () => {
+    const { container } = render(<AssistantMarkdown text={"```json\n{ \"x\": 1 }\n```"} />);
+
+    expect(container.querySelector("pre")).not.toBeNull();
+    expect(container.querySelector(".assistant-equation-code")).toBeNull();
+  });
 });

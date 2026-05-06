@@ -1,9 +1,11 @@
+import type { ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 
 import type { VariableDescriptions } from "../lib/variableDescriptions";
 import { VariableLabel } from "./VariableLabel";
+import { renderVariableMathPlainText } from "./VariableMathLabel";
 
 interface AssistantMarkdownProps {
   text: string;
@@ -27,7 +29,11 @@ export function AssistantMarkdown({ text, variableDescriptions }: AssistantMarkd
           code: ({ children, className }) => {
             const rawText = String(children).replace(/\n$/, "");
             const variableName = rawText.trim();
-            if (!className && variableName && variableDescriptions?.has(variableName)) {
+            if (!className && shouldRenderAssistantEquationCode(rawText)) {
+              return <code className="assistant-equation-code">{renderAssistantEquationText(rawText)}</code>;
+            }
+
+            if (!className && shouldRenderAssistantVariableCode(variableName, variableDescriptions)) {
               return (
                 <code className="assistant-variable-code">
                   <VariableLabel name={variableName} variableDescriptions={variableDescriptions} />
@@ -41,6 +47,45 @@ export function AssistantMarkdown({ text, variableDescriptions }: AssistantMarkd
         {annotatedText}
       </ReactMarkdown>
     </div>
+  );
+}
+
+function shouldRenderAssistantEquationCode(value: string): boolean {
+  const trimmed = value.trim();
+  // Treat short, bare equation snippets as prose math instead of dark code blocks.
+  return (
+    trimmed.includes("=") &&
+    trimmed.length <= 240 &&
+    !trimmed.includes("\n\n") &&
+    !/^\s*[{[]/.test(trimmed) &&
+    !/[;{}]/.test(trimmed)
+  );
+}
+
+function renderAssistantEquationText(value: string): ReactNode[] {
+  return value.split(/(`[^`\n]+`)/g).map((part, index) => {
+    if (part.startsWith("`") && part.endsWith("`")) {
+      const variableName = part.slice(1, -1).trim();
+      if (variableName) {
+        return <VariableLabel key={`variable-${index}`} name={variableName} />;
+      }
+    }
+
+    return part;
+  });
+}
+
+function shouldRenderAssistantVariableCode(
+  variableName: string,
+  variableDescriptions?: VariableDescriptions
+): boolean {
+  if (!variableName) {
+    return false;
+  }
+
+  return (
+    variableDescriptions?.has(variableName) === true ||
+    renderVariableMathPlainText(variableName) !== variableName
   );
 }
 

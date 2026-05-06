@@ -1,12 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { detectNotebookSourceFormat, notebookToJson, notebookToMarkdown, parseNotebookSource } from "./document";
+import {
+  analyzeNotebookSource,
+  detectNotebookSourceFormat,
+  notebookToJson,
+  notebookToMarkdown,
+  parseNotebookSource,
+  type NotebookSourceDiagnostic,
+  type NotebookSourceFormat
+} from "./document";
 import {
   buildEditorStateForNotebookModel,
   resolveNotebookModelKey,
   resolveRunCellModelKey
 } from "./modelSections";
 import { NotebookCellView } from "./NotebookCellView";
+import { SourceCodeEditor } from "./SourceCodeEditor";
 import {
   createNotebookFromTemplate,
   DEFAULT_NOTEBOOK_TEMPLATE_ID,
@@ -24,6 +33,7 @@ import type {
   SolverCell
 } from "./types";
 import { useNotebookRunner } from "./useNotebookRunner";
+import { validateNotebookDocument } from "./validation";
 import {
   diagnoseBuildRuntime,
   validateEditorState,
@@ -44,7 +54,7 @@ const NOTEBOOK_ASSISTANT_API_URL = resolveNotebookAssistantApiUrl();
 const NOTEBOOK_ASSISTANT_DEFAULT_MODEL = "gpt-4.1";
 const NOTEBOOK_ASSISTANT_MODEL_STORAGE_KEY = "sfcr:notebook-assistant-model";
 
-type NotebookRailTab = "inspect" | "contents" | "assistant" | "preview";
+type NotebookRailTab = "editor" | "inspect" | "contents" | "assistant" | "preview";
 
 interface NotebookAssistantMessage {
   id: string;
@@ -281,20 +291,40 @@ const NOTEBOOK_AI_MANIFEST_URL = resolveAppHref(".well-known/sfcr-notebook-guide
 const NOTEBOOK_AI_SCHEMA_URL = resolveAppHref("sfcr-notebook.schema.json");
 const NOTEBOOK_AI_PROMPT_URL = resolveAppHref("ai-prompts/create-sfcr-notebook.md");
 
+interface NotebookSourceValidation {
+  canApply: boolean;
+  diagnostics: NotebookSourceDiagnostic[];
+  document: NotebookDocument | null;
+  issues: string[];
+  modelIssueCount: number;
+  notebookIssueCount: number;
+  parse: ValidationStep;
+  schema: ValidationStep;
+}
+
+interface ValidationStep {
+  message: string;
+  status: "valid" | "invalid";
+}
+
 export function NotebookApp() {
   const mainColumnRef = useRef<HTMLDivElement | null>(null);
   const [notebookDocument, setNotebookDocument] = useState(() =>
     createNotebookFromTemplate(resolveNotebookTemplateIdFromHash(window.location.hash))
   );
-  const [importText, setImportText] = useState("");
-  const [committedImportText, setCommittedImportText] = useState("");
   const [uiMessage, setUiMessage] = useState<string | null>(null);
-  const [sourceFormat, setSourceFormat] = useState<"json" | "markdown">("json");
+  const [sourceFormat, setSourceFormat] = useState<NotebookSourceFormat>("json");
+  const [importText, setImportText] = useState(() =>
+    serializeNotebookSource(notebookDocument, sourceFormat)
+  );
+  const [committedImportText, setCommittedImportText] = useState(() =>
+    serializeNotebookSource(notebookDocument, sourceFormat)
+  );
   const [selectedPeriodIndex, setSelectedPeriodIndex] = useState(0);
   const [autoRunRevision, setAutoRunRevision] = useState(0);
-  const [isDataPanelOpen, setIsDataPanelOpen] = useState(false);
   const [activeEditorCellId, setActiveEditorCellId] = useState<string | null>(null);
-  const [activeRailTab, setActiveRailTab] = useState<NotebookRailTab>("inspect");
+  const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
+  const [activeRailTab, setActiveRailTab] = useState<NotebookRailTab>("contents");
   const [assistantMessages, setAssistantMessages] = useState<NotebookAssistantMessage[]>(
     NOTEBOOK_ASSISTANT_INITIAL_MESSAGES
   );
@@ -302,6 +332,7 @@ export function NotebookApp() {
   const [assistantBetaPassword, setAssistantBetaPassword] = useState("");
   const [assistantError, setAssistantError] = useState<string | null>(null);
   const [isAssistantAsking, setIsAssistantAsking] = useState(false);
+  const [selectedImportFileName, setSelectedImportFileName] = useState("No file chosen");
   const [assistantModel, setAssistantModel] = useState(() => {
     if (typeof window === "undefined") {
       return NOTEBOOK_ASSISTANT_DEFAULT_MODEL;
@@ -321,7 +352,7 @@ export function NotebookApp() {
   } | null>(null);
   const [importPreview, setImportPreview] = useState<{
     document: NotebookDocument;
-    source: "json" | "markdown";
+    source: NotebookSourceFormat;
   } | null>(null);
   const runner = useNotebookRunner(notebookDocument);
   const assistantVariableDescriptions = useMemo(
@@ -354,6 +385,11 @@ export function NotebookApp() {
     minRightWidthPx: 320,
     storageKey: "sfcr:notebook-panel-split"
   });
+  const hasPendingImportTextChanges = importText !== committedImportText;
+  const sourceValidation = useMemo(
+    () => buildNotebookSourceValidation(importText, sourceFormat),
+    [importText, sourceFormat]
+  );
 
   useEffect(() => {
     setSelectedPeriodIndex((current) => Math.min(current, maxResultPeriodIndex));
@@ -377,9 +413,21 @@ export function NotebookApp() {
 
   useEffect(() => {
     if (activeEditorCellId) {
-      setActiveRailTab("contents");
+      setActiveRailTab("editor");
+      setSelectedCellId(activeEditorCellId);
     }
   }, [activeEditorCellId]);
+
+  useEffect(() => {
+    if (importText !== committedImportText) {
+      return;
+    }
+
+    const nextSource = serializeNotebookSource(notebookDocument, sourceFormat);
+    setImportText(nextSource);
+    setCommittedImportText(nextSource);
+    setImportPreview(null);
+  }, [notebookDocument, sourceFormat]);
 
   useEffect(() => {
     if (!importPreview && activeRailTab === "preview") {
@@ -448,59 +496,76 @@ export function NotebookApp() {
   }, [notebookDocument.metadata.template]);
 
   function handleExportJson(): void {
-    const exported =
-      sourceFormat === "json"
-        ? notebookToJson(notebookDocument)
-        : notebookToMarkdown(notebookDocument);
-    setImportText(exported);
-    setCommittedImportText(exported);
-    setIsDataPanelOpen(true);
+    const exported = importText || serializeNotebookSource(notebookDocument, sourceFormat);
+    setActiveRailTab("editor");
     navigator.clipboard
       .writeText(exported)
       .then(() =>
         setUiMessage(
-          `Exported notebook ${sourceFormat === "json" ? "JSON" : "Markdown"} to the text area and clipboard.`
+          `Copied notebook ${formatNotebookSourceLabel(sourceFormat)} source to the clipboard.`
         )
       )
       .catch(() =>
         setUiMessage(
-          `Exported notebook ${sourceFormat === "json" ? "JSON" : "Markdown"} to the text area.`
+          `Notebook ${formatNotebookSourceLabel(sourceFormat)} source is shown in the editor.`
         )
       );
+  }
+
+  function handleSourceFormatChange(nextFormat: NotebookSourceFormat): void {
+    if (nextFormat === sourceFormat) {
+      return;
+    }
+
+    if (hasPendingImportTextChanges) {
+      setUiMessage("Apply or discard the source draft before changing format.");
+      return;
+    }
+
+    const nextSource = serializeNotebookSource(notebookDocument, nextFormat);
+    setSourceFormat(nextFormat);
+    setImportText(nextSource);
+    setCommittedImportText(nextSource);
+    setImportPreview(null);
+    setUiMessage(null);
   }
 
   function handleImportJson(): void {
     try {
       const parsed = parseNotebookSource(importText);
       setImportPreview({ document: parsed.document, source: parsed.format });
-      setCommittedImportText(importText);
       setUiMessage(
-        `Previewed notebook ${parsed.format === "json" ? "JSON" : "Markdown"}. Apply to replace the current notebook.`
+        `Previewed notebook ${formatNotebookSourceLabel(parsed.format)}. Apply to replace the current notebook.`
       );
     } catch (error) {
       setImportPreview(null);
       setUiMessage(
         error instanceof Error
           ? error.message
-          : `Invalid notebook ${sourceFormat === "json" ? "JSON" : "Markdown"}`
+          : `Invalid notebook ${formatNotebookSourceLabel(sourceFormat)}`
       );
     }
   }
 
   function handleApplyImportText(): void {
+    if (!sourceValidation.canApply) {
+      setUiMessage("Fix source validation issues before applying the draft.");
+      return;
+    }
+
     try {
       const parsed = parseNotebookSource(importText);
       replaceNotebookDocument(parsed.document);
       writeNotebookHash();
       setCommittedImportText(importText);
       setImportPreview(null);
-      setUiMessage(`Imported notebook ${parsed.format === "json" ? "JSON" : "Markdown"}.`);
+      setUiMessage(`Imported notebook ${formatNotebookSourceLabel(parsed.format)}.`);
     } catch (error) {
       setImportPreview(null);
       setUiMessage(
         error instanceof Error
           ? error.message
-          : `Invalid notebook ${sourceFormat === "json" ? "JSON" : "Markdown"}`
+          : `Invalid notebook ${formatNotebookSourceLabel(sourceFormat)}`
       );
     }
   }
@@ -510,15 +575,17 @@ export function NotebookApp() {
       const text = await file.text();
       const inferredFormat = inferFormatFromFileName(file.name) ?? detectNotebookSourceFormat(text);
       const parsed = parseNotebookSource(text, inferredFormat);
+      setSelectedImportFileName(file.name);
       setImportText(text);
       setCommittedImportText(text);
       setImportPreview({ document: parsed.document, source: parsed.format });
+      setSourceFormat(parsed.format);
       if (!isNotebookTemplateId(parsed.document.metadata.template ?? "")) {
         writeNotebookHash();
       }
-      setIsDataPanelOpen(true);
+      setActiveRailTab("editor");
       setUiMessage(
-        `Previewed ${file.name} as ${parsed.format === "json" ? "JSON" : "Markdown"}. Apply to replace the current notebook.`
+        `Previewed ${file.name} as ${formatNotebookSourceLabel(parsed.format)}. Apply to replace the current notebook.`
       );
     } catch (error) {
       setImportPreview(null);
@@ -535,7 +602,7 @@ export function NotebookApp() {
       writeNotebookHash();
     }
     setCommittedImportText(importText);
-    setUiMessage(`Imported notebook ${importPreview.source === "json" ? "JSON" : "Markdown"}.`);
+    setUiMessage(`Imported notebook ${formatNotebookSourceLabel(importPreview.source)}.`);
     setImportPreview(null);
   }
 
@@ -545,7 +612,9 @@ export function NotebookApp() {
   }
 
   function handleDiscardImportTextChanges(): void {
-    setImportText(committedImportText);
+    const currentSource = serializeNotebookSource(notebookDocument, sourceFormat);
+    setImportText(currentSource);
+    setCommittedImportText(currentSource);
     setImportPreview(null);
     setUiMessage("Discarded import text changes.");
   }
@@ -562,57 +631,30 @@ export function NotebookApp() {
   }
 
   function handleDownloadJson(): void {
-    const exported =
-      sourceFormat === "json"
-        ? notebookToJson(notebookDocument)
-        : notebookToMarkdown(notebookDocument);
+    const exported = serializeNotebookSource(notebookDocument, sourceFormat);
     const blob = new Blob([exported], {
-      type: sourceFormat === "json" ? "application/json" : "text/markdown"
+      type: getNotebookSourceMimeType(sourceFormat)
     });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${notebookDocument.id}.${sourceFormat === "json" ? "sfnb.json" : "sfnb.md"}`;
+    link.download = `${notebookDocument.id}.${getNotebookSourceFileSuffix(sourceFormat)}`;
     document.body.append(link);
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
-    setUiMessage("Downloaded notebook JSON.");
+    setUiMessage(`Downloaded notebook ${formatNotebookSourceLabel(sourceFormat)}.`);
   }
 
   function handleValidateNotebook(): void {
-    const legacyEditors = notebookDocument.cells
-      .filter((cell): cell is ModelCell => cell.type === "model")
-      .map((cell) => cell.editor);
-    const modelIds = Array.from(
-      new Set(
-        notebookDocument.cells
-          .filter(
-            (
-              cell
-            ): cell is EquationsCell | SolverCell | ExternalsCell | InitialValuesCell =>
-              cell.type === "equations" ||
-              cell.type === "solver" ||
-              cell.type === "externals" ||
-              cell.type === "initial-values"
-          )
-          .map((cell) => cell.modelId)
-      )
-    );
-    const splitEditors = modelIds
-      .map((modelId) => buildEditorStateForNotebookModel(notebookDocument, { modelId }))
-      .filter((editor): editor is EditorState => editor != null);
-    const editors = [...legacyEditors, ...splitEditors];
-    const issueCount = editors.reduce((count, editor) => {
-      const issues = validateEditorState(editor);
-      const diagnostics = diagnoseBuildRuntime(editor);
-      return count + issues.length + diagnostics.issues.length;
-    }, 0);
+    const notebookIssues = validateNotebookDocument(notebookDocument);
+    const modelValidation = validateNotebookModels(notebookDocument);
+    const issueCount = notebookIssues.length + modelValidation.issueCount;
 
     setUiMessage(
       issueCount === 0
-        ? `Validated ${editors.length} model${editors.length === 1 ? "" : "s"} with no issues.`
-        : `Validation found ${issueCount} issue${issueCount === 1 ? "" : "s"} across ${editors.length} model${editors.length === 1 ? "" : "s"}.`
+        ? `Validated notebook and ${modelValidation.modelCount} model${modelValidation.modelCount === 1 ? "" : "s"} with no issues.`
+        : `Validation found ${issueCount} issue${issueCount === 1 ? "" : "s"} across the notebook and ${modelValidation.modelCount} model${modelValidation.modelCount === 1 ? "" : "s"}.`
     );
   }
 
@@ -770,7 +812,6 @@ export function NotebookApp() {
     });
   }
 
-  const hasPendingImportTextChanges = importText !== committedImportText;
   const currentTemplateId = isNotebookTemplateId(notebookDocument.metadata.template ?? "")
     ? notebookDocument.metadata.template
     : "";
@@ -853,7 +894,7 @@ export function NotebookApp() {
                   type="button"
                   className="notebook-run-button notebook-action-desktop"
                   onClick={() => {
-                    setIsDataPanelOpen(true);
+                    setActiveRailTab("editor");
                   }}
                 >
                   Import
@@ -899,126 +940,6 @@ export function NotebookApp() {
           </section>
 
           <section
-            className={`control-panel notebook-data-panel${isDataPanelOpen ? "" : " is-collapsed"}`}
-          >
-            <div className="notebook-utility-topline">
-              <div className="notebook-utility-title">
-                Import / Export {sourceFormat === "json" ? "JSON" : "Markdown"}
-              </div>
-              <div className="notebook-utility-actions">
-                <div className="mode-switch" aria-label="Notebook source formats">
-                  <button
-                    type="button"
-                    className={`mode-switch-link${sourceFormat === "json" ? " is-active" : ""}`}
-                    onClick={() => {
-                      setSourceFormat("json");
-                      setImportPreview(null);
-                    }}
-                  >
-                    JSON
-                  </button>
-                  <button
-                    type="button"
-                    className={`mode-switch-link${sourceFormat === "markdown" ? " is-active" : ""}`}
-                    onClick={() => {
-                      setSourceFormat("markdown");
-                      setImportPreview(null);
-                    }}
-                  >
-                    Markdown
-                  </button>
-                </div>
-                <input
-                  className="notebook-file-input"
-                  type="file"
-                  accept={
-                    sourceFormat === "json"
-                      ? "application/json,.json"
-                      : "text/markdown,.md,.markdown,.txt"
-                  }
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) {
-                      void handleImportFile(file);
-                    }
-                    event.currentTarget.value = "";
-                  }}
-                />
-                <button type="button" className="notebook-utility-button" onClick={handleImportJson}>
-                  Preview import
-                </button>
-                <button type="button" className="notebook-utility-button" onClick={handleExportJson}>
-                  Export to text
-                </button>
-                <button type="button" className="notebook-utility-button" onClick={handleDownloadJson}>
-                  Download {sourceFormat === "json" ? "JSON" : "Markdown"}
-                </button>
-                <button
-                  type="button"
-                  className="secondary-button notebook-utility-button notebook-utility-button-muted"
-                  onClick={() => setIsDataPanelOpen(false)}
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-
-            <div className="status-hint">
-              Browser-based AI should start with <a href={NOTEBOOK_AI_INDEX_URL}>{NOTEBOOK_AI_INDEX_URL}</a>.
-              {" "}For manual browsing, see <a href={NOTEBOOK_AI_LANDING_URL}>{NOTEBOOK_AI_LANDING_URL}</a>. That index links the authoring guide at <a href={NOTEBOOK_AI_GUIDE_URL}>{NOTEBOOK_AI_GUIDE_URL}</a>, the notebook manifest at <a href={NOTEBOOK_AI_MANIFEST_URL}>{NOTEBOOK_AI_MANIFEST_URL}</a>, the schema at <a href={NOTEBOOK_AI_SCHEMA_URL}>{NOTEBOOK_AI_SCHEMA_URL}</a>, and the prompt at <a href={NOTEBOOK_AI_PROMPT_URL}>{NOTEBOOK_AI_PROMPT_URL}</a>.
-            </div>
-
-            <textarea
-              className="json-area notebook-utility-textarea"
-              value={importText}
-              onChange={(event) => updateImportText(event.target.value)}
-              placeholder={
-                sourceFormat === "json"
-                  ? "Paste a notebook JSON document"
-                  : "Paste notebook Markdown with headings and fenced sfcr-* blocks"
-              }
-            />
-
-            {hasPendingImportTextChanges ? (
-              <div className="notebook-import-draft-actions">
-                <div className="status-hint">Unapplied import text changes.</div>
-                <div className="button-row">
-                  <button type="button" onClick={handleApplyImportText}>
-                    Apply text
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={handleDiscardImportTextChanges}
-                  >
-                    Discard text
-                  </button>
-                </div>
-              </div>
-            ) : null}
-
-            {importPreview ? (
-              <div className="notebook-import-preview-actions">
-                <div className="status-hint">
-                  Preview ready: {importPreview.document.title} ({importPreview.document.cells.length} cells)
-                </div>
-                <div className="button-row">
-                  <button type="button" onClick={handleApplyPreview}>
-                    Apply preview
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={handleDiscardPreview}
-                  >
-                    Discard preview
-                  </button>
-                </div>
-              </div>
-            ) : null}
-          </section>
-
-          <section
             className={`notebook-canvas${
               activeEditorCellId ? " notebook-has-active-editor" : ""
             }`}
@@ -1032,12 +953,14 @@ export function NotebookApp() {
                 cells={notebookDocument.cells}
                 getModelCurrentValues={getCurrentValueMapForModelRef}
                 maxPeriodIndex={maxResultPeriodIndex}
+                onSelectedCellIdChange={setSelectedCellId}
                 onSelectedPeriodIndexChange={setSelectedPeriodIndex}
                 runner={runner}
                 onActiveEditorCellIdChange={setActiveEditorCellId}
                 onModelChange={updateModelCell}
                 onCellChange={updateCell}
                 onVariableInspectRequest={handleVariableInspectRequest}
+                selectedCellId={selectedCellId}
                 selectedPeriodIndex={selectedPeriodIndex}
               />
             ))}
@@ -1079,15 +1002,6 @@ export function NotebookApp() {
               <button
                 type="button"
                 role="tab"
-                aria-selected={activeRailTab === "inspect"}
-                className={`notebook-rail-tab${activeRailTab === "inspect" ? " is-active" : ""}`}
-                onClick={() => setActiveRailTab("inspect")}
-              >
-                Inspect
-              </button>
-              <button
-                type="button"
-                role="tab"
                 aria-selected={activeRailTab === "contents"}
                 className={`notebook-rail-tab${activeRailTab === "contents" ? " is-active" : ""}`}
                 onClick={() => setActiveRailTab("contents")}
@@ -1097,11 +1011,29 @@ export function NotebookApp() {
               <button
                 type="button"
                 role="tab"
+                aria-selected={activeRailTab === "inspect"}
+                className={`notebook-rail-tab${activeRailTab === "inspect" ? " is-active" : ""}`}
+                onClick={() => setActiveRailTab("inspect")}
+              >
+                Inspect
+              </button>
+              <button
+                type="button"
+                role="tab"
                 aria-selected={activeRailTab === "assistant"}
                 className={`notebook-rail-tab${activeRailTab === "assistant" ? " is-active" : ""}`}
                 onClick={() => setActiveRailTab("assistant")}
               >
                 Assistant
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeRailTab === "editor"}
+                className={`notebook-rail-tab${activeRailTab === "editor" ? " is-active" : ""}`}
+                onClick={() => setActiveRailTab("editor")}
+              >
+                Editor
               </button>
               {importPreview ? (
                 <button
@@ -1116,6 +1048,104 @@ export function NotebookApp() {
               ) : null}
             </div>
           </div>
+
+          {activeRailTab === "editor" ? (
+            <section className="notebook-sidebar-panel notebook-source-panel" role="tabpanel">
+              <div className="notebook-utility-actions notebook-editor-actions">
+                <button
+                  type="button"
+                  className="notebook-utility-button notebook-source-format-toggle"
+                  aria-label={`Source format is ${formatNotebookSourceLabel(sourceFormat)}. Switch to ${formatNotebookSourceLabel(sourceFormat === "json" ? "markdown" : "json")}.`}
+                  title={`Source format: ${formatNotebookSourceLabel(sourceFormat)}. Click to switch to ${formatNotebookSourceLabel(sourceFormat === "json" ? "markdown" : "json")}.`}
+                  onClick={() =>
+                    handleSourceFormatChange(sourceFormat === "json" ? "markdown" : "json")
+                  }
+                >
+                  JSON / Markdown
+                </button>
+                <label className="notebook-file-picker">
+                  <span className="notebook-utility-button notebook-utility-button-muted notebook-file-input-trigger">
+                    Choose file
+                  </span>
+                  <span className="notebook-file-name">{selectedImportFileName}</span>
+                  <input
+                    className="notebook-file-input"
+                    type="file"
+                    aria-label="Choose notebook source file"
+                    accept=".sfnb.json,.json,.sfnb.md,.md,.markdown,.txt,application/json,text/markdown"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) {
+                        setSelectedImportFileName(file.name);
+                        void handleImportFile(file);
+                      }
+                      event.currentTarget.value = "";
+                    }}
+                  />
+                </label>
+                <button type="button" className="notebook-utility-button" onClick={handleImportJson}>
+                  Preview import
+                </button>
+                <button type="button" className="notebook-utility-button" onClick={handleDownloadJson}>
+                  Download {formatNotebookSourceLabel(sourceFormat)}
+                </button>
+              </div>
+
+              <SourceCodeEditor
+                diagnostics={{
+                  issues: sourceValidation.diagnostics,
+                  parseValid: sourceValidation.parse.status === "valid",
+                  schemaValid: sourceValidation.schema.status === "valid"
+                }}
+                document={notebookDocument}
+                format={sourceFormat}
+                onChange={updateImportText}
+                placeholderText={getNotebookSourcePlaceholder(sourceFormat)}
+                selectedCellId={selectedCellId}
+                value={importText}
+              />
+
+              <SourceValidationPanel validation={sourceValidation} />
+
+              {hasPendingImportTextChanges ? (
+                <div className="notebook-import-draft-actions">
+                  <div className="status-hint">Unapplied import text changes.</div>
+                  <div className="button-row">
+                    <button type="button" onClick={handleApplyImportText} disabled={!sourceValidation.canApply}>
+                      Apply text
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={handleDiscardImportTextChanges}
+                    >
+                      Discard text
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {importPreview ? (
+                <div className="notebook-import-preview-actions">
+                  <div className="status-hint">
+                    Preview ready: {importPreview.document.title} ({importPreview.document.cells.length} cells)
+                  </div>
+                  <div className="button-row">
+                    <button type="button" onClick={handleApplyPreview}>
+                      Apply preview
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={handleDiscardPreview}
+                    >
+                      Discard preview
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
 
           {activeRailTab === "inspect" ? (
             <VariableInspector
@@ -1138,9 +1168,17 @@ export function NotebookApp() {
                 {notebookDocument.cells.map((cell, index) => (
                   <li
                     key={cell.id}
-                    className={activeEditorCellId === cell.id ? "notebook-outline-item-is-active" : ""}
+                    className={`${selectedCellId === cell.id ? "notebook-outline-item-is-selected" : ""}${
+                      activeEditorCellId === cell.id ? " notebook-outline-item-is-active" : ""
+                    }`.trim()}
                   >
-                    <button type="button" onClick={() => scrollToCell(cell.id)}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCellId(cell.id);
+                        scrollToCell(cell.id);
+                      }}
+                    >
                       <span className="outline-index">{index + 1}</span>
                       <VariableMathLabel name={cell.title} />
                     </button>
@@ -1278,7 +1316,47 @@ export function NotebookApp() {
   );
 }
 
-function inferFormatFromFileName(fileName: string): "json" | "markdown" | null {
+function SourceValidationPanel({ validation }: { validation: NotebookSourceValidation }) {
+  const notebookChecksValid = validation.notebookIssueCount + validation.modelIssueCount === 0;
+
+  return (
+    <section className="notebook-source-validation-panel" aria-label="Notebook source validation">
+      <div className="notebook-source-validation-grid">
+        <ValidationStepBadge label="Parse" step={validation.parse} />
+        <ValidationStepBadge label="Schema" step={validation.schema} />
+        <div className={`notebook-source-validation-step${notebookChecksValid ? " is-valid" : " is-invalid"}`}>
+          <span>Notebook checks</span>
+          <strong>
+            {notebookChecksValid
+              ? "valid"
+              : `${validation.notebookIssueCount + validation.modelIssueCount} issue${validation.notebookIssueCount + validation.modelIssueCount === 1 ? "" : "s"}`}
+          </strong>
+        </div>
+      </div>
+
+      {validation.issues.length > 0 ? (
+        <ul className="notebook-source-validation-list">
+          {validation.issues.slice(0, 5).map((issue) => (
+            <li key={issue}>{issue}</li>
+          ))}
+        </ul>
+      ) : (
+        <div className="status-hint">Source is ready to apply.</div>
+      )}
+    </section>
+  );
+}
+
+function ValidationStepBadge({ label, step }: { label: string; step: ValidationStep }) {
+  return (
+    <div className={`notebook-source-validation-step is-${step.status}`}>
+      <span>{label}</span>
+      <strong>{step.message}</strong>
+    </div>
+  );
+}
+
+function inferFormatFromFileName(fileName: string): NotebookSourceFormat | null {
   const normalized = fileName.toLowerCase();
   if (normalized.endsWith(".json")) {
     return "json";
@@ -1287,6 +1365,187 @@ function inferFormatFromFileName(fileName: string): "json" | "markdown" | null {
     return "markdown";
   }
   return null;
+}
+
+function serializeNotebookSource(
+  document: NotebookDocument,
+  format: NotebookSourceFormat
+): string {
+  if (format === "json") {
+    return notebookToJson(document);
+  }
+  return notebookToMarkdown(document);
+}
+
+function formatNotebookSourceLabel(format: NotebookSourceFormat): string {
+  if (format === "json") {
+    return "JSON";
+  }
+  return "Markdown";
+}
+
+function getNotebookSourceMimeType(format: NotebookSourceFormat): string {
+  if (format === "json") {
+    return "application/json";
+  }
+  return "text/markdown";
+}
+
+function getNotebookSourceFileSuffix(format: NotebookSourceFormat): string {
+  if (format === "json") {
+    return "sfnb.json";
+  }
+  return "sfnb.md";
+}
+
+function getNotebookSourcePlaceholder(format: NotebookSourceFormat): string {
+  if (format === "json") {
+    return "Paste a notebook JSON document";
+  }
+  return "Paste notebook Markdown with headings and fenced sfcr-* blocks";
+}
+
+function buildNotebookSourceValidation(
+  source: string,
+  format: NotebookSourceFormat
+): NotebookSourceValidation {
+  if (!source.trim()) {
+    return {
+      canApply: false,
+      diagnostics: [
+        {
+          message: "Source is empty.",
+          phase: "parse"
+        }
+      ],
+      document: null,
+      issues: ["Source is empty."],
+      modelIssueCount: 0,
+      notebookIssueCount: 0,
+      parse: { status: "invalid", message: "empty" },
+      schema: { status: "invalid", message: "not checked" }
+    };
+  }
+
+  const analysis = analyzeNotebookSource(source, format);
+  if (analysis.parseDiagnostics.length > 0) {
+    return {
+      canApply: false,
+      diagnostics: analysis.parseDiagnostics,
+      document: null,
+      issues: analysis.parseDiagnostics.map((issue) => issue.message),
+      modelIssueCount: 0,
+      notebookIssueCount: 0,
+      parse: { status: "invalid", message: "invalid" },
+      schema: { status: "invalid", message: "not checked" }
+    };
+  }
+
+  if (analysis.schemaDiagnostics.length > 0) {
+    return {
+      canApply: false,
+      diagnostics: analysis.schemaDiagnostics,
+      document: null,
+      issues: analysis.schemaDiagnostics.map((issue) => issue.message),
+      modelIssueCount: 0,
+      notebookIssueCount: 0,
+      parse: { status: "valid", message: "valid" },
+      schema: { status: "invalid", message: "invalid" }
+    };
+  }
+
+  if (!analysis.document) {
+    return {
+      canApply: false,
+      diagnostics: [
+        {
+          message: "Unable to parse source.",
+          phase: "parse"
+        }
+      ],
+      document: null,
+      issues: ["Unable to parse source."],
+      modelIssueCount: 0,
+      notebookIssueCount: 0,
+      parse: { status: "invalid", message: "invalid" },
+      schema: { status: "invalid", message: "not checked" }
+    };
+  }
+
+  const notebookIssues = validateNotebookDocument(analysis.document);
+  const modelValidation = validateNotebookModels(analysis.document);
+  const diagnostics: NotebookSourceDiagnostic[] = [
+    ...notebookIssues.map((issue) => ({ message: issue.message, path: issue.path, phase: "schema" as const })),
+    ...modelValidation.issues
+  ];
+  const issues = diagnostics.map((issue) => issue.message);
+
+  return {
+    canApply: issues.length === 0,
+    diagnostics,
+    document: analysis.document,
+    issues,
+    modelIssueCount: modelValidation.issueCount,
+    notebookIssueCount: notebookIssues.length,
+    parse: { status: "valid", message: "valid" },
+    schema: { status: "valid", message: "valid" }
+  };
+}
+
+function validateNotebookModels(document: NotebookDocument): {
+  issueCount: number;
+  issues: NotebookSourceDiagnostic[];
+  modelCount: number;
+} {
+  const legacyEditors = document.cells
+    .filter((cell): cell is ModelCell => cell.type === "model")
+    .map((cell) => ({ editor: cell.editor, label: `Model cell \"${cell.title}\"` }));
+  const modelIds = Array.from(
+    new Set(
+      document.cells
+        .filter(
+          (
+            cell
+          ): cell is EquationsCell | SolverCell | ExternalsCell | InitialValuesCell =>
+            cell.type === "equations" ||
+            cell.type === "solver" ||
+            cell.type === "externals" ||
+            cell.type === "initial-values"
+        )
+        .map((cell) => cell.modelId)
+    )
+  );
+  const splitEditors = modelIds
+    .map((modelId) => {
+      const editor = buildEditorStateForNotebookModel(document, { modelId });
+      if (!editor) {
+        return null;
+      }
+
+      return { editor, label: `Model \"${modelId}\"` };
+    })
+    .filter((entry): entry is { editor: EditorState; label: string } => entry != null);
+  const editors = [...legacyEditors, ...splitEditors];
+  const issues = editors.flatMap(({ editor, label }) => {
+    const editorIssues = validateEditorState(editor).map((issue) => ({
+      message: formatModelValidationIssue(label, issue.path, issue.message),
+      path: issue.path,
+      phase: "schema" as const
+    }));
+    const runtimeIssues = diagnoseBuildRuntime(editor).issues.map((issue) => ({
+      message: formatModelValidationIssue(label, issue.path, issue.message),
+      path: issue.path,
+      phase: "schema" as const
+    }));
+
+    return [...editorIssues, ...runtimeIssues];
+  });
+
+  return { issueCount: issues.length, issues, modelCount: editors.length };
+}
+
+function formatModelValidationIssue(modelLabel: string, path: string, message: string): string {
+  return `${modelLabel} ${path}: ${message}`;
 }
 
 function buildNotebookVariableDescriptions(cells: NotebookCell[]): VariableDescriptions {

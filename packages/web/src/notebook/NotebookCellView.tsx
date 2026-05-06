@@ -49,6 +49,7 @@ import {
   findInitialValuesCell,
   findSolverCell
 } from "./modelSections";
+import { MatrixSourceEditor } from "./MatrixSourceEditor";
 import { resolveSequenceDiagram } from "./sequence";
 import { buildDependencyGraph } from "./dependencyGraph";
 import { buildDependencyProxyDisplayOccurrences, buildDependencyRowTopology } from "./dependencyRows";
@@ -95,6 +96,7 @@ export interface NotebookCellViewProps {
   }): Record<string, number | undefined>;
   maxPeriodIndex: number;
   onActiveEditorCellIdChange(cellId: string | null): void;
+  onSelectedCellIdChange(cellId: string): void;
   onSelectedPeriodIndexChange(nextIndex: number): void;
   onModelChange(cellId: string, editor: EditorState): void;
   onCellChange(cellId: string, updater: (cell: NotebookCell) => NotebookCell): void;
@@ -106,6 +108,7 @@ export interface NotebookCellViewProps {
     variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
   }): void;
   runner: ReturnType<typeof useNotebookRunner>;
+  selectedCellId: string | null;
   selectedPeriodIndex: number;
 }
 
@@ -116,8 +119,10 @@ export function NotebookCellView({
   getModelCurrentValues,
   maxPeriodIndex,
   onActiveEditorCellIdChange,
+  onSelectedCellIdChange,
   onSelectedPeriodIndexChange,
   runner,
+  selectedCellId,
   selectedPeriodIndex,
   onModelChange,
   onCellChange,
@@ -128,7 +133,9 @@ export function NotebookCellView({
   const [isEditingSource, setIsEditingSource] = useState(false);
   const [titleDraft, setTitleDraft] = useState(() => cell.title);
   const [sourceDraft, setSourceDraft] = useState(() => serializeCellBody(cell));
-  const [sourceLayoutMode, setSourceLayoutMode] = useState<"pretty" | "compact">("compact");
+  const [sourceLayoutMode, setSourceLayoutMode] = useState<"pretty" | "compact" | "grid">(
+    cell.type === "matrix" ? "grid" : "compact"
+  );
   const [openSourceMenu, setOpenSourceMenu] = useState<"insert" | null>(null);
   const [sourceError, setSourceError] = useState<string | null>(null);
   const [sourceValidationError, setSourceValidationError] = useState<string | null>(null);
@@ -160,7 +167,7 @@ export function NotebookCellView({
   useEffect(() => {
     setTitleDraft(cell.title);
     setSourceDraft(serializeCellBody(cell));
-    setSourceLayoutMode("compact");
+    setSourceLayoutMode(cell.type === "matrix" ? "grid" : "compact");
     setOpenSourceMenu(null);
     setSourceError(null);
     setSourceValidationError(null);
@@ -229,7 +236,7 @@ export function NotebookCellView({
   }, [isEditingSource, openSourceMenu]);
 
   useEffect(() => {
-    if (!isEditingSource || !sourceTextareaRef.current) {
+    if (!isEditingSource || sourceLayoutMode === "grid" || !sourceTextareaRef.current) {
       return;
     }
 
@@ -269,15 +276,27 @@ export function NotebookCellView({
   function handleCancelSource(): void {
     setTitleDraft(cell.title);
     setSourceDraft(serializeCellBody(cell));
-    setSourceLayoutMode("compact");
+    setSourceLayoutMode(cell.type === "matrix" ? "grid" : "compact");
     setOpenSourceMenu(null);
     setSourceError(null);
     setSourceValidationError(null);
     setIsEditingSource(false);
   }
 
-  function handleSourceLayoutModeChange(nextMode: "pretty" | "compact"): void {
+  function handleSourceLayoutModeChange(nextMode: "pretty" | "compact" | "grid"): void {
     if (cell.type === "markdown") {
+      setSourceLayoutMode(nextMode);
+      return;
+    }
+
+    if (nextMode === "grid") {
+      try {
+        const parsed = JSON.parse(sourceDraft) as NotebookCell;
+        setSourceDraft(formatCellBody(parsed, "compact"));
+      } catch {
+        // Keep the current draft; the structured matrix editor only renders from valid cell state.
+      }
+
       setSourceLayoutMode(nextMode);
       return;
     }
@@ -291,12 +310,27 @@ export function NotebookCellView({
     }
   }
 
+  function handleCellClick(event: React.MouseEvent<HTMLElement>): void {
+    const target = event.target;
+    if (
+      target instanceof Element &&
+      target.closest("button, summary, a, input, select, textarea, label, details")
+    ) {
+      return;
+    }
+
+    onSelectedCellIdChange(cell.id);
+  }
+
   return (
     <article
       id={cell.id}
       className={`notebook-cell notebook-cell-${cell.type}${
         isCompactLinkedCellHeader(cell) ? " notebook-cell-linked-collapsed" : ""
-      }${activeEditorCellId === cell.id ? " notebook-cell-is-active-editor" : ""}`}
+      }${selectedCellId === cell.id ? " notebook-cell-is-selected" : ""}${
+        activeEditorCellId === cell.id ? " notebook-cell-is-active-editor" : ""
+      }`}
+      onClick={handleCellClick}
     >
       <div className="notebook-cell-content">
         <div className="notebook-cell-toolbar">
@@ -416,6 +450,17 @@ export function NotebookCellView({
               </div>
               {cell.type !== "markdown" ? (
                 <fieldset className="notebook-source-layout" aria-label="Source layout mode">
+                  {cell.type === "matrix" ? (
+                    <label className="notebook-source-layout-option">
+                      <input
+                        type="radio"
+                        name={`source-layout-${cell.id}`}
+                        checked={sourceLayoutMode === "grid"}
+                        onChange={() => handleSourceLayoutModeChange("grid")}
+                      />
+                      <span>Grid</span>
+                    </label>
+                  ) : null}
                   <label className="notebook-source-layout-option">
                     <input
                       type="radio"
@@ -454,29 +499,33 @@ export function NotebookCellView({
                 />
               </label>
             ) : null}
-            <div className="notebook-source-codeframe">
-              <pre ref={sourceGutterRef} className="notebook-source-gutter" aria-hidden="true">
-                <code>{sourceLineNumbers}</code>
-              </pre>
-              <div className="notebook-source-editor-pane">
-                <pre
-                  ref={sourceHighlightRef}
-                  className="notebook-source-highlight"
-                  aria-hidden="true"
-                >
-                  <code>{highlightSourceDraft(sourceDraft, cell.type)}</code>
+            {cell.type === "matrix" && sourceLayoutMode === "grid" ? (
+              <MatrixSourceEditor value={sourceDraft} onChange={setSourceDraft} />
+            ) : (
+              <div className="notebook-source-codeframe">
+                <pre ref={sourceGutterRef} className="notebook-source-gutter" aria-hidden="true">
+                  <code>{sourceLineNumbers}</code>
                 </pre>
-                <textarea
-                  ref={sourceTextareaRef}
-                  className="json-area notebook-source-textarea"
-                  value={sourceDraft}
-                  onChange={(event) => setSourceDraft(event.target.value)}
-                  onScroll={handleSourceScroll}
-                  spellCheck={false}
-                  aria-label={`Source editor for ${cell.title}`}
-                />
+                <div className="notebook-source-editor-pane">
+                  <pre
+                    ref={sourceHighlightRef}
+                    className="notebook-source-highlight"
+                    aria-hidden="true"
+                  >
+                    <code>{highlightSourceDraft(sourceDraft, cell.type)}</code>
+                  </pre>
+                  <textarea
+                    ref={sourceTextareaRef}
+                    className="json-area notebook-source-textarea"
+                    value={sourceDraft}
+                    onChange={(event) => setSourceDraft(event.target.value)}
+                    onScroll={handleSourceScroll}
+                    spellCheck={false}
+                    aria-label={`Source editor for ${cell.title}`}
+                  />
+                </div>
               </div>
-            </div>
+            )}
             {sourceValidationError ? (
               <div className="notebook-source-validation" aria-live="polite">
                 Live validation: {sourceValidationError}
@@ -624,7 +673,7 @@ export function NotebookCellView({
             onVariableInspectRequest={onVariableInspectRequest}
           />
         ) : null}
-        {isCollapsed ? null : cell.type === "matrix" ? (
+        {isCollapsed || (cell.type === "matrix" && isEditingSource) ? null : cell.type === "matrix" ? (
           <MatrixCellView
             cell={cell}
             cells={cells}
@@ -2620,6 +2669,7 @@ function MatrixCellView({
     () => buildEvaluatedMatrix(cell, result, selectedPeriodIndex),
     [cell, result, selectedPeriodIndex]
   );
+  const sumColumnIndex = cell.columns.findIndex((column) => column.trim().toLowerCase() === "sum");
 
   return (
     <div className="notebook-matrix">
@@ -2634,8 +2684,12 @@ function MatrixCellView({
           <thead>
             <tr>
               <th scope="col" />
-              {cell.columns.map((column) => (
-              <th key={column} scope="col">
+              {cell.columns.map((column, columnIndex) => (
+              <th
+                key={column}
+                scope="col"
+                className={columnIndex === sumColumnIndex ? "notebook-matrix-sum-column" : undefined}
+              >
                   {editor ? (
                     <button
                       type="button"
@@ -2685,7 +2739,14 @@ function MatrixCellView({
                 {row.entries.map((entry, index) => (
                   <td
                     key={`${row.label}-${cell.columns[index] ?? index}`}
-                    className={entry.isSumCell && !entry.isBalanced ? "matrix-balance-error" : undefined}
+                    className={
+                      [
+                        index === sumColumnIndex ? "notebook-matrix-sum-column" : undefined,
+                        entry.isSumCell && !entry.isBalanced ? "matrix-balance-error" : undefined
+                      ]
+                        .filter(Boolean)
+                        .join(" ") || undefined
+                    }
                   >
                     <div className="matrix-entry-inline">
                       <span className="matrix-entry-source">

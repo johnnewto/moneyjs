@@ -63,7 +63,7 @@ function isInlineJsonValue(value: unknown): boolean {
     return value.every((entry) => entry == null || typeof entry !== "object");
   }
 
-  return Object.values(value).every((entry) => entry == null || typeof entry !== "object");
+  return Object.values(value).every((entry) => isInlineJsonValue(entry));
 }
 
 function isPrimitiveJsonValue(value: unknown): boolean {
