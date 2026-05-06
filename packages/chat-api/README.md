@@ -49,7 +49,7 @@ pnpm chat-api:dev:wrangler
 ## Deploy
 
 ```bash
-pnpm chat-api:deploy
+pnpm --filter @sfcr/chat-api run deploy
 ```
 
 Set the OpenAI key as a Cloudflare Worker secret:

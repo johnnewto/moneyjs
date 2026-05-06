@@ -187,7 +187,7 @@ pnpm chat-api:dev
 Deploy the Worker:
 
 ```bash
-pnpm chat-api:deploy
+pnpm --filter @sfcr/chat-api run deploy
 ```
 
 Configure the Worker secret before using it:

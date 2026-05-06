@@ -173,7 +173,7 @@ Deploy:
 
 ```bash
 cd /home/john/repos/sfcr
-pnpm chat-api:deploy
+pnpm --filter @sfcr/chat-api run deploy
 ```
 
 Configure production variables in Cloudflare or `packages/chat-api/wrangler.toml`:
