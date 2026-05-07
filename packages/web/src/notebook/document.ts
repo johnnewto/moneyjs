@@ -1,5 +1,6 @@
 import type { NotebookCell, NotebookDocument } from "./types";
 import { stringifyJsonWithCompactLeaves } from "../lib/jsonFormat";
+import { normalizeUnitMetaAliases, serializeUnitMetaAliases } from "../lib/unitMeta";
 import { validateNotebookSchemaObject, type NotebookValidationIssue } from "./validation";
 
 export type NotebookSourceFormat = "json" | "markdown";
@@ -138,23 +139,59 @@ function parseMarkdownNotebook(source: string): NotebookDocument {
 }
 
 export function serializeNotebookCell(cell: NotebookCell): NotebookCell {
-  if (cell.type !== "run" || !cell.scenario) {
-    return structuredClone(cell);
-  }
+  switch (cell.type) {
+    case "model":
+      return {
+        ...cell,
+        editor: {
+          ...cell.editor,
+          equations: cell.editor.equations.map((equation) => ({
+            ...equation,
+            unitMeta: serializeUnitMetaAliases(equation.unitMeta)
+          })),
+          externals: cell.editor.externals.map((external) => ({
+            ...external,
+            unitMeta: serializeUnitMetaAliases(external.unitMeta)
+          }))
+        }
+      };
+    case "equations":
+      return {
+        ...cell,
+        equations: cell.equations.map((equation) => ({
+          ...equation,
+          unitMeta: serializeUnitMetaAliases(equation.unitMeta)
+        }))
+      };
+    case "externals":
+      return {
+        ...cell,
+        externals: cell.externals.map((external) => ({
+          ...external,
+          unitMeta: serializeUnitMetaAliases(external.unitMeta)
+        }))
+      };
+    case "run":
+      if (!cell.scenario) {
+        return structuredClone(cell);
+      }
 
-  return {
-    ...cell,
-    scenario: {
-      ...cell.scenario,
-      shocks: cell.scenario.shocks.map((shock) => {
-        const { startPeriodInclusive, endPeriodInclusive, ...rest } = shock;
-        return {
-          ...rest,
-          rangeInclusive: [startPeriodInclusive, endPeriodInclusive]
-        };
-      })
-    }
-  } as unknown as NotebookCell;
+      return {
+        ...cell,
+        scenario: {
+          ...cell.scenario,
+          shocks: cell.scenario.shocks.map((shock) => {
+            const { startPeriodInclusive, endPeriodInclusive, ...rest } = shock;
+            return {
+              ...rest,
+              rangeInclusive: [startPeriodInclusive, endPeriodInclusive]
+            };
+          })
+        }
+      } as unknown as NotebookCell;
+    default:
+      return structuredClone(cell);
+  }
 }
 
 function serializeNotebookDocument(document: NotebookDocument): NotebookDocument {
@@ -172,26 +209,62 @@ function normalizeNotebookDocument(document: NotebookDocument): NotebookDocument
 }
 
 function normalizeNotebookCell(cell: NotebookCell): NotebookCell {
-  if (cell.type !== "run" || !cell.scenario) {
-    return cell;
-  }
+  switch (cell.type) {
+    case "model":
+      return {
+        ...cell,
+        editor: {
+          ...cell.editor,
+          equations: cell.editor.equations.map((equation) => ({
+            ...equation,
+            unitMeta: normalizeUnitMetaAliases(equation.unitMeta)
+          })),
+          externals: cell.editor.externals.map((external) => ({
+            ...external,
+            unitMeta: normalizeUnitMetaAliases(external.unitMeta)
+          }))
+        }
+      };
+    case "equations":
+      return {
+        ...cell,
+        equations: cell.equations.map((equation) => ({
+          ...equation,
+          unitMeta: normalizeUnitMetaAliases(equation.unitMeta)
+        }))
+      };
+    case "externals":
+      return {
+        ...cell,
+        externals: cell.externals.map((external) => ({
+          ...external,
+          unitMeta: normalizeUnitMetaAliases(external.unitMeta)
+        }))
+      };
+    case "run":
+      if (!cell.scenario) {
+        return cell;
+      }
 
-  return {
-    ...cell,
-    scenario: {
-      ...cell.scenario,
-      shocks: cell.scenario.shocks.map((shock) => {
-        const candidate = shock as typeof shock & { rangeInclusive?: [number, number] };
-        const start = candidate.rangeInclusive?.[0] ?? shock.startPeriodInclusive;
-        const end = candidate.rangeInclusive?.[1] ?? shock.endPeriodInclusive;
-        return {
-          ...shock,
-          startPeriodInclusive: start,
-          endPeriodInclusive: end
-        };
-      })
-    }
-  };
+      return {
+        ...cell,
+        scenario: {
+          ...cell.scenario,
+          shocks: cell.scenario.shocks.map((shock) => {
+            const candidate = shock as typeof shock & { rangeInclusive?: [number, number] };
+            const start = candidate.rangeInclusive?.[0] ?? shock.startPeriodInclusive;
+            const end = candidate.rangeInclusive?.[1] ?? shock.endPeriodInclusive;
+            return {
+              ...shock,
+              startPeriodInclusive: start,
+              endPeriodInclusive: end
+            };
+          })
+        }
+      };
+    default:
+      return cell;
+  }
 }
 
 export function detectNotebookSourceFormat(source: string): NotebookSourceFormat {

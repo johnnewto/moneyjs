@@ -1159,9 +1159,112 @@ body.panel-splitter-body-lock {
   z-index: 1;
 }
 
+.input-badge-popover {
+  align-items: center;
+  display: inline-flex;
+}
+
+.input-badge-popover.is-open {
+  z-index: 4;
+}
+
+.equation-badge-button {
+  align-items: center;
+  background: rgba(241, 245, 249, 0.94);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 999px;
+  color: #475569;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  justify-content: center;
+  letter-spacing: 0.01em;
+  padding: 0.18rem 0.42rem;
+  white-space: nowrap;
+}
+
+.equation-badge-button:hover {
+  background: rgba(219, 234, 254, 0.82);
+  border-color: rgba(96, 165, 250, 0.36);
+  color: #1d4ed8;
+}
+
+.equation-badge-popover-panel {
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  border-radius: 0.75rem;
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.14);
+  display: grid;
+  gap: 0.55rem;
+  max-width: min(18rem, calc(100vw - 1rem));
+  min-width: 12rem;
+  padding: 0.7rem;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.28rem);
+  z-index: 5;
+}
+
+.input-unit-badge .equation-badge-popover-panel {
+  left: 0;
+  right: auto;
+}
+
+.equation-grid-row-group:nth-last-child(-n + 5) .input-unit-badge .equation-badge-popover-panel {
+  bottom: calc(100% + 0.28rem);
+  top: auto;
+}
+
+.equation-badge-popover-grid {
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.equation-badge-popover-field {
+  color: #475569;
+  display: grid;
+  font-size: 0.68rem;
+  font-weight: 700;
+  gap: 0.2rem;
+}
+
+.equation-badge-popover-field > input,
+.equation-badge-popover-field > select {
+  background: rgba(248, 250, 252, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 0.5rem;
+  color: #0f172a;
+  font: inherit;
+  min-width: 0;
+  padding: 0.24rem 0.38rem;
+}
+
+.equation-badge-popover-reset {
+  background: transparent;
+  border: 0;
+  color: #475569;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  justify-self: start;
+  padding: 0;
+}
+
+.equation-badge-popover-reset:hover {
+  color: #b91c1c;
+}
+
 .highlighted-formula-input:has(.input-unit-badge) .highlighted-formula-preview,
 .highlighted-formula-input:has(.input-unit-badge) .highlighted-formula-control {
   padding-right: 4.8rem;
+}
+
+.highlighted-formula-input:has(.input-badge-popover) .highlighted-formula-preview,
+.highlighted-formula-input:has(.input-badge-popover) .highlighted-formula-control {
+  padding-right: 5.8rem;
 }
 
 .highlighted-formula-input:focus-within {
@@ -1474,22 +1577,42 @@ body.panel-splitter-body-lock {
 .equation-grid-role-cell {
   display: flex;
   min-width: 0;
+  position: relative;
 }
 
 .equation-grid-role-select {
-  appearance: none;
-  background: rgba(241, 245, 249, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 999px;
-  color: #334155;
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
   min-width: 0;
-  padding: 0.18rem 0.34rem;
   text-align: center;
-  text-align-last: center;
   width: 100%;
+}
+
+.equation-role-popover-panel {
+  left: 0;
+  right: auto;
+}
+
+.equation-role-popover-options {
+  display: grid;
+  gap: 0.28rem;
+}
+
+.equation-role-option {
+  background: rgba(248, 250, 252, 0.94);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 0.55rem;
+  color: #334155;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 0.34rem 0.5rem;
+  text-align: left;
+}
+
+.equation-role-option.is-active {
+  background: rgba(219, 234, 254, 0.82);
+  border-color: rgba(96, 165, 250, 0.4);
+  color: #1d4ed8;
 }
 
 .trace-token-root {

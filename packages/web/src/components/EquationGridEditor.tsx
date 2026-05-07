@@ -1,9 +1,16 @@
-import { useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 
 import type { EquationRole } from "@sfcr/core";
 import type { EquationRow, ValidationIssue } from "../lib/editorModel";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
-import { resolveVariableTooltip, type VariableUnitMetadata } from "../lib/unitMeta";
+import {
+  formatUnitText,
+  normalizeSignature,
+  resolveVariableTooltip,
+  type StockFlowKind,
+  type UnitMeta,
+  type VariableUnitMetadata
+} from "../lib/unitMeta";
 import { getVariableUnitLabel } from "../lib/units";
 import { InstantTooltip } from "./InstantTooltip";
 import { renderVariableMathLabel } from "./VariableMathLabel";
@@ -44,6 +51,9 @@ export function EquationGridEditor({
   const expressionRefs = useRef<Array<HTMLTextAreaElement | null>>([]);
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
   const [pinnedTrace, setPinnedTrace] = useState<PinnedTrace | null>(null);
+  const [openPopover, setOpenPopover] = useState<{ kind: "unit" | "role"; rowId: string } | null>(
+    null
+  );
 
   const activeTrace = pinnedTrace
     ? buildActiveTrace(traceModel, pinnedTrace.rowId, pinnedTrace.mode)
@@ -51,6 +61,28 @@ export function EquationGridEditor({
       ? buildActiveTrace(traceModel, hoveredRowId, "inputs")
       : null;
   const showHeader = showHeading || showTraceHelp;
+
+  useEffect(() => {
+    if (!openPopover) {
+      return undefined;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!(event.target instanceof Element)) {
+        setOpenPopover(null);
+        return;
+      }
+
+      if (event.target.closest(".input-badge-popover, .equation-grid-role-cell")) {
+        return;
+      }
+
+      setOpenPopover(null);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [openPopover]);
 
   return (
     <section className={isEmbedded ? "equation-grid-editor-embedded" : "editor-panel"}>
@@ -117,6 +149,21 @@ export function EquationGridEditor({
                   <HighlightedFormulaInput
                     ariaLabel={`Equation ${index + 1} variable`}
                     className={issues[`equations.${index}.name`] ? "input-error" : ""}
+                    footer={
+                      <EquationUnitsPopover
+                        isOpen={openPopover?.kind === "unit" && openPopover.rowId === equation.id}
+                        onChange={(unitMeta) => updateRow(equations, index, { unitMeta }, onChange)}
+                        onToggle={() =>
+                          setOpenPopover((current) =>
+                            current?.kind === "unit" && current.rowId === equation.id
+                              ? null
+                              : { kind: "unit", rowId: equation.id }
+                          )
+                        }
+                        unitMeta={equation.unitMeta ?? variableUnitMetadata?.get(equation.name.trim())}
+                        variableName={equation.name}
+                      />
+                    }
                     highlightedTokens={traceRole ? activeTrace?.tokenStates : undefined}
                     inputRef={(node) => {
                       variableRefs.current[index] = node;
@@ -152,28 +199,18 @@ export function EquationGridEditor({
                     variableDescriptions={variableDescriptions}
                     variableUnitMetadata={variableUnitMetadata}
                   />
-                  <label className="equation-grid-role-cell">
-                    <select
-                      aria-label="Equation role"
-                      className="equation-grid-role-select"
-                      onChange={(event) =>
-                        updateRow(
-                          equations,
-                          index,
-                          { role: normalizeEquationRole(event.target.value) },
-                          onChange
-                        )
-                      }
-                      value={equation.role ?? ""}
-                    >
-                      <option value="">Auto</option>
-                      {EQUATION_ROLE_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <EquationRolePopover
+                    isOpen={openPopover?.kind === "role" && openPopover.rowId === equation.id}
+                    onChange={(role) => updateRow(equations, index, { role }, onChange)}
+                    onToggle={() =>
+                      setOpenPopover((current) =>
+                        current?.kind === "role" && current.rowId === equation.id
+                          ? null
+                          : { kind: "role", rowId: equation.id }
+                      )
+                    }
+                    role={equation.role}
+                  />
                   <input
                     aria-label={`Equation ${index + 1} description`}
                     className="equation-grid-description"
@@ -261,6 +298,185 @@ interface HighlightedFormulaInputProps {
   variableUnitMetadata?: VariableUnitMetadata;
 }
 
+function EquationUnitsPopover({
+  isOpen,
+  onChange,
+  onToggle,
+  unitMeta,
+  variableName
+}: {
+  isOpen: boolean;
+  onChange: (unitMeta: UnitMeta | undefined) => void;
+  onToggle: () => void;
+  unitMeta?: UnitMeta;
+  variableName: string;
+}) {
+  const normalized = unitMeta ? { ...unitMeta, signature: normalizeSignature(unitMeta.signature) } : undefined;
+  const signature = normalized?.signature ?? {};
+  const unitLabel = formatUnitText(normalized) ?? "Set units";
+
+  return (
+    <span className={`input-badge-popover input-unit-badge${isOpen ? " is-open" : ""}`.trim()}>
+      <button
+        aria-expanded={isOpen}
+        aria-label={`Edit units for ${variableName.trim() || "equation variable"}`}
+        className="equation-badge-button unit-badge"
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onToggle();
+        }}
+        type="button"
+      >
+        {unitLabel}
+      </button>
+      {isOpen ? (
+        <div
+          className="equation-badge-popover-panel"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <label className="equation-badge-popover-field">
+            <span>Kind</span>
+            <select
+              aria-label="Unit stock-flow kind"
+              onChange={(event) =>
+                onChange(
+                  buildUpdatedUnitMeta(normalized, {
+                    stockFlow: normalizeStockFlowKind(event.target.value)
+                  })
+                )
+              }
+              value={normalized?.stockFlow ?? ""}
+            >
+              <option value="">None</option>
+              <option value="stock">Stock</option>
+              <option value="flow">Flow</option>
+              <option value="aux">Aux</option>
+            </select>
+          </label>
+          <div className="equation-badge-popover-grid">
+            <label className="equation-badge-popover-field">
+              <span>$</span>
+              <input
+                aria-label="Money unit exponent"
+                inputMode="decimal"
+                onChange={(event) =>
+                  onChange(
+                    buildUpdatedUnitMeta(normalized, {
+                      money: parseUnitExponent(event.target.value)
+                    })
+                  )
+                }
+                type="text"
+                value={formatUnitExponent(signature.money)}
+              />
+            </label>
+            <label className="equation-badge-popover-field">
+              <span>items</span>
+              <input
+                aria-label="Items unit exponent"
+                inputMode="decimal"
+                onChange={(event) =>
+                  onChange(
+                    buildUpdatedUnitMeta(normalized, {
+                      items: parseUnitExponent(event.target.value)
+                    })
+                  )
+                }
+                type="text"
+                value={formatUnitExponent(signature.items)}
+              />
+            </label>
+            <label className="equation-badge-popover-field">
+              <span>yr</span>
+              <input
+                aria-label="Time unit exponent"
+                inputMode="decimal"
+                onChange={(event) =>
+                  onChange(
+                    buildUpdatedUnitMeta(normalized, {
+                      time: parseUnitExponent(event.target.value)
+                    })
+                  )
+                }
+                type="text"
+                value={formatUnitExponent(signature.time)}
+              />
+            </label>
+          </div>
+          <button
+            className="equation-badge-popover-reset"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onChange(undefined);
+            }}
+            type="button"
+          >
+            Clear units
+          </button>
+        </div>
+      ) : null}
+    </span>
+  );
+}
+
+function EquationRolePopover({
+  isOpen,
+  onChange,
+  onToggle,
+  role
+}: {
+  isOpen: boolean;
+  onChange: (role: EquationRole | undefined) => void;
+  onToggle: () => void;
+  role?: EquationRole;
+}) {
+  return (
+    <div className={`equation-grid-role-cell${isOpen ? " is-open" : ""}`.trim()}>
+      <button
+        aria-expanded={isOpen}
+        aria-label="Edit equation role"
+        className="equation-badge-button equation-grid-role-select"
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onToggle();
+        }}
+        type="button"
+      >
+        {getEquationRoleLabel(role)}
+      </button>
+      {isOpen ? (
+        <div
+          className="equation-badge-popover-panel equation-role-popover-panel"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="equation-role-popover-options" role="listbox" aria-label="Equation role options">
+            <button
+              className={`equation-role-option${role == null ? " is-active" : ""}`.trim()}
+              onClick={() => onChange(undefined)}
+              type="button"
+            >
+              Auto
+            </button>
+            {EQUATION_ROLE_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                className={`equation-role-option${role === option.value ? " is-active" : ""}`.trim()}
+                onClick={() => onChange(option.value)}
+                type="button"
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function HighlightedFormulaInput({
   ariaLabel,
   className = "",
@@ -278,10 +494,6 @@ function HighlightedFormulaInput({
   variableDescriptions,
   variableUnitMetadata
 }: HighlightedFormulaInputProps) {
-  const unitLabel =
-    ariaLabel.toLowerCase().includes("variable") && value.trim()
-      ? getVariableUnitLabel(variableUnitMetadata ?? new Map(), value.trim())
-      : null;
   return (
     <label className={`highlighted-formula-input ${className}`.trim()}>
       <div
@@ -317,9 +529,70 @@ function HighlightedFormulaInput({
         spellCheck={false}
         value={value}
       />
-      {footer ?? (unitLabel ? <span className="unit-badge input-unit-badge">{unitLabel}</span> : null)}
+      {footer ??
+        (ariaLabel.toLowerCase().includes("variable") && value.trim() ? (
+          <span className="unit-badge input-unit-badge">
+            {getVariableUnitLabel(variableUnitMetadata ?? new Map(), value.trim())}
+          </span>
+        ) : null)}
     </label>
   );
+}
+
+function buildUpdatedUnitMeta(
+  unitMeta: UnitMeta | undefined,
+  patch: {
+    items?: number | undefined;
+    money?: number | undefined;
+    stockFlow?: StockFlowKind | undefined;
+    time?: number | undefined;
+  }
+): UnitMeta | undefined {
+  const currentSignature = normalizeSignature(unitMeta?.signature);
+  const nextSignature = normalizeSignature({
+    money: patch.money !== undefined ? patch.money : currentSignature.money,
+    items: patch.items !== undefined ? patch.items : currentSignature.items,
+    time: patch.time !== undefined ? patch.time : currentSignature.time
+  });
+  const nextStockFlow = patch.stockFlow !== undefined ? patch.stockFlow : unitMeta?.stockFlow;
+
+  if (Object.keys(nextSignature).length === 0 && nextStockFlow == null) {
+    return undefined;
+  }
+
+  return {
+    ...(nextStockFlow ? { stockFlow: nextStockFlow } : {}),
+    ...(Object.keys(nextSignature).length > 0 ? { signature: nextSignature } : {})
+  };
+}
+
+function formatUnitExponent(value: number | undefined): string {
+  return value == null ? "" : String(value);
+}
+
+function parseUnitExponent(value: string): number | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function normalizeStockFlowKind(value: string): StockFlowKind | undefined {
+  switch (value) {
+    case "stock":
+    case "flow":
+    case "aux":
+      return value;
+    default:
+      return undefined;
+  }
+}
+
+function getEquationRoleLabel(role?: EquationRole): string {
+  return EQUATION_ROLE_OPTIONS.find((option) => option.value === role)?.label ?? "Auto";
 }
 
 export function highlightFormula(

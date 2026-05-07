@@ -400,7 +400,8 @@ const COMMON_CELL_PROPERTY_KEYS = ["id", "type", "title", "collapsed"];
 const ROOT_PROPERTY_KEYS = ["id", "title", "metadata", "cells"];
 const CONTEXT_PROPERTY_KEYS: Array<{ property: string; pattern: RegExp; keys: string[] }> = [
   { property: "stripMapping", pattern: /"stripMapping"\s*:\s*\{[^{}]*$/s, keys: ["transactionMatrixCellId", "balanceMatrixCellId"] },
-  { property: "unitMeta", pattern: /"unitMeta"\s*:\s*\{[^{}]*$/s, keys: ["stockFlow", "signature"] },
+  { property: "unitMeta", pattern: /"unitMeta"\s*:\s*\{[^{}]*$/s, keys: ["stockFlow", "signature", "units"] },
+  { property: "signature", pattern: /"(?:signature|units)"\s*:\s*\{[^{}]*$/s, keys: ["money", "$", "items", "time", "yr"] },
   { property: "sharedRange", pattern: /"sharedRange"\s*:\s*\{[^{}]*$/s, keys: ["includeZero", "min", "max"] },
   { property: "seriesRanges", pattern: /"seriesRanges"\s*:\s*\{[\s\S]*\{[^{}]*$/s, keys: ["includeZero", "min", "max"] },
   { property: "variables", pattern: /"variables"\s*:\s*\{[\s\S]*"kind"\s*:\s*"(?:constant|series)"[^{}]*$/s, keys: ["kind", "value", "values"] },
@@ -664,6 +665,12 @@ function buildKeySnippets(format: NotebookSourceFormat): Record<string, Completi
     ["unitMeta", "unitMeta"],
     ["stockFlow", "stockFlow"],
     ["signature", "signature"],
+    ["units", "units"],
+    ["money", "money"],
+    ["$", "$"],
+    ["time", "time"],
+    ["yr", "yr"],
+    ["items", "items"],
     ["includeZero", "includeZero"],
     ["min", "min"],
     ["max", "max"],

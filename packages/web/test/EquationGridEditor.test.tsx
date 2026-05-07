@@ -273,9 +273,8 @@ describe("EquationGridEditor", () => {
       />
     );
 
-    fireEvent.change(screen.getByLabelText(/^equation role$/i), {
-      target: { value: "identity" }
-    });
+    fireEvent.click(screen.getByRole("button", { name: /edit equation role/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Identity" }));
 
     expect(onChange).toHaveBeenCalledWith([
       { id: "eq-y", name: "Y", expression: "C + I", role: "identity" }
@@ -379,7 +378,90 @@ describe("EquationGridEditor", () => {
       />
     );
 
-    expect(screen.getByText("$")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /edit units for mh/i })).toHaveTextContent("$");
+  });
+
+  it("edits equation units from the LHS unit badge popover", () => {
+    const onChange = vi.fn();
+
+    render(
+      <EquationGridEditor
+        equations={[
+          {
+            id: "eq-mh",
+            name: "Mh",
+            desc: "Bank deposits held by households",
+            expression: "lag(Mh) + YD - C",
+            unitMeta: { stockFlow: "stock", signature: { money: 1 } }
+          }
+        ]}
+        issues={{}}
+        onChange={onChange}
+        parameterNames={[]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /edit units for mh/i }));
+    fireEvent.change(screen.getByLabelText(/time unit exponent/i), {
+      target: { value: "-1" }
+    });
+
+    expect(onChange).toHaveBeenCalledWith([
+      {
+        id: "eq-mh",
+        name: "Mh",
+        desc: "Bank deposits held by households",
+        expression: "lag(Mh) + YD - C",
+        unitMeta: { stockFlow: "stock", signature: { money: 1, time: -1 } }
+      }
+    ]);
+  });
+
+  it("closes the unit popover when clicking outside", () => {
+    render(
+      <EquationGridEditor
+        equations={[
+          {
+            id: "eq-mh",
+            name: "Mh",
+            desc: "Bank deposits held by households",
+            expression: "lag(Mh) + YD - C",
+            unitMeta: { stockFlow: "stock", signature: { money: 1 } }
+          }
+        ]}
+        issues={{}}
+        onChange={vi.fn()}
+        parameterNames={[]}
+      />
+    );
+
+    const trigger = screen.getByRole("button", { name: /edit units for mh/i });
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.pointerDown(document.body);
+
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("edits equation roles from the role badge popover", () => {
+    const onChange = vi.fn();
+
+    render(
+      <EquationGridEditor
+        equations={[{ id: "eq-y", name: "Y", expression: "C + I" }]}
+        issues={{}}
+        onChange={onChange}
+        parameterNames={[]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /edit equation role/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Identity" }));
+
+    expect(onChange).toHaveBeenCalledWith([
+      { id: "eq-y", name: "Y", expression: "C + I", role: "identity" }
+    ]);
   });
 
   it("renders unit mismatch errors in the equation status cell and message row", () => {

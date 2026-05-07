@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { stringifyJsonWithCompactLeaves } from "../lib/jsonFormat";
+import { normalizeUnitMetaAliases } from "../lib/unitMeta";
 import { serializeNotebookCell } from "./document";
 import type {
   ChartCell,
@@ -495,26 +496,62 @@ function highlightMarkdownSource(source: string): ReactNode[] {
 }
 
 function normalizeCellSource(cell: NotebookCell): NotebookCell {
-  if (cell.type !== "run" || !cell.scenario) {
-    return cell;
-  }
+  switch (cell.type) {
+    case "model":
+      return {
+        ...cell,
+        editor: {
+          ...cell.editor,
+          equations: cell.editor.equations.map((equation) => ({
+            ...equation,
+            unitMeta: normalizeUnitMetaAliases(equation.unitMeta)
+          })),
+          externals: cell.editor.externals.map((external) => ({
+            ...external,
+            unitMeta: normalizeUnitMetaAliases(external.unitMeta)
+          }))
+        }
+      };
+    case "equations":
+      return {
+        ...cell,
+        equations: cell.equations.map((equation) => ({
+          ...equation,
+          unitMeta: normalizeUnitMetaAliases(equation.unitMeta)
+        }))
+      };
+    case "externals":
+      return {
+        ...cell,
+        externals: cell.externals.map((external) => ({
+          ...external,
+          unitMeta: normalizeUnitMetaAliases(external.unitMeta)
+        }))
+      };
+    case "run":
+      if (!cell.scenario) {
+        return cell;
+      }
 
-  return {
-    ...cell,
-    scenario: {
-      ...cell.scenario,
-      shocks: cell.scenario.shocks.map((shock) => {
-        const candidate = shock as typeof shock & { rangeInclusive?: [number, number] };
-        const start = candidate.rangeInclusive?.[0] ?? shock.startPeriodInclusive;
-        const end = candidate.rangeInclusive?.[1] ?? shock.endPeriodInclusive;
-        return {
-          ...shock,
-          startPeriodInclusive: start,
-          endPeriodInclusive: end
-        };
-      })
-    }
-  };
+      return {
+        ...cell,
+        scenario: {
+          ...cell.scenario,
+          shocks: cell.scenario.shocks.map((shock) => {
+            const candidate = shock as typeof shock & { rangeInclusive?: [number, number] };
+            const start = candidate.rangeInclusive?.[0] ?? shock.startPeriodInclusive;
+            const end = candidate.rangeInclusive?.[1] ?? shock.endPeriodInclusive;
+            return {
+              ...shock,
+              startPeriodInclusive: start,
+              endPeriodInclusive: end
+            };
+          })
+        }
+      };
+    default:
+      return cell;
+  }
 }
 
 function validateCellSourceShape(

@@ -270,7 +270,7 @@ describe("resolveCompletionKeys", () => {
     const serializedSource = notebookToJson(document);
 
     expect(serializedSource).toContain(
-      '{ "id": "eq-0-Cs", "name": "Cs", "desc": "Consumption goods supply", "expression": "Cd", "role": "definition", "unitMeta": { "stockFlow": "flow", "signature": { "money": 1, "time": -1 } } }'
+      '{ "id": "eq-0-Cs", "name": "Cs", "desc": "Consumption goods supply", "expression": "Cd", "role": "definition", "unitMeta": { "stockFlow": "flow", "units": { "$": 1, "yr": -1 } } }'
     );
   });
 

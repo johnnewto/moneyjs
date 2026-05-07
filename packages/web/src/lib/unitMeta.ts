@@ -3,12 +3,24 @@ import type { VariableDescriptions } from "./variableDescriptions";
 export type BaseDimension = "money" | "items" | "time";
 export type StockFlowKind = "stock" | "flow" | "aux";
 export type UnitSignature = Partial<Record<BaseDimension, number>>;
+type UnitSignatureAlias = "$" | "yr";
+type UnitSignatureInput = UnitSignature & Partial<Record<UnitSignatureAlias, number>>;
 
 export interface UnitMeta {
   signature?: UnitSignature;
   stockFlow?: StockFlowKind;
   dimensionKind?: StockFlowKind;
   baseUnit?: string;
+}
+
+interface UnitMetaInput extends Omit<UnitMeta, "signature"> {
+  signature?: UnitSignatureInput;
+  units?: UnitSignatureInput;
+}
+
+interface SerializedUnitMeta {
+  stockFlow?: StockFlowKind;
+  units?: Partial<Record<BaseDimension | UnitSignatureAlias, number>>;
 }
 
 export type VariableUnitMetadata = Map<string, UnitMeta>;
@@ -36,29 +48,31 @@ export function normalizeSignature(signature?: UnitSignature): UnitSignature {
   return normalized;
 }
 
-export function coerceUnitMeta(unitMeta?: UnitMeta): UnitMeta | undefined {
+export function normalizeUnitMetaAliases(unitMeta?: UnitMetaInput): UnitMeta | undefined {
   if (!unitMeta) {
     return undefined;
   }
-  if (unitMeta.signature) {
+
+  const signature = normalizeSignatureInput(unitMeta.signature, unitMeta.units);
+  if (signature) {
     return {
-      ...unitMeta,
-      signature: normalizeSignature(unitMeta.signature),
-      stockFlow: unitMeta.stockFlow ?? unitMeta.dimensionKind
+      stockFlow: unitMeta.stockFlow ?? unitMeta.dimensionKind,
+      signature
     };
   }
 
   if (!unitMeta.baseUnit && !unitMeta.dimensionKind) {
-    return unitMeta;
+    return {
+      stockFlow: unitMeta.stockFlow
+    };
   }
 
   const stockFlow = unitMeta.stockFlow ?? unitMeta.dimensionKind;
   if (!unitMeta.baseUnit) {
-    return { ...unitMeta, stockFlow, signature: {} };
+    return { stockFlow, signature: {} };
   }
 
   return {
-    ...unitMeta,
     stockFlow,
     signature:
       stockFlow === "flow"
@@ -68,7 +82,71 @@ export function coerceUnitMeta(unitMeta?: UnitMeta): UnitMeta | undefined {
         : unitMeta.baseUnit === "$"
           ? { money: 1 }
           : { items: 1 }
+      };
+}
+
+export function coerceUnitMeta(unitMeta?: UnitMeta): UnitMeta | undefined {
+  return normalizeUnitMetaAliases(unitMeta);
+}
+
+export function serializeUnitMetaAliases(unitMeta?: UnitMeta): SerializedUnitMeta | undefined {
+  const normalized = coerceUnitMeta(unitMeta);
+  if (!normalized) {
+    return undefined;
+  }
+
+  const units: SerializedUnitMeta["units"] = {};
+  const signature = normalizeSignature(normalized.signature);
+  const money = signature.money;
+  const items = signature.items;
+  const time = signature.time;
+
+  if (money !== undefined) {
+    units.$ = money;
+  }
+  if (items !== undefined) {
+    units.items = items;
+  }
+  if (time !== undefined) {
+    units.yr = time;
+  }
+
+  return {
+    ...(normalized.stockFlow ? { stockFlow: normalized.stockFlow } : {}),
+    ...(Object.keys(units).length > 0 ? { units } : {})
   };
+}
+
+function normalizeSignatureInput(
+  ...candidates: Array<UnitSignatureInput | undefined>
+): UnitSignature | undefined {
+  const merged: UnitSignature = {};
+
+  for (const signature of candidates) {
+    if (!signature) {
+      continue;
+    }
+
+    const money = signature.money ?? signature["$"];
+    const items = signature.items;
+    const time = signature.time ?? signature.yr;
+
+    if (money !== undefined) {
+      merged.money = money;
+    }
+    if (items !== undefined) {
+      merged.items = items;
+    }
+    if (time !== undefined) {
+      merged.time = time;
+    }
+  }
+
+  if (Object.keys(merged).length === 0) {
+    return undefined;
+  }
+
+  return normalizeSignature(merged);
 }
 
 export function signaturesEqual(a?: UnitSignature, b?: UnitSignature): boolean {

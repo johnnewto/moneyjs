@@ -68,6 +68,12 @@
           "additionalProperties": {
             "type": "number"
           }
+        },
+        "units": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
         }
       }
     },
