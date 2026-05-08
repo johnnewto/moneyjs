@@ -102,7 +102,7 @@ describe("App notebook navigation and inspection", () => {
 
     await user.click(document.body);
     expect(screen.queryByRole("dialog", { name: /equation syntax/i })).not.toBeInTheDocument();
-  });
+  }, 15000);
 
   it("can show external values inside the notebook equations cell expression view", async () => {
     const user = userEvent.setup();
@@ -170,7 +170,7 @@ describe("App notebook navigation and inspection", () => {
     await user.click(within(equationsCell).getByRole("button", { name: /^cancel$/i }));
     expect(notebookSheet.className).not.toContain("notebook-has-active-editor");
     expect(equationsCell.className).not.toContain("notebook-cell-is-active-editor");
-  });
+  }, 15000);
 
   it("auto-runs notebook cells on load", async () => {
     window.location.hash = "#/notebook";

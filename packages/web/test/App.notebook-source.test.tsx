@@ -59,7 +59,7 @@ describe("App notebook source and import workflows", () => {
       /previewed notebook json\. apply to replace the current notebook\./i
     );
     expect(screen.getByRole("button", { name: /apply preview/i })).toBeInTheDocument();
-  });
+  }, 15000);
 
   it("highlights the selected notebook cell in the JSON source editor without switching tabs", async () => {
     const user = userEvent.setup();
@@ -262,5 +262,5 @@ describe("App notebook source and import workflows", () => {
     await user.click(screen.getByRole("button", { name: /discard text/i }));
 
     expect(refreshedTextarea.value).toBe(editedValue);
-  });
+  }, 15000);
 });

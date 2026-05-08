@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { notebookToJson } from "../src/notebook/document";
 import { createNotebookFromTemplate } from "../src/notebook/templates";
+import type { NotebookDocument } from "../src/notebook/types";
 import {
   resolveCompletionLabelsForSource,
   resolveCompletionKeyPrefix,
@@ -57,6 +58,36 @@ describe("resolveSelectedCellSourceRange", () => {
     expect(range).not.toBeNull();
     expect(source.slice(range!.from, range!.to)).toContain('"id": "equations-newton"');
     expect(source.slice(range!.from, range!.to)).toContain('"type": "equations"');
+  });
+
+  it("serializes notebook JSON without undefined unitMeta properties", () => {
+    const document: NotebookDocument = {
+      id: "test-doc",
+      title: "Test Notebook",
+      metadata: { version: 1 },
+      cells: [
+        {
+          id: "equations-main",
+          type: "equations",
+          title: "Equations",
+          modelId: "main",
+          equations: [{ id: "eq-1", name: "Y", expression: "C + I" }]
+        },
+        {
+          id: "externals-main",
+          type: "externals",
+          title: "Externals",
+          modelId: "main",
+          externals: [{ id: "ext-1", name: "G", kind: "constant", valueText: "20" }]
+        }
+      ]
+    };
+
+    const source = notebookToJson(document);
+
+    expect(() => JSON.parse(source)).not.toThrow();
+    expect(source).not.toContain('"unitMeta": undefined');
+    expect(source).not.toContain("undefined");
   });
 });
 

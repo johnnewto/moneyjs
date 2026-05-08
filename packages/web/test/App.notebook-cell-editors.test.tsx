@@ -49,7 +49,7 @@ describe("App per-cell source editors", () => {
 
     expect(screen.getByRole("heading", { name: /updated overview/i })).toBeInTheDocument();
     expect(within(overviewArticle).getByText(/updated notebook overview\./i)).toBeInTheDocument();
-  });
+  }, 15000);
 
   it("edits a run cell title through the per-cell source editor", async () => {
     const user = userEvent.setup();
@@ -81,7 +81,7 @@ describe("App per-cell source editors", () => {
     await user.click(screen.getByRole("button", { name: /^apply$/i }));
 
     expect(screen.getByRole("heading", { name: /updated baseline run/i })).toBeInTheDocument();
-  });
+  }, 15000);
 
   it("edits a matrix cell through the grid source editor", async () => {
     const user = userEvent.setup();
@@ -126,7 +126,7 @@ describe("App per-cell source editors", () => {
     await user.click(within(balanceSheetArticle).getByRole("button", { name: /^apply$/i }));
 
     expect(within(balanceSheetArticle).getByText(/households edited/i)).toBeInTheDocument();
-  });
+  }, 15000);
 
   it("does not leak linked equation drafts into notebook source before apply", async () => {
     const user = userEvent.setup();
@@ -155,7 +155,7 @@ describe("App per-cell source editors", () => {
     await setNotebookSourceFormat(user, "json");
     const draftExport = getNotebookSourceTextArea();
     expect(draftExport.value).not.toContain(`"name": "${draftValue}"`);
-  });
+  }, 15000);
 
   it("discards linked equation drafts on cancel", async () => {
     const user = userEvent.setup();

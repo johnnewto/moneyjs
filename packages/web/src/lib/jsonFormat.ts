@@ -1,6 +1,6 @@
 export function stringifyJsonWithCompactLeaves(value: unknown, level = 0): string {
   if (value == null || typeof value !== "object") {
-    return JSON.stringify(value);
+    return stringifyPrimitiveJsonValue(value);
   }
 
   if (Array.isArray(value)) {
@@ -19,7 +19,7 @@ export function stringifyJsonWithCompactLeaves(value: unknown, level = 0): strin
       .join(",\n")}\n${indentation}]`;
   }
 
-  const entries = Object.entries(value);
+  const entries = Object.entries(value).filter(([, entryValue]) => entryValue !== undefined);
   if (entries.length === 0) {
     return "{}";
   }
@@ -42,16 +42,29 @@ export function stringifyJsonWithCompactLeaves(value: unknown, level = 0): strin
 
 function stringifyInlineJsonValue(value: unknown): string {
   if (value == null || typeof value !== "object") {
-    return JSON.stringify(value);
+    return stringifyPrimitiveJsonValue(value);
   }
 
   if (Array.isArray(value)) {
     return `[${value.map((entry) => stringifyInlineJsonValue(entry)).join(", ")}]`;
   }
 
-  return `{ ${Object.entries(value)
+  const entries = Object.entries(value).filter(([, entryValue]) => entryValue !== undefined);
+  if (entries.length === 0) {
+    return "{}";
+  }
+
+  return `{ ${entries
     .map(([key, entryValue]) => `${JSON.stringify(key)}: ${stringifyInlineJsonValue(entryValue)}`)
     .join(", ")} }`;
+}
+
+function stringifyPrimitiveJsonValue(value: unknown): string {
+  if (value === undefined) {
+    return "null";
+  }
+
+  return JSON.stringify(value);
 }
 
 function isInlineJsonValue(value: unknown): boolean {

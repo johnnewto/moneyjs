@@ -140,17 +140,6 @@ describe("useDragScroll", () => {
     expect(surface).not.toHaveClass("drag-scroll-active");
   });
 
-  it("switches to selection cursor mode while Ctrl is held", () => {
-    const { container } = render(<DragScrollFixture />);
-    const surface = getSurface(container);
-
-    fireEvent.keyDown(window, { key: "Control", ctrlKey: true });
-    expect(surface).toHaveClass("drag-scroll-select-mode");
-
-    fireEvent.keyUp(window, { key: "Control", ctrlKey: false });
-    expect(surface).not.toHaveClass("drag-scroll-select-mode");
-  });
-
   it("scrolls horizontally when the surface overflows on the x axis", () => {
     const { container } = render(<DragScrollFixture />);
     const surface = getSurface(container);

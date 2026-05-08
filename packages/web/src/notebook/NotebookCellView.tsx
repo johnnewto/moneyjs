@@ -50,6 +50,10 @@ import {
   findSolverCell
 } from "./modelSections";
 import { MatrixSourceEditor } from "./MatrixSourceEditor";
+import {
+  classifyMatrixStockRole,
+  inferMatrixTableKind
+} from "./matrixSemantics";
 import { resolveSequenceDiagram } from "./sequence";
 import { buildDependencyGraph } from "./dependencyGraph";
 import { buildDependencyProxyDisplayOccurrences, buildDependencyRowTopology } from "./dependencyRows";
@@ -2669,6 +2673,7 @@ function MatrixCellView({
     () => buildEvaluatedMatrix(cell, result, selectedPeriodIndex),
     [cell, result, selectedPeriodIndex]
   );
+  const matrixKind = useMemo(() => inferMatrixTableKind(cell), [cell]);
   const sumColumnIndex = cell.columns.findIndex((column) => column.trim().toLowerCase() === "sum");
 
   return (
@@ -2748,7 +2753,23 @@ function MatrixCellView({
                         .join(" ") || undefined
                     }
                   >
+                    {(() => {
+                      const stockRole =
+                        matrixKind === "stocks" && !entry.isSumCell
+                          ? classifyMatrixStockRole(row.label, entry.source, entry.numericValue)
+                          : null;
+
+                      return (
                     <div className="matrix-entry-inline">
+                      {stockRole ? (
+                        <span
+                          className={`notebook-godley-role notebook-godley-role-${stockRole}`}
+                          aria-label={formatStockRoleTitle(stockRole)}
+                          title={formatStockRoleTitle(stockRole)}
+                        >
+                          {formatStockRoleLabel(stockRole)}
+                        </span>
+                      ) : null}
                       <span className="matrix-entry-source">
                         {highlightFormula(
                           entry.source,
@@ -2780,6 +2801,8 @@ function MatrixCellView({
                         </span>
                       ) : null}
                     </div>
+                      );
+                    })()}
                   </td>
                 ))}
               </tr>
@@ -2832,6 +2855,7 @@ function SequenceCellView({
       ...cell,
       source: cell.source
     };
+
     return (
       <DependencySequenceCellView
         cell={dependencyCell}
@@ -3405,6 +3429,7 @@ function buildEvaluatedMatrix(
         : numericValues[rowIndex]?.[columnIndex] ?? null;
 
       return {
+        numericValue: computedValue,
         source: value,
         resolved:
           computedValue != null && Number.isFinite(computedValue)
@@ -3537,6 +3562,28 @@ function formatMatrixNumber(value: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   });
+}
+
+function formatStockRoleLabel(role: "asset" | "liability" | "netWorth"): string {
+  switch (role) {
+    case "asset":
+      return "A";
+    case "liability":
+      return "L";
+    case "netWorth":
+      return "E";
+  }
+}
+
+function formatStockRoleTitle(role: "asset" | "liability" | "netWorth"): string {
+  switch (role) {
+    case "asset":
+      return "Asset";
+    case "liability":
+      return "Liability";
+    case "netWorth":
+      return "Equity";
+  }
 }
 
 function formatNotebookCurrentValue(

@@ -14,28 +14,11 @@ export function useDragScroll<T extends HTMLElement>() {
   const cleanupRef = useRef<(() => void) | null>(null);
   const suppressClickRef = useRef(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [isSelectionModifierPressed, setIsSelectionModifierPressed] = useState(false);
 
   useEffect(() => {
-    const updateSelectionModifierState = (event: KeyboardEvent) => {
-      const nextValue = event.ctrlKey || event.metaKey;
-      setIsSelectionModifierPressed((current) => (current === nextValue ? current : nextValue));
-    };
-
-    const clearSelectionModifierState = () => {
-      setIsSelectionModifierPressed((current) => (current ? false : current));
-    };
-
-    window.addEventListener("keydown", updateSelectionModifierState);
-    window.addEventListener("keyup", updateSelectionModifierState);
-    window.addEventListener("blur", clearSelectionModifierState);
-
     return () => {
       cleanupRef.current?.();
       cleanupRef.current = null;
-      window.removeEventListener("keydown", updateSelectionModifierState);
-      window.removeEventListener("keyup", updateSelectionModifierState);
-      window.removeEventListener("blur", clearSelectionModifierState);
     };
   }, []);
 
@@ -124,8 +107,7 @@ export function useDragScroll<T extends HTMLElement>() {
     dragScrollProps: {
       className: [
         "drag-scroll-surface",
-        isDragging ? "drag-scroll-active" : "",
-        !isDragging && isSelectionModifierPressed ? "drag-scroll-select-mode" : ""
+        isDragging ? "drag-scroll-active" : ""
       ]
         .filter(Boolean)
         .join(" "),
