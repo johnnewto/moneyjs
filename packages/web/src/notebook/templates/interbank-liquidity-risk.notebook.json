@@ -37,7 +37,7 @@
         { "band": "Central bank", "label": "Main refinancing operations (MRO)", "values": ["", "", "", "+MRO", "-MROj", "-MROk", "0"] },
         { "band": "Central bank", "label": "Lending facility reserves (Rcb_l)", "values": ["", "", "", "+Rcb_l", "-Rcb_l", "", "0"] },
         { "band": "Central bank", "label": "Deposit facility reserves (Rcb_d)", "values": ["", "", "", "-Rcb_d", "", "+Rcb_d", "0"] },
-        { "band": "Balance", "label": "Net wealth: Sigma", "values": ["+Vh", "+Vf", "", "+Vcb", "+Vbj", "+Vbk", "+ph * Hh + K"] }
+        { "band": "Balance", "label": "Net Worth: Sigma", "values": ["+Vh", "+Vf", "", "+Vcb", "+Vbj", "+Vbk", "+ph * Hh + K"] }
       ],
       "description": "Article-style balance-sheet matrix adapted from Table 4 of the paper.",
       "note": "This accounting table preserves the paper's full institutional structure. Some symbols shown here go beyond the reduced-form starter equations and are included as a modeling scaffold."

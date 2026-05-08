@@ -24,6 +24,7 @@ const STOCK_HINTS = [
   "inventory",
   "loan",
   "money",
+  "net wealth",
   "net worth"
 ];
 
@@ -56,7 +57,11 @@ export function classifyMatrixStockRole(
   numericValue: number | null
 ): "asset" | "liability" | "netWorth" | null {
   const normalizedLabel = rowLabel.trim().toLowerCase();
-  if (normalizedLabel.includes("net worth") || normalizedLabel.includes("balance")) {
+  if (
+    normalizedLabel.includes("net worth") ||
+    normalizedLabel.includes("net wealth") ||
+    normalizedLabel.includes("balance")
+  ) {
     return "netWorth";
   }
 
