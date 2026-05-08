@@ -9,6 +9,7 @@ import { NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
 type TemplateId =
   | "gl6-dis-rentier"
   | "gl6-dis-rentier-v2"
+  | "interbank-liquidity-risk"
   | "opensimplest"
   | "opensimplest-levy"
   | "predator-prey";
@@ -25,6 +26,27 @@ interface TemplateSmokeCase {
 }
 
 const TEMPLATE_CASES: TemplateSmokeCase[] = [
+  {
+    templateId: "interbank-liquidity-risk",
+    baselineRunCellId: "baseline-run",
+    scenarioRunCellId: "stress-run",
+    baselineExpectations(result) {
+      expect(result.options.periods).toBe(38);
+      expect(result.series.Y.length).toBe(38);
+      expect(result.series.IBon.length).toBe(38);
+      expect(result.series.IBterm.length).toBe(38);
+      expect(Number.isFinite(result.series.Y.at(-1) ?? NaN)).toBe(true);
+      expect(Number.isFinite(result.series.DSm.at(-1) ?? NaN)).toBe(true);
+      expect(Number.isFinite(result.series.iterm_ib.at(-1) ?? NaN)).toBe(true);
+    },
+    scenarioExpectations(result, baselineResult) {
+      expect(result.options.periods).toBe(38);
+      expect(result.series.iterm_ib.length).toBe(38);
+      expect(Number.isFinite(result.series.iterm_ib.at(-1) ?? NaN)).toBe(true);
+      expect(Number.isFinite(result.series.theta.at(-1) ?? NaN)).toBe(true);
+      expect(Number.isFinite(baselineResult.series.iterm_ib.at(-1) ?? NaN)).toBe(true);
+    }
+  },
   {
     templateId: "opensimplest",
     baselineRunCellId: "baseline-run",

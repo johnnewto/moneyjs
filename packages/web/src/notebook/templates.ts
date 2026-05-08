@@ -5,6 +5,7 @@ import gl6DisRentierNotebookJson from "./templates/gl6-dis-rentier.notebook.json
 import gl6DisRentierV2NotebookJson from "./templates/gl6-dis-rentier.notebook.v2.json";
 import gl7InsoutNotebookJson from "./templates/gl7-insout.notebook.json";
 import gl8GrowthNotebookJson from "./templates/gl8-growth.notebook.json";
+import interbankLiquidityRiskNotebookJson from "./templates/interbank-liquidity-risk.notebook.json";
 import opensimplestLevyNotebookJson from "./templates/opensimplest-levy.notebook.json";
 import opensimplestNotebookJson from "./templates/opensimplest.notebook.json";
 import predatorPreyNotebookJson from "./templates/predator-prey.notebook.json";
@@ -21,6 +22,7 @@ export type NotebookTemplateId =
   | "gl6-dis-rentier-v2"
   | "gl7-insout"
   | "gl8-growth"
+  | "interbank-liquidity-risk"
   | "opensimplest-levy"
   | "opensimplest"
   | "predator-prey"
@@ -81,6 +83,13 @@ export const NOTEBOOK_TEMPLATES: Record<NotebookTemplateId, NotebookTemplateDefi
     description:
       "GROWTH notebook based on the gl8-growth article baseline, accounting matrices, and selected policy experiments.",
     document: notebookFromJson(JSON.stringify(gl8GrowthNotebookJson))
+  },
+  "interbank-liquidity-risk": {
+    id: "interbank-liquidity-risk",
+    label: "Interbank liquidity risk",
+    description:
+      "Runnable starter notebook inspired by Reale's interbank-market SFC paper, with two-bank funding choice, reserve management, and a liquidity-stress scenario.",
+    document: notebookFromJson(JSON.stringify(interbankLiquidityRiskNotebookJson))
   },
   opensimplest: {
     id: "opensimplest",
