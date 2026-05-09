@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import {
@@ -54,6 +54,7 @@ import {
   classifyMatrixStockRole,
   inferMatrixTableKind
 } from "./matrixSemantics";
+import { NotebookRenderProfiler } from "./notebookProfiler";
 import { resolveSequenceDiagram } from "./sequence";
 import { buildDependencyGraph } from "./dependencyGraph";
 import { buildDependencyProxyDisplayOccurrences, buildDependencyRowTopology } from "./dependencyRows";
@@ -88,6 +89,30 @@ import type {
 } from "./types";
 import { useNotebookRunner } from "./useNotebookRunner";
 import { useDragScroll } from "../hooks/useDragScroll";
+import { useViewportObserver } from "../hooks/useViewportObserver";
+
+const EMPTY_PARAMETER_NAMES = new Set<string>();
+const MATRIX_VIRTUALIZATION_ROW_THRESHOLD = 20;
+const MATRIX_VIRTUALIZATION_ROW_HEIGHT_PX = 44;
+const MATRIX_VIRTUALIZATION_HEADER_HEIGHT_PX = 44;
+const MATRIX_VIRTUALIZATION_VIEWPORT_HEIGHT_PX = 480;
+const MATRIX_VIRTUALIZATION_OVERSCAN_ROWS = 4;
+
+const VIEWPORT_DEFERRED_CELL_TYPES = new Set<NotebookCell["type"]>([
+  "chart",
+  "table",
+  "matrix",
+  "sequence"
+]);
+
+interface MatrixSequenceViewState {
+  highlightedStepIndex: number | null;
+  pendingPeriodAdvance: boolean;
+  pendingPeriodRetreat: boolean;
+  previousCellId: string;
+  previousPeriodIndex: number;
+  visibleStepCount: number;
+}
 
 export interface NotebookCellViewProps {
   activeEditorCellId: string | null;
@@ -116,7 +141,7 @@ export interface NotebookCellViewProps {
   selectedPeriodIndex: number;
 }
 
-export function NotebookCellView({
+function NotebookCellViewComponent({
   activeEditorCellId,
   cell,
   cells,
@@ -166,7 +191,26 @@ export function NotebookCellView({
   );
   const showToolbarHelp = !isLinkedModelEditorCell(cell);
   const [isLinkedEditorEditing, setIsLinkedEditorEditing] = useState(false);
+  const [matrixSequenceViewState, setMatrixSequenceViewState] = useState<MatrixSequenceViewState | null>(null);
   const isActivelyEditing = isEditingSource || isLinkedEditorEditing;
+  const cellViewport = useViewportObserver<HTMLElement>({
+    disabled:
+      isCollapsed ||
+      isActivelyEditing ||
+      !isViewportDeferredCellType(cell.type)
+  });
+  const shouldMountViewportDeferredBody =
+    !isViewportDeferredCellType(cell.type) ||
+    isCollapsed ||
+    isActivelyEditing ||
+    cellViewport.isInViewport ||
+    selectedCellId === cell.id ||
+    activeEditorCellId === cell.id;
+  const showViewportDeferredPlaceholder =
+    !isCollapsed &&
+    !isActivelyEditing &&
+    isViewportDeferredCellType(cell.type) &&
+    !shouldMountViewportDeferredBody;
 
   useEffect(() => {
     setTitleDraft(cell.title);
@@ -177,6 +221,7 @@ export function NotebookCellView({
     setSourceValidationError(null);
     setIsEditingSource(false);
     setIsLinkedEditorEditing(false);
+    setMatrixSequenceViewState(null);
   }, [cell]);
 
   useEffect(() => {
@@ -327,16 +372,28 @@ export function NotebookCellView({
   }
 
   return (
-    <article
-      id={cell.id}
-      className={`notebook-cell notebook-cell-${cell.type}${
-        isCompactLinkedCellHeader(cell) ? " notebook-cell-linked-collapsed" : ""
-      }${selectedCellId === cell.id ? " notebook-cell-is-selected" : ""}${
-        activeEditorCellId === cell.id ? " notebook-cell-is-active-editor" : ""
-      }`}
-      onClick={handleCellClick}
+    <NotebookRenderProfiler
+      id="NotebookCellView"
+      metadata={{
+        cellId: cell.id,
+        cellType: cell.type,
+        isCollapsed,
+        isSelected: selectedCellId === cell.id
+      }}
     >
-      <div className="notebook-cell-content">
+      <article
+        ref={(node) => {
+          cellViewport.targetRef.current = node;
+        }}
+        id={cell.id}
+        className={`notebook-cell notebook-cell-${cell.type}${
+          isCompactLinkedCellHeader(cell) ? " notebook-cell-linked-collapsed" : ""
+        }${selectedCellId === cell.id ? " notebook-cell-is-selected" : ""}${
+          activeEditorCellId === cell.id ? " notebook-cell-is-active-editor" : ""
+        }`}
+        onClick={handleCellClick}
+      >
+        <div className="notebook-cell-content">
         <div className="notebook-cell-toolbar">
           <NotebookLinkedEditorHeader
             actions={
@@ -656,7 +713,10 @@ export function NotebookCellView({
         {isCollapsed ? null : cell.type === "run" ? (
           <RunCellView cell={cell} cells={cells} variableDescriptions={variableDescriptions} />
         ) : null}
-        {isCollapsed ? null : cell.type === "chart" ? (
+        {showViewportDeferredPlaceholder ? (
+          <DeferredNotebookCellPlaceholder cell={cell} />
+        ) : null}
+        {isCollapsed ? null : cell.type === "chart" && shouldMountViewportDeferredBody ? (
           <ChartCellView
             cell={cell}
             cells={cells}
@@ -666,7 +726,7 @@ export function NotebookCellView({
             variableUnitMetadata={variableUnitMetadata}
           />
         ) : null}
-        {isCollapsed ? null : cell.type === "table" ? (
+        {isCollapsed ? null : cell.type === "table" && shouldMountViewportDeferredBody ? (
           <TableCellView
             cell={cell}
             cells={cells}
@@ -677,7 +737,7 @@ export function NotebookCellView({
             onVariableInspectRequest={onVariableInspectRequest}
           />
         ) : null}
-        {isCollapsed || (cell.type === "matrix" && isEditingSource) ? null : cell.type === "matrix" ? (
+        {isCollapsed || (cell.type === "matrix" && isEditingSource) ? null : cell.type === "matrix" && shouldMountViewportDeferredBody ? (
           <MatrixCellView
             cell={cell}
             cells={cells}
@@ -688,13 +748,15 @@ export function NotebookCellView({
             onVariableInspectRequest={onVariableInspectRequest}
           />
         ) : null}
-        {isCollapsed ? null : cell.type === "sequence" ? (
+        {isCollapsed ? null : cell.type === "sequence" && shouldMountViewportDeferredBody ? (
           <SequenceCellView
             cell={cell}
             cells={cells}
             getModelCurrentValues={getModelCurrentValues}
+            matrixSequenceViewState={matrixSequenceViewState}
             maxPeriodIndex={maxPeriodIndex}
             onCellChange={onCellChange}
+            onMatrixSequenceViewStateChange={setMatrixSequenceViewState}
             onSelectedPeriodIndexChange={onSelectedPeriodIndexChange}
             onVariableInspectRequest={onVariableInspectRequest}
             runner={runner}
@@ -702,9 +764,128 @@ export function NotebookCellView({
             variableDescriptions={variableDescriptions}
           />
         ) : null}
-      </div>
-    </article>
+        </div>
+      </article>
+    </NotebookRenderProfiler>
   );
+}
+
+export const NotebookCellView = memo(NotebookCellViewComponent, areNotebookCellViewPropsEqual);
+NotebookCellView.displayName = "NotebookCellView";
+
+function areNotebookCellViewPropsEqual(
+  previousProps: NotebookCellViewProps,
+  nextProps: NotebookCellViewProps
+): boolean {
+  if (previousProps.cell !== nextProps.cell || previousProps.cells !== nextProps.cells) {
+    return false;
+  }
+
+  if (
+    previousProps.runner.outputs !== nextProps.runner.outputs ||
+    previousProps.runner.status !== nextProps.runner.status ||
+    previousProps.runner.errors !== nextProps.runner.errors
+  ) {
+    return false;
+  }
+
+  if (
+    isNotebookCellSelected(previousProps.cell.id, previousProps.selectedCellId) !==
+    isNotebookCellSelected(nextProps.cell.id, nextProps.selectedCellId)
+  ) {
+    return false;
+  }
+
+  if (
+    isNotebookCellActiveEditor(previousProps.cell.id, previousProps.activeEditorCellId) !==
+    isNotebookCellActiveEditor(nextProps.cell.id, nextProps.activeEditorCellId)
+  ) {
+    return false;
+  }
+
+  if (
+    usesSelectedPeriodIndex(nextProps.cell) &&
+    previousProps.selectedPeriodIndex !== nextProps.selectedPeriodIndex
+  ) {
+    return false;
+  }
+
+  if (usesMaxPeriodIndex(nextProps.cell) && previousProps.maxPeriodIndex !== nextProps.maxPeriodIndex) {
+    return false;
+  }
+
+  return true;
+}
+
+function isNotebookCellSelected(cellId: string, selectedCellId: string | null): boolean {
+  return cellId === selectedCellId;
+}
+
+function isNotebookCellActiveEditor(cellId: string, activeEditorCellId: string | null): boolean {
+  return cellId === activeEditorCellId;
+}
+
+function isViewportDeferredCellType(cellType: NotebookCell["type"]): boolean {
+  return VIEWPORT_DEFERRED_CELL_TYPES.has(cellType);
+}
+
+function getViewportDeferredPlaceholderHeight(cell: NotebookCell): number {
+  switch (cell.type) {
+    case "chart":
+      return 320;
+    case "matrix":
+      return 420;
+    case "sequence":
+      return 360;
+    case "table":
+      return 240;
+    default:
+      return 180;
+  }
+}
+
+function getViewportDeferredPlaceholderLabel(cell: NotebookCell): string {
+  switch (cell.type) {
+    case "chart":
+      return "Chart";
+    case "matrix":
+      return "Matrix";
+    case "sequence":
+      return "Sequence diagram";
+    case "table":
+      return "Table";
+    default:
+      return "Cell";
+  }
+}
+
+function DeferredNotebookCellPlaceholder({ cell }: { cell: NotebookCell }) {
+  return (
+    <div
+      className="notebook-cell-viewport-placeholder"
+      style={{ minHeight: `${getViewportDeferredPlaceholderHeight(cell)}px` }}
+    >
+      <strong>{getViewportDeferredPlaceholderLabel(cell)} deferred</strong>
+      <span>Scroll this cell near the viewport to mount its interactive content.</span>
+    </div>
+  );
+}
+
+function usesSelectedPeriodIndex(cell: NotebookCell): boolean {
+  return (
+    cell.type === "equations" ||
+    cell.type === "model" ||
+    cell.type === "externals" ||
+    cell.type === "initial-values" ||
+    cell.type === "chart" ||
+    cell.type === "table" ||
+    cell.type === "matrix" ||
+    (cell.type === "sequence" && cell.source.kind === "matrix")
+  );
+}
+
+function usesMaxPeriodIndex(cell: NotebookCell): boolean {
+  return cell.type === "sequence" && cell.source.kind === "matrix";
 }
 
 function ModelCellView({
@@ -2659,6 +2840,8 @@ function MatrixCellView({
   }): void;
 }) {
   const matrixDragScroll = useDragScroll<HTMLDivElement>();
+  const matrixHeaderScrollRef = useRef<HTMLDivElement | null>(null);
+  const [matrixScrollTop, setMatrixScrollTop] = useState(0);
   const result = cell.sourceRunCellId ? runner.getResult(cell.sourceRunCellId) : null;
   const editor = cell.sourceRunCellId ? resolveEditorStateForRunCellId(cells, cell.sourceRunCellId) : null;
   const currentValues = result
@@ -2675,91 +2858,218 @@ function MatrixCellView({
   );
   const matrixKind = useMemo(() => inferMatrixTableKind(cell), [cell]);
   const sumColumnIndex = cell.columns.findIndex((column) => column.trim().toLowerCase() === "sum");
+  const isVirtualizedMatrix =
+    cell.id === "transaction-flow" &&
+    evaluatedMatrix.rows.length > MATRIX_VIRTUALIZATION_ROW_THRESHOLD;
+  const inspectContextRef = useRef({
+    currentValues,
+    editor,
+    variableDescriptions,
+    variableUnitMetadata
+  });
 
-  return (
-    <div className="notebook-matrix">
-      {cell.description ? <p className="notebook-markdown">{cell.description}</p> : null}
-      <div
-        ref={matrixDragScroll.dragScrollRef}
-        className={`notebook-matrix-wrap ${matrixDragScroll.dragScrollProps.className}`}
-        onClickCapture={matrixDragScroll.dragScrollProps.onClickCapture}
-        onMouseDown={matrixDragScroll.dragScrollProps.onMouseDown}
-      >
-        <table className="notebook-matrix-table">
-          <thead>
-            <tr>
-              <th scope="col" />
-              {cell.columns.map((column, columnIndex) => (
-              <th
-                key={column}
-                scope="col"
-                className={columnIndex === sumColumnIndex ? "notebook-matrix-sum-column" : undefined}
-              >
-                  {editor ? (
-                    <button
-                      type="button"
-                      className="result-variable-button"
-                      onClick={() =>
-                        onVariableInspectRequest({
-                          currentValues,
-                          editor,
-                          selectedVariable: column,
-                          variableDescriptions,
-                          variableUnitMetadata
-                        })
-                      }
-                    >
-                      <VariableLabel
-                        currentValues={currentValues}
-                        name={column}
-                        variableDescriptions={variableDescriptions}
-                        variableUnitMetadata={variableUnitMetadata}
-                      />
-                    </button>
-                  ) : (
-                    <VariableLabel
-                      currentValues={currentValues}
-                      name={column}
-                      variableDescriptions={variableDescriptions}
-                      variableUnitMetadata={variableUnitMetadata}
-                    />
-                  )}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {evaluatedMatrix.rows.map((row) => (
-              <tr
-                key={row.label}
-                className={row.isSumRow && !row.isBalanced ? "matrix-balance-error" : undefined}
-              >
-                <th scope="row">
-                  <VariableLabel
-                    name={row.label}
-                    variableDescriptions={variableDescriptions}
-                    variableUnitMetadata={variableUnitMetadata}
-                  />
-                </th>
-                {row.entries.map((entry, index) => (
-                  <td
-                    key={`${row.label}-${cell.columns[index] ?? index}`}
-                    className={
-                      [
-                        index === sumColumnIndex ? "notebook-matrix-sum-column" : undefined,
-                        entry.isSumCell && !entry.isBalanced ? "matrix-balance-error" : undefined
-                      ]
-                        .filter(Boolean)
-                        .join(" ") || undefined
-                    }
-                  >
-                    {(() => {
-                      const stockRole =
-                        matrixKind === "stocks" && !entry.isSumCell
-                          ? classifyMatrixStockRole(row.label, entry.source, entry.numericValue)
-                          : null;
+  useEffect(() => {
+    inspectContextRef.current = {
+      currentValues,
+      editor,
+      variableDescriptions,
+      variableUnitMetadata
+    };
+  }, [currentValues, editor, variableDescriptions, variableUnitMetadata]);
 
-                      return (
+  const handleInspectVariable = useCallback(
+    (selectedVariable: string) => {
+      const context = inspectContextRef.current;
+      if (!context.editor) {
+        return;
+      }
+
+      onVariableInspectRequest({
+        currentValues: context.currentValues,
+        editor: context.editor,
+        selectedVariable,
+        variableDescriptions: context.variableDescriptions,
+        variableUnitMetadata: context.variableUnitMetadata
+      });
+    },
+    [onVariableInspectRequest]
+  );
+  const sourceSelectVariable = editor ? handleInspectVariable : undefined;
+  const matrixSourceNodes = useMemo(
+    () =>
+      cell.rows.map((row) =>
+        row.values.map((source, index) => (
+          <NotebookRenderProfiler
+            key={`${row.label}-${cell.columns[index] ?? index}-source`}
+            id="MatrixEntrySource"
+            metadata={{
+              cellId: cell.id,
+              columnLabel: cell.columns[index] ?? String(index),
+              rowLabel: row.label
+            }}
+          >
+            <span className="matrix-entry-source">
+              {highlightFormula(
+                source,
+                EMPTY_PARAMETER_NAMES,
+                undefined,
+                variableDescriptions,
+                variableUnitMetadata,
+                sourceSelectVariable
+              )}
+            </span>
+          </NotebookRenderProfiler>
+        ))
+      ),
+    [
+      cell.columns,
+      cell.id,
+      cell.rows,
+      sourceSelectVariable,
+      variableDescriptions,
+      variableUnitMetadata
+    ]
+  );
+  const virtualizedMatrixWindow = useMemo(() => {
+    if (!isVirtualizedMatrix) {
+      return {
+        bottomSpacerHeight: 0,
+        endIndex: evaluatedMatrix.rows.length,
+        startIndex: 0,
+        topSpacerHeight: 0
+      };
+    }
+
+    const visibleCount = Math.ceil(
+      MATRIX_VIRTUALIZATION_VIEWPORT_HEIGHT_PX / MATRIX_VIRTUALIZATION_ROW_HEIGHT_PX
+    );
+    const bodyScrollTop = Math.max(0, matrixScrollTop - MATRIX_VIRTUALIZATION_HEADER_HEIGHT_PX);
+    const unclampedStartIndex =
+      Math.floor(bodyScrollTop / MATRIX_VIRTUALIZATION_ROW_HEIGHT_PX) -
+      MATRIX_VIRTUALIZATION_OVERSCAN_ROWS;
+    const startIndex = Math.max(0, unclampedStartIndex);
+    const endIndex = Math.min(
+      evaluatedMatrix.rows.length,
+      startIndex + visibleCount + MATRIX_VIRTUALIZATION_OVERSCAN_ROWS * 2
+    );
+
+    return {
+      bottomSpacerHeight:
+        (evaluatedMatrix.rows.length - endIndex) * MATRIX_VIRTUALIZATION_ROW_HEIGHT_PX,
+      endIndex,
+      startIndex,
+      topSpacerHeight: startIndex * MATRIX_VIRTUALIZATION_ROW_HEIGHT_PX
+    };
+  }, [evaluatedMatrix.rows.length, isVirtualizedMatrix, matrixScrollTop]);
+  const renderedMatrixRows = useMemo(
+    () => evaluatedMatrix.rows.slice(virtualizedMatrixWindow.startIndex, virtualizedMatrixWindow.endIndex),
+    [evaluatedMatrix.rows, virtualizedMatrixWindow.endIndex, virtualizedMatrixWindow.startIndex]
+  );
+  const matrixColumnGroup = useMemo(
+    () => (
+      <colgroup>
+        <col className="notebook-matrix-row-header-col" />
+        {cell.columns.map((column, columnIndex) => (
+          <col
+            key={column}
+            className={
+              columnIndex === sumColumnIndex
+                ? "notebook-matrix-value-col notebook-matrix-value-col-sum"
+                : "notebook-matrix-value-col"
+            }
+          />
+        ))}
+      </colgroup>
+    ),
+    [cell.columns, sumColumnIndex]
+  );
+  const matrixHeaderRow = (
+    <tr>
+      <th scope="col" />
+      {cell.columns.map((column, columnIndex) => (
+        <th
+          key={column}
+          scope="col"
+          className={columnIndex === sumColumnIndex ? "notebook-matrix-sum-column" : undefined}
+        >
+          {editor ? (
+            <button
+              type="button"
+              className="result-variable-button"
+              onClick={() => handleInspectVariable(column)}
+            >
+              <VariableLabel
+                currentValues={currentValues}
+                name={column}
+                variableDescriptions={variableDescriptions}
+                variableUnitMetadata={variableUnitMetadata}
+              />
+            </button>
+          ) : (
+            <VariableLabel
+              currentValues={currentValues}
+              name={column}
+              variableDescriptions={variableDescriptions}
+              variableUnitMetadata={variableUnitMetadata}
+            />
+          )}
+        </th>
+      ))}
+    </tr>
+  );
+  const matrixBodyRows = (
+    <>
+      {virtualizedMatrixWindow.topSpacerHeight > 0 ? (
+        <tr aria-hidden="true" className="notebook-matrix-virtual-spacer-row">
+          <td
+            colSpan={cell.columns.length + 1}
+            style={{ height: `${virtualizedMatrixWindow.topSpacerHeight}px` }}
+          />
+        </tr>
+      ) : null}
+      {renderedMatrixRows.map((row, visibleRowIndex) => {
+        const rowIndex = virtualizedMatrixWindow.startIndex + visibleRowIndex;
+
+        return (
+          <tr
+            key={row.label}
+            className={row.isSumRow && !row.isBalanced ? "matrix-balance-error" : undefined}
+          >
+            <th scope="row">
+              <NotebookRenderProfiler
+                id="MatrixTableRowLabel"
+                metadata={{
+                  cellId: cell.id,
+                  rowLabel: row.label,
+                  selectedPeriodIndex
+                }}
+              >
+                <VariableLabel
+                  name={row.label}
+                  variableDescriptions={variableDescriptions}
+                  variableUnitMetadata={variableUnitMetadata}
+                />
+              </NotebookRenderProfiler>
+            </th>
+            {row.entries.map((entry, index) => (
+              <td
+                key={`${row.label}-${cell.columns[index] ?? index}`}
+                className={
+                  [
+                    index === sumColumnIndex ? "notebook-matrix-sum-column" : undefined,
+                    entry.isSumCell && !entry.isBalanced ? "matrix-balance-error" : undefined
+                  ]
+                    .filter(Boolean)
+                    .join(" ") || undefined
+                }
+              >
+                {(() => {
+                  const stockRole =
+                    matrixKind === "stocks" && !entry.isSumCell
+                      ? classifyMatrixStockRole(row.label, entry.source, entry.numericValue)
+                      : null;
+
+                  return (
                     <div className="matrix-entry-inline">
                       {stockRole ? (
                         <span
@@ -2770,48 +3080,157 @@ function MatrixCellView({
                           {formatStockRoleLabel(stockRole)}
                         </span>
                       ) : null}
-                      <span className="matrix-entry-source">
-                        {highlightFormula(
-                          entry.source,
-                          new Set(),
-                          undefined,
-                          variableDescriptions,
-                          variableUnitMetadata,
-                          editor
-                            ? (selectedVariable) =>
-                                onVariableInspectRequest({
-                                  currentValues,
-                                  editor,
-                                  selectedVariable,
-                                  variableDescriptions,
-                                  variableUnitMetadata
-                                })
-                            : undefined,
-                          undefined,
-                          currentValues
-                        )}
-                      </span>
+                      {matrixSourceNodes[rowIndex]?.[index] ?? null}
                       {entry.resolved ? (
-                        <span className="matrix-entry-current">
-                          {formatResolvedMatrixValue(
-                            entry.source,
-                            entry.resolved,
-                            variableUnitMetadata
-                          )}
-                        </span>
+                        <NotebookRenderProfiler
+                          id="MatrixEntryResolved"
+                          metadata={{
+                            cellId: cell.id,
+                            columnLabel: cell.columns[index] ?? String(index),
+                            rowLabel: row.label,
+                            selectedPeriodIndex
+                          }}
+                        >
+                          <span className="matrix-entry-current">
+                            {formatResolvedMatrixValue(
+                              entry.source,
+                              entry.resolved,
+                              variableUnitMetadata
+                            )}
+                          </span>
+                        </NotebookRenderProfiler>
                       ) : null}
                     </div>
-                      );
-                    })()}
-                  </td>
-                ))}
-              </tr>
+                  );
+                })()}
+              </td>
             ))}
-          </tbody>
-        </table>
+          </tr>
+        );
+      })}
+      {virtualizedMatrixWindow.bottomSpacerHeight > 0 ? (
+        <tr aria-hidden="true" className="notebook-matrix-virtual-spacer-row">
+          <td
+            colSpan={cell.columns.length + 1}
+            style={{ height: `${virtualizedMatrixWindow.bottomSpacerHeight}px` }}
+          />
+        </tr>
+      ) : null}
+    </>
+  );
+
+  return (
+    <NotebookRenderProfiler
+      id="MatrixCellBody"
+      metadata={{
+        cellId: cell.id,
+        cellType: cell.type,
+        columnCount: cell.columns.length,
+        rowCount: evaluatedMatrix.rows.length,
+        selectedPeriodIndex
+      }}
+    >
+      <div className="notebook-matrix">
+        {cell.description ? <p className="notebook-markdown">{cell.description}</p> : null}
+        <NotebookRenderProfiler
+          id="MatrixCellTable"
+          metadata={{
+            cellId: cell.id,
+            cellType: cell.type,
+            columnCount: cell.columns.length,
+            rowCount: evaluatedMatrix.rows.length,
+            selectedPeriodIndex
+          }}
+        >
+          <div
+            className={
+              isVirtualizedMatrix ? "notebook-matrix-shell notebook-matrix-shell-virtualized" : undefined
+            }
+          >
+            {isVirtualizedMatrix ? (
+              <p className="notebook-matrix-scroll-hint">Scroll within the table to inspect all rows.</p>
+            ) : null}
+            {isVirtualizedMatrix ? (
+              <NotebookRenderProfiler
+                id="MatrixTableHeader"
+                metadata={{
+                  cellId: cell.id,
+                  columnCount: cell.columns.length,
+                  rowCount: evaluatedMatrix.rows.length,
+                  selectedPeriodIndex
+                }}
+              >
+                <div ref={matrixHeaderScrollRef} className="notebook-matrix-wrap notebook-matrix-wrap-virtualized-header">
+                  <table className="notebook-matrix-table notebook-matrix-table-virtualized">
+                    {matrixColumnGroup}
+                    <thead>{matrixHeaderRow}</thead>
+                  </table>
+                </div>
+              </NotebookRenderProfiler>
+            ) : null}
+            <div
+              ref={(node) => {
+                matrixDragScroll.dragScrollRef.current = node;
+              }}
+              className={[
+                "notebook-matrix-wrap",
+                matrixDragScroll.dragScrollProps.className,
+                isVirtualizedMatrix ? "notebook-matrix-wrap-virtualized-body" : undefined
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              onClickCapture={matrixDragScroll.dragScrollProps.onClickCapture}
+              onMouseDown={matrixDragScroll.dragScrollProps.onMouseDown}
+              onScroll={(event) => {
+                if (isVirtualizedMatrix) {
+                  setMatrixScrollTop(event.currentTarget.scrollTop);
+                  if (matrixHeaderScrollRef.current) {
+                    matrixHeaderScrollRef.current.scrollLeft = event.currentTarget.scrollLeft;
+                  }
+                }
+              }}
+            >
+              <table
+                className={[
+                  "notebook-matrix-table",
+                  isVirtualizedMatrix ? "notebook-matrix-table-virtualized" : undefined
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
+                {matrixColumnGroup}
+                {!isVirtualizedMatrix ? (
+                  <NotebookRenderProfiler
+                    id="MatrixTableHeader"
+                    metadata={{
+                      cellId: cell.id,
+                      columnCount: cell.columns.length,
+                      rowCount: evaluatedMatrix.rows.length,
+                      selectedPeriodIndex
+                    }}
+                  >
+                    <thead>{matrixHeaderRow}</thead>
+                  </NotebookRenderProfiler>
+                ) : null}
+              <NotebookRenderProfiler
+                id="MatrixTableBody"
+                metadata={{
+                  cellId: cell.id,
+                  columnCount: cell.columns.length,
+                  rowCount: evaluatedMatrix.rows.length,
+                  visibleRowCount: renderedMatrixRows.length,
+                  selectedPeriodIndex
+                }}
+              >
+                <tbody>{matrixBodyRows}</tbody>
+              </NotebookRenderProfiler>
+            </table>
+          </div>
+          </div>
+        </NotebookRenderProfiler>
+        {cell.note ? <p className="notebook-matrix-note">{cell.note}</p> : null}
       </div>
-      {cell.note ? <p className="notebook-matrix-note">{cell.note}</p> : null}
-    </div>
+    </NotebookRenderProfiler>
   );
 }
 
@@ -2819,8 +3238,10 @@ function SequenceCellView({
   cell,
   cells,
   getModelCurrentValues,
+  matrixSequenceViewState,
   maxPeriodIndex,
   onCellChange,
+  onMatrixSequenceViewStateChange,
   onSelectedPeriodIndexChange,
   onVariableInspectRequest,
   runner,
@@ -2834,8 +3255,15 @@ function SequenceCellView({
     sourceModelId?: string;
     sourceModelCellId?: string;
   }): Record<string, number | undefined>;
+  matrixSequenceViewState: MatrixSequenceViewState | null;
   maxPeriodIndex: number;
   onCellChange(cellId: string, updater: (cell: NotebookCell) => NotebookCell): void;
+  onMatrixSequenceViewStateChange(
+    updater:
+      | MatrixSequenceViewState
+      | null
+      | ((current: MatrixSequenceViewState | null) => MatrixSequenceViewState | null)
+  ): void;
   onSelectedPeriodIndexChange(nextIndex: number): void;
   onVariableInspectRequest(args: {
     currentValues: Record<string, number | undefined>;
@@ -2872,7 +3300,9 @@ function SequenceCellView({
     <MatrixSequenceCellView
       cell={cell}
       cells={cells}
+      matrixSequenceViewState={matrixSequenceViewState}
       maxPeriodIndex={maxPeriodIndex}
+      onMatrixSequenceViewStateChange={onMatrixSequenceViewStateChange}
       onSelectedPeriodIndexChange={onSelectedPeriodIndexChange}
       runner={runner}
       selectedPeriodIndex={selectedPeriodIndex}
@@ -3113,9 +3543,19 @@ function DependencySequenceCellView({
   }
 
   return (
-    <div className="sequence-viewer">
-      {cell.description ? <p className="notebook-markdown">{cell.description}</p> : null}
-      <div className="sequence-toolbar">
+    <NotebookRenderProfiler
+      id="SequenceDependencyCellBody"
+      metadata={{
+        cellId: cell.id,
+        cellType: cell.type,
+        edgeCount: visibleGraph.edges.length,
+        nodeCount: visibleGraph.nodes.length,
+        sourceKind: cell.source.kind
+      }}
+    >
+      <div className="sequence-viewer">
+        {cell.description ? <p className="notebook-markdown">{cell.description}</p> : null}
+        <div className="sequence-toolbar">
         <div className="sequence-toolbar-meta">
           <span>
             Nodes <strong>{visibleGraph.nodes.length}</strong>
@@ -3177,27 +3617,39 @@ function DependencySequenceCellView({
             </button>
           ) : null}
         </div>
+        </div>
+        <NotebookRenderProfiler
+          id="SequenceDependencyCanvas"
+          metadata={{
+            cellId: cell.id,
+            cellType: cell.type,
+            edgeCount: visibleGraph.edges.length,
+            nodeCount: visibleGraph.nodes.length,
+            sourceKind: cell.source.kind
+          }}
+        >
+          <DependencyGraphCanvas
+            graph={visibleGraph}
+            onNodeClick={handleNodeInspect}
+            sectorDisplayOccurrences={sectorDisplayOccurrences}
+            sectorTopology={sectorTopology}
+            rowTopology={rowTopology}
+            variableDescriptions={dependencyVariableDescriptions}
+            showAccountingStrips={showAccountingStrips}
+            ignoreInferredBandsForPlacement={ignoreInferredBandsForPlacement}
+            debugOverlay={showDebugOverlay}
+          />
+        </NotebookRenderProfiler>
+        {visibleGraph.errors.length ? (
+          <ul className="validation-list">
+            {visibleGraph.errors.map((error) => (
+              <li key={error}>{error}</li>
+            ))}
+          </ul>
+        ) : null}
+        {cell.note ? <p className="notebook-matrix-note">{cell.note}</p> : null}
       </div>
-      <DependencyGraphCanvas
-        graph={visibleGraph}
-        onNodeClick={handleNodeInspect}
-        sectorDisplayOccurrences={sectorDisplayOccurrences}
-        sectorTopology={sectorTopology}
-        rowTopology={rowTopology}
-        variableDescriptions={dependencyVariableDescriptions}
-        showAccountingStrips={showAccountingStrips}
-        ignoreInferredBandsForPlacement={ignoreInferredBandsForPlacement}
-        debugOverlay={showDebugOverlay}
-      />
-      {visibleGraph.errors.length ? (
-        <ul className="validation-list">
-          {visibleGraph.errors.map((error) => (
-            <li key={error}>{error}</li>
-          ))}
-        </ul>
-      ) : null}
-      {cell.note ? <p className="notebook-matrix-note">{cell.note}</p> : null}
-    </div>
+    </NotebookRenderProfiler>
   );
 }
 
@@ -3231,7 +3683,9 @@ function filterDependencyGraphForView(
 function MatrixSequenceCellView({
   cell,
   cells,
+  matrixSequenceViewState,
   maxPeriodIndex,
+  onMatrixSequenceViewStateChange,
   onSelectedPeriodIndexChange,
   runner,
   selectedPeriodIndex,
@@ -3239,7 +3693,14 @@ function MatrixSequenceCellView({
 }: {
   cell: SequenceCell;
   cells: NotebookCell[];
+  matrixSequenceViewState: MatrixSequenceViewState | null;
   maxPeriodIndex: number;
+  onMatrixSequenceViewStateChange(
+    updater:
+      | MatrixSequenceViewState
+      | null
+      | ((current: MatrixSequenceViewState | null) => MatrixSequenceViewState | null)
+  ): void;
   onSelectedPeriodIndexChange(nextIndex: number): void;
   runner: ReturnType<typeof useNotebookRunner>;
   selectedPeriodIndex: number;
@@ -3258,58 +3719,96 @@ function MatrixSequenceCellView({
       ),
     [cell, cells, runner, selectedPeriodIndex]
   );
-  const [visibleStepCount, setVisibleStepCount] = useState(() => diagram.steps.length);
-  const [highlightedStepIndex, setHighlightedStepIndex] = useState<number | null>(null);
-  const pendingPeriodAdvanceRef = useRef(false);
-  const pendingPeriodRetreatRef = useRef(false);
-  const previousCellIdRef = useRef(cell.id);
-  const previousPeriodIndexRef = useRef(selectedPeriodIndex);
+  const effectiveMatrixSequenceViewState =
+    matrixSequenceViewState ?? {
+      highlightedStepIndex: null,
+      pendingPeriodAdvance: false,
+      pendingPeriodRetreat: false,
+      previousCellId: cell.id,
+      previousPeriodIndex: selectedPeriodIndex,
+      visibleStepCount: diagram.steps.length
+    };
 
   useEffect(() => {
-    if (previousCellIdRef.current !== cell.id) {
-      previousCellIdRef.current = cell.id;
-      previousPeriodIndexRef.current = selectedPeriodIndex;
-      pendingPeriodAdvanceRef.current = false;
-      pendingPeriodRetreatRef.current = false;
-      setVisibleStepCount(diagram.steps.length);
-      setHighlightedStepIndex(null);
-      return;
-    }
+    onMatrixSequenceViewStateChange((current) => {
+      const state = current ?? {
+        highlightedStepIndex: null,
+        pendingPeriodAdvance: false,
+        pendingPeriodRetreat: false,
+        previousCellId: cell.id,
+        previousPeriodIndex: selectedPeriodIndex,
+        visibleStepCount: diagram.steps.length
+      };
 
-    if (pendingPeriodAdvanceRef.current) {
-      pendingPeriodAdvanceRef.current = false;
-      previousPeriodIndexRef.current = selectedPeriodIndex;
-      setVisibleStepCount(Math.min(1, diagram.steps.length));
-      setHighlightedStepIndex(diagram.steps.length > 0 ? 0 : null);
-      return;
-    }
+      if (state.previousCellId !== cell.id) {
+        return {
+          highlightedStepIndex: null,
+          pendingPeriodAdvance: false,
+          pendingPeriodRetreat: false,
+          previousCellId: cell.id,
+          previousPeriodIndex: selectedPeriodIndex,
+          visibleStepCount: diagram.steps.length
+        };
+      }
 
-    if (pendingPeriodRetreatRef.current) {
-      pendingPeriodRetreatRef.current = false;
-      previousPeriodIndexRef.current = selectedPeriodIndex;
-      setVisibleStepCount(diagram.steps.length);
-      setHighlightedStepIndex(diagram.steps.length > 0 ? diagram.steps.length - 1 : null);
-      return;
-    }
+      if (state.pendingPeriodAdvance) {
+        return {
+          highlightedStepIndex: diagram.steps.length > 0 ? 0 : null,
+          pendingPeriodAdvance: false,
+          pendingPeriodRetreat: false,
+          previousCellId: cell.id,
+          previousPeriodIndex: selectedPeriodIndex,
+          visibleStepCount: Math.min(1, diagram.steps.length)
+        };
+      }
 
-    if (previousPeriodIndexRef.current !== selectedPeriodIndex) {
-      previousPeriodIndexRef.current = selectedPeriodIndex;
-      setVisibleStepCount(diagram.steps.length);
-      setHighlightedStepIndex(null);
-      return;
-    }
+      if (state.pendingPeriodRetreat) {
+        return {
+          highlightedStepIndex: diagram.steps.length > 0 ? diagram.steps.length - 1 : null,
+          pendingPeriodAdvance: false,
+          pendingPeriodRetreat: false,
+          previousCellId: cell.id,
+          previousPeriodIndex: selectedPeriodIndex,
+          visibleStepCount: diagram.steps.length
+        };
+      }
 
-    setVisibleStepCount(diagram.steps.length);
-    setHighlightedStepIndex(null);
-  }, [diagram.steps.length, cell.id, selectedPeriodIndex]);
+      if (state.previousPeriodIndex !== selectedPeriodIndex) {
+        return {
+          highlightedStepIndex: null,
+          pendingPeriodAdvance: false,
+          pendingPeriodRetreat: false,
+          previousCellId: cell.id,
+          previousPeriodIndex: selectedPeriodIndex,
+          visibleStepCount: diagram.steps.length
+        };
+      }
+
+      if (state.visibleStepCount !== diagram.steps.length || state.highlightedStepIndex !== null) {
+        return {
+          ...state,
+          highlightedStepIndex: null,
+          visibleStepCount: diagram.steps.length
+        };
+      }
+
+      return state;
+    });
+  }, [diagram.steps.length, cell.id, onMatrixSequenceViewStateChange, selectedPeriodIndex]);
 
   function moveToStep(nextCount: number): void {
     const clamped = Math.max(0, Math.min(nextCount, diagram.steps.length));
-    setVisibleStepCount(clamped);
-    setHighlightedStepIndex(clamped > visibleStepCount ? clamped - 1 : null);
+    onMatrixSequenceViewStateChange((current) => {
+      const state = current ?? effectiveMatrixSequenceViewState;
+      return {
+        ...state,
+        highlightedStepIndex: clamped > state.visibleStepCount ? clamped - 1 : null,
+        visibleStepCount: clamped
+      };
+    });
   }
 
-  const visibleSteps = Math.min(visibleStepCount, diagram.steps.length);
+  const visibleSteps = Math.min(effectiveMatrixSequenceViewState.visibleStepCount, diagram.steps.length);
   const canAdvancePeriod = selectedPeriodIndex < maxPeriodIndex;
   const canRetreatPeriod = selectedPeriodIndex > 0;
 
@@ -3321,7 +3820,11 @@ function MatrixSequenceCellView({
     if (!canAdvancePeriod) {
       return;
     }
-    pendingPeriodAdvanceRef.current = true;
+    onMatrixSequenceViewStateChange((current) => ({
+      ...(current ?? effectiveMatrixSequenceViewState),
+      pendingPeriodAdvance: true,
+      pendingPeriodRetreat: false
+    }));
     onSelectedPeriodIndexChange(selectedPeriodIndex + 1);
   }
 
@@ -3333,14 +3836,28 @@ function MatrixSequenceCellView({
     if (!canRetreatPeriod) {
       return;
     }
-    pendingPeriodRetreatRef.current = true;
+    onMatrixSequenceViewStateChange((current) => ({
+      ...(current ?? effectiveMatrixSequenceViewState),
+      pendingPeriodAdvance: false,
+      pendingPeriodRetreat: true
+    }));
     onSelectedPeriodIndexChange(selectedPeriodIndex - 1);
   }
 
   return (
-    <div className="sequence-viewer">
-      {cell.description ? <p className="notebook-markdown">{cell.description}</p> : null}
-      <div className="sequence-toolbar">
+    <NotebookRenderProfiler
+      id="SequenceMatrixCellBody"
+      metadata={{
+        cellId: cell.id,
+        cellType: cell.type,
+        selectedPeriodIndex,
+        sourceKind: cell.source.kind,
+        stepCount: diagram.steps.length
+      }}
+    >
+      <div className="sequence-viewer">
+        {cell.description ? <p className="notebook-markdown">{cell.description}</p> : null}
+        <div className="sequence-toolbar">
         <div className="sequence-toolbar-meta">
           <span>
             Participants <strong>{diagram.participants.length}</strong>
@@ -3386,22 +3903,36 @@ function MatrixSequenceCellView({
             Show all
           </button>
         </div>
-      </div>
-      <SequenceDiagramCanvas
-        diagram={diagram}
-        visibleStepCount={visibleSteps}
-        highlightedStepIndex={highlightedStepIndex}
-        variableDescriptions={variableDescriptions}
-      />
-      {diagram.errors.length ? (
+        </div>
+        <NotebookRenderProfiler
+          id="SequenceMatrixCanvas"
+          metadata={{
+            cellId: cell.id,
+            cellType: cell.type,
+            participantCount: diagram.participants.length,
+            selectedPeriodIndex,
+            sourceKind: cell.source.kind,
+            stepCount: diagram.steps.length,
+            visibleStepCount: visibleSteps
+          }}
+        >
+          <SequenceDiagramCanvas
+            diagram={diagram}
+            visibleStepCount={visibleSteps}
+            highlightedStepIndex={effectiveMatrixSequenceViewState.highlightedStepIndex}
+            variableDescriptions={variableDescriptions}
+          />
+        </NotebookRenderProfiler>
+        {diagram.errors.length ? (
         <ul className="validation-list">
           {diagram.errors.map((error) => (
             <li key={error}>{error}</li>
           ))}
         </ul>
       ) : null}
-      {cell.note ? <p className="notebook-matrix-note">{cell.note}</p> : null}
-    </div>
+        {cell.note ? <p className="notebook-matrix-note">{cell.note}</p> : null}
+      </div>
+    </NotebookRenderProfiler>
   );
 }
 

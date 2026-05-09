@@ -250,8 +250,7 @@ describe("ResultChart", () => {
 
     fireEvent.mouseMove(chart, { clientX: 330, clientY: 250 });
 
-    expect(screen.getByText(/A • Period 2/i)).toBeInTheDocument();
-    expect(screen.getByText(hasTextContent(/Value:\s*12\.0/i))).toBeInTheDocument();
+    expect(screen.getByText(hasTextContent(/A\s*•\s*Period 2\s*:\s*12\.0/i))).toBeInTheDocument();
     expect(screen.getByText("A").closest(".legend-item")).toHaveClass("is-active");
     expect(screen.getByText("B").closest(".legend-item")).toHaveClass("is-dimmed");
   });
@@ -278,8 +277,7 @@ describe("ResultChart", () => {
 
     fireEvent.mouseMove(chart, { clientX: 330, clientY: 250 });
 
-    expect(screen.getByText(/Y • Description/i)).toBeInTheDocument();
-    expect(screen.getByText(hasTextContent(/Value:\s*12\.0/i))).toBeInTheDocument();
+    expect(screen.getByText(hasTextContent(/Y\s*•\s*Description\s*:\s*12\.0/i))).toBeInTheDocument();
   });
 
   it("colors negative hover values red", () => {

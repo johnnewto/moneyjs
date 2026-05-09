@@ -240,22 +240,10 @@ export function formatUnitText(unitMeta?: UnitMeta): string | null {
 
 export function formatVariableTooltip(
   description?: string,
-  unitMeta?: UnitMeta,
-  currentValue?: number
+  unitMeta?: UnitMeta
 ): string | undefined {
   const normalizedDescription = description?.trim();
   const unitLabel = formatUnitText(unitMeta);
-  const currentValueLabel =
-    currentValue != null && Number.isFinite(currentValue)
-      ? formatValueWithUnits(currentValue, unitMeta)
-      : null;
-
-  if (normalizedDescription && currentValueLabel) {
-    return `${normalizedDescription} : ${currentValueLabel}`;
-  }
-  if (currentValueLabel) {
-    return currentValueLabel;
-  }
 
   if (normalizedDescription && unitLabel) {
     return `${normalizedDescription}\n${unitLabel}`;
@@ -276,11 +264,18 @@ export function resolveVariableTooltip(args: {
     args.description ??
     (normalizedName ? args.variableDescriptions?.get(normalizedName) : undefined);
   const unitMeta = normalizedName ? args.variableUnitMetadata?.get(normalizedName) : undefined;
-  const resolvedCurrentValue =
-    args.currentValue ??
-    (normalizedName ? args.currentValues?.[normalizedName] : undefined);
+  const resolvedValue =
+    args.currentValue ?? (normalizedName ? args.currentValues?.[normalizedName] : undefined);
 
-  return formatVariableTooltip(resolvedDescription, unitMeta, resolvedCurrentValue);
+  if (Number.isFinite(resolvedValue)) {
+    const formattedValue = formatValueWithUnits(resolvedValue, unitMeta);
+    if (resolvedDescription) {
+      return `${resolvedDescription} : ${formattedValue}`;
+    }
+    return normalizedName ? `${normalizedName} = ${formattedValue}` : formattedValue;
+  }
+
+  return formatVariableTooltip(resolvedDescription, unitMeta);
 }
 
 export function formatValueWithUnits(

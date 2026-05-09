@@ -15,6 +15,7 @@ import {
   resolveRunCellModelKey
 } from "./modelSections";
 import { NotebookCellView } from "./NotebookCellView";
+import { NotebookRenderProfiler } from "./notebookProfiler";
 import { SourceCodeEditor } from "./SourceCodeEditor";
 import {
   createNotebookFromTemplate,
@@ -817,7 +818,16 @@ export function NotebookApp() {
     : "";
 
   return (
-    <main className="app-shell notebook-shell">
+    <NotebookRenderProfiler
+      id="NotebookApp"
+      metadata={{
+        activeRailTab,
+        cellCount: notebookDocument.cells.length,
+        hasActiveEditor: activeEditorCellId != null,
+        selectedPeriodIndex
+      }}
+    >
+      <main className="app-shell notebook-shell">
       {uiMessage ? (
         <section className="toast-stack" aria-live="polite" aria-atomic="true">
           <div
@@ -939,32 +949,41 @@ export function NotebookApp() {
             </div>
           </section>
 
-          <section
-            className={`notebook-canvas${
-              activeEditorCellId ? " notebook-has-active-editor" : ""
-            }`}
-            aria-label="Notebook sheet"
+          <NotebookRenderProfiler
+            id="NotebookCanvas"
+            metadata={{
+              cellCount: notebookDocument.cells.length,
+              hasActiveEditor: activeEditorCellId != null,
+              selectedPeriodIndex
+            }}
           >
-            {notebookDocument.cells.map((cell) => (
-              <NotebookCellView
-                key={cell.id}
-                activeEditorCellId={activeEditorCellId}
-                cell={cell}
-                cells={notebookDocument.cells}
-                getModelCurrentValues={getCurrentValueMapForModelRef}
-                maxPeriodIndex={maxResultPeriodIndex}
-                onSelectedCellIdChange={setSelectedCellId}
-                onSelectedPeriodIndexChange={setSelectedPeriodIndex}
-                runner={runner}
-                onActiveEditorCellIdChange={setActiveEditorCellId}
-                onModelChange={updateModelCell}
-                onCellChange={updateCell}
-                onVariableInspectRequest={handleVariableInspectRequest}
-                selectedCellId={selectedCellId}
-                selectedPeriodIndex={selectedPeriodIndex}
-              />
-            ))}
-          </section>
+            <section
+              className={`notebook-canvas${
+                activeEditorCellId ? " notebook-has-active-editor" : ""
+              }`}
+              aria-label="Notebook sheet"
+            >
+              {notebookDocument.cells.map((cell) => (
+                <NotebookCellView
+                  key={cell.id}
+                  activeEditorCellId={activeEditorCellId}
+                  cell={cell}
+                  cells={notebookDocument.cells}
+                  getModelCurrentValues={getCurrentValueMapForModelRef}
+                  maxPeriodIndex={maxResultPeriodIndex}
+                  onSelectedCellIdChange={setSelectedCellId}
+                  onSelectedPeriodIndexChange={setSelectedPeriodIndex}
+                  runner={runner}
+                  onActiveEditorCellIdChange={setActiveEditorCellId}
+                  onModelChange={updateModelCell}
+                  onCellChange={updateCell}
+                  onVariableInspectRequest={handleVariableInspectRequest}
+                  selectedCellId={selectedCellId}
+                  selectedPeriodIndex={selectedPeriodIndex}
+                />
+              ))}
+            </section>
+          </NotebookRenderProfiler>
         </div>
 
         <div {...notebookPanelSplitter.splitterProps} />
@@ -1312,7 +1331,8 @@ export function NotebookApp() {
           ) : null}
         </aside>
       </div>
-    </main>
+      </main>
+    </NotebookRenderProfiler>
   );
 }
 

@@ -394,7 +394,7 @@ describe("App notebook navigation and inspection", () => {
 
     fireEvent.mouseEnter(rmToken);
     expect(screen.getByRole("tooltip")).toHaveTextContent("Rate of interest on bank deposits");
-    expect(screen.getByRole("tooltip").textContent).toMatch(/Rate of interest on bank deposits\s*:\s*[-$\d]/i);
+    expect(screen.getByRole("tooltip").textContent).toMatch(/Rate of interest on bank deposits\s*1\/yr/i);
     fireEvent.mouseLeave(rmToken);
   });
 
@@ -462,7 +462,7 @@ describe("App notebook navigation and inspection", () => {
       throw new Error("Expected inspector tooltip.");
     }
     expect(inspectorTooltip).toHaveTextContent("Bank deposits held by households");
-    expect(inspectorTooltip.textContent).toMatch(/Bank deposits held by households\s*:\s*[$\d-]/i);
+    expect(inspectorTooltip).toHaveTextContent("Bank deposits held by households : $0");
   });
 
   it("opens the notebook variable inspector from dependency graph nodes", async () => {
