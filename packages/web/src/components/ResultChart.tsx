@@ -472,7 +472,7 @@ export function ResultChart({
             <g transform={`translate(${hoverTooltip.tooltipX}, ${hoverTooltip.tooltipY})`}>
               <rect
                 width={hoverTooltip.tooltipWidth}
-                height={hoverTooltip.unitLabel ? "42" : "28"}
+                height={hoverTooltip.unitLabel ? "56" : "42"}
                 rx="10"
                 fill="rgba(15, 23, 42, 0.92)"
                 stroke={hoverTooltip.color}
@@ -480,13 +480,15 @@ export function ResultChart({
               <text x="10" y="16" fill="#f8fafc" fontSize="11" fontWeight="700">
                 {renderVariableMathSvgLabel(hoverTooltip.seriesName)} •{" "}
                 {hoverTooltip.description ? hoverTooltip.description : `Period ${hoverTooltip.period}`}
-                <tspan fill="#cbd5e1">: </tspan>
+              </text>
+              <text x="10" y="31" fill="#e2e8f0" fontSize="11">
+                <tspan>Value: </tspan>
                 <tspan fill={hoverTooltip.value < 0 ? "#b42318" : "#e2e8f0"}>
                   {formatAxisValue(hoverTooltip.value)}
                 </tspan>
               </text>
               {hoverTooltip.unitLabel ? (
-                <text x="10" y="31" fill="#cbd5e1" fontSize="11">
+                <text x="10" y="46" fill="#cbd5e1" fontSize="11">
                   Units: {hoverTooltip.unitLabel}
                 </text>
               ) : null}
