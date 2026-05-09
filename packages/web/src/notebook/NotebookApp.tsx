@@ -14,6 +14,7 @@ import {
   resolveNotebookModelKey,
   resolveRunCellModelKey
 } from "./modelSections";
+import { summarizeNotebookAssistantTools } from "./notebookAssistantTools";
 import { NotebookCellView } from "./NotebookCellView";
 import { NotebookRenderProfiler } from "./notebookProfiler";
 import { SourceCodeEditor } from "./SourceCodeEditor";
@@ -261,6 +262,7 @@ function buildNotebookAssistantContext(args: {
       `Notebook id: ${args.document.id}`,
       `Cells: ${args.document.cells.length}`,
       `Cell types: ${summarizeCellTypes(args.document.cells)}`,
+      `Available read-only assistant tools: ${summarizeNotebookAssistantTools()}`,
       `Selected period index: ${args.selectedPeriodIndex}`,
       `Completed run result count: ${args.resultCount}`,
       args.selectedVariable ? `Selected variable: ${args.selectedVariable}` : null,

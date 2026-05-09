@@ -267,7 +267,7 @@ export function resolveVariableTooltip(args: {
   const resolvedValue =
     args.currentValue ?? (normalizedName ? args.currentValues?.[normalizedName] : undefined);
 
-  if (Number.isFinite(resolvedValue)) {
+  if (typeof resolvedValue === "number" && Number.isFinite(resolvedValue)) {
     const formattedValue = formatValueWithUnits(resolvedValue, unitMeta);
     if (resolvedDescription) {
       return `${resolvedDescription} : ${formattedValue}`;

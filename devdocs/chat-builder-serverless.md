@@ -26,7 +26,7 @@ OPENAI_API_KEY=sk-your-key
 ALLOWED_ORIGINS=http://localhost:5173,https://johnnewto.github.io
 BETA_PASSWORD=
 MAX_OUTPUT_TOKENS=8000
-OPENAI_MODEL_ALLOWLIST=gpt-5.5,gpt-4.1,o3
+OPENAI_MODEL_ALLOWLIST=gpt-5.4,gpt-5.5,gpt-4.1,o3
 ```
 
 Set `BETA_PASSWORD` to require the browser user to enter a beta password before the Worker will call OpenAI. Leave it blank to disable the beta gate.
@@ -34,7 +34,7 @@ Set `BETA_PASSWORD` to require the browser user to enter a beta password before 
 Start the local chat API:
 
 ```bash
-pnpm chat-api:dev
+pnpm --filter @sfcr/chat-api dev
 ```
 
 Expected output:
@@ -51,7 +51,7 @@ packages/chat-api/prompts/chat-builder-system.md
 packages/chat-api/prompts/notebook-assistant-system.md
 ```
 
-The local Node adapter reads these files on every request, so you can edit prompt wording and immediately retry from the browser without restarting `pnpm chat-api:dev`.
+The local Node adapter reads these files on every request, so you can edit prompt wording and immediately retry from the browser without restarting `pnpm --filter @sfcr/chat-api dev`.
 
 Start the web app in another terminal:
 
@@ -80,7 +80,7 @@ VITE_CHAT_BUILDER_API_URL=http://localhost:8787/v1/chat-builder/draft pnpm web:d
 
 ## Why Local Dev Does Not Use Wrangler By Default
 
-`pnpm chat-api:dev` runs `packages/chat-api/scripts/dev-node.mjs`, a small Node adapter around the Worker handler.
+`pnpm --filter @sfcr/chat-api dev` runs `packages/chat-api/scripts/dev-node.mjs`, a small Node adapter around the Worker handler.
 
 This avoids local `workerd` compatibility problems on older Linux distributions. For example, Wrangler `4.87.0` may download a `workerd` binary that requires GLIBC `2.32` or newer, while Ubuntu systems with GLIBC `2.31` fail before the Worker starts.
 
@@ -89,7 +89,7 @@ The Node adapter is only for local development. The deployed runtime is still Cl
 If your system supports Wrangler local dev, use:
 
 ```bash
-pnpm chat-api:dev:wrangler
+pnpm --filter @sfcr/chat-api dev:wrangler
 ```
 
 ## API Contract
@@ -181,7 +181,7 @@ Configure production variables in Cloudflare or `packages/chat-api/wrangler.toml
 ```text
 ALLOWED_ORIGINS=https://johnnewto.github.io
 MAX_OUTPUT_TOKENS=8000
-OPENAI_MODEL_ALLOWLIST=gpt-5.5,gpt-4.1,o3
+OPENAI_MODEL_ALLOWLIST=gpt-5.4,gpt-5.5,gpt-4.1,o3
 ```
 
 `packages/chat-api/wrangler.toml` also configures `CHAT_BUILDER_RATE_LIMITER` with Cloudflare's Workers Rate Limiting binding. The current setting is 10 accepted draft requests per minute per rate-limit key. Cloudflare documents that this binding is backed by the same infrastructure as rate limiting rules, applies per Cloudflare location, and is intentionally permissive rather than an exact accounting counter.
@@ -207,7 +207,7 @@ pnpm build
 
 ## Troubleshooting
 
-If `pnpm chat-api:dev` says `OPENAI_API_KEY is not set`, create or edit:
+If `pnpm --filter @sfcr/chat-api dev` says `OPENAI_API_KEY is not set`, create or edit:
 
 ```text
 packages/chat-api/.dev.vars
@@ -222,11 +222,11 @@ VITE_CHAT_BUILDER_API_URL=http://localhost:8787/v1/chat-builder/draft pnpm web:d
 If Wrangler local dev fails with GLIBC errors, use:
 
 ```bash
-pnpm chat-api:dev
+pnpm --filter @sfcr/chat-api dev
 ```
 
 instead of:
 
 ```bash
-pnpm chat-api:dev:wrangler
+pnpm --filter @sfcr/chat-api dev:wrangler
 ```

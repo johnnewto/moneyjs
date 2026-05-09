@@ -271,6 +271,8 @@ describe("App notebook navigation and inspection", () => {
     expect(body.model).toBe("gpt-4.1");
     expect(body.question).toBe("What is this notebook?");
     expect(body.context).toContain("Notebook title: BMW Browser Notebook");
+    expect(body.context).toContain("Available read-only assistant tools:");
+    expect(body.context).toContain("getSeriesWindow");
     expect(body.context).toContain('"type": "matrix"');
     expect(window.localStorage.getItem("sfcr:notebook-assistant-beta-password")).toBeNull();
     const assistantLog = within(screen.getByRole("log", { name: /notebook assistant conversation/i }));
