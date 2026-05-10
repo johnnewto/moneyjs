@@ -1,0 +1,587 @@
+import { useEffect, useMemo, useState } from "react";
+
+import { ExternalEditor } from "../../components/ExternalEditor";
+import { InitialValuesEditor } from "../../components/InitialValuesEditor";
+import { SolverPanel } from "../../components/SolverPanel";
+import { VariableLabel } from "../../components/VariableLabel";
+import type { EditorState } from "../../lib/editorModel";
+import { buildVariableDescriptions, type VariableDescriptions } from "../../lib/variableDescriptions";
+import { buildVariableUnitMetadata } from "../../lib/units";
+import { countModelSectionIssues } from "../modelSections";
+import type { ExternalsCell, InitialValuesCell, SolverCell } from "../types";
+import {
+  NotebookLinkedEditorActions,
+  NotebookLinkedEditorHeader
+} from "./NotebookCellHeader";
+import { formatNotebookCurrentValue } from "./NotebookCurrentValue";
+
+export function SolverCellView({
+  cell,
+  issueMap,
+  onEditingChange,
+  title,
+  onChange,
+  onToggleCollapsed
+}: {
+  cell: SolverCell;
+  issueMap: Record<string, string | undefined>;
+  onEditingChange?(isEditing: boolean): void;
+  title: string;
+  onChange(options: EditorState["options"]): void;
+  onToggleCollapsed(): void;
+}) {
+  const options = cell.options;
+  const hiddenEquationEnabled =
+    options.hiddenLeftVariable.trim() !== "" && options.hiddenRightVariable.trim() !== "";
+  const issuePaths = Object.keys(issueMap);
+  const [isEditingSolver, setIsEditingSolver] = useState(false);
+  const [draftOptions, setDraftOptions] = useState(cell.options);
+  const hasDraftEdits = JSON.stringify(draftOptions) !== JSON.stringify(cell.options);
+
+  useEffect(() => {
+    onEditingChange?.(isEditingSolver);
+  }, [isEditingSolver, onEditingChange]);
+
+  useEffect(() => {
+    if (!isEditingSolver) {
+      setDraftOptions(cell.options);
+    }
+  }, [cell.options, isEditingSolver]);
+
+  function handleEditToggle(): void {
+    setDraftOptions(cell.options);
+    setIsEditingSolver(true);
+  }
+
+  function handleApply(): void {
+    onChange(draftOptions);
+    setIsEditingSolver(false);
+  }
+
+  function handleCancel(): void {
+    setDraftOptions(cell.options);
+    setIsEditingSolver(false);
+  }
+
+  return (
+    <div className="notebook-model-stack notebook-linked-editor-cell">
+      <NotebookLinkedEditorHeader
+        actions={
+          <NotebookLinkedEditorActions
+            cell={cell}
+            hasDraftEdits={hasDraftEdits}
+            isEditing={isEditingSolver}
+            onApply={handleApply}
+            onCancel={handleCancel}
+            onEditToggle={handleEditToggle}
+            onToggleCollapsed={onToggleCollapsed}
+            title={title}
+          />
+        }
+        title={title}
+        typeLabel={cell.type}
+      >
+        <div className="notebook-model-summary" aria-label="Solver summary">
+          <span className="notebook-model-chip">
+            Model <strong>{cell.modelId}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Solver <strong>{options.solverMethod}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Periods <strong>{options.periods}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Hidden <strong>{hiddenEquationEnabled ? "on" : "off"}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Issues <strong>{countModelSectionIssues(issuePaths, "options.")}</strong>
+          </span>
+        </div>
+      </NotebookLinkedEditorHeader>
+      {cell.collapsed ? null : isEditingSolver ? (
+        <div className="notebook-model-editor-body">
+          <SolverPanel options={draftOptions} issues={issueMap} onChange={setDraftOptions} />
+        </div>
+      ) : (
+        <section className="notebook-model-view" aria-label="Solver view">
+          <div className="notebook-model-view-header">
+            <h3>Solver view</h3>
+            <p className="panel-subtitle">
+              Compact read-only simulation and hidden-equation settings.
+            </p>
+          </div>
+          <div className="notebook-model-view-table" role="table" aria-label="Solver options">
+            <div
+              className="notebook-model-view-row notebook-model-view-row-header notebook-model-view-row-solver"
+              role="row"
+            >
+              <span role="columnheader">Setting</span>
+              <span role="columnheader">Value</span>
+              <span role="columnheader">Status</span>
+            </div>
+            {[
+              {
+                label: "Solver",
+                value: options.solverMethod,
+                status: issueMap["options.solverMethod"] ? "Issue" : "OK"
+              },
+              {
+                label: "Periods",
+                value: String(options.periods),
+                status: issueMap["options.periods"] ? "Issue" : "OK"
+              },
+              {
+                label: "Tolerance",
+                value: options.toleranceText,
+                status: issueMap["options.toleranceText"] ? "Issue" : "OK"
+              },
+              {
+                label: "Max iterations",
+                value: String(options.maxIterations),
+                status: issueMap["options.maxIterations"] ? "Issue" : "OK"
+              },
+              {
+                label: "Default initial",
+                value: options.defaultInitialValueText,
+                status: issueMap["options.defaultInitialValueText"] ? "Issue" : "OK"
+              },
+              {
+                label: "Hidden equation",
+                value: hiddenEquationEnabled
+                  ? `${options.hiddenLeftVariable} = ${options.hiddenRightVariable}`
+                  : "disabled",
+                status: issueMap["options.hiddenEquation"] ? "Issue" : "OK"
+              },
+              {
+                label: "Hidden tolerance",
+                value: options.hiddenToleranceText,
+                status: issueMap["options.hiddenToleranceText"] ? "Issue" : "OK"
+              },
+              {
+                label: "Relative hidden tol.",
+                value: options.relativeHiddenTolerance ? "true" : "false",
+                status: "OK"
+              }
+            ].map((row) => (
+              <div
+                key={row.label}
+                className={[
+                  "notebook-model-view-row",
+                  "notebook-model-view-row-solver",
+                  row.status !== "OK" ? "has-issue" : ""
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                role="row"
+              >
+                <span className="notebook-model-view-name" role="cell">
+                  {row.label}
+                </span>
+                <span className="notebook-model-view-expression" role="cell">
+                  {row.value}
+                </span>
+                <span className="notebook-model-view-kind" role="cell">
+                  {row.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+export function ExternalsCellView({
+  cell,
+  currentValues,
+  editor,
+  issueMap,
+  onEditingChange,
+  onVariableInspectRequest,
+  title,
+  onChange,
+  onToggleCollapsed
+}: {
+  cell: ExternalsCell;
+  currentValues: Record<string, number | undefined>;
+  editor: EditorState;
+  issueMap: Record<string, string | undefined>;
+  onEditingChange?(isEditing: boolean): void;
+  onVariableInspectRequest(args: {
+    currentValues: Record<string, number | undefined>;
+    editor: EditorState;
+    selectedVariable: string;
+    variableDescriptions: VariableDescriptions;
+    variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
+  }): void;
+  title: string;
+  onChange(externals: EditorState["externals"]): void;
+  onToggleCollapsed(): void;
+}) {
+  const issuePaths = Object.keys(issueMap);
+  const seriesExternalCount = cell.externals.filter((external) => external.kind === "series").length;
+  const variableDescriptions = useMemo(
+    () => buildVariableDescriptions({ externals: cell.externals }),
+    [cell.externals]
+  );
+  const variableUnitMetadata = useMemo(
+    () => buildVariableUnitMetadata({ externals: cell.externals }),
+    [cell.externals]
+  );
+  const [isEditingExternals, setIsEditingExternals] = useState(false);
+  const [draftExternals, setDraftExternals] = useState(cell.externals);
+  const hasDraftEdits = JSON.stringify(draftExternals) !== JSON.stringify(cell.externals);
+
+  useEffect(() => {
+    onEditingChange?.(isEditingExternals);
+  }, [isEditingExternals, onEditingChange]);
+
+  useEffect(() => {
+    if (!isEditingExternals) {
+      setDraftExternals(cell.externals);
+    }
+  }, [cell.externals, isEditingExternals]);
+
+  function handleEditToggle(): void {
+    setDraftExternals(cell.externals);
+    setIsEditingExternals(true);
+  }
+
+  function handleApply(): void {
+    onChange(draftExternals);
+    setIsEditingExternals(false);
+  }
+
+  function handleCancel(): void {
+    setDraftExternals(cell.externals);
+    setIsEditingExternals(false);
+  }
+
+  return (
+    <div className="notebook-model-stack notebook-linked-editor-cell">
+      <NotebookLinkedEditorHeader
+        actions={
+          <NotebookLinkedEditorActions
+            cell={cell}
+            hasDraftEdits={hasDraftEdits}
+            isEditing={isEditingExternals}
+            onApply={handleApply}
+            onCancel={handleCancel}
+            onEditToggle={handleEditToggle}
+            onToggleCollapsed={onToggleCollapsed}
+            title={title}
+          />
+        }
+        title={title}
+        typeLabel={cell.type}
+      >
+        <div className="notebook-model-summary" aria-label="Externals summary">
+          <span className="notebook-model-chip">
+            Model <strong>{cell.modelId}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Ext <strong>{cell.externals.length}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Series <strong>{seriesExternalCount}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Issues <strong>{countModelSectionIssues(issuePaths, "externals.")}</strong>
+          </span>
+        </div>
+      </NotebookLinkedEditorHeader>
+      {cell.collapsed ? null : isEditingExternals ? (
+        <div className="notebook-model-editor-body">
+          <ExternalEditor
+            currentValues={currentValues}
+            externals={draftExternals}
+            isEmbedded
+            issues={issueMap}
+            onChange={setDraftExternals}
+            showHeading={false}
+          />
+        </div>
+      ) : (
+        <section className="notebook-model-view" aria-label="Externals view">
+          <div className="notebook-model-view-table" role="table" aria-label="Externals">
+            <div
+              className="notebook-model-view-row notebook-model-view-row-header notebook-model-view-row-external"
+              role="row"
+            >
+              <span role="columnheader">Name</span>
+              <span role="columnheader">Value</span>
+              <span role="columnheader">Current</span>
+              <span role="columnheader">Kind</span>
+            </div>
+            {cell.externals.map((external, index) => {
+              const issue =
+                issueMap[`externals.${index}.name`] ??
+                issueMap[`externals.${index}.valueText`] ??
+                issueMap[`externals.${index}.kind`];
+
+              return (
+                <div
+                  key={external.id}
+                  className={[
+                    "notebook-model-view-row",
+                    "notebook-model-view-row-external",
+                    issue ? "has-issue" : ""
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  role="row"
+                >
+                  <span className="notebook-model-view-name" role="cell">
+                    {external.name.trim() ? (
+                      <button
+                        type="button"
+                        className="result-variable-button"
+                        onClick={() =>
+                          onVariableInspectRequest({
+                            currentValues,
+                            editor,
+                            selectedVariable: external.name.trim(),
+                            variableDescriptions,
+                            variableUnitMetadata
+                          })
+                        }
+                      >
+                        <VariableLabel
+                          currentValues={currentValues}
+                          name={external.name}
+                          variableDescriptions={variableDescriptions}
+                          variableUnitMetadata={variableUnitMetadata}
+                        />
+                      </button>
+                    ) : (
+                      "?"
+                    )}
+                  </span>
+                  <span className="notebook-model-view-expression" role="cell">
+                    {external.valueText || " "}
+                  </span>
+                  <span className="notebook-model-view-current" role="cell">
+                    {formatNotebookCurrentValue(
+                      external.name,
+                      currentValues[external.name.trim()],
+                      variableDescriptions,
+                      variableUnitMetadata
+                    )}
+                  </span>
+                  <span className="notebook-model-view-kind" role="cell">
+                    {external.kind}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+export function InitialValuesCellView({
+  cell,
+  currentValues,
+  editor,
+  issueMap,
+  onEditingChange,
+  onVariableInspectRequest,
+  title,
+  variableDescriptions,
+  variableUnitMetadata,
+  onChange,
+  onToggleCollapsed
+}: {
+  cell: InitialValuesCell;
+  currentValues: Record<string, number | undefined>;
+  editor: EditorState;
+  issueMap: Record<string, string | undefined>;
+  onEditingChange?(isEditing: boolean): void;
+  onVariableInspectRequest(args: {
+    currentValues: Record<string, number | undefined>;
+    editor: EditorState;
+    selectedVariable: string;
+    variableDescriptions: VariableDescriptions;
+    variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
+  }): void;
+  title: string;
+  variableDescriptions: VariableDescriptions;
+  variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
+  onChange(initialValues: EditorState["initialValues"]): void;
+  onToggleCollapsed(): void;
+}) {
+  const issuePaths = Object.keys(issueMap);
+  const [isEditingInitialValues, setIsEditingInitialValues] = useState(false);
+  const [draftInitialValues, setDraftInitialValues] = useState(cell.initialValues);
+  const hasDraftEdits =
+    JSON.stringify(draftInitialValues) !== JSON.stringify(cell.initialValues);
+
+  useEffect(() => {
+    onEditingChange?.(isEditingInitialValues);
+  }, [isEditingInitialValues, onEditingChange]);
+
+  useEffect(() => {
+    if (!isEditingInitialValues) {
+      setDraftInitialValues(cell.initialValues);
+    }
+  }, [cell.initialValues, isEditingInitialValues]);
+
+  function handleEditToggle(): void {
+    setDraftInitialValues(cell.initialValues);
+    setIsEditingInitialValues(true);
+  }
+
+  function handleApply(): void {
+    onChange(draftInitialValues);
+    setIsEditingInitialValues(false);
+  }
+
+  function handleCancel(): void {
+    setDraftInitialValues(cell.initialValues);
+    setIsEditingInitialValues(false);
+  }
+
+  return (
+    <div className="notebook-model-stack notebook-linked-editor-cell">
+      <NotebookLinkedEditorHeader
+        actions={
+          <NotebookLinkedEditorActions
+            cell={cell}
+            hasDraftEdits={hasDraftEdits}
+            isEditing={isEditingInitialValues}
+            onApply={handleApply}
+            onCancel={handleCancel}
+            onEditToggle={handleEditToggle}
+            onToggleCollapsed={onToggleCollapsed}
+            title={title}
+          />
+        }
+        title={title}
+        typeLabel={cell.type}
+      >
+        <div className="notebook-model-summary" aria-label="Initial values summary">
+          <span className="notebook-model-chip">
+            Model <strong>{cell.modelId}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Init <strong>{cell.initialValues.length}</strong>
+          </span>
+          <span className="notebook-model-chip">
+            Populated{" "}
+            <strong>
+              {
+                cell.initialValues.filter(
+                  (initialValue) => initialValue.valueText.trim() !== ""
+                ).length
+              }
+            </strong>
+          </span>
+          <span className="notebook-model-chip">
+            Issues <strong>{countModelSectionIssues(issuePaths, "initialValues.")}</strong>
+          </span>
+        </div>
+      </NotebookLinkedEditorHeader>
+      {cell.collapsed ? null : isEditingInitialValues ? (
+        <div className="notebook-model-editor-body">
+          <InitialValuesEditor
+            currentValues={currentValues}
+            initialValues={draftInitialValues}
+            isEmbedded
+            issues={issueMap}
+            onChange={setDraftInitialValues}
+            onSelectVariable={(selectedVariable) =>
+              onVariableInspectRequest({
+                currentValues,
+                editor: { ...editor, initialValues: draftInitialValues },
+                selectedVariable,
+                variableDescriptions,
+                variableUnitMetadata
+              })
+            }
+            showHeading={false}
+            variableDescriptions={variableDescriptions}
+            variableUnitMetadata={variableUnitMetadata}
+          />
+        </div>
+      ) : (
+        <section className="notebook-model-view" aria-label="Initial values view">
+          <div className="notebook-model-view-table" role="table" aria-label="Initial values">
+            <div
+              className="notebook-model-view-row notebook-model-view-row-header notebook-model-view-row-initial"
+              role="row"
+            >
+              <span role="columnheader">Name</span>
+              <span role="columnheader">Initial</span>
+              <span role="columnheader">Current</span>
+              <span role="columnheader">Status</span>
+            </div>
+            {cell.initialValues.map((initialValue, index) => {
+              const issue =
+                issueMap[`initialValues.${index}.name`] ??
+                issueMap[`initialValues.${index}.valueText`];
+
+              return (
+                <div
+                  key={initialValue.id}
+                  className={[
+                    "notebook-model-view-row",
+                    "notebook-model-view-row-initial",
+                    issue ? "has-issue" : ""
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  role="row"
+                >
+                  <span className="notebook-model-view-name" role="cell">
+                    {initialValue.name.trim() ? (
+                      <button
+                        type="button"
+                        className="result-variable-button"
+                        onClick={() =>
+                          onVariableInspectRequest({
+                            currentValues,
+                            editor,
+                            selectedVariable: initialValue.name.trim(),
+                            variableDescriptions,
+                            variableUnitMetadata
+                          })
+                        }
+                      >
+                        <VariableLabel
+                          currentValues={currentValues}
+                          name={initialValue.name}
+                          variableDescriptions={variableDescriptions}
+                          variableUnitMetadata={variableUnitMetadata}
+                        />
+                      </button>
+                    ) : (
+                      "?"
+                    )}
+                  </span>
+                  <span className="notebook-model-view-expression" role="cell">
+                    {initialValue.valueText || " "}
+                  </span>
+                  <span className="notebook-model-view-current" role="cell">
+                    {formatNotebookCurrentValue(
+                      initialValue.name,
+                      currentValues[initialValue.name.trim()],
+                      variableDescriptions,
+                      variableUnitMetadata
+                    )}
+                  </span>
+                  <span className="notebook-model-view-kind" role="cell">
+                    {issue ?? "OK"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
