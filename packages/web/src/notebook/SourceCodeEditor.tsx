@@ -400,7 +400,7 @@ const COMMON_CELL_PROPERTY_KEYS = ["id", "type", "title", "collapsed"];
 const ROOT_PROPERTY_KEYS = ["id", "title", "metadata", "cells"];
 const CONTEXT_PROPERTY_KEYS: Array<{ property: string; pattern: RegExp; keys: string[] }> = [
   { property: "stripMapping", pattern: /"stripMapping"\s*:\s*\{[^{}]*$/s, keys: ["transactionMatrixCellId", "balanceMatrixCellId"] },
-  { property: "unitMeta", pattern: /"unitMeta"\s*:\s*\{[^{}]*$/s, keys: ["stockFlow", "signature", "units"] },
+  { property: "unitMeta", pattern: /"unitMeta"\s*:\s*\{[^{}]*$/s, keys: ["displayUnit", "stockFlow", "signature", "units"] },
   { property: "signature", pattern: /"(?:signature|units)"\s*:\s*\{[^{}]*$/s, keys: ["money", "$", "items", "time", "yr"] },
   { property: "sharedRange", pattern: /"sharedRange"\s*:\s*\{[^{}]*$/s, keys: ["includeZero", "min", "max"] },
   { property: "seriesRanges", pattern: /"seriesRanges"\s*:\s*\{[\s\S]*\{[^{}]*$/s, keys: ["includeZero", "min", "max"] },

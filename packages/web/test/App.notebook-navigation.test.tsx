@@ -270,8 +270,10 @@ describe("App notebook navigation and inspection", () => {
     expect(body.betaPassword).toBe("beta-test-password");
     expect(body.model).toBe("gpt-4.1");
     expect(body.question).toBe("What is this notebook?");
+    expect(body.context).toContain("Assistant mode: Ask");
+    expect(body.context).toContain("Do not create or return notebook patch proposals in Ask mode.");
     expect(body.context).toContain("Notebook title: BMW Browser Notebook");
-    expect(body.context).toContain("Available read-only assistant tools:");
+    expect(body.context).toContain("Available notebook assistant tools:");
     expect(body.context).toContain("getSeriesWindow");
     expect(body.context).toContain('"type": "matrix"');
     expect(window.localStorage.getItem("sfcr:notebook-assistant-beta-password")).toBeNull();
@@ -283,6 +285,753 @@ describe("App notebook navigation and inspection", () => {
     expect(assistantLogElement.querySelector(".assistant-variable-code .variable-label-inline")).not.toBeNull();
     expect(assistantLog.getByRole("cell", { name: /matrices/i })).toBeInTheDocument();
   }, 10000);
+
+  it("runs assistant-requested notebook tools and loads returned patch proposals", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    setSuccessfulNotebookRunner();
+    const fetchMock = vi.fn(async (input: string) => {
+      if (input !== "http://localhost:8787/v1/notebook-assistant/ask") {
+        throw new Error(`Unexpected fetch call: ${input}`);
+      }
+
+      const responseText = fetchMock.mock.calls.length === 1
+        ? "```json\n{\"notebookAssistantToolRequests\":[{\"name\":\"createAddChartPatch\",\"args\":{\"runId\":\"baseline-newton\",\"title\":\"Disposable income\",\"variables\":[\"YD\",\"Cd\"]}}]}\n```"
+        : "I prepared a validated chart patch for `YD` and `Cd`. It is ready to preview and apply.";
+
+      return new Response(
+        `data: ${JSON.stringify({
+          type: "response.output_text.delta",
+          delta: responseText
+        })}\n\n`,
+        {
+          headers: {
+            "Content-Type": "text/event-stream"
+          }
+        }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await user.click(screen.getByRole("tab", { name: /^assistant$/i }));
+    await user.click(screen.getByRole("button", { name: /edit mode/i }));
+    await user.type(screen.getByRole("textbox", { name: /question/i }), "Add a chart for disposable income.");
+    await user.click(screen.getByRole("button", { name: /prepare edit/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    const secondRequest = fetchMock.mock.calls[1]?.[1] as RequestInit | undefined;
+    const secondBody = JSON.parse(String(secondRequest?.body)) as { question?: string };
+    expect(secondBody.question).toContain("Tool results JSON");
+    expect(secondBody.question).toContain("createAddChartPatch");
+    expect(secondBody.question).toContain("disposable-income");
+
+    const patchCard = screen.getByRole("group", { name: /assistant patch proposal/i });
+    expect(within(patchCard).getByText(/valid\. operations: 1/i)).toBeInTheDocument();
+    await user.click(within(patchCard).getByRole("button", { name: /edit json/i }));
+    const inlinePatchJson = within(patchCard).getByRole("textbox", { name: /inline assistant patch json/i }) as HTMLTextAreaElement;
+    expect(JSON.parse(inlinePatchJson.value)).toEqual(
+      expect.objectContaining({
+        operations: [
+          expect.objectContaining({
+            value: expect.objectContaining({ id: "disposable-income" })
+          })
+        ]
+      })
+    );
+    const patchText = document.getElementById("notebook-assistant-patch-json") as HTMLTextAreaElement;
+    expect(patchText.value).toBe("");
+    expect(screen.queryByRole("heading", { name: /^disposable income$/i })).not.toBeInTheDocument();
+    await user.click(within(patchCard).getByRole("button", { name: /^apply$/i }));
+    expect(screen.getByRole("heading", { name: /^disposable income$/i })).toBeInTheDocument();
+    expect(screen.getByText(/notebook tools: createaddchartpatch completed/i)).toBeInTheDocument();
+    expect(screen.getByText(/prepared a validated chart patch/i)).toBeInTheDocument();
+    expect(screen.queryByText(/notebookAssistantToolRequests/)).not.toBeInTheDocument();
+  }, 10000);
+
+  it("blocks patch helper tool requests in Ask mode", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    const fetchMock = vi.fn(async (input: string) => {
+      if (input !== "http://localhost:8787/v1/notebook-assistant/ask") {
+        throw new Error(`Unexpected fetch call: ${input}`);
+      }
+
+      return new Response(
+        `data: ${JSON.stringify({
+          type: "response.output_text.delta",
+          delta: "```json\n{\"notebookAssistantToolRequests\":[{\"name\":\"createAddChartPatch\",\"args\":{\"runId\":\"baseline-newton\",\"title\":\"Disposable income\",\"variables\":[\"YD\",\"Cd\"]}}]}\n```"
+        })}\n\n`,
+        {
+          headers: {
+            "Content-Type": "text/event-stream"
+          }
+        }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await user.click(screen.getByRole("tab", { name: /^assistant$/i }));
+    await user.type(screen.getByRole("textbox", { name: /question/i }), "Add a chart for disposable income.");
+    await user.click(screen.getByRole("button", { name: /^ask$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/ask mode can inspect notebook state/i)).toBeInTheDocument();
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const patchText = document.getElementById("notebook-assistant-patch-json") as HTMLTextAreaElement;
+    expect(patchText.value).toBe("");
+  }, 10000);
+
+  it("loads unsupported direct assistant notebook patch proposals inline", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    const patch = {
+      operations: [
+        {
+          op: "replace",
+          path: "/title",
+          value: "BMW Browser Notebook - edited"
+        }
+      ]
+    };
+    const fetchMock = vi.fn(async (input: string) => {
+      if (input !== "http://localhost:8787/v1/notebook-assistant/ask") {
+        throw new Error(`Unexpected fetch call: ${input}`);
+      }
+
+      return new Response(
+        `data: ${JSON.stringify({
+          type: "response.output_text.delta",
+          delta: `Here is a patch proposal.\n\n\`\`\`json\n${JSON.stringify(patch)}\n\`\`\``
+        })}\n\n`,
+        {
+          headers: {
+            "Content-Type": "text/event-stream"
+          }
+        }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await user.click(screen.getByRole("tab", { name: /^assistant$/i }));
+    await user.click(screen.getByRole("button", { name: /edit mode/i }));
+    await user.type(screen.getByRole("textbox", { name: /question/i }), "Suggest a direct title patch.");
+    await user.click(screen.getByRole("button", { name: /prepare edit/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    const patchCard = screen.getByRole("group", { name: /assistant patch proposal/i });
+    expect(within(patchCard).getByText(/valid\. operations: 1/i)).toBeInTheDocument();
+    await user.click(within(patchCard).getByRole("button", { name: /edit json/i }));
+    const inlinePatchJson = within(patchCard).getByRole("textbox", { name: /inline assistant patch json/i }) as HTMLTextAreaElement;
+    expect(inlinePatchJson.value).toContain('"path": "/title"');
+  }, 10000);
+
+  it("edits, previews, and applies assistant patch JSON inline", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    const patch = {
+      operations: [
+        {
+          op: "replace",
+          path: "/title",
+          value: "BMW Browser Notebook - edited"
+        }
+      ]
+    };
+    const fetchMock = vi.fn(async (input: string) => {
+      if (input !== "http://localhost:8787/v1/notebook-assistant/ask") {
+        throw new Error(`Unexpected fetch call: ${input}`);
+      }
+
+      return new Response(
+        `data: ${JSON.stringify({
+          type: "response.output_text.delta",
+          delta: `Here is a patch proposal.\n\n\`\`\`json\n${JSON.stringify(patch)}\n\`\`\``
+        })}\n\n`,
+        {
+          headers: {
+            "Content-Type": "text/event-stream"
+          }
+        }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await user.click(screen.getByRole("tab", { name: /^assistant$/i }));
+    await user.click(screen.getByRole("button", { name: /edit mode/i }));
+    await user.type(screen.getByRole("textbox", { name: /question/i }), "Suggest a direct title patch.");
+    await user.click(screen.getByRole("button", { name: /prepare edit/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    const patchCard = screen.getByRole("group", { name: /assistant patch proposal/i });
+    await user.click(within(patchCard).getByRole("button", { name: /edit json/i }));
+    const inlinePatchJson = within(patchCard).getByRole("textbox", { name: /inline assistant patch json/i }) as HTMLTextAreaElement;
+
+    fireEvent.change(inlinePatchJson, {
+      target: { value: inlinePatchJson.value.replace("BMW Browser Notebook - edited", "BMW Browser Notebook - inline edit") }
+    });
+
+    expect(within(patchCard).getByText(/edited\. preview json before applying/i)).toBeInTheDocument();
+    expect(within(patchCard).getByRole("button", { name: /^apply$/i })).toBeDisabled();
+
+    await user.click(within(patchCard).getByRole("button", { name: /preview json/i }));
+    expect(within(patchCard).getByText(/valid\. operations: 1/i)).toBeInTheDocument();
+
+    await user.click(within(patchCard).getByRole("button", { name: /^apply$/i }));
+    expect(screen.getAllByText(/bmw browser notebook - inline edit/i).length).toBeGreaterThan(0);
+
+    const manualPatchText = document.getElementById("notebook-assistant-patch-json") as HTMLTextAreaElement;
+    expect(manualPatchText.value).toBe("");
+  }, 10000);
+
+  it("translates direct chart patches through helper tools", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    const patch = {
+      operations: [
+        {
+          op: "add",
+          path: "/cells/-",
+          value: {
+            id: "chart-direct-disposable-income",
+            type: "chart",
+            title: "Direct disposable income",
+            sourceRunCellId: "baseline-newton",
+            variables: ["YD", "Cd"]
+          }
+        }
+      ]
+    };
+    const fetchMock = vi.fn(async (input: string) => {
+      if (input !== "http://localhost:8787/v1/notebook-assistant/ask") {
+        throw new Error(`Unexpected fetch call: ${input}`);
+      }
+
+      return new Response(
+        `data: ${JSON.stringify({
+          type: "response.output_text.delta",
+          delta: `Here is a patch proposal.\n\n\`\`\`json\n${JSON.stringify(patch)}\n\`\`\``
+        })}\n\n`,
+        {
+          headers: {
+            "Content-Type": "text/event-stream"
+          }
+        }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await user.click(screen.getByRole("tab", { name: /^assistant$/i }));
+    await user.click(screen.getByRole("button", { name: /edit mode/i }));
+    await user.type(screen.getByRole("textbox", { name: /question/i }), "Suggest a direct chart patch.");
+    await user.click(screen.getByRole("button", { name: /prepare edit/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/prepared a validated patch with the notebook helper tools/i)).toBeInTheDocument();
+    });
+
+    const patchCard = screen.getByRole("group", { name: /assistant patch proposal/i });
+    expect(within(patchCard).getByText(/valid\. operations: 1/i)).toBeInTheDocument();
+    await user.click(within(patchCard).getByRole("button", { name: /edit json/i }));
+    const inlinePatchJson = within(patchCard).getByRole("textbox", { name: /inline assistant patch json/i }) as HTMLTextAreaElement;
+    expect(JSON.parse(inlinePatchJson.value)).toEqual(
+      expect.objectContaining({
+        operations: [
+          expect.objectContaining({
+            value: expect.objectContaining({ id: "chart-direct-disposable-income" })
+          })
+        ]
+      })
+    );
+  }, 10000);
+
+  it("translates direct chart variable patches with stale cell indexes through helper tools", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    const patch = {
+      operations: [
+        {
+          op: "replace",
+          path: "/cells/16/variables",
+          value: ["W"]
+        }
+      ]
+    };
+    const fetchMock = vi.fn(async (input: string) => {
+      if (input !== "http://localhost:8787/v1/notebook-assistant/ask") {
+        throw new Error(`Unexpected fetch call: ${input}`);
+      }
+
+      return new Response(
+        `data: ${JSON.stringify({
+          type: "response.output_text.delta",
+          delta: `Here is the baseline chart patch.\n\n\`\`\`json\n${JSON.stringify(patch)}\n\`\`\``
+        })}\n\n`,
+        {
+          headers: {
+            "Content-Type": "text/event-stream"
+          }
+        }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await user.click(screen.getByRole("tab", { name: /^assistant$/i }));
+    await user.click(screen.getByRole("button", { name: /edit mode/i }));
+    await user.type(
+      screen.getByRole("textbox", { name: /question/i }),
+      "Use the helper tools to update the existing baseline chart so it shows wages. Prepare the patch for preview."
+    );
+    await user.click(screen.getByRole("button", { name: /prepare edit/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/prepared a validated patch with the notebook helper tools/i)).toBeInTheDocument();
+    });
+
+    const patchCard = screen.getByRole("group", { name: /assistant patch proposal/i });
+    expect(within(patchCard).getByText(/valid\. operations: 1/i)).toBeInTheDocument();
+    await user.click(within(patchCard).getByRole("button", { name: /edit json/i }));
+    const inlinePatchJson = within(patchCard).getByRole("textbox", { name: /inline assistant patch json/i }) as HTMLTextAreaElement;
+    expect(JSON.parse(inlinePatchJson.value)).toEqual(
+      expect.objectContaining({
+        operations: [
+          expect.objectContaining({
+            path: "/cells/by-id/baseline-chart/variables",
+            value: ["W"]
+          })
+        ]
+      })
+    );
+  }, 10000);
+
+  it("translates semantic notebook patch proposals through helper tools", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    setSuccessfulNotebookRunner();
+    const fetchMock = vi.fn(async (input: string) => {
+      if (input !== "http://localhost:8787/v1/notebook-assistant/ask") {
+        throw new Error(`Unexpected fetch call: ${input}`);
+      }
+
+      const responseText = fetchMock.mock.calls.length === 1
+        ? `Here is the helper-generated patch proposal:\n\n{\n  "notebookPatchProposal": {\n    "description": "Add WBs to the baseline headline variables chart.",\n    "patches": [\n      {\n        "kind": "chart-variables-update",\n        "chartId": "baseline-chart",\n        "variables": ["Y", "Cd", "Mh", "W", "WBs"]\n      }\n    ]\n  }\n}`
+        : "I prepared the baseline chart update for review.";
+
+      return new Response(
+        `data: ${JSON.stringify({
+          type: "response.output_text.delta",
+          delta: responseText
+        })}\n\n`,
+        {
+          headers: {
+            "Content-Type": "text/event-stream"
+          }
+        }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await user.click(screen.getByRole("tab", { name: /^assistant$/i }));
+    await user.click(screen.getByRole("button", { name: /edit mode/i }));
+    await user.type(screen.getByRole("textbox", { name: /question/i }), "Proceed with adding wages to the baseline chart.");
+    await user.click(screen.getByRole("button", { name: /prepare edit/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    const secondRequest = fetchMock.mock.calls[1]?.[1] as RequestInit | undefined;
+    const secondBody = JSON.parse(String(secondRequest?.body)) as { question?: string };
+    expect(secondBody.question).toContain("createUpdateChartVariablesPatch");
+    expect(secondBody.question).toContain("WBs");
+
+    const patchCard = screen.getByRole("group", { name: /assistant patch proposal/i });
+    expect(within(patchCard).getByText(/valid\. operations: 1/i)).toBeInTheDocument();
+    await user.click(within(patchCard).getByRole("button", { name: /edit json/i }));
+    const inlinePatchJson = within(patchCard).getByRole("textbox", { name: /inline assistant patch json/i }) as HTMLTextAreaElement;
+    expect(JSON.parse(inlinePatchJson.value)).toEqual(
+      expect.objectContaining({
+        operations: [
+          expect.objectContaining({
+            path: "/cells/by-id/baseline-chart/variables",
+            value: ["Y", "Cd", "Mh", "W", "WBs"]
+          })
+        ]
+      })
+    );
+  }, 10000);
+
+  it("translates top-level semantic chart variable patches through helper tools", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    setSuccessfulNotebookRunner();
+    const fetchMock = vi.fn(async (input: string) => {
+      if (input !== "http://localhost:8787/v1/notebook-assistant/ask") {
+        throw new Error(`Unexpected fetch call: ${input}`);
+      }
+
+      const responseText = fetchMock.mock.calls.length === 1
+        ? `Here is a preview of the proposed patch:\n\n{\n  "patchKind": "updateChartVariables",\n  "chartId": "baseline-chart",\n  "variables": ["Y", "Cd", "Mh", "W", "WBd"]\n}`
+        : "I prepared the baseline chart update for review.";
+
+      return new Response(
+        `data: ${JSON.stringify({
+          type: "response.output_text.delta",
+          delta: responseText
+        })}\n\n`,
+        {
+          headers: {
+            "Content-Type": "text/event-stream"
+          }
+        }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await user.click(screen.getByRole("tab", { name: /^assistant$/i }));
+    await user.click(screen.getByRole("button", { name: /edit mode/i }));
+    await user.type(screen.getByRole("textbox", { name: /question/i }), "Yes, remove wages from the baseline chart.");
+    await user.click(screen.getByRole("button", { name: /prepare edit/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    const patchCard = screen.getByRole("group", { name: /assistant patch proposal/i });
+    expect(within(patchCard).getByText(/valid\. operations: 1/i)).toBeInTheDocument();
+    await user.click(within(patchCard).getByRole("button", { name: /edit json/i }));
+    const inlinePatchJson = within(patchCard).getByRole("textbox", { name: /inline assistant patch json/i }) as HTMLTextAreaElement;
+    expect(JSON.parse(inlinePatchJson.value)).toEqual(
+      expect.objectContaining({
+        operations: [
+          expect.objectContaining({
+            path: "/cells/by-id/baseline-chart/variables",
+            value: ["Y", "Cd", "Mh", "W", "WBd"]
+          })
+        ]
+      })
+    );
+  }, 10000);
+
+  it("shows inline patch cards for validated variable unit metadata patches", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    setSuccessfulNotebookRunner();
+    const patch = {
+      operations: [
+        {
+          op: "replace",
+          path: "/cells/by-id/equations-newton/equations/14/unitMeta",
+          value: {
+            displayUnit: "%",
+            stockFlow: "aux",
+            units: {}
+          }
+        }
+      ]
+    };
+    const fetchMock = vi.fn(async (input: string) => {
+      if (input !== "http://localhost:8787/v1/notebook-assistant/ask") {
+        throw new Error(`Unexpected fetch call: ${input}`);
+      }
+
+      const responseText = fetchMock.mock.calls.length === 1
+        ? JSON.stringify({
+          notebookAssistantToolRequests: [
+            { name: "validateNotebookPatch", args: { patch } },
+            { name: "previewNotebookPatch", args: { patch } }
+          ]
+        })
+        : "The percent unit metadata change is valid and ready for review.";
+
+      return new Response(
+        `data: ${JSON.stringify({
+          type: "response.output_text.delta",
+          delta: responseText
+        })}\n\n`,
+        {
+          headers: {
+            "Content-Type": "text/event-stream"
+          }
+        }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await user.click(screen.getByRole("tab", { name: /^assistant$/i }));
+    await user.click(screen.getByRole("button", { name: /edit mode/i }));
+    await user.type(screen.getByRole("textbox", { name: /question/i }), "Yes, change W units to percent.");
+    await user.click(screen.getByRole("button", { name: /prepare edit/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    const patchCard = screen.getByRole("group", { name: /assistant patch proposal/i });
+    expect(within(patchCard).getByText(/valid\. operations: 1/i)).toBeInTheDocument();
+    await user.click(within(patchCard).getByRole("button", { name: /edit json/i }));
+    const inlinePatchJson = within(patchCard).getByRole("textbox", { name: /inline assistant patch json/i }) as HTMLTextAreaElement;
+    expect(JSON.parse(inlinePatchJson.value)).toEqual(
+      expect.objectContaining({
+        operations: [
+          expect.objectContaining({
+            path: "/cells/by-id/equations-newton/equations/14/unitMeta",
+            value: expect.objectContaining({
+              displayUnit: "%",
+              stockFlow: "aux"
+            })
+          })
+        ]
+      })
+    );
+  }, 10000);
+
+  it("translates plain-text chart variable proposals into inline helper patches", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    setSuccessfulNotebookRunner();
+    const fetchMock = vi.fn(async (input: string) => {
+      if (input !== "http://localhost:8787/v1/notebook-assistant/ask") {
+        throw new Error(`Unexpected fetch call: ${input}`);
+      }
+
+      return new Response(
+        `data: ${JSON.stringify({
+          type: "response.output_text.delta",
+          delta: 'You can now review and apply this change. Update the "Baseline headline variables" chart variables to: ["Y", "Cd", "Mh", "W", "WBs"].'
+        })}\n\n`,
+        {
+          headers: {
+            "Content-Type": "text/event-stream"
+          }
+        }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await user.click(screen.getByRole("tab", { name: /^assistant$/i }));
+    await user.click(screen.getByRole("button", { name: /edit mode/i }));
+    await user.type(screen.getByRole("textbox", { name: /question/i }), "Yes, proceed with adding wages to the baseline chart.");
+    await user.click(screen.getByRole("button", { name: /prepare edit/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    const patchCard = screen.getByRole("group", { name: /assistant patch proposal/i });
+    expect(within(patchCard).getByText(/valid\. operations: 1/i)).toBeInTheDocument();
+    await user.click(within(patchCard).getByRole("button", { name: /edit json/i }));
+    const inlinePatchJson = within(patchCard).getByRole("textbox", { name: /inline assistant patch json/i }) as HTMLTextAreaElement;
+    expect(JSON.parse(inlinePatchJson.value)).toEqual(
+      expect.objectContaining({
+        operations: [
+          expect.objectContaining({
+            path: "/cells/by-id/baseline-chart/variables",
+            value: ["Y", "Cd", "Mh", "W", "WBs"]
+          })
+        ]
+      })
+    );
+  }, 10000);
+
+  it("reports malformed assistant notebook tool requests without sending a follow-up", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    const fetchMock = vi.fn(async (input: string) => {
+      if (input !== "http://localhost:8787/v1/notebook-assistant/ask") {
+        throw new Error(`Unexpected fetch call: ${input}`);
+      }
+
+      return new Response(
+        `data: ${JSON.stringify({
+          type: "response.output_text.delta",
+          delta: "```json\n{\"notebookAssistantToolRequests\":[}\n```"
+        })}\n\n`,
+        {
+          headers: {
+            "Content-Type": "text/event-stream"
+          }
+        }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await user.click(screen.getByRole("tab", { name: /^assistant$/i }));
+    await user.type(screen.getByRole("textbox", { name: /question/i }), "Inspect the notebook with a tool.");
+    await user.click(screen.getByRole("button", { name: /^ask$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/request json could not be parsed/i)).toBeInTheDocument();
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/notebookAssistantToolRequests/)).not.toBeInTheDocument();
+  }, 10000);
+
+  it("surfaces unknown assistant notebook tool failures in the follow-up", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    const fetchMock = vi.fn(async (input: string) => {
+      if (input !== "http://localhost:8787/v1/notebook-assistant/ask") {
+        throw new Error(`Unexpected fetch call: ${input}`);
+      }
+
+      const responseText = fetchMock.mock.calls.length === 1
+        ? "```json\n{\"notebookAssistantToolRequests\":[{\"name\":\"missingTool\",\"args\":{}}]}\n```"
+        : "I could not run the requested notebook tool.";
+
+      return new Response(
+        `data: ${JSON.stringify({
+          type: "response.output_text.delta",
+          delta: responseText
+        })}\n\n`,
+        {
+          headers: {
+            "Content-Type": "text/event-stream"
+          }
+        }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await user.click(screen.getByRole("tab", { name: /^assistant$/i }));
+    await user.click(screen.getByRole("button", { name: /edit mode/i }));
+    await user.type(screen.getByRole("textbox", { name: /question/i }), "Use a missing notebook tool.");
+    await user.click(screen.getByRole("button", { name: /prepare edit/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    const secondRequest = fetchMock.mock.calls[1]?.[1] as RequestInit | undefined;
+    const secondBody = JSON.parse(String(secondRequest?.body)) as { question?: string };
+    expect(secondBody.question).toContain("Unknown notebook assistant tool: missingTool");
+    expect(screen.getByText(/notebook tools: missingtool\. 1 failed/i)).toBeInTheDocument();
+    expect(screen.getByText(/could not run the requested notebook tool/i)).toBeInTheDocument();
+  }, 10000);
+
+  it("surfaces assistant helper validation failures without loading a patch", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    setSuccessfulNotebookRunner();
+    const fetchMock = vi.fn(async (input: string) => {
+      if (input !== "http://localhost:8787/v1/notebook-assistant/ask") {
+        throw new Error(`Unexpected fetch call: ${input}`);
+      }
+
+      const responseText = fetchMock.mock.calls.length === 1
+        ? "```json\n{\"notebookAssistantToolRequests\":[{\"name\":\"createAddChartPatch\",\"args\":{\"runId\":\"baseline-newton\",\"title\":\"Missing variable\",\"variables\":[\"not_a_variable\"]}}]}\n```"
+        : "The requested chart variable was not available in the run result.";
+
+      return new Response(
+        `data: ${JSON.stringify({
+          type: "response.output_text.delta",
+          delta: responseText
+        })}\n\n`,
+        {
+          headers: {
+            "Content-Type": "text/event-stream"
+          }
+        }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await user.click(screen.getByRole("tab", { name: /^assistant$/i }));
+    await user.click(screen.getByRole("button", { name: /edit mode/i }));
+    await user.type(screen.getByRole("textbox", { name: /question/i }), "Add a chart for a missing variable.");
+    await user.click(screen.getByRole("button", { name: /prepare edit/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    const patchText = document.getElementById("notebook-assistant-patch-json") as HTMLTextAreaElement;
+    expect(patchText.value).toBe("");
+    expect(screen.getByText(/notebook tools: createaddchartpatch\. 1 failed/i)).toBeInTheDocument();
+    expect(screen.getByText(/not available in the run result/i)).toBeInTheDocument();
+  }, 10000);
+
+  it("previews, applies, and undoes an assistant notebook patch", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    await user.click(screen.getByRole("tab", { name: /^assistant$/i }));
+    await user.click(screen.getByText(/manual patch json/i));
+
+    const patch = JSON.stringify([
+      {
+        op: "add",
+        path: "/cells/-",
+        value: {
+          id: "chart-disposable-income",
+          type: "chart",
+          title: "Disposable income",
+          sourceRunCellId: "baseline-newton",
+          variables: ["YD", "Cd"]
+        }
+      }
+    ]);
+
+    fireEvent.change(document.getElementById("notebook-assistant-patch-json") as HTMLTextAreaElement, {
+      target: { value: patch }
+    });
+    await user.click(screen.getByRole("button", { name: /preview patch/i }));
+
+    expect(screen.getByText(/patch preview: valid/i)).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /^disposable income$/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /apply patch/i }));
+
+    expect(screen.getByRole("heading", { name: /^disposable income$/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /undo patch/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("heading", { name: /^disposable income$/i })).not.toBeInTheDocument();
+    });
+  });
 
   it("renders BMW transaction-flow matrix values with flow units inferred from the full expression", () => {
     window.location.hash = "#/notebook";

@@ -11,6 +11,7 @@ afterEach(() => {
   cleanup();
 });
 
+
 describe("NumericValueText", () => {
   it("colors only the numeric portion red for negative values", () => {
     render(
@@ -28,5 +29,11 @@ describe("NumericValueText", () => {
     expect(prefix).not.toBeNull();
     expect(prefix).not.toHaveClass("numeric-value-negative");
     expect(value).toHaveClass("numeric-value-negative");
+  });
+
+  it("formats explicit percent display units without changing the value", () => {
+    render(<NumericValueText unitMeta={{ displayUnit: "%", stockFlow: "aux", signature: {} }} value={42.5} />);
+
+    expect(screen.getByText("42.5%")).toBeInTheDocument();
   });
 });

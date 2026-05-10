@@ -7,7 +7,7 @@ Detailed usage notes are in `../../devdocs/chat-builder-serverless.md`.
 Endpoints:
 
 - `POST /v1/chat-builder/draft`: generate a full notebook draft.
-- `POST /v1/notebook-assistant/ask`: read-only Q&A about the current notebook.
+- `POST /v1/notebook-assistant/ask`: Q&A and safe edit proposals for the current notebook.
 
 ## Local Development
 
@@ -22,15 +22,15 @@ Then edit `packages/chat-api/.dev.vars` and set `OPENAI_API_KEY`. To enable the 
 Start the local Node adapter:
 
 ```bash
-pnpm chat-api:dev
+pnpm --filter @sfcr/chat-api dev
 ```
 
 Editable local prompts live in `packages/chat-api/prompts/`:
 
 - `chat-builder-system.md`: full notebook draft generation.
-- `notebook-assistant-system.md`: read-only notebook Q&A responses.
+- `notebook-assistant-system.md`: notebook Q&A responses and safe patch proposal guidance.
 
-In local Node development these files are read on every request, so prompt edits do not require restarting `pnpm chat-api:dev`.
+In local Node development these files are read on every request, so prompt edits do not require restarting `pnpm --filter @sfcr/chat-api dev`.
 
 Point the web app at the Worker:
 
@@ -43,7 +43,7 @@ The default local web app also falls back to `http://localhost:8787/v1/chat-buil
 Wrangler local dev is still available on systems with a recent enough GLIBC:
 
 ```bash
-pnpm chat-api:dev:wrangler
+pnpm --filter @sfcr/chat-api dev:wrangler
 ```
 
 ## Deploy
@@ -71,5 +71,5 @@ For production, set:
 - `BETA_PASSWORD`: optional Cloudflare secret. When set, browser requests must include the matching beta password.
 - `ALLOWED_ORIGINS`: comma-separated allowed browser origins, for example `https://johnnewto.github.io`.
 - `MAX_OUTPUT_TOKENS`: output token cap for each OpenAI response. Defaults to `8000`.
-- `OPENAI_MODEL_ALLOWLIST`: comma-separated model ids accepted by the proxy.
+- `OPENAI_MODEL_ALLOWLIST`: comma-separated model ids accepted by the proxy, for example `gpt-5.4,gpt-5.5,gpt-4.1,o3`.
 - `CHAT_BUILDER_RATE_LIMITER`: Cloudflare Workers Rate Limiting binding configured in `wrangler.toml` as 10 requests per minute per rate-limit key.

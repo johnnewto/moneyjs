@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type Dispatch, type ReactNode, type SetStateAction, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   analyzeNotebookSource,
@@ -14,7 +14,19 @@ import {
   resolveNotebookModelKey,
   resolveRunCellModelKey
 } from "./modelSections";
-import { summarizeNotebookAssistantTools } from "./notebookAssistantTools";
+import {
+  dispatchNotebookAssistantTool,
+  summarizeNotebookAssistantTools,
+  type NotebookAssistantSnapshot,
+  type NotebookAssistantToolRequest,
+  type NotebookAssistantToolResult
+} from "./notebookAssistantTools";
+import {
+  applyNotebookPatch,
+  previewNotebookPatch,
+  type NotebookPatch,
+  type NotebookPatchResult
+} from "./notebookPatch";
 import { NotebookCellView } from "./NotebookCellView";
 import { NotebookRenderProfiler } from "./notebookProfiler";
 import { SourceCodeEditor } from "./SourceCodeEditor";
@@ -55,14 +67,65 @@ const APP_BASE_URL = import.meta.env.BASE_URL;
 const NOTEBOOK_ASSISTANT_API_URL = resolveNotebookAssistantApiUrl();
 const NOTEBOOK_ASSISTANT_DEFAULT_MODEL = "gpt-4.1";
 const NOTEBOOK_ASSISTANT_MODEL_STORAGE_KEY = "sfcr:notebook-assistant-model";
+const NOTEBOOK_ASSISTANT_MODE_STORAGE_KEY = "sfcr:notebook-assistant-mode";
 
 type NotebookRailTab = "editor" | "inspect" | "contents" | "assistant" | "preview";
+type NotebookAssistantMode = "ask" | "edit";
 
 interface NotebookAssistantMessage {
   id: string;
+  patch?: NotebookAssistantInlinePatch;
   role: "assistant" | "user";
   text: string;
 }
+
+interface NotebookAssistantInlinePatch {
+  isJsonVisible: boolean;
+  isJsonDirty?: boolean;
+  jsonText?: string;
+  patch: NotebookPatch;
+  preview: NotebookPatchResult;
+  status: "ready" | "applied" | "discarded";
+}
+
+interface NotebookAssistantToolRequestEnvelope {
+  notebookAssistantToolRequests?: unknown;
+  toolRequests?: unknown;
+}
+
+interface NotebookAssistantToolRequestExtraction {
+  error?: string;
+  requests: NotebookAssistantToolRequest[];
+}
+
+type NotebookAssistantDirectPatchPolicy =
+  | {
+      ok: true;
+      patch: NotebookPatch;
+    }
+  | {
+      ok: true;
+      request: NotebookAssistantToolRequest;
+    }
+  | {
+      message: string;
+      ok: false;
+    };
+
+const NOTEBOOK_ASSISTANT_MAX_TOOL_REQUESTS_PER_ROUND = 4;
+const NOTEBOOK_ASSISTANT_READ_TOOL_NAMES = new Set<string>([
+  "getNotebookSummary",
+  "getEquation",
+  "getCurrentValues",
+  "getSeries",
+  "getSeriesWindow",
+  "getMatrix",
+  "getVariableMetadata",
+  "getDependencyGraph",
+  "listRuns",
+  "listVariables",
+  "listCharts"
+]);
 
 const NOTEBOOK_ASSISTANT_INITIAL_MESSAGES: NotebookAssistantMessage[] = [
   {
@@ -244,6 +307,710 @@ function parseNotebookAssistantSseChunk(chunk: string): string {
   return text;
 }
 
+function extractNotebookAssistantToolRequests(text: string): NotebookAssistantToolRequestExtraction {
+  const candidates = collectNotebookAssistantJsonCandidates(text);
+  let parseError = false;
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate) as NotebookAssistantToolRequestEnvelope | unknown;
+      const semanticRequests = normalizeNotebookPatchProposalToolRequests(parsed);
+      if (semanticRequests.length > 0) {
+        return { requests: semanticRequests };
+      }
+
+      const envelope = parsed as NotebookAssistantToolRequestEnvelope;
+      const rawRequests = envelope.notebookAssistantToolRequests ?? envelope.toolRequests;
+      if (!Array.isArray(rawRequests)) {
+        continue;
+      }
+
+      const requests = rawRequests.flatMap((request): NotebookAssistantToolRequest[] => {
+        if (!request || typeof request !== "object" || Array.isArray(request)) {
+          return [];
+        }
+        const record = request as { args?: unknown; name?: unknown };
+        if (typeof record.name !== "string" || !record.name.trim()) {
+          return [];
+        }
+        return [
+          {
+            args: record.args && typeof record.args === "object" && !Array.isArray(record.args)
+              ? (record.args as Record<string, unknown>)
+              : undefined,
+            name: record.name.trim()
+          }
+        ];
+      });
+
+      if (requests.length > 0) {
+        return { requests };
+      }
+    } catch {
+      parseError = true;
+    }
+  }
+
+  if (parseError) {
+    return {
+      error: "Assistant requested notebook tools, but the request JSON could not be parsed.",
+      requests: []
+    };
+  }
+
+  return { requests: [] };
+}
+
+function collectNotebookAssistantJsonCandidates(text: string): string[] {
+  return [...collectFencedJsonCandidates(text), ...collectEmbeddedJsonObjectCandidates(text)].filter(
+    (candidate) =>
+      candidate.includes("ToolRequests") ||
+      candidate.includes("toolRequests") ||
+      candidate.includes("notebookPatchProposal") ||
+      candidate.includes("patchKind")
+  );
+}
+
+function collectEmbeddedJsonObjectCandidates(text: string): string[] {
+  const candidates: string[] = [];
+  const targets = ["notebookPatchProposal", "patchKind"];
+
+  for (const target of targets) {
+    let searchIndex = text.indexOf(target);
+
+    while (searchIndex >= 0) {
+      const start = text.lastIndexOf("{", searchIndex);
+      if (start < 0) {
+        break;
+      }
+
+      let depth = 0;
+      let inString = false;
+      let escaped = false;
+      for (let index = start; index < text.length; index += 1) {
+        const char = text[index];
+        if (escaped) {
+          escaped = false;
+          continue;
+        }
+        if (char === "\\") {
+          escaped = true;
+          continue;
+        }
+        if (char === '"') {
+          inString = !inString;
+          continue;
+        }
+        if (inString) {
+          continue;
+        }
+        if (char === "{") {
+          depth += 1;
+        } else if (char === "}") {
+          depth -= 1;
+          if (depth === 0) {
+            candidates.push(text.slice(start, index + 1).trim());
+            break;
+          }
+        }
+      }
+
+      searchIndex = text.indexOf(target, searchIndex + target.length);
+    }
+  }
+
+  return candidates;
+}
+
+function normalizeNotebookPatchProposalToolRequests(value: unknown): NotebookAssistantToolRequest[] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return [];
+  }
+
+  const direct = normalizeSemanticPatchToolRequest(value);
+  if (direct) {
+    return [direct];
+  }
+
+  const proposal = (value as { notebookPatchProposal?: unknown }).notebookPatchProposal;
+  if (!proposal || typeof proposal !== "object" || Array.isArray(proposal)) {
+    return [];
+  }
+
+  const patches = (proposal as { patches?: unknown }).patches;
+  if (!Array.isArray(patches)) {
+    return [];
+  }
+
+  return patches.flatMap((patch): NotebookAssistantToolRequest[] => {
+    if (!patch || typeof patch !== "object" || Array.isArray(patch)) {
+      return [];
+    }
+    const request = normalizeSemanticPatchToolRequest(patch);
+    return request ? [request] : [];
+  });
+}
+
+function normalizeSemanticPatchToolRequest(value: unknown): NotebookAssistantToolRequest | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const record = value as {
+    chartId?: unknown;
+    kind?: unknown;
+    modelId?: unknown;
+    patchKind?: unknown;
+    runId?: unknown;
+    title?: unknown;
+    displayUnit?: unknown;
+    stockFlow?: unknown;
+    unit?: unknown;
+    unitMeta?: unknown;
+    value?: unknown;
+    variable?: unknown;
+    variables?: unknown;
+  };
+  const kind = typeof record.kind === "string" ? record.kind : record.patchKind;
+
+  if ((kind === "chart-variables-update" || kind === "updateChartVariables") && typeof record.chartId === "string" && isStringArray(record.variables)) {
+    return { name: "createUpdateChartVariablesPatch", args: { chartId: record.chartId, variables: record.variables } };
+  }
+
+  if ((kind === "chart-add" || kind === "addChart") && typeof record.runId === "string" && isStringArray(record.variables)) {
+    return {
+      name: "createAddChartPatch",
+      args: {
+        runId: record.runId,
+        title: typeof record.title === "string" ? record.title : `Chart: ${record.variables.join(", ")}`,
+        variables: record.variables
+      }
+    };
+  }
+
+  if ((kind === "parameter-update" || kind === "updateParameter") && typeof record.modelId === "string" && typeof record.variable === "string") {
+    return {
+      name: "createUpdateParameterPatch",
+      args: {
+        modelId: record.modelId,
+        value: record.value,
+        variable: record.variable
+      }
+    };
+  }
+
+  if (
+    (kind === "variable-unit-meta-update" || kind === "updateVariableUnitMeta" || kind === "updateVariableUnits") &&
+    typeof record.variable === "string"
+  ) {
+    return {
+      name: "createUpdateVariableUnitMetaPatch",
+      args: {
+        displayUnit: typeof record.displayUnit === "string" ? record.displayUnit : typeof record.unit === "string" ? record.unit : undefined,
+        modelId: typeof record.modelId === "string" ? record.modelId : undefined,
+        stockFlow: typeof record.stockFlow === "string" ? record.stockFlow : undefined,
+        unitMeta: record.unitMeta && typeof record.unitMeta === "object" && !Array.isArray(record.unitMeta) ? record.unitMeta as Record<string, unknown> : undefined,
+        variable: record.variable
+      }
+    };
+  }
+
+  return null;
+}
+
+function collectFencedJsonCandidates(text: string): string[] {
+  const candidates: string[] = [];
+  const fencedJsonPattern = /```(?:json)?\s*([\s\S]*?)```/gi;
+  for (const match of text.matchAll(fencedJsonPattern)) {
+    if (match[1]) {
+      candidates.push(match[1].trim());
+    }
+  }
+
+  const trimmed = text.trim();
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    candidates.push(trimmed);
+  }
+
+  return candidates;
+}
+
+function extractNotebookPatchProposal(args: {
+  document: NotebookDocument;
+  question: string;
+  text: string;
+}): NotebookPatch | null {
+  for (const candidate of collectFencedJsonCandidates(args.text)) {
+    try {
+      const patch = normalizeNotebookPatchCandidate(JSON.parse(candidate) as unknown);
+      if (patch) {
+        return normalizeNotebookPatchForCurrentDocument(
+          args.document,
+          patch,
+          `${args.question}\n${args.text}`
+        );
+      }
+    } catch {
+      // Try the next JSON block.
+    }
+  }
+
+  return null;
+}
+
+function normalizeNotebookPatchForCurrentDocument(
+  document: NotebookDocument,
+  patch: NotebookPatch,
+  contextText: string
+): NotebookPatch {
+  let changed = false;
+  const operations = patch.operations.map((operation) => {
+    if (operation.op !== "replace" || !isStringArray(operation.value)) {
+      return operation;
+    }
+
+    const match = operation.path.match(/^\/cells\/(\d+)\/variables$/);
+    if (!match) {
+      return operation;
+    }
+
+    const currentCell = document.cells[Number(match[1])];
+    if (currentCell?.type === "chart" || currentCell?.type === "table") {
+      return operation;
+    }
+
+    const currentCellId = findVariableListCellId(document, contextText);
+    if (!currentCellId) {
+      return operation;
+    }
+
+    changed = true;
+    return {
+      ...operation,
+      path: `/cells/by-id/${escapeJsonPointerSegment(currentCellId)}/variables`
+    };
+  });
+
+  return changed ? { ...patch, operations } : patch;
+}
+
+function findVariableListCellId(document: NotebookDocument, contextText: string): string | null {
+  const normalizedContext = contextText.toLowerCase();
+  const wantsChart = /\bchart\b/.test(normalizedContext);
+  const wantsTable = /\btable\b/.test(normalizedContext);
+  const candidates = document.cells
+    .map((cell) => ({ cell }))
+    .filter(({ cell }) => {
+      if (wantsChart) {
+        return cell.type === "chart";
+      }
+      if (wantsTable) {
+        return cell.type === "table";
+      }
+      return cell.type === "chart" || cell.type === "table";
+    });
+
+  if (candidates.length === 1) {
+    return candidates[0]?.cell.id ?? null;
+  }
+
+  const scoredCandidates = candidates
+    .map(({ cell }) => ({ id: cell.id, score: scoreVariableListCellMatch(cell, normalizedContext) }))
+    .filter((candidate) => candidate.score > 0)
+    .sort((left, right) => right.score - left.score);
+
+  if (scoredCandidates.length === 0) {
+    return null;
+  }
+
+  const [best, next] = scoredCandidates;
+  return best && (!next || best.score > next.score) ? best.id : null;
+}
+
+function escapeJsonPointerSegment(value: string): string {
+  return value.replace(/~/g, "~0").replace(/\//g, "~1");
+}
+
+function scoreVariableListCellMatch(cell: NotebookCell, normalizedContext: string): number {
+  if (cell.type !== "chart" && cell.type !== "table") {
+    return 0;
+  }
+
+  const haystack = [cell.id, cell.title, cell.sourceRunCellId].join(" ").toLowerCase();
+  let score = 0;
+  if (normalizedContext.includes(cell.id.toLowerCase())) {
+    score += 8;
+  }
+  if (normalizedContext.includes(cell.title.toLowerCase())) {
+    score += 8;
+  }
+  if (normalizedContext.includes(cell.sourceRunCellId.toLowerCase())) {
+    score += 5;
+  }
+  for (const token of ["baseline", "scenario", "adaptive", "interest", "sensitive", "headline"]) {
+    if (normalizedContext.includes(token) && haystack.includes(token)) {
+      score += 3;
+    }
+  }
+  return score;
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === "string");
+}
+
+function normalizeNotebookPatchCandidate(value: unknown): NotebookPatch | null {
+  if (Array.isArray(value)) {
+    return { operations: value as NotebookPatch["operations"] };
+  }
+
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const record = value as { operations?: unknown; patch?: unknown };
+  if (Array.isArray(record.operations)) {
+    return value as NotebookPatch;
+  }
+
+  if (record.patch && typeof record.patch === "object" && !Array.isArray(record.patch)) {
+    const patch = record.patch as { operations?: unknown };
+    if (Array.isArray(patch.operations)) {
+      return record.patch as NotebookPatch;
+    }
+  }
+
+  return null;
+}
+
+function extractTextChartVariablesToolRequest(
+  document: NotebookDocument,
+  contextText: string
+): NotebookAssistantToolRequest | null {
+  const normalizedContext = contextText.toLowerCase();
+  if (!normalizedContext.includes("chart") || !/review|apply|proposed|proposal|update/.test(normalizedContext)) {
+    return null;
+  }
+  if (/would you like|let me know|specify a different|if you want/.test(normalizedContext)) {
+    return null;
+  }
+
+  const chartId = findVariableListCellId(document, contextText);
+  const chart = chartId
+    ? document.cells.find((cell): cell is Extract<NotebookCell, { type: "chart" }> => cell.id === chartId && cell.type === "chart")
+    : null;
+  if (!chart) {
+    return null;
+  }
+
+  const arrays = Array.from(contextText.matchAll(/\[(?:\s*"[A-Za-z][A-Za-z0-9_^{}]*"\s*,?)+\s*\]/g))
+    .map((match) => match[0])
+    .filter((candidate) => candidate.includes('"'));
+  for (const candidate of arrays.reverse()) {
+    try {
+      const variables = JSON.parse(candidate) as unknown;
+      if (isStringArray(variables) && variables.length > 0) {
+        return {
+          name: "createUpdateChartVariablesPatch",
+          args: {
+            chartId: chart.id,
+            variables
+          }
+        };
+      }
+    } catch {
+      // Try the next array-shaped text fragment.
+    }
+  }
+
+  return null;
+}
+
+function evaluateNotebookAssistantDirectPatchPolicy(
+  document: NotebookDocument,
+  patch: NotebookPatch
+): NotebookAssistantDirectPatchPolicy {
+  const request = createToolRequestFromSupportedDirectPatch(document, patch);
+  if (request) {
+    return { ok: true, request };
+  }
+
+  const supportedEdit = patch.operations.some(isHelperCoveredPatchOperation);
+  if (supportedEdit) {
+    return {
+      ok: false,
+      message: "This edit is covered by notebook helper tools, but the assistant response did not include enough stable information to prepare it automatically. Try asking again with the chart, run, or parameter name included."
+    };
+  }
+
+  return { ok: true, patch };
+}
+
+function createToolRequestFromSupportedDirectPatch(
+  document: NotebookDocument,
+  patch: NotebookPatch
+): NotebookAssistantToolRequest | null {
+  if (patch.operations.length !== 1) {
+    return null;
+  }
+
+  const operation = patch.operations[0];
+  if (!operation) {
+    return null;
+  }
+
+  if (operation.op === "add" && operation.path === "/cells/-") {
+    const value = operation.value;
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return null;
+    }
+    const chart = value as { id?: unknown; sourceRunCellId?: unknown; title?: unknown; type?: unknown; variables?: unknown };
+    if (chart.type !== "chart" || typeof chart.sourceRunCellId !== "string" || !Array.isArray(chart.variables)) {
+      return null;
+    }
+    const variables = chart.variables.filter((variable): variable is string => typeof variable === "string" && variable.trim() !== "");
+    if (variables.length === 0) {
+      return null;
+    }
+    return {
+      name: "createAddChartPatch",
+      args: {
+        chartId: typeof chart.id === "string" ? chart.id : undefined,
+        runId: chart.sourceRunCellId,
+        title: typeof chart.title === "string" && chart.title.trim() !== "" ? chart.title : `Chart: ${variables.join(", ")}`,
+        variables
+      }
+    };
+  }
+
+  if (operation.op !== "replace") {
+    return null;
+  }
+
+  const chartVariableTarget = resolveCellPropertyPatchTarget(document, operation.path, "variables");
+  if (chartVariableTarget?.cell.type === "chart" && isStringArray(operation.value)) {
+    return {
+      name: "createUpdateChartVariablesPatch",
+      args: {
+        chartId: chartVariableTarget.cell.id,
+        variables: operation.value
+      }
+    };
+  }
+
+  const externalTarget = resolveExternalValuePatchTarget(document, operation.path);
+  if (externalTarget && (typeof operation.value === "string" || typeof operation.value === "number")) {
+    return {
+      name: "createUpdateParameterPatch",
+      args: {
+        modelId: externalTarget.cell.modelId,
+        value: operation.value,
+        variable: externalTarget.variable
+      }
+    };
+  }
+
+  const unitMetaTarget = resolveVariableUnitMetaPatchTarget(document, operation.path);
+  if (unitMetaTarget && operation.value && typeof operation.value === "object" && !Array.isArray(operation.value)) {
+    const unitMeta = operation.value as { displayUnit?: unknown; stockFlow?: unknown };
+    return {
+      name: "createUpdateVariableUnitMetaPatch",
+      args: {
+        displayUnit: typeof unitMeta.displayUnit === "string" ? unitMeta.displayUnit : undefined,
+        modelId: unitMetaTarget.cell.modelId,
+        stockFlow: typeof unitMeta.stockFlow === "string" ? unitMeta.stockFlow : undefined,
+        unitMeta: operation.value,
+        variable: unitMetaTarget.variable
+      }
+    };
+  }
+
+  return null;
+}
+
+function resolveCellPropertyPatchTarget(
+  document: NotebookDocument,
+  path: string,
+  property: string
+): { cell: NotebookCell } | null {
+  const byIdMatch = path.match(new RegExp(`^/cells/by-id/([^/]+)/${property}$`));
+  if (byIdMatch?.[1]) {
+    const cellId = unescapeJsonPointerSegment(byIdMatch[1]);
+    const cell = document.cells.find((candidate) => candidate.id === cellId);
+    return cell ? { cell } : null;
+  }
+
+  const indexMatch = path.match(new RegExp(`^/cells/(\\d+)/${property}$`));
+  if (indexMatch?.[1]) {
+    const cell = document.cells[Number(indexMatch[1])];
+    return cell ? { cell } : null;
+  }
+
+  return null;
+}
+
+function resolveExternalValuePatchTarget(
+  document: NotebookDocument,
+  path: string
+): { cell: ExternalsCell; variable: string } | null {
+  const match = path.match(/^\/cells\/by-id\/([^/]+)\/externals\/(\d+)\/valueText$/);
+  if (!match?.[1] || !match[2]) {
+    return null;
+  }
+  const cellId = unescapeJsonPointerSegment(match[1]);
+  const cell = document.cells.find((candidate): candidate is ExternalsCell => candidate.id === cellId && candidate.type === "externals");
+  const external = cell?.externals[Number(match[2])];
+  if (!cell || !external) {
+    return null;
+  }
+  return { cell, variable: external.name };
+}
+
+function resolveVariableUnitMetaPatchTarget(
+  document: NotebookDocument,
+  path: string
+): { cell: EquationsCell | ExternalsCell; variable: string } | null {
+  const match = path.match(/^\/cells\/by-id\/([^/]+)\/(equations|externals)\/(\d+)\/unitMeta$/);
+  if (!match?.[1] || !match[2] || !match[3]) {
+    return null;
+  }
+
+  const cellId = unescapeJsonPointerSegment(match[1]);
+  const cell = document.cells.find(
+    (candidate): candidate is EquationsCell | ExternalsCell =>
+      candidate.id === cellId && (candidate.type === "equations" || candidate.type === "externals")
+  );
+  if (!cell) {
+    return null;
+  }
+
+  const rowIndex = Number(match[3]);
+  const row = cell.type === "equations" ? cell.equations[rowIndex] : cell.externals[rowIndex];
+  if (!row) {
+    return null;
+  }
+
+  return { cell, variable: row.name };
+}
+
+function unescapeJsonPointerSegment(value: string): string {
+  return value.replace(/~1/g, "/").replace(/~0/g, "~");
+}
+
+function isHelperCoveredPatchOperation(operation: NotebookPatch["operations"][number]): boolean {
+  if (operation.op === "add" && operation.path === "/cells/-") {
+    const value = operation.value;
+    return Boolean(value && typeof value === "object" && !Array.isArray(value) && (value as { type?: unknown }).type === "chart");
+  }
+
+  if (operation.op !== "replace") {
+    return false;
+  }
+
+  if (/^\/cells\/by-id\/[^/]+\/variables$/.test(operation.path) || /^\/cells\/\d+\/variables$/.test(operation.path)) {
+    return true;
+  }
+
+  return /^\/cells\/by-id\/[^/]+\/externals\//.test(operation.path) || /^\/cells\/by-id\/[^/]+\/(equations|externals)\/\d+\/unitMeta$/.test(operation.path);
+}
+
+function setNotebookAssistantMessageText(
+  setMessages: Dispatch<SetStateAction<NotebookAssistantMessage[]>>,
+  messageId: string,
+  text: string
+): void {
+  setMessages((current) =>
+    current.map((message) => (message.id === messageId ? { ...message, text } : message))
+  );
+}
+
+function setNotebookAssistantMessagePatch(
+  setMessages: Dispatch<SetStateAction<NotebookAssistantMessage[]>>,
+  messageId: string,
+  patch: NotebookPatch,
+  document: NotebookDocument
+): void {
+  const preview = previewNotebookPatch(document, patch);
+  setMessages((current) =>
+    current.map((message) =>
+      message.id === messageId
+        ? {
+            ...message,
+            patch: {
+              isJsonVisible: false,
+              patch,
+              preview,
+              status: "ready"
+            }
+          }
+        : message
+    )
+  );
+}
+
+function buildNotebookAssistantToolFollowupQuestion(args: {
+  originalQuestion: string;
+  toolResults: NotebookAssistantToolResult[];
+}): string {
+  return [
+    "Use these notebook assistant tool results to answer the original question.",
+    "Do not ask for the same tool calls again unless the results are insufficient.",
+    "If a result contains a patch proposal, summarize the proposed change and say it is ready for user preview/apply.",
+    `Original question: ${args.originalQuestion}`,
+    "Tool results JSON:",
+    JSON.stringify({ toolResults: args.toolResults }, null, 2)
+  ].join("\n");
+}
+
+function summarizeNotebookAssistantToolResults(toolResults: NotebookAssistantToolResult[]): string {
+  const failed = toolResults.filter((result) => !result.ok);
+  const names = toolResults.map((result) => result.name).join(", ");
+  if (failed.length === 0) {
+    return `Notebook tools: ${names} completed.`;
+  }
+
+  return `Notebook tools: ${names}. ${failed.length} failed: ${failed.map((result) => `${result.name}: ${result.error}`).join("; ")}`;
+}
+
+function getPatchFromNotebookAssistantToolResults(
+  toolResults: NotebookAssistantToolResult[],
+  toolRequests: NotebookAssistantToolRequest[] = []
+): NotebookPatch | null {
+  for (const [index, result] of toolResults.entries()) {
+    if (!result.ok || !result.data || typeof result.data !== "object") {
+      continue;
+    }
+    const patch = (result.data as { patch?: unknown }).patch;
+    if (patch && typeof patch === "object" && !Array.isArray(patch)) {
+      const operations = (patch as { operations?: unknown }).operations;
+      if (Array.isArray(operations)) {
+        return patch as NotebookPatch;
+      }
+    }
+
+    if (
+      (result.name === "validateNotebookPatch" || result.name === "previewNotebookPatch" || result.name === "explainNotebookPatch") &&
+      (result.data as { ok?: unknown }).ok !== false
+    ) {
+      const requestPatch = normalizePatchArgument(toolRequests[index]);
+      if (requestPatch) {
+        return requestPatch;
+      }
+    }
+  }
+
+  return null;
+}
+
+function normalizePatchArgument(request: NotebookAssistantToolRequest | undefined): NotebookPatch | null {
+  const patch = request?.args?.patch;
+  if (!patch || typeof patch !== "object" || Array.isArray(patch)) {
+    return null;
+  }
+  const operations = (patch as { operations?: unknown }).operations;
+  return Array.isArray(operations) ? patch as NotebookPatch : null;
+}
+
 function buildNotebookAssistantContext(args: {
   document: NotebookDocument;
   inspectorContext: {
@@ -251,6 +1018,7 @@ function buildNotebookAssistantContext(args: {
     selectedVariable: string;
   } | null;
   resultCount: number;
+  assistantMode: NotebookAssistantMode;
   selectedPeriodIndex: number;
   selectedVariable?: string;
   uiMessage: string | null;
@@ -260,9 +1028,11 @@ function buildNotebookAssistantContext(args: {
     [
       `Notebook title: ${args.document.title}`,
       `Notebook id: ${args.document.id}`,
+      `Assistant mode: ${formatNotebookAssistantMode(args.assistantMode)}`,
+      `Assistant mode contract: ${getNotebookAssistantModeContract(args.assistantMode)}`,
       `Cells: ${args.document.cells.length}`,
       `Cell types: ${summarizeCellTypes(args.document.cells)}`,
-      `Available read-only assistant tools: ${summarizeNotebookAssistantTools()}`,
+      `Available notebook assistant tools: ${summarizeNotebookAssistantTools()}`,
       `Selected period index: ${args.selectedPeriodIndex}`,
       `Completed run result count: ${args.resultCount}`,
       args.selectedVariable ? `Selected variable: ${args.selectedVariable}` : null,
@@ -275,6 +1045,41 @@ function buildNotebookAssistantContext(args: {
     ]
       .filter((line): line is string => Boolean(line))
       .join("\n")
+  );
+}
+
+function formatNotebookAssistantMode(mode: NotebookAssistantMode): string {
+  return mode === "edit" ? "Edit" : "Ask";
+}
+
+function getNotebookAssistantModeContract(mode: NotebookAssistantMode): string {
+  return mode === "edit"
+    ? "Use read tools when needed, then prefer helper-generated validated patch proposals for notebook edits. Never apply changes directly."
+    : "Answer questions and inspect notebook state with read tools only. Do not create or return notebook patch proposals in Ask mode.";
+}
+
+function resolveNotebookAssistantMode(value: string | null): NotebookAssistantMode {
+  return value === "edit" ? "edit" : "ask";
+}
+
+function filterNotebookAssistantToolRequestsForMode(
+  mode: NotebookAssistantMode,
+  requests: NotebookAssistantToolRequest[]
+): { blocked: NotebookAssistantToolRequest[]; allowed: NotebookAssistantToolRequest[] } {
+  if (mode === "edit") {
+    return { allowed: requests, blocked: [] };
+  }
+
+  return requests.reduce<{ blocked: NotebookAssistantToolRequest[]; allowed: NotebookAssistantToolRequest[] }>(
+    (result, request) => {
+      if (NOTEBOOK_ASSISTANT_READ_TOOL_NAMES.has(request.name)) {
+        result.allowed.push(request);
+      } else {
+        result.blocked.push(request);
+      }
+      return result;
+    },
+    { allowed: [], blocked: [] }
   );
 }
 
@@ -335,6 +1140,9 @@ export function NotebookApp() {
   const [assistantBetaPassword, setAssistantBetaPassword] = useState("");
   const [assistantError, setAssistantError] = useState<string | null>(null);
   const [isAssistantAsking, setIsAssistantAsking] = useState(false);
+  const [assistantPatchText, setAssistantPatchText] = useState("");
+  const [assistantPatchPreview, setAssistantPatchPreview] = useState<NotebookPatchResult | null>(null);
+  const [assistantPatchUndoStack, setAssistantPatchUndoStack] = useState<NotebookDocument[]>([]);
   const [selectedImportFileName, setSelectedImportFileName] = useState("No file chosen");
   const [assistantModel, setAssistantModel] = useState(() => {
     if (typeof window === "undefined") {
@@ -345,6 +1153,13 @@ export function NotebookApp() {
       window.localStorage.getItem(NOTEBOOK_ASSISTANT_MODEL_STORAGE_KEY) ??
       NOTEBOOK_ASSISTANT_DEFAULT_MODEL
     );
+  });
+  const [assistantMode, setAssistantMode] = useState<NotebookAssistantMode>(() => {
+    if (typeof window === "undefined") {
+      return "ask";
+    }
+
+    return resolveNotebookAssistantMode(window.localStorage.getItem(NOTEBOOK_ASSISTANT_MODE_STORAGE_KEY));
   });
   const [inspectorContext, setInspectorContext] = useState<{
     currentValues: Record<string, number | undefined>;
@@ -474,6 +1289,195 @@ export function NotebookApp() {
     setNotebookDocument(nextDocument);
     setSelectedPeriodIndex(0);
     setAutoRunRevision((current) => current + 1);
+  }
+
+  function parseAssistantPatchTextValue(value: string): NotebookPatch {
+    const parsed = JSON.parse(value) as unknown;
+    if (Array.isArray(parsed)) {
+      return { operations: parsed as NotebookPatch["operations"] };
+    }
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as NotebookPatch;
+    }
+    throw new Error("Patch JSON must be an object with operations or an operations array.");
+  }
+
+  function parseAssistantPatchText(): NotebookPatch {
+    return parseAssistantPatchTextValue(assistantPatchText);
+  }
+
+  function handlePreviewAssistantPatch(): void {
+    try {
+      const patch = parseAssistantPatchText();
+      const preview = previewNotebookPatch(notebookDocument, patch);
+      setAssistantPatchPreview(preview);
+      setUiMessage(preview.ok ? "Previewed assistant notebook patch." : "Assistant patch has validation issues.");
+    } catch (error) {
+      setAssistantPatchPreview({
+        issues: [
+          {
+            message: error instanceof Error ? error.message : "Unable to parse assistant patch.",
+            severity: "error"
+          }
+        ],
+        ok: false,
+        summary: { addedCells: 0, changedCells: 0, operationCount: 0, removedCells: 0 }
+      });
+      setUiMessage("Assistant patch JSON could not be parsed.");
+    }
+  }
+
+  function handleApplyAssistantPatch(): void {
+    let result = assistantPatchPreview;
+    if (!result) {
+      try {
+        result = applyNotebookPatch(notebookDocument, parseAssistantPatchText());
+      } catch (error) {
+        setAssistantPatchPreview({
+          issues: [
+            {
+              message: error instanceof Error ? error.message : "Unable to parse assistant patch.",
+              severity: "error"
+            }
+          ],
+          ok: false,
+          summary: { addedCells: 0, changedCells: 0, operationCount: 0, removedCells: 0 }
+        });
+        setUiMessage("Assistant patch JSON could not be parsed.");
+        return;
+      }
+    }
+
+    if (!result.ok) {
+      setAssistantPatchPreview(result);
+      setUiMessage("Fix assistant patch validation issues before applying.");
+      return;
+    }
+
+    setAssistantPatchUndoStack((current) => [...current, notebookDocument]);
+    replaceNotebookDocument(result.document);
+    setAssistantPatchText("");
+    setAssistantPatchPreview(null);
+    setUiMessage("Applied assistant notebook patch.");
+  }
+
+  function handleDiscardAssistantPatch(): void {
+    setAssistantPatchText("");
+    setAssistantPatchPreview(null);
+    setUiMessage("Discarded assistant notebook patch preview.");
+  }
+
+  function handleUndoAssistantPatch(): void {
+    setAssistantPatchUndoStack((current) => {
+      const previousDocument = current.at(-1);
+      if (!previousDocument) {
+        return current;
+      }
+      replaceNotebookDocument(previousDocument);
+      setUiMessage("Undid assistant notebook patch.");
+      return current.slice(0, -1);
+    });
+  }
+
+  function updateInlineAssistantPatch(
+    messageId: string,
+    updater: (patch: NotebookAssistantInlinePatch) => NotebookAssistantInlinePatch
+  ): void {
+    setAssistantMessages((current) =>
+      current.map((message) =>
+        message.id === messageId && message.patch
+          ? { ...message, patch: updater(message.patch) }
+          : message
+      )
+    );
+  }
+
+  function handleToggleInlineAssistantPatchJson(messageId: string): void {
+    updateInlineAssistantPatch(messageId, (patch) => ({
+      ...patch,
+      jsonText: patch.jsonText ?? JSON.stringify(patch.patch, null, 2),
+      isJsonVisible: !patch.isJsonVisible
+    }));
+  }
+
+  function handleUpdateInlineAssistantPatchJson(messageId: string, value: string): void {
+    updateInlineAssistantPatch(messageId, (patch) => ({
+      ...patch,
+      isJsonDirty: true,
+      jsonText: value
+    }));
+  }
+
+  function handlePreviewInlineAssistantPatchJson(messageId: string): void {
+    const message = assistantMessages.find((candidate) => candidate.id === messageId);
+    if (!message?.patch) {
+      return;
+    }
+
+    try {
+      const patch = parseAssistantPatchTextValue(message.patch.jsonText ?? JSON.stringify(message.patch.patch, null, 2));
+      const preview = previewNotebookPatch(notebookDocument, patch);
+      updateInlineAssistantPatch(messageId, (current) => ({
+        ...current,
+        isJsonDirty: false,
+        patch,
+        preview
+      }));
+      setUiMessage(preview.ok ? "Previewed inline assistant patch." : "Inline assistant patch has validation issues.");
+    } catch (error) {
+      updateInlineAssistantPatch(messageId, (current) => ({
+        ...current,
+        isJsonDirty: true,
+        preview: {
+          issues: [
+            {
+              message: error instanceof Error ? error.message : "Unable to parse assistant patch.",
+              severity: "error"
+            }
+          ],
+          ok: false,
+          summary: { addedCells: 0, changedCells: 0, operationCount: 0, removedCells: 0 }
+        }
+      }));
+      setUiMessage("Inline assistant patch JSON could not be parsed.");
+    }
+  }
+
+  function handleDiscardInlineAssistantPatch(messageId: string): void {
+    updateInlineAssistantPatch(messageId, (patch) => ({
+      ...patch,
+      status: "discarded"
+    }));
+    setUiMessage("Discarded inline assistant patch proposal.");
+  }
+
+  function handleApplyInlineAssistantPatch(messageId: string): void {
+    const message = assistantMessages.find((candidate) => candidate.id === messageId);
+    if (!message?.patch || message.patch.status !== "ready") {
+      return;
+    }
+
+    if (message.patch.isJsonDirty) {
+      setUiMessage("Preview inline assistant patch JSON before applying.");
+      return;
+    }
+
+    const result = applyNotebookPatch(notebookDocument, message.patch.patch);
+    updateInlineAssistantPatch(messageId, (patch) => ({
+      ...patch,
+      isJsonDirty: false,
+      preview: result,
+      status: result.ok ? "applied" : patch.status
+    }));
+
+    if (!result.ok) {
+      setUiMessage("Inline assistant patch has validation issues.");
+      return;
+    }
+
+    setAssistantPatchUndoStack((current) => [...current, notebookDocument]);
+    replaceNotebookDocument(result.document);
+    setUiMessage("Applied inline assistant patch.");
   }
 
   function replaceNotebookDocumentFromTemplate(templateId: NotebookTemplateId): void {
@@ -678,6 +1682,11 @@ export function NotebookApp() {
     window.localStorage.setItem(NOTEBOOK_ASSISTANT_MODEL_STORAGE_KEY, nextModel);
   }
 
+  function handleAssistantModeChange(nextMode: NotebookAssistantMode): void {
+    setAssistantMode(nextMode);
+    window.localStorage.setItem(NOTEBOOK_ASSISTANT_MODE_STORAGE_KEY, nextMode);
+  }
+
   async function handleAskNotebookAssistant(): Promise<void> {
     const question = assistantPromptText.trim();
     if (!question || isAssistantAsking || !NOTEBOOK_ASSISTANT_API_URL) {
@@ -699,9 +1708,10 @@ export function NotebookApp() {
 
     try {
       let streamedText = "";
-      await requestNotebookAssistantAnswer({
+      const firstAnswer = await requestNotebookAssistantAnswer({
         betaPassword: assistantBetaPassword,
         context: buildNotebookAssistantContext({
+          assistantMode,
           document: notebookDocument,
           inspectorContext,
           resultCount: Object.values(runner.outputs).filter((output) => output?.type === "result").length,
@@ -733,6 +1743,185 @@ export function NotebookApp() {
         },
         question
       });
+
+      const toolRequestExtraction = extractNotebookAssistantToolRequests(firstAnswer);
+      if (toolRequestExtraction.error) {
+        setAssistantMessages((current) =>
+          current.map((message) =>
+            message.id === assistantMessageId
+              ? {
+                  ...message,
+                  text: toolRequestExtraction.error ?? "Assistant requested notebook tools, but the request could not be parsed."
+                }
+              : message
+          )
+        );
+        return;
+      }
+
+      if (toolRequestExtraction.requests.length === 0) {
+        const directPatch = assistantMode === "edit"
+          ? extractNotebookPatchProposal({ document: notebookDocument, question, text: firstAnswer })
+          : null;
+        if (directPatch) {
+          const policy = evaluateNotebookAssistantDirectPatchPolicy(notebookDocument, directPatch);
+          if (!policy.ok) {
+            setNotebookAssistantMessageText(setAssistantMessages, assistantMessageId, policy.message);
+            return;
+          }
+          if ("request" in policy) {
+            const result = dispatchNotebookAssistantTool(buildNotebookAssistantSnapshot(), policy.request);
+            const proposedPatch = getPatchFromNotebookAssistantToolResults([result]);
+            if (!result.ok || !proposedPatch) {
+              setNotebookAssistantMessageText(
+                setAssistantMessages,
+                assistantMessageId,
+                "The notebook helper could not prepare that edit automatically. Try asking again with the chart, run, or parameter name included."
+              );
+              return;
+            }
+            setNotebookAssistantMessagePatch(setAssistantMessages, assistantMessageId, proposedPatch, notebookDocument);
+            setNotebookAssistantMessageText(
+              setAssistantMessages,
+              assistantMessageId,
+              "I prepared a validated patch with the notebook helper tools. Review it below, then apply it when ready."
+            );
+            return;
+          }
+          setNotebookAssistantMessagePatch(setAssistantMessages, assistantMessageId, policy.patch, notebookDocument);
+          return;
+        }
+
+        const textProposalRequest = assistantMode === "edit"
+          ? extractTextChartVariablesToolRequest(notebookDocument, `${question}\n${firstAnswer}`)
+          : null;
+        if (textProposalRequest) {
+          const result = dispatchNotebookAssistantTool(buildNotebookAssistantSnapshot(), textProposalRequest);
+          const proposedPatch = getPatchFromNotebookAssistantToolResults([result]);
+          if (result.ok && proposedPatch) {
+            setNotebookAssistantMessagePatch(setAssistantMessages, assistantMessageId, proposedPatch, notebookDocument);
+          }
+        }
+        return;
+      }
+
+      const modeFilteredRequests = filterNotebookAssistantToolRequestsForMode(
+        assistantMode,
+        toolRequestExtraction.requests
+      );
+      if (modeFilteredRequests.allowed.length === 0 && modeFilteredRequests.blocked.length > 0) {
+        setAssistantMessages((current) =>
+          current.map((message) =>
+            message.id === assistantMessageId
+              ? {
+                  ...message,
+                  text: "Ask mode can inspect notebook state with read tools, but it will not create patch proposals. Switch to Edit mode to prepare notebook changes for preview."
+                }
+              : message
+          )
+        );
+        return;
+      }
+
+      const toolRequests = modeFilteredRequests.allowed.slice(0, NOTEBOOK_ASSISTANT_MAX_TOOL_REQUESTS_PER_ROUND);
+
+      const toolResults = toolRequests.map((request) =>
+        dispatchNotebookAssistantTool(buildNotebookAssistantSnapshot(), request)
+      );
+      const toolSummary = summarizeNotebookAssistantToolResults(toolResults);
+      const proposedPatch = getPatchFromNotebookAssistantToolResults(toolResults, toolRequests);
+      if (proposedPatch) {
+        setNotebookAssistantMessagePatch(setAssistantMessages, assistantMessageId, proposedPatch, notebookDocument);
+      }
+
+      setAssistantMessages((current) =>
+        current.map((message) =>
+          message.id === assistantMessageId
+            ? {
+                ...message,
+                text: `${toolSummary} Preparing answer...`
+              }
+            : message
+        )
+      );
+
+      streamedText = "";
+      const finalAnswer = await requestNotebookAssistantAnswer({
+        betaPassword: assistantBetaPassword,
+        context: buildNotebookAssistantContext({
+          assistantMode,
+          document: notebookDocument,
+          inspectorContext,
+          resultCount: Object.values(runner.outputs).filter((output) => output?.type === "result").length,
+          selectedPeriodIndex,
+          selectedVariable: inspectorContext?.selectedVariable,
+          uiMessage
+        }),
+        messages: [
+          ...assistantMessages.slice(-6),
+          userMessage,
+          {
+            id: assistantMessageId,
+            role: "assistant",
+            text: firstAnswer
+          }
+        ],
+        model: assistantModel,
+        onTextDelta: (delta) => {
+          streamedText += delta;
+          setAssistantMessages((current) =>
+            current.map((message) =>
+              message.id === assistantMessageId ? { ...message, text: `${toolSummary}\n\n${streamedText}` } : message
+            )
+          );
+        },
+        question: buildNotebookAssistantToolFollowupQuestion({
+          originalQuestion: question,
+          toolResults
+        })
+      });
+      const directPatch = assistantMode === "edit"
+        ? extractNotebookPatchProposal({ document: notebookDocument, question, text: finalAnswer })
+        : null;
+      if (directPatch) {
+        const policy = evaluateNotebookAssistantDirectPatchPolicy(notebookDocument, directPatch);
+        if (!policy.ok) {
+          setNotebookAssistantMessageText(setAssistantMessages, assistantMessageId, policy.message);
+          return;
+        }
+        if ("request" in policy) {
+          const result = dispatchNotebookAssistantTool(buildNotebookAssistantSnapshot(), policy.request);
+          const proposedPatch = getPatchFromNotebookAssistantToolResults([result]);
+          if (!result.ok || !proposedPatch) {
+            setNotebookAssistantMessageText(
+              setAssistantMessages,
+              assistantMessageId,
+              "The notebook helper could not prepare that edit automatically. Try asking again with the chart, run, or parameter name included."
+            );
+            return;
+          }
+          setNotebookAssistantMessagePatch(setAssistantMessages, assistantMessageId, proposedPatch, notebookDocument);
+          setNotebookAssistantMessageText(
+            setAssistantMessages,
+            assistantMessageId,
+            "I prepared a validated patch with the notebook helper tools. Review it below, then apply it when ready."
+          );
+          return;
+        }
+        setNotebookAssistantMessagePatch(setAssistantMessages, assistantMessageId, policy.patch, notebookDocument);
+        return;
+      }
+
+      const textProposalRequest = assistantMode === "edit"
+        ? extractTextChartVariablesToolRequest(notebookDocument, `${question}\n${finalAnswer}`)
+        : null;
+      if (textProposalRequest) {
+        const result = dispatchNotebookAssistantTool(buildNotebookAssistantSnapshot(), textProposalRequest);
+        const proposedPatch = getPatchFromNotebookAssistantToolResults([result]);
+        if (result.ok && proposedPatch) {
+          setNotebookAssistantMessagePatch(setAssistantMessages, assistantMessageId, proposedPatch, notebookDocument);
+        }
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to ask notebook assistant.";
       setAssistantError(message);
@@ -747,6 +1936,20 @@ export function NotebookApp() {
     } finally {
       setIsAssistantAsking(false);
     }
+  }
+
+  function buildNotebookAssistantSnapshot(): NotebookAssistantSnapshot {
+    return {
+      document: notebookDocument,
+      runtime: {
+        errors: runner.errors,
+        outputs: runner.outputs,
+        status: runner.status
+      },
+      selectedCellId,
+      selectedPeriodIndex,
+      selectedVariable: inspectorContext?.selectedVariable
+    };
   }
 
   function getCurrentValueMapForModelRef(ref: {
@@ -818,6 +2021,107 @@ export function NotebookApp() {
   const currentTemplateId = isNotebookTemplateId(notebookDocument.metadata.template ?? "")
     ? notebookDocument.metadata.template
     : "";
+
+  function renderAssistantInlinePatch(message: NotebookAssistantMessage): ReactNode {
+    if (!message.patch) {
+      return null;
+    }
+
+    const patch = message.patch;
+    const preview = patch.preview;
+    const canApplyPatch = preview.ok && patch.status === "ready" && !patch.isJsonDirty;
+    const statusText = patch.status === "applied"
+      ? "applied"
+      : patch.status === "discarded"
+        ? "discarded"
+        : patch.isJsonDirty
+          ? "edited"
+        : preview.ok
+          ? "valid"
+          : "invalid";
+
+    return (
+      <div className="notebook-assistant-inline-patch" role="group" aria-label="Assistant patch proposal">
+        <div className="notebook-assistant-inline-patch-summary">
+          <strong>Patch proposal</strong>
+          {patch.isJsonDirty ? (
+            <span>{statusText}. Preview JSON before applying.</span>
+          ) : (
+            <span>
+              {statusText}. Operations: {preview.summary.operationCount}; added: {preview.summary.addedCells}; changed: {preview.summary.changedCells}; removed: {preview.summary.removedCells}.
+            </span>
+          )}
+        </div>
+        {preview.issues.length > 0 ? (
+          <ul className="notebook-inline-list">
+            {preview.issues.map((issue, index) => (
+              <li key={`${issue.message}-${index}`} className={issue.severity === "error" ? "field-error" : "status-hint"}>
+                {issue.message}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <div className="button-row notebook-assistant-inline-patch-actions">
+          <button
+            type="button"
+            onClick={() => handleApplyInlineAssistantPatch(message.id)}
+            disabled={!canApplyPatch}
+          >
+            Apply
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => handleDiscardInlineAssistantPatch(message.id)}
+            disabled={patch.status !== "ready"}
+          >
+            Discard
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => handleToggleInlineAssistantPatchJson(message.id)}
+          >
+            {patch.isJsonVisible ? "Hide JSON" : "Edit JSON"}
+          </button>
+          {patch.status === "applied" ? (
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={handleUndoAssistantPatch}
+              disabled={assistantPatchUndoStack.length === 0}
+            >
+              Undo
+            </button>
+          ) : null}
+        </div>
+        {patch.isJsonVisible ? (
+          <div className="notebook-assistant-inline-patch-editor">
+            <textarea
+              aria-label="Inline assistant patch JSON"
+              className="notebook-utility-textarea notebook-assistant-inline-patch-json"
+              readOnly={patch.status !== "ready"}
+              rows={5}
+              value={patch.jsonText ?? JSON.stringify(patch.patch, null, 2)}
+              onChange={(event) => handleUpdateInlineAssistantPatchJson(message.id, event.target.value)}
+            />
+            {patch.status === "ready" ? (
+              <div className="button-row notebook-assistant-inline-patch-actions">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => handlePreviewInlineAssistantPatchJson(message.id)}
+                  disabled={!patch.isJsonDirty && preview.ok}
+                >
+                  Preview JSON
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <NotebookRenderProfiler
@@ -1215,7 +2519,9 @@ export function NotebookApp() {
                 <div>
                   <h2>Assistant</h2>
                   <p className="panel-subtitle">
-                    Read-only help for the current notebook context.
+                    {assistantMode === "edit"
+                      ? "Prepare validated notebook changes for review."
+                      : "Ask questions and inspect notebook state."}
                   </p>
                 </div>
               </div>
@@ -1228,6 +2534,7 @@ export function NotebookApp() {
                   onChange={(event) => handleAssistantModelChange(event.target.value)}
                 >
                   <option value="gpt-5.5">GPT-5.5</option>
+                  <option value="gpt-5.4">GPT-5.4</option>
                   <option value="gpt-4.1">GPT-4.1</option>
                   <option value="o3">o3</option>
                 </select>
@@ -1251,6 +2558,75 @@ export function NotebookApp() {
               </div>
               {assistantError ? <div className="field-error">{assistantError}</div> : null}
 
+              <details className="notebook-assistant-patch-panel">
+                <summary>Manual Patch JSON</summary>
+                <label className="field" htmlFor="notebook-assistant-patch-json">
+                  <span>Patch JSON</span>
+                  <textarea
+                    id="notebook-assistant-patch-json"
+                    className="notebook-utility-textarea"
+                    rows={5}
+                    value={assistantPatchText}
+                    onChange={(event) => {
+                      setAssistantPatchText(event.target.value);
+                      setAssistantPatchPreview(null);
+                    }}
+                    placeholder='[{"op":"add","path":"/cells/-","value":{"id":"chart-y","type":"chart","title":"Income","sourceRunCellId":"baseline-newton","variables":["Y"]}}]'
+                  />
+                </label>
+
+                {assistantPatchPreview ? (
+                  <div className="notebook-assistant-patch-preview" role="status">
+                    <div className="status-hint">
+                      Patch preview: {assistantPatchPreview.ok ? "valid" : "invalid"}. Operations: {assistantPatchPreview.summary.operationCount}; added: {assistantPatchPreview.summary.addedCells}; changed: {assistantPatchPreview.summary.changedCells}; removed: {assistantPatchPreview.summary.removedCells}.
+                    </div>
+                    {assistantPatchPreview.issues.length > 0 ? (
+                      <ul className="notebook-inline-list">
+                        {assistantPatchPreview.issues.map((issue, index) => (
+                          <li key={`${issue.message}-${index}`} className={issue.severity === "error" ? "field-error" : "status-hint"}>
+                            {issue.message}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                <div className="button-row">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={handlePreviewAssistantPatch}
+                    disabled={!assistantPatchText.trim()}
+                  >
+                    Preview patch
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleApplyAssistantPatch}
+                    disabled={!assistantPatchPreview?.ok}
+                  >
+                    Apply patch
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={handleDiscardAssistantPatch}
+                    disabled={!assistantPatchText.trim() && !assistantPatchPreview}
+                  >
+                    Discard
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={handleUndoAssistantPatch}
+                    disabled={assistantPatchUndoStack.length === 0}
+                  >
+                    Undo patch
+                  </button>
+                </div>
+              </details>
+
               <div className="chat-thread notebook-assistant-thread" role="log" aria-label="Notebook assistant conversation">
                 {assistantMessages.map((message) => (
                   <article
@@ -1263,10 +2639,13 @@ export function NotebookApp() {
                       {message.role === "assistant" ? "Assistant" : "You"}
                     </div>
                     {message.role === "assistant" ? (
-                      <AssistantMarkdown
-                        text={message.text}
-                        variableDescriptions={assistantVariableDescriptions}
-                      />
+                      <>
+                        <AssistantMarkdown
+                          text={message.text}
+                          variableDescriptions={assistantVariableDescriptions}
+                        />
+                        {renderAssistantInlinePatch(message)}
+                      </>
                     ) : (
                       <p>{message.text}</p>
                     )}
@@ -1282,22 +2661,51 @@ export function NotebookApp() {
                   void handleAskNotebookAssistant();
                 }}
               >
-                <label className="field" htmlFor="notebook-assistant-question">
-                  <span>Question</span>
+                <div className="field">
+                  <div className="notebook-assistant-question-header">
+                    <label className="field-label" htmlFor="notebook-assistant-question">
+                      Question
+                    </label>
+                    <div className="notebook-assistant-mode-switch notebook-assistant-mode-switch-compact" aria-label="Assistant mode">
+                      <button
+                        type="button"
+                        aria-label="Ask mode"
+                        className={assistantMode === "ask" ? "is-active" : ""}
+                        onClick={() => handleAssistantModeChange("ask")}
+                      >
+                        Ask
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Edit mode"
+                        className={assistantMode === "edit" ? "is-active" : ""}
+                        onClick={() => handleAssistantModeChange("edit")}
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  </div>
+                  <div className="status-hint">
+                    {getNotebookAssistantModeContract(assistantMode)}
+                  </div>
                   <textarea
                     id="notebook-assistant-question"
                     rows={5}
                     value={assistantPromptText}
                     onChange={(event) => setAssistantPromptText(event.target.value)}
-                    placeholder="Ask about this notebook, a variable, a matrix, an error, or a result."
+                    placeholder={
+                      assistantMode === "edit"
+                        ? "Describe the notebook change to prepare as a validated patch."
+                        : "Ask about this notebook, a variable, a matrix, an error, or a result."
+                    }
                   />
-                </label>
+                </div>
                 <div className="button-row">
                   <button
                     type="submit"
                     disabled={!assistantPromptText.trim() || isAssistantAsking || !NOTEBOOK_ASSISTANT_API_URL}
                   >
-                    {isAssistantAsking ? "Asking..." : "Ask"}
+                    {isAssistantAsking ? "Working..." : assistantMode === "edit" ? "Prepare edit" : "Ask"}
                   </button>
                 </div>
               </form>

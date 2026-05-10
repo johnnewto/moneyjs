@@ -11,6 +11,7 @@ export interface UnitMeta {
   stockFlow?: StockFlowKind;
   dimensionKind?: StockFlowKind;
   baseUnit?: string;
+  displayUnit?: string;
 }
 
 interface UnitMetaInput extends Omit<UnitMeta, "signature"> {
@@ -19,6 +20,7 @@ interface UnitMetaInput extends Omit<UnitMeta, "signature"> {
 }
 
 interface SerializedUnitMeta {
+  displayUnit?: string;
   stockFlow?: StockFlowKind;
   units?: Partial<Record<BaseDimension | UnitSignatureAlias, number>>;
 }
@@ -54,8 +56,12 @@ export function normalizeUnitMetaAliases(unitMeta?: UnitMetaInput): UnitMeta | u
   }
 
   const signature = normalizeSignatureInput(unitMeta.signature, unitMeta.units);
+  const displayUnit = typeof unitMeta.displayUnit === "string" && unitMeta.displayUnit.trim()
+    ? unitMeta.displayUnit.trim()
+    : undefined;
   if (signature) {
     return {
+      ...(displayUnit ? { displayUnit } : {}),
       stockFlow: unitMeta.stockFlow ?? unitMeta.dimensionKind,
       signature
     };
@@ -63,6 +69,7 @@ export function normalizeUnitMetaAliases(unitMeta?: UnitMetaInput): UnitMeta | u
 
   if (!unitMeta.baseUnit && !unitMeta.dimensionKind) {
     return {
+      ...(displayUnit ? { displayUnit } : {}),
       stockFlow: unitMeta.stockFlow
     };
   }
@@ -73,6 +80,7 @@ export function normalizeUnitMetaAliases(unitMeta?: UnitMetaInput): UnitMeta | u
   }
 
   return {
+    ...(displayUnit ? { displayUnit } : {}),
     stockFlow,
     signature:
       stockFlow === "flow"
@@ -112,6 +120,7 @@ export function serializeUnitMetaAliases(unitMeta?: UnitMeta): SerializedUnitMet
   }
 
   return {
+    ...(normalized.displayUnit ? { displayUnit: normalized.displayUnit } : {}),
     ...(normalized.stockFlow ? { stockFlow: normalized.stockFlow } : {}),
     ...(Object.keys(units).length > 0 ? { units } : {})
   };
@@ -208,7 +217,12 @@ export function formatUnitLabel(unitMeta?: UnitMeta): string | null {
 }
 
 export function formatUnitText(unitMeta?: UnitMeta): string | null {
-  const signature = normalizeSignature(coerceUnitMeta(unitMeta)?.signature);
+  const normalizedMeta = coerceUnitMeta(unitMeta);
+  if (normalizedMeta?.displayUnit) {
+    return normalizedMeta.displayUnit;
+  }
+
+  const signature = normalizeSignature(normalizedMeta?.signature);
   if (Object.keys(signature).length === 0) {
     return null;
   }
@@ -301,6 +315,10 @@ export function formatValueWithUnits(
 
   if (unitText.startsWith("$")) {
     return `${signPrefix}$${formattedNumber}${unitText.slice(1)}`;
+  }
+
+  if (unitText === "%") {
+    return `${signPrefix}${formattedNumber}%`;
   }
 
   return `${signPrefix}${formattedNumber} ${unitText}`;
