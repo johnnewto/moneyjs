@@ -18,6 +18,8 @@ import { PeriodScrubber } from "../components/PeriodScrubber";
 import { ResultChart, type ChartAxisMode } from "../components/ResultChart";
 import { ResultTable } from "../components/ResultTable";
 import { AssistantMarkdown } from "../components/AssistantMarkdown";
+import { extractOpenAiTextResponse, postAssistantJson } from "../assistant/client";
+import { readAssistantSseResponse } from "../assistant/sse";
 import { ScenarioEditor } from "../components/ScenarioEditor";
 import { SolverPanel } from "../components/SolverPanel";
 import { ValidationSummary } from "../components/ValidationSummary";
@@ -713,12 +715,10 @@ async function requestChatBuilderDraft(args: {
     throw new Error("Chat builder API endpoint is not configured.");
   }
 
-  const response = await fetch(CHAT_BUILDER_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
+  const response = await postAssistantJson({
+    fallbackErrorMessage: "Failed to start draft request.",
+    url: CHAT_BUILDER_API_URL,
+    body: {
       ...(args.betaPassword.trim() ? { betaPassword: args.betaPassword.trim() } : {}),
       discoveryUrl: resolveAppResourceUrl(".well-known/sfcr.json"),
       model: args.model,
@@ -727,28 +727,8 @@ async function requestChatBuilderDraft(args: {
         text: message.text
       })),
       prompt: args.prompt
-    })
-  });
-
-  if (!response.ok) {
-    let message = "Failed to start draft request.";
-
-    try {
-      const error = (await response.json()) as {
-        error?: string | {
-          message?: string;
-        };
-      };
-      message =
-        typeof error.error === "string"
-          ? error.error
-          : error.error?.message ?? message;
-    } catch {
-      // Ignore secondary parsing failures and preserve the fallback error message.
     }
-
-    throw new Error(message);
-  }
+  });
 
   const contentType = response.headers.get("Content-Type") ?? "";
   if (response.body && contentType.includes("text/event-stream")) {
@@ -758,26 +738,10 @@ async function requestChatBuilderDraft(args: {
     }
   }
 
-  const result = (await response.json()) as {
-    output?: Array<{
-      content?: Array<{
-        type?: string;
-        text?: string;
-      }>;
-    }>;
-    output_text?: string;
-  };
+  const text = extractOpenAiTextResponse(await response.json());
 
-  if (typeof result.output_text === "string" && result.output_text.trim() !== "") {
-    return normalizeChatBuilderDraftPlan(result.output_text.trim());
-  }
-
-  const contentText = result.output
-    ?.flatMap((entry) => entry.content ?? [])
-    .find((entry) => typeof entry.text === "string" && entry.text.trim() !== "")?.text;
-
-  if (typeof contentText === "string" && contentText.trim() !== "") {
-    return normalizeChatBuilderDraftPlan(contentText.trim());
+  if (typeof text === "string" && text.trim() !== "") {
+    return normalizeChatBuilderDraftPlan(text.trim());
   }
 
   throw new Error("The model response did not include any assistant text.");
@@ -787,75 +751,22 @@ async function readChatBuilderSseResponse(
   response: Response,
   onTextDelta: ((delta: string) => void) | undefined
 ): Promise<string> {
-  if (!response.body) {
-    return "";
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let text = "";
-
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
-    }
-
-    buffer += decoder.decode(value, { stream: true });
-    const chunks = buffer.split("\n\n");
-    buffer = chunks.pop() ?? "";
-
-    for (const chunk of chunks) {
-      const eventText = parseChatBuilderSseChunk(chunk);
-      if (eventText) {
-        text += eventText;
-        onTextDelta?.(eventText);
-      }
-    }
-  }
-
-  buffer += decoder.decode();
-  const remainingText = parseChatBuilderSseChunk(buffer);
-  if (remainingText) {
-    text += remainingText;
-    onTextDelta?.(remainingText);
-  }
-
-  return text;
+  return readAssistantSseResponse(response, parseChatBuilderSseEvent, onTextDelta);
 }
 
-function parseChatBuilderSseChunk(chunk: string): string {
-  const dataLines = chunk
-    .split(/\r?\n/)
-    .filter((line) => line.startsWith("data:"))
-    .map((line) => line.slice(5).trimStart());
-
-  let text = "";
-  for (const data of dataLines) {
-    if (!data || data === "[DONE]") {
-      continue;
-    }
-
-    try {
-      const event = JSON.parse(data) as {
-        delta?: unknown;
-        item?: unknown;
-        output?: unknown;
-        response?: unknown;
-        text?: unknown;
-        type?: unknown;
-      };
-
-      if (event.type === "response.output_text.delta" && typeof event.delta === "string") {
-        text += event.delta;
-      }
-    } catch {
-      // Ignore malformed stream frames and continue reading later frames.
-    }
+function parseChatBuilderSseEvent(event: unknown): string {
+  if (
+    event &&
+    typeof event === "object" &&
+    "type" in event &&
+    "delta" in event &&
+    event.type === "response.output_text.delta" &&
+    typeof event.delta === "string"
+  ) {
+    return event.delta;
   }
 
-  return text;
+  return "";
 }
 
 function normalizeChatBuilderDraftPlan(rawText: string): ChatBuilderDraftPlan {

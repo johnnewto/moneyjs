@@ -69,6 +69,8 @@ import {
 } from "../lib/editorModel";
 import { PeriodScrubber } from "../components/PeriodScrubber";
 import { AssistantMarkdown } from "../components/AssistantMarkdown";
+import { extractOpenAiTextResponse, postAssistantJson } from "../assistant/client";
+import { readAssistantSseResponse } from "../assistant/sse";
 import { VariableInspector } from "../components/VariableInspector";
 import { VariableMathLabel } from "../components/VariableMathLabel";
 import { useDragScroll } from "../hooks/useDragScroll";
@@ -148,12 +150,10 @@ async function requestNotebookAssistantAnswer(args: {
     throw new Error("Notebook assistant API endpoint is not configured.");
   }
 
-  const response = await fetch(NOTEBOOK_ASSISTANT_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
+  const response = await postAssistantJson({
+    fallbackErrorMessage: "Failed to ask notebook assistant.",
+    url: NOTEBOOK_ASSISTANT_API_URL,
+    body: {
       ...(args.betaPassword.trim() ? { betaPassword: args.betaPassword.trim() } : {}),
       context: args.context,
       messages: args.messages.map((message) => ({
@@ -162,28 +162,8 @@ async function requestNotebookAssistantAnswer(args: {
       })),
       model: args.model,
       question: args.question
-    })
-  });
-
-  if (!response.ok) {
-    let message = "Failed to ask notebook assistant.";
-
-    try {
-      const error = (await response.json()) as {
-        error?: string | {
-          message?: string;
-        };
-      };
-      message =
-        typeof error.error === "string"
-          ? error.error
-          : error.error?.message ?? message;
-    } catch {
-      // Keep fallback message.
     }
-
-    throw new Error(message);
-  }
+  });
 
   const contentType = response.headers.get("Content-Type") ?? "";
   if (response.body && contentType.includes("text/event-stream")) {
@@ -193,20 +173,7 @@ async function requestNotebookAssistantAnswer(args: {
     }
   }
 
-  const result = (await response.json()) as {
-    output?: Array<{
-      content?: Array<{
-        text?: string;
-      }>;
-    }>;
-    output_text?: string;
-  };
-  const text =
-    typeof result.output_text === "string" && result.output_text.trim()
-      ? result.output_text
-      : result.output
-          ?.flatMap((entry) => entry.content ?? [])
-          .find((entry) => typeof entry.text === "string" && entry.text.trim())?.text;
+  const text = extractOpenAiTextResponse(await response.json());
 
   if (!text) {
     throw new Error("Assistant response did not include text.");
@@ -220,67 +187,22 @@ async function readNotebookAssistantSseResponse(
   response: Response,
   onTextDelta: ((delta: string) => void) | undefined
 ): Promise<string> {
-  if (!response.body) {
-    return "";
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let text = "";
-
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
-    }
-
-    buffer += decoder.decode(value, { stream: true });
-    const chunks = buffer.split("\n\n");
-    buffer = chunks.pop() ?? "";
-
-    for (const chunk of chunks) {
-      const eventText = parseNotebookAssistantSseChunk(chunk);
-      if (eventText) {
-        text += eventText;
-        onTextDelta?.(eventText);
-      }
-    }
-  }
-
-  buffer += decoder.decode();
-  const remainingText = parseNotebookAssistantSseChunk(buffer);
-  if (remainingText) {
-    text += remainingText;
-    onTextDelta?.(remainingText);
-  }
-
-  return text;
+  return readAssistantSseResponse(response, parseNotebookAssistantSseEvent, onTextDelta);
 }
 
-function parseNotebookAssistantSseChunk(chunk: string): string {
-  const dataLines = chunk
-    .split(/\r?\n/)
-    .filter((line) => line.startsWith("data:"))
-    .map((line) => line.slice(5).trimStart());
-
-  let text = "";
-  for (const data of dataLines) {
-    if (!data || data === "[DONE]") {
-      continue;
-    }
-
-    try {
-      const event = JSON.parse(data) as { delta?: unknown; type?: unknown };
-      if (event.type === "response.output_text.delta" && typeof event.delta === "string") {
-        text += event.delta;
-      }
-    } catch {
-      // Ignore malformed stream frames.
-    }
+function parseNotebookAssistantSseEvent(event: unknown): string {
+  if (
+    event &&
+    typeof event === "object" &&
+    "type" in event &&
+    "delta" in event &&
+    event.type === "response.output_text.delta" &&
+    typeof event.delta === "string"
+  ) {
+    return event.delta;
   }
 
-  return text;
+  return "";
 }
 
 function setNotebookAssistantMessageText(

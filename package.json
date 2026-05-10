@@ -6,6 +6,7 @@
     "build": "pnpm --filter @sfcr/core build && pnpm --filter @sfcr/web build",
     "dev": "pnpm web:dev",
     "lint": "turbo run lint",
+    "files:report": "rg --files packages | rg '\\.(ts|tsx)$' | xargs wc -l | sort -n",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "web:dev": "pnpm --filter @sfcr/web dev",
