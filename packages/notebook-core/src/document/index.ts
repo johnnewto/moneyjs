@@ -4,6 +4,7 @@ import { normalizeUnitMetaAliases, serializeUnitMetaAliases } from "../unitMetaA
 import { validateNotebookSchemaObject, type NotebookValidationIssue } from "../validation";
 import {
   analyzeNotebookSourceWithPipeline,
+  createNotebookSourceDiagnostic,
   parseNotebookSourceWithPipeline,
   type NotebookSourceAnalysis,
   type NotebookSourceDiagnostic,
@@ -12,6 +13,7 @@ import {
 } from "./sourcePipeline";
 
 export type { NotebookSourceAnalysis, NotebookSourceDiagnostic, NotebookSourceFormat } from "./sourcePipeline";
+export { createNotebookSourceDiagnostic } from "./sourcePipeline";
 
 type ParsedNotebookSource =
   | { kind: "json"; value: Partial<NotebookDocument> }
@@ -333,8 +335,10 @@ function parseJsonNotebookSource(
       return {
         diagnostics: [
           {
-            message: "Notebook JSON must be an object.",
-            phase: "parse"
+            ...createNotebookSourceDiagnostic({
+              message: "Notebook JSON must be an object.",
+              phase: "parse"
+            })
           }
         ],
         ok: false
@@ -364,8 +368,10 @@ function parseMarkdownNotebookSource(
     return {
       diagnostics: [
         {
-          message: error instanceof Error ? error.message : "Unable to parse Markdown notebook source.",
-          phase: "parse"
+          ...createNotebookSourceDiagnostic({
+            message: error instanceof Error ? error.message : "Unable to parse Markdown notebook source.",
+            phase: "parse"
+          })
         }
       ],
       ok: false
@@ -379,6 +385,13 @@ function buildJsonParseDiagnostic(source: string, error: unknown): NotebookSourc
   const offset = offsetMatch ? Number.parseInt(offsetMatch[1], 10) : undefined;
   const position = offset == null ? null : offsetToLineColumn(source, offset);
   return {
+    ...createNotebookSourceDiagnostic({
+      column: position?.column,
+      line: position?.line,
+      message: `Notebook JSON parse failed: ${message}`,
+      offset,
+      phase: "parse"
+    }),
     column: position?.column,
     line: position?.line,
     message: `Notebook JSON parse failed: ${message}`,

@@ -1,5 +1,6 @@
 import Ajv2020, { type ErrorObject } from "ajv/dist/2020";
 import notebookSchema from "./sfcr-notebook.schema.json" with { type: "json" };
+import { createNotebookDiagnostic, type NotebookDiagnostic } from "./diagnostics";
 import type {
   MatrixCell,
   NotebookCell,
@@ -11,14 +12,7 @@ import type {
 const ajv = new Ajv2020({ allErrors: true, strict: false });
 const validateNotebookSchema = ajv.compile(notebookSchema);
 
-export interface NotebookValidationIssue {
-  keyword?: string;
-  message: string;
-  path?: string;
-  relatedProperty?: string;
-  schemaPath?: string;
-  severity: "error" | "warning";
-}
+export type NotebookValidationIssue = NotebookDiagnostic & { domain: "schema" | "notebook" };
 
 export function validateNotebookSchemaObject(value: unknown): NotebookValidationIssue[] {
   if (validateNotebookSchema(value)) {
@@ -146,7 +140,7 @@ export function validateNotebookDocument(document: NotebookDocument): NotebookVa
   }
 
   for (const id of duplicatedCellIds) {
-    issues.push({ severity: "error", message: `Duplicate notebook cell id '${id}'.` });
+    issues.push(createNotebookIssue(`Duplicate notebook cell id '${id}'.`));
   }
 
   for (const cell of document.cells) {
@@ -170,14 +164,13 @@ function formatSchemaError(error: ErrorObject): NotebookValidationIssue {
       : error.keyword === "additionalProperties"
         ? (error.params as { additionalProperty?: string }).additionalProperty
         : undefined;
-  return {
+  return createSchemaIssue({
     keyword: error.keyword,
     path,
     relatedProperty,
     schemaPath: error.schemaPath,
-    severity: "error",
     message: `${path}: ${message}`
-  };
+  });
 }
 
 function buildSchemaErrorMessage(error: ErrorObject): string {
@@ -206,6 +199,14 @@ function buildSchemaErrorMessage(error: ErrorObject): string {
   return error.message ?? `failed schema rule '${error.keyword}'`;
 }
 
+function createSchemaIssue(input: Omit<NotebookValidationIssue, "domain" | "severity">): NotebookValidationIssue {
+  return createNotebookDiagnostic(input, { domain: "schema" }) as NotebookValidationIssue;
+}
+
+function createNotebookIssue(message: string, path?: string): NotebookValidationIssue {
+  return createNotebookDiagnostic({ message, path }, { domain: "notebook" }) as NotebookValidationIssue;
+}
+
 function validateCellReferences(
   cell: NotebookCell,
   context: {
@@ -217,10 +218,7 @@ function validateCellReferences(
   }
 ): void {
   if ("sourceRunCellId" in cell && cell.sourceRunCellId && !context.runCellIds.has(cell.sourceRunCellId)) {
-    context.issues.push({
-      severity: "error",
-      message: `Cell '${cell.id}' references missing run cell '${cell.sourceRunCellId}'.`
-    });
+    context.issues.push(createNotebookIssue(`Cell '${cell.id}' references missing run cell '${cell.sourceRunCellId}'.`));
   }
 
   if (cell.type === "run") {
@@ -242,31 +240,19 @@ function validateRunCellReferences(
   }
 ): void {
   if (cell.baselineRunCellId && !context.runCellIds.has(cell.baselineRunCellId)) {
-    context.issues.push({
-      severity: "error",
-      message: `Run cell '${cell.id}' references missing baseline run '${cell.baselineRunCellId}'.`
-    });
+    context.issues.push(createNotebookIssue(`Run cell '${cell.id}' references missing baseline run '${cell.baselineRunCellId}'.`));
   }
 
   if (cell.sourceModelCellId && !context.modelCellIds.has(cell.sourceModelCellId)) {
-    context.issues.push({
-      severity: "error",
-      message: `Run cell '${cell.id}' references missing model cell '${cell.sourceModelCellId}'.`
-    });
+    context.issues.push(createNotebookIssue(`Run cell '${cell.id}' references missing model cell '${cell.sourceModelCellId}'.`));
   }
 
   if (cell.sourceModelId && !context.sectionModelIds.has(cell.sourceModelId)) {
-    context.issues.push({
-      severity: "error",
-      message: `Run cell '${cell.id}' references missing model id '${cell.sourceModelId}'.`
-    });
+    context.issues.push(createNotebookIssue(`Run cell '${cell.id}' references missing model id '${cell.sourceModelId}'.`));
   }
 
   if (!cell.sourceModelCellId && !cell.sourceModelId) {
-    context.issues.push({
-      severity: "error",
-      message: `Run cell '${cell.id}' must reference a source model.`
-    });
+    context.issues.push(createNotebookIssue(`Run cell '${cell.id}' must reference a source model.`));
   }
 }
 
@@ -280,10 +266,7 @@ function validateSequenceCellReferences(
   }
 ): void {
   if (cell.source.kind === "matrix" && !context.matrixCellIds.has(cell.source.matrixCellId)) {
-    context.issues.push({
-      severity: "error",
-      message: `Sequence cell '${cell.id}' references missing matrix '${cell.source.matrixCellId}'.`
-    });
+    context.issues.push(createNotebookIssue(`Sequence cell '${cell.id}' references missing matrix '${cell.source.matrixCellId}'.`));
   }
 
   if (cell.source.kind !== "dependency") {
@@ -291,28 +274,19 @@ function validateSequenceCellReferences(
   }
 
   if (cell.source.sourceModelCellId && !context.modelCellIds.has(cell.source.sourceModelCellId)) {
-    context.issues.push({
-      severity: "error",
-      message: `Sequence cell '${cell.id}' references missing model cell '${cell.source.sourceModelCellId}'.`
-    });
+    context.issues.push(createNotebookIssue(`Sequence cell '${cell.id}' references missing model cell '${cell.source.sourceModelCellId}'.`));
   }
 
   const modelId = cell.source.modelId ?? cell.source.sourceModelId;
   if (modelId && !context.sectionModelIds.has(modelId)) {
-    context.issues.push({
-      severity: "error",
-      message: `Sequence cell '${cell.id}' references missing model id '${modelId}'.`
-    });
+    context.issues.push(createNotebookIssue(`Sequence cell '${cell.id}' references missing model id '${modelId}'.`));
   }
 }
 
 function validateMatrixCell(cell: MatrixCell, issues: NotebookValidationIssue[]): void {
   cell.rows.forEach((row, index) => {
     if (row.values.length !== cell.columns.length) {
-      issues.push({
-        severity: "error",
-        message: `Matrix cell '${cell.id}' row ${index + 1} has ${row.values.length} values for ${cell.columns.length} columns.`
-      });
+      issues.push(createNotebookIssue(`Matrix cell '${cell.id}' row ${index + 1} has ${row.values.length} values for ${cell.columns.length} columns.`));
     }
   });
 }
@@ -372,10 +346,7 @@ function validateNamesForKind(
       continue;
     }
     if (seen.has(name)) {
-      issues.push({
-        severity: "error",
-        message: `Model '${modelId}' has duplicate ${kind} variable '${name}'.`
-      });
+      issues.push(createNotebookIssue(`Model '${modelId}' has duplicate ${kind} variable '${name}'.`));
     }
     seen.add(name);
   }

@@ -629,7 +629,7 @@ function buildEditorDiagnostics(
     return {
       from: range.from,
       message: formatDiagnosticMessage(issue),
-      severity: "error",
+      severity: issue.severity,
       to: range.to
     };
   });

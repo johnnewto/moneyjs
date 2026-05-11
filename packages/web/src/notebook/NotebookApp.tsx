@@ -1,7 +1,9 @@
 import { type Dispatch, type ReactNode, type SetStateAction, useEffect, useMemo, useRef, useState } from "react";
+import { createNotebookDiagnostic } from "@sfcr/notebook-core";
 
 import {
   analyzeNotebookSource,
+  createNotebookSourceDiagnostic,
   detectNotebookSourceFormat,
   notebookToJson,
   notebookToMarkdown,
@@ -508,10 +510,7 @@ export function NotebookApp() {
     } catch (error) {
       setAssistantPatchPreview({
         issues: [
-          {
-            message: error instanceof Error ? error.message : "Unable to parse assistant patch.",
-            severity: "error"
-          }
+          createAssistantPatchIssue(error instanceof Error ? error.message : "Unable to parse assistant patch.")
         ],
         ok: false,
         summary: { addedCells: 0, changedCells: 0, operationCount: 0, removedCells: 0 }
@@ -528,10 +527,7 @@ export function NotebookApp() {
       } catch (error) {
         setAssistantPatchPreview({
           issues: [
-            {
-              message: error instanceof Error ? error.message : "Unable to parse assistant patch.",
-              severity: "error"
-            }
+            createAssistantPatchIssue(error instanceof Error ? error.message : "Unable to parse assistant patch.")
           ],
           ok: false,
           summary: { addedCells: 0, changedCells: 0, operationCount: 0, removedCells: 0 }
@@ -623,10 +619,7 @@ export function NotebookApp() {
         isJsonDirty: true,
         preview: {
           issues: [
-            {
-              message: error instanceof Error ? error.message : "Unable to parse assistant patch.",
-              severity: "error"
-            }
+            createAssistantPatchIssue(error instanceof Error ? error.message : "Unable to parse assistant patch.")
           ],
           ok: false,
           summary: { addedCells: 0, changedCells: 0, operationCount: 0, removedCells: 0 }
@@ -2037,6 +2030,10 @@ function buildNotebookSourceValidation(
       canApply: false,
       diagnostics: [
         {
+          ...createNotebookSourceDiagnostic({
+            message: "Source is empty.",
+            phase: "parse"
+          }),
           message: "Source is empty.",
           phase: "parse"
         }
@@ -2082,6 +2079,10 @@ function buildNotebookSourceValidation(
       canApply: false,
       diagnostics: [
         {
+          ...createNotebookSourceDiagnostic({
+            message: "Unable to parse source.",
+            phase: "parse"
+          }),
           message: "Unable to parse source.",
           phase: "parse"
         }
@@ -2098,7 +2099,12 @@ function buildNotebookSourceValidation(
   const notebookIssues = validateNotebookDocument(analysis.document);
   const modelValidation = validateNotebookModels(analysis.document);
   const diagnostics: NotebookSourceDiagnostic[] = [
-    ...notebookIssues.map((issue) => ({ message: issue.message, path: issue.path, phase: "schema" as const })),
+    ...notebookIssues.map((issue) => createNotebookSourceDiagnostic({
+      domain: issue.domain,
+      message: issue.message,
+      path: issue.path,
+      phase: "schema"
+    })),
     ...modelValidation.issues
   ];
   const issues = diagnostics.map((issue) => issue.message);
@@ -2151,11 +2157,23 @@ function validateNotebookModels(document: NotebookDocument): {
   const editors = [...legacyEditors, ...splitEditors];
   const issues = editors.flatMap(({ editor, label }) => {
     const editorIssues = validateEditorState(editor).map((issue) => ({
+      ...createNotebookSourceDiagnostic({
+        domain: "model",
+        message: formatModelValidationIssue(label, issue.path, issue.message),
+        path: issue.path,
+        phase: "schema"
+      }),
       message: formatModelValidationIssue(label, issue.path, issue.message),
       path: issue.path,
       phase: "schema" as const
     }));
     const runtimeIssues = diagnoseBuildRuntime(editor).issues.map((issue) => ({
+      ...createNotebookSourceDiagnostic({
+        domain: "runtime",
+        message: formatModelValidationIssue(label, issue.path, issue.message),
+        path: issue.path,
+        phase: "schema"
+      }),
       message: formatModelValidationIssue(label, issue.path, issue.message),
       path: issue.path,
       phase: "schema" as const
@@ -2169,6 +2187,10 @@ function validateNotebookModels(document: NotebookDocument): {
 
 function formatModelValidationIssue(modelLabel: string, path: string, message: string): string {
   return `${modelLabel} ${path}: ${message}`;
+}
+
+function createAssistantPatchIssue(message: string) {
+  return createNotebookDiagnostic({ message }, { domain: "assistant" }) as NotebookPatchResult["issues"][number];
 }
 
 function buildNotebookVariableDescriptions(cells: NotebookCell[]): VariableDescriptions {

@@ -21,8 +21,10 @@ export interface EquationRow {
   unitMeta?: UnitMeta;
 }
 
+import { createNotebookDiagnostic, type NotebookDiagnosticDomain } from "@sfcr/notebook-core";
 export interface ExternalRow {
   id: string;
+  domain?: NotebookDiagnosticDomain;
   name: string;
   desc?: string;
   kind: ExternalDef["kind"];
@@ -297,6 +299,22 @@ export function validateEditorState(editor: EditorState): ValidationIssue[] {
   });
 
   editor.initialValues.forEach((initial, index) => {
+function classifyValidationIssues(
+  issues: ValidationIssue[],
+  domain: "model" | "runtime"
+): ValidationIssue[] {
+  return issues.map((issue) => ({
+    ...issue,
+    ...createNotebookDiagnostic(
+      {
+        message: issue.message,
+        path: issue.path,
+        severity: issue.severity
+      },
+      { domain }
+    )
+  }));
+}
     const name = initial.name.trim();
     if (!name) {
       issues.push({ path: `initialValues.${index}.name`, message: "Initial variable is required." });
@@ -408,7 +426,7 @@ export function validateEditorState(editor: EditorState): ValidationIssue[] {
     });
   });
 
-  return issues;
+  return classifyValidationIssues(issues, "model");
 }
 
 export function diagnoseBuildRuntime(editor: EditorState): BuildDiagnosticResult {
@@ -501,20 +519,37 @@ export function diagnoseBuildRuntime(editor: EditorState): BuildDiagnosticResult
   if (errorIssues.length > 0) {
     const firstIssue = errorIssues[0];
     return {
-      issues,
+      issues: classifyValidationIssues(issues, "runtime"),
       modelError: firstIssue ? `Model build error: ${firstIssue.message}` : "Model build error."
     };
   }
 
   try {
     buildRuntimeConfig(editor);
-    return { issues, modelError: null };
+    return { issues: classifyValidationIssues(issues, "runtime"), modelError: null };
   } catch (error) {
     return {
       issues: [],
       modelError: error instanceof Error ? `Model build error: ${error.message}` : "Model build error."
     };
   }
+}
+
+function classifyValidationIssues(
+  issues: ValidationIssue[],
+  domain: "model" | "runtime"
+): ValidationIssue[] {
+  return issues.map((issue) => ({
+    ...issue,
+    ...createNotebookDiagnostic(
+      {
+        message: issue.message,
+        path: issue.path,
+        severity: issue.severity
+      },
+      { domain }
+    )
+  }));
 }
 
 function parseExternal(kind: ExternalDef["kind"], valueText: string): ExternalDef {

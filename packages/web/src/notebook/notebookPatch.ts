@@ -1,3 +1,5 @@
+import { createNotebookDiagnostic, type NotebookDiagnostic } from "@sfcr/notebook-core";
+
 import { notebookFromJson, notebookToJson } from "./document";
 import type { NotebookDocument } from "./types";
 import { validateNotebookDocument, type NotebookValidationIssue } from "./validation";
@@ -18,11 +20,7 @@ export interface NotebookPatch {
   operations: NotebookPatchOperation[];
 }
 
-export interface NotebookPatchIssue {
-  message: string;
-  path?: string;
-  severity: "error" | "warning";
-}
+export type NotebookPatchIssue = NotebookDiagnostic & { domain: "patch" | "schema" | "notebook" | "assistant" };
 
 export interface NotebookPatchSummary {
   addedCells: number;
@@ -99,10 +97,7 @@ export function previewNotebookPatch(
   } catch (error) {
     return {
       issues: [
-        {
-          message: error instanceof Error ? error.message : "Unable to apply notebook patch.",
-          severity: "error"
-        }
+        createPatchIssue(error instanceof Error ? error.message : "Unable to apply notebook patch.")
       ],
       ok: false,
       summary: summarizePatch(document, document, patch)
@@ -115,10 +110,7 @@ export function previewNotebookPatch(
   } catch (error) {
     return {
       issues: [
-        {
-          message: error instanceof Error ? error.message : "Patched notebook failed schema validation.",
-          severity: "error"
-        }
+        createPatchIssue(error instanceof Error ? error.message : "Patched notebook failed schema validation.")
       ],
       ok: false,
       summary: summarizePatch(document, nextDocument, patch)
@@ -155,17 +147,17 @@ function validatePatchShape(patch: unknown): NotebookPatchIssue[] {
   const issues: NotebookPatchIssue[] = [];
 
   if (!patch || typeof patch !== "object") {
-    return [{ message: "Notebook patch must be an object.", severity: "error" }];
+    return [createPatchIssue("Notebook patch must be an object.")];
   }
 
   const operations = (patch as { operations?: unknown }).operations;
   if (!Array.isArray(operations)) {
-    return [{ message: "Notebook patch operations must be an array.", severity: "error" }];
+    return [createPatchIssue("Notebook patch operations must be an array.")];
   }
 
   operations.forEach((operation, index) => {
     if (!operation || typeof operation !== "object") {
-      issues.push({ message: `Patch operation ${index + 1} must be an object.`, severity: "error" });
+      issues.push(createPatchIssue(`Patch operation ${index + 1} must be an object.`));
       return;
     }
 
@@ -174,28 +166,26 @@ function validatePatchShape(patch: unknown): NotebookPatchIssue[] {
     const path = record.path;
 
     if (op !== "add" && op !== "replace" && op !== "remove") {
-      issues.push({ message: `Patch operation ${index + 1} has unsupported op.`, severity: "error" });
+      issues.push(createPatchIssue(`Patch operation ${index + 1} has unsupported op.`));
     }
 
     if (typeof path !== "string" || path.trim() === "") {
-      issues.push({ message: `Patch operation ${index + 1} must include a path.`, severity: "error" });
+      issues.push(createPatchIssue(`Patch operation ${index + 1} must include a path.`));
       return;
     }
 
     if (!isAllowedPatchPath(path)) {
-      issues.push({
+      issues.push(createPatchIssue({
         message: `Patch operation ${index + 1} targets unsupported notebook path '${path}'.`,
-        path,
-        severity: "error"
-      });
+        path
+      }));
     }
 
     if ((op === "add" || op === "replace") && !("value" in record)) {
-      issues.push({
+      issues.push(createPatchIssue({
         message: `Patch operation ${index + 1} must include a value.`,
-        path,
-        severity: "error"
-      });
+        path
+      }));
     }
   });
 
@@ -405,11 +395,12 @@ function validatePatchedDocument(document: NotebookDocument): NotebookPatchIssue
 }
 
 function validationIssueToPatchIssue(issue: NotebookValidationIssue): NotebookPatchIssue {
-  return {
-    message: issue.message,
-    path: issue.path,
-    severity: issue.severity
-  };
+  return issue;
+}
+
+function createPatchIssue(input: string | { message: string; path?: string }): NotebookPatchIssue {
+  const issue = typeof input === "string" ? { message: input } : input;
+  return createNotebookDiagnostic(issue, { domain: "patch" }) as NotebookPatchIssue;
 }
 
 function summarizePatch(

@@ -1,3 +1,5 @@
+import { createNotebookDiagnostic, type NotebookDiagnostic, type NotebookDiagnosticDomain } from "../diagnostics";
+
 export type NotebookSourceFormat = "json" | "markdown";
 
 export const SUPPORTED_NOTEBOOK_SOURCE_FORMATS: readonly NotebookSourceFormat[] = [
@@ -5,13 +7,11 @@ export const SUPPORTED_NOTEBOOK_SOURCE_FORMATS: readonly NotebookSourceFormat[] 
   "markdown"
 ];
 
-export interface NotebookSourceDiagnostic {
+export interface NotebookSourceDiagnostic extends NotebookDiagnostic {
   column?: number;
   endOffset?: number;
   line?: number;
-  message: string;
   offset?: number;
-  path?: string;
   phase: "parse" | "schema";
 }
 
@@ -49,6 +49,7 @@ export interface NotebookSourcePipeline<Parsed, Document> {
     format: NotebookSourceFormat
   ): NotebookSourceParseSuccess<Parsed> | NotebookSourceParseFailure;
   validateSchema(schemaTarget: unknown): Array<{
+    domain?: NotebookDiagnosticDomain;
     keyword?: string;
     message: string;
     path?: string;
@@ -67,10 +68,10 @@ export function analyzeNotebookSourceWithPipeline<Parsed, Document>(
       document: null,
       format: preferredFormat ?? pipeline.fallbackFormat,
       parseDiagnostics: [
-        {
+        createNotebookSourceDiagnostic({
           message: detectedFormat.message,
           phase: "parse"
-        }
+        })
       ],
       schemaDiagnostics: []
     };
@@ -96,12 +97,13 @@ export function analyzeNotebookSourceWithPipeline<Parsed, Document>(
       issue,
       source
     });
-    return {
-      ...location,
+    return createNotebookSourceDiagnostic({
       message: `Notebook ${pipeline.formatLabel(format)} schema validation failed: ${issue.message}`,
+      domain: issue.domain ?? "schema",
       path: issue.path,
-      phase: "schema" as const
-    };
+      phase: "schema",
+      ...location
+    });
   });
 
   return {
@@ -109,6 +111,41 @@ export function analyzeNotebookSourceWithPipeline<Parsed, Document>(
     format,
     parseDiagnostics: [],
     schemaDiagnostics
+  };
+}
+
+export function createNotebookSourceDiagnostic(input: {
+  column?: number;
+  domain?: NotebookDiagnosticDomain;
+  endOffset?: number;
+  line?: number;
+  message: string;
+  offset?: number;
+  path?: string;
+  phase: "parse" | "schema";
+}): NotebookSourceDiagnostic {
+  const location = {
+    column: input.column,
+    endOffset: input.endOffset,
+    line: input.line,
+    offset: input.offset
+  };
+  const diagnostic = createNotebookDiagnostic(
+    {
+      location,
+      message: input.message,
+      path: input.path,
+      phase: input.phase
+    },
+    { domain: input.domain ?? (input.phase === "parse" ? "source" : "schema") }
+  );
+  return {
+    ...diagnostic,
+    column: input.column,
+    endOffset: input.endOffset,
+    line: input.line,
+    offset: input.offset,
+    phase: input.phase
   };
 }
 
