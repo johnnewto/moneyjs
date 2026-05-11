@@ -72,6 +72,40 @@ describe("notebook assistant flow", () => {
     ]);
   });
 
+  it("normalizes parameter helper value aliases in assistant tool request envelopes", () => {
+    expect(
+      extractNotebookAssistantToolRequests(
+        '```json\n{"notebookAssistantToolRequests":[{"name":"createUpdateParameterPatch","args":{"modelId":"equations-newton","variable":"alpha0","from":20,"to":10}}]}\n```'
+      ).requests
+    ).toEqual([
+      {
+        name: "createUpdateParameterPatch",
+        args: {
+          modelId: "equations-newton",
+          from: 20,
+          to: 10,
+          value: 10,
+          variable: "alpha0"
+        }
+      }
+    ]);
+
+    expect(
+      extractNotebookAssistantToolRequests(
+        '{"patchKind":"updateParameter","modelId":"equations-newton","variable":"alpha0","newValue":10}'
+      ).requests
+    ).toEqual([
+      {
+        name: "createUpdateParameterPatch",
+        args: {
+          modelId: "equations-newton",
+          value: 10,
+          variable: "alpha0"
+        }
+      }
+    ]);
+  });
+
   it("reports malformed assistant tool request JSON", () => {
     expect(
       extractNotebookAssistantToolRequests('```json\n{"notebookAssistantToolRequests":[}\n```')
@@ -210,7 +244,7 @@ describe("notebook assistant flow", () => {
     const patch = extractNotebookPatchProposal({
       document: bmwDocument(),
       question: "Use the helper tools to update the existing baseline chart so it shows wages.",
-      text: '```json\n{"operations":[{"op":"replace","path":"/cells/16/variables","value":["W"]}]}\n```'
+      text: '```json\n{"operations":[{"op":"replace","path":"/cells/0/variables","value":["W"]}]}\n```'
     });
 
     expect(patch).toEqual({

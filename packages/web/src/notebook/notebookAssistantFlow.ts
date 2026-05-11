@@ -400,7 +400,12 @@ function normalizeSemanticPatchToolRequest(value: unknown): NotebookAssistantToo
     stockFlow?: unknown;
     unit?: unknown;
     unitMeta?: unknown;
+    newValue?: unknown;
+    targetValue?: unknown;
+    to?: unknown;
+    toValue?: unknown;
     value?: unknown;
+    valueText?: unknown;
     variable?: unknown;
     variables?: unknown;
   };
@@ -427,7 +432,7 @@ function normalizeSemanticPatchToolRequest(value: unknown): NotebookAssistantToo
       name: "createUpdateParameterPatch",
       args: {
         modelId: record.modelId,
-        value: record.value,
+        value: resolveParameterPatchValue(record),
         variable: record.variable
       }
     };
@@ -472,7 +477,33 @@ function normalizeNotebookAssistantToolRequestArgs(
     return { ...args, variable: args.equationName };
   }
 
+  if (name === "createUpdateParameterPatch") {
+    const value = resolveParameterPatchValue(args);
+    if (value !== args.value) {
+      return { ...args, value };
+    }
+  }
+
   return args;
+}
+
+function resolveParameterPatchValue(record: Record<string, unknown>): unknown {
+  if (isPresentParameterPatchValue(record.value)) {
+    return record.value;
+  }
+
+  for (const key of ["newValue", "targetValue", "toValue", "to", "valueText"] as const) {
+    const value = record[key];
+    if (isPresentParameterPatchValue(value)) {
+      return value;
+    }
+  }
+
+  return record.value;
+}
+
+function isPresentParameterPatchValue(value: unknown): value is string | number {
+  return (typeof value === "number" && Number.isFinite(value)) || (typeof value === "string" && value.trim() !== "");
 }
 
 function sanitizeNotebookAssistantToolResultForFollowup(
