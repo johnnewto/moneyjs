@@ -2,24 +2,66 @@ import type { NotebookCell, NotebookDocument } from "../types";
 import { stringifyJsonWithCompactLeaves } from "../../lib/jsonFormat";
 import { normalizeUnitMetaAliases, serializeUnitMetaAliases } from "../../lib/unitMeta";
 import { validateNotebookSchemaObject, type NotebookValidationIssue } from "../validation";
+import {
+  analyzeNotebookSourceWithPipeline,
+  parseNotebookSourceWithPipeline,
+  type NotebookSourceAnalysis,
+  type NotebookSourceDiagnostic,
+  type NotebookSourceFormat,
+  type NotebookSourcePipeline
+} from "./sourcePipeline";
 
-export type NotebookSourceFormat = "json" | "markdown";
+export type { NotebookSourceAnalysis, NotebookSourceDiagnostic, NotebookSourceFormat } from "./sourcePipeline";
 
-export interface NotebookSourceDiagnostic {
-  column?: number;
-  endOffset?: number;
-  line?: number;
-  message: string;
-  offset?: number;
-  path?: string;
-  phase: "parse" | "schema";
-}
+type ParsedNotebookSource =
+  | { kind: "json"; value: Partial<NotebookDocument> }
+  | { document: NotebookDocument; kind: "markdown" };
 
-export interface NotebookSourceAnalysis {
-  document: NotebookDocument | null;
-  format: NotebookSourceFormat;
-  parseDiagnostics: NotebookSourceDiagnostic[];
-  schemaDiagnostics: NotebookSourceDiagnostic[];
+const notebookSourcePipeline: NotebookSourcePipeline<ParsedNotebookSource, NotebookDocument> = {
+  buildDocument(parsed) {
+    return parsed.kind === "markdown" ? parsed.document : normalizeNotebookObject(parsed.value, "JSON");
+  },
+  detectFormat: detectNotebookSourceFormat,
+  fallbackFormat: "json",
+  formatLabel: formatLabelForSourceFormat,
+  locateSchemaDiagnostic({ allIssues, format, issue, source }) {
+    return locateSchemaDiagnosticInSource(
+      source,
+      format,
+      issue as NotebookValidationIssue,
+      allIssues as NotebookValidationIssue[]
+    );
+  },
+  parseSource(source, format) {
+    if (format === "json") {
+      const parsed = parseJsonNotebookSource(source);
+      return parsed.ok
+        ? {
+            ok: true,
+            parsed: { kind: "json", value: parsed.value },
+            schemaTarget: buildJsonSchemaTarget(parsed.value)
+          }
+        : parsed;
+    }
+
+    const parsed = parseMarkdownNotebookSource(source);
+    return parsed.ok
+      ? {
+          ok: true,
+          parsed: { document: parsed.document, kind: "markdown" },
+          schemaTarget: serializeNotebookDocument(parsed.document)
+        }
+      : parsed;
+  },
+  validateSchema: validateNotebookSchemaObject
+};
+
+function buildJsonSchemaTarget(value: Partial<NotebookDocument>): unknown {
+  try {
+    return serializeNotebookDocument(normalizeNotebookObject(value, "JSON"));
+  } catch {
+    return value;
+  }
 }
 
 export function notebookToJson(document: NotebookDocument): string {
@@ -54,14 +96,7 @@ export function notebookToMarkdown(document: NotebookDocument): string {
 }
 
 export function notebookFromJson(source: string): NotebookDocument {
-  const parsed = JSON.parse(source) as Partial<NotebookDocument>;
-  const normalized = normalizeNotebookObject(parsed, "JSON");
-  const issues = validateNotebookSchemaObject(serializeNotebookDocument(normalized));
-  if (issues.length === 0) {
-    return normalized;
-  }
-
-  throw new Error(`Notebook JSON schema validation failed: ${issues[0].message}`);
+  return parseNotebookSource(source, "json").document;
 }
 function normalizeNotebookObject(
   parsed: Partial<NotebookDocument>,
@@ -83,12 +118,7 @@ function normalizeNotebookObject(
 }
 
 export function notebookFromMarkdown(source: string): NotebookDocument {
-  const analysis = analyzeNotebookSource(source, "markdown");
-  if (analysis.document) {
-    return analysis.document;
-  }
-
-  throw new Error(analysis.parseDiagnostics[0]?.message ?? analysis.schemaDiagnostics[0]?.message);
+  return parseNotebookSource(source, "markdown").document;
 }
 
 function parseMarkdownNotebook(source: string): NotebookDocument {
@@ -282,74 +312,14 @@ export function parseNotebookSource(
   source: string,
   preferredFormat?: NotebookSourceFormat
 ): { document: NotebookDocument; format: NotebookSourceFormat } {
-  const analysis = analyzeNotebookSource(source, preferredFormat);
-  if (!analysis.document) {
-    throw new Error(analysis.parseDiagnostics[0]?.message ?? analysis.schemaDiagnostics[0]?.message);
-  }
-
-  return {
-    document: analysis.document,
-    format: analysis.format
-  };
+  return parseNotebookSourceWithPipeline(source, preferredFormat, notebookSourcePipeline);
 }
 
 export function analyzeNotebookSource(
   source: string,
   preferredFormat?: NotebookSourceFormat
-): NotebookSourceAnalysis {
-  const detectedFormat = resolveNotebookSourceFormat(source, preferredFormat);
-  if (!detectedFormat.ok) {
-    return {
-      document: null,
-      format: preferredFormat ?? "json",
-      parseDiagnostics: [
-        {
-          message: detectedFormat.message,
-          phase: "parse"
-        }
-      ],
-      schemaDiagnostics: []
-    };
-  }
-
-  const format = detectedFormat.format;
-  const parsed =
-    format === "json"
-      ? parseJsonNotebookSource(source)
-      : parseMarkdownNotebookSource(source);
-
-  if (!parsed.ok) {
-    return {
-      document: null,
-      format,
-      parseDiagnostics: parsed.diagnostics,
-      schemaDiagnostics: []
-    };
-  }
-
-  const schemaTarget = "document" in parsed ? serializeNotebookDocument(parsed.document) : parsed.value;
-  const schemaIssues = validateNotebookSchemaObject(schemaTarget);
-  const schemaDiagnostics = schemaIssues.map((issue) => {
-      const location = locateSchemaDiagnosticInSource(source, format, issue, schemaIssues);
-      return {
-        ...location,
-        message: `Notebook ${formatLabelForSourceFormat(format)} schema validation failed: ${issue.message}`,
-        path: issue.path,
-        phase: "schema" as const
-      };
-    });
-
-  return {
-    document:
-      schemaDiagnostics.length === 0
-        ? "document" in parsed
-          ? parsed.document
-          : normalizeNotebookObject(parsed.value, "JSON")
-        : null,
-    format,
-    parseDiagnostics: [],
-    schemaDiagnostics
-  };
+): NotebookSourceAnalysis<NotebookDocument> {
+  return analyzeNotebookSourceWithPipeline(source, preferredFormat, notebookSourcePipeline);
 }
 
 function parseJsonNotebookSource(
@@ -431,29 +401,6 @@ function offsetToLineColumn(source: string, offset: number): { column: number; l
   }
 
   return { column, line };
-}
-
-function resolveNotebookSourceFormat(
-  source: string,
-  preferredFormat?: NotebookSourceFormat
-):
-  | { format: NotebookSourceFormat; ok: true }
-  | { message: string; ok: false } {
-  if (preferredFormat) {
-    return { format: preferredFormat, ok: true };
-  }
-
-  try {
-    return { format: detectNotebookSourceFormat(source), ok: true };
-  } catch (error) {
-    return {
-      message:
-        error instanceof Error
-          ? error.message
-          : "Unable to detect notebook format. Expected JSON or Markdown.",
-      ok: false
-    };
-  }
 }
 
 function formatLabelForSourceFormat(format: NotebookSourceFormat): "JSON" | "Markdown" {

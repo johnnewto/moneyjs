@@ -1,8 +1,55 @@
 import { describe, expect, it } from "vitest";
 
-import { analyzeNotebookSource } from "../src/notebook/document";
+import {
+  analyzeNotebookSource,
+  detectNotebookSourceFormat,
+  notebookFromMarkdown,
+  notebookToMarkdown,
+  parseNotebookSource
+} from "../src/notebook/document";
 
 describe("analyzeNotebookSource", () => {
+  it("detects and parses only JSON and Markdown notebook source", () => {
+    const jsonSource = JSON.stringify({
+      id: "example",
+      title: "Example",
+      metadata: { version: 1 },
+      cells: [{ id: "intro", type: "markdown", title: "Intro", source: "Hi" }]
+    });
+    const markdownSource = [
+      "# Example",
+      "",
+      "## Intro",
+      "",
+      "Hi"
+    ].join("\n");
+
+    expect(detectNotebookSourceFormat(jsonSource)).toBe("json");
+    expect(detectNotebookSourceFormat(markdownSource)).toBe("markdown");
+    expect(() => detectNotebookSourceFormat("title = 'Example'")).toThrow(/Expected JSON or Markdown/);
+    expect(parseNotebookSource(jsonSource).document.title).toBe("Example");
+    expect(parseNotebookSource(markdownSource).document.cells[0]?.type).toBe("markdown");
+  });
+
+  it("round-trips Markdown through the shared notebook source pipeline", () => {
+    const document = parseNotebookSource(
+      JSON.stringify({
+        id: "example",
+        title: "Example",
+        metadata: { version: 1 },
+        cells: [{ id: "intro", type: "markdown", title: "Intro", source: "Hi" }]
+      }),
+      "json"
+    ).document;
+
+    const markdown = notebookToMarkdown(document);
+    const parsed = notebookFromMarkdown(markdown);
+
+    expect(parsed.title).toBe("Example");
+    expect(parsed.cells).toHaveLength(1);
+    expect(parsed.cells[0]).toMatchObject({ type: "markdown", title: "Intro" });
+  });
+
   it("anchors misspelled required JSON properties to the typo instead of the root object", () => {
     const source = [
       "{",
