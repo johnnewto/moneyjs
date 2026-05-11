@@ -250,6 +250,7 @@ export function listCharts(snapshot: NotebookAssistantSnapshot) {
     sourceRunCellId: chart.sourceRunCellId,
     variables: chart.variables,
     axisMode: chart.axisMode ?? null,
+    referenceTrace: chart.referenceTrace ?? null,
     timeRangeInclusive: chart.timeRangeInclusive ?? null
   }));
 }

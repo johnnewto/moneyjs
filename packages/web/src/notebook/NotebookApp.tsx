@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   detectNotebookSourceFormat,
@@ -6,6 +6,7 @@ import {
   type NotebookSourceFormat
 } from "./document";
 import {
+  buildEditorStateForNotebookModel,
   resolveNotebookModelKey,
   resolveRunCellModelKey
 } from "./modelSections";
@@ -89,7 +90,7 @@ import type {
 } from "./types";
 import { useNotebookRunner } from "./useNotebookRunner";
 import { validateNotebookDocument } from "./validation";
-import type { EditorState } from "../lib/editorModel";
+import { buildRuntimeConfig, type EditorState } from "../lib/editorModel";
 import { PeriodScrubber } from "../components/PeriodScrubber";
 import { AssistantMarkdown } from "../components/AssistantMarkdown";
 import { VariableInspector } from "../components/VariableInspector";
@@ -104,6 +105,7 @@ type NotebookRailTab = "editor" | "inspect" | "contents" | "assistant" | "previe
 
 export function NotebookApp() {
   const mainColumnRef = useRef<HTMLDivElement | null>(null);
+  const [mainColumnElement, setMainColumnElement] = useState<HTMLDivElement | null>(null);
   const [notebookDocument, setNotebookDocument] = useState(() =>
     createNotebookFromTemplate(resolveNotebookTemplateIdFromHash(window.location.hash))
   );
@@ -163,18 +165,39 @@ export function NotebookApp() {
     source: NotebookSourceFormat;
   } | null>(null);
   const runner = useNotebookRunner(notebookDocument);
+  const latestHistoryUpdateRef = useRef(0);
   const assistantVariableDescriptions = useMemo(
     () => buildNotebookVariableDescriptions(notebookDocument.cells),
     [notebookDocument.cells]
   );
-  const maxResultPeriodIndex = Math.max(
-    0,
-    ...Object.values(runner.outputs).flatMap((output) =>
-      output?.type === "result"
-        ? Object.values(output.result.series).map((values) => Math.max(values.length - 1, 0))
-        : []
-    )
-  );
+  const maxResultPeriodIndex = useMemo(() => {
+    const configuredMaxPeriodIndex = Math.max(
+      0,
+      ...notebookDocument.cells.flatMap((cell) => {
+        if (cell.type !== "run") {
+          return [];
+        }
+
+        const editor = buildEditorStateForNotebookModel(notebookDocument, cell);
+        if (!editor) {
+          return [];
+        }
+
+        const periods = cell.periods ?? buildRuntimeConfig(editor).options.periods;
+        return [Math.max(periods - 1, 0)];
+      })
+    );
+    const outputMaxPeriodIndex = Math.max(
+      0,
+      ...Object.values(runner.outputs).flatMap((output) =>
+        output?.type === "result"
+          ? Object.values(output.result.series).map((values) => Math.max(values.length - 1, 0))
+          : []
+      )
+    );
+
+    return Math.max(configuredMaxPeriodIndex, outputMaxPeriodIndex);
+  }, [notebookDocument, runner.outputs]);
   const selectedVariableData = inspectorContext
     ? buildVariableInspectorData({
         currentValues: inspectorContext.currentValues,
@@ -187,6 +210,14 @@ export function NotebookApp() {
     : null;
   const notebookMainDragScroll = useDragScroll<HTMLDivElement>();
   const notebookRailDragScroll = useDragScroll<HTMLElement>();
+  const handleMainColumnRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      mainColumnRef.current = node;
+      notebookMainDragScroll.dragScrollRef.current = node;
+      setMainColumnElement(node);
+    },
+    [notebookMainDragScroll.dragScrollRef]
+  );
   const notebookPanelSplitter = usePanelSplitter({
     defaultLeftWidthPercent: 62,
     minLeftWidthPx: 640,
@@ -218,6 +249,38 @@ export function NotebookApp() {
 
     return () => window.clearTimeout(timeoutId);
   }, [uiMessage]);
+
+  useEffect(() => {
+    const historyUpdates = runner.historyUpdates;
+    if (!historyUpdates) {
+      return;
+    }
+
+    const latestUpdate = Object.entries(historyUpdates).reduce<{
+      cellId: string;
+      sequence: number;
+    } | null>((latest, [cellId, sequence]) => {
+      if (sequence == null || sequence <= latestHistoryUpdateRef.current) {
+        return latest;
+      }
+
+      if (!latest || sequence > latest.sequence) {
+        return { cellId, sequence };
+      }
+
+      return latest;
+    }, null);
+
+    if (!latestUpdate) {
+      return;
+    }
+
+    latestHistoryUpdateRef.current = latestUpdate.sequence;
+    const runCell = notebookDocument.cells.find(
+      (cell) => cell.type === "run" && cell.id === latestUpdate.cellId
+    );
+    setUiMessage(`Updated previous-run trace for ${runCell?.title ?? latestUpdate.cellId}.`);
+  }, [notebookDocument.cells, runner.historyUpdates]);
 
   useEffect(() => {
     if (activeEditorCellId) {
@@ -1029,7 +1092,8 @@ export function NotebookApp() {
               uiMessage.toLowerCase().includes("exported") ||
               uiMessage.toLowerCase().includes("downloaded") ||
               uiMessage.toLowerCase().includes("loaded") ||
-              uiMessage.toLowerCase().includes("ran all")
+              uiMessage.toLowerCase().includes("ran all") ||
+              uiMessage.toLowerCase().includes("previous-run trace")
                 ? "is-success"
                 : "is-error"
             }`}
@@ -1050,10 +1114,7 @@ export function NotebookApp() {
 
       <div ref={notebookPanelSplitter.layoutRef} className="notebook-layout">
         <div
-          ref={(node) => {
-            mainColumnRef.current = node;
-            notebookMainDragScroll.dragScrollRef.current = node;
-          }}
+          ref={handleMainColumnRef}
           className={`notebook-main-column ${notebookMainDragScroll.dragScrollProps.className}`}
           onClickCapture={notebookMainDragScroll.dragScrollProps.onClickCapture}
           onMouseDown={notebookMainDragScroll.dragScrollProps.onMouseDown}
@@ -1105,7 +1166,7 @@ export function NotebookApp() {
                 <button
                   type="button"
                   className="notebook-run-button"
-                  aria-pressed={activeRailTab === "contents"}
+                  aria-pressed={activeRailTab === "contents" ? "true" : "false"}
                   onClick={() => setActiveRailTab("contents")}
                 >
                   Contents
@@ -1164,6 +1225,7 @@ export function NotebookApp() {
                   cells={notebookDocument.cells}
                   getModelCurrentValues={getCurrentValueMapForModelRef}
                   maxPeriodIndex={maxResultPeriodIndex}
+                  viewportRoot={mainColumnElement}
                   onSelectedCellIdChange={setSelectedCellId}
                   onSelectedPeriodIndexChange={setSelectedPeriodIndex}
                   runner={runner}
@@ -1214,7 +1276,7 @@ export function NotebookApp() {
               <button
                 type="button"
                 role="tab"
-                aria-selected={activeRailTab === "contents"}
+                aria-selected={activeRailTab === "contents" ? "true" : "false"}
                 className={`notebook-rail-tab${activeRailTab === "contents" ? " is-active" : ""}`}
                 onClick={() => setActiveRailTab("contents")}
               >
@@ -1223,7 +1285,7 @@ export function NotebookApp() {
               <button
                 type="button"
                 role="tab"
-                aria-selected={activeRailTab === "inspect"}
+                aria-selected={activeRailTab === "inspect" ? "true" : "false"}
                 className={`notebook-rail-tab${activeRailTab === "inspect" ? " is-active" : ""}`}
                 onClick={() => setActiveRailTab("inspect")}
               >
@@ -1232,7 +1294,7 @@ export function NotebookApp() {
               <button
                 type="button"
                 role="tab"
-                aria-selected={activeRailTab === "assistant"}
+                aria-selected={activeRailTab === "assistant" ? "true" : "false"}
                 className={`notebook-rail-tab${activeRailTab === "assistant" ? " is-active" : ""}`}
                 onClick={() => setActiveRailTab("assistant")}
               >
@@ -1241,7 +1303,7 @@ export function NotebookApp() {
               <button
                 type="button"
                 role="tab"
-                aria-selected={activeRailTab === "editor"}
+                aria-selected={activeRailTab === "editor" ? "true" : "false"}
                 className={`notebook-rail-tab${activeRailTab === "editor" ? " is-active" : ""}`}
                 onClick={() => setActiveRailTab("editor")}
               >
@@ -1251,7 +1313,7 @@ export function NotebookApp() {
                 <button
                   type="button"
                   role="tab"
-                  aria-selected={activeRailTab === "preview"}
+                  aria-selected={activeRailTab === "preview" ? "true" : "false"}
                   className={`notebook-rail-tab${activeRailTab === "preview" ? " is-active" : ""}`}
                   onClick={() => setActiveRailTab("preview")}
                 >

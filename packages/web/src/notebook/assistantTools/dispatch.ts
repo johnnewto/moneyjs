@@ -1,5 +1,5 @@
 import { previewNotebookPatch as previewPatch, validateNotebookPatch as validatePatch, type NotebookPatch } from "../notebookPatch";
-import { requireAddEquationArgs, requireInteger, requirePatch, requireRunId, requireScenarioDefinition, requireString, requireStringArray, requireStringArrayAllowEmpty, requireStringOrNumber, requireUpdateEquationArgs, optionalBoolean, optionalChartAxisMode, optionalEquationRole, optionalExternalKind, optionalInteger, optionalIntegerPair, optionalPlainObject, optionalScenarioDefinition, optionalSolverMethod, optionalStockFlow, optionalString, optionalStringArrayAllowEmpty, optionalStringOrNumber, optionalUnitMeta } from "./args";
+import { requireAddEquationArgs, requireInteger, requirePatch, requireRunId, requireScenarioDefinition, requireString, requireStringArray, requireStringArrayAllowEmpty, requireStringOrNumber, requireUpdateEquationArgs, optionalBoolean, optionalChartAxisMode, optionalEquationRole, optionalExternalKind, optionalInteger, optionalIntegerPair, optionalPlainObject, optionalReferenceTrace, optionalScenarioDefinition, optionalSolverMethod, optionalStockFlow, optionalString, optionalStringArrayAllowEmpty, optionalStringOrNumber, optionalUnitMeta } from "./args";
 import { createAddChartPatch, createAddMatrixRowPatch, createAddTablePatch, createRemoveMatrixRowPatch, createUpdateChartOptionsPatch, createUpdateChartVariablesPatch, createUpdateMatrixRowPatch, createUpdateTableVariablesPatch } from "./viewPatchBuilders";
 import { createAddEquationPatch, createAddExternalPatch, createAddInitialValuePatch, createRemoveEquationPatch, createUpdateEquationPatch, createUpdateExternalPatch, createUpdateInitialValuePatch, createUpdateParameterPatch, createUpdateVariableDescriptionPatch, createUpdateVariableUnitMetaPatch } from "./modelPatchBuilders";
 import { createAddMarkdownCellPatch, createAddScenarioRunPatch, createUpdateMarkdownCellPatch, createUpdateNotebookTitlePatch, createUpdateRunOptionsPatch } from "./notebookPatchBuilders";
@@ -286,6 +286,7 @@ export function dispatchNotebookAssistantTool(
             axisMode: optionalChartAxisMode(request.args, "axisMode"),
             chartId: requireString(request.args, "chartId"),
             niceScale: optionalBoolean(request.args, "niceScale"),
+            referenceTrace: optionalReferenceTrace(request.args, "referenceTrace"),
             seriesRanges: optionalPlainObject(request.args, "seriesRanges"),
             sharedRange: optionalPlainObject(request.args, "sharedRange"),
             timeRangeInclusive: optionalIntegerPair(request.args, "timeRangeInclusive"),

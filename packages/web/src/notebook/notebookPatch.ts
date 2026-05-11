@@ -56,6 +56,7 @@ const ALLOWED_CELL_PROPERTIES = new Set([
   "note",
   "options",
   "periods",
+  "referenceTrace",
   "rows",
   "scenario",
   "sectors",

@@ -25,9 +25,11 @@ export let notebookRunnerMock: {
   outputs: Record<string, { type: "result"; result: typeof bmwNotebookBaselineResult }>;
   status: Record<string, "idle" | "running" | "success" | "error">;
   errors: Record<string, string | undefined>;
+  historyUpdates?: Record<string, number | undefined>;
   runCell: ReturnType<typeof vi.fn>;
   runAll: ReturnType<typeof vi.fn>;
   getResult: (cellId: string) => typeof bmwNotebookBaselineResult | null;
+  getPreviousResult: (cellId: string) => typeof bmwNotebookBaselineResult | null;
 };
 
 vi.mock("../src/hooks/useSolver", () => ({
@@ -80,7 +82,8 @@ export function setupAppTestEnv(): void {
       errors: {},
       runCell: vi.fn().mockResolvedValue(undefined),
       runAll: vi.fn().mockResolvedValue(undefined),
-      getResult: () => null
+      getResult: () => null,
+      getPreviousResult: () => null
     };
   });
 
@@ -102,7 +105,8 @@ export function setSuccessfulNotebookRunner(
     errors: {},
     runCell: vi.fn().mockResolvedValue(undefined),
     runAll: vi.fn().mockResolvedValue(undefined),
-    getResult: (requestedCellId: string) => (requestedCellId === cellId ? result : null)
+    getResult: (requestedCellId: string) => (requestedCellId === cellId ? result : null),
+    getPreviousResult: () => null
   };
 }
 

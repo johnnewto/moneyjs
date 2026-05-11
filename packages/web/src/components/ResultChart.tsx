@@ -63,9 +63,11 @@ export function ResultChart({
   selectedIndex = 0
 }: ResultChartProps) {
   const [hoveredDatum, setHoveredDatum] = useState<{ index: number; seriesName: string } | null>(null);
+  const [hiddenSeriesNames, setHiddenSeriesNames] = useState<Set<string>>(() => new Set());
   const normalizedSeries = series
     .map((entry, index) => ({
       ...entry,
+      colorIndex: index % SERIES_COLORS.length,
       color: SERIES_COLORS[index % SERIES_COLORS.length],
       finiteValues: entry.values.filter(Number.isFinite)
     }))
@@ -92,6 +94,10 @@ export function ResultChart({
     return null;
   }
 
+  const visibleSeries = normalizedSeries.filter((entry) => !hiddenSeriesNames.has(entry.name));
+  const visibleSeriesNames = new Set(visibleSeries.map((entry) => entry.name));
+  const visibleOverlaySeries = normalizedOverlaySeries.filter((entry) => visibleSeriesNames.has(entry.name));
+
   const width = 900;
   const height = 360;
   const topPadding = 26;
@@ -103,7 +109,7 @@ export function ResultChart({
   const leftPadding = primaryAxisWidth + axisSpacing * Math.max(axisCount - 1, 0);
   const plotWidth = width - leftPadding - rightPadding;
   const plotHeight = height - topPadding - bottomPadding;
-  const seriesLength = Math.max(...normalizedSeries.map((entry) => entry.values.length));
+  const seriesLength = Math.max(...visibleSeries.map((entry) => entry.values.length));
   const resolvedTimeRange = resolveTimeRange(timeRangeInclusive, timeRangeDefaults, seriesLength);
   const visibleStartIndex = resolvedTimeRange.startPeriodInclusive - 1;
   const visibleEndIndex = resolvedTimeRange.endPeriodInclusive - 1;
@@ -113,15 +119,19 @@ export function ResultChart({
   const activeIndex = Math.min(Math.max(selectedIndex, visibleStartIndex), visibleEndIndex);
   const activeVisibleIndex = activeIndex - visibleStartIndex;
 
-  const baseAxisMetrics = normalizedSeries.map((entry) => {
+  const baseAxisMetrics = visibleSeries.map((entry) => {
     const visibleValues = entry.values.slice(visibleStartIndex, visibleEndIndex + 1);
+    const visibleReferenceValues = visibleOverlaySeries
+      .filter((overlay) => overlay.name === entry.name)
+      .flatMap((overlay) => overlay.values.slice(visibleStartIndex, visibleEndIndex + 1));
 
     return {
       ...entry,
       visibleValues,
+      visibleScaleValues: [...visibleValues, ...visibleReferenceValues],
       axisRangeConfig: seriesRanges?.[entry.name],
       ...buildAxisMetrics(
-        visibleValues.filter(Number.isFinite),
+        [...visibleValues, ...visibleReferenceValues].filter(Number.isFinite),
         seriesRanges?.[entry.name],
         yAxisTickCount,
         { exactTickCount: axisMode === "separate", niceScale }
@@ -132,7 +142,7 @@ export function ResultChart({
     axisMode === "separate"
       ? snapAxisMetrics(baseAxisMetrics, axisSnapTolarance, { exactTickCount: true, niceScale })
       : baseAxisMetrics;
-  const sharedFiniteValues = axisMetrics.flatMap((entry) => entry.visibleValues.filter(Number.isFinite));
+  const sharedFiniteValues = axisMetrics.flatMap((entry) => entry.visibleScaleValues.filter(Number.isFinite));
   const sharedMetrics = buildAxisMetrics(sharedFiniteValues, sharedRange, yAxisTickCount, {
     niceScale
   });
@@ -168,35 +178,103 @@ export function ResultChart({
         )
       : null;
 
+  function toggleSeriesVisibility(seriesName: string): void {
+    setHiddenSeriesNames((current) => {
+      const next = new Set(current);
+      if (next.has(seriesName)) {
+        next.delete(seriesName);
+        return next;
+      }
+
+      if (normalizedSeries.length - next.size <= 1) {
+        return current;
+      }
+
+      next.add(seriesName);
+      return next;
+    });
+
+    setHoveredDatum((current) => (current?.seriesName === seriesName ? null : current));
+  }
+
   return (
     <section className="result-panel">
       <div className="panel-header">
         <h2>Chart</h2>
         <div className="chart-legend">
-          {axisMetrics.map((entry) => (
-            <InstantTooltip
-              key={entry.name}
-              className={`legend-item${
-                hoveredDatum ? (hoveredDatum.seriesName === entry.name ? " is-active" : " is-dimmed") : ""
-              }`}
-              onMouseEnter={() =>
-                setHoveredDatum({ index: fallbackHoverVisibleIndex, seriesName: entry.name })
-              }
-              onMouseLeave={() => setHoveredDatum(null)}
-              tooltip={formatVariableTooltip(
-                variableDescriptions?.get(entry.name),
-                variableUnitMetadata?.get(entry.name)
-              )}
-            >
-              <span className="legend-swatch" style={{ backgroundColor: entry.color }} />
-              <VariableMathLabel name={entry.name} />
-              {getVariableUnitLabel(variableUnitMetadata ?? new Map(), entry.name) ? (
-                <span className="unit-badge">
-                  {getVariableUnitLabel(variableUnitMetadata ?? new Map(), entry.name)}
+          {normalizedSeries.map((entry) => {
+            const isHidden = hiddenSeriesNames.has(entry.name);
+            const isHovered = hoveredDatum?.seriesName === entry.name;
+            const className = `legend-item${
+              isHidden
+                ? " is-hidden"
+                : hoveredDatum
+                  ? isHovered
+                    ? " is-active"
+                    : " is-dimmed"
+                  : ""
+            }`;
+
+            return (
+              <InstantTooltip
+                key={entry.name}
+                className={className}
+                onMouseEnter={() => {
+                  if (!isHidden) {
+                    setHoveredDatum({ index: fallbackHoverVisibleIndex, seriesName: entry.name });
+                  }
+                }}
+                onMouseLeave={() => setHoveredDatum(null)}
+                tooltip={formatVariableTooltip(
+                  variableDescriptions?.get(entry.name),
+                  variableUnitMetadata?.get(entry.name)
+                )}
+              >
+                {isHidden ? (
+                  <button
+                    type="button"
+                    className="legend-toggle"
+                    aria-label={`Show ${entry.name} trace`}
+                    aria-pressed="false"
+                    onClick={() => toggleSeriesVisibility(entry.name)}
+                    onBlur={() => setHoveredDatum(null)}
+                  >
+                    <span className={`legend-swatch legend-swatch-${entry.colorIndex}`} aria-hidden="true">
+                      <svg viewBox="0 0 16 16" focusable="false">
+                        <circle cx="8" cy="8" r="6.25" />
+                        <path d="M5 5l6 6M11 5l-6 6" />
+                      </svg>
+                    </span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="legend-toggle"
+                    aria-label={`Hide ${entry.name} trace`}
+                    aria-pressed="true"
+                    onClick={() => toggleSeriesVisibility(entry.name)}
+                    onFocus={() => setHoveredDatum({ index: fallbackHoverVisibleIndex, seriesName: entry.name })}
+                    onBlur={() => setHoveredDatum(null)}
+                  >
+                    <span className={`legend-swatch legend-swatch-${entry.colorIndex}`} aria-hidden="true">
+                      <svg viewBox="0 0 16 16" focusable="false">
+                        <circle cx="8" cy="8" r="6.25" />
+                        <path d="M4.75 8.4l2.1 2.15 4.35-4.65" />
+                      </svg>
+                    </span>
+                  </button>
+                )}
+                <span className="legend-label">
+                  <VariableMathLabel name={entry.name} />
                 </span>
-              ) : null}
-            </InstantTooltip>
-          ))}
+                {getVariableUnitLabel(variableUnitMetadata ?? new Map(), entry.name) ? (
+                  <span className="unit-badge">
+                    {getVariableUnitLabel(variableUnitMetadata ?? new Map(), entry.name)}
+                  </span>
+                ) : null}
+              </InstantTooltip>
+            );
+          })}
         </div>
       </div>
 
@@ -390,7 +468,7 @@ export function ResultChart({
               hoveredDatum ? (hoveredDatum.seriesName === entry.name ? " is-active" : " is-dimmed") : ""
             }`}
           >
-            {normalizedOverlaySeries
+            {visibleOverlaySeries
               .filter((overlay) => overlay.name === entry.name)
               .map((overlay) => (
                 <polyline
@@ -409,7 +487,13 @@ export function ResultChart({
                   stroke={entry.color}
                   strokeDasharray="5 5"
                   strokeOpacity={hoveredDatum ? (hoveredDatum.seriesName === entry.name ? 0.28 : 0.12) : 0.18}
-                  strokeWidth="2"
+                  strokeWidth={
+                    hoveredDatum
+                      ? hoveredDatum.seriesName === entry.name
+                        ? 3
+                        : 1.5
+                      : 2
+                  }
                 />
               ))}
             <polyline

@@ -122,6 +122,7 @@ export function ChartCellView({
         )
       : null;
   const baselineResult = baselineRunCell ? runner.getResult(baselineRunCell.id) : null;
+  const previousResult = runner.getPreviousResult(cell.sourceRunCellId);
   const baselineStartPeriod = sourceRunCell
     ? resolveEffectiveScenarioStartPeriod(cells, sourceRunCell)
     : undefined;
@@ -130,22 +131,11 @@ export function ChartCellView({
     baselineStartPeriod != null
       ? Math.max(selectedPeriodIndex - periodLabelOffset, 0)
       : selectedPeriodIndex;
-  const overlaySeries =
-    sourceRunCell?.mode === "scenario" &&
-    baselineStartPeriod != null &&
-    baselineResult
-      ? cell.variables
-          .map((name) => ({
-            name,
-            values: Array.from(
-              baselineResult.series[name]?.slice(
-                Math.max(baselineStartPeriod - 1, 0),
-                Math.max(baselineStartPeriod - 1, 0) +
-                  (sourceRunCell.periods ?? series[0]?.values.length ?? 0)
-              ) ?? []
-            )
-          }))
-          .filter((entry) => entry.values.length > 0)
+  const referenceTrace = resolveReferenceTrace(cell, sourceRunCell);
+  const overlaySeries = referenceTrace === "previous-run"
+    ? buildPreviousRunOverlaySeries(cell, previousResult)
+    : referenceTrace === "baseline"
+      ? buildBaselineOverlaySeries(cell, sourceRunCell, baselineStartPeriod, baselineResult, series)
       : [];
   const timeRangeDefaults = resolveChartTimeRangeDefaults(series[0]?.values.length ?? 0);
 
@@ -167,6 +157,58 @@ export function ChartCellView({
       yAxisTickCount={cell.yAxisTickCount}
     />
   );
+}
+
+function buildBaselineOverlaySeries(
+  cell: ChartCell,
+  sourceRunCell: RunCell | null | undefined,
+  baselineStartPeriod: number | undefined,
+  baselineResult: ReturnType<ReturnType<typeof useNotebookRunner>["getResult"]>,
+  series: Array<{ name: string; values: number[] }>
+) {
+  return (
+    sourceRunCell?.mode === "scenario" &&
+    baselineStartPeriod != null &&
+    baselineResult
+      ? cell.variables
+          .map((name) => ({
+            name,
+            values: Array.from(
+              baselineResult.series[name]?.slice(
+                Math.max(baselineStartPeriod - 1, 0),
+                Math.max(baselineStartPeriod - 1, 0) +
+                  (sourceRunCell.periods ?? series[0]?.values.length ?? 0)
+              ) ?? []
+            )
+          }))
+          .filter((entry) => entry.values.length > 0)
+      : []
+  );
+}
+
+function buildPreviousRunOverlaySeries(
+  cell: ChartCell,
+  previousResult: ReturnType<ReturnType<typeof useNotebookRunner>["getPreviousResult"]>
+) {
+  return previousResult
+    ? cell.variables
+        .map((name) => ({
+          name,
+          values: Array.from(previousResult.series[name] ?? [])
+        }))
+        .filter((entry) => entry.values.length > 0)
+    : [];
+}
+
+function resolveReferenceTrace(
+  cell: ChartCell,
+  sourceRunCell: RunCell | null | undefined
+): "none" | "baseline" | "previous-run" {
+  if (cell.referenceTrace) {
+    return cell.referenceTrace;
+  }
+
+  return "previous-run";
 }
 
 function resolveEffectiveScenarioStartPeriod(

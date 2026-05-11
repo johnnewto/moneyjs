@@ -425,6 +425,7 @@
                 "axisMode": { "enum": ["shared", "separate"] },
                 "axisSnapTolarance": { "type": "number" },
                 "niceScale": { "type": "boolean" },
+                "referenceTrace": { "enum": ["none", "baseline", "previous-run"] },
                 "yAxisTickCount": { "type": "integer", "minimum": 1 },
                 "sharedRange": {
                   "type": "object",

@@ -335,7 +335,7 @@ function EquationUnitsPopover({
   return (
     <span className={`input-badge-popover input-unit-badge${isOpen ? " is-open" : ""}`.trim()}>
       <button
-        aria-expanded={isOpen}
+        aria-expanded={isOpen ? "true" : "false"}
         aria-label={`Edit units for ${variableName.trim() || "equation variable"}`}
         className="equation-badge-button unit-badge"
         onClick={(event) => {
@@ -452,7 +452,7 @@ function EquationRolePopover({
   return (
     <div className={`equation-grid-role-cell${isOpen ? " is-open" : ""}`.trim()}>
       <button
-        aria-expanded={isOpen}
+        aria-expanded={isOpen ? "true" : "false"}
         aria-label="Edit equation role"
         className="equation-badge-button equation-grid-role-select"
         onClick={(event) => {

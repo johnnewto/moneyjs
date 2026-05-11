@@ -636,6 +636,12 @@ function validateCellSourceShape(
         throw new Error("Chart niceScale must be a boolean.");
       }
       if (
+        (parsed as ChartCell).referenceTrace != null &&
+        !["none", "baseline", "previous-run"].includes(String((parsed as ChartCell).referenceTrace))
+      ) {
+        throw new Error("Chart referenceTrace must be 'none', 'baseline', or 'previous-run'.");
+      }
+      if (
         (parsed as ChartCell).yAxisTickCount != null &&
         (!Number.isInteger((parsed as ChartCell).yAxisTickCount) ||
           Number((parsed as ChartCell).yAxisTickCount) < 2)

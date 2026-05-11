@@ -186,7 +186,7 @@ export function NotebookCellHeaderActions({
           <button
             type="button"
             className="notebook-run-button"
-            aria-pressed={isEditing}
+            aria-pressed="false"
             onClick={onEditToggle}
           >
             Edit

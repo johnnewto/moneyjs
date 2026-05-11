@@ -412,7 +412,7 @@ export function EquationsCellView({
                 <button
                   type="button"
                   className="notebook-run-button"
-                  aria-pressed={showExternalValues}
+                  aria-pressed={showExternalValues ? "true" : "false"}
                   onClick={() => setShowExternalValues((current) => !current)}
                 >
                   {showExternalValues ? "Show external names" : "Show external values"}

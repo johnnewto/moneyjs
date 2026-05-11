@@ -3,6 +3,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { ResultChart } from "../src/components/ResultChart";
@@ -200,6 +201,50 @@ describe("ResultChart", () => {
     expect(screen.getByText(hasTextContent(/Shared axis: 5\.60 to 16\.4/i))).toBeInTheDocument();
   });
 
+  it("renders reference overlays as dotted traces and includes them in the auto scale", () => {
+    const { container } = render(
+      <ResultChart
+        overlaySeries={[{ name: "A", values: [0, 30] }]}
+        series={[{ name: "A", values: [10, 20] }]}
+      />
+    );
+
+    expect(container.querySelector('polyline[stroke-dasharray="5 5"]')).not.toBeNull();
+    expect(screen.getByText(hasTextContent(/Shared axis: -1\.20 to 31\.2/i))).toBeInTheDocument();
+  });
+
+  it("thickens the dotted overlay when its matching trace is hovered", () => {
+    const { container } = render(
+      <ResultChart
+        series={[
+          { name: "A", values: [10, 12, 14, 16] },
+          { name: "B", values: [30, 32, 34, 36] }
+        ]}
+        overlaySeries={[
+          { name: "A", values: [9, 11, 13, 15] },
+          { name: "B", values: [29, 31, 33, 35] }
+        ]}
+      />
+    );
+
+    const chart = screen.getByRole("img", { name: /simulation result chart with shared left axis/i });
+    chart.getBoundingClientRect = () =>
+      ({
+        left: 0,
+        top: 0,
+        width: 900,
+        height: 360
+      }) as DOMRect;
+
+    const overlay = container.querySelector('polyline[stroke-dasharray="5 5"]');
+    expect(overlay).toHaveAttribute("stroke-width", "2");
+
+    fireEvent.mouseMove(chart, { clientX: 330, clientY: 250 });
+
+    expect(screen.getByText(/A • Period 2/i)).toBeInTheDocument();
+    expect(overlay).toHaveAttribute("stroke-width", "3");
+  });
+
   it("uses nice y-axis tick spacing with 0 or 5 endings", () => {
     render(
       <ResultChart
@@ -393,6 +438,36 @@ describe("ResultChart", () => {
 
     expect(axisGroup).toHaveClass("is-active");
     expect(screen.getByText(/A • Period 2/i)).toBeInTheDocument();
+  });
+
+  it("toggles legend traces on and off", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ResultChart
+        axisMode="separate"
+        series={[
+          { name: "A", values: [10, 12, 14, 16] },
+          { name: "B", values: [30, 32, 34, 36] }
+        ]}
+      />
+    );
+
+    const hideBButton = screen.getByRole("button", { name: /hide b trace/i });
+
+    expect(hideBButton).toHaveAttribute("aria-pressed", "true");
+    expect(document.querySelectorAll(".chart-axis")).toHaveLength(2);
+
+    await user.click(hideBButton);
+
+    expect(screen.getByRole("button", { name: /show b trace/i })).toHaveAttribute("aria-pressed", "false");
+    expect(document.querySelectorAll(".chart-axis")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: /show b trace/i }).closest(".legend-item")).toHaveClass("is-hidden");
+
+    await user.click(screen.getByRole("button", { name: /show b trace/i }));
+
+    expect(screen.getByRole("button", { name: /hide b trace/i })).toHaveAttribute("aria-pressed", "true");
+    expect(document.querySelectorAll(".chart-axis")).toHaveLength(2);
   });
 
   it("adds variable description tooltips to legend and scale labels", () => {

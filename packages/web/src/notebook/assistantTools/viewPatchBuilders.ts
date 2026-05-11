@@ -204,6 +204,7 @@ export function createUpdateChartOptionsPatch(
     axisMode?: "shared" | "separate";
     chartId: string;
     niceScale?: boolean;
+    referenceTrace?: "none" | "baseline" | "previous-run";
     seriesRanges?: Record<string, unknown>;
     sharedRange?: Record<string, unknown>;
     timeRangeInclusive?: [number, number];
@@ -220,6 +221,9 @@ export function createUpdateChartOptionsPatch(
   }
   if (args.niceScale != null) {
     operations.push(createSetCellPropertyOperation(chart, "niceScale", args.niceScale));
+  }
+  if (args.referenceTrace != null) {
+    operations.push(createSetCellPropertyOperation(chart, "referenceTrace", args.referenceTrace));
   }
   if (args.yAxisTickCount != null) {
     operations.push(createSetCellPropertyOperation(chart, "yAxisTickCount", args.yAxisTickCount));

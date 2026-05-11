@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from "react";
 
 export function useViewportObserver<T extends Element>({
   disabled = false,
+  root = null,
   rootMargin = "20px 0px",
   threshold = 0
 }: {
   disabled?: boolean;
+  root?: Element | Document | null;
   rootMargin?: string;
   threshold?: number;
 } = {}) {
@@ -31,7 +33,7 @@ export function useViewportObserver<T extends Element>({
         setIsInViewport(entry?.isIntersecting ?? false);
       },
       {
-        root: null,
+        root,
         rootMargin,
         threshold
       }
@@ -42,7 +44,7 @@ export function useViewportObserver<T extends Element>({
     return () => {
       observer.disconnect();
     };
-  }, [disabled, rootMargin, threshold]);
+  }, [disabled, root, rootMargin, threshold]);
 
   return {
     isInViewport,

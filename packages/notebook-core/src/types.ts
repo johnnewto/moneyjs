@@ -168,6 +168,7 @@ export interface ChartCell extends NotebookCellBase {
   axisMode?: "shared" | "separate";
   axisSnapTolarance?: number;
   niceScale?: boolean;
+  referenceTrace?: "none" | "baseline" | "previous-run";
   yAxisTickCount?: number;
   sharedRange?: ChartAxisRange;
   seriesRanges?: Record<string, ChartAxisRange | undefined>;
@@ -236,6 +237,7 @@ export type NotebookCellOutput =
     }
   | {
       type: "result";
+      previousResult?: SimulationResult;
       result: SimulationResult;
     };
 
@@ -243,4 +245,5 @@ export interface NotebookRuntimeState {
   outputs: Record<string, NotebookCellOutput | undefined>;
   status: Record<string, "idle" | "running" | "success" | "error">;
   errors: Record<string, string | undefined>;
+  historyUpdates?: Record<string, number | undefined>;
 }

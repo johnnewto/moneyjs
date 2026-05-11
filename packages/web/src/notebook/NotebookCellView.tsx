@@ -87,6 +87,7 @@ export interface NotebookCellViewProps {
     sourceModelCellId?: string;
   }): Record<string, number | undefined>;
   maxPeriodIndex: number;
+  viewportRoot: Element | null;
   onActiveEditorCellIdChange(cellId: string | null): void;
   onSelectedCellIdChange(cellId: string): void;
   onSelectedPeriodIndexChange(nextIndex: number): void;
@@ -110,6 +111,7 @@ function NotebookCellViewComponent({
   cells,
   getModelCurrentValues,
   maxPeriodIndex,
+  viewportRoot,
   onActiveEditorCellIdChange,
   onSelectedCellIdChange,
   onSelectedPeriodIndexChange,
@@ -135,6 +137,8 @@ function NotebookCellViewComponent({
   const sourceTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const sourceHighlightRef = useRef<HTMLPreElement | null>(null);
   const sourceGutterRef = useRef<HTMLPreElement | null>(null);
+  const deferredBodyRef = useRef<HTMLDivElement | null>(null);
+  const [measuredDeferredBodyHeight, setMeasuredDeferredBodyHeight] = useState<number | null>(null);
   const currentSerializedBody = serializeCellBody(cell);
   const hasSourceEdits =
     cell.type === "markdown"
@@ -160,7 +164,9 @@ function NotebookCellViewComponent({
     disabled:
       isCollapsed ||
       isActivelyEditing ||
-      !isViewportDeferredCellType(cell.type)
+      !isViewportDeferredCellType(cell.type),
+    root: viewportRoot,
+    rootMargin: "800px 0px"
   });
   const shouldMountViewportDeferredBody =
     !isViewportDeferredCellType(cell.type) ||
@@ -186,6 +192,10 @@ function NotebookCellViewComponent({
     setIsLinkedEditorEditing(false);
     setMatrixSequenceViewState(null);
   }, [cell]);
+
+  useEffect(() => {
+    setMeasuredDeferredBodyHeight(null);
+  }, [cell.id, cell.type]);
 
   useEffect(() => {
     if (isActivelyEditing) {
@@ -246,6 +256,47 @@ function NotebookCellViewComponent({
       document.removeEventListener("keydown", handleEscape);
     };
   }, [isEditingSource, openSourceMenu]);
+
+  useEffect(() => {
+    if (!shouldMountViewportDeferredBody || !isViewportDeferredCellType(cell.type)) {
+      return;
+    }
+
+    const deferredBody = deferredBodyRef.current;
+    if (!deferredBody) {
+      return;
+    }
+
+    function updateMeasuredHeight(): void {
+      if (!deferredBody) {
+        return;
+      }
+
+      const nextHeight = Math.ceil(deferredBody.getBoundingClientRect().height);
+      if (nextHeight <= 0) {
+        return;
+      }
+
+      setMeasuredDeferredBodyHeight((currentHeight) =>
+        currentHeight == null || Math.abs(currentHeight - nextHeight) > 1
+          ? nextHeight
+          : currentHeight
+      );
+    }
+
+    updateMeasuredHeight();
+
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const observer = new ResizeObserver(updateMeasuredHeight);
+    observer.observe(deferredBody);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [cell.type, shouldMountViewportDeferredBody]);
 
   useEffect(() => {
     if (!isEditingSource || sourceLayoutMode === "grid" || !sourceTextareaRef.current) {
@@ -404,6 +455,28 @@ function NotebookCellViewComponent({
                 title={cell.title}
                 trailingActions={
                   <>
+                    {cell.type === "chart" && !isEditingSource ? (
+                      <button
+                        type="button"
+                        className={`notebook-run-button notebook-reference-trace-toggle${
+                          resolveChartReferenceTrace(cell, cells) === "none" ? "" : " is-active"
+                        }`}
+                        onClick={() =>
+                          onCellChange(cell.id, (current) =>
+                            current.type === "chart"
+                              ? {
+                                  ...current,
+                                  referenceTrace: getNextChartReferenceTrace(
+                                    resolveChartReferenceTrace(current, cells)
+                                  )
+                                }
+                              : current
+                          )
+                        }
+                      >
+                        Reference: {formatChartReferenceTrace(resolveChartReferenceTrace(cell, cells))}
+                      </button>
+                    ) : null}
                     {isSourceEditable(cell) && isEditingSource ? (
                       <>
                         <button
@@ -443,7 +516,7 @@ function NotebookCellViewComponent({
                   type="button"
                   className="secondary-button"
                   aria-controls={`source-insert-menu-${cell.id}`}
-                  aria-expanded={openSourceMenu === "insert"}
+                  aria-expanded={openSourceMenu === "insert" ? "true" : "false"}
                   onClick={() =>
                     setOpenSourceMenu((current) => (current === "insert" ? null : "insert"))
                   }
@@ -682,55 +755,62 @@ function NotebookCellViewComponent({
           />
         ) : null}
         {showViewportDeferredPlaceholder ? (
-          <DeferredNotebookCellPlaceholder cell={cell} />
-        ) : null}
-        {isCollapsed ? null : cell.type === "chart" && shouldMountViewportDeferredBody ? (
-          <ChartCellView
+          <DeferredNotebookCellPlaceholder
             cell={cell}
-            cells={cells}
-            runner={runner}
-            selectedPeriodIndex={selectedPeriodIndex}
-            variableDescriptions={variableDescriptions}
-            variableUnitMetadata={variableUnitMetadata}
+            measuredHeight={measuredDeferredBodyHeight}
           />
         ) : null}
-        {isCollapsed ? null : cell.type === "table" && shouldMountViewportDeferredBody ? (
-          <TableCellView
-            cell={cell}
-            cells={cells}
-            runner={runner}
-            selectedPeriodIndex={selectedPeriodIndex}
-            variableDescriptions={variableDescriptions}
-            variableUnitMetadata={variableUnitMetadata}
-            onVariableInspectRequest={onVariableInspectRequest}
-          />
-        ) : null}
-        {isCollapsed || (cell.type === "matrix" && isEditingSource) ? null : cell.type === "matrix" && shouldMountViewportDeferredBody ? (
-          <MatrixCellView
-            cell={cell}
-            cells={cells}
-            runner={runner}
-            selectedPeriodIndex={selectedPeriodIndex}
-            variableDescriptions={variableDescriptions}
-            variableUnitMetadata={variableUnitMetadata}
-            onVariableInspectRequest={onVariableInspectRequest}
-          />
-        ) : null}
-        {isCollapsed ? null : cell.type === "sequence" && shouldMountViewportDeferredBody ? (
-          <SequenceCellView
-            cell={cell}
-            cells={cells}
-            getModelCurrentValues={getModelCurrentValues}
-            matrixSequenceViewState={matrixSequenceViewState}
-            maxPeriodIndex={maxPeriodIndex}
-            onCellChange={onCellChange}
-            onMatrixSequenceViewStateChange={setMatrixSequenceViewState}
-            onSelectedPeriodIndexChange={onSelectedPeriodIndexChange}
-            onVariableInspectRequest={onVariableInspectRequest}
-            runner={runner}
-            selectedPeriodIndex={selectedPeriodIndex}
-            variableDescriptions={variableDescriptions}
-          />
+        {shouldRenderViewportDeferredBody(cell, isCollapsed, isEditingSource, shouldMountViewportDeferredBody) ? (
+          <div className="notebook-cell-deferred-body" ref={deferredBodyRef}>
+            {cell.type === "chart" ? (
+              <ChartCellView
+                cell={cell}
+                cells={cells}
+                runner={runner}
+                selectedPeriodIndex={selectedPeriodIndex}
+                variableDescriptions={variableDescriptions}
+                variableUnitMetadata={variableUnitMetadata}
+              />
+            ) : null}
+            {cell.type === "table" ? (
+              <TableCellView
+                cell={cell}
+                cells={cells}
+                runner={runner}
+                selectedPeriodIndex={selectedPeriodIndex}
+                variableDescriptions={variableDescriptions}
+                variableUnitMetadata={variableUnitMetadata}
+                onVariableInspectRequest={onVariableInspectRequest}
+              />
+            ) : null}
+            {cell.type === "matrix" ? (
+              <MatrixCellView
+                cell={cell}
+                cells={cells}
+                runner={runner}
+                selectedPeriodIndex={selectedPeriodIndex}
+                variableDescriptions={variableDescriptions}
+                variableUnitMetadata={variableUnitMetadata}
+                onVariableInspectRequest={onVariableInspectRequest}
+              />
+            ) : null}
+            {cell.type === "sequence" ? (
+              <SequenceCellView
+                cell={cell}
+                cells={cells}
+                getModelCurrentValues={getModelCurrentValues}
+                matrixSequenceViewState={matrixSequenceViewState}
+                maxPeriodIndex={maxPeriodIndex}
+                onCellChange={onCellChange}
+                onMatrixSequenceViewStateChange={setMatrixSequenceViewState}
+                onSelectedPeriodIndexChange={onSelectedPeriodIndexChange}
+                onVariableInspectRequest={onVariableInspectRequest}
+                runner={runner}
+                selectedPeriodIndex={selectedPeriodIndex}
+                variableDescriptions={variableDescriptions}
+              />
+            ) : null}
+          </div>
         ) : null}
         </div>
       </article>
@@ -748,12 +828,15 @@ function areNotebookCellViewPropsEqual(
   if (previousProps.cell !== nextProps.cell || previousProps.cells !== nextProps.cells) {
     return false;
   }
-
   if (
     previousProps.runner.outputs !== nextProps.runner.outputs ||
     previousProps.runner.status !== nextProps.runner.status ||
     previousProps.runner.errors !== nextProps.runner.errors
   ) {
+    return false;
+  }
+
+  if (previousProps.viewportRoot !== nextProps.viewportRoot) {
     return false;
   }
 
@@ -785,6 +868,41 @@ function areNotebookCellViewPropsEqual(
   return true;
 }
 
+function resolveChartReferenceTrace(
+  cell: ChartCell,
+  cells: NotebookCell[]
+): NonNullable<ChartCell["referenceTrace"]> {
+  if (cell.referenceTrace) {
+    return cell.referenceTrace;
+  }
+
+  return "previous-run";
+}
+
+function getNextChartReferenceTrace(
+  current: NonNullable<ChartCell["referenceTrace"]>
+): NonNullable<ChartCell["referenceTrace"]> {
+  switch (current) {
+    case "none":
+      return "baseline";
+    case "baseline":
+      return "previous-run";
+    case "previous-run":
+      return "none";
+  }
+}
+
+function formatChartReferenceTrace(trace: NonNullable<ChartCell["referenceTrace"]>): string {
+  switch (trace) {
+    case "none":
+      return "None";
+    case "baseline":
+      return "Baseline";
+    case "previous-run":
+      return "Previous";
+  }
+}
+
 function isNotebookCellSelected(cellId: string, selectedCellId: string | null): boolean {
   return cellId === selectedCellId;
 }
@@ -812,6 +930,20 @@ function getViewportDeferredPlaceholderHeight(cell: NotebookCell): number {
   }
 }
 
+function shouldRenderViewportDeferredBody(
+  cell: NotebookCell,
+  isCollapsed: boolean,
+  isEditingSource: boolean,
+  shouldMountViewportDeferredBody: boolean
+): boolean {
+  return (
+    !isCollapsed &&
+    shouldMountViewportDeferredBody &&
+    isViewportDeferredCellType(cell.type) &&
+    !(cell.type === "matrix" && isEditingSource)
+  );
+}
+
 function getViewportDeferredPlaceholderLabel(cell: NotebookCell): string {
   switch (cell.type) {
     case "chart":
@@ -827,11 +959,17 @@ function getViewportDeferredPlaceholderLabel(cell: NotebookCell): string {
   }
 }
 
-function DeferredNotebookCellPlaceholder({ cell }: { cell: NotebookCell }) {
+function DeferredNotebookCellPlaceholder({
+  cell,
+  measuredHeight
+}: {
+  cell: NotebookCell;
+  measuredHeight: number | null;
+}) {
   return (
     <div
       className="notebook-cell-viewport-placeholder"
-      style={{ minHeight: `${getViewportDeferredPlaceholderHeight(cell)}px` }}
+      style={{ minHeight: `${measuredHeight ?? getViewportDeferredPlaceholderHeight(cell)}px` }}
     >
       <strong>{getViewportDeferredPlaceholderLabel(cell)} deferred</strong>
       <span>Scroll this cell near the viewport to mount its interactive content.</span>

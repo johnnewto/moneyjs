@@ -280,6 +280,20 @@ export function optionalChartAxisMode(
   return value;
 }
 
+export function optionalReferenceTrace(
+  args: Record<string, unknown> | undefined,
+  key: string
+): "none" | "baseline" | "previous-run" | undefined {
+  const value = optionalString(args, key);
+  if (value == null) {
+    return undefined;
+  }
+  if (value !== "none" && value !== "baseline" && value !== "previous-run") {
+    throw new Error(`Tool argument '${key}' must be none, baseline, or previous-run.`);
+  }
+  return value;
+}
+
 export function optionalPlainObject(
   args: Record<string, unknown> | undefined,
   key: string

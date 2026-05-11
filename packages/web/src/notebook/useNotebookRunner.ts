@@ -5,12 +5,13 @@ import type { SimulationResult } from "@sfcr/core";
 import { buildRuntimeConfig } from "../lib/editorModel";
 import { createWorkerClient } from "../lib/workerClient";
 import { buildEditorStateForNotebookModel, resolveRunCellModelKey } from "./modelSections";
-import type { NotebookDocument, NotebookRuntimeState, RunCell } from "./types";
+import type { NotebookCellOutput, NotebookDocument, NotebookRuntimeState, RunCell } from "./types";
 
 export interface NotebookRunnerApi extends NotebookRuntimeState {
+  getPreviousResult(cellId: string): SimulationResult | null;
+  getResult(cellId: string): SimulationResult | null;
   runCell(cellId: string): Promise<void>;
   runAll(): Promise<void>;
-  getResult(cellId: string): SimulationResult | null;
 }
 
 export function buildNotebookRunnerResetKey(document: NotebookDocument): string {
@@ -70,14 +71,65 @@ export function buildNotebookRunnerResetKey(document: NotebookDocument): string 
   return JSON.stringify(resetState);
 }
 
+export function resolvePreviousRunResult(
+  currentOutput: NotebookCellOutput | undefined,
+  lastSuccessfulResult: SimulationResult | undefined,
+  shouldCapturePrevious: boolean
+): SimulationResult | undefined {
+  if (currentOutput?.type === "result") {
+    return currentOutput.previousResult;
+  }
+
+  return shouldCapturePrevious ? lastSuccessfulResult : undefined;
+}
+
+export function buildRunHistorySignatures(document: NotebookDocument): Record<string, string> {
+  return Object.fromEntries(
+    document.cells
+      .filter((cell): cell is RunCell => cell.type === "run")
+      .map((cell) => {
+        const editor = buildEditorStateForNotebookModel(document, cell);
+        return [
+          cell.id,
+          JSON.stringify({
+            equations: editor?.equations ?? [],
+            externals: editor?.externals ?? [],
+            initialValues: editor?.initialValues ?? [],
+            mode: cell.mode,
+            scenario: cell.scenario ?? null
+          })
+        ];
+      })
+  );
+}
+
 export function useNotebookRunner(document: NotebookDocument): NotebookRunnerApi {
   const [client] = useState(() => createWorkerClient());
   const [state, setState] = useState<NotebookRuntimeState>({ outputs: {}, status: {}, errors: {} });
   const stateRef = useRef(state);
+  const lastSuccessfulResultsRef = useRef<Record<string, SimulationResult | undefined>>({});
+  const historyCapturePendingRef = useRef<Record<string, boolean | undefined>>({});
+  const historyUpdateSequenceRef = useRef(0);
   const resetKey = useMemo(() => buildNotebookRunnerResetKey(document), [document]);
+  const runHistorySignatures = useMemo(() => buildRunHistorySignatures(document), [document]);
+  const previousRunHistorySignaturesRef = useRef<Record<string, string> | null>(null);
 
   useEffect(() => () => client.dispose(), [client]);
   useEffect(() => {
+    const previousSignatures = previousRunHistorySignaturesRef.current;
+    if (previousSignatures) {
+      for (const [cellId, signature] of Object.entries(runHistorySignatures)) {
+        if (
+          previousSignatures[cellId] != null &&
+          previousSignatures[cellId] !== signature &&
+          lastSuccessfulResultsRef.current[cellId]
+        ) {
+          historyCapturePendingRef.current[cellId] = true;
+        }
+      }
+    }
+    previousRunHistorySignaturesRef.current = runHistorySignatures;
+
     const next = { outputs: {}, status: {}, errors: {} };
     stateRef.current = next;
     setState(next);
@@ -244,6 +296,13 @@ export function useNotebookRunner(document: NotebookDocument): NotebookRunnerApi
       }
 
       setState((current) => {
+        const shouldCapturePrevious = historyCapturePendingRef.current[cellId] === true;
+        const previousResult = resolvePreviousRunResult(
+          current.outputs[cellId],
+          lastSuccessfulResultsRef.current[cellId],
+          shouldCapturePrevious
+        );
+        const didCapturePrevious = current.outputs[cellId]?.type !== "result" && previousResult != null;
         const next: NotebookRuntimeState = {
           ...current,
           outputs: {
@@ -255,10 +314,22 @@ export function useNotebookRunner(document: NotebookDocument): NotebookRunnerApi
                 options: runOptions
               }
             },
-            [cellId]: { type: "result", result }
+            [cellId]: {
+              type: "result",
+              previousResult,
+              result
+            }
           },
+          historyUpdates: didCapturePrevious
+            ? {
+                ...current.historyUpdates,
+                [cellId]: (historyUpdateSequenceRef.current += 1)
+              }
+            : current.historyUpdates,
           status: { ...current.status, [cellId]: "success" }
         };
+        historyCapturePendingRef.current[cellId] = false;
+        lastSuccessfulResultsRef.current[cellId] = result;
         stateRef.current = next;
         return next;
       });
@@ -289,8 +360,14 @@ export function useNotebookRunner(document: NotebookDocument): NotebookRunnerApi
     return output?.type === "result" ? output.result : null;
   }
 
+  function getPreviousResult(cellId: string): SimulationResult | null {
+    const output = state.outputs[cellId];
+    return output?.type === "result" ? output.previousResult ?? null : null;
+  }
+
   return {
     ...state,
+    getPreviousResult,
     runCell,
     runAll,
     getResult

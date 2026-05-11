@@ -288,6 +288,35 @@ describe("App per-cell source editors", () => {
     expect(screen.getByText(/live validation:/i)).not.toHaveTextContent(/ready to apply/i);
   });
 
+  it("cycles chart reference traces from the chart cell toolbar", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    await user.selectOptions(screen.getByLabelText(/notebook template/i), "gl6-dis");
+
+    const chartHeading = screen.getByRole("heading", { name: /baseline headline variables/i });
+    const chartArticle = chartHeading.closest("article");
+    expect(chartArticle).not.toBeNull();
+    if (!chartArticle) {
+      throw new Error("Expected chart cell article.");
+    }
+
+    const referenceButton = within(chartArticle).getByRole("button", {
+      name: /reference: previous/i
+    });
+
+    await user.click(referenceButton);
+    expect(within(chartArticle).getByRole("button", { name: /reference: none/i })).toBeInTheDocument();
+
+    await user.click(within(chartArticle).getByRole("button", { name: /^edit$/i }));
+    const sourceEditor = screen.getByRole("textbox", {
+      name: /source editor for baseline headline variables/i
+    }) as HTMLTextAreaElement;
+    expect(sourceEditor.value).toContain('"referenceTrace": "none"');
+  });
+
   it("can switch the notebook source editor into compact mode", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";
