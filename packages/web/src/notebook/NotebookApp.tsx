@@ -1,28 +1,35 @@
-import { type Dispatch, type ReactNode, type SetStateAction, useEffect, useMemo, useRef, useState } from "react";
-import { createNotebookDiagnostic } from "@sfcr/notebook-core";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
-  analyzeNotebookSource,
-  createNotebookSourceDiagnostic,
   detectNotebookSourceFormat,
-  notebookToJson,
-  notebookToMarkdown,
   parseNotebookSource,
-  type NotebookSourceDiagnostic,
   type NotebookSourceFormat
 } from "./document";
 import {
-  buildEditorStateForNotebookModel,
   resolveNotebookModelKey,
   resolveRunCellModelKey
 } from "./modelSections";
 import {
   dispatchNotebookAssistantTool,
-  summarizeNotebookAssistantTools,
   type NotebookAssistantSnapshot,
   type NotebookAssistantToolRequest,
   type NotebookAssistantToolResult
 } from "./notebookAssistantTools";
+import {
+  buildNotebookAssistantContext,
+  createAssistantPatchIssue,
+  NOTEBOOK_ASSISTANT_API_URL,
+  NOTEBOOK_ASSISTANT_DEFAULT_MODEL,
+  NOTEBOOK_ASSISTANT_INITIAL_MESSAGES,
+  NOTEBOOK_ASSISTANT_MAX_TOOL_REQUESTS_PER_ROUND,
+  NOTEBOOK_ASSISTANT_MODE_STORAGE_KEY,
+  NOTEBOOK_ASSISTANT_MODEL_STORAGE_KEY,
+  requestNotebookAssistantAnswer,
+  setNotebookAssistantMessagePatch,
+  setNotebookAssistantMessageText,
+  type NotebookAssistantInlinePatch,
+  type NotebookAssistantMessage
+} from "./notebookAssistantRuntime";
 import {
   buildNotebookAssistantToolFollowupQuestion,
   evaluateNotebookAssistantDirectPatchPolicy,
@@ -45,270 +52,53 @@ import {
 } from "./notebookPatch";
 import { NotebookCellView } from "./NotebookCellView";
 import { NotebookRenderProfiler } from "./notebookProfiler";
+import { AssistantInlinePatchView } from "./AssistantInlinePatchView";
 import { SourceCodeEditor } from "./SourceCodeEditor";
+import { SourceValidationPanel } from "./SourceValidationPanel";
+import {
+  buildNotebookSourceValidation,
+  formatNotebookSourceLabel,
+  getNotebookSourceFileSuffix,
+  getNotebookSourceMimeType,
+  getNotebookSourcePlaceholder,
+  inferFormatFromFileName,
+  serializeNotebookSource,
+  summarizeCellTypes,
+  validateNotebookModels
+} from "./notebookSourceWorkflow";
 import {
   createNotebookFromTemplate,
-  DEFAULT_NOTEBOOK_TEMPLATE_ID,
   type NotebookTemplateId,
   isNotebookTemplateId,
   NOTEBOOK_TEMPLATES
 } from "./templates";
+import {
+  buildNotebookVariableDescriptions,
+  formatElapsedTime,
+  NOTEBOOK_AI_GUIDE_URL,
+  NOTEBOOK_AI_LANDING_URL,
+  parseNotebookTemplateIdFromHash,
+  resolveNotebookTemplateIdFromHash,
+  writeNotebookHash
+} from "./notebookAppHelpers";
 import type {
-  EquationsCell,
-  ExternalsCell,
-  InitialValuesCell,
-  ModelCell,
   NotebookCell,
-  NotebookDocument,
-  SolverCell
+  NotebookDocument
 } from "./types";
 import { useNotebookRunner } from "./useNotebookRunner";
 import { validateNotebookDocument } from "./validation";
-import {
-  diagnoseBuildRuntime,
-  validateEditorState,
-  type EditorState
-} from "../lib/editorModel";
+import type { EditorState } from "../lib/editorModel";
 import { PeriodScrubber } from "../components/PeriodScrubber";
 import { AssistantMarkdown } from "../components/AssistantMarkdown";
-import { extractOpenAiTextResponse, postAssistantJson } from "../assistant/client";
-import { readAssistantSseResponse } from "../assistant/sse";
 import { VariableInspector } from "../components/VariableInspector";
 import { VariableMathLabel } from "../components/VariableMathLabel";
 import { useDragScroll } from "../hooks/useDragScroll";
 import { usePanelSplitter } from "../hooks/usePanelSplitter";
 import { buildVariableInspectorData } from "../lib/variableInspector";
-import { buildVariableDescriptions, type VariableDescriptions } from "../lib/variableDescriptions";
+import type { VariableDescriptions } from "../lib/variableDescriptions";
 import { buildVariableUnitMetadata } from "../lib/units";
 
-const APP_BASE_URL = import.meta.env.BASE_URL;
-const NOTEBOOK_ASSISTANT_API_URL = resolveNotebookAssistantApiUrl();
-const NOTEBOOK_ASSISTANT_DEFAULT_MODEL = "gpt-4.1";
-const NOTEBOOK_ASSISTANT_MODEL_STORAGE_KEY = "sfcr:notebook-assistant-model";
-const NOTEBOOK_ASSISTANT_MODE_STORAGE_KEY = "sfcr:notebook-assistant-mode";
-
 type NotebookRailTab = "editor" | "inspect" | "contents" | "assistant" | "preview";
-
-interface NotebookAssistantMessage {
-  id: string;
-  patch?: NotebookAssistantInlinePatch;
-  role: "assistant" | "user";
-  text: string;
-}
-
-interface NotebookAssistantInlinePatch {
-  isJsonVisible: boolean;
-  isJsonDirty?: boolean;
-  jsonText?: string;
-  patch: NotebookPatch;
-  preview: NotebookPatchResult;
-  status: "ready" | "applied" | "discarded";
-}
-
-const NOTEBOOK_ASSISTANT_MAX_TOOL_REQUESTS_PER_ROUND = 4;
-
-const NOTEBOOK_ASSISTANT_INITIAL_MESSAGES: NotebookAssistantMessage[] = [
-  {
-    id: "assistant-1",
-    role: "assistant",
-    text: "Ask about the current notebook, selected variable, validation state, or run results. I will explain and suggest changes without applying them."
-  }
-];
-
-function resolveAppHref(path: string): string {
-  return `${APP_BASE_URL}${path.replace(/^\/+/, "")}`;
-}
-
-function resolveNotebookAssistantApiUrl(): string {
-  const configuredAssistantUrl = (import.meta.env.VITE_NOTEBOOK_ASSISTANT_API_URL ?? "").trim();
-  if (configuredAssistantUrl) {
-    return configuredAssistantUrl;
-  }
-
-  const configuredChatUrl = (import.meta.env.VITE_CHAT_BUILDER_API_URL ?? "").trim();
-  if (configuredChatUrl) {
-    return configuredChatUrl.replace(/\/v1\/chat-builder\/draft\/?$/, "/v1/notebook-assistant/ask");
-  }
-
-  if (
-    typeof window !== "undefined" &&
-    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
-  ) {
-    return "http://localhost:8787/v1/notebook-assistant/ask";
-  }
-
-  return "";
-}
-
-async function requestNotebookAssistantAnswer(args: {
-  betaPassword: string;
-  context: string;
-  messages: NotebookAssistantMessage[];
-  model: string;
-  onTextDelta?: (delta: string) => void;
-  question: string;
-}): Promise<string> {
-  if (!NOTEBOOK_ASSISTANT_API_URL) {
-    throw new Error("Notebook assistant API endpoint is not configured.");
-  }
-
-  const response = await postAssistantJson({
-    fallbackErrorMessage: "Failed to ask notebook assistant.",
-    url: NOTEBOOK_ASSISTANT_API_URL,
-    body: {
-      ...(args.betaPassword.trim() ? { betaPassword: args.betaPassword.trim() } : {}),
-      context: args.context,
-      messages: args.messages.map((message) => ({
-        role: message.role,
-        text: message.text
-      })),
-      model: args.model,
-      question: args.question
-    }
-  });
-
-  const contentType = response.headers.get("Content-Type") ?? "";
-  if (response.body && contentType.includes("text/event-stream")) {
-    const streamedText = await readNotebookAssistantSseResponse(response, args.onTextDelta);
-    if (streamedText.trim()) {
-      return streamedText.trim();
-    }
-  }
-
-  const text = extractOpenAiTextResponse(await response.json());
-
-  if (!text) {
-    throw new Error("Assistant response did not include text.");
-  }
-
-  args.onTextDelta?.(text);
-  return text;
-}
-
-async function readNotebookAssistantSseResponse(
-  response: Response,
-  onTextDelta: ((delta: string) => void) | undefined
-): Promise<string> {
-  return readAssistantSseResponse(response, parseNotebookAssistantSseEvent, onTextDelta);
-}
-
-function parseNotebookAssistantSseEvent(event: unknown): string {
-  if (
-    event &&
-    typeof event === "object" &&
-    "type" in event &&
-    "delta" in event &&
-    event.type === "response.output_text.delta" &&
-    typeof event.delta === "string"
-  ) {
-    return event.delta;
-  }
-
-  return "";
-}
-
-function setNotebookAssistantMessageText(
-  setMessages: Dispatch<SetStateAction<NotebookAssistantMessage[]>>,
-  messageId: string,
-  text: string
-): void {
-  setMessages((current) =>
-    current.map((message) => (message.id === messageId ? { ...message, text } : message))
-  );
-}
-
-function setNotebookAssistantMessagePatch(
-  setMessages: Dispatch<SetStateAction<NotebookAssistantMessage[]>>,
-  messageId: string,
-  patch: NotebookPatch,
-  document: NotebookDocument
-): void {
-  const preview = previewNotebookPatch(document, patch);
-  setMessages((current) =>
-    current.map((message) =>
-      message.id === messageId
-        ? {
-            ...message,
-            patch: {
-              isJsonVisible: false,
-              patch,
-              preview,
-              status: "ready"
-            }
-          }
-        : message
-    )
-  );
-}
-
-function buildNotebookAssistantContext(args: {
-  document: NotebookDocument;
-  inspectorContext: {
-    currentValues: Record<string, number | undefined>;
-    selectedVariable: string;
-  } | null;
-  resultCount: number;
-  assistantMode: NotebookAssistantMode;
-  selectedPeriodIndex: number;
-  selectedVariable?: string;
-  uiMessage: string | null;
-}): string {
-  const notebookJson = notebookToJson(args.document);
-  return truncateNotebookAssistantContext(
-    [
-      `Notebook title: ${args.document.title}`,
-      `Notebook id: ${args.document.id}`,
-      `Assistant mode: ${formatNotebookAssistantMode(args.assistantMode)}`,
-      `Assistant mode contract: ${getNotebookAssistantModeContract(args.assistantMode)}`,
-      `Cells: ${args.document.cells.length}`,
-      `Cell types: ${summarizeCellTypes(args.document.cells)}`,
-      `Available notebook assistant tools: ${summarizeNotebookAssistantTools()}`,
-      `Selected period index: ${args.selectedPeriodIndex}`,
-      `Completed run result count: ${args.resultCount}`,
-      args.selectedVariable ? `Selected variable: ${args.selectedVariable}` : null,
-      args.inspectorContext
-        ? `Selected variable current values: ${JSON.stringify(args.inspectorContext.currentValues)}`
-        : null,
-      args.uiMessage ? `Current UI message: ${args.uiMessage}` : null,
-      "Notebook JSON:",
-      notebookJson
-    ]
-      .filter((line): line is string => Boolean(line))
-      .join("\n")
-  );
-}
-
-function truncateNotebookAssistantContext(context: string): string {
-  const maxLength = 56000;
-  if (context.length <= maxLength) {
-    return context;
-  }
-
-  return `${context.slice(0, maxLength)}\n\n[Context truncated for size.]`;
-}
-
-const NOTEBOOK_AI_INDEX_URL = resolveAppHref(".well-known/sfcr.json");
-const NOTEBOOK_AI_LANDING_URL = resolveAppHref("ai/index.html");
-const NOTEBOOK_AI_GUIDE_URL = resolveAppHref("notebook-guide.md");
-const NOTEBOOK_AI_MANIFEST_URL = resolveAppHref(".well-known/sfcr-notebook-guide.json");
-const NOTEBOOK_AI_SCHEMA_URL = resolveAppHref("sfcr-notebook.schema.json");
-const NOTEBOOK_AI_PROMPT_URL = resolveAppHref("ai-prompts/create-sfcr-notebook.md");
-
-interface NotebookSourceValidation {
-  canApply: boolean;
-  diagnostics: NotebookSourceDiagnostic[];
-  document: NotebookDocument | null;
-  issues: string[];
-  modelIssueCount: number;
-  notebookIssueCount: number;
-  parse: ValidationStep;
-  schema: ValidationStep;
-}
-
-interface ValidationStep {
-  message: string;
-  status: "valid" | "invalid";
-}
 
 export function NotebookApp() {
   const mainColumnRef = useRef<HTMLDivElement | null>(null);
@@ -1208,107 +998,6 @@ export function NotebookApp() {
     ? notebookDocument.metadata.template
     : "";
 
-  function renderAssistantInlinePatch(message: NotebookAssistantMessage): ReactNode {
-    if (!message.patch) {
-      return null;
-    }
-
-    const patch = message.patch;
-    const preview = patch.preview;
-    const canApplyPatch = preview.ok && patch.status === "ready" && !patch.isJsonDirty;
-    const statusText = patch.status === "applied"
-      ? "applied"
-      : patch.status === "discarded"
-        ? "discarded"
-        : patch.isJsonDirty
-          ? "edited"
-        : preview.ok
-          ? "valid"
-          : "invalid";
-
-    return (
-      <div className="notebook-assistant-inline-patch" role="group" aria-label="Assistant patch proposal">
-        <div className="notebook-assistant-inline-patch-summary">
-          <strong>Patch proposal</strong>
-          {patch.isJsonDirty ? (
-            <span>{statusText}. Preview JSON before applying.</span>
-          ) : (
-            <span>
-              {statusText}. Operations: {preview.summary.operationCount}; added: {preview.summary.addedCells}; changed: {preview.summary.changedCells}; removed: {preview.summary.removedCells}.
-            </span>
-          )}
-        </div>
-        {preview.issues.length > 0 ? (
-          <ul className="notebook-inline-list">
-            {preview.issues.map((issue, index) => (
-              <li key={`${issue.message}-${index}`} className={issue.severity === "error" ? "field-error" : "status-hint"}>
-                {issue.message}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        <div className="button-row notebook-assistant-inline-patch-actions">
-          <button
-            type="button"
-            onClick={() => handleApplyInlineAssistantPatch(message.id)}
-            disabled={!canApplyPatch}
-          >
-            Apply
-          </button>
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() => handleDiscardInlineAssistantPatch(message.id)}
-            disabled={patch.status !== "ready"}
-          >
-            Discard
-          </button>
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() => handleToggleInlineAssistantPatchJson(message.id)}
-          >
-            {patch.isJsonVisible ? "Hide JSON" : "Edit JSON"}
-          </button>
-          {patch.status === "applied" ? (
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={handleUndoAssistantPatch}
-              disabled={assistantPatchUndoStack.length === 0}
-            >
-              Undo
-            </button>
-          ) : null}
-        </div>
-        {patch.isJsonVisible ? (
-          <div className="notebook-assistant-inline-patch-editor">
-            <textarea
-              aria-label="Inline assistant patch JSON"
-              className="notebook-utility-textarea notebook-assistant-inline-patch-json"
-              readOnly={patch.status !== "ready"}
-              rows={5}
-              value={patch.jsonText ?? JSON.stringify(patch.patch, null, 2)}
-              onChange={(event) => handleUpdateInlineAssistantPatchJson(message.id, event.target.value)}
-            />
-            {patch.status === "ready" ? (
-              <div className="button-row notebook-assistant-inline-patch-actions">
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() => handlePreviewInlineAssistantPatchJson(message.id)}
-                  disabled={!patch.isJsonDirty && preview.ok}
-                >
-                  Preview JSON
-                </button>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-    );
-  }
-
   return (
     <NotebookRenderProfiler
       id="NotebookApp"
@@ -1830,7 +1519,16 @@ export function NotebookApp() {
                           text={message.text}
                           variableDescriptions={assistantVariableDescriptions}
                         />
-                        {renderAssistantInlinePatch(message)}
+                        <AssistantInlinePatchView
+                          message={message}
+                          onApply={handleApplyInlineAssistantPatch}
+                          onDiscard={handleDiscardInlineAssistantPatch}
+                          onPreviewJson={handlePreviewInlineAssistantPatchJson}
+                          onToggleJson={handleToggleInlineAssistantPatchJson}
+                          onUndo={handleUndoAssistantPatch}
+                          onUpdateJson={handleUpdateInlineAssistantPatchJson}
+                          undoStackLength={assistantPatchUndoStack.length}
+                        />
                       </>
                     ) : (
                       <p>{message.text}</p>
@@ -1932,325 +1630,3 @@ export function NotebookApp() {
   );
 }
 
-function SourceValidationPanel({ validation }: { validation: NotebookSourceValidation }) {
-  const notebookChecksValid = validation.notebookIssueCount + validation.modelIssueCount === 0;
-
-  return (
-    <section className="notebook-source-validation-panel" aria-label="Notebook source validation">
-      <div className="notebook-source-validation-grid">
-        <ValidationStepBadge label="Parse" step={validation.parse} />
-        <ValidationStepBadge label="Schema" step={validation.schema} />
-        <div className={`notebook-source-validation-step${notebookChecksValid ? " is-valid" : " is-invalid"}`}>
-          <span>Notebook checks</span>
-          <strong>
-            {notebookChecksValid
-              ? "valid"
-              : `${validation.notebookIssueCount + validation.modelIssueCount} issue${validation.notebookIssueCount + validation.modelIssueCount === 1 ? "" : "s"}`}
-          </strong>
-        </div>
-      </div>
-
-      {validation.issues.length > 0 ? (
-        <ul className="notebook-source-validation-list">
-          {validation.issues.slice(0, 5).map((issue) => (
-            <li key={issue}>{issue}</li>
-          ))}
-        </ul>
-      ) : (
-        <div className="status-hint">Source is ready to apply.</div>
-      )}
-    </section>
-  );
-}
-
-function ValidationStepBadge({ label, step }: { label: string; step: ValidationStep }) {
-  return (
-    <div className={`notebook-source-validation-step is-${step.status}`}>
-      <span>{label}</span>
-      <strong>{step.message}</strong>
-    </div>
-  );
-}
-
-function inferFormatFromFileName(fileName: string): NotebookSourceFormat | null {
-  const normalized = fileName.toLowerCase();
-  if (normalized.endsWith(".json")) {
-    return "json";
-  }
-  if (normalized.endsWith(".md") || normalized.endsWith(".markdown")) {
-    return "markdown";
-  }
-  return null;
-}
-
-function serializeNotebookSource(
-  document: NotebookDocument,
-  format: NotebookSourceFormat
-): string {
-  if (format === "json") {
-    return notebookToJson(document);
-  }
-  return notebookToMarkdown(document);
-}
-
-function formatNotebookSourceLabel(format: NotebookSourceFormat): string {
-  if (format === "json") {
-    return "JSON";
-  }
-  return "Markdown";
-}
-
-function getNotebookSourceMimeType(format: NotebookSourceFormat): string {
-  if (format === "json") {
-    return "application/json";
-  }
-  return "text/markdown";
-}
-
-function getNotebookSourceFileSuffix(format: NotebookSourceFormat): string {
-  if (format === "json") {
-    return "sfnb.json";
-  }
-  return "sfnb.md";
-}
-
-function getNotebookSourcePlaceholder(format: NotebookSourceFormat): string {
-  if (format === "json") {
-    return "Paste a notebook JSON document";
-  }
-  return "Paste notebook Markdown with headings and fenced sfcr-* blocks";
-}
-
-function buildNotebookSourceValidation(
-  source: string,
-  format: NotebookSourceFormat
-): NotebookSourceValidation {
-  if (!source.trim()) {
-    return {
-      canApply: false,
-      diagnostics: [
-        {
-          ...createNotebookSourceDiagnostic({
-            message: "Source is empty.",
-            phase: "parse"
-          }),
-          message: "Source is empty.",
-          phase: "parse"
-        }
-      ],
-      document: null,
-      issues: ["Source is empty."],
-      modelIssueCount: 0,
-      notebookIssueCount: 0,
-      parse: { status: "invalid", message: "empty" },
-      schema: { status: "invalid", message: "not checked" }
-    };
-  }
-
-  const analysis = analyzeNotebookSource(source, format);
-  if (analysis.parseDiagnostics.length > 0) {
-    return {
-      canApply: false,
-      diagnostics: analysis.parseDiagnostics,
-      document: null,
-      issues: analysis.parseDiagnostics.map((issue) => issue.message),
-      modelIssueCount: 0,
-      notebookIssueCount: 0,
-      parse: { status: "invalid", message: "invalid" },
-      schema: { status: "invalid", message: "not checked" }
-    };
-  }
-
-  if (analysis.schemaDiagnostics.length > 0) {
-    return {
-      canApply: false,
-      diagnostics: analysis.schemaDiagnostics,
-      document: null,
-      issues: analysis.schemaDiagnostics.map((issue) => issue.message),
-      modelIssueCount: 0,
-      notebookIssueCount: 0,
-      parse: { status: "valid", message: "valid" },
-      schema: { status: "invalid", message: "invalid" }
-    };
-  }
-
-  if (!analysis.document) {
-    return {
-      canApply: false,
-      diagnostics: [
-        {
-          ...createNotebookSourceDiagnostic({
-            message: "Unable to parse source.",
-            phase: "parse"
-          }),
-          message: "Unable to parse source.",
-          phase: "parse"
-        }
-      ],
-      document: null,
-      issues: ["Unable to parse source."],
-      modelIssueCount: 0,
-      notebookIssueCount: 0,
-      parse: { status: "invalid", message: "invalid" },
-      schema: { status: "invalid", message: "not checked" }
-    };
-  }
-
-  const notebookIssues = validateNotebookDocument(analysis.document);
-  const modelValidation = validateNotebookModels(analysis.document);
-  const diagnostics: NotebookSourceDiagnostic[] = [
-    ...notebookIssues.map((issue) => createNotebookSourceDiagnostic({
-      domain: issue.domain,
-      message: issue.message,
-      path: issue.path,
-      phase: "schema"
-    })),
-    ...modelValidation.issues
-  ];
-  const issues = diagnostics.map((issue) => issue.message);
-
-  return {
-    canApply: issues.length === 0,
-    diagnostics,
-    document: analysis.document,
-    issues,
-    modelIssueCount: modelValidation.issueCount,
-    notebookIssueCount: notebookIssues.length,
-    parse: { status: "valid", message: "valid" },
-    schema: { status: "valid", message: "valid" }
-  };
-}
-
-function validateNotebookModels(document: NotebookDocument): {
-  issueCount: number;
-  issues: NotebookSourceDiagnostic[];
-  modelCount: number;
-} {
-  const legacyEditors = document.cells
-    .filter((cell): cell is ModelCell => cell.type === "model")
-    .map((cell) => ({ editor: cell.editor, label: `Model cell \"${cell.title}\"` }));
-  const modelIds = Array.from(
-    new Set(
-      document.cells
-        .filter(
-          (
-            cell
-          ): cell is EquationsCell | SolverCell | ExternalsCell | InitialValuesCell =>
-            cell.type === "equations" ||
-            cell.type === "solver" ||
-            cell.type === "externals" ||
-            cell.type === "initial-values"
-        )
-        .map((cell) => cell.modelId)
-    )
-  );
-  const splitEditors = modelIds
-    .map((modelId) => {
-      const editor = buildEditorStateForNotebookModel(document, { modelId });
-      if (!editor) {
-        return null;
-      }
-
-      return { editor, label: `Model \"${modelId}\"` };
-    })
-    .filter((entry): entry is { editor: EditorState; label: string } => entry != null);
-  const editors = [...legacyEditors, ...splitEditors];
-  const issues = editors.flatMap(({ editor, label }) => {
-    const editorIssues = validateEditorState(editor).map((issue) => ({
-      ...createNotebookSourceDiagnostic({
-        domain: "model",
-        message: formatModelValidationIssue(label, issue.path, issue.message),
-        path: issue.path,
-        phase: "schema"
-      }),
-      message: formatModelValidationIssue(label, issue.path, issue.message),
-      path: issue.path,
-      phase: "schema" as const
-    }));
-    const runtimeIssues = diagnoseBuildRuntime(editor).issues.map((issue) => ({
-      ...createNotebookSourceDiagnostic({
-        domain: "runtime",
-        message: formatModelValidationIssue(label, issue.path, issue.message),
-        path: issue.path,
-        phase: "schema"
-      }),
-      message: formatModelValidationIssue(label, issue.path, issue.message),
-      path: issue.path,
-      phase: "schema" as const
-    }));
-
-    return [...editorIssues, ...runtimeIssues];
-  });
-
-  return { issueCount: issues.length, issues, modelCount: editors.length };
-}
-
-function formatModelValidationIssue(modelLabel: string, path: string, message: string): string {
-  return `${modelLabel} ${path}: ${message}`;
-}
-
-function createAssistantPatchIssue(message: string) {
-  return createNotebookDiagnostic({ message }, { domain: "assistant" }) as NotebookPatchResult["issues"][number];
-}
-
-function buildNotebookVariableDescriptions(cells: NotebookCell[]): VariableDescriptions {
-  const descriptions: VariableDescriptions = new Map();
-
-  for (const cell of cells) {
-    const nextDescriptions =
-      cell.type === "model"
-        ? buildVariableDescriptions({
-            equations: cell.editor.equations,
-            externals: cell.editor.externals
-          })
-        : cell.type === "equations"
-          ? buildVariableDescriptions({ equations: cell.equations })
-          : cell.type === "externals"
-            ? buildVariableDescriptions({ externals: cell.externals })
-            : null;
-
-    for (const [name, description] of nextDescriptions ?? []) {
-      if (!descriptions.has(name)) {
-        descriptions.set(name, description);
-      }
-    }
-  }
-
-  return descriptions;
-}
-
-function formatElapsedTime(durationMs: number): string {
-  if (durationMs < 1000) {
-    return `${Math.round(durationMs)} ms`;
-  }
-
-  return `${(durationMs / 1000).toFixed(durationMs >= 10_000 ? 1 : 2)} s`;
-}
-
-function resolveNotebookTemplateIdFromHash(hash: string): NotebookTemplateId {
-  return parseNotebookTemplateIdFromHash(hash) ?? DEFAULT_NOTEBOOK_TEMPLATE_ID;
-}
-
-function parseNotebookTemplateIdFromHash(hash: string): NotebookTemplateId | null {
-  const match = hash.match(/^#\/notebook\/([^/?#]+)/);
-  const candidate = match?.[1]?.trim();
-  return candidate && isNotebookTemplateId(candidate) ? candidate : null;
-}
-
-function writeNotebookHash(templateId?: NotebookTemplateId): void {
-  const nextHash = templateId ? `#/notebook/${templateId}` : "#/notebook";
-  if (window.location.hash !== nextHash) {
-    window.location.hash = nextHash;
-  }
-}
-
-function summarizeCellTypes(cells: NotebookCell[]): string {
-  const counts = cells.reduce<Record<string, number>>((accumulator, cell) => {
-    accumulator[cell.type] = (accumulator[cell.type] ?? 0) + 1;
-    return accumulator;
-  }, {});
-
-  return Object.entries(counts)
-    .map(([type, count]) => `${type} (${count})`)
-    .join(", ");
-}
