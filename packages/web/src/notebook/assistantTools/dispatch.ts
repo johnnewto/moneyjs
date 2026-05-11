@@ -1,4 +1,4 @@
-import { previewNotebookPatch as previewPatch, validateNotebookPatch as validatePatch } from "../notebookPatch";
+import { previewNotebookPatch as previewPatch, validateNotebookPatch as validatePatch, type NotebookPatch } from "../notebookPatch";
 import { requireAddEquationArgs, requireInteger, requirePatch, requireRunId, requireScenarioDefinition, requireString, requireStringArray, requireStringArrayAllowEmpty, requireStringOrNumber, requireUpdateEquationArgs, optionalBoolean, optionalChartAxisMode, optionalEquationRole, optionalExternalKind, optionalInteger, optionalIntegerPair, optionalPlainObject, optionalScenarioDefinition, optionalSolverMethod, optionalStockFlow, optionalString, optionalStringArrayAllowEmpty, optionalStringOrNumber, optionalUnitMeta } from "./args";
 import { createAddChartPatch, createAddMatrixRowPatch, createAddTablePatch, createRemoveMatrixRowPatch, createUpdateChartOptionsPatch, createUpdateChartVariablesPatch, createUpdateMatrixRowPatch, createUpdateTableVariablesPatch } from "./viewPatchBuilders";
 import { createAddEquationPatch, createAddExternalPatch, createAddInitialValuePatch, createRemoveEquationPatch, createUpdateEquationPatch, createUpdateExternalPatch, createUpdateInitialValuePatch, createUpdateParameterPatch, createUpdateVariableDescriptionPatch, createUpdateVariableUnitMetaPatch } from "./modelPatchBuilders";
@@ -7,6 +7,11 @@ import { explainNotebookPatch } from "./patchTools";
 import { getCurrentValues, getDependencyGraph, getEquation, getMatrix, getNotebookSummary, getSeries, getSeriesWindow, getVariableMetadata, listCharts, listRuns, listVariables } from "./readTools";
 import { summarizeNotebookPatchResult } from "./shared";
 import { NOTEBOOK_ASSISTANT_TOOL_NAMES, type NotebookAssistantSnapshot, type NotebookAssistantToolName, type NotebookAssistantToolRequest, type NotebookAssistantToolResult } from "./types";
+
+export interface NotebookAssistantToolBatchResult {
+  proposedPatch: NotebookPatch | null;
+  toolResults: NotebookAssistantToolResult[];
+}
 
 export function dispatchNotebookAssistantTool(
   snapshot: NotebookAssistantSnapshot,
@@ -319,9 +324,94 @@ export function dispatchNotebookAssistantTool(
   }
 }
 
+export function dispatchNotebookAssistantToolRequests(
+  snapshot: NotebookAssistantSnapshot,
+  requests: NotebookAssistantToolRequest[]
+): NotebookAssistantToolBatchResult {
+  let draftSnapshot = snapshot;
+  const toolResults: NotebookAssistantToolResult[] = [];
+  const proposedPatches: NotebookPatch[] = [];
+
+  for (const request of requests) {
+    const result = dispatchNotebookAssistantTool(draftSnapshot, request);
+    toolResults.push(result);
+
+    const patch = extractNotebookAssistantToolPatch(result, request);
+    if (!patch) {
+      continue;
+    }
+
+    proposedPatches.push(patch);
+
+    const preview = previewPatch(draftSnapshot.document, patch);
+    if (preview.ok) {
+      draftSnapshot = {
+        ...draftSnapshot,
+        document: preview.document
+      };
+    }
+  }
+
+  return {
+    proposedPatch: combineNotebookPatches(proposedPatches),
+    toolResults
+  };
+}
+
 
 function isNotebookAssistantToolName(name: string): name is NotebookAssistantToolName {
   return NOTEBOOK_ASSISTANT_TOOL_NAMES.includes(name as NotebookAssistantToolName);
+}
+
+function extractNotebookAssistantToolPatch(
+  result: NotebookAssistantToolResult,
+  request?: NotebookAssistantToolRequest
+): NotebookPatch | null {
+  if (!result.ok || !result.data || typeof result.data !== "object" || Array.isArray(result.data)) {
+    return null;
+  }
+
+  const patch = (result.data as { patch?: unknown }).patch;
+  if (patch && typeof patch === "object" && !Array.isArray(patch)) {
+    const operations = (patch as { operations?: unknown }).operations;
+    if (Array.isArray(operations)) {
+      return patch as NotebookPatch;
+    }
+  }
+
+  if (
+    request &&
+    (result.name === "validateNotebookPatch" || result.name === "previewNotebookPatch" || result.name === "explainNotebookPatch") &&
+    (result.data as { ok?: unknown }).ok !== false
+  ) {
+    const requestPatch = request.args?.patch;
+    if (requestPatch && typeof requestPatch === "object" && !Array.isArray(requestPatch)) {
+      const operations = (requestPatch as { operations?: unknown }).operations;
+      if (Array.isArray(operations)) {
+        return requestPatch as NotebookPatch;
+      }
+    }
+  }
+
+  return null;
+}
+
+function combineNotebookPatches(patches: NotebookPatch[]): NotebookPatch | null {
+  if (patches.length === 0) {
+    return null;
+  }
+  if (patches.length === 1) {
+    return patches[0] as NotebookPatch;
+  }
+
+  const descriptions = patches
+    .map((patch) => patch.description?.trim())
+    .filter((description): description is string => Boolean(description));
+
+  return {
+    ...(descriptions.length > 0 ? { description: descriptions.join(" ") } : {}),
+    operations: patches.flatMap((patch) => patch.operations)
+  };
 }
 
 function success(name: NotebookAssistantToolName, data: unknown): NotebookAssistantToolResult {

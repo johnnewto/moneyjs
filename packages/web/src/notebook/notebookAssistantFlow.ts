@@ -215,6 +215,8 @@ export function getPatchFromNotebookAssistantToolResults(
   toolResults: NotebookAssistantToolResult[],
   toolRequests: NotebookAssistantToolRequest[] = []
 ): NotebookPatch | null {
+  const patches: NotebookPatch[] = [];
+
   for (const [index, result] of toolResults.entries()) {
     if (!result.ok || !result.data || typeof result.data !== "object") {
       continue;
@@ -223,7 +225,8 @@ export function getPatchFromNotebookAssistantToolResults(
     if (patch && typeof patch === "object" && !Array.isArray(patch)) {
       const operations = (patch as { operations?: unknown }).operations;
       if (Array.isArray(operations)) {
-        return patch as NotebookPatch;
+        patches.push(patch as NotebookPatch);
+        continue;
       }
     }
 
@@ -233,12 +236,26 @@ export function getPatchFromNotebookAssistantToolResults(
     ) {
       const requestPatch = normalizePatchArgument(toolRequests[index]);
       if (requestPatch) {
-        return requestPatch;
+        patches.push(requestPatch);
       }
     }
   }
 
-  return null;
+  if (patches.length === 0) {
+    return null;
+  }
+  if (patches.length === 1) {
+    return patches[0] as NotebookPatch;
+  }
+
+  const descriptions = patches
+    .map((patch) => patch.description?.trim())
+    .filter((description): description is string => Boolean(description));
+
+  return {
+    ...(descriptions.length > 0 ? { description: descriptions.join(" ") } : {}),
+    operations: patches.flatMap((patch) => patch.operations)
+  };
 }
 
 export function getNotebookAssistantModeContract(mode: NotebookAssistantMode): string {

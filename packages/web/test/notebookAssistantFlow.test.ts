@@ -270,6 +270,39 @@ describe("notebook assistant flow", () => {
     expect(getPatchFromNotebookAssistantToolResults(results, requests)).toBe(patch);
   });
 
+  it("combines multiple helper patch proposals into one patch", () => {
+    const results: NotebookAssistantToolResult[] = [
+      {
+        ok: true,
+        name: "createUpdateEquationPatch",
+        data: {
+          patch: {
+            description: "Update equation 'WBd'.",
+            operations: [{ op: "replace", path: "/title", value: "First" }]
+          }
+        }
+      },
+      {
+        ok: true,
+        name: "createAddInitialValuePatch",
+        data: {
+          patch: {
+            description: "Add initial value 'V'.",
+            operations: [{ op: "replace", path: "/metadata/template", value: "custom" }]
+          }
+        }
+      }
+    ];
+
+    expect(getPatchFromNotebookAssistantToolResults(results)).toEqual({
+      description: "Update equation 'WBd'. Add initial value 'V'.",
+      operations: [
+        { op: "replace", path: "/title", value: "First" },
+        { op: "replace", path: "/metadata/template", value: "custom" }
+      ]
+    });
+  });
+
   it("summarizes tool results and builds follow-up questions", () => {
     const toolResults: NotebookAssistantToolResult[] = [
       { ok: true, name: "getNotebookSummary", data: { title: "BMW Browser Notebook" } },

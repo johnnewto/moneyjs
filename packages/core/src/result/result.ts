@@ -5,11 +5,18 @@ export interface SeriesMap {
   [name: string]: Float64Array;
 }
 
+export interface SimulationWarning {
+  code: string;
+  message: string;
+  path?: string;
+}
+
 export interface SimulationResult {
   series: SeriesMap;
   blocks: EquationBlock[];
   model: ModelDefinition;
   options: SimulationOptions;
+  warnings?: SimulationWarning[];
 }
 
 export function valueAt(

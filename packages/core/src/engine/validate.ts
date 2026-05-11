@@ -1,5 +1,5 @@
 import type { ModelDefinition, ShockDef, SimulationOptions } from "../model/types";
-import type { SimulationResult } from "../result/result";
+import type { SimulationResult, SimulationWarning } from "../result/result";
 import { ModelValidationError } from "../model/schema";
 
 export function validateModel(model: ModelDefinition): void {
@@ -58,10 +58,10 @@ export function validateShock(model: ModelDefinition, shock: ShockDef, periods: 
   }
 }
 
-export function validateHiddenEquation(result: SimulationResult): void {
+export function validateHiddenEquation(result: SimulationResult): SimulationWarning[] {
   const hidden = result.options.hiddenEquation;
   if (!hidden) {
-    return;
+    return [];
   }
 
   const left = result.series[hidden.leftVariable];
@@ -77,9 +77,15 @@ export function validateHiddenEquation(result: SimulationResult): void {
       : discrepancy < hidden.tolerance;
 
     if (!valid) {
-      throw new ModelValidationError(
-        `Hidden equation is not fulfilled at period ${period + 1} for ${hidden.leftVariable} and ${hidden.rightVariable}`
-      );
+      return [
+        {
+          code: "hidden-equation-not-fulfilled",
+          message: `Hidden equation is not fulfilled at period ${period + 1} for ${hidden.leftVariable} and ${hidden.rightVariable}`,
+          path: "options.hiddenEquation"
+        }
+      ];
     }
   }
+
+  return [];
 }

@@ -65,7 +65,10 @@ export function runBaseline(
     model,
     options
   };
-  validateHiddenEquation(result);
+  const warnings = validateHiddenEquation(result);
+  if (warnings.length > 0) {
+    result.warnings = warnings;
+  }
   return result;
 }
 

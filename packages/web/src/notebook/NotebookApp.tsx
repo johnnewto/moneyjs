@@ -11,6 +11,7 @@ import {
 } from "./modelSections";
 import {
   dispatchNotebookAssistantTool,
+  dispatchNotebookAssistantToolRequests,
   type NotebookAssistantSnapshot,
   type NotebookAssistantToolRequest,
   type NotebookAssistantToolResult
@@ -813,11 +814,10 @@ export function NotebookApp() {
 
       const toolRequests = modeFilteredRequests.allowed.slice(0, NOTEBOOK_ASSISTANT_MAX_TOOL_REQUESTS_PER_ROUND);
 
-      const toolResults = toolRequests.map((request) =>
-        dispatchNotebookAssistantTool(buildNotebookAssistantSnapshot(), request)
-      );
+      const toolDispatch = dispatchNotebookAssistantToolRequests(buildNotebookAssistantSnapshot(), toolRequests);
+      const toolResults = toolDispatch.toolResults;
       const toolSummary = summarizeNotebookAssistantToolResults(toolResults);
-      const proposedPatch = getPatchFromNotebookAssistantToolResults(toolResults, toolRequests);
+      const proposedPatch = toolDispatch.proposedPatch ?? getPatchFromNotebookAssistantToolResults(toolResults, toolRequests);
       if (proposedPatch) {
         setNotebookAssistantMessagePatch(setAssistantMessages, assistantMessageId, proposedPatch, notebookDocument);
       }
@@ -1506,7 +1506,7 @@ export function NotebookApp() {
                   <button
                     type="button"
                     className="secondary-button"
-                    onClick={handleUndoAssistantPatch}
+                    onClick={() => handleUndoAssistantPatch()}
                     disabled={assistantPatchUndoStack.length === 0}
                   >
                     Undo patch

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { bmwBaselineModel, bmwBaselineOptions } from "../../core/src/fixtures/bmw";
 import {
   dispatchNotebookAssistantTool,
+  dispatchNotebookAssistantToolRequests,
   getCurrentValues,
   getDependencyGraph,
   getEquation,
@@ -16,6 +17,7 @@ import {
   listVariables,
   type NotebookAssistantSnapshot
 } from "../src/notebook/notebookAssistantTools";
+import { previewNotebookPatch } from "../src/notebook/notebookPatch";
 import { createNotebookFromTemplate } from "../src/notebook/templates";
 
 const bmwResult = runBaseline(bmwBaselineModel, bmwBaselineOptions);
@@ -917,6 +919,52 @@ describe("notebook assistant tools", () => {
         })
       })
     );
+  });
+
+  it("dispatches helper batches against an evolving draft notebook", () => {
+    const snapshot = buildSnapshot();
+    const batch = dispatchNotebookAssistantToolRequests(snapshot, [
+      {
+        name: "createAddEquationPatch",
+        args: {
+          modelId: "equations-newton",
+          name: "x_aux",
+          expression: "Y + 1"
+        }
+      },
+      {
+        name: "createAddEquationPatch",
+        args: {
+          modelId: "equations-newton",
+          name: "x_aux2",
+          expression: "x_aux + 1"
+        }
+      },
+      {
+        name: "createAddInitialValuePatch",
+        args: {
+          modelId: "equations-newton",
+          variable: "K",
+          value: 90
+        }
+      }
+    ]);
+
+    expect(batch.toolResults).toEqual([
+      expect.objectContaining({ ok: true, name: "createAddEquationPatch" }),
+      expect.objectContaining({ ok: true, name: "createAddEquationPatch" }),
+      expect.objectContaining({ ok: true, name: "createAddInitialValuePatch" })
+    ]);
+    expect(batch.proposedPatch).toEqual(
+      expect.objectContaining({
+        operations: [
+          expect.objectContaining({ path: "/cells/by-id/equations-newton/equations/20" }),
+          expect.objectContaining({ path: "/cells/by-id/equations-newton/equations/21" }),
+          expect.objectContaining({ path: "/cells/by-id/initial-values-equations-newton/initialValues/0" })
+        ]
+      })
+    );
+    expect(batch.proposedPatch ? previewNotebookPatch(snapshot.document, batch.proposedPatch).ok : false).toBe(true);
   });
 
   it("creates run and table helper patches", () => {

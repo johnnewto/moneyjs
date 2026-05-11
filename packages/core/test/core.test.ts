@@ -368,16 +368,22 @@ describe("simulation", () => {
     ).toThrow("Shock start period must be at least 1");
   });
 
-  it("fails hidden-equation validation when configured incorrectly", () => {
-    expect(() =>
-      runBaseline(simBaselineModel, {
-        ...simBaselineOptions,
-        hiddenEquation: {
-          leftVariable: "Y",
-          rightVariable: "Cd",
-          tolerance: 1e-12
-        }
+  it("returns a warning for hidden-equation mismatches", () => {
+    const result = runBaseline(simBaselineModel, {
+      ...simBaselineOptions,
+      hiddenEquation: {
+        leftVariable: "Y",
+        rightVariable: "Cd",
+        tolerance: 1e-12
+      }
+    });
+
+    expect(result.series.Y.length).toBe(simBaselineOptions.periods);
+    expect(result.warnings).toEqual([
+      expect.objectContaining({
+        code: "hidden-equation-not-fulfilled",
+        message: expect.stringContaining("Hidden equation is not fulfilled")
       })
-    ).toThrow("Hidden equation is not fulfilled");
+    ]);
   });
 });
