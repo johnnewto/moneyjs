@@ -11,7 +11,7 @@ export function requireString(args: Record<string, unknown> | undefined, key: st
 }
 
 export function requireRunId(args: Record<string, unknown> | undefined): string {
-  for (const key of ["runId", "sourceRunCellId", "runCellId", "sourceRunId", "resultRunId"]) {
+  for (const key of ["runId", "sourceRunCellId", "runCellId", "sourceRunId", "resultRunId", "cellId", "id", "run"]) {
     const value = optionalString(args, key);
     if (value) {
       return value;

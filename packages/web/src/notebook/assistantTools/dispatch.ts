@@ -204,7 +204,7 @@ export function dispatchNotebookAssistantTool(
             baselineRunCellId: optionalString(request.args, "baselineRunCellId"),
             baselineStartPeriod: optionalInteger(request.args, "baselineStartPeriod"),
             periods: optionalInteger(request.args, "periods"),
-            runId: requireString(request.args, "runId"),
+            runId: requireRunId(request.args),
             scenario: optionalScenarioDefinition(request.args),
             solverMethod: optionalSolverMethod(request.args, "solverMethod"),
             tolerance: optionalStringOrNumber(request.args, "tolerance")

@@ -484,7 +484,24 @@ function normalizeNotebookAssistantToolRequestArgs(
     }
   }
 
+  if (name === "createUpdateRunOptionsPatch") {
+    const runId = resolveRunIdAlias(args);
+    if (runId && runId !== args.runId) {
+      return { ...args, runId };
+    }
+  }
+
   return args;
+}
+
+function resolveRunIdAlias(args: Record<string, unknown>): string | undefined {
+  for (const key of ["runId", "sourceRunCellId", "runCellId", "sourceRunId", "resultRunId", "cellId", "id", "run"] as const) {
+    const value = args[key];
+    if (typeof value === "string" && value.trim() !== "") {
+      return value.trim();
+    }
+  }
+  return undefined;
 }
 
 function resolveParameterPatchValue(record: Record<string, unknown>): unknown {

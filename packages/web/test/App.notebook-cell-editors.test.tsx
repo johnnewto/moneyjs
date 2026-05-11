@@ -84,6 +84,38 @@ describe("App per-cell source editors", () => {
     expect(screen.getByRole("heading", { name: /updated baseline run/i })).toBeInTheDocument();
   }, 15000);
 
+  it("edits a scenario run cell through the structured scenario source editor", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    const scenarioArticle = document.getElementById("scenario-1-run");
+    expect(scenarioArticle).not.toBeNull();
+    if (!(scenarioArticle instanceof HTMLElement)) {
+      throw new Error("Expected scenario run cell article.");
+    }
+
+    await user.click(within(scenarioArticle).getByRole("button", { name: /^edit$/i }));
+
+    expect(
+      within(scenarioArticle).getByRole("radio", { name: /^scenario$/i })
+    ).toBeChecked();
+    expect(
+      within(scenarioArticle).queryByRole("textbox", {
+        name: /source editor for scenario 1: autonomous consumption shock/i
+      })
+    ).not.toBeInTheDocument();
+
+    const shockValueInput = within(scenarioArticle).getByLabelText(/value for alpha0/i);
+    await user.clear(shockValueInput);
+    await user.type(shockValueInput, "25.75");
+    await user.click(within(scenarioArticle).getByRole("button", { name: /^apply$/i }));
+
+    expect(within(scenarioArticle).getByText(/alpha0/i)).toBeInTheDocument();
+    expect(scenarioArticle).toHaveTextContent(/alpha0:\s*25\.75/i);
+  }, 15000);
+
   it("shows simulation warnings on successful run cells", async () => {
     window.location.hash = "#/notebook";
     setSuccessfulNotebookRunner("baseline-newton", {

@@ -106,6 +106,23 @@ describe("notebook assistant flow", () => {
     ]);
   });
 
+  it("normalizes run option helper id aliases in assistant tool request envelopes", () => {
+    expect(
+      extractNotebookAssistantToolRequests(
+        '```json\n{"notebookAssistantToolRequests":[{"name":"createUpdateRunOptionsPatch","args":{"cellId":"baseline-newton","periods":100}}]}\n```'
+      ).requests
+    ).toEqual([
+      {
+        name: "createUpdateRunOptionsPatch",
+        args: {
+          cellId: "baseline-newton",
+          periods: 100,
+          runId: "baseline-newton"
+        }
+      }
+    ]);
+  });
+
   it("reports malformed assistant tool request JSON", () => {
     expect(
       extractNotebookAssistantToolRequests('```json\n{"notebookAssistantToolRequests":[}\n```')

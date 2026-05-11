@@ -974,7 +974,7 @@ describe("notebook assistant tools", () => {
       dispatchNotebookAssistantTool(snapshot, {
         name: "createUpdateRunOptionsPatch",
         args: {
-          runId: "scenario-1-run",
+          cellId: "scenario-1-run",
           periods: 40,
           baselineStartPeriod: 6,
           solverMethod: "BROYDEN",

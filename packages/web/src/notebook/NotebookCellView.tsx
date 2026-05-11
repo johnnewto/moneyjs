@@ -15,6 +15,7 @@ import {
 } from "./modelSections";
 import { MatrixSourceEditor } from "./MatrixSourceEditor";
 import { NotebookRenderProfiler } from "./notebookProfiler";
+import { ScenarioSourceEditor } from "./ScenarioSourceEditor";
 import {
   applySourceHelper,
   buildNotebookCellHelpText,
@@ -127,8 +128,10 @@ function NotebookCellViewComponent({
   const [isEditingSource, setIsEditingSource] = useState(false);
   const [titleDraft, setTitleDraft] = useState(() => cell.title);
   const [sourceDraft, setSourceDraft] = useState(() => serializeCellBody(cell));
-  const [sourceLayoutMode, setSourceLayoutMode] = useState<"pretty" | "compact" | "grid">(
-    cell.type === "matrix" ? "grid" : "compact"
+  const [sourceLayoutMode, setSourceLayoutMode] = useState<
+    "pretty" | "compact" | "grid" | "scenario"
+  >(
+    cell.type === "matrix" ? "grid" : cell.type === "run" && cell.mode === "scenario" ? "scenario" : "compact"
   );
   const [openSourceMenu, setOpenSourceMenu] = useState<"insert" | null>(null);
   const [sourceError, setSourceError] = useState<string | null>(null);
@@ -184,7 +187,9 @@ function NotebookCellViewComponent({
   useEffect(() => {
     setTitleDraft(cell.title);
     setSourceDraft(serializeCellBody(cell));
-    setSourceLayoutMode(cell.type === "matrix" ? "grid" : "compact");
+    setSourceLayoutMode(
+      cell.type === "matrix" ? "grid" : cell.type === "run" && cell.mode === "scenario" ? "scenario" : "compact"
+    );
     setOpenSourceMenu(null);
     setSourceError(null);
     setSourceValidationError(null);
@@ -299,7 +304,12 @@ function NotebookCellViewComponent({
   }, [cell.type, shouldMountViewportDeferredBody]);
 
   useEffect(() => {
-    if (!isEditingSource || sourceLayoutMode === "grid" || !sourceTextareaRef.current) {
+    if (
+      !isEditingSource ||
+      sourceLayoutMode === "grid" ||
+      sourceLayoutMode === "scenario" ||
+      !sourceTextareaRef.current
+    ) {
       return;
     }
 
@@ -339,20 +349,22 @@ function NotebookCellViewComponent({
   function handleCancelSource(): void {
     setTitleDraft(cell.title);
     setSourceDraft(serializeCellBody(cell));
-    setSourceLayoutMode(cell.type === "matrix" ? "grid" : "compact");
+    setSourceLayoutMode(
+      cell.type === "matrix" ? "grid" : cell.type === "run" && cell.mode === "scenario" ? "scenario" : "compact"
+    );
     setOpenSourceMenu(null);
     setSourceError(null);
     setSourceValidationError(null);
     setIsEditingSource(false);
   }
 
-  function handleSourceLayoutModeChange(nextMode: "pretty" | "compact" | "grid"): void {
+  function handleSourceLayoutModeChange(nextMode: "pretty" | "compact" | "grid" | "scenario"): void {
     if (cell.type === "markdown") {
       setSourceLayoutMode(nextMode);
       return;
     }
 
-    if (nextMode === "grid") {
+    if (nextMode === "grid" || nextMode === "scenario") {
       try {
         const parsed = JSON.parse(sourceDraft) as NotebookCell;
         setSourceDraft(formatCellBody(parsed, "compact"));
@@ -558,6 +570,17 @@ function NotebookCellViewComponent({
                       <span>Grid</span>
                     </label>
                   ) : null}
+                  {cell.type === "run" ? (
+                    <label className="notebook-source-layout-option">
+                      <input
+                        type="radio"
+                        name={`source-layout-${cell.id}`}
+                        checked={sourceLayoutMode === "scenario"}
+                        onChange={() => handleSourceLayoutModeChange("scenario")}
+                      />
+                      <span>Scenario</span>
+                    </label>
+                  ) : null}
                   <label className="notebook-source-layout-option">
                     <input
                       type="radio"
@@ -596,7 +619,9 @@ function NotebookCellViewComponent({
                 />
               </label>
             ) : null}
-            {cell.type === "matrix" && sourceLayoutMode === "grid" ? (
+            {cell.type === "run" && sourceLayoutMode === "scenario" ? (
+              <ScenarioSourceEditor value={sourceDraft} onChange={setSourceDraft} />
+            ) : cell.type === "matrix" && sourceLayoutMode === "grid" ? (
               <MatrixSourceEditor value={sourceDraft} onChange={setSourceDraft} />
             ) : (
               <div className="notebook-source-codeframe">
