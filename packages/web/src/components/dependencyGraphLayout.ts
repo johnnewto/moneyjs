@@ -1,144 +1,62 @@
-import { createSectorTopology, type SectorTopology } from "@sfcr/core";
+import type { SectorTopology } from "@sfcr/core";
 
-import {
-  buildDerivedAccountingTerms,
-  type DerivedAccountingTerm,
-  type DependencyRowTopology
-} from "../notebook/dependencyRows";
-import type {
-  DependencySectorDisplayOccurrence,
-  DependencySectorDisplayOccurrences
-} from "../notebook/dependencySectors";
+import type { DependencyRowTopology } from "../notebook/dependencyRows";
+import type { DependencySectorDisplayOccurrences } from "../notebook/dependencySectors";
 import type {
   DependencyGraphEdge,
   DependencyGraphNode,
   ParsedDependencyGraph
 } from "../notebook/dependencyGraph";
+import {
+  buildAccountingBandLabels,
+  buildAccountingBandLayoutData,
+  buildAccountingBandRenderBands,
+  buildSoftAccountingAnchorYByNode,
+  getPlacementAssignment
+} from "./dependencyGraphAccountingBands";
+import {
+  BAND_COLORS,
+  BOTTOM_PADDING,
+  COLUMN_GAP,
+  HORIZONTAL_BAND_GAP,
+  HORIZONTAL_BAND_HEIGHT,
+  HORIZONTAL_LABEL_X,
+  MATRIX_SURFACE_CELL_HALF_WIDTH,
+  MATRIX_SURFACE_GAP,
+  NODE_HEIGHT,
+  NODE_WIDTH,
+  PROXY_KIND_PRIORITY,
+  RELAXATION_ITERATIONS,
+  ROW_GAP,
+  SIDE_PADDING,
+  STRIP_INNER_GAP,
+  STRIP_MIN_WIDTH,
+  STRIP_PADDING_X,
+  TOP_PADDING
+} from "./dependencyGraphLayoutConfig";
+import { computeDependencyLayoutDiagnostics } from "./dependencyGraphLayoutDiagnostics";
+import {
+  buildAccountingRenderGraph,
+  buildBaseRenderGraph,
+  buildFallbackSectorTopology,
+  buildSectorOccurrenceRenderGraph
+} from "./dependencyGraphRenderGraph";
+import { resolveDisplaySector } from "./dependencyGraphLayoutSectors";
+import type {
+  CellSpreadDiagnosticEntry,
+  DependencyGraphLayoutSnapshot,
+  DependencyLayoutDiagnostics,
+  DisplayNode,
+  GraphBand,
+  GraphColumnLabel,
+  GraphLayout,
+  PositionedNode,
+  RenderGraph
+} from "./dependencyGraphLayoutTypes";
 
-export type DisplayNode = DependencyGraphNode & {
-  canonicalName?: string;
-  displaySector?: string;
-  expression?: string;
-  isMirror?: boolean;
-  occurrenceKey?: string;
-  occurrenceSign?: DependencySectorDisplayOccurrence["sign"];
-  proxyKind?: DerivedAccountingTerm["proxyKind"];
-  proxyBand?: string;
-  mirrorSector?: string;
-  isProxy?: boolean;
-};
-
-export interface PositionedNode extends DisplayNode {
-  x: number;
-  y: number;
-}
-
-interface GraphColumnLabel {
-  id: string;
-  x: number;
-  y?: number;
-  label: string;
-  subtitle?: string;
-  textAnchor?: "start" | "middle" | "end";
-}
-
-interface GraphBand {
-  id: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  fill: string;
-  stroke: string;
-}
-
-interface GraphLayout {
-  width: number;
-  height: number;
-  nodeWidth: number;
-  nodeHeight: number;
-  labels: GraphColumnLabel[];
-  bands: GraphBand[];
-  nodes: PositionedNode[];
-  cellSpreadDiagnostics?: CellSpreadDiagnosticEntry[];
-}
-
-interface RenderGraph {
-  nodes: DisplayNode[];
-  edges: DependencyGraphEdge[];
-  primaryNodeIdByVariable: Map<string, string>;
-  siblingEdges: Array<{ id: string; sourceId: string; targetId: string }>;
-}
-
-interface DependencyNodeBox {
-  id: string;
-  name: string;
-  x: number;
-  y: number;
-  left: number;
-  top: number;
-  right: number;
-  bottom: number;
-  width: number;
-  height: number;
-  isExogenous: boolean;
-}
-
-interface DependencyOverlapPair {
-  leftId: string;
-  rightId: string;
-  overlapX: number;
-  overlapY: number;
-  overlapArea: number;
-  overlapRatio: number;
-}
-
-interface ExogenousPlacementDiagnostic {
-  nodeId: string;
-  name: string;
-  targetX: number;
-  targetY: number;
-  finalX: number;
-  finalY: number;
-  outgoingTargetIds: string[];
-  horizontalMinX: number;
-  horizontalMaxX: number;
-  hardMinHorizontalGap: number;
-  isBoundSaturated: boolean;
-}
-
-export interface CellSpreadDiagnosticEntry {
-  cellKey: string;
-  cellX: number;
-  cellY: number;
-  cellWidth: number;
-  cellHeight: number;
-  columns: number;
-  rows: number;
-  nodeCount: number;
-  nodes: Array<{
-    id: string;
-    name: string;
-    beforeX: number;
-    beforeY: number;
-    afterX: number;
-    afterY: number;
-  }>;
-}
-
-export interface DependencyLayoutDiagnostics {
-  nodeBoxes: DependencyNodeBox[];
-  overlapPairs: DependencyOverlapPair[];
-  maxOverlapRatio: number;
-  exogenousPlacements: ExogenousPlacementDiagnostic[];
-  cellSpreadEntries: CellSpreadDiagnosticEntry[];
-}
-
-interface DependencyGraphLayoutSnapshot {
-  layout: GraphLayout;
-  renderGraph: RenderGraph | null;
-  diagnostics: DependencyLayoutDiagnostics;
-}
+export type { DisplayNode, PositionedNode } from "./dependencyGraphLayoutTypes";
+export type { CellSpreadDiagnosticEntry, DependencyLayoutDiagnostics } from "./dependencyGraphLayoutTypes";
+export { computeDependencyLayoutDiagnostics } from "./dependencyGraphLayoutDiagnostics";
 
 export interface DependencyGraphLayoutSnapshotArgs {
   graph: ParsedDependencyGraph;
@@ -149,39 +67,6 @@ export interface DependencyGraphLayoutSnapshotArgs {
   showAccountingStrips?: boolean;
   ignoreInferredBandsForPlacement?: boolean;
 }
-
-const SIDE_PADDING = 54;
-const TOP_PADDING = 72;
-const BOTTOM_PADDING = 40;
-const NODE_WIDTH = 56;
-const NODE_HEIGHT = 40;
-const COLUMN_GAP = 188;
-const MATRIX_SURFACE_GAP = 268;
-const MATRIX_SURFACE_CELL_HALF_WIDTH = 96;
-const ROW_GAP = 84;
-const STRIP_INNER_GAP = 34;
-const STRIP_PADDING_X = 24;
-const STRIP_MIN_WIDTH = 212;
-const HORIZONTAL_BAND_HEIGHT = 148;
-const HORIZONTAL_BAND_GAP = 18;
-const HORIZONTAL_LABEL_X = 22;
-const RELAXATION_ITERATIONS = 48;
-const DIAGNOSTIC_BOX_INSET_X = 6;
-const DIAGNOSTIC_BOX_INSET_Y = 5;
-
-const BAND_COLORS = [
-  { fill: "rgba(236, 253, 245, 0.7)", stroke: "rgba(16, 185, 129, 0.28)" },
-  { fill: "rgba(239, 246, 255, 0.74)", stroke: "rgba(59, 130, 246, 0.24)" },
-  { fill: "rgba(255, 247, 237, 0.8)", stroke: "rgba(249, 115, 22, 0.24)" },
-  { fill: "rgba(248, 250, 252, 0.9)", stroke: "rgba(100, 116, 139, 0.24)" }
-] as const;
-
-const PROXY_KIND_PRIORITY: Record<DerivedAccountingTerm["proxyKind"], number> = {
-  stock: 0,
-  change: 1,
-  "row-expression": 2,
-  interest: 3
-};
 
 export function buildDependencyGraphLayoutSnapshot({
   graph,
@@ -239,363 +124,6 @@ export function buildDependencyGraphLayoutSnapshot({
     renderGraph,
     diagnostics
   };
-}
-
-function buildFallbackSectorTopology(
-  nodes: Array<Pick<DependencyGraphNode, "name" | "variableType">>
-): SectorTopology {
-  return createSectorTopology(
-    nodes.map((node) => ({
-      variable: node.name,
-      sector: node.variableType === "exogenous" ? "Exogenous" : "Unmapped",
-      source: node.variableType === "exogenous" ? "explicit" : "fallback",
-      confidence: node.variableType === "exogenous" ? "high" : "fallback",
-      accountKind:
-        node.variableType === "stock"
-          ? "stock"
-          : node.variableType === "flow"
-            ? "flow"
-            : node.variableType === "exogenous"
-              ? "exogenous"
-              : "auxiliary"
-    }))
-  );
-}
-
-function buildBaseRenderGraph(graph: ParsedDependencyGraph): RenderGraph {
-  return {
-    nodes: graph.nodes,
-    edges: graph.edges,
-    primaryNodeIdByVariable: new Map(graph.nodes.map((node) => [node.name, node.id])),
-    siblingEdges: []
-  };
-}
-
-export function computeDependencyLayoutDiagnostics(
-  nodes: PositionedNode[],
-  graph: Pick<ParsedDependencyGraph, "edges">,
-  options?: {
-    horizontalMinX?: number;
-    horizontalMaxX?: number;
-    hardMinHorizontalGap?: number;
-  }
-): DependencyLayoutDiagnostics {
-  const nodeBoxes = nodes.map((node) => ({
-    id: node.id,
-    name: node.name,
-    x: node.x,
-    y: node.y,
-    left: node.x - NODE_WIDTH / 2 + DIAGNOSTIC_BOX_INSET_X,
-    top: node.y - NODE_HEIGHT / 2 + DIAGNOSTIC_BOX_INSET_Y,
-    right: node.x + NODE_WIDTH / 2 - DIAGNOSTIC_BOX_INSET_X,
-    bottom: node.y + NODE_HEIGHT / 2 - DIAGNOSTIC_BOX_INSET_Y,
-    width: NODE_WIDTH - DIAGNOSTIC_BOX_INSET_X * 2,
-    height: NODE_HEIGHT - DIAGNOSTIC_BOX_INSET_Y * 2,
-    isExogenous: node.variableType === "exogenous"
-  }));
-  const overlapPairs: DependencyOverlapPair[] = [];
-
-  for (let leftIndex = 0; leftIndex < nodeBoxes.length; leftIndex += 1) {
-    const left = nodeBoxes[leftIndex];
-    for (let rightIndex = leftIndex + 1; rightIndex < nodeBoxes.length; rightIndex += 1) {
-      const right = nodeBoxes[rightIndex];
-      const overlapX = Math.min(left.right, right.right) - Math.max(left.left, right.left);
-      const overlapY = Math.min(left.bottom, right.bottom) - Math.max(left.top, right.top);
-      if (overlapX <= 0 || overlapY <= 0) {
-        continue;
-      }
-      const overlapArea = overlapX * overlapY;
-      overlapPairs.push({
-        leftId: left.id,
-        rightId: right.id,
-        overlapX,
-        overlapY,
-        overlapArea,
-        overlapRatio: overlapArea / (left.width * left.height)
-      });
-    }
-  }
-
-  const nodeById = new Map(nodes.map((node) => [node.id, node]));
-  const outgoingEdgesBySource = new Map<string, DependencyGraphEdge[]>();
-  graph.edges.forEach((edge) => {
-    const bucket = outgoingEdgesBySource.get(edge.sourceId) ?? [];
-    bucket.push(edge);
-    outgoingEdgesBySource.set(edge.sourceId, bucket);
-  });
-  const exogenousPlacements = nodes
-    .filter((node) => node.variableType === "exogenous")
-    .map((node) => {
-      const outgoingTargets = (outgoingEdgesBySource.get(node.id) ?? [])
-        .map((edge) => {
-          const target = nodeById.get(edge.targetId);
-          if (!target) {
-            return null;
-          }
-          const weight = edge.current ? (edge.lagged ? 1.4 : 2) : 0.8;
-          return { target, weight };
-        })
-        .filter((value): value is { target: PositionedNode; weight: number } => value != null);
-      const totalWeight = outgoingTargets.reduce((sum, entry) => sum + entry.weight, 0);
-      const targetX =
-        totalWeight > 0
-          ? outgoingTargets.reduce((sum, entry) => sum + entry.target.x * entry.weight, 0) / totalWeight
-          : node.x;
-      const targetY =
-        totalWeight > 0
-          ? outgoingTargets.reduce((sum, entry) => sum + entry.target.y * entry.weight, 0) / totalWeight
-          : node.y;
-      return {
-        finalX: node.x,
-        finalY: node.y,
-        hardMinHorizontalGap: options?.hardMinHorizontalGap ?? NODE_WIDTH + 16,
-        horizontalMaxX: options?.horizontalMaxX ?? Number.POSITIVE_INFINITY,
-        horizontalMinX: options?.horizontalMinX ?? Number.NEGATIVE_INFINITY,
-        isBoundSaturated:
-          ((options?.horizontalMinX ?? Number.NEGATIVE_INFINITY) !== Number.NEGATIVE_INFINITY &&
-            Math.abs(node.x - (options?.horizontalMinX ?? 0)) < 1.5) ||
-          ((options?.horizontalMaxX ?? Number.POSITIVE_INFINITY) !== Number.POSITIVE_INFINITY &&
-            Math.abs(node.x - (options?.horizontalMaxX ?? 0)) < 1.5),
-        name: node.name,
-        nodeId: node.id,
-        outgoingTargetIds: outgoingTargets.map((entry) => entry.target.id),
-        targetX,
-        targetY
-      };
-    });
-
-  return {
-    nodeBoxes,
-    overlapPairs,
-    maxOverlapRatio: overlapPairs.reduce((max, pair) => Math.max(max, pair.overlapRatio), 0),
-    exogenousPlacements,
-    cellSpreadEntries: []
-  };
-}
-
-function buildAccountingRenderGraph(
-  graph: ParsedDependencyGraph,
-  rowTopology: DependencyRowTopology
-): RenderGraph {
-  const proxies = buildDerivedAccountingTerms(rowTopology);
-  if (proxies.length === 0) {
-    return buildBaseRenderGraph(graph);
-  }
-
-  const proxyByCanonical = new Map<string, DerivedAccountingTerm[]>();
-  proxies.forEach((proxy) => {
-    const bucket = proxyByCanonical.get(proxy.canonicalVariable) ?? [];
-    bucket.push(proxy);
-    proxyByCanonical.set(proxy.canonicalVariable, bucket);
-  });
-
-  const nodes: DisplayNode[] = [];
-  const primaryNodeIdByVariable = new Map<string, string>();
-  const siblingEdges: RenderGraph["siblingEdges"] = [];
-  const canonicalById = new Map(graph.nodes.map((node) => [node.id, node]));
-
-  graph.nodes.forEach((node) => {
-    const nodeProxies = proxyByCanonical.get(node.name) ?? [];
-    if (nodeProxies.length === 0) {
-      nodes.push(node);
-      primaryNodeIdByVariable.set(node.name, node.id);
-      return;
-    }
-
-    const sortedProxies = [...nodeProxies].sort((left, right) => {
-      const leftMembership = rowTopology.variables[node.name]?.memberships.find(
-        (membership) => membership.band === left.band
-      );
-      const rightMembership = rowTopology.variables[node.name]?.memberships.find(
-        (membership) => membership.band === right.band
-      );
-      const proxyKindDelta =
-        (PROXY_KIND_PRIORITY[left.proxyKind] ?? 99) - (PROXY_KIND_PRIORITY[right.proxyKind] ?? 99);
-      if (proxyKindDelta !== 0) {
-        return proxyKindDelta;
-      }
-      if ((rightMembership?.weight ?? 0) !== (leftMembership?.weight ?? 0)) {
-        return (rightMembership?.weight ?? 0) - (leftMembership?.weight ?? 0);
-      }
-      return left.label.localeCompare(right.label);
-    });
-
-    sortedProxies.forEach((proxy, index) => {
-      const proxyNode: DisplayNode = {
-        ...node,
-        id: proxy.id,
-        label: proxy.label,
-        name: node.name,
-        description: `${proxy.band}: ${proxy.fullExpression}`,
-        canonicalName: node.name,
-        expression: proxy.fullExpression,
-        proxyKind: proxy.proxyKind,
-        proxyBand: proxy.band,
-        isProxy: true
-      };
-      nodes.push(proxyNode);
-      if (index === 0) {
-        primaryNodeIdByVariable.set(node.name, proxy.id);
-      }
-    });
-
-    const primaryProxyId = sortedProxies[0]?.id;
-    if (primaryProxyId) {
-      sortedProxies.slice(1).forEach((proxy) => {
-        siblingEdges.push({
-          id: `sibling:${primaryProxyId}->${proxy.id}`,
-          sourceId: primaryProxyId,
-          targetId: proxy.id
-        });
-      });
-    }
-  });
-
-  const edges = graph.edges.map((edge) => {
-    const sourceNode = canonicalById.get(edge.sourceId);
-    const targetNode = canonicalById.get(edge.targetId);
-    const sourceId = sourceNode ? primaryNodeIdByVariable.get(sourceNode.name) ?? edge.sourceId : edge.sourceId;
-    const targetId = targetNode ? primaryNodeIdByVariable.get(targetNode.name) ?? edge.targetId : edge.targetId;
-    return {
-      ...edge,
-      id: `${sourceId}->${targetId}`,
-      sourceId,
-      targetId
-    };
-  });
-
-  const edgeIds = new Set(edges.map((edge) => edge.id));
-  proxies.forEach((proxy) => {
-    proxy.references.forEach((reference) => {
-      if (reference.name === proxy.canonicalVariable) {
-        return;
-      }
-      const sourceId = primaryNodeIdByVariable.get(reference.name) ?? reference.name;
-      if (!nodes.some((node) => node.id === sourceId) || sourceId === proxy.id) {
-        return;
-      }
-      const edgeId = `${sourceId}->${proxy.id}`;
-      if (edgeIds.has(edgeId)) {
-        return;
-      }
-      edges.push({
-        id: edgeId,
-        sourceId,
-        targetId: proxy.id,
-        current: reference.current,
-        lagged: reference.lagged
-      });
-      edgeIds.add(edgeId);
-    });
-  });
-
-  return { nodes, edges, primaryNodeIdByVariable, siblingEdges };
-}
-
-function buildSectorOccurrenceRenderGraph(
-  renderGraph: RenderGraph,
-  sectorTopology: SectorTopology,
-  sectorDisplayOccurrences: DependencySectorDisplayOccurrences
-): RenderGraph {
-  const nodes: DisplayNode[] = [];
-  const siblingEdges = [...renderGraph.siblingEdges];
-  let hasExpansion = false;
-  let hasOccurrenceLabelUpdates = false;
-
-  renderGraph.nodes.forEach((node) => {
-    const canonicalName = node.canonicalName ?? node.name;
-    const dedupedOccurrences = new Map<string, DependencySectorDisplayOccurrence>();
-    (sectorDisplayOccurrences[canonicalName] ?? []).forEach((occurrence) => {
-      const matchesNode = node.isProxy
-        ? occurrence.displayLabel === node.label &&
-          (occurrence.kind === "proxy" ||
-            (occurrence.kind === "direct" && occurrence.displayLabel === canonicalName))
-        : occurrence.displayLabel === node.label ||
-          (occurrence.kind === "direct" && node.label === canonicalName && occurrence.variable === canonicalName);
-      if (
-        !matchesNode ||
-        occurrence.sector === "Exogenous" ||
-        occurrence.sector === "Unmapped"
-      ) {
-        return;
-      }
-
-      const occurrenceKey = `${occurrence.displayLabel}::${occurrence.sector}::${occurrence.sign}`;
-      if (!dedupedOccurrences.has(occurrenceKey)) {
-        dedupedOccurrences.set(occurrenceKey, occurrence);
-      }
-    });
-    const occurrences = Array.from(dedupedOccurrences.values());
-    const primarySector = resolveDisplaySector(node, sectorTopology);
-    const orderedOccurrences = [...occurrences].sort((left, right) => {
-      if (left.sector === primarySector && right.sector !== primarySector) {
-        return -1;
-      }
-      if (right.sector === primarySector && left.sector !== primarySector) {
-        return 1;
-      }
-      return left.sourceCellKey.localeCompare(right.sourceCellKey);
-    });
-
-    if (orderedOccurrences.length === 0) {
-      nodes.push(node);
-      return;
-    }
-
-    const primaryOccurrence = orderedOccurrences[0];
-    const primaryNode: DisplayNode = {
-      ...node,
-      canonicalName,
-      label: formatOccurrenceLabel(primaryOccurrence?.displayLabel ?? node.label, primaryOccurrence?.sign),
-      mirrorSector: primaryOccurrence?.sector,
-      occurrenceKey: primaryOccurrence?.sourceCellKey,
-      occurrenceSign: primaryOccurrence?.sign
-    };
-    if (primaryNode.label !== node.label || primaryNode.mirrorSector !== node.mirrorSector) {
-      hasOccurrenceLabelUpdates = true;
-    }
-    nodes.push(primaryNode);
-
-    orderedOccurrences.slice(1).forEach((occurrence) => {
-      hasExpansion = true;
-      const mirrorId = `sector-occurrence:${node.id}:${occurrence.sourceCellKey}`;
-      nodes.push({
-        ...node,
-        id: mirrorId,
-        canonicalName,
-        isMirror: true,
-        label: formatOccurrenceLabel(occurrence.displayLabel, occurrence.sign),
-        mirrorSector: occurrence.sector,
-        occurrenceKey: occurrence.sourceCellKey,
-        occurrenceSign: occurrence.sign
-      });
-      siblingEdges.push({
-        id: `sibling:${primaryNode.id}->${mirrorId}`,
-        sourceId: primaryNode.id,
-        targetId: mirrorId
-      });
-    });
-  });
-
-  if (!hasExpansion && !hasOccurrenceLabelUpdates) {
-    return renderGraph;
-  }
-
-  return {
-    ...renderGraph,
-    nodes,
-    siblingEdges
-  };
-}
-
-function formatOccurrenceLabel(
-  label: string,
-  sign: DependencySectorDisplayOccurrence["sign"] | undefined
-): string {
-  if (!sign || sign === "neutral") {
-    return label;
-  }
-  return `${sign}${label}`;
 }
 
 function buildStripDependencyGraphLayout(
@@ -837,192 +365,6 @@ function buildSectorStripScaffold(
   });
 
   return { width, stripWidth, stripCenters, sectorNames, nodesById, globalMaxRow };
-}
-
-function collectVisibleAccountingBands(
-  nodes: Array<Pick<DisplayNode, "name" | "proxyBand">>,
-  rowTopology: DependencyRowTopology,
-  ignoreInferredBandsForPlacement: boolean
-): string[] {
-  return rowTopology.bands.filter((band) =>
-    band !== "Unmapped" &&
-    band !== "Exogenous" &&
-    nodes.some((node) => {
-      if (node.proxyBand === band) {
-        return true;
-      }
-      const assignment = getPlacementAssignment(
-        rowTopology.variables[node.name],
-        ignoreInferredBandsForPlacement
-      );
-      return assignment?.memberships.some((membership) => membership.band === band) ?? false;
-    })
-  );
-}
-
-function buildAccountingBandLayoutData(
-  nodes: Array<Pick<DisplayNode, "name" | "proxyBand">>,
-  rowTopology: DependencyRowTopology,
-  ignoreInferredBandsForPlacement: boolean
-): {
-  bandNames: string[];
-  bandCenters: number[];
-  bandCenterByName: Map<string, number>;
-  height: number;
-} {
-  const bandNames = collectVisibleAccountingBands(nodes, rowTopology, ignoreInferredBandsForPlacement);
-  const bandCenters = bandNames.map(
-    (_, index) =>
-      TOP_PADDING +
-      HORIZONTAL_BAND_HEIGHT / 2 +
-      index * (HORIZONTAL_BAND_HEIGHT + HORIZONTAL_BAND_GAP)
-  );
-
-  return {
-    bandNames,
-    bandCenters,
-    bandCenterByName: new Map(
-      bandNames.map((band, index) => [band, bandCenters[index] ?? TOP_PADDING])
-    ),
-    height:
-      bandNames.length > 0
-        ? TOP_PADDING +
-          (bandNames.length - 1) * (HORIZONTAL_BAND_HEIGHT + HORIZONTAL_BAND_GAP) +
-          HORIZONTAL_BAND_HEIGHT +
-          BOTTOM_PADDING
-        : TOP_PADDING + NODE_HEIGHT + BOTTOM_PADDING
-  };
-}
-
-function buildAccountingBandLabels(
-  bandNames: string[],
-  bandCenters: number[],
-  graph: Pick<ParsedDependencyGraph, "nodes" | "edges">,
-  rowTopology: DependencyRowTopology,
-  ignoreInferredBandsForPlacement: boolean
-): GraphColumnLabel[] {
-  return bandNames.map((band, index) => ({
-    id: `band-${band}`,
-    x: HORIZONTAL_LABEL_X,
-    y: (bandCenters[index] ?? TOP_PADDING) - 6,
-    label: band,
-    subtitle: buildBandSubtitle(band, graph, rowTopology, ignoreInferredBandsForPlacement),
-    textAnchor: "start"
-  }));
-}
-
-function getPlacementAssignment(
-  assignment: DependencyRowTopology["variables"][string],
-  ignoreInferredBandsForPlacement: boolean
-): DependencyRowTopology["variables"][string] {
-  if (!assignment || !ignoreInferredBandsForPlacement) {
-    return assignment;
-  }
-
-  const memberships = assignment.memberships.filter((membership) => membership.source !== "inferred");
-  return {
-    ...assignment,
-    primaryBand: memberships[0]?.band ?? "Unmapped",
-    memberships
-  };
-}
-
-function buildAccountingBandRenderBands(
-  bandNames: string[],
-  bandCenters: number[],
-  width: number,
-  useMutedFill: boolean
-): GraphBand[] {
-  return bandNames.map((band, index) => {
-    const palette = BAND_COLORS[index % BAND_COLORS.length];
-    const centerY = bandCenters[index] ?? TOP_PADDING;
-    return {
-      id: `horizontal-band-${band}`,
-      x: SIDE_PADDING - 12,
-      y: centerY - HORIZONTAL_BAND_HEIGHT / 2,
-      width: width - SIDE_PADDING * 2 + 24,
-      height: HORIZONTAL_BAND_HEIGHT,
-      fill: useMutedFill ? palette.fill.replace("0.", "0.18") : palette.fill,
-      stroke: palette.stroke
-    };
-  });
-}
-
-function buildSoftAccountingAnchorYByNode(
-  graph: { nodes: Array<DisplayNode>; edges: Array<DependencyGraphEdge> },
-  rowTopology: DependencyRowTopology,
-  bandCenterByName: Map<string, number>,
-  ignoreInferredBandsForPlacement: boolean
-): Map<string, number> {
-  const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
-  const scoresByNode = new Map<string, Map<string, number>>();
-
-  graph.nodes.forEach((node) => {
-    const assignment = getPlacementAssignment(
-      rowTopology.variables[node.name],
-      ignoreInferredBandsForPlacement
-    );
-    const primaryBand = assignment?.primaryBand ?? "Unmapped";
-    if ((primaryBand !== "Unmapped" && primaryBand !== "Exogenous") || node.proxyBand) {
-      return;
-    }
-    scoresByNode.set(node.id, new Map());
-  });
-
-  graph.edges.forEach((edge) => {
-    const sourceNode = nodeById.get(edge.sourceId);
-    const targetNode = nodeById.get(edge.targetId);
-    const weight = edge.current ? (edge.lagged ? 1.4 : 2) : 0.75;
-
-    if (targetNode && scoresByNode.has(targetNode.id) && sourceNode) {
-      accumulateSoftAnchorScores(
-        scoresByNode.get(targetNode.id)!,
-        getPlacementAssignment(rowTopology.variables[sourceNode.name], ignoreInferredBandsForPlacement),
-        weight
-      );
-    }
-    if (sourceNode && scoresByNode.has(sourceNode.id) && targetNode) {
-      accumulateSoftAnchorScores(
-        scoresByNode.get(sourceNode.id)!,
-        getPlacementAssignment(rowTopology.variables[targetNode.name], ignoreInferredBandsForPlacement),
-        weight * 0.75
-      );
-    }
-  });
-
-  const anchors = new Map<string, number>();
-  scoresByNode.forEach((scores, nodeId) => {
-    let weightedSum = 0;
-    let totalWeight = 0;
-    scores.forEach((score, band) => {
-      const center = bandCenterByName.get(band);
-      if (center == null) {
-        return;
-      }
-      weightedSum += center * score;
-      totalWeight += score;
-    });
-    if (totalWeight > 0) {
-      anchors.set(nodeId, weightedSum / totalWeight);
-    }
-  });
-
-  return anchors;
-}
-
-function accumulateSoftAnchorScores(
-  scoreByBand: Map<string, number>,
-  assignment: DependencyRowTopology["variables"][string],
-  edgeWeight: number
-): void {
-  assignment?.memberships.forEach((membership) => {
-    if (membership.band === "Unmapped" || membership.band === "Exogenous") {
-      return;
-    }
-    const score =
-      (scoreByBand.get(membership.band) ?? 0) + edgeWeight * Math.max(0.35, membership.weight);
-    scoreByBand.set(membership.band, score);
-  });
 }
 
 function buildRelaxedStripPositions(args: {
@@ -2068,17 +1410,6 @@ function compareStripNodes(left: DependencyGraphNode, right: DependencyGraphNode
   return left.order - right.order || left.name.localeCompare(right.name);
 }
 
-function resolveDisplaySector(
-  node: Pick<DisplayNode, "name" | "canonicalName" | "mirrorSector">,
-  sectorTopology: SectorTopology
-): string {
-  if (node.mirrorSector) {
-    return node.mirrorSector;
-  }
-  const canonicalName = node.canonicalName ?? node.name;
-  return sectorTopology.variables[canonicalName]?.sector ?? sectorTopology.variables[node.name]?.sector ?? "Unmapped";
-}
-
 function buildSectorSubtitle(
   sector: string,
   graph: Pick<ParsedDependencyGraph, "nodes" | "edges">,
@@ -2096,29 +1427,4 @@ function buildSectorSubtitle(
     return `${nodes.length} vars`;
   }
   return `${flows} flows, ${stocks} stocks`;
-}
-
-function buildBandSubtitle(
-  band: string,
-  graph: Pick<ParsedDependencyGraph, "nodes" | "edges">,
-  rowTopology: DependencyRowTopology,
-  ignoreInferredBandsForPlacement: boolean
-): string | undefined {
-  const nodes = graph.nodes.filter((node) => {
-    const assignment = getPlacementAssignment(
-      rowTopology.variables[node.name],
-      ignoreInferredBandsForPlacement
-    );
-    return assignment?.primaryBand === band;
-  });
-  if (nodes.length === 0) {
-    return undefined;
-  }
-  const explicit = nodes.filter((node) =>
-    rowTopology.variables[node.name]?.memberships.some(
-      (membership) => membership.band === band && membership.source !== "inferred"
-    )
-  ).length;
-  const inferred = nodes.length - explicit;
-  return inferred > 0 ? `${explicit} explicit, ${inferred} inferred` : `${explicit} mapped`;
 }
