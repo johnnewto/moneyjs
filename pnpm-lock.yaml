@@ -28,6 +28,15 @@ importers:
         specifier: workspace:*
         version: link:../core
 
+  packages/notebook-core:
+    dependencies:
+      '@sfcr/core':
+        specifier: workspace:*
+        version: link:../core
+      ajv:
+        specifier: ^8.20.0
+        version: 8.20.0
+
   packages/web:
     dependencies:
       '@codemirror/autocomplete':
@@ -51,6 +60,9 @@ importers:
       '@sfcr/core-worker':
         specifier: workspace:*
         version: link:../core-worker
+      '@sfcr/notebook-core':
+        specifier: workspace:*
+        version: link:../notebook-core
       ajv:
         specifier: ^8.20.0
         version: 8.20.0

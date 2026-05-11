@@ -7,7 +7,8 @@
     "lib": ["DOM", "ES2022"],
     "paths": {
       "@sfcr/core": ["../core/src/index.ts"],
-      "@sfcr/core-worker": ["../core-worker/src/index.ts"]
+      "@sfcr/core-worker": ["../core-worker/src/index.ts"],
+      "@sfcr/notebook-core": ["../notebook-core/src/index.ts"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"]

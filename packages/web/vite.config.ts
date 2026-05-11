@@ -7,7 +7,8 @@ export default defineConfig(({ command }) => ({
   resolve: {
     alias: {
       "@sfcr/core": fileURLToPath(new URL("../core/src/index.ts", import.meta.url)),
-      "@sfcr/core-worker": fileURLToPath(new URL("../core-worker/src/index.ts", import.meta.url))
+      "@sfcr/core-worker": fileURLToPath(new URL("../core-worker/src/index.ts", import.meta.url)),
+      "@sfcr/notebook-core": fileURLToPath(new URL("../notebook-core/src/index.ts", import.meta.url))
     }
   },
   base: command === "serve" ? "/" : process.env.VITE_BASE_PATH ?? "/"
