@@ -20,6 +20,7 @@ The main principle is: keep `packages/web` thin. React components should compose
 ```text
 packages/core          solver engine, model runtime, and domain logic
 packages/core-worker   worker-facing wrapper around @sfcr/core
+packages/notebook-core pure notebook document, source, validation, diagnostics, and schema logic
 packages/web           browser UI, editor flows, and result presentation
 packages/chat-api      serverless assistant backend and tool routing
 ```
@@ -29,8 +30,11 @@ Preferred dependency direction:
 ```text
 web -> core-worker
 web -> core
+web -> notebook-core
+notebook-core -> core
 core-worker -> core
 chat-api -> core where needed
+chat-api -> notebook-core where shared notebook behavior is needed
 ```
 
 Avoid this:
@@ -38,10 +42,11 @@ Avoid this:
 ```text
 core -> web
 core-worker -> web
+notebook-core -> web
 chat-api -> web
 ```
 
-If a future `notebook-core` package is introduced, it should be pure TypeScript and browser/server reusable:
+`notebook-core` is now a pure TypeScript package and should stay browser/server reusable:
 
 ```text
 web -> notebook-core -> core
@@ -49,6 +54,54 @@ chat-api -> notebook-core
 ```
 
 `notebook-core` must not import React, DOM APIs, browser storage, CSS, UI components, or Cloudflare-specific APIs.
+
+---
+
+# Refactor Tranche Close-out - 2026-05-11
+
+The PR1-PR12 refactor tranche is complete. The main outcome is that the previous large, multi-purpose notebook and dependency-graph files now have stable public entry points backed by focused internal modules.
+
+Completed code movement:
+
+```text
+PR1   added large-file visibility through pnpm files:report
+PR2   split notebook document/source parsing behind compatibility exports
+PR3   split editor model logic behind compatibility exports
+PR4   extracted assistant client and SSE parsing
+PR5   split notebook React views and cell-level components
+PR6   split additional large web components and helpers
+PR7   introduced shared JSON/Markdown source pipeline structure
+PR8   created @sfcr/notebook-core for pure notebook logic
+PR9   added shared notebook diagnostics and classification
+PR10  split notebook assistant tool internals
+PR11  split NotebookApp source workflow, assistant runtime, inline patch UI, and app helpers
+PR12  split dependency graph layout types, config, diagnostics, render-graph expansion, sector helpers, and accounting-band helpers
+```
+
+Current largest authored TypeScript files after PR12:
+
+```text
+1632 packages/web/src/notebook/NotebookApp.tsx
+1430 packages/web/src/components/dependencyGraphLayout.ts
+1301 packages/web/src/app/App.tsx
+1249 packages/web/test/notebookAssistantTools.test.ts
+1038 packages/web/src/notebook/NotebookCellView.tsx
+ 831 packages/web/src/components/EquationGridEditor.tsx
+ 794 packages/web/src/notebook/sourceEditing.tsx
+ 782 packages/web/src/notebook/components/SequenceCellView.tsx
+ 767 packages/web/src/notebook/notebookAssistantFlow.ts
+ 713 packages/web/src/notebook/components/ModelEquationViews.tsx
+```
+
+Validation run for the final PR12 step:
+
+```bash
+pnpm --filter @sfcr/web typecheck
+pnpm --filter @sfcr/web exec vitest run test/dependencyGraph.test.ts test/DependencyGraphCanvas.test.tsx
+pnpm web:test:fast
+```
+
+Recommended pause point: stop code splitting here, review the accumulated diff, and keep the next PR focused on either small cleanup from review feedback or a fresh, separately scoped split of `App.tsx` or the remaining `NotebookApp.tsx` coordinator.
 
 ---
 

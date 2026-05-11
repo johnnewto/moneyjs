@@ -20,6 +20,7 @@ The dependency graph path is implemented in:
 
 - [packages/web/src/notebook/dependencyGraph.ts](/home/john/repos/sfcr/packages/web/src/notebook/dependencyGraph.ts)
 - [packages/web/src/components/DependencyGraphCanvas.tsx](/home/john/repos/sfcr/packages/web/src/components/DependencyGraphCanvas.tsx)
+- [packages/web/src/components/dependencyGraphLayout.ts](/home/john/repos/sfcr/packages/web/src/components/dependencyGraphLayout.ts)
 - [packages/web/src/notebook/dependencySectors.ts](/home/john/repos/sfcr/packages/web/src/notebook/dependencySectors.ts)
 - [packages/web/src/notebook/dependencyRows.ts](/home/john/repos/sfcr/packages/web/src/notebook/dependencyRows.ts)
 - [packages/web/src/notebook/NotebookCellView.tsx](/home/john/repos/sfcr/packages/web/src/notebook/NotebookCellView.tsx)
@@ -27,6 +28,27 @@ The dependency graph path is implemented in:
 The graph is rendered from notebook model sources resolved through the
 sequence cell path. This keeps dependency viewing inside the normal notebook
 workflow rather than creating a separate tool surface.
+
+## Layout Module Map
+
+The dependency graph layout code is split behind the stable
+`dependencyGraphLayout.ts` entry point. That file remains the public
+orchestrator used by `DependencyGraphCanvas`, while focused helper modules own
+the pieces that were formerly embedded in one large layout file.
+
+Current layout modules:
+
+- [packages/web/src/components/dependencyGraphLayout.ts](/home/john/repos/sfcr/packages/web/src/components/dependencyGraphLayout.ts): public layout snapshot builder and main strip/accounting layout pipeline
+- [packages/web/src/components/dependencyGraphLayoutTypes.ts](/home/john/repos/sfcr/packages/web/src/components/dependencyGraphLayoutTypes.ts): display node, positioned node, layout, render graph, and diagnostics types
+- [packages/web/src/components/dependencyGraphLayoutConfig.ts](/home/john/repos/sfcr/packages/web/src/components/dependencyGraphLayoutConfig.ts): shared spacing, sizing, color, relaxation, and proxy-priority constants
+- [packages/web/src/components/dependencyGraphLayoutDiagnostics.ts](/home/john/repos/sfcr/packages/web/src/components/dependencyGraphLayoutDiagnostics.ts): node box, overlap, exogenous placement, and cell-spread diagnostic construction
+- [packages/web/src/components/dependencyGraphLayoutSectors.ts](/home/john/repos/sfcr/packages/web/src/components/dependencyGraphLayoutSectors.ts): display-sector resolution for canonical, mirror, and occurrence nodes
+- [packages/web/src/components/dependencyGraphRenderGraph.ts](/home/john/repos/sfcr/packages/web/src/components/dependencyGraphRenderGraph.ts): base render graph construction, accounting proxy expansion, and sector occurrence expansion
+- [packages/web/src/components/dependencyGraphAccountingBands.ts](/home/john/repos/sfcr/packages/web/src/components/dependencyGraphAccountingBands.ts): visible accounting bands, band labels, band render surfaces, placement assignment, and soft vertical anchors
+
+The public exports should stay compatible through `dependencyGraphLayout.ts`.
+Consumers that only need layout snapshots should not import these internal
+modules directly.
 
 ## Core Concepts
 
