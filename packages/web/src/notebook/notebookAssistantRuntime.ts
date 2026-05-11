@@ -124,6 +124,31 @@ export function setNotebookAssistantMessagePatch(
   );
 }
 
+export function rearmNotebookAssistantMessagePatchAfterUndo(
+  messages: NotebookAssistantMessage[],
+  document: NotebookDocument,
+  messageId?: string
+): NotebookAssistantMessage[] {
+  if (!messageId) {
+    return messages;
+  }
+
+  return messages.map((message) => {
+    if (message.id !== messageId || !message.patch || message.patch.status !== "applied") {
+      return message;
+    }
+
+    return {
+      ...message,
+      patch: {
+        ...message.patch,
+        preview: previewNotebookPatch(document, message.patch.patch),
+        status: "ready"
+      }
+    };
+  });
+}
+
 export function buildNotebookAssistantContext(args: {
   document: NotebookDocument;
   inspectorContext: {

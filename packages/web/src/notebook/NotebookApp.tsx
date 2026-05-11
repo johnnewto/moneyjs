@@ -25,6 +25,7 @@ import {
   NOTEBOOK_ASSISTANT_MODE_STORAGE_KEY,
   NOTEBOOK_ASSISTANT_MODEL_STORAGE_KEY,
   requestNotebookAssistantAnswer,
+  rearmNotebookAssistantMessagePatchAfterUndo,
   setNotebookAssistantMessagePatch,
   setNotebookAssistantMessageText,
   type NotebookAssistantInlinePatch,
@@ -127,7 +128,10 @@ export function NotebookApp() {
   const [isAssistantAsking, setIsAssistantAsking] = useState(false);
   const [assistantPatchText, setAssistantPatchText] = useState("");
   const [assistantPatchPreview, setAssistantPatchPreview] = useState<NotebookPatchResult | null>(null);
-  const [assistantPatchUndoStack, setAssistantPatchUndoStack] = useState<NotebookDocument[]>([]);
+  const [assistantPatchUndoStack, setAssistantPatchUndoStack] = useState<Array<{
+    document: NotebookDocument;
+    messageId?: string;
+  }>>([]);
   const [selectedImportFileName, setSelectedImportFileName] = useState("No file chosen");
   const [assistantModel, setAssistantModel] = useState(() => {
     if (typeof window === "undefined") {
@@ -333,7 +337,7 @@ export function NotebookApp() {
       return;
     }
 
-    setAssistantPatchUndoStack((current) => [...current, notebookDocument]);
+    setAssistantPatchUndoStack((current) => [...current, { document: notebookDocument }]);
     replaceNotebookDocument(result.document);
     setAssistantPatchText("");
     setAssistantPatchPreview(null);
@@ -346,13 +350,21 @@ export function NotebookApp() {
     setUiMessage("Discarded assistant notebook patch preview.");
   }
 
-  function handleUndoAssistantPatch(): void {
+  function handleUndoAssistantPatch(messageId?: string): void {
     setAssistantPatchUndoStack((current) => {
-      const previousDocument = current.at(-1);
-      if (!previousDocument) {
+      const previousEntry = current.at(-1);
+      if (!previousEntry) {
         return current;
       }
-      replaceNotebookDocument(previousDocument);
+
+      replaceNotebookDocument(previousEntry.document);
+      setAssistantMessages((messages) =>
+        rearmNotebookAssistantMessagePatchAfterUndo(
+          messages,
+          previousEntry.document,
+          previousEntry.messageId ?? messageId
+        )
+      );
       setUiMessage("Undid assistant notebook patch.");
       return current.slice(0, -1);
     });
@@ -451,7 +463,7 @@ export function NotebookApp() {
       return;
     }
 
-    setAssistantPatchUndoStack((current) => [...current, notebookDocument]);
+    setAssistantPatchUndoStack((current) => [...current, { document: notebookDocument, messageId }]);
     replaceNotebookDocument(result.document);
     setUiMessage("Applied inline assistant patch.");
   }

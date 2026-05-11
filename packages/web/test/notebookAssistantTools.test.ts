@@ -297,7 +297,11 @@ describe("notebook assistant tools", () => {
                 op: "add",
                 path: "/cells/-",
                 value: expect.objectContaining({
+                  axisMode: "separate",
+                  axisSnapTolarance: 0.1,
                   id: "disposable-income",
+                  niceScale: true,
+                  sharedRange: { includeZero: true },
                   sourceRunCellId: "baseline-newton",
                   type: "chart",
                   variables: ["YD", "Cd"]

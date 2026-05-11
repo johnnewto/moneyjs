@@ -27,6 +27,10 @@ export function createAddChartPatch(
           id: chartId,
           type: "chart",
           title: args.title,
+          sharedRange: { includeZero: true },
+          axisMode: "separate",
+          axisSnapTolarance: 0.1,
+          niceScale: true,
           sourceRunCellId: run.id,
           variables: args.variables
         }

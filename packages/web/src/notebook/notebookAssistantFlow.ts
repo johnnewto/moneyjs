@@ -188,13 +188,16 @@ export function buildNotebookAssistantToolFollowupQuestion(args: {
   originalQuestion: string;
   toolResults: NotebookAssistantToolResult[];
 }): string {
+  const sanitizedToolResults = args.toolResults.map(sanitizeNotebookAssistantToolResultForFollowup);
+
   return [
     "Use these notebook assistant tool results to answer the original question.",
     "Do not ask for the same tool calls again unless the results are insufficient.",
     "If a result contains a patch proposal, summarize the proposed change and say it is ready for user preview/apply.",
+    "Do not quote raw patch JSON, JSON Pointer paths, or internal cell ids from tool results.",
     `Original question: ${args.originalQuestion}`,
     "Tool results JSON:",
-    JSON.stringify({ toolResults: args.toolResults }, null, 2)
+    JSON.stringify({ toolResults: sanitizedToolResults }, null, 2)
   ].join("\n");
 }
 
@@ -444,7 +447,48 @@ function normalizeNotebookAssistantToolRequestArgs(
     return { ...args, chartId: args.chartCellId };
   }
 
+  if (
+    (name === "createUpdateEquationPatch" || name === "createRemoveEquationPatch") &&
+    typeof args.variable !== "string" &&
+    typeof args.equationName === "string"
+  ) {
+    return { ...args, variable: args.equationName };
+  }
+
   return args;
+}
+
+function sanitizeNotebookAssistantToolResultForFollowup(
+  result: NotebookAssistantToolResult
+): NotebookAssistantToolResult {
+  if (!result.ok || !result.data || typeof result.data !== "object" || Array.isArray(result.data)) {
+    return result;
+  }
+
+  const data = result.data as Record<string, unknown>;
+  const sanitizedData: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(data)) {
+    if (key === "patch") {
+      continue;
+    }
+    sanitizedData[key] = value;
+  }
+
+  const patch = data.patch;
+  if (patch && typeof patch === "object" && !Array.isArray(patch)) {
+    const patchRecord = patch as Record<string, unknown>;
+    const operations = Array.isArray(patchRecord.operations) ? patchRecord.operations : [];
+    sanitizedData.patchSummary = {
+      description: typeof patchRecord.description === "string" ? patchRecord.description : null,
+      operationCount: operations.length
+    };
+  }
+
+  return {
+    ...result,
+    data: sanitizedData
+  };
 }
 
 function collectFencedJsonCandidates(text: string): string[] {

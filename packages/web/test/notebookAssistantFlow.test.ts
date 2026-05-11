@@ -54,6 +54,24 @@ describe("notebook assistant flow", () => {
     ]);
   });
 
+  it("normalizes stale equation helper arg names in assistant tool request envelopes", () => {
+    expect(
+      extractNotebookAssistantToolRequests(
+        '```json\n{"notebookAssistantToolRequests":[{"name":"createUpdateEquationPatch","args":{"modelId":"equations-newton","equationName":"Ld","expression":"lag(Ld) + Id * dt"}}]}\n```'
+      ).requests
+    ).toEqual([
+      {
+        name: "createUpdateEquationPatch",
+        args: {
+          modelId: "equations-newton",
+          equationName: "Ld",
+          variable: "Ld",
+          expression: "lag(Ld) + Id * dt"
+        }
+      }
+    ]);
+  });
+
   it("reports malformed assistant tool request JSON", () => {
     expect(
       extractNotebookAssistantToolRequests('```json\n{"notebookAssistantToolRequests":[}\n```')
@@ -267,5 +285,47 @@ describe("notebook assistant flow", () => {
         toolResults
       })
     ).toContain("Tool results JSON");
+  });
+
+  it("omits raw patch paths from follow-up questions", () => {
+    const toolResults: NotebookAssistantToolResult[] = [
+      {
+        ok: true,
+        name: "createUpdateEquationPatch",
+        data: {
+          patch: {
+            description: "Update equation 'WBd'.",
+            operations: [
+              {
+                op: "replace",
+                path: "/cells/by-id/equations-newton/equations/5",
+                value: {
+                  name: "WBd",
+                  expression: "Y - AF"
+                }
+              }
+            ]
+          },
+          preview: {
+            ok: true,
+            summary: {
+              addedCells: 0,
+              changedCells: 1,
+              removedCells: 0
+            }
+          }
+        }
+      }
+    ];
+
+    const followup = buildNotebookAssistantToolFollowupQuestion({
+      originalQuestion: "Update WBd.",
+      toolResults
+    });
+
+    expect(followup).toContain("patchSummary");
+    expect(followup).toContain("Update equation 'WBd'.");
+    expect(followup).not.toContain("/cells/by-id/equations-newton/equations/5");
+    expect(followup).not.toContain('"operations"');
   });
 });

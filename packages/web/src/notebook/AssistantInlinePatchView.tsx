@@ -15,7 +15,7 @@ export function AssistantInlinePatchView({
   onDiscard: (messageId: string) => void;
   onPreviewJson: (messageId: string) => void;
   onToggleJson: (messageId: string) => void;
-  onUndo: () => void;
+  onUndo: (messageId: string) => void;
   onUpdateJson: (messageId: string, value: string) => void;
   undoStackLength: number;
 }) {
@@ -84,7 +84,7 @@ export function AssistantInlinePatchView({
           <button
             type="button"
             className="secondary-button"
-            onClick={onUndo}
+            onClick={() => onUndo(message.id)}
             disabled={undoStackLength === 0}
           >
             Undo
