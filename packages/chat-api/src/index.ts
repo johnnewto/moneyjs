@@ -6,10 +6,15 @@ interface Env {
   BETA_PASSWORD?: string;
   CHAT_BUILDER_SYSTEM_PROMPT?: string | (() => string | Promise<string>);
   CHAT_BUILDER_RATE_LIMITER?: RateLimitBinding;
+  DISCOVERY_ALLOWED_ORIGINS?: string;
   MAX_OUTPUT_TOKENS?: string;
   NOTEBOOK_ASSISTANT_SYSTEM_PROMPT?: string | (() => string | Promise<string>);
   OPENAI_API_KEY?: string;
   OPENAI_MODEL_ALLOWLIST?: string;
+}
+
+interface CacheStorageWithDefault extends CacheStorage {
+  default?: Cache;
 }
 
 interface RateLimitBinding {
@@ -57,7 +62,12 @@ interface SfcrNotebookManifest {
 }
 
 const DEFAULT_ALLOWED_MODELS = ["gpt-5.4","gpt-5.5", "gpt-4.1", "o3"];
+const DEFAULT_DISCOVERY_ALLOWED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173", "https://johnnewto.github.io"];
 const DEFAULT_MAX_OUTPUT_TOKENS = 8000;
+const DISCOVERY_CACHE_TTL_SECONDS = 600;
+const MAX_DISCOVERY_BUNDLE_LENGTH = 1_000_000;
+const MAX_DISCOVERY_EXAMPLES = 5;
+const MAX_DISCOVERY_RESOURCE_LENGTH = 250_000;
 const MAX_PROMPT_LENGTH = 12000;
 const MAX_MESSAGE_COUNT = 12;
 const MAX_MESSAGE_LENGTH = 8000;
@@ -119,7 +129,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
 
   try {
     const systemPrompt = await resolveChatBuilderSystemPrompt(env);
-    const resourceBundle = await loadChatBuilderResourceBundle(validation.discoveryUrl);
+    const resourceBundle = await loadChatBuilderResourceBundle(validation.discoveryUrl, env);
     const openAiResponse = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
@@ -344,6 +354,40 @@ function buildCorsHeaders(request: Request, env: Env): Record<string, string> {
   };
 }
 
+function isDiscoveryOriginAllowed(discoveryUrl: URL, env: Env): boolean {
+  const allowedOrigins = resolveDiscoveryAllowedOrigins(env);
+  return allowedOrigins.includes(discoveryUrl.origin);
+}
+
+function assertDiscoveryResourceOriginAllowed(resourceUrl: string, env: Env): void {
+  const url = new URL(resourceUrl);
+  if (!isDiscoveryOriginAllowed(url, env)) {
+    throw new Error("SFCR discovery resource origin is not allowed.");
+  }
+}
+
+function resolveDiscoveryAllowedOrigins(env: Env): string[] {
+  const configuredDiscoveryOrigins = parseList(env.DISCOVERY_ALLOWED_ORIGINS).map(normalizeOrigin).filter(isString);
+  if (configuredDiscoveryOrigins.length > 0) {
+    return configuredDiscoveryOrigins;
+  }
+
+  const configuredBrowserOrigins = parseList(env.ALLOWED_ORIGINS).map(normalizeOrigin).filter(isString);
+  if (configuredBrowserOrigins.length > 0) {
+    return configuredBrowserOrigins;
+  }
+
+  return DEFAULT_DISCOVERY_ALLOWED_ORIGINS;
+}
+
+function normalizeOrigin(value: string): string | null {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+}
+
 function validateDraftRequest(
   payload: ChatDraftRequest,
   env: Env
@@ -388,6 +432,10 @@ function validateDraftRequest(
 
   if (!["http:", "https:"].includes(discoveryUrl.protocol)) {
     return { error: "discoveryUrl must use http or https." };
+  }
+
+  if (!isDiscoveryOriginAllowed(discoveryUrl, env)) {
+    return { error: "discoveryUrl origin is not allowed." };
   }
 
   if (!Array.isArray(payload.messages)) {
@@ -491,7 +539,7 @@ function validateNotebookAssistantRequest(
   return { context, messages, model, question };
 }
 
-async function loadChatBuilderResourceBundle(discoveryUrl: string): Promise<string> {
+async function loadChatBuilderResourceBundle(discoveryUrl: string, env: Env): Promise<string> {
   const discovery = await fetchJsonResource<SfcrDiscoveryIndex>(discoveryUrl);
   const notebookResources = discovery.resources?.notebooks;
 
@@ -503,6 +551,7 @@ async function loadChatBuilderResourceBundle(discoveryUrl: string): Promise<stri
   const guideUrl = resolveDocumentResourceUrl(discoveryUrl, notebookResources.guide);
   const schemaUrl = resolveDocumentResourceUrl(discoveryUrl, notebookResources.schema);
   const promptUrl = resolveDocumentResourceUrl(discoveryUrl, notebookResources.prompt);
+  [manifestUrl, guideUrl, schemaUrl, promptUrl].forEach((url) => assertDiscoveryResourceOriginAllowed(url, env));
 
   const notebookManifest = await fetchJsonResource<SfcrNotebookManifest>(manifestUrl);
   const exampleUrls = [
@@ -512,7 +561,13 @@ async function loadChatBuilderResourceBundle(discoveryUrl: string): Promise<stri
     ...(notebookResources.examples
       ?.map((example) => (example.url ? resolveDocumentResourceUrl(discoveryUrl, example.url) : null))
       .filter((url): url is string => Boolean(url)) ?? [])
-  ].filter((url, index, all) => all.indexOf(url) === index);
+  ]
+    .filter((url, index, all) => all.indexOf(url) === index)
+    .filter((url) => {
+      assertDiscoveryResourceOriginAllowed(url, env);
+      return true;
+    })
+    .slice(0, MAX_DISCOVERY_EXAMPLES);
 
   const [guideText, schemaText, promptText, ...exampleTexts] = await Promise.all([
     fetchTextResource(guideUrl),
@@ -521,7 +576,7 @@ async function loadChatBuilderResourceBundle(discoveryUrl: string): Promise<stri
     ...exampleUrls.map((url) => fetchTextResource(url))
   ]);
 
-  return [
+  const bundle = [
     "SFCR discovery bundle:",
     JSON.stringify(discovery, null, 2),
     "\nNotebook manifest:",
@@ -534,24 +589,78 @@ async function loadChatBuilderResourceBundle(discoveryUrl: string): Promise<stri
     promptText,
     ...exampleTexts.map((exampleText, index) => `\nNotebook example ${index + 1}:\n${exampleText}`)
   ].join("\n");
+
+  if (bundle.length > MAX_DISCOVERY_BUNDLE_LENGTH) {
+    throw new Error("SFCR discovery bundle is too large.");
+  }
+
+  return bundle;
 }
 
 async function fetchJsonResource<T>(url: string): Promise<T> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${url}`);
+  const text = await fetchTextResource(url);
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(`Failed to parse ${url}`);
   }
-
-  return (await response.json()) as T;
 }
 
 async function fetchTextResource(url: string): Promise<string> {
-  const response = await fetch(url);
+  const cachedResponse = await readCachedResource(url);
+  if (cachedResponse) {
+    return readLimitedText(cachedResponse, url);
+  }
+
+  const response = await fetch(url, {
+    cf: { cacheTtl: DISCOVERY_CACHE_TTL_SECONDS, cacheEverything: true }
+  } as RequestInit);
   if (!response.ok) {
     throw new Error(`Failed to fetch ${url}`);
   }
 
-  return response.text();
+  await writeCachedResource(url, response.clone());
+  return readLimitedText(response, url);
+}
+
+async function readCachedResource(url: string): Promise<Response | null> {
+  const cache = getDefaultCache();
+  if (!cache) {
+    return null;
+  }
+
+  const response = await cache.match(url);
+  return response && response.ok ? response : null;
+}
+
+async function writeCachedResource(url: string, response: Response): Promise<void> {
+  const cache = getDefaultCache();
+  if (!cache) {
+    return;
+  }
+
+  const headers = new Headers(response.headers);
+  headers.set("Cache-Control", `public, max-age=${DISCOVERY_CACHE_TTL_SECONDS}`);
+  await cache.put(url, new Response(response.body, { status: response.status, headers }));
+}
+
+function getDefaultCache(): Cache | null {
+  const cacheStorage = globalThis.caches as CacheStorageWithDefault | undefined;
+  return cacheStorage?.default ?? null;
+}
+
+async function readLimitedText(response: Response, url: string): Promise<string> {
+  const contentLength = Number(response.headers.get("Content-Length"));
+  if (Number.isFinite(contentLength) && contentLength > MAX_DISCOVERY_RESOURCE_LENGTH) {
+    throw new Error(`Fetched resource is too large: ${url}`);
+  }
+
+  const text = await response.text();
+  if (text.length > MAX_DISCOVERY_RESOURCE_LENGTH) {
+    throw new Error(`Fetched resource is too large: ${url}`);
+  }
+
+  return text;
 }
 
 function resolveDocumentResourceUrl(baseUrl: string, resourceUrl: string): string {
@@ -587,6 +696,10 @@ function parseList(value: string | undefined): string[] {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function isString(value: string | null): value is string {
+  return typeof value === "string";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

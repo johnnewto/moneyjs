@@ -9,6 +9,7 @@
     "dev": "node scripts/dev-node.mjs",
     "dev:wrangler": "pnpm dlx wrangler dev",
     "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }

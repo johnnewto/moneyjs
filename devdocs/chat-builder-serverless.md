@@ -24,6 +24,7 @@ Edit `packages/chat-api/.dev.vars`:
 ```text
 OPENAI_API_KEY=sk-your-key
 ALLOWED_ORIGINS=http://localhost:5173,https://johnnewto.github.io
+DISCOVERY_ALLOWED_ORIGINS=http://localhost:5173,https://johnnewto.github.io
 BETA_PASSWORD=
 MAX_OUTPUT_TOKENS=8000
 OPENAI_MODEL_ALLOWLIST=gpt-5.4,gpt-5.5,gpt-4.1,o3
@@ -126,9 +127,12 @@ The API validates:
 - prompt length
 - message count and message length
 - discovery URL format
+- discovery URL origin, using `DISCOVERY_ALLOWED_ORIGINS` or `ALLOWED_ORIGINS` when the discovery allowlist is unset
 - presence of `OPENAI_API_KEY`
 
-The API then loads the SFCR discovery bundle server-side and calls:
+The API then loads the SFCR discovery bundle server-side. Discovery resources are capped at 250 KB each, the assembled bundle is capped at 1 MB, and only the first five unique example notebooks are included. The deployed Worker also uses a 10-minute public-resource cache when Cloudflare's default cache is available.
+
+After assembling the trusted discovery bundle, the API calls:
 
 ```text
 https://api.openai.com/v1/responses
@@ -180,6 +184,7 @@ Configure production variables in Cloudflare or `packages/chat-api/wrangler.toml
 
 ```text
 ALLOWED_ORIGINS=https://johnnewto.github.io
+DISCOVERY_ALLOWED_ORIGINS=https://johnnewto.github.io
 MAX_OUTPUT_TOKENS=8000
 OPENAI_MODEL_ALLOWLIST=gpt-5.4,gpt-5.5,gpt-4.1,o3
 ```
