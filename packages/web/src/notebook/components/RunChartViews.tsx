@@ -9,13 +9,17 @@ import type { useNotebookRunner } from "../useNotebookRunner";
 export function RunCellView({
   cell,
   cells,
+  runner,
   variableDescriptions
 }: {
   cell: RunCell;
   cells: NotebookCell[];
+  runner: ReturnType<typeof useNotebookRunner>;
   variableDescriptions: VariableDescriptions;
 }) {
   const baselineStartPeriod = resolveEffectiveScenarioStartPeriod(cells, cell);
+  const result = runner.getResult(cell.id);
+  const warnings = result?.warnings ?? [];
 
   return (
     <div className="notebook-run-summary">
@@ -62,6 +66,18 @@ export function RunCellView({
               </ul>
             </div>
           ))}
+        </div>
+      ) : null}
+      {warnings.length > 0 ? (
+        <div className="notebook-run-warnings" role="status" aria-label="Run warnings">
+          <div className="notebook-run-warning-heading">Warnings</div>
+          <ul className="notebook-run-warning-list">
+            {warnings.map((warning, index) => (
+              <li key={`${warning.code}-${warning.message}-${index}`} className="notebook-run-warning-item">
+                {warning.message}
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
     </div>

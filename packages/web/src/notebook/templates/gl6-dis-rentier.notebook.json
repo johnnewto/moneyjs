@@ -1,7 +1,10 @@
 {
   "id": "gl6-dis-rentier-notebook",
   "title": "GL6 DIS Rentier Notebook",
-  "metadata": { "version": 1, "template": "gl6-dis-rentier" },
+  "metadata": {
+    "version": 1,
+    "template": "gl6-dis-rentier"
+  },
   "cells": [
     {
       "id": "intro",
@@ -14,12 +17,49 @@
       "type": "matrix",
       "title": "DIS rentier balance sheet",
       "sourceRunCellId": "baseline-run",
-      "columns": ["Workers", "Rentiers", "Government", "Sum"],
-      "sectors": ["Workers", "Rentiers", "Government", ""],
+      "columns": [
+        "Workers",
+        "Rentiers",
+        "Government",
+        "Sum"
+      ],
+      "sectors": [
+        "Workers",
+        "Rentiers",
+        "Government",
+        ""
+      ],
       "rows": [
-        { "band": "Money", "label": "Money", "values": ["+Mhw", "+Mhr", "-Hs", "0"] },
-        { "band": "Bonds", "label": "Government bonds", "values": ["", "+Bh", "-Bs", "0"] },
-        { "band": "Net worth", "label": "Net worth", "values": ["-Vw", "-Vr", "+D", "0"] }
+        {
+          "band": "Money",
+          "label": "Money",
+          "values": [
+            "+Mhw",
+            "+Mhr",
+            "-Hs",
+            "0"
+          ]
+        },
+        {
+          "band": "Bonds",
+          "label": "Government bonds",
+          "values": [
+            "",
+            "+Bh",
+            "-Bs",
+            "0"
+          ]
+        },
+        {
+          "band": "Net worth",
+          "label": "Net worth",
+          "values": [
+            "-Vw",
+            "-Vr",
+            "+D",
+            "0"
+          ]
+        }
       ],
       "description": "Stylized balance-sheet matrix for the distributive DIS model with workers, rentiers, and the government.",
       "note": "Workers hold their saving as money, while rentiers split wealth between money and government bonds."
@@ -29,17 +69,99 @@
       "type": "matrix",
       "title": "DIS rentier transactions-flow matrix",
       "sourceRunCellId": "baseline-run",
-      "columns": ["Workers", "Rentiers", "Firms", "Government"],
-      "sectors": ["Workers", "Rentiers", "Firms", "Government"],
+      "columns": [
+        "Workers",
+        "Rentiers",
+        "Firms",
+        "Government"
+      ],
+      "sectors": [
+        "Workers",
+        "Rentiers",
+        "Firms",
+        "Government"
+      ],
       "rows": [
-        { "band": "Consumption", "label": "Consumption", "values": ["-Cw", "-Cr", "+C", ""] },
-        { "band": "Government", "label": "Government spending", "values": ["", "", "+G", "-G"] },
-        { "band": "Wages", "label": "Wages", "values": ["+WB", "", "-WB", ""] },
-        { "band": "Profits", "label": "Profits", "values": ["", "+F", "-F", ""] },
-        { "band": "Taxes", "label": "Taxes", "values": ["-Tw", "-Tr", "", "+T"] },
-        { "band": "Bond interest", "label": "Bond interest", "values": ["", "+lag(rb) * lag(Bh)", "", "-lag(rb) * lag(Bs)"] },
-        { "band": "Money", "label": "Change money", "values": ["-d(Mhw)", "-d(Mhr)", "", "+d(Hs)"] },
-        { "band": "Bonds", "label": "Change bonds", "values": ["", "-d(Bh)", "", "+d(Bs)"] }
+        {
+          "band": "Consumption",
+          "label": "Consumption",
+          "values": [
+            "-Cw",
+            "-Cr",
+            "+C",
+            ""
+          ]
+        },
+        {
+          "band": "Government",
+          "label": "Government spending",
+          "values": [
+            "",
+            "",
+            "+G",
+            "-G"
+          ]
+        },
+        {
+          "band": "Wages",
+          "label": "Wages",
+          "values": [
+            "+WB",
+            "",
+            "-WB",
+            ""
+          ]
+        },
+        {
+          "band": "Profits",
+          "label": "Profits",
+          "values": [
+            "",
+            "+F",
+            "-F",
+            ""
+          ]
+        },
+        {
+          "band": "Taxes",
+          "label": "Taxes",
+          "values": [
+            "-Tw",
+            "-Tr",
+            "",
+            "+T"
+          ]
+        },
+        {
+          "band": "Bond interest",
+          "label": "Bond interest",
+          "values": [
+            "",
+            "+lag(rb) * lag(Bh)",
+            "",
+            "-lag(rb) * lag(Bs)"
+          ]
+        },
+        {
+          "band": "Money",
+          "label": "Change money",
+          "values": [
+            "-d(Mhw)",
+            "-d(Mhr)",
+            "",
+            "+d(Hs)"
+          ]
+        },
+        {
+          "band": "Bonds",
+          "label": "Change bonds",
+          "values": [
+            "",
+            "-d(Bh)",
+            "",
+            "+d(Bs)"
+          ]
+        }
       ],
       "description": "Transactions-flow matrix for the rentier extension, showing class-based income distribution and government-liability financing.",
       "note": "The money-versus-bonds split appears only on the rentier side, reflecting class-based portfolio behavior."
@@ -48,22 +170,11 @@
       "id": "transaction-flow-sequence",
       "type": "sequence",
       "title": "DIS rentier transaction flow sequence",
-      "source": { "kind": "matrix", "matrixCellId": "transaction-flow" },
-      "description": "Sequence view of the distributive DIS accounting flows for the selected period."
-    },
-    {
-      "id": "equation-dependency-graph",
-      "type": "sequence",
-      "title": "DIS rentier equation dependency graph",
       "source": {
-        "kind": "dependency",
-        "modelId": "equations",
-        "stripSectorSource": "columns",
-        "showAccountingStrips": true,
-        "showExogenous": false
+        "kind": "matrix",
+        "matrixCellId": "transaction-flow"
       },
-      "description": "Dependency view showing how wages, profits, taxes, government debt, and portfolio allocation interact in the rentier variant.",
-      "note": "The largest same-period feedback block comes from output, disposable incomes, and class-specific consumption."
+      "description": "Sequence view of the distributive DIS accounting flows for the selected period."
     },
     {
       "id": "equations",
@@ -71,31 +182,156 @@
       "title": "DIS rentier model",
       "modelId": "equations",
       "equations": [
-        { "id": "eq-0-lambda_b", "name": "lambda_b", "desc": "Rentier target share of wealth allocated to government bonds.", "expression": "lambda0 + lambda1 * rb" },
-        { "id": "eq-1-C", "name": "C", "desc": "Total consumption demand.", "expression": "Cw + Cr" },
-        { "id": "eq-2-Y", "name": "Y", "desc": "Output set by aggregate demand.", "expression": "C + G" },
-        { "id": "eq-3-WB", "name": "WB", "desc": "Wage bill paid to workers.", "expression": "omega * Y" },
-        { "id": "eq-4-F", "name": "F", "desc": "Firms' profits distributed to rentiers.", "expression": "Y - WB" },
-        { "id": "eq-5-Tw", "name": "Tw", "desc": "Taxes paid by workers.", "expression": "theta_w * WB" },
-        { "id": "eq-6-Tr", "name": "Tr", "desc": "Taxes paid by rentiers on profit and bond income.", "expression": "theta_r * (F + lag(rb) * lag(Bh))" },
-        { "id": "eq-7-YDw", "name": "YDw", "desc": "Workers' disposable income.", "expression": "WB - Tw" },
-        { "id": "eq-8-YDr", "name": "YDr", "desc": "Rentiers' disposable income.", "expression": "F + lag(rb) * lag(Bh) - Tr" },
-        { "id": "eq-9-Cw", "name": "Cw", "desc": "Workers' consumption out of income and lagged money balances.", "expression": "alpha_w * YDw + alpha_wv * lag(Vw)" },
-        { "id": "eq-10-Cr", "name": "Cr", "desc": "Rentiers' consumption out of income and lagged wealth.", "expression": "alpha_r * YDr + alpha_rv * lag(Vr)" },
-        { "id": "eq-11-Vw", "name": "Vw", "desc": "Workers' money wealth.", "expression": "lag(Vw) + YDw - Cw" },
-        { "id": "eq-12-Vr", "name": "Vr", "desc": "Rentiers' total wealth.", "expression": "lag(Vr) + YDr - Cr" },
-        { "id": "eq-13-V", "name": "V", "desc": "Total private wealth.", "expression": "Vw + Vr" },
-        { "id": "eq-14-Bh", "name": "Bh", "desc": "Rentiers' holdings of government bonds.", "expression": "lambda_b * Vr" },
-        { "id": "eq-15-Mhr", "name": "Mhr", "desc": "Rentiers' money balances.", "expression": "Vr - Bh" },
-        { "id": "eq-16-Mhw", "name": "Mhw", "desc": "Workers' money balances.", "expression": "Vw" },
-        { "id": "eq-17-Mh", "name": "Mh", "desc": "Aggregate money holdings of households.", "expression": "Mhw + Mhr" },
-        { "id": "eq-18-T", "name": "T", "desc": "Total taxes collected by government.", "expression": "Tw + Tr" },
-        { "id": "eq-19-D", "name": "D", "desc": "Government debt accumulated from the deficit plus bond interest.", "expression": "lag(D) + G + lag(rb) * lag(Bs) - T" },
-        { "id": "eq-20-Bs", "name": "Bs", "desc": "Government bond supply, supplied on demand to rentiers.", "expression": "Bh" },
-        { "id": "eq-21-Hs", "name": "Hs", "desc": "Government money liability as the residual part of debt.", "expression": "D - Bs" },
-        { "id": "eq-22-gap", "name": "gap", "desc": "Accounting gap between private money demand and government money supply.", "expression": "Mh - Hs" },
-        { "id": "eq-23-profit_share", "name": "profit_share", "desc": "Share of output accruing as profits.", "expression": "F / Y" },
-        { "id": "eq-24-worker_share", "name": "worker_share", "desc": "Share of output accruing as wages.", "expression": "WB / Y" }
+        {
+          "id": "eq-0-lambda_b",
+          "name": "lambda_b",
+          "desc": "Rentier target share of wealth allocated to government bonds.",
+          "expression": "lambda0 + lambda1 * rb"
+        },
+        {
+          "id": "eq-1-C",
+          "name": "C",
+          "desc": "Total consumption demand.",
+          "expression": "Cw + Cr"
+        },
+        {
+          "id": "eq-2-Y",
+          "name": "Y",
+          "desc": "Output set by aggregate demand.",
+          "expression": "C + G"
+        },
+        {
+          "id": "eq-3-WB",
+          "name": "WB",
+          "desc": "Wage bill paid to workers.",
+          "expression": "omega * Y"
+        },
+        {
+          "id": "eq-4-F",
+          "name": "F",
+          "desc": "Firms' profits distributed to rentiers.",
+          "expression": "Y - WB"
+        },
+        {
+          "id": "eq-5-Tw",
+          "name": "Tw",
+          "desc": "Taxes paid by workers.",
+          "expression": "theta_w * WB"
+        },
+        {
+          "id": "eq-6-Tr",
+          "name": "Tr",
+          "desc": "Taxes paid by rentiers on profit and bond income.",
+          "expression": "theta_r * (F + lag(rb) * lag(Bh))"
+        },
+        {
+          "id": "eq-7-YDw",
+          "name": "YDw",
+          "desc": "Workers' disposable income.",
+          "expression": "WB - Tw"
+        },
+        {
+          "id": "eq-8-YDr",
+          "name": "YDr",
+          "desc": "Rentiers' disposable income.",
+          "expression": "F + lag(rb) * lag(Bh) - Tr"
+        },
+        {
+          "id": "eq-9-Cw",
+          "name": "Cw",
+          "desc": "Workers' consumption out of income and lagged money balances.",
+          "expression": "alpha_w * YDw + alpha_wv * lag(Vw)"
+        },
+        {
+          "id": "eq-10-Cr",
+          "name": "Cr",
+          "desc": "Rentiers' consumption out of income and lagged wealth.",
+          "expression": "alpha_r * YDr + alpha_rv * lag(Vr)"
+        },
+        {
+          "id": "eq-11-Vw",
+          "name": "Vw",
+          "desc": "Workers' money wealth.",
+          "expression": "lag(Vw) + YDw - Cw"
+        },
+        {
+          "id": "eq-12-Vr",
+          "name": "Vr",
+          "desc": "Rentiers' total wealth.",
+          "expression": "lag(Vr) + YDr - Cr"
+        },
+        {
+          "id": "eq-13-V",
+          "name": "V",
+          "desc": "Total private wealth.",
+          "expression": "Vw + Vr"
+        },
+        {
+          "id": "eq-14-Bh",
+          "name": "Bh",
+          "desc": "Rentiers' holdings of government bonds.",
+          "expression": "lambda_b * Vr"
+        },
+        {
+          "id": "eq-15-Mhr",
+          "name": "Mhr",
+          "desc": "Rentiers' money balances.",
+          "expression": "Vr - Bh"
+        },
+        {
+          "id": "eq-16-Mhw",
+          "name": "Mhw",
+          "desc": "Workers' money balances.",
+          "expression": "Vw"
+        },
+        {
+          "id": "eq-17-Mh",
+          "name": "Mh",
+          "desc": "Aggregate money holdings of households.",
+          "expression": "Mhw + Mhr"
+        },
+        {
+          "id": "eq-18-T",
+          "name": "T",
+          "desc": "Total taxes collected by government.",
+          "expression": "Tw + Tr"
+        },
+        {
+          "id": "eq-19-D",
+          "name": "D",
+          "desc": "Government debt accumulated from the deficit plus bond interest.",
+          "expression": "lag(D) + G + lag(rb) * lag(Bs) - T"
+        },
+        {
+          "id": "eq-20-Bs",
+          "name": "Bs",
+          "desc": "Government bond supply, supplied on demand to rentiers.",
+          "expression": "Bh"
+        },
+        {
+          "id": "eq-21-Hs",
+          "name": "Hs",
+          "desc": "Government money liability as the residual part of debt.",
+          "expression": "D - Bs"
+        },
+        {
+          "id": "eq-22-gap",
+          "name": "gap",
+          "desc": "Accounting gap between private money demand and government money supply.",
+          "expression": "Mh - Hs"
+        },
+        {
+          "id": "eq-23-profit_share",
+          "name": "profit_share",
+          "desc": "Share of output accruing as profits.",
+          "expression": "F / Y"
+        },
+        {
+          "id": "eq-24-worker_share",
+          "name": "worker_share",
+          "desc": "Share of output accruing as wages.",
+          "expression": "WB / Y"
+        }
       ],
       "collapsed": true
     },
@@ -123,17 +359,83 @@
       "title": "Externals",
       "modelId": "equations",
       "externals": [
-        { "id": "ext-0-G", "name": "G", "desc": "Government spending.", "kind": "constant", "valueText": "25" },
-        { "id": "ext-1-rb", "name": "rb", "desc": "Interest rate on government bonds.", "kind": "constant", "valueText": "0.02" },
-        { "id": "ext-2-omega", "name": "omega", "desc": "Wage share in current output.", "kind": "constant", "valueText": "0.72" },
-        { "id": "ext-3-theta_w", "name": "theta_w", "desc": "Tax rate on wage income.", "kind": "constant", "valueText": "0.2" },
-        { "id": "ext-4-theta_r", "name": "theta_r", "desc": "Tax rate on rentier income.", "kind": "constant", "valueText": "0.3" },
-        { "id": "ext-5-alpha_w", "name": "alpha_w", "desc": "Workers' propensity to consume out of current disposable income.", "kind": "constant", "valueText": "0.96" },
-        { "id": "ext-6-alpha_wv", "name": "alpha_wv", "desc": "Workers' propensity to consume out of lagged wealth.", "kind": "constant", "valueText": "0.02" },
-        { "id": "ext-7-alpha_r", "name": "alpha_r", "desc": "Rentiers' propensity to consume out of current disposable income.", "kind": "constant", "valueText": "0.55" },
-        { "id": "ext-8-alpha_rv", "name": "alpha_rv", "desc": "Rentiers' propensity to consume out of lagged wealth.", "kind": "constant", "valueText": "0.03" },
-        { "id": "ext-9-lambda0", "name": "lambda0", "desc": "Base portfolio preference for government bonds.", "kind": "constant", "valueText": "0.35" },
-        { "id": "ext-10-lambda1", "name": "lambda1", "desc": "Interest sensitivity of rentier bond demand.", "kind": "constant", "valueText": "2.5" }
+        {
+          "id": "ext-0-G",
+          "name": "G",
+          "desc": "Government spending.",
+          "kind": "constant",
+          "valueText": "25"
+        },
+        {
+          "id": "ext-1-rb",
+          "name": "rb",
+          "desc": "Interest rate on government bonds.",
+          "kind": "constant",
+          "valueText": "0.02"
+        },
+        {
+          "id": "ext-2-omega",
+          "name": "omega",
+          "desc": "Wage share in current output.",
+          "kind": "constant",
+          "valueText": "0.72"
+        },
+        {
+          "id": "ext-3-theta_w",
+          "name": "theta_w",
+          "desc": "Tax rate on wage income.",
+          "kind": "constant",
+          "valueText": "0.2"
+        },
+        {
+          "id": "ext-4-theta_r",
+          "name": "theta_r",
+          "desc": "Tax rate on rentier income.",
+          "kind": "constant",
+          "valueText": "0.3"
+        },
+        {
+          "id": "ext-5-alpha_w",
+          "name": "alpha_w",
+          "desc": "Workers' propensity to consume out of current disposable income.",
+          "kind": "constant",
+          "valueText": "0.96"
+        },
+        {
+          "id": "ext-6-alpha_wv",
+          "name": "alpha_wv",
+          "desc": "Workers' propensity to consume out of lagged wealth.",
+          "kind": "constant",
+          "valueText": "0.02"
+        },
+        {
+          "id": "ext-7-alpha_r",
+          "name": "alpha_r",
+          "desc": "Rentiers' propensity to consume out of current disposable income.",
+          "kind": "constant",
+          "valueText": "0.55"
+        },
+        {
+          "id": "ext-8-alpha_rv",
+          "name": "alpha_rv",
+          "desc": "Rentiers' propensity to consume out of lagged wealth.",
+          "kind": "constant",
+          "valueText": "0.03"
+        },
+        {
+          "id": "ext-9-lambda0",
+          "name": "lambda0",
+          "desc": "Base portfolio preference for government bonds.",
+          "kind": "constant",
+          "valueText": "0.35"
+        },
+        {
+          "id": "ext-10-lambda1",
+          "name": "lambda1",
+          "desc": "Interest sensitivity of rentier bond demand.",
+          "kind": "constant",
+          "valueText": "2.5"
+        }
       ],
       "collapsed": true
     },
@@ -143,15 +445,51 @@
       "title": "Initial values",
       "modelId": "equations",
       "initialValues": [
-        { "id": "init-0-Vw", "name": "Vw", "valueText": "5" },
-        { "id": "init-1-Vr", "name": "Vr", "valueText": "60" },
-        { "id": "init-2-Bh", "name": "Bh", "valueText": "24" },
-        { "id": "init-3-Bs", "name": "Bs", "valueText": "24" },
-        { "id": "init-4-D", "name": "D", "valueText": "65" },
-        { "id": "init-5-Mhw", "name": "Mhw", "valueText": "5" },
-        { "id": "init-6-Mhr", "name": "Mhr", "valueText": "36" },
-        { "id": "init-7-Mh", "name": "Mh", "valueText": "41" },
-        { "id": "init-8-Hs", "name": "Hs", "valueText": "41" }
+        {
+          "id": "init-0-Vw",
+          "name": "Vw",
+          "valueText": "5"
+        },
+        {
+          "id": "init-1-Vr",
+          "name": "Vr",
+          "valueText": "60"
+        },
+        {
+          "id": "init-2-Bh",
+          "name": "Bh",
+          "valueText": "24"
+        },
+        {
+          "id": "init-3-Bs",
+          "name": "Bs",
+          "valueText": "24"
+        },
+        {
+          "id": "init-4-D",
+          "name": "D",
+          "valueText": "65"
+        },
+        {
+          "id": "init-5-Mhw",
+          "name": "Mhw",
+          "valueText": "5"
+        },
+        {
+          "id": "init-6-Mhr",
+          "name": "Mhr",
+          "valueText": "36"
+        },
+        {
+          "id": "init-7-Mh",
+          "name": "Mh",
+          "valueText": "41"
+        },
+        {
+          "id": "init-8-Hs",
+          "name": "Hs",
+          "valueText": "41"
+        }
       ],
       "collapsed": true
     },
@@ -169,17 +507,41 @@
       "type": "chart",
       "title": "Baseline distribution and portfolio variables",
       "sourceRunCellId": "baseline-run",
-      "variables": ["Y", "Cw", "Cr", "Vr", "Bh", "Mh", "gap"],
+      "variables": [
+        "Y",
+        "Cw",
+        "Cr",
+        "Vr",
+        "Bh",
+        "Mh",
+        "gap"
+      ],
       "axisMode": "separate",
       "axisSnapTolarance": 0.5,
-      "seriesRanges": { "gap": { "includeZero": true } }
+      "seriesRanges": {
+        "gap": {
+          "includeZero": true
+        }
+      }
     },
     {
       "id": "baseline-table",
       "type": "table",
       "title": "Baseline variable summary",
       "sourceRunCellId": "baseline-run",
-      "variables": ["Y", "WB", "F", "YDw", "YDr", "Vw", "Vr", "Bh", "Mh", "D", "gap"]
+      "variables": [
+        "Y",
+        "WB",
+        "F",
+        "YDw",
+        "YDr",
+        "Vw",
+        "Vr",
+        "Bh",
+        "Mh",
+        "D",
+        "gap"
+      ]
     },
     {
       "id": "scenario-1-note",
@@ -195,8 +557,16 @@
       "scenario": {
         "shocks": [
           {
-            "rangeInclusive": [10, 40],
-            "variables": { "G": { "kind": "constant", "value": 30 } }
+            "rangeInclusive": [
+              10,
+              40
+            ],
+            "variables": {
+              "G": {
+                "kind": "constant",
+                "value": 30
+              }
+            }
           }
         ]
       },
@@ -210,7 +580,12 @@
       "type": "chart",
       "title": "Scenario 1 output and wealth",
       "sourceRunCellId": "scenario-1-run",
-      "variables": ["Y", "F", "Vr", "D"],
+      "variables": [
+        "Y",
+        "F",
+        "Vr",
+        "D"
+      ],
       "axisMode": "separate",
       "axisSnapTolarance": 0.5
     },
@@ -228,8 +603,16 @@
       "scenario": {
         "shocks": [
           {
-            "rangeInclusive": [10, 45],
-            "variables": { "lambda0": { "kind": "constant", "value": 0.5 } }
+            "rangeInclusive": [
+              10,
+              45
+            ],
+            "variables": {
+              "lambda0": {
+                "kind": "constant",
+                "value": 0.5
+              }
+            }
           }
         ]
       },
@@ -243,10 +626,34 @@
       "type": "chart",
       "title": "Scenario 2 portfolio composition",
       "sourceRunCellId": "scenario-2-run",
-      "variables": ["Bh", "Mh", "Vr", "gap"],
+      "variables": [
+        "Bh",
+        "Mh",
+        "Vr",
+        "gap"
+      ],
       "axisMode": "separate",
       "axisSnapTolarance": 0.5,
-      "seriesRanges": { "gap": { "includeZero": true } }
+      "seriesRanges": {
+        "gap": {
+          "includeZero": true
+        }
+      }
+    },
+    {
+      "id": "equation-dependency-graph",
+      "type": "sequence",
+      "title": "DIS rentier equation dependency graph",
+      "source": {
+        "kind": "dependency",
+        "modelId": "equations",
+        "stripSectorSource": "columns",
+        "showAccountingStrips": true,
+        "showExogenous": false
+      },
+      "description": "Dependency view showing how wages, profits, taxes, government debt, and portfolio allocation interact in the rentier variant.",
+      "note": "The largest same-period feedback block comes from output, disposable incomes, and class-specific consumption.",
+      "collapsed": true
     }
   ]
 }

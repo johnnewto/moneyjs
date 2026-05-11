@@ -674,7 +674,12 @@ function NotebookCellViewComponent({
           />
         ) : null}
         {isCollapsed ? null : cell.type === "run" ? (
-          <RunCellView cell={cell} cells={cells} variableDescriptions={variableDescriptions} />
+          <RunCellView
+            cell={cell}
+            cells={cells}
+            runner={runner}
+            variableDescriptions={variableDescriptions}
+          />
         ) : null}
         {showViewportDeferredPlaceholder ? (
           <DeferredNotebookCellPlaceholder cell={cell} />

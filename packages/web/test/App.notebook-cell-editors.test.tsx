@@ -8,6 +8,7 @@ import {
   fireEvent,
   getNotebookSourceTextArea,
   screen,
+  setSuccessfulNotebookRunner,
   setNotebookSourceFormat,
   setupAppTestEnv,
   userEvent
@@ -82,6 +83,29 @@ describe("App per-cell source editors", () => {
 
     expect(screen.getByRole("heading", { name: /updated baseline run/i })).toBeInTheDocument();
   }, 15000);
+
+  it("shows simulation warnings on successful run cells", async () => {
+    window.location.hash = "#/notebook";
+    setSuccessfulNotebookRunner("baseline-newton", {
+      ...structuredClone
+        ? structuredClone((await import("./appTestUtils")).bmwNotebookBaselineResult)
+        : (await import("./appTestUtils")).bmwNotebookBaselineResult,
+      warnings: [
+        {
+          code: "hidden-equation-not-fulfilled",
+          message: "Hidden equation is not fulfilled at period 4 for Ms and Mh",
+          path: "options.hiddenEquation"
+        }
+      ]
+    });
+
+    render(<App />);
+
+    expect(screen.getByRole("status", { name: /run warnings/i })).toBeInTheDocument();
+    expect(
+      screen.getByText(/hidden equation is not fulfilled at period 4 for ms and mh/i)
+    ).toBeInTheDocument();
+  });
 
   it("edits a matrix cell through the grid source editor", async () => {
     const user = userEvent.setup();

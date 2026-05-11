@@ -1,21 +1,81 @@
 {
   "id": "opensimplest-levy-notebook",
   "title": "OPENSIMPLEST Levy WP 1105 Aligned Model",
-  "metadata": { "version": 1, "template": "opensimplest-levy" },
+  "metadata": {
+    "version": 1,
+    "template": "opensimplest-levy"
+  },
   "cells": [
-    { "id": "overview", "type": "markdown", "title": "Overview", "source": "A Levy WP 1105 aligned OPENSIMPLEST notebook using superscripted paper-style variable names directly in the runnable model, including `H^P`, `H^S`, `B^P`, `B^S`, `B^{CB}`, `B^W`, `BF^P`, `yd^R`, and `yd^{HS}`. Exponentiation is written with `pow(base, exponent)`, leaving `^` available for paper notation in variable names." },
+    {
+      "id": "overview",
+      "type": "markdown",
+      "title": "Overview",
+      "source": "A Levy WP 1105 aligned OPENSIMPLEST notebook using superscripted paper-style variable names directly in the runnable model, including `H^P`, `H^S`, `B^P`, `B^S`, `B^{CB}`, `B^W`, `BF^P`, `yd^R`, and `yd^{HS}`. Exponentiation is written with `pow(base, exponent)`, leaving `^` available for paper notation in variable names."
+    },
     {
       "id": "balance-sheet",
       "type": "matrix",
       "title": "Balance sheet matrix",
       "sourceRunCellId": "baseline-run",
-      "columns": ["Private", "Government", "Central bank", "Rest of world", "Sum"],
-      "sectors": ["Private", "Government", "Central bank", "Rest of world", ""],
+      "columns": [
+        "Private",
+        "Government",
+        "Central bank",
+        "Rest of world",
+        "Sum"
+      ],
+      "sectors": [
+        "Private",
+        "Government",
+        "Central bank",
+        "Rest of world",
+        ""
+      ],
       "rows": [
-        { "band": "financial-assets", "label": "High-powered money", "values": ["+H^P", "", "-H^S", "", "0"] },
-        { "band": "financial-assets", "label": "Domestic bills", "values": ["+B^P", "-B^S", "+B^{CB}", "+B^W", "0"] },
-        { "band": "financial-assets", "label": "Foreign bills (domestic value)", "values": ["+BF^P * xr", "", "", "-BF^P * xr", "0"] },
-        { "band": "net-worth", "label": "Net worth", "values": ["-v", "+B^S", "", "+NFA", "0"] }
+        {
+          "band": "financial-assets",
+          "label": "High-powered money",
+          "values": [
+            "+H^P",
+            "",
+            "-H^S",
+            "",
+            "0"
+          ]
+        },
+        {
+          "band": "financial-assets",
+          "label": "Domestic bills",
+          "values": [
+            "+B^P",
+            "-B^S",
+            "+B^{CB}",
+            "+B^W",
+            "0"
+          ]
+        },
+        {
+          "band": "financial-assets",
+          "label": "Foreign bills (domestic value)",
+          "values": [
+            "+BF^P * xr",
+            "",
+            "",
+            "-BF^P * xr",
+            "0"
+          ]
+        },
+        {
+          "band": "net-worth",
+          "label": "Net worth",
+          "values": [
+            "-v",
+            "+B^S",
+            "",
+            "+NFA",
+            "0"
+          ]
+        }
       ],
       "description": "Compact balance-sheet view for the OPENSIMPLEST open-economy model."
     },
@@ -24,88 +84,528 @@
       "type": "matrix",
       "title": "Transactions-flow matrix",
       "sourceRunCellId": "baseline-run",
-      "columns": ["Production", "Private", "Government", "Central bank", "Rest of world", "Sum"],
-      "sectors": ["Private", "Government", "Central bank", "Rest of world", "", ""],
+      "columns": [
+        "Production",
+        "Private",
+        "Government",
+        "Central bank",
+        "Rest of world",
+        "Sum"
+      ],
+      "sectors": [
+        "Private",
+        "Government",
+        "Central bank",
+        "Rest of world",
+        "",
+        ""
+      ],
       "rows": [
-        { "band": "current", "label": "Government expenditure", "values": ["+g", "", "-g", "", "", "0"] },
-        { "band": "current", "label": "Private expenditure", "values": ["+pe", "-pe", "", "", "", "0"] },
-        { "band": "current", "label": "Taxes", "values": ["", "-t", "+t", "", "", "0"] },
-        { "band": "external", "label": "Exports", "values": ["+x", "", "", "", "-x", "0"] },
-        { "band": "external", "label": "Imports", "values": ["-im", "", "", "", "+im", "0"] },
-        { "band": "income", "label": "GDP income", "values": ["-y", "+y", "", "", "", "0"] },
-        { "band": "income", "label": "Interest on domestic bills", "values": ["", "+r * lag(B^P)", "-r * lag(B^S)", "+r * lag(B^{CB})", "+r * lag(B^W)", "0"] },
-        { "band": "income", "label": "Interest on foreign bills", "values": ["", "+r^F * lag(BF^P) * xr", "", "", "-r^F * lag(BF^P) * xr", "0"] },
-        { "band": "revaluation", "label": "Valuation gains", "values": ["", "+d(xr) * lag(BF^P)", "", "", "-d(xr) * lag(BF^P)", "0"] },
-        { "band": "income", "label": "Central-bank profits", "values": ["", "", "+F^{CB}", "-F^{CB}", "", "0"] },
-        { "band": "balances", "label": "Sectoral balances", "values": ["", "+NAFA", "-PSBR", "", "-CA", "0"] },
-        { "band": "financial", "label": "Change in money", "values": ["", "+d(H^P)", "", "-d(H^S)", "", "0"] },
-        { "band": "financial", "label": "Change in domestic bills", "values": ["", "+d(B^P)", "-d(B^S)", "+d(B^{CB})", "+d(B^W)", "0"] },
-        { "band": "financial", "label": "Change in foreign bills", "values": ["", "+d(BF^P) * xr", "", "", "-d(BF^P) * xr", "0"] },
-        { "band": "balances", "label": "Change in net worth", "values": ["", "-d(v)", "+d(B^S)", "", "+d(NFA)", "0"] }
+        {
+          "band": "current",
+          "label": "Government expenditure",
+          "values": [
+            "+g",
+            "",
+            "-g",
+            "",
+            "",
+            "0"
+          ]
+        },
+        {
+          "band": "current",
+          "label": "Private expenditure",
+          "values": [
+            "+pe",
+            "-pe",
+            "",
+            "",
+            "",
+            "0"
+          ]
+        },
+        {
+          "band": "current",
+          "label": "Taxes",
+          "values": [
+            "",
+            "-t",
+            "+t",
+            "",
+            "",
+            "0"
+          ]
+        },
+        {
+          "band": "external",
+          "label": "Exports",
+          "values": [
+            "+x",
+            "",
+            "",
+            "",
+            "-x",
+            "0"
+          ]
+        },
+        {
+          "band": "external",
+          "label": "Imports",
+          "values": [
+            "-im",
+            "",
+            "",
+            "",
+            "+im",
+            "0"
+          ]
+        },
+        {
+          "band": "income",
+          "label": "GDP income",
+          "values": [
+            "-y",
+            "+y",
+            "",
+            "",
+            "",
+            "0"
+          ]
+        },
+        {
+          "band": "income",
+          "label": "Interest on domestic bills",
+          "values": [
+            "",
+            "+r * lag(B^P)",
+            "-r * lag(B^S)",
+            "+r * lag(B^{CB})",
+            "+r * lag(B^W)",
+            "0"
+          ]
+        },
+        {
+          "band": "income",
+          "label": "Interest on foreign bills",
+          "values": [
+            "",
+            "+r^F * lag(BF^P) * xr",
+            "",
+            "",
+            "-r^F * lag(BF^P) * xr",
+            "0"
+          ]
+        },
+        {
+          "band": "revaluation",
+          "label": "Valuation gains",
+          "values": [
+            "",
+            "+d(xr) * lag(BF^P)",
+            "",
+            "",
+            "-d(xr) * lag(BF^P)",
+            "0"
+          ]
+        },
+        {
+          "band": "income",
+          "label": "Central-bank profits",
+          "values": [
+            "",
+            "",
+            "+F^{CB}",
+            "-F^{CB}",
+            "",
+            "0"
+          ]
+        },
+        {
+          "band": "balances",
+          "label": "Sectoral balances",
+          "values": [
+            "",
+            "+NAFA",
+            "-PSBR",
+            "",
+            "-CA",
+            "0"
+          ]
+        },
+        {
+          "band": "financial",
+          "label": "Change in money",
+          "values": [
+            "",
+            "+d(H^P)",
+            "",
+            "-d(H^S)",
+            "",
+            "0"
+          ]
+        },
+        {
+          "band": "financial",
+          "label": "Change in domestic bills",
+          "values": [
+            "",
+            "+d(B^P)",
+            "-d(B^S)",
+            "+d(B^{CB})",
+            "+d(B^W)",
+            "0"
+          ]
+        },
+        {
+          "band": "financial",
+          "label": "Change in foreign bills",
+          "values": [
+            "",
+            "+d(BF^P) * xr",
+            "",
+            "",
+            "-d(BF^P) * xr",
+            "0"
+          ]
+        },
+        {
+          "band": "balances",
+          "label": "Change in net worth",
+          "values": [
+            "",
+            "-d(v)",
+            "+d(B^S)",
+            "",
+            "+d(NFA)",
+            "0"
+          ]
+        }
       ],
       "description": "Transactions-flow matrix for the OPENSIMPLEST open-economy model."
     },
-    { "id": "model-sequence", "type": "sequence", "title": "model sequence", "source": { "kind": "matrix", "matrixCellId": "transactions-flow" }, "description": "Canvas-rendered sequence view generated from the transactions-flow matrix at the selected simulation period.", "note": "Use Reset and Next step to manually reveal flows in order." },
-    { "id": "equation-dependency-graph", "type": "sequence", "title": "dependency graph", "source": { "kind": "dependency", "modelId": "opensimplest-levy", "showAccountingStrips": true, "showExogenous": false }, "description": "Dependency view of the equations organized by sector strips and accounting bands.", "note": "Use this alongside the transaction-flow sequence to compare accounting flows with equation structure." },
+    {
+      "id": "model-sequence",
+      "type": "sequence",
+      "title": "model sequence",
+      "source": {
+        "kind": "matrix",
+        "matrixCellId": "transactions-flow"
+      },
+      "description": "Canvas-rendered sequence view generated from the transactions-flow matrix at the selected simulation period.",
+      "note": "Use Reset and Next step to manually reveal flows in order."
+    },
     {
       "id": "model-equations",
       "type": "equations",
       "title": "OPENSIMPLEST model",
       "modelId": "opensimplest-levy",
       "equations": [
-        { "id": "eq-0-yd^R", "name": "yd^R", "desc": "Regular disposable income (excluding capital gains).", "expression": "y + (lag(r) * lag(B^P) + lag(r^F) * lag(BF^P) * xr) - t" },
-        { "id": "eq-1-yd^{HS}", "name": "yd^{HS}", "desc": "Haig-Simons disposable income (including valuation effects).", "expression": "yd^R + d(xr) * lag(BF^P)" },
-        { "id": "eq-2-v", "name": "v", "desc": "Household net financial wealth.", "expression": "I(yd^{HS} - pe)" },
-        { "id": "eq-3-t", "name": "t", "desc": "Tax revenue.", "expression": "theta * (y + lag(r) * lag(B^P) + lag(r^F) * lag(BF^P) * xr)" },
-        { "id": "eq-4-y", "name": "y", "desc": "GDP / income (output).", "expression": "pe + g + x - im" },
-        { "id": "eq-5-pe", "name": "pe", "desc": "Household consumption.", "expression": "alpha1 * yd^{HS} + alpha2 * lag(v)" },
-        { "id": "eq-6-NAFA", "name": "NAFA", "desc": "Net acquisition of financial assets by domestic private sector (NAFA).", "expression": "PSBR + CA" },
-        { "id": "eq-7-x", "name": "x", "desc": "Exports of goods and services.", "expression": "exp(eps0 + eps1 * log(lag(xr)) + eps2 * log(y^F))" },
-        { "id": "eq-8-im", "name": "im", "desc": "Imports of goods and services.", "expression": "exp(mu0 - mu1 * log(lag(xr)) + mu2 * log(y))" },
-        { "id": "eq-9-TB", "name": "TB", "desc": "Trade balance (exports - imports).", "expression": "x - im" },
-        { "id": "eq-10-CA", "name": "CA", "desc": "Current account balance (CA > 0 = surplus).", "expression": "TB + lag(r^F) * lag(BF^P) * xr - lag(r) * lag(B^W)" },
-        { "id": "eq-11-NFA", "name": "NFA", "desc": "Net foreign assets (country external position, NETFA).", "expression": "I(CA + d(xr) * lag(BF^P))" },
-        { "id": "eq-12-B^W", "name": "B^W", "desc": "Foreign holdings of domestic government bills (residual from NETFA identity).", "expression": "BF^P * xr - NFA" },
-        { "id": "eq-13-B^P", "name": "B^P", "desc": "Domestic bills held by households.", "expression": "v * (lambda10 + lambda11 * r - lambda12 * r^F)" },
-        { "id": "eq-14-BF^P", "name": "BF^P", "desc": "Foreign bills held by domestic households (in foreign currency).", "expression": "v * (lambda20 - lambda21 * r + lambda22 * r^F) / xr" },
-        { "id": "eq-15-H^P", "name": "H^P", "desc": "Money balances held by households.", "expression": "v - B^P - BF^P * xr" },
-        { "id": "eq-16-F^{CB}", "name": "F^{CB}", "desc": "Central bank profits.", "expression": "lag(r) * lag(B^{CB})" },
-        { "id": "eq-17-B^{CB}", "name": "B^{CB}", "desc": "Domestic bills held by the central bank.", "expression": "B^S - B^P - B^W" },
-        { "id": "eq-18-H^S", "name": "H^S", "desc": "Money supply (high-powered money).", "expression": "B^{CB}" },
-        { "id": "eq-19-PSBR", "name": "PSBR", "desc": "Public Sector Borrowing Requirement (government deficit).", "expression": "g + lag(r) * lag(B^S) - t - F^{CB}" },
-        { "id": "eq-20-B^S", "name": "B^S", "desc": "Total stock of domestic government bills.", "expression": "I(PSBR)" },
-        { "id": "eq-21-xr", "name": "xr", "desc": "Nominal exchange rate (domestic currency per unit of foreign currency).", "expression": "I(phi * (-lag(CA)))" },
-        { "id": "eq-22-sectoral_check", "name": "sectoral_check", "desc": "Sectoral balance identity (NAFA - PSBR - CA, should equal zero).", "expression": "NAFA - PSBR - CA" }
+        {
+          "id": "eq-0-yd^R",
+          "name": "yd^R",
+          "desc": "Regular disposable income (excluding capital gains).",
+          "expression": "y + (lag(r) * lag(B^P) + lag(r^F) * lag(BF^P) * xr) - t"
+        },
+        {
+          "id": "eq-1-yd^{HS}",
+          "name": "yd^{HS}",
+          "desc": "Haig-Simons disposable income (including valuation effects).",
+          "expression": "yd^R + d(xr) * lag(BF^P)"
+        },
+        {
+          "id": "eq-2-v",
+          "name": "v",
+          "desc": "Household net financial wealth.",
+          "expression": "I(yd^{HS} - pe)"
+        },
+        {
+          "id": "eq-3-t",
+          "name": "t",
+          "desc": "Tax revenue.",
+          "expression": "theta * (y + lag(r) * lag(B^P) + lag(r^F) * lag(BF^P) * xr)"
+        },
+        {
+          "id": "eq-4-y",
+          "name": "y",
+          "desc": "GDP / income (output).",
+          "expression": "pe + g + x - im"
+        },
+        {
+          "id": "eq-5-pe",
+          "name": "pe",
+          "desc": "Household consumption.",
+          "expression": "alpha1 * yd^{HS} + alpha2 * lag(v)"
+        },
+        {
+          "id": "eq-6-NAFA",
+          "name": "NAFA",
+          "desc": "Net acquisition of financial assets by domestic private sector (NAFA).",
+          "expression": "PSBR + CA"
+        },
+        {
+          "id": "eq-7-x",
+          "name": "x",
+          "desc": "Exports of goods and services.",
+          "expression": "exp(eps0 + eps1 * log(lag(xr)) + eps2 * log(y^F))"
+        },
+        {
+          "id": "eq-8-im",
+          "name": "im",
+          "desc": "Imports of goods and services.",
+          "expression": "exp(mu0 - mu1 * log(lag(xr)) + mu2 * log(y))"
+        },
+        {
+          "id": "eq-9-TB",
+          "name": "TB",
+          "desc": "Trade balance (exports - imports).",
+          "expression": "x - im"
+        },
+        {
+          "id": "eq-10-CA",
+          "name": "CA",
+          "desc": "Current account balance (CA > 0 = surplus).",
+          "expression": "TB + lag(r^F) * lag(BF^P) * xr - lag(r) * lag(B^W)"
+        },
+        {
+          "id": "eq-11-NFA",
+          "name": "NFA",
+          "desc": "Net foreign assets (country external position, NETFA).",
+          "expression": "I(CA + d(xr) * lag(BF^P))"
+        },
+        {
+          "id": "eq-12-B^W",
+          "name": "B^W",
+          "desc": "Foreign holdings of domestic government bills (residual from NETFA identity).",
+          "expression": "BF^P * xr - NFA"
+        },
+        {
+          "id": "eq-13-B^P",
+          "name": "B^P",
+          "desc": "Domestic bills held by households.",
+          "expression": "v * (lambda10 + lambda11 * r - lambda12 * r^F)"
+        },
+        {
+          "id": "eq-14-BF^P",
+          "name": "BF^P",
+          "desc": "Foreign bills held by domestic households (in foreign currency).",
+          "expression": "v * (lambda20 - lambda21 * r + lambda22 * r^F) / xr"
+        },
+        {
+          "id": "eq-15-H^P",
+          "name": "H^P",
+          "desc": "Money balances held by households.",
+          "expression": "v - B^P - BF^P * xr"
+        },
+        {
+          "id": "eq-16-F^{CB}",
+          "name": "F^{CB}",
+          "desc": "Central bank profits.",
+          "expression": "lag(r) * lag(B^{CB})"
+        },
+        {
+          "id": "eq-17-B^{CB}",
+          "name": "B^{CB}",
+          "desc": "Domestic bills held by the central bank.",
+          "expression": "B^S - B^P - B^W"
+        },
+        {
+          "id": "eq-18-H^S",
+          "name": "H^S",
+          "desc": "Money supply (high-powered money).",
+          "expression": "B^{CB}"
+        },
+        {
+          "id": "eq-19-PSBR",
+          "name": "PSBR",
+          "desc": "Public Sector Borrowing Requirement (government deficit).",
+          "expression": "g + lag(r) * lag(B^S) - t - F^{CB}"
+        },
+        {
+          "id": "eq-20-B^S",
+          "name": "B^S",
+          "desc": "Total stock of domestic government bills.",
+          "expression": "I(PSBR)"
+        },
+        {
+          "id": "eq-21-xr",
+          "name": "xr",
+          "desc": "Nominal exchange rate (domestic currency per unit of foreign currency).",
+          "expression": "I(phi * (-lag(CA)))"
+        },
+        {
+          "id": "eq-22-sectoral_check",
+          "name": "sectoral_check",
+          "desc": "Sectoral balance identity (NAFA - PSBR - CA, should equal zero).",
+          "expression": "NAFA - PSBR - CA"
+        }
       ],
       "collapsed": true
     },
-    { "id": "model-solver", "type": "solver", "title": "Solver", "modelId": "opensimplest-levy", "options": { "periods": 150, "solverMethod": "NEWTON", "toleranceText": "1e-8", "maxIterations": 200, "defaultInitialValueText": "1e-15", "hiddenLeftVariable": "", "hiddenRightVariable": "", "hiddenToleranceText": "0.00001", "relativeHiddenTolerance": false }, "collapsed": true },
+    {
+      "id": "model-solver",
+      "type": "solver",
+      "title": "Solver",
+      "modelId": "opensimplest-levy",
+      "options": {
+        "periods": 150,
+        "solverMethod": "NEWTON",
+        "toleranceText": "1e-8",
+        "maxIterations": 200,
+        "defaultInitialValueText": "1e-15",
+        "hiddenLeftVariable": "",
+        "hiddenRightVariable": "",
+        "hiddenToleranceText": "0.00001",
+        "relativeHiddenTolerance": false
+      },
+      "collapsed": true
+    },
     {
       "id": "model-externals",
       "type": "externals",
       "title": "Externals",
       "modelId": "opensimplest-levy",
       "externals": [
-        { "id": "ext-0-g", "name": "g", "desc": "Government expenditure on goods and services.", "kind": "constant", "valueText": "16" },
-        { "id": "ext-1-r", "name": "r", "desc": "Interest rate on domestic government bills.", "kind": "constant", "valueText": "0.03" },
-        { "id": "ext-2-r^F", "name": "r^F", "desc": "Interest rate on foreign bills (exogenous).", "kind": "constant", "valueText": "0.03" },
-        { "id": "ext-3-y^F", "name": "y^F", "desc": "Foreign income (exogenous).", "kind": "constant", "valueText": "80" },
-        { "id": "ext-4-alpha1", "name": "alpha1", "desc": "Propensity to consume out of disposable income.", "kind": "constant", "valueText": "0.7548" },
-        { "id": "ext-5-alpha2", "name": "alpha2", "desc": "Propensity to consume out of wealth.", "kind": "constant", "valueText": "0.13333" },
-        { "id": "ext-6-theta", "name": "theta", "desc": "Average tax rate on income.", "kind": "constant", "valueText": "0.2" },
-        { "id": "ext-7-eps0", "name": "eps0", "desc": "Export equation constant term.", "kind": "constant", "valueText": "-2.1" },
-        { "id": "ext-8-eps1", "name": "eps1", "desc": "Export elasticity with respect to the exchange rate.", "kind": "constant", "valueText": "0.7" },
-        { "id": "ext-9-eps2", "name": "eps2", "desc": "Export elasticity with respect to foreign income.", "kind": "constant", "valueText": "1.2" },
-        { "id": "ext-10-mu0", "name": "mu0", "desc": "Import equation constant term.", "kind": "constant", "valueText": "-2.1" },
-        { "id": "ext-11-mu1", "name": "mu1", "desc": "Import elasticity with respect to the exchange rate.", "kind": "constant", "valueText": "0.7" },
-        { "id": "ext-12-mu2", "name": "mu2", "desc": "Import elasticity with respect to domestic income.", "kind": "constant", "valueText": "1.2" },
-        { "id": "ext-13-lambda10", "name": "lambda10", "desc": "Portfolio share parameter: domestic bills (baseline).", "kind": "constant", "valueText": "0.7" },
-        { "id": "ext-14-lambda11", "name": "lambda11", "desc": "Portfolio sensitivity to domestic interest rate (domestic bills).", "kind": "constant", "valueText": "5" },
-        { "id": "ext-15-lambda12", "name": "lambda12", "desc": "Portfolio sensitivity to foreign interest rate (domestic bills).", "kind": "constant", "valueText": "5" },
-        { "id": "ext-16-lambda20", "name": "lambda20", "desc": "Portfolio share parameter: foreign bills (baseline).", "kind": "constant", "valueText": "0.25" },
-        { "id": "ext-17-lambda21", "name": "lambda21", "desc": "Portfolio sensitivity to domestic interest rate (foreign bills).", "kind": "constant", "valueText": "5" },
-        { "id": "ext-18-lambda22", "name": "lambda22", "desc": "Portfolio sensitivity to foreign interest rate (foreign bills).", "kind": "constant", "valueText": "5" },
-        { "id": "ext-19-phi", "name": "phi", "desc": "Exchange-rate adjustment speed.", "kind": "constant", "valueText": "0.01" }
+        {
+          "id": "ext-0-g",
+          "name": "g",
+          "desc": "Government expenditure on goods and services.",
+          "kind": "constant",
+          "valueText": "16"
+        },
+        {
+          "id": "ext-1-r",
+          "name": "r",
+          "desc": "Interest rate on domestic government bills.",
+          "kind": "constant",
+          "valueText": "0.03"
+        },
+        {
+          "id": "ext-2-r^F",
+          "name": "r^F",
+          "desc": "Interest rate on foreign bills (exogenous).",
+          "kind": "constant",
+          "valueText": "0.03"
+        },
+        {
+          "id": "ext-3-y^F",
+          "name": "y^F",
+          "desc": "Foreign income (exogenous).",
+          "kind": "constant",
+          "valueText": "80"
+        },
+        {
+          "id": "ext-4-alpha1",
+          "name": "alpha1",
+          "desc": "Propensity to consume out of disposable income.",
+          "kind": "constant",
+          "valueText": "0.7548"
+        },
+        {
+          "id": "ext-5-alpha2",
+          "name": "alpha2",
+          "desc": "Propensity to consume out of wealth.",
+          "kind": "constant",
+          "valueText": "0.13333"
+        },
+        {
+          "id": "ext-6-theta",
+          "name": "theta",
+          "desc": "Average tax rate on income.",
+          "kind": "constant",
+          "valueText": "0.2"
+        },
+        {
+          "id": "ext-7-eps0",
+          "name": "eps0",
+          "desc": "Export equation constant term.",
+          "kind": "constant",
+          "valueText": "-2.1"
+        },
+        {
+          "id": "ext-8-eps1",
+          "name": "eps1",
+          "desc": "Export elasticity with respect to the exchange rate.",
+          "kind": "constant",
+          "valueText": "0.7"
+        },
+        {
+          "id": "ext-9-eps2",
+          "name": "eps2",
+          "desc": "Export elasticity with respect to foreign income.",
+          "kind": "constant",
+          "valueText": "1.2"
+        },
+        {
+          "id": "ext-10-mu0",
+          "name": "mu0",
+          "desc": "Import equation constant term.",
+          "kind": "constant",
+          "valueText": "-2.1"
+        },
+        {
+          "id": "ext-11-mu1",
+          "name": "mu1",
+          "desc": "Import elasticity with respect to the exchange rate.",
+          "kind": "constant",
+          "valueText": "0.7"
+        },
+        {
+          "id": "ext-12-mu2",
+          "name": "mu2",
+          "desc": "Import elasticity with respect to domestic income.",
+          "kind": "constant",
+          "valueText": "1.2"
+        },
+        {
+          "id": "ext-13-lambda10",
+          "name": "lambda10",
+          "desc": "Portfolio share parameter: domestic bills (baseline).",
+          "kind": "constant",
+          "valueText": "0.7"
+        },
+        {
+          "id": "ext-14-lambda11",
+          "name": "lambda11",
+          "desc": "Portfolio sensitivity to domestic interest rate (domestic bills).",
+          "kind": "constant",
+          "valueText": "5"
+        },
+        {
+          "id": "ext-15-lambda12",
+          "name": "lambda12",
+          "desc": "Portfolio sensitivity to foreign interest rate (domestic bills).",
+          "kind": "constant",
+          "valueText": "5"
+        },
+        {
+          "id": "ext-16-lambda20",
+          "name": "lambda20",
+          "desc": "Portfolio share parameter: foreign bills (baseline).",
+          "kind": "constant",
+          "valueText": "0.25"
+        },
+        {
+          "id": "ext-17-lambda21",
+          "name": "lambda21",
+          "desc": "Portfolio sensitivity to domestic interest rate (foreign bills).",
+          "kind": "constant",
+          "valueText": "5"
+        },
+        {
+          "id": "ext-18-lambda22",
+          "name": "lambda22",
+          "desc": "Portfolio sensitivity to foreign interest rate (foreign bills).",
+          "kind": "constant",
+          "valueText": "5"
+        },
+        {
+          "id": "ext-19-phi",
+          "name": "phi",
+          "desc": "Exchange-rate adjustment speed.",
+          "kind": "constant",
+          "valueText": "0.01"
+        }
       ],
       "collapsed": true
     },
@@ -115,35 +615,155 @@
       "title": "Initial values",
       "modelId": "opensimplest-levy",
       "initialValues": [
-        { "id": "init-0-xr", "name": "xr", "valueText": "1.141" },
-        { "id": "init-1-B^P", "name": "B^P", "valueText": "87.1" },
-        { "id": "init-2-BF^P", "name": "BF^P", "valueText": "21.775" },
-        { "id": "init-3-B^S", "name": "B^S", "valueText": "144.977" },
-        { "id": "init-4-B^W", "name": "B^W", "valueText": "24.668" },
-        { "id": "init-5-NFA", "name": "NFA", "valueText": "0.174775" },
-        { "id": "init-6-v", "name": "v", "valueText": "145.151775" },
-        { "id": "init-7-H^P", "name": "H^P", "valueText": "33.20675" },
-        { "id": "init-8-B^{CB}", "name": "B^{CB}", "valueText": "33.209" },
-        { "id": "init-9-H^S", "name": "H^S", "valueText": "33.209" },
-        { "id": "init-10-F^{CB}", "name": "F^{CB}", "valueText": "0.99627" },
-        { "id": "init-11-PSBR", "name": "PSBR", "valueText": "0" },
-        { "id": "init-12-CA", "name": "CA", "valueText": "0" },
-        { "id": "init-13-NAFA", "name": "NAFA", "valueText": "0" },
-        { "id": "init-14-y", "name": "y", "valueText": "80" },
-        { "id": "init-15-x", "name": "x", "valueText": "16" },
-        { "id": "init-16-im", "name": "im", "valueText": "16" },
-        { "id": "init-17-TB", "name": "TB", "valueText": "0" },
-        { "id": "init-18-t", "name": "t", "valueText": "16" },
-        { "id": "init-19-yd^R", "name": "yd^R", "valueText": "67.93252" },
-        { "id": "init-20-yd^{HS}", "name": "yd^{HS}", "valueText": "67.93252" },
-        { "id": "init-21-pe", "name": "pe", "valueText": "80" },
-        { "id": "init-22-sectoral_check", "name": "sectoral_check", "valueText": "0" }
+        {
+          "id": "init-0-xr",
+          "name": "xr",
+          "valueText": "1.141"
+        },
+        {
+          "id": "init-1-B^P",
+          "name": "B^P",
+          "valueText": "87.1"
+        },
+        {
+          "id": "init-2-BF^P",
+          "name": "BF^P",
+          "valueText": "21.775"
+        },
+        {
+          "id": "init-3-B^S",
+          "name": "B^S",
+          "valueText": "144.977"
+        },
+        {
+          "id": "init-4-B^W",
+          "name": "B^W",
+          "valueText": "24.668"
+        },
+        {
+          "id": "init-5-NFA",
+          "name": "NFA",
+          "valueText": "0.174775"
+        },
+        {
+          "id": "init-6-v",
+          "name": "v",
+          "valueText": "145.151775"
+        },
+        {
+          "id": "init-7-H^P",
+          "name": "H^P",
+          "valueText": "33.20675"
+        },
+        {
+          "id": "init-8-B^{CB}",
+          "name": "B^{CB}",
+          "valueText": "33.209"
+        },
+        {
+          "id": "init-9-H^S",
+          "name": "H^S",
+          "valueText": "33.209"
+        },
+        {
+          "id": "init-10-F^{CB}",
+          "name": "F^{CB}",
+          "valueText": "0.99627"
+        },
+        {
+          "id": "init-11-PSBR",
+          "name": "PSBR",
+          "valueText": "0"
+        },
+        {
+          "id": "init-12-CA",
+          "name": "CA",
+          "valueText": "0"
+        },
+        {
+          "id": "init-13-NAFA",
+          "name": "NAFA",
+          "valueText": "0"
+        },
+        {
+          "id": "init-14-y",
+          "name": "y",
+          "valueText": "80"
+        },
+        {
+          "id": "init-15-x",
+          "name": "x",
+          "valueText": "16"
+        },
+        {
+          "id": "init-16-im",
+          "name": "im",
+          "valueText": "16"
+        },
+        {
+          "id": "init-17-TB",
+          "name": "TB",
+          "valueText": "0"
+        },
+        {
+          "id": "init-18-t",
+          "name": "t",
+          "valueText": "16"
+        },
+        {
+          "id": "init-19-yd^R",
+          "name": "yd^R",
+          "valueText": "67.93252"
+        },
+        {
+          "id": "init-20-yd^{HS}",
+          "name": "yd^{HS}",
+          "valueText": "67.93252"
+        },
+        {
+          "id": "init-21-pe",
+          "name": "pe",
+          "valueText": "80"
+        },
+        {
+          "id": "init-22-sectoral_check",
+          "name": "sectoral_check",
+          "valueText": "0"
+        }
       ],
       "collapsed": true
     },
-    { "id": "baseline-run", "type": "run", "title": "Baseline", "mode": "baseline", "resultKey": "opensimplest_levy_baseline", "description": "Baseline simulation for the Levy WP 1105 aligned OPENSIMPLEST model over 150 periods.", "sourceModelId": "opensimplest-levy" },
-    { "id": "baseline-chart", "type": "chart", "title": "Baseline dynamics", "sourceRunCellId": "baseline-run", "variables": ["y", "x", "im", "CA", "xr", "v"], "axisMode": "separate", "axisSnapTolarance": 0.5 },
-    { "id": "scenario-note", "type": "markdown", "title": "Scenario", "source": "A permanent adverse export shock is introduced from period 5 by lowering the export intercept `eps0` from `-2.1` to `-2.2`. This reduces exports on impact, weakens the current account, and induces exchange-rate depreciation, which then partly stabilizes activity through the trade channel." },
+    {
+      "id": "baseline-run",
+      "type": "run",
+      "title": "Baseline",
+      "mode": "baseline",
+      "resultKey": "opensimplest_levy_baseline",
+      "description": "Baseline simulation for the Levy WP 1105 aligned OPENSIMPLEST model over 150 periods.",
+      "sourceModelId": "opensimplest-levy"
+    },
+    {
+      "id": "baseline-chart",
+      "type": "chart",
+      "title": "Baseline dynamics",
+      "sourceRunCellId": "baseline-run",
+      "variables": [
+        "y",
+        "x",
+        "im",
+        "CA",
+        "xr",
+        "v"
+      ],
+      "axisMode": "separate",
+      "axisSnapTolarance": 0.5
+    },
+    {
+      "id": "scenario-note",
+      "type": "markdown",
+      "title": "Scenario",
+      "source": "A permanent adverse export shock is introduced from period 5 by lowering the export intercept `eps0` from `-2.1` to `-2.2`. This reduces exports on impact, weakens the current account, and induces exchange-rate depreciation, which then partly stabilizes activity through the trade channel."
+    },
     {
       "id": "export-shock-run",
       "type": "run",
@@ -154,7 +774,12 @@
           {
             "startPeriodInclusive": 5,
             "endPeriodInclusive": 150,
-            "variables": { "eps0": { "kind": "constant", "value": -2.2 } }
+            "variables": {
+              "eps0": {
+                "kind": "constant",
+                "value": -2.2
+              }
+            }
           }
         ]
       },
@@ -163,6 +788,35 @@
       "resultKey": "opensimplest_levy_export_shock",
       "sourceModelId": "opensimplest-levy"
     },
-    { "id": "scenario-chart", "type": "chart", "title": "Scenario dynamics", "sourceRunCellId": "export-shock-run", "variables": ["y", "x", "im", "CA", "xr", "v"], "axisMode": "separate", "axisSnapTolarance": 0.5 }
+    {
+      "id": "scenario-chart",
+      "type": "chart",
+      "title": "Scenario dynamics",
+      "sourceRunCellId": "export-shock-run",
+      "variables": [
+        "y",
+        "x",
+        "im",
+        "CA",
+        "xr",
+        "v"
+      ],
+      "axisMode": "separate",
+      "axisSnapTolarance": 0.5
+    },
+    {
+      "id": "equation-dependency-graph",
+      "type": "sequence",
+      "title": "dependency graph",
+      "source": {
+        "kind": "dependency",
+        "modelId": "opensimplest-levy",
+        "showAccountingStrips": true,
+        "showExogenous": false
+      },
+      "description": "Dependency view of the equations organized by sector strips and accounting bands.",
+      "note": "Use this alongside the transaction-flow sequence to compare accounting flows with equation structure.",
+      "collapsed": true
+    }
   ]
 }

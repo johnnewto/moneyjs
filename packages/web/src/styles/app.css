@@ -3100,6 +3100,33 @@ body.panel-splitter-body-lock {
   padding-left: 1rem;
 }
 
+.notebook-run-warnings {
+  background: rgba(255, 251, 235, 0.92);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: 12px;
+  color: #92400e;
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.7rem;
+  padding: 0.55rem 0.7rem;
+}
+
+.notebook-run-warning-heading {
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.notebook-run-warning-list {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.notebook-run-warning-item {
+  line-height: 1.35;
+}
+
 .notebook-preview-panel {
   margin-top: 1rem;
 }
