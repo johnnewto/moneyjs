@@ -16,6 +16,11 @@
           "focus": ["minimum valid scaffold", "matrices", "sequences", "baseline"]
         },
         {
+          "id": "sim",
+          "url": "../notebook-examples/sim.notebook.json",
+          "focus": ["canonical SIM model", "baseline", "scenario", "government spending shock"]
+        },
+        {
           "id": "bmw",
           "url": "../notebook-examples/bmw.notebook.json",
           "focus": ["sectors", "bands", "baseline", "scenarios"]

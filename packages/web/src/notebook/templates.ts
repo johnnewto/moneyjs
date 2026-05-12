@@ -10,6 +10,7 @@ import opensimplestLevyNotebookJson from "./templates/opensimplest-levy.notebook
 import opensimplestNotebookJson from "./templates/opensimplest.notebook.json";
 import predatorPreyNotebookJson from "./templates/predator-prey.notebook.json";
 import simpleEpidemicNotebookJson from "./templates/simple-epidemic.notebook.json";
+import simNotebookJson from "./templates/sim.notebook.json";
 import solverOverviewNotebookJson from "./templates/solver-overview.notebook.json";
 import { notebookFromJson } from "./document";
 import type { NotebookDocument } from "./types";
@@ -27,6 +28,7 @@ export type NotebookTemplateId =
   | "opensimplest"
   | "predator-prey"
   | "simple-epidemic"
+  | "sim"
   | "solver-overview";
 export const DEFAULT_NOTEBOOK_TEMPLATE_ID: NotebookTemplateId = "bmw";
 
@@ -118,6 +120,13 @@ export const NOTEBOOK_TEMPLATES: Record<NotebookTemplateId, NotebookTemplateDefi
     description:
       "Runnable version of the legacy simple epidemic model with stock equations, a contact lookup approximation, and a baseline chart.",
     document: notebookFromJson(JSON.stringify(simpleEpidemicNotebookJson))
+  },
+  sim: {
+    id: "sim",
+    label: "SIM",
+    description:
+      "Godley-Lavoie SIM notebook with baseline, government-spending scenario, accounting matrices, and result views.",
+    document: notebookFromJson(JSON.stringify(simNotebookJson))
   },
   "solver-overview": {
     id: "solver-overview",

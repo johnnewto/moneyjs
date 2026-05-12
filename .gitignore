@@ -6,6 +6,7 @@ node_modules/
 package-lock.json
 .turbo/
 packages/*/dist/
+packages/*/eval-runs/
 packages/*/node_modules/
 packages/*/.turbo/
 packages/*/.dev.vars

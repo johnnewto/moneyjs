@@ -6,6 +6,8 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
+    "eval:chat-builder": "node evals/chat-builder/runChatBuilderEval.mjs",
+    "eval:chat-builder:live": "node evals/chat-builder/runChatBuilderEval.mjs --live",
     "format:notebooks": "node scripts/format-notebook-json.mjs",
     "units:report": "node scripts/unit-metadata-report.mjs",
     "lint": "tsc -p tsconfig.json --noEmit",

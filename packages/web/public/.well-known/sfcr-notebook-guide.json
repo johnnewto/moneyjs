@@ -15,6 +15,12 @@
   "preferredFormat": "markdown",
   "examples": [
     {
+      "id": "sim",
+      "label": "SIM notebook",
+      "url": "../notebook-examples/sim.notebook.json",
+      "focus": ["canonical SIM model", "baseline run", "government spending scenario"]
+    },
+    {
       "id": "bmw",
       "label": "BMW notebook",
       "url": "../notebook-examples/bmw.notebook.json",
@@ -30,6 +36,7 @@
   "instructions": [
     "Fetch guideUrl first and follow its schema and naming conventions.",
     "Start from starterTemplateUrl for the minimum valid notebook shape, then adapt from examples only when needed.",
+    "Use the SIM example for the smallest canonical Godley-Lavoie baseline and scenario notebook.",
     "Use the BMW example when generating matrix cells with sectors and bands.",
     "Use the rentier example when the model splits households or tracks distributional flows.",
     "Validate the final JSON against schemaUrl before returning it.",

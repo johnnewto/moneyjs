@@ -5,6 +5,8 @@
   "scripts": {
     "build": "pnpm --filter @sfcr/core build && pnpm --filter @sfcr/web build",
     "dev": "pnpm web:dev",
+    "eval:chat-builder": "pnpm --filter @sfcr/web run eval:chat-builder",
+    "eval:chat-builder:live": "pnpm --filter @sfcr/web run eval:chat-builder:live",
     "lint": "turbo run lint",
     "files:report": "rg --files packages | rg '\\.(ts|tsx)$' | xargs wc -l | sort -n",
     "test": "turbo run test",
