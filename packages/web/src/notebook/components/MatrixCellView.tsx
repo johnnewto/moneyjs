@@ -366,7 +366,11 @@ export function MatrixCellView({
                   selectedPeriodIndex
                 }}
               >
-                <div ref={matrixHeaderScrollRef} className="notebook-matrix-wrap notebook-matrix-wrap-virtualized-header">
+                <div
+                  ref={matrixHeaderScrollRef}
+                  className="notebook-oversize-scroll notebook-matrix-wrap notebook-matrix-wrap-virtualized-header"
+                  data-drag-scroll-ignore="true"
+                >
                   <table className="notebook-matrix-table notebook-matrix-table-virtualized">
                     {matrixColumnGroup}
                     <thead>{matrixHeaderRow}</thead>
@@ -378,8 +382,10 @@ export function MatrixCellView({
               ref={(node) => {
                 matrixDragScroll.dragScrollRef.current = node;
               }}
+              data-drag-scroll-ignore="true"
               className={[
                 "notebook-matrix-wrap",
+                "notebook-oversize-scroll",
                 matrixDragScroll.dragScrollProps.className,
                 isVirtualizedMatrix ? "notebook-matrix-wrap-virtualized-body" : undefined
               ]

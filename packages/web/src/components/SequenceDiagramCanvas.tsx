@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useDragScroll } from "../hooks/useDragScroll";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
 
 import type {
@@ -53,6 +54,7 @@ export function SequenceDiagramCanvas({
   variableDescriptions
 }: SequenceDiagramCanvasProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const canvasDragScroll = useDragScroll<HTMLDivElement>();
   const [width, setWidth] = useState(MIN_CANVAS_WIDTH);
   const [highlightAnimationSeed, setHighlightAnimationSeed] = useState(0);
   const previousHighlightRef = useRef<number | null>(null);
@@ -75,9 +77,14 @@ export function SequenceDiagramCanvas({
 
   useEffect(() => {
     function updateWidth(): void {
+      const wrapper = wrapperRef.current;
+      const wrapperStyles = wrapper ? window.getComputedStyle(wrapper) : null;
+      const horizontalPadding = wrapperStyles
+        ? Number.parseFloat(wrapperStyles.paddingLeft) + Number.parseFloat(wrapperStyles.paddingRight)
+        : 0;
       const nextWidth = Math.max(
         MIN_CANVAS_WIDTH,
-        Math.round(wrapperRef.current?.clientWidth ?? MIN_CANVAS_WIDTH)
+        Math.round((wrapper?.clientWidth ?? MIN_CANVAS_WIDTH) - horizontalPadding)
       );
       setWidth((current) => (current === nextWidth ? current : nextWidth));
     }
@@ -105,12 +112,23 @@ export function SequenceDiagramCanvas({
   }, [highlightedStepIndex]);
 
   return (
-    <div ref={wrapperRef} className="sequence-canvas-shell">
+    <div
+      ref={(node) => {
+        wrapperRef.current = node;
+        canvasDragScroll.dragScrollRef.current = node;
+      }}
+      className={`sequence-canvas-shell notebook-oversize-scroll ${canvasDragScroll.dragScrollProps.className}`}
+      data-drag-scroll-ignore="true"
+      onClickCapture={canvasDragScroll.dragScrollProps.onClickCapture}
+      onMouseDown={canvasDragScroll.dragScrollProps.onMouseDown}
+    >
       <svg
         className="sequence-canvas"
         aria-label="Sequence diagram"
         role="img"
         viewBox={`0 0 ${layout.width} ${layout.height}`}
+        width={layout.width}
+        height={layout.height}
       >
         <defs>
           <linearGradient id="sequence-background" x1="0" y1="0" x2="0" y2="1">

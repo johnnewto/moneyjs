@@ -7,7 +7,7 @@ import {
   type MouseEvent as ReactMouseEvent
 } from "react";
 
-const DEFAULT_DIVIDER_WIDTH_PX = 12;
+const DEFAULT_DIVIDER_WIDTH_PX = 8;
 const DEFAULT_KEYBOARD_STEP_PX = 40;
 
 interface UsePanelSplitterOptions {

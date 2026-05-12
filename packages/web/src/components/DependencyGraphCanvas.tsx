@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useDragScroll } from "../hooks/useDragScroll";
 
 import type { VariableDescriptions } from "../lib/variableDescriptions";
 import type { DependencyRowMembership, DependencyRowTopology } from "../notebook/dependencyRows";
@@ -62,6 +63,7 @@ export function DependencyGraphCanvas({
   debugOverlay = false
 }: DependencyGraphCanvasProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const canvasDragScroll = useDragScroll<HTMLDivElement>();
   const [width, setWidth] = useState(MIN_CANVAS_WIDTH);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const snapshot = useMemo(
@@ -114,9 +116,14 @@ export function DependencyGraphCanvas({
 
   useEffect(() => {
     function updateWidth(): void {
+      const wrapper = wrapperRef.current;
+      const wrapperStyles = wrapper ? window.getComputedStyle(wrapper) : null;
+      const horizontalPadding = wrapperStyles
+        ? Number.parseFloat(wrapperStyles.paddingLeft) + Number.parseFloat(wrapperStyles.paddingRight)
+        : 0;
       const nextWidth = Math.max(
         MIN_CANVAS_WIDTH,
-        Math.round(wrapperRef.current?.clientWidth ?? MIN_CANVAS_WIDTH)
+        Math.round((wrapper?.clientWidth ?? MIN_CANVAS_WIDTH) - horizontalPadding)
       );
       setWidth((current) => (current === nextWidth ? current : nextWidth));
     }
@@ -134,7 +141,16 @@ export function DependencyGraphCanvas({
   }, []);
 
   return (
-    <div ref={wrapperRef} className="sequence-canvas-shell dependency-graph-shell">
+    <div
+      ref={(node) => {
+        wrapperRef.current = node;
+        canvasDragScroll.dragScrollRef.current = node;
+      }}
+      className={`sequence-canvas-shell dependency-graph-shell notebook-oversize-scroll ${canvasDragScroll.dragScrollProps.className}`}
+      data-drag-scroll-ignore="true"
+      onClickCapture={canvasDragScroll.dragScrollProps.onClickCapture}
+      onMouseDown={canvasDragScroll.dragScrollProps.onMouseDown}
+    >
         <svg
         className="sequence-canvas dependency-graph-canvas"
         aria-label={
@@ -144,6 +160,8 @@ export function DependencyGraphCanvas({
         }
         role="img"
         viewBox={`0 0 ${layout.width} ${layout.height}`}
+        width={layout.width}
+        height={layout.height}
       >
         <defs>
           <marker

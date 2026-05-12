@@ -8,6 +8,7 @@ import { VariableLabel } from "../../components/VariableLabel";
 import { buildRuntimeConfig, diagnoseBuildRuntime, validateEditorState, type EditorState } from "../../lib/editorModel";
 import { buildVariableDescriptions, type VariableDescriptions } from "../../lib/variableDescriptions";
 import { buildVariableUnitMetadata } from "../../lib/units";
+import { useDragScroll } from "../../hooks/useDragScroll";
 import { buildEditorStateFromSections, countModelSectionIssues, findEquationsCell, findExternalsCell, findInitialValuesCell, findSolverCell } from "../modelSections";
 import type { EquationsCell, ExternalsCell, ModelCell, NotebookCell, SolverCell } from "../types";
 import { NotebookLinkedEditorActions, NotebookLinkedEditorHeader } from "./NotebookCellHeader";
@@ -36,6 +37,7 @@ export function ModelCellView({
   }): void;
   title: string;
 }) {
+  const modelViewDragScroll = useDragScroll<HTMLElement>();
   const [draftEditor, setDraftEditor] = useState(cell.editor);
   const issues = validateEditorState(draftEditor);
   const buildDiagnostics = diagnoseBuildRuntime(draftEditor);
@@ -175,7 +177,14 @@ export function ModelCellView({
           />
         </div>
       ) : (
-        <section className="notebook-model-view" aria-label="Model view">
+        <section
+          ref={modelViewDragScroll.dragScrollRef}
+          className={`notebook-model-view notebook-oversize-scroll ${modelViewDragScroll.dragScrollProps.className}`}
+          aria-label="Model view"
+          data-drag-scroll-ignore="true"
+          onClickCapture={modelViewDragScroll.dragScrollProps.onClickCapture}
+          onMouseDown={modelViewDragScroll.dragScrollProps.onMouseDown}
+        >
           <div className="notebook-model-view-table" role="table" aria-label="Model equations">
             <div className="notebook-model-view-row notebook-model-view-row-header" role="row">
               <span role="columnheader">Variable</span>
@@ -315,6 +324,7 @@ export function EquationsCellView({
   onChange(equations: EquationsCell["equations"]): void;
   onToggleCollapsed(): void;
 }) {
+  const equationsViewDragScroll = useDragScroll<HTMLElement>();
   const [draftEquations, setDraftEquations] = useState(cell.equations);
   const editor = buildEditorStateFromSections({
     equations: draftEquations,
@@ -484,7 +494,14 @@ export function EquationsCellView({
           />
         </div>
       ) : (
-        <section className="notebook-model-view" aria-label="Model view">
+        <section
+          ref={equationsViewDragScroll.dragScrollRef}
+          className={`notebook-model-view notebook-oversize-scroll ${equationsViewDragScroll.dragScrollProps.className}`}
+          aria-label="Model view"
+          data-drag-scroll-ignore="true"
+          onClickCapture={equationsViewDragScroll.dragScrollProps.onClickCapture}
+          onMouseDown={equationsViewDragScroll.dragScrollProps.onMouseDown}
+        >
           <div className="notebook-model-view-table" role="table" aria-label="Model equations">
             <div className="notebook-model-view-row notebook-model-view-row-header" role="row">
               <span role="columnheader">Variable</span>

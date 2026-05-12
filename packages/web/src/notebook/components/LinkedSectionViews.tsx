@@ -7,6 +7,7 @@ import { VariableLabel } from "../../components/VariableLabel";
 import type { EditorState } from "../../lib/editorModel";
 import { buildVariableDescriptions, type VariableDescriptions } from "../../lib/variableDescriptions";
 import { buildVariableUnitMetadata } from "../../lib/units";
+import { useDragScroll } from "../../hooks/useDragScroll";
 import { countModelSectionIssues } from "../modelSections";
 import type { ExternalsCell, InitialValuesCell, SolverCell } from "../types";
 import {
@@ -30,6 +31,7 @@ export function SolverCellView({
   onChange(options: EditorState["options"]): void;
   onToggleCollapsed(): void;
 }) {
+  const solverViewDragScroll = useDragScroll<HTMLElement>();
   const options = cell.options;
   const hiddenEquationEnabled =
     options.hiddenLeftVariable.trim() !== "" && options.hiddenRightVariable.trim() !== "";
@@ -104,7 +106,14 @@ export function SolverCellView({
           <SolverPanel options={draftOptions} issues={issueMap} onChange={setDraftOptions} />
         </div>
       ) : (
-        <section className="notebook-model-view" aria-label="Solver view">
+        <section
+          ref={solverViewDragScroll.dragScrollRef}
+          className={`notebook-model-view notebook-oversize-scroll ${solverViewDragScroll.dragScrollProps.className}`}
+          aria-label="Solver view"
+          data-drag-scroll-ignore="true"
+          onClickCapture={solverViewDragScroll.dragScrollProps.onClickCapture}
+          onMouseDown={solverViewDragScroll.dragScrollProps.onMouseDown}
+        >
           <div className="notebook-model-view-header">
             <h3>Solver view</h3>
             <p className="panel-subtitle">
@@ -220,6 +229,7 @@ export function ExternalsCellView({
   onChange(externals: EditorState["externals"]): void;
   onToggleCollapsed(): void;
 }) {
+  const externalsViewDragScroll = useDragScroll<HTMLElement>();
   const issuePaths = Object.keys(issueMap);
   const seriesExternalCount = cell.externals.filter((external) => external.kind === "series").length;
   const variableDescriptions = useMemo(
@@ -304,7 +314,14 @@ export function ExternalsCellView({
           />
         </div>
       ) : (
-        <section className="notebook-model-view" aria-label="Externals view">
+        <section
+          ref={externalsViewDragScroll.dragScrollRef}
+          className={`notebook-model-view notebook-oversize-scroll ${externalsViewDragScroll.dragScrollProps.className}`}
+          aria-label="Externals view"
+          data-drag-scroll-ignore="true"
+          onClickCapture={externalsViewDragScroll.dragScrollProps.onClickCapture}
+          onMouseDown={externalsViewDragScroll.dragScrollProps.onMouseDown}
+        >
           <div className="notebook-model-view-table" role="table" aria-label="Externals">
             <div
               className="notebook-model-view-row notebook-model-view-row-header notebook-model-view-row-external"
@@ -414,6 +431,7 @@ export function InitialValuesCellView({
   onChange(initialValues: EditorState["initialValues"]): void;
   onToggleCollapsed(): void;
 }) {
+  const initialValuesViewDragScroll = useDragScroll<HTMLElement>();
   const issuePaths = Object.keys(issueMap);
   const [isEditingInitialValues, setIsEditingInitialValues] = useState(false);
   const [draftInitialValues, setDraftInitialValues] = useState(cell.initialValues);
@@ -508,7 +526,14 @@ export function InitialValuesCellView({
           />
         </div>
       ) : (
-        <section className="notebook-model-view" aria-label="Initial values view">
+        <section
+          ref={initialValuesViewDragScroll.dragScrollRef}
+          className={`notebook-model-view notebook-oversize-scroll ${initialValuesViewDragScroll.dragScrollProps.className}`}
+          aria-label="Initial values view"
+          data-drag-scroll-ignore="true"
+          onClickCapture={initialValuesViewDragScroll.dragScrollProps.onClickCapture}
+          onMouseDown={initialValuesViewDragScroll.dragScrollProps.onMouseDown}
+        >
           <div className="notebook-model-view-table" role="table" aria-label="Initial values">
             <div
               className="notebook-model-view-row notebook-model-view-row-header notebook-model-view-row-initial"
