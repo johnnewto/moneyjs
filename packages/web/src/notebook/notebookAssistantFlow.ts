@@ -1,4 +1,4 @@
-import type { NotebookAssistantToolRequest, NotebookAssistantToolResult } from "./notebookAssistantTools";
+import { getNotebookAssistantToolSyntax, type NotebookAssistantToolRequest, type NotebookAssistantToolResult } from "./notebookAssistantTools";
 import type { NotebookPatch } from "./notebookPatch";
 import type { ExternalsCell, EquationsCell, NotebookCell, NotebookDocument } from "./types";
 
@@ -72,6 +72,17 @@ export function extractNotebookAssistantToolRequests(text: string): NotebookAssi
         const args = record.args && typeof record.args === "object" && !Array.isArray(record.args)
           ? normalizeNotebookAssistantToolRequestArgs(name, record.args as Record<string, unknown>)
           : undefined;
+
+        if (name === "getSeriesWindow" && args && typeof args.variable !== "string" && isStringArray(args.variables)) {
+          return args.variables.map((variable) => ({
+            args: {
+              ...args,
+              variable
+            },
+            name
+          }));
+        }
+
         return [
           {
             args,
@@ -461,12 +472,74 @@ function normalizeNotebookAssistantToolRequestArgs(
   name: string,
   args: Record<string, unknown>
 ): Record<string, unknown> {
+  args = normalizeCommonOptionalArgs(args);
+
   if (
     name === "createUpdateChartVariablesPatch" &&
-    typeof args.chartId !== "string" &&
-    typeof args.chartCellId === "string"
+    typeof args.chartId !== "string"
   ) {
-    return { ...args, chartId: args.chartCellId };
+    const chartId = resolveStringAlias(args, ["chartId", "chartCellId", "cellId", "id", "chart"]);
+    if (chartId) {
+      return { ...args, chartId };
+    }
+  }
+
+  if (name === "createUpdateTableVariablesPatch" && typeof args.tableId !== "string") {
+    const tableId = resolveStringAlias(args, ["tableId", "tableCellId", "cellId", "id", "table"]);
+    if (tableId) {
+      return { ...args, tableId };
+    }
+  }
+
+  if (
+    (name === "createAddMatrixRowPatch" || name === "createUpdateMatrixRowPatch" || name === "createRemoveMatrixRowPatch") &&
+    typeof args.matrixId !== "string"
+  ) {
+    const matrixId = resolveStringAlias(args, ["matrixId", "matrixCellId", "cellId", "id", "matrix"]);
+    if (matrixId) {
+      return { ...args, matrixId };
+    }
+  }
+
+  if (name === "createUpdateMarkdownCellPatch" && typeof args.cellId !== "string") {
+    const cellId = resolveStringAlias(args, ["cellId", "markdownCellId", "id"]);
+    if (cellId) {
+      return { ...args, cellId };
+    }
+  }
+
+  if (name === "getMatrix" && typeof args.matrixId !== "string") {
+    const matrixId = resolveStringAlias(args, ["matrixId", "matrixCellId", "cellId", "id", "matrix"]);
+    if (matrixId) {
+      return { ...args, matrixId };
+    }
+  }
+
+  if (name === "getCurrentValues") {
+    const runId = resolveRunIdAlias(args);
+    const periodIndex = resolveIntegerAlias(args, ["periodIndex", "period", "index", "time"]);
+    return {
+      ...args,
+      ...(runId && runId !== args.runId ? { runId } : {}),
+      ...(periodIndex != null ? { periodIndex } : {})
+    };
+  }
+
+  if (name === "getSeries") {
+    const runId = resolveRunIdAlias(args);
+    return runId && runId !== args.runId ? { ...args, runId } : args;
+  }
+
+  if (name === "getSeriesWindow") {
+    const runId = resolveRunIdAlias(args);
+    const start = resolveIntegerAlias(args, ["start", "startIndex", "from", "fromIndex", "periodStart"]);
+    const end = resolveIntegerAlias(args, ["end", "endIndex", "to", "toIndex", "periodEnd"]);
+    return {
+      ...args,
+      ...(runId && runId !== args.runId ? { runId } : {}),
+      ...(start != null ? { start } : {}),
+      ...(end != null ? { end } : {})
+    };
   }
 
   if (
@@ -474,7 +547,11 @@ function normalizeNotebookAssistantToolRequestArgs(
     typeof args.variable !== "string" &&
     typeof args.equationName === "string"
   ) {
-    return { ...args, variable: args.equationName };
+    return normalizeEquationRoleArg({ ...args, variable: args.equationName });
+  }
+
+  if (name === "createAddEquationPatch" || name === "createUpdateEquationPatch") {
+    return normalizeEquationRoleArg(args);
   }
 
   if (name === "createUpdateParameterPatch") {
@@ -484,14 +561,257 @@ function normalizeNotebookAssistantToolRequestArgs(
     }
   }
 
+  if (name === "createAddExternalPatch") {
+    const normalizedArgs = { ...args };
+    if (typeof normalizedArgs.name !== "string" && typeof args.variable === "string") {
+      normalizedArgs.name = args.variable;
+    }
+    const value = resolveParameterPatchValue(normalizedArgs);
+    if (value !== normalizedArgs.value) {
+      normalizedArgs.value = value;
+    }
+    normalizedArgs.kind = normalizeExternalKindArg(normalizedArgs.kind, value);
+    return normalizedArgs;
+  }
+
+  if (name === "createUpdateExternalPatch") {
+    const normalizedArgs = { ...args };
+    const value = resolveParameterPatchValue(args);
+    if (value !== normalizedArgs.value) {
+      normalizedArgs.value = value;
+    }
+    if (normalizedArgs.kind != null) {
+      normalizedArgs.kind = normalizeExternalKindArg(normalizedArgs.kind, value);
+    }
+    return normalizedArgs;
+  }
+
+  if (name === "createAddInitialValuePatch" || name === "createUpdateInitialValuePatch") {
+    const value = resolveParameterPatchValue(args);
+    return value !== args.value ? { ...args, value } : args;
+  }
+
+  if (name === "createAddChartPatch" || name === "createAddTablePatch") {
+    const runId = resolveRunIdAlias(args);
+    return runId && runId !== args.runId ? { ...args, runId } : args;
+  }
+
   if (name === "createUpdateRunOptionsPatch") {
     const runId = resolveRunIdAlias(args);
-    if (runId && runId !== args.runId) {
-      return { ...args, runId };
-    }
+    const solverMethod = normalizeSolverMethodArg(args.solverMethod);
+    return {
+      ...args,
+      ...(runId && runId !== args.runId ? { runId } : {}),
+      ...(solverMethod ? { solverMethod } : {})
+    };
+  }
+
+  if (name === "createUpdateChartOptionsPatch") {
+    const chartId = resolveStringAlias(args, ["chartId", "chartCellId", "cellId", "id", "chart"]);
+    const axisMode = normalizeAxisModeArg(args.axisMode);
+    const timeRangeInclusive = resolveIntegerPairAlias(args, ["timeRangeInclusive", "timeRange", "periodRange", "range"]);
+    return {
+      ...args,
+      ...(chartId && chartId !== args.chartId ? { chartId } : {}),
+      ...(axisMode ? { axisMode } : {}),
+      ...(timeRangeInclusive ? { timeRangeInclusive } : {})
+    };
+  }
+
+  if (name === "createUpdateVariableUnitMetaPatch") {
+    const stockFlow = normalizeStockFlowArg(args.stockFlow ?? args.dimensionKind);
+    return {
+      ...args,
+      ...(stockFlow ? { stockFlow } : {})
+    };
   }
 
   return args;
+}
+
+function normalizeCommonOptionalArgs(args: Record<string, unknown>): Record<string, unknown> {
+  const normalizedArgs = { ...args };
+  for (const key of ["description", "title", "source", "cellTitle", "insertAfterVariable", "insertAfterLabel", "insertAfterCellTitle"] as const) {
+    const value = normalizedArgs[key];
+    if (typeof value === "number" || typeof value === "boolean") {
+      normalizedArgs[key] = String(value);
+    } else if (value != null && typeof value !== "string") {
+      delete normalizedArgs[key];
+    }
+  }
+
+  if (normalizedArgs.unitMeta != null) {
+    if (typeof normalizedArgs.unitMeta === "object" && !Array.isArray(normalizedArgs.unitMeta)) {
+      const unitMeta = normalizeUnitMetaArg(normalizedArgs.unitMeta as Record<string, unknown>);
+      if (unitMeta) {
+        normalizedArgs.unitMeta = unitMeta;
+      } else {
+        delete normalizedArgs.unitMeta;
+      }
+    } else {
+      delete normalizedArgs.unitMeta;
+    }
+  }
+
+  return normalizedArgs;
+}
+
+function normalizeEquationRoleArg(args: Record<string, unknown>): Record<string, unknown> {
+  if (typeof args.role !== "string") {
+    return args;
+  }
+
+  const role = args.role.trim().toLowerCase();
+  if (["accumulation", "identity", "target", "definition", "behavioral"].includes(role)) {
+    return role === args.role ? args : { ...args, role };
+  }
+
+  if (["constraint", "aux", "auxiliary", "derived", "calculation"].includes(role)) {
+    return { ...args, role: "definition" };
+  }
+
+  const { role: _role, ...rest } = args;
+  return rest;
+}
+
+function normalizeUnitMetaArg(unitMeta: Record<string, unknown>): Record<string, unknown> | undefined {
+  const stockFlow = normalizeStockFlowArg(unitMeta.stockFlow ?? unitMeta.dimensionKind);
+  const signature = normalizeUnitSignatureArg(unitMeta.signature ?? unitMeta.units);
+  const displayUnit = typeof unitMeta.displayUnit === "string" && unitMeta.displayUnit.trim() !== ""
+    ? unitMeta.displayUnit.trim()
+    : undefined;
+  const normalizedUnitMeta = {
+    ...(displayUnit ? { displayUnit } : {}),
+    ...(stockFlow ? { stockFlow } : {}),
+    ...(signature ? { signature } : {})
+  };
+  return Object.keys(normalizedUnitMeta).length > 0 ? normalizedUnitMeta : undefined;
+}
+
+function normalizeUnitSignatureArg(value: unknown): Record<string, number> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const record = value as Record<string, unknown>;
+  const signature: Record<string, number> = {};
+  const money = record.money ?? record.$ ?? record.currency;
+  const items = record.items ?? record.item ?? record.quantity;
+  const time = record.time ?? record.yr ?? record.year;
+  if (typeof money === "number" && Number.isFinite(money) && money !== 0) {
+    signature.money = money;
+  }
+  if (typeof items === "number" && Number.isFinite(items) && items !== 0) {
+    signature.items = items;
+  }
+  if (typeof time === "number" && Number.isFinite(time) && time !== 0) {
+    signature.time = time;
+  }
+  return Object.keys(signature).length > 0 ? signature : undefined;
+}
+
+function normalizeExternalKindArg(kind: unknown, value: unknown): "constant" | "series" {
+  if (typeof kind === "string") {
+    const normalizedKind = kind.trim().toLowerCase();
+    if (["series", "time-series", "timeseries", "time series", "vector", "array"].includes(normalizedKind)) {
+      return "series";
+    }
+    if (["constant", "parameter", "scalar", "number", "value"].includes(normalizedKind)) {
+      return "constant";
+    }
+  }
+
+  if (Array.isArray(value)) {
+    return "series";
+  }
+  if (typeof value === "string" && value.includes(",")) {
+    return "series";
+  }
+  return "constant";
+}
+
+function normalizeStockFlowArg(value: unknown): "stock" | "flow" | "aux" | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const stockFlow = value.trim().toLowerCase();
+  if (["stock", "level", "state"].includes(stockFlow)) {
+    return "stock";
+  }
+  if (["flow", "rate", "per-period", "per period"].includes(stockFlow)) {
+    return "flow";
+  }
+  if (["aux", "auxiliary", "definition", "derived", "dimensionless"].includes(stockFlow)) {
+    return "aux";
+  }
+  return undefined;
+}
+
+function normalizeSolverMethodArg(value: unknown): "GAUSS_SEIDEL" | "BROYDEN" | "NEWTON" | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const method = value.trim().toUpperCase().replace(/[\s-]+/g, "_");
+  if (method === "GAUSS_SEIDEL" || method === "BROYDEN" || method === "NEWTON") {
+    return method;
+  }
+  return undefined;
+}
+
+function normalizeAxisModeArg(value: unknown): "shared" | "separate" | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const mode = value.trim().toLowerCase();
+  if (["shared", "same", "single", "common"].includes(mode)) {
+    return "shared";
+  }
+  if (["separate", "split", "individual", "per-series", "per series"].includes(mode)) {
+    return "separate";
+  }
+  return undefined;
+}
+
+function resolveStringAlias(args: Record<string, unknown>, keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = args[key];
+    if (typeof value === "string" && value.trim() !== "") {
+      return value.trim();
+    }
+  }
+  return undefined;
+}
+
+function resolveIntegerPairAlias(args: Record<string, unknown>, keys: string[]): [number, number] | undefined {
+  for (const key of keys) {
+    const value = args[key];
+    if (
+      Array.isArray(value) &&
+      value.length === 2 &&
+      value.every((entry) => typeof entry === "number" && Number.isInteger(entry)) &&
+      (value[1] as number) >= (value[0] as number)
+    ) {
+      return [value[0] as number, value[1] as number];
+    }
+  }
+
+  const start = resolveIntegerAlias(args, ["start", "startIndex", "from", "fromIndex", "periodStart"]);
+  const end = resolveIntegerAlias(args, ["end", "endIndex", "to", "toIndex", "periodEnd"]);
+  return start != null && end != null && end >= start ? [start, end] : undefined;
+}
+
+function resolveIntegerAlias(args: Record<string, unknown>, keys: string[]): number | undefined {
+  for (const key of keys) {
+    const value = args[key];
+    if (typeof value === "number" && Number.isInteger(value)) {
+      return value;
+    }
+    if (typeof value === "string" && /^-?\d+$/.test(value.trim())) {
+      return Number(value.trim());
+    }
+  }
+  return undefined;
 }
 
 function resolveRunIdAlias(args: Record<string, unknown>): string | undefined {
@@ -526,7 +846,17 @@ function isPresentParameterPatchValue(value: unknown): value is string | number 
 function sanitizeNotebookAssistantToolResultForFollowup(
   result: NotebookAssistantToolResult
 ): NotebookAssistantToolResult {
-  if (!result.ok || !result.data || typeof result.data !== "object" || Array.isArray(result.data)) {
+  if (!result.ok) {
+    const expectedSyntax = getNotebookAssistantToolSyntax(result.name);
+    return expectedSyntax
+      ? {
+          ...result,
+          error: `${result.error} Expected syntax: ${expectedSyntax}`
+        }
+      : result;
+  }
+
+  if (!result.data || typeof result.data !== "object" || Array.isArray(result.data)) {
     return result;
   }
 

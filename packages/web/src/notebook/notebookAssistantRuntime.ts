@@ -11,7 +11,11 @@ import {
   getNotebookAssistantModeContract,
   type NotebookAssistantMode
 } from "./notebookAssistantFlow";
-import { summarizeNotebookAssistantTools } from "./notebookAssistantTools";
+import {
+  summarizeNotebookAssistantTools,
+  summarizeNotebookAssistantToolSyntax,
+  summarizeNotebookEquationExpressionSyntax
+} from "./notebookAssistantTools";
 import { summarizeCellTypes } from "./notebookSourceWorkflow";
 import type { NotebookDocument } from "./types";
 
@@ -171,6 +175,8 @@ export function buildNotebookAssistantContext(args: {
       `Cells: ${args.document.cells.length}`,
       `Cell types: ${summarizeCellTypes(args.document.cells)}`,
       `Available notebook assistant tools: ${summarizeNotebookAssistantTools()}`,
+      `Notebook assistant tool syntax:\n${summarizeNotebookAssistantToolSyntax(args.assistantMode)}`,
+      `Notebook equation expression syntax:\n${summarizeNotebookEquationExpressionSyntax()}`,
       `Selected period index: ${args.selectedPeriodIndex}`,
       `Completed run result count: ${args.resultCount}`,
       args.selectedVariable ? `Selected variable: ${args.selectedVariable}` : null,

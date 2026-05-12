@@ -587,6 +587,35 @@ describe("notebook assistant tools", () => {
 
     expect(
       dispatchNotebookAssistantTool(snapshot, {
+        name: "createAddEquationPatch",
+        args: {
+          modelId: "equations-newton",
+          name: "loan_ceiling",
+          expression: "lag(K)",
+          insertAfterVariable: "not_a_variable"
+        }
+      })
+    ).toEqual(
+      expect.objectContaining({
+        ok: true,
+        data: expect.objectContaining({
+          patch: expect.objectContaining({
+            operations: [
+              expect.objectContaining({
+                op: "add",
+                value: expect.objectContaining({
+                  name: "loan_ceiling",
+                  expression: "lag(K)"
+                })
+              })
+            ]
+          })
+        })
+      })
+    );
+
+    expect(
+      dispatchNotebookAssistantTool(snapshot, {
         name: "createUpdateEquationPatch",
         args: {
           modelId: "equations-newton",

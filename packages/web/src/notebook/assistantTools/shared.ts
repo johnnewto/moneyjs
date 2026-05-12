@@ -427,7 +427,7 @@ export function resolveInsertAfterVariableIndex(
   const normalizedVariable = normalizeRequiredName(insertAfterVariable, "insertAfterVariable");
   const rowIndex = rows.findIndex((row) => row.name.trim() === normalizedVariable);
   if (rowIndex < 0) {
-    throw new Error(`Unknown variable '${normalizedVariable}' for insertion point.`);
+    return rows.length;
   }
   return rowIndex + 1;
 }
@@ -442,7 +442,7 @@ export function resolveInsertAfterLabelIndex(
   const normalizedLabel = normalizeRequiredName(insertAfterLabel, "insertAfterLabel");
   const rowIndex = rows.findIndex((row) => row.label.trim() === normalizedLabel);
   if (rowIndex < 0) {
-    throw new Error(`Unknown row label '${normalizedLabel}' for insertion point.`);
+    return rows.length;
   }
   return rowIndex + 1;
 }

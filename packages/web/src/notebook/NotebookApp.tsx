@@ -48,6 +48,14 @@ import {
   type NotebookAssistantMode
 } from "./notebookAssistantFlow";
 import {
+  createNotebookAssistantDebugEvent,
+  formatNotebookAssistantDebugTime,
+  serializeNotebookAssistantDebugEvents,
+  stringifyNotebookAssistantDebugDetail,
+  type NotebookAssistantDebugEvent,
+  type NotebookAssistantDebugEventType
+} from "./notebookAssistantDebug";
+import {
   applyNotebookPatch,
   previewNotebookPatch,
   type NotebookPatch,
@@ -128,6 +136,7 @@ export function NotebookApp() {
   const [assistantPromptText, setAssistantPromptText] = useState("");
   const [assistantBetaPassword, setAssistantBetaPassword] = useState("");
   const [assistantError, setAssistantError] = useState<string | null>(null);
+  const [assistantDebugEvents, setAssistantDebugEvents] = useState<NotebookAssistantDebugEvent[]>([]);
   const [isAssistantAsking, setIsAssistantAsking] = useState(false);
   const [assistantPatchText, setAssistantPatchText] = useState("");
   const [assistantPatchPreview, setAssistantPatchPreview] = useState<NotebookPatchResult | null>(null);
@@ -734,6 +743,28 @@ export function NotebookApp() {
     window.localStorage.setItem(NOTEBOOK_ASSISTANT_MODEL_STORAGE_KEY, nextModel);
   }
 
+  const appendAssistantDebugEvent = useCallback(
+    (args: {
+      detail?: unknown;
+      label: string;
+      phase?: NotebookAssistantDebugEvent["phase"];
+      turnId: string;
+      type: NotebookAssistantDebugEventType;
+    }): void => {
+      const event = createNotebookAssistantDebugEvent(args);
+      setAssistantDebugEvents((current) => [...current.slice(-299), event]);
+    },
+    []
+  );
+
+  function handleCopyAssistantDebugTrace(): void {
+    const trace = serializeNotebookAssistantDebugEvents(assistantDebugEvents);
+    navigator.clipboard
+      .writeText(trace)
+      .then(() => setUiMessage("Copied assistant debug trace to the clipboard."))
+      .catch(() => setUiMessage("Assistant debug trace is visible in the debug panel."));
+  }
+
   function handleAssistantModeChange(nextMode: NotebookAssistantMode): void {
     setAssistantMode(nextMode);
     window.localStorage.setItem(NOTEBOOK_ASSISTANT_MODE_STORAGE_KEY, nextMode);
@@ -744,6 +775,22 @@ export function NotebookApp() {
     if (!question || isAssistantAsking || !NOTEBOOK_ASSISTANT_API_URL) {
       return;
     }
+
+    const turnId = crypto.randomUUID();
+    const turnStartTime = performance.now();
+    const resultCount = Object.values(runner.outputs).filter((output) => output?.type === "result").length;
+
+    appendAssistantDebugEvent({
+      detail: {
+        messageCount: assistantMessages.length,
+        mode: assistantMode,
+        model: assistantModel,
+        questionChars: question.length
+      },
+      label: `Started ${formatNotebookAssistantMode(assistantMode)} assistant turn`,
+      turnId,
+      type: "turn:start"
+    });
 
     const userMessage: NotebookAssistantMessage = {
       id: `user-${assistantMessages.length + 1}`,
@@ -760,21 +807,58 @@ export function NotebookApp() {
 
     try {
       let streamedText = "";
+      let firstStreamDeltaLogged = false;
+      const firstContext = buildNotebookAssistantContext({
+        assistantMode,
+        document: notebookDocument,
+        inspectorContext,
+        resultCount,
+        selectedPeriodIndex,
+        selectedVariable: inspectorContext?.selectedVariable,
+        uiMessage
+      });
+      appendAssistantDebugEvent({
+        detail: {
+          cellCount: notebookDocument.cells.length,
+          cellTypes: summarizeCellTypes(notebookDocument.cells),
+          contextChars: firstContext.length,
+          resultCount,
+          selectedPeriodIndex,
+          selectedVariable: inspectorContext?.selectedVariable ?? null,
+          uiMessagePresent: uiMessage != null
+        },
+        label: `Built notebook context (${firstContext.length} chars)`,
+        phase: "first",
+        turnId,
+        type: "context:built"
+      });
+      appendAssistantDebugEvent({
+        detail: {
+          messageCount: assistantMessages.slice(-8).length,
+          model: assistantModel
+        },
+        label: "Sent first assistant request",
+        phase: "first",
+        turnId,
+        type: "request:start"
+      });
       const firstAnswer = await requestNotebookAssistantAnswer({
         betaPassword: assistantBetaPassword,
-        context: buildNotebookAssistantContext({
-          assistantMode,
-          document: notebookDocument,
-          inspectorContext,
-          resultCount: Object.values(runner.outputs).filter((output) => output?.type === "result").length,
-          selectedPeriodIndex,
-          selectedVariable: inspectorContext?.selectedVariable,
-          uiMessage
-        }),
+        context: firstContext,
         messages: assistantMessages.slice(-8),
         model: assistantModel,
         onTextDelta: (delta) => {
           streamedText += delta;
+          if (!firstStreamDeltaLogged) {
+            firstStreamDeltaLogged = true;
+            appendAssistantDebugEvent({
+              detail: { deltaChars: delta.length, totalChars: streamedText.length },
+              label: "Received first stream text",
+              phase: "first",
+              turnId,
+              type: "stream:delta"
+            });
+          }
           setAssistantMessages((current) => {
             const existingMessage = current.find((message) => message.id === assistantMessageId);
             if (existingMessage) {
@@ -795,8 +879,23 @@ export function NotebookApp() {
         },
         question
       });
+      appendAssistantDebugEvent({
+        detail: { chars: firstAnswer.length, text: firstAnswer },
+        label: `Received first assistant response (${firstAnswer.length} chars)`,
+        phase: "first",
+        turnId,
+        type: "response:received"
+      });
 
       const toolRequestExtraction = extractNotebookAssistantToolRequests(firstAnswer);
+      appendAssistantDebugEvent({
+        detail: toolRequestExtraction,
+        label: toolRequestExtraction.error
+          ? "Tool request extraction failed"
+          : `Extracted ${toolRequestExtraction.requests.length} tool request${toolRequestExtraction.requests.length === 1 ? "" : "s"}`,
+        turnId,
+        type: "tool:extracted"
+      });
       if (toolRequestExtraction.error) {
         setAssistantMessages((current) =>
           current.map((message) =>
@@ -824,6 +923,12 @@ export function NotebookApp() {
           if ("request" in policy) {
             const result = dispatchNotebookAssistantTool(buildNotebookAssistantSnapshot(), policy.request);
             const proposedPatch = getPatchFromNotebookAssistantToolResults([result]);
+            appendAssistantDebugEvent({
+              detail: { request: policy.request, result },
+              label: `Ran helper tool ${policy.request.name}`,
+              turnId,
+              type: "tool:result"
+            });
             if (!result.ok || !proposedPatch) {
               setNotebookAssistantMessageText(
                 setAssistantMessages,
@@ -832,6 +937,12 @@ export function NotebookApp() {
               );
               return;
             }
+            appendAssistantDebugEvent({
+              detail: proposedPatch,
+              label: `Prepared patch with ${proposedPatch.operations.length} operation${proposedPatch.operations.length === 1 ? "" : "s"}`,
+              turnId,
+              type: "patch:proposed"
+            });
             setNotebookAssistantMessagePatch(setAssistantMessages, assistantMessageId, proposedPatch, notebookDocument);
             setNotebookAssistantMessageText(
               setAssistantMessages,
@@ -840,6 +951,12 @@ export function NotebookApp() {
             );
             return;
           }
+          appendAssistantDebugEvent({
+            detail: policy.patch,
+            label: `Prepared direct patch with ${policy.patch.operations.length} operation${policy.patch.operations.length === 1 ? "" : "s"}`,
+            turnId,
+            type: "patch:proposed"
+          });
           setNotebookAssistantMessagePatch(setAssistantMessages, assistantMessageId, policy.patch, notebookDocument);
           return;
         }
@@ -850,7 +967,19 @@ export function NotebookApp() {
         if (textProposalRequest) {
           const result = dispatchNotebookAssistantTool(buildNotebookAssistantSnapshot(), textProposalRequest);
           const proposedPatch = getPatchFromNotebookAssistantToolResults([result]);
+            appendAssistantDebugEvent({
+              detail: { request: textProposalRequest, result },
+              label: `Ran helper tool ${textProposalRequest.name}`,
+              turnId,
+              type: "tool:result"
+            });
           if (result.ok && proposedPatch) {
+              appendAssistantDebugEvent({
+                detail: proposedPatch,
+                label: `Prepared patch with ${proposedPatch.operations.length} operation${proposedPatch.operations.length === 1 ? "" : "s"}`,
+                turnId,
+                type: "patch:proposed"
+              });
             setNotebookAssistantMessagePatch(setAssistantMessages, assistantMessageId, proposedPatch, notebookDocument);
           }
         }
@@ -861,6 +990,14 @@ export function NotebookApp() {
         assistantMode,
         toolRequestExtraction.requests
       );
+      if (modeFilteredRequests.blocked.length > 0) {
+        appendAssistantDebugEvent({
+          detail: { blocked: modeFilteredRequests.blocked, mode: assistantMode },
+          label: `Blocked ${modeFilteredRequests.blocked.length} tool request${modeFilteredRequests.blocked.length === 1 ? "" : "s"}`,
+          turnId,
+          type: "tool:blocked"
+        });
+      }
       if (modeFilteredRequests.allowed.length === 0 && modeFilteredRequests.blocked.length > 0) {
         setAssistantMessages((current) =>
           current.map((message) =>
@@ -881,7 +1018,19 @@ export function NotebookApp() {
       const toolResults = toolDispatch.toolResults;
       const toolSummary = summarizeNotebookAssistantToolResults(toolResults);
       const proposedPatch = toolDispatch.proposedPatch ?? getPatchFromNotebookAssistantToolResults(toolResults, toolRequests);
+      appendAssistantDebugEvent({
+        detail: { requests: toolRequests, results: toolResults },
+        label: `Ran ${toolResults.length} assistant tool${toolResults.length === 1 ? "" : "s"}`,
+        turnId,
+        type: "tool:result"
+      });
       if (proposedPatch) {
+        appendAssistantDebugEvent({
+          detail: proposedPatch,
+          label: `Prepared patch with ${proposedPatch.operations.length} operation${proposedPatch.operations.length === 1 ? "" : "s"}`,
+          turnId,
+          type: "patch:proposed"
+        });
         setNotebookAssistantMessagePatch(setAssistantMessages, assistantMessageId, proposedPatch, notebookDocument);
       }
 
@@ -897,17 +1046,43 @@ export function NotebookApp() {
       );
 
       streamedText = "";
+      let followupStreamDeltaLogged = false;
+      const followupContext = buildNotebookAssistantContext({
+        assistantMode,
+        document: notebookDocument,
+        inspectorContext,
+        resultCount,
+        selectedPeriodIndex,
+        selectedVariable: inspectorContext?.selectedVariable,
+        uiMessage
+      });
+      appendAssistantDebugEvent({
+        detail: {
+          contextChars: followupContext.length,
+          resultCount,
+          selectedPeriodIndex,
+          selectedVariable: inspectorContext?.selectedVariable ?? null,
+          toolResultCount: toolResults.length
+        },
+        label: `Built follow-up context (${followupContext.length} chars)`,
+        phase: "followup",
+        turnId,
+        type: "context:built"
+      });
+      appendAssistantDebugEvent({
+        detail: {
+          messageCount: assistantMessages.slice(-6).length + 2,
+          model: assistantModel,
+          toolResultCount: toolResults.length
+        },
+        label: "Sent follow-up assistant request",
+        phase: "followup",
+        turnId,
+        type: "request:start"
+      });
       const finalAnswer = await requestNotebookAssistantAnswer({
         betaPassword: assistantBetaPassword,
-        context: buildNotebookAssistantContext({
-          assistantMode,
-          document: notebookDocument,
-          inspectorContext,
-          resultCount: Object.values(runner.outputs).filter((output) => output?.type === "result").length,
-          selectedPeriodIndex,
-          selectedVariable: inspectorContext?.selectedVariable,
-          uiMessage
-        }),
+        context: followupContext,
         messages: [
           ...assistantMessages.slice(-6),
           userMessage,
@@ -920,6 +1095,16 @@ export function NotebookApp() {
         model: assistantModel,
         onTextDelta: (delta) => {
           streamedText += delta;
+          if (!followupStreamDeltaLogged) {
+            followupStreamDeltaLogged = true;
+            appendAssistantDebugEvent({
+              detail: { deltaChars: delta.length, totalChars: streamedText.length },
+              label: "Received follow-up stream text",
+              phase: "followup",
+              turnId,
+              type: "stream:delta"
+            });
+          }
           setAssistantMessages((current) =>
             current.map((message) =>
               message.id === assistantMessageId ? { ...message, text: `${toolSummary}\n\n${streamedText}` } : message
@@ -930,6 +1115,13 @@ export function NotebookApp() {
           originalQuestion: question,
           toolResults
         })
+      });
+      appendAssistantDebugEvent({
+        detail: { chars: finalAnswer.length, text: finalAnswer },
+        label: `Received final assistant response (${finalAnswer.length} chars)`,
+        phase: "followup",
+        turnId,
+        type: "response:received"
       });
       const directPatch = assistantMode === "edit"
         ? extractNotebookPatchProposal({ document: notebookDocument, question, text: finalAnswer })
@@ -943,6 +1135,12 @@ export function NotebookApp() {
         if ("request" in policy) {
           const result = dispatchNotebookAssistantTool(buildNotebookAssistantSnapshot(), policy.request);
           const proposedPatch = getPatchFromNotebookAssistantToolResults([result]);
+          appendAssistantDebugEvent({
+            detail: { request: policy.request, result },
+            label: `Ran helper tool ${policy.request.name}`,
+            turnId,
+            type: "tool:result"
+          });
           if (!result.ok || !proposedPatch) {
             setNotebookAssistantMessageText(
               setAssistantMessages,
@@ -951,6 +1149,12 @@ export function NotebookApp() {
             );
             return;
           }
+          appendAssistantDebugEvent({
+            detail: proposedPatch,
+            label: `Prepared patch with ${proposedPatch.operations.length} operation${proposedPatch.operations.length === 1 ? "" : "s"}`,
+            turnId,
+            type: "patch:proposed"
+          });
           setNotebookAssistantMessagePatch(setAssistantMessages, assistantMessageId, proposedPatch, notebookDocument);
           setNotebookAssistantMessageText(
             setAssistantMessages,
@@ -959,6 +1163,12 @@ export function NotebookApp() {
           );
           return;
         }
+        appendAssistantDebugEvent({
+          detail: policy.patch,
+          label: `Prepared direct patch with ${policy.patch.operations.length} operation${policy.patch.operations.length === 1 ? "" : "s"}`,
+          turnId,
+          type: "patch:proposed"
+        });
         setNotebookAssistantMessagePatch(setAssistantMessages, assistantMessageId, policy.patch, notebookDocument);
         return;
       }
@@ -969,12 +1179,30 @@ export function NotebookApp() {
       if (textProposalRequest) {
         const result = dispatchNotebookAssistantTool(buildNotebookAssistantSnapshot(), textProposalRequest);
         const proposedPatch = getPatchFromNotebookAssistantToolResults([result]);
+        appendAssistantDebugEvent({
+          detail: { request: textProposalRequest, result },
+          label: `Ran helper tool ${textProposalRequest.name}`,
+          turnId,
+          type: "tool:result"
+        });
         if (result.ok && proposedPatch) {
+          appendAssistantDebugEvent({
+            detail: proposedPatch,
+            label: `Prepared patch with ${proposedPatch.operations.length} operation${proposedPatch.operations.length === 1 ? "" : "s"}`,
+            turnId,
+            type: "patch:proposed"
+          });
           setNotebookAssistantMessagePatch(setAssistantMessages, assistantMessageId, proposedPatch, notebookDocument);
         }
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to ask notebook assistant.";
+      appendAssistantDebugEvent({
+        detail: { message, stack: error instanceof Error ? error.stack : undefined },
+        label: message,
+        turnId,
+        type: "turn:error"
+      });
       setAssistantError(message);
       setAssistantMessages((current) => [
         ...current,
@@ -985,6 +1213,12 @@ export function NotebookApp() {
         }
       ]);
     } finally {
+      appendAssistantDebugEvent({
+        detail: { durationMs: performance.now() - turnStartTime },
+        label: `Finished assistant turn in ${formatElapsedTime(performance.now() - turnStartTime)}`,
+        turnId,
+        type: "turn:done"
+      });
       setIsAssistantAsking(false);
     }
   }
@@ -1574,6 +1808,56 @@ export function NotebookApp() {
                     Undo patch
                   </button>
                 </div>
+              </details>
+
+              <details className="notebook-assistant-debug-panel">
+                <summary>Debug Trace</summary>
+                <div className="notebook-assistant-debug-actions">
+                  <span className="status-hint">
+                    {assistantDebugEvents.length === 0
+                      ? "No assistant trace events yet."
+                      : `${assistantDebugEvents.length} trace event${assistantDebugEvents.length === 1 ? "" : "s"}`}
+                  </span>
+                  <div className="button-row">
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={handleCopyAssistantDebugTrace}
+                      disabled={assistantDebugEvents.length === 0}
+                    >
+                      Copy trace
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => setAssistantDebugEvents([])}
+                      disabled={assistantDebugEvents.length === 0}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+                {assistantDebugEvents.length > 0 ? (
+                  <ol className="notebook-assistant-debug-list" aria-label="Assistant debug events">
+                    {assistantDebugEvents.map((event) => {
+                      const detail = stringifyNotebookAssistantDebugDetail(event.detail);
+                      return (
+                        <li key={event.id} className="notebook-assistant-debug-event">
+                          <div className="notebook-assistant-debug-event-header">
+                            <span className="notebook-assistant-debug-event-time">
+                              {formatNotebookAssistantDebugTime(event.at)}
+                            </span>
+                            <span className="notebook-assistant-debug-event-type">
+                              {event.phase ? `${event.phase} / ` : ""}{event.type}
+                            </span>
+                          </div>
+                          <div className="notebook-assistant-debug-event-label">{event.label}</div>
+                          {detail ? <pre>{detail}</pre> : null}
+                        </li>
+                      );
+                    })}
+                  </ol>
+                ) : null}
               </details>
 
               <div className="chat-thread notebook-assistant-thread" role="log" aria-label="Notebook assistant conversation">
