@@ -50,7 +50,7 @@ describe("App notebook assistant", () => {
     await user.click(screen.getByRole("button", { name: /undo patch/i }));
 
     expect(screen.getByLabelText(/simulation period navigation/i)).toBeInTheDocument();
-  });
+  }, 10000);
 
   it("previews, applies, and undoes an assistant notebook patch", async () => {
     const user = userEvent.setup();

@@ -22,7 +22,12 @@ describe("App notebook navigation and inspection", () => {
 
     render(<App />);
 
-    expect(screen.getByRole("combobox", { name: /notebook template/i })).toHaveValue("bmw");
+    const templatePicker = screen.getByRole("combobox", { name: /notebook template/i });
+    const templateOptions = within(templatePicker).getAllByRole("option");
+
+    expect(templatePicker).toHaveValue("bmw");
+    expect(templateOptions[0]).toHaveValue("sim");
+    expect(templateOptions[1]).toHaveValue("bmw");
     expect(screen.getAllByText(/bmw browser notebook/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /^run all$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /validate/i })).toBeInTheDocument();
@@ -418,6 +423,8 @@ describe("App notebook navigation and inspection", () => {
     if (!(dependencyCell instanceof HTMLElement)) {
       throw new Error("Expected BMW equation dependency graph article.");
     }
+
+    await user.click(within(dependencyCell).getByRole("button", { name: /^show$/i }));
 
     await user.click(within(dependencyCell).getByText(/^rm$/i));
 

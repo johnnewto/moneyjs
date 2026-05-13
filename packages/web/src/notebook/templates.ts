@@ -40,6 +40,13 @@ export interface NotebookTemplateDefinition {
 }
 
 export const NOTEBOOK_TEMPLATES: Record<NotebookTemplateId, NotebookTemplateDefinition> = {
+  sim: {
+    id: "sim",
+    label: "SIM",
+    description:
+      "Godley-Lavoie SIM notebook with baseline, government-spending scenario, accounting matrices, and result views.",
+    document: notebookFromJson(JSON.stringify(simNotebookJson))
+  },
   bmw: {
     id: "bmw",
     label: "BMW",
@@ -120,13 +127,6 @@ export const NOTEBOOK_TEMPLATES: Record<NotebookTemplateId, NotebookTemplateDefi
     description:
       "Runnable version of the legacy simple epidemic model with stock equations, a contact lookup approximation, and a baseline chart.",
     document: notebookFromJson(JSON.stringify(simpleEpidemicNotebookJson))
-  },
-  sim: {
-    id: "sim",
-    label: "SIM",
-    description:
-      "Godley-Lavoie SIM notebook with baseline, government-spending scenario, accounting matrices, and result views.",
-    document: notebookFromJson(JSON.stringify(simNotebookJson))
   },
   "solver-overview": {
     id: "solver-overview",

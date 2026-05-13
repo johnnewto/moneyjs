@@ -47,6 +47,18 @@ const HORIZONTAL_COMPACTNESS = 0.82;
 const BOTTOM_BOX_TOP_GAP = -12;
 const NEGATIVE_MESSAGE_LABEL_COLOR = "#b42318";
 
+function readHorizontalPadding(element: HTMLElement | null): number {
+  if (!element) {
+    return 0;
+  }
+
+  const styles = window.getComputedStyle(element);
+  const left = Number.parseFloat(styles.paddingLeft);
+  const right = Number.parseFloat(styles.paddingRight);
+
+  return (Number.isFinite(left) ? left : 0) + (Number.isFinite(right) ? right : 0);
+}
+
 export function SequenceDiagramCanvas({
   diagram,
   visibleStepCount,
@@ -78,10 +90,7 @@ export function SequenceDiagramCanvas({
   useEffect(() => {
     function updateWidth(): void {
       const wrapper = wrapperRef.current;
-      const wrapperStyles = wrapper ? window.getComputedStyle(wrapper) : null;
-      const horizontalPadding = wrapperStyles
-        ? Number.parseFloat(wrapperStyles.paddingLeft) + Number.parseFloat(wrapperStyles.paddingRight)
-        : 0;
+      const horizontalPadding = readHorizontalPadding(wrapper);
       const nextWidth = Math.max(
         MIN_CANVAS_WIDTH,
         Math.round((wrapper?.clientWidth ?? MIN_CANVAS_WIDTH) - horizontalPadding)

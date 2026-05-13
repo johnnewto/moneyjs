@@ -34,6 +34,18 @@ interface DependencyGraphCanvasProps {
 const MIN_CANVAS_WIDTH = 720;
 const TOP_PADDING = 72;
 
+function readHorizontalPadding(element: HTMLElement | null): number {
+  if (!element) {
+    return 0;
+  }
+
+  const styles = window.getComputedStyle(element);
+  const left = Number.parseFloat(styles.paddingLeft);
+  const right = Number.parseFloat(styles.paddingRight);
+
+  return (Number.isFinite(left) ? left : 0) + (Number.isFinite(right) ? right : 0);
+}
+
 const NODE_COLORS: Record<
   DependencyGraphNode["variableType"],
   { fill: string; stroke: string; accent: string }
@@ -117,10 +129,7 @@ export function DependencyGraphCanvas({
   useEffect(() => {
     function updateWidth(): void {
       const wrapper = wrapperRef.current;
-      const wrapperStyles = wrapper ? window.getComputedStyle(wrapper) : null;
-      const horizontalPadding = wrapperStyles
-        ? Number.parseFloat(wrapperStyles.paddingLeft) + Number.parseFloat(wrapperStyles.paddingRight)
-        : 0;
+      const horizontalPadding = readHorizontalPadding(wrapper);
       const nextWidth = Math.max(
         MIN_CANVAS_WIDTH,
         Math.round((wrapper?.clientWidth ?? MIN_CANVAS_WIDTH) - horizontalPadding)
