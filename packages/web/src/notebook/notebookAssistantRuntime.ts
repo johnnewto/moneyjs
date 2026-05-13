@@ -7,6 +7,13 @@ import type { NotebookPatch, NotebookPatchResult } from "./notebookPatch";
 import { previewNotebookPatch } from "./notebookPatch";
 import { notebookToJson } from "./document";
 import {
+  findEquationsCell,
+  findExternalsCell,
+  findInitialValuesCell,
+  findSolverCell,
+  resolveRunCellModelKey
+} from "./modelSections";
+import {
   formatNotebookAssistantMode,
   getNotebookAssistantModeContract,
   type NotebookAssistantMode
@@ -14,7 +21,8 @@ import {
 import {
   summarizeNotebookAssistantTools,
   summarizeNotebookAssistantToolSyntax,
-  summarizeNotebookEquationExpressionSyntax
+  summarizeNotebookEquationExpressionSyntax,
+  type NotebookAssistantToolResult
 } from "./notebookAssistantTools";
 import { summarizeCellTypes } from "./notebookSourceWorkflow";
 import type { NotebookDocument } from "./types";
@@ -176,7 +184,23 @@ export function buildNotebookAssistantContext(args: {
   selectedPeriodIndex: number;
   selectedVariable?: string;
   uiMessage: string | null;
+  userRequest?: string;
 }): string {
+  if (args.assistantMode === "edit") {
+    const compactContext = buildCompactNotebookAssistantContext(args);
+    return truncateNotebookAssistantContext(
+      [
+        "Assistant mode: Edit. Prepare proposed patches only; never claim edits were applied.",
+        `Tool syntax:\n${summarizeEditNotebookAssistantToolSyntax()}`,
+        compactContext.intent === "parameter-update" ? null : `Equation syntax:\n${summarizeNotebookEquationExpressionSyntax()}`,
+        "Compact notebook JSON:",
+        JSON.stringify(compactContext)
+      ]
+        .filter((line): line is string => Boolean(line))
+        .join("\n")
+    );
+  }
+
   const notebookJson = notebookToJson(args.document);
   return truncateNotebookAssistantContext(
     [
@@ -202,6 +226,445 @@ export function buildNotebookAssistantContext(args: {
       .filter((line): line is string => Boolean(line))
       .join("\n")
   );
+}
+
+export function buildNotebookAssistantToolResultContext(args: {
+  assistantMode: NotebookAssistantMode;
+  document: NotebookDocument;
+  resultCount: number;
+  selectedPeriodIndex: number;
+  selectedVariable?: string;
+  toolResults: NotebookAssistantToolResult[];
+  uiMessage: string | null;
+}): string {
+  return truncateNotebookAssistantContext(
+    [
+      `Notebook title: ${args.document.title}`,
+      `Notebook id: ${args.document.id}`,
+      `Assistant mode: ${formatNotebookAssistantMode(args.assistantMode)}`,
+      `Assistant mode contract: ${getNotebookAssistantModeContract(args.assistantMode)}`,
+      "Tool result follow-up context JSON:",
+      JSON.stringify(
+        compactObject({
+          v: 1,
+          fmt: "sfcr-assistant-tool-result-context",
+          mode: args.assistantMode,
+          nb: [args.document.id, args.document.title],
+          sel: compactArray([args.selectedVariable, args.selectedPeriodIndex]),
+          resultCount: args.resultCount,
+          ui: args.uiMessage,
+          toolResults: args.toolResults.map(compactToolResult)
+        })
+      )
+    ]
+      .filter((line): line is string => Boolean(line))
+      .join("\n")
+  );
+}
+
+export function buildNotebookAssistantLocalToolResultAnswer(args: {
+  proposedPatch: NotebookPatch | null;
+  toolResults: NotebookAssistantToolResult[];
+}): string | null {
+  if (!args.proposedPatch || args.toolResults.length === 0 || args.toolResults.some((result) => !result.ok)) {
+    return null;
+  }
+
+  const previewSummary = findSuccessfulToolPreviewSummary(args.toolResults);
+  const description = args.proposedPatch.description?.trim();
+  const operationCount = previewSummary?.operationCount ?? args.proposedPatch.operations.length;
+  const changedCellCount = previewSummary
+    ? previewSummary.addedCells + previewSummary.changedCells + previewSummary.removedCells
+    : null;
+  const changeText = changedCellCount == null
+    ? `with ${formatCount(operationCount, "operation")}`
+    : `changing ${formatCount(changedCellCount, "cell")} with ${formatCount(operationCount, "operation")}`;
+
+  return [
+    description ? `Proposed change prepared: ${description}` : "Proposed notebook change prepared.",
+    `The patch preview is valid, with no issues, ${changeText}. Review it below, then apply it when ready.`
+  ].join("\n\n");
+}
+
+type CompactAssistantContextArgs = Parameters<typeof buildNotebookAssistantContext>[0];
+type CompactModelRow = {
+  ex?: unknown[][];
+  eq?: unknown[][];
+  id: string;
+  iv?: unknown[][];
+  opt?: Record<string, unknown>;
+  title?: string;
+};
+
+function buildCompactNotebookAssistantContext(args: CompactAssistantContextArgs): Record<string, unknown> {
+  const parameterTargets = inferExplicitParameterTargets(args.document, args.userRequest);
+  const selectedVariable = args.selectedVariable ?? args.inspectorContext?.selectedVariable;
+  const selectedModelId = parameterTargets?.modelIds[0] ?? resolveSelectedModelId(args.document, selectedVariable);
+  const modelIds = parameterTargets?.modelIds ?? (selectedModelId ? [selectedModelId] : findNotebookModelIds(args.document));
+  const runRows = buildCompactRunRows(args.document, new Set(modelIds));
+  const selectedParameterTarget = parameterTargets?.variables.length === 1
+    ? parameterTargets.variables[0]
+    : parameterTargets?.variables;
+
+  return compactObject({
+    v: 1,
+    fmt: "sfcr-assistant-compact",
+    mode: args.assistantMode,
+    nb: [args.document.id, args.document.title],
+    cells: args.document.cells.length,
+    cellTypes: summarizeCellTypes(args.document.cells),
+    intent: parameterTargets ? "parameter-update" : undefined,
+    sel: compactArray([selectedModelId, selectedVariable ?? selectedParameterTarget, args.selectedPeriodIndex]),
+    resultCount: args.resultCount,
+    ui: args.uiMessage,
+    cur: args.inspectorContext?.currentValues,
+    m: modelIds.map((modelId) => buildCompactModelRow(args.document, modelId, parameterTargets)),
+    r: runRows,
+    tools: summarizeNotebookAssistantTools().split(", ")
+  });
+}
+
+function resolveSelectedModelId(document: NotebookDocument, selectedVariable: string | undefined): string | null {
+  if (selectedVariable) {
+    for (const cell of document.cells) {
+      if (cell.type === "equations" && cell.equations.some((equation) => equation.name === selectedVariable)) {
+        return cell.modelId;
+      }
+      if (cell.type === "externals" && cell.externals.some((external) => external.name === selectedVariable)) {
+        return cell.modelId;
+      }
+      if (
+        cell.type === "initial-values" &&
+        cell.initialValues.some((initialValue) => initialValue.name === selectedVariable)
+      ) {
+        return cell.modelId;
+      }
+    }
+  }
+
+  return findNotebookModelIds(document)[0] ?? null;
+}
+
+function findNotebookModelIds(document: NotebookDocument): string[] {
+  const modelIds = new Set<string>();
+  for (const cell of document.cells) {
+    if (
+      (cell.type === "equations" || cell.type === "externals" || cell.type === "initial-values" || cell.type === "solver") &&
+      cell.modelId.trim()
+    ) {
+      modelIds.add(cell.modelId);
+    }
+  }
+  return [...modelIds];
+}
+
+function buildCompactModelRow(
+  document: NotebookDocument,
+  modelId: string,
+  parameterTargets: ExplicitParameterTargets | null = null
+): CompactModelRow {
+  const equationsCell = findEquationsCell(document.cells, modelId);
+  const externalsCell = findExternalsCell(document.cells, modelId);
+  const initialValuesCell = findInitialValuesCell(document.cells, modelId);
+  const solverCell = findSolverCell(document.cells, modelId);
+  const parameterVariables = parameterTargets?.variablesByModel.get(modelId);
+  const parameterOnly = Boolean(parameterVariables);
+
+  return compactObject({
+    id: modelId,
+    title: equationsCell?.title,
+    eq:
+      parameterOnly
+        ? []
+        : equationsCell?.equations.map((equation) =>
+            compactArray([equation.name, equation.expression, equation.role, equation.desc])
+          ) ?? [],
+    ex:
+      externalsCell?.externals
+        .filter((external) => !parameterOnly || parameterVariables?.has(external.name))
+        .map((external) => compactArray([external.name, external.kind, external.valueText, external.desc])) ?? [],
+    iv: parameterOnly
+      ? []
+      : initialValuesCell?.initialValues.map((initialValue) => compactArray([initialValue.name, initialValue.valueText])) ?? [],
+    opt: solverCell
+      ? compactObject({
+          method: solverCell.options.solverMethod,
+          periods: solverCell.options.periods,
+          tolerance: solverCell.options.toleranceText,
+          maxIterations: solverCell.options.maxIterations,
+          defaultInitialValue: solverCell.options.defaultInitialValueText
+        })
+      : undefined
+  }) as CompactModelRow;
+}
+
+type ExplicitParameterTargets = {
+  modelIds: string[];
+  variables: string[];
+  variablesByModel: Map<string, Set<string>>;
+};
+
+function inferExplicitParameterTargets(
+  document: NotebookDocument,
+  userRequest: string | undefined
+): ExplicitParameterTargets | null {
+  if (!userRequest || !/\b(set|change|update|make)\b/i.test(userRequest) || !/\b(to|=)\b/i.test(userRequest)) {
+    return null;
+  }
+
+  const normalizedRequest = userRequest.toLowerCase();
+  const uniqueDescriptionTokens = collectUniqueExternalDescriptionTokens(document);
+  const variablesByModel = new Map<string, Set<string>>();
+  for (const cell of document.cells) {
+    if (cell.type !== "externals") {
+      continue;
+    }
+    for (const external of cell.externals) {
+      const variable = external.name.trim();
+      if (!variable) {
+        continue;
+      }
+      if (matchesExternalMention(normalizedRequest, variable, external.desc, uniqueDescriptionTokens.get(externalKey(cell.modelId, external.name)))) {
+        const variables = variablesByModel.get(cell.modelId) ?? new Set<string>();
+        variables.add(external.name);
+        variablesByModel.set(cell.modelId, variables);
+      }
+    }
+  }
+
+  if (variablesByModel.size === 0) {
+    return null;
+  }
+
+  return {
+    modelIds: [...variablesByModel.keys()],
+    variables: [...variablesByModel.values()].flatMap((variables) => [...variables]),
+    variablesByModel
+  };
+}
+
+function collectUniqueExternalDescriptionTokens(document: NotebookDocument): Map<string, Set<string>> {
+  const tokenCounts = new Map<string, number>();
+  const tokensByExternal = new Map<string, Set<string>>();
+
+  for (const cell of document.cells) {
+    if (cell.type !== "externals") {
+      continue;
+    }
+
+    for (const external of cell.externals) {
+      const tokens = new Set(tokenizeParameterDescription(external.desc));
+      tokensByExternal.set(externalKey(cell.modelId, external.name), tokens);
+      for (const token of tokens) {
+        tokenCounts.set(token, (tokenCounts.get(token) ?? 0) + 1);
+      }
+    }
+  }
+
+  return new Map(
+    [...tokensByExternal.entries()].map(([key, tokens]) => [
+      key,
+      new Set([...tokens].filter((token) => tokenCounts.get(token) === 1))
+    ])
+  );
+}
+
+function externalKey(modelId: string, variable: string): string {
+  return `${modelId}\u0000${variable}`;
+}
+
+function matchesExternalMention(
+  normalizedRequest: string,
+  variable: string,
+  description: string | undefined,
+  uniqueDescriptionTokens: Set<string> | undefined
+): boolean {
+  const variablePattern = new RegExp(`(?:^|[^A-Za-z0-9_{}^])${escapeRegExp(variable.toLowerCase())}(?:$|[^A-Za-z0-9_{}^])`);
+  if (variablePattern.test(normalizedRequest)) {
+    return true;
+  }
+
+  const descriptionTokens = tokenizeParameterDescription(description);
+  return (
+    (descriptionTokens.length > 0 && descriptionTokens.every((token) => hasWord(normalizedRequest, token))) ||
+    [...(uniqueDescriptionTokens ?? [])].some((token) => hasWord(normalizedRequest, token))
+  );
+}
+
+function tokenizeParameterDescription(description: string | undefined): string[] {
+  if (!description) {
+    return [];
+  }
+
+  const stopWords = new Set([
+    "and",
+    "change",
+    "consume",
+    "consumption",
+    "current",
+    "disposable",
+    "expected",
+    "from",
+    "lagged",
+    "make",
+    "of",
+    "out",
+    "past",
+    "propensity",
+    "set",
+    "the",
+    "to",
+    "update"
+  ]);
+
+  return [...new Set(description.toLowerCase().match(/[a-z0-9]+/g) ?? [])].filter(
+    (token) => token.length > 2 && !stopWords.has(token)
+  );
+}
+
+function hasWord(value: string, word: string): boolean {
+  return new RegExp(`(?:^|[^A-Za-z0-9_{}^])${escapeRegExp(word)}(?:$|[^A-Za-z0-9_{}^])`).test(value);
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function buildCompactRunRows(document: NotebookDocument, modelIds: Set<string>): unknown[][] {
+  return document.cells
+    .filter((cell) => cell.type === "run")
+    .flatMap((cell) => {
+      const modelKey = resolveRunCellModelKey(document.cells, cell);
+      const modelId = modelKey?.startsWith("model:") ? modelKey.slice("model:".length) : null;
+      if (!modelId || !modelIds.has(modelId)) {
+        return [];
+      }
+
+      return [
+        compactArray([
+          cell.id,
+          modelId,
+          cell.periods,
+          cell.mode,
+          cell.title,
+          cell.description,
+          cell.baselineRunCellId,
+          cell.baselineStartPeriod,
+          cell.scenario
+        ])
+      ];
+    });
+}
+
+function compactToolResult(result: NotebookAssistantToolResult): unknown[] {
+  if (!result.ok) {
+    return compactArray([result.name, false, result.error]);
+  }
+
+  const data = result.data && typeof result.data === "object" && !Array.isArray(result.data)
+    ? (result.data as Record<string, unknown>)
+    : {};
+  const patch = data.patch && typeof data.patch === "object" && !Array.isArray(data.patch)
+    ? (data.patch as Record<string, unknown>)
+    : null;
+  const operations = patch && Array.isArray(patch.operations) ? patch.operations : [];
+  const preview = data.preview && typeof data.preview === "object" && !Array.isArray(data.preview)
+    ? (data.preview as Record<string, unknown>)
+    : null;
+  const issues = preview && Array.isArray(preview.issues) ? preview.issues : [];
+
+  return compactArray([
+    result.name,
+    true,
+    patch && typeof patch.description === "string" ? patch.description : undefined,
+    operations.length || undefined,
+    issues.length || undefined
+  ]);
+}
+
+function findSuccessfulToolPreviewSummary(toolResults: NotebookAssistantToolResult[]): {
+  addedCells: number;
+  changedCells: number;
+  operationCount: number;
+  removedCells: number;
+} | null {
+  for (const result of toolResults) {
+    if (!result.ok || !result.data || typeof result.data !== "object") {
+      continue;
+    }
+
+    const preview = (result.data as { preview?: unknown }).preview;
+    if (!preview || typeof preview !== "object" || (preview as { ok?: unknown }).ok === false) {
+      continue;
+    }
+
+    const summary = (preview as { summary?: unknown }).summary;
+    if (!summary || typeof summary !== "object") {
+      continue;
+    }
+
+    const candidate = summary as Record<string, unknown>;
+    if (
+      typeof candidate.addedCells === "number" &&
+      typeof candidate.changedCells === "number" &&
+      typeof candidate.operationCount === "number" &&
+      typeof candidate.removedCells === "number"
+    ) {
+      return {
+        addedCells: candidate.addedCells,
+        changedCells: candidate.changedCells,
+        operationCount: candidate.operationCount,
+        removedCells: candidate.removedCells
+      };
+    }
+  }
+
+  return null;
+}
+
+function formatCount(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
+function summarizeEditNotebookAssistantToolSyntax(): string {
+  return [
+    `Request tools only as JSON: { "notebookAssistantToolRequests": [{ "name": "toolName", "args": { ... } }] }`,
+    "Patch helpers use canonical long arg names, never compact context keys.",
+    "Common patch helpers:",
+    "- createUpdateParameterPatch { modelId, variable, value }",
+    "- createUpdateEquationPatch { modelId, variable, expression, description?, role?, unitMeta? }",
+    "- createAddEquationPatch { modelId, equation | name+expression, description?, role?, insertAfterVariable?, unitMeta? }",
+    "- createAddExternalPatch { modelId, name, kind, value, description?, insertAfterVariable?, unitMeta? }",
+    "- createAddChartPatch { runId, variables, title?, chartId? }",
+    "- createUpdateChartVariablesPatch { chartId, variables } for existing chart variable changes; do not use createUpdateChartPatch.",
+    "- createUpdateRunOptionsPatch { runId, periods?, solverMethod?, tolerance?, scenario?, baselineRunCellId?, baselineStartPeriod? }",
+    "Read helpers when ids/data are missing: listRuns {}, listCharts {}, listVariables {}, getSeriesWindow { runId, variable, start, end }."
+  ].join("\n");
+}
+
+function compactObject<T extends Record<string, unknown>>(value: T): T {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entry]) => {
+      if (entry === undefined || entry === null) {
+        return false;
+      }
+      if (Array.isArray(entry)) {
+        return entry.length > 0;
+      }
+      if (typeof entry === "object") {
+        return Object.keys(entry).length > 0;
+      }
+      return true;
+    })
+  ) as T;
+}
+
+function compactArray(values: unknown[]): unknown[] {
+  const compacted = [...values];
+  while (compacted.length > 0 && (compacted[compacted.length - 1] === undefined || compacted[compacted.length - 1] === null)) {
+    compacted.pop();
+  }
+  return compacted.map((value) => (value === undefined ? null : value));
 }
 
 export function createAssistantPatchIssue(message: string) {

@@ -2,6 +2,7 @@ export type NotebookAssistantDebugEventType =
   | "turn:start"
   | "context:built"
   | "request:start"
+  | "request:skipped"
   | "response:received"
   | "stream:delta"
   | "tool:extracted"

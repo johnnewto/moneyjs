@@ -19,6 +19,8 @@ import {
 } from "./notebookAssistantTools";
 import {
   buildNotebookAssistantContext,
+  buildNotebookAssistantLocalToolResultAnswer,
+  buildNotebookAssistantToolResultContext,
   createAssistantPatchIssue,
   NOTEBOOK_ASSISTANT_API_URL,
   NOTEBOOK_ASSISTANT_DEFAULT_MODEL,
@@ -845,7 +847,8 @@ export function NotebookApp() {
         resultCount,
         selectedPeriodIndex,
         selectedVariable: inspectorContext?.selectedVariable,
-        uiMessage
+        uiMessage,
+        userRequest: question
       });
       appendAssistantDebugEvent({
         detail: {
@@ -1075,6 +1078,21 @@ export function NotebookApp() {
         setNotebookAssistantMessagePatch(setAssistantMessages, assistantMessageId, proposedPatch, notebookDocument);
       }
 
+      const localToolResultAnswer = activeAssistantMode === "edit"
+        ? buildNotebookAssistantLocalToolResultAnswer({ proposedPatch, toolResults })
+        : null;
+      if (localToolResultAnswer) {
+        appendAssistantDebugEvent({
+          detail: { reason: "successful edit tool patch", toolResultCount: toolResults.length },
+          label: "Skipped follow-up assistant request",
+          phase: "followup",
+          turnId,
+          type: "request:skipped"
+        });
+        setNotebookAssistantMessageText(setAssistantMessages, assistantMessageId, localToolResultAnswer);
+        return;
+      }
+
       setAssistantMessages((current) =>
         current.map((message) =>
           message.id === assistantMessageId
@@ -1088,13 +1106,13 @@ export function NotebookApp() {
 
       streamedText = "";
       let followupStreamDeltaLogged = false;
-      const followupContext = buildNotebookAssistantContext({
+      const followupContext = buildNotebookAssistantToolResultContext({
         assistantMode: activeAssistantMode,
         document: notebookDocument,
-        inspectorContext,
         resultCount,
         selectedPeriodIndex,
         selectedVariable: inspectorContext?.selectedVariable,
+        toolResults,
         uiMessage
       });
       appendAssistantDebugEvent({
@@ -1455,7 +1473,7 @@ export function NotebookApp() {
                 <button
                   type="button"
                   className="notebook-run-button"
-                  aria-pressed={activeRailTab === "contents" ? "true" : "false"}
+                  {...{ "aria-pressed": activeRailTab === "contents" }}
                   onClick={() => setActiveRailTab("contents")}
                 >
                   Contents
@@ -1565,7 +1583,7 @@ export function NotebookApp() {
               <button
                 type="button"
                 role="tab"
-                aria-selected={activeRailTab === "contents" ? "true" : "false"}
+                {...{ "aria-selected": activeRailTab === "contents" }}
                 className={`notebook-rail-tab${activeRailTab === "contents" ? " is-active" : ""}`}
                 onClick={() => setActiveRailTab("contents")}
               >
@@ -1574,7 +1592,7 @@ export function NotebookApp() {
               <button
                 type="button"
                 role="tab"
-                aria-selected={activeRailTab === "inspect" ? "true" : "false"}
+                {...{ "aria-selected": activeRailTab === "inspect" }}
                 className={`notebook-rail-tab${activeRailTab === "inspect" ? " is-active" : ""}`}
                 onClick={() => setActiveRailTab("inspect")}
               >
@@ -1583,7 +1601,7 @@ export function NotebookApp() {
               <button
                 type="button"
                 role="tab"
-                aria-selected={activeRailTab === "assistant" ? "true" : "false"}
+                {...{ "aria-selected": activeRailTab === "assistant" }}
                 className={`notebook-rail-tab${activeRailTab === "assistant" ? " is-active" : ""}`}
                 onClick={() => setActiveRailTab("assistant")}
               >
@@ -1592,7 +1610,7 @@ export function NotebookApp() {
               <button
                 type="button"
                 role="tab"
-                aria-selected={activeRailTab === "editor" ? "true" : "false"}
+                {...{ "aria-selected": activeRailTab === "editor" }}
                 className={`notebook-rail-tab${activeRailTab === "editor" ? " is-active" : ""}`}
                 onClick={() => setActiveRailTab("editor")}
               >
@@ -1602,7 +1620,7 @@ export function NotebookApp() {
                 <button
                   type="button"
                   role="tab"
-                  aria-selected={activeRailTab === "preview" ? "true" : "false"}
+                  {...{ "aria-selected": activeRailTab === "preview" }}
                   className={`notebook-rail-tab${activeRailTab === "preview" ? " is-active" : ""}`}
                   onClick={() => setActiveRailTab("preview")}
                 >

@@ -89,6 +89,22 @@ describe("notebook assistant flow", () => {
     ]);
   });
 
+  it("normalizes stale chart update helper names in assistant tool request envelopes", () => {
+    expect(
+      extractNotebookAssistantToolRequests(
+        '```json\n{"notebookAssistantToolRequests":[{"name":"createUpdateChartPatch","args":{"chartId":"baseline-chart","variables":["Y","Cd","Mh","W","Ld"]}}]}\n```'
+      ).requests
+    ).toEqual([
+      {
+        name: "createUpdateChartVariablesPatch",
+        args: {
+          chartId: "baseline-chart",
+          variables: ["Y", "Cd", "Mh", "W", "Ld"]
+        }
+      }
+    ]);
+  });
+
   it("normalizes series window index aliases and expands variable arrays", () => {
     expect(
       extractNotebookAssistantToolRequests(

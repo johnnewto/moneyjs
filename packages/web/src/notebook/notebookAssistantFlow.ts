@@ -68,7 +68,7 @@ export function extractNotebookAssistantToolRequests(text: string): NotebookAssi
         if (typeof record.name !== "string" || !record.name.trim()) {
           return [];
         }
-        const name = record.name.trim();
+        const name = normalizeNotebookAssistantToolRequestName(record.name.trim());
         const args = record.args && typeof record.args === "object" && !Array.isArray(record.args)
           ? normalizeNotebookAssistantToolRequestArgs(name, record.args as Record<string, unknown>)
           : undefined;
@@ -107,6 +107,14 @@ export function extractNotebookAssistantToolRequests(text: string): NotebookAssi
   }
 
   return { requests: [] };
+}
+
+function normalizeNotebookAssistantToolRequestName(name: string): string {
+  if (name === "createUpdateChartPatch") {
+    return "createUpdateChartVariablesPatch";
+  }
+
+  return name;
 }
 
 export function extractNotebookPatchProposal(args: {

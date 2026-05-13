@@ -2,6 +2,8 @@
 
 Reference notes for how the in-notebook assistant, local live tests, and notebook-assistant eval harness fit together.
 
+Related design note: [Notebook Assistant Context Optimization](notebook-assistant-context-optimization.md).
+
 ## Runtime Surfaces
 
 - Browser assistant panel: `packages/web/src/notebook/NotebookApp.tsx`
@@ -26,12 +28,13 @@ The browser Assistant panel owns the live user-facing round trip. It is a bounde
 5. Filter requests with `filterNotebookAssistantToolRequestsForMode`.
 6. Dispatch allowed tools locally with `dispatchNotebookAssistantToolRequests`.
 7. If helper tools produce a patch, attach the previewable patch immediately to the assistant message.
-8. Build a follow-up question with summarized tool results using `buildNotebookAssistantToolFollowupQuestion`.
-9. Send a second request to `/v1/notebook-assistant/ask` with the tool results follow-up.
-10. Stream the final assistant response into the same assistant message.
-11. Check the final response for direct patch proposals or text-derived chart update proposals.
+8. If Edit mode helper tools all succeed and produce a patch, synthesize the final patch-ready answer locally and skip the follow-up model request.
+9. Otherwise, build a compact follow-up question with summarized tool results using `buildNotebookAssistantToolFollowupQuestion`.
+10. Send a second request to `/v1/notebook-assistant/ask` with the tool results follow-up.
+11. Stream the final assistant response into the same assistant message.
+12. Check the final response for direct patch proposals or text-derived chart update proposals.
 
-This is a two-request, one-tool-round loop. It is not an unbounded agent loop that repeatedly calls tools until convergence.
+This is a bounded one-tool-round loop. Many successful Edit helper patches complete with one model request; other tool paths may still use a compact second request. It is not an unbounded agent loop that repeatedly calls tools until convergence.
 
 ## Mode Contract
 
