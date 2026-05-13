@@ -312,7 +312,6 @@
                   "type": "object",
                   "additionalProperties": false,
                   "required": [
-                    "periods",
                     "solverMethod",
                     "toleranceText",
                     "maxIterations",
