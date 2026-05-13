@@ -1,6 +1,6 @@
 import { getNotebookAssistantToolSyntax, type NotebookAssistantToolRequest, type NotebookAssistantToolResult } from "./notebookAssistantTools";
 import type { NotebookPatch } from "./notebookPatch";
-import type { ExternalsCell, EquationsCell, NotebookCell, NotebookDocument } from "./types";
+import type { ExternalsCell, EquationsCell, InitialValuesCell, ModelCell, NotebookCell, NotebookDocument, RunCell } from "./types";
 
 export type NotebookAssistantMode = "ask" | "edit";
 
@@ -173,6 +173,40 @@ export function extractTextChartVariablesToolRequest(
   }
 
   return null;
+}
+
+export function extractTextAddChartToolRequest(
+  document: NotebookDocument,
+  contextText: string
+): NotebookAssistantToolRequest | null {
+  const normalizedContext = contextText.toLowerCase();
+  if (!normalizedContext.includes("chart") || !/\b(add|create|new)\b/.test(normalizedContext)) {
+    return null;
+  }
+  if (/\bhow to\b|\binstructions?\b/.test(normalizedContext)) {
+    return null;
+  }
+
+  const runId = findRunCellId(document, contextText);
+  if (!runId) {
+    return null;
+  }
+
+  const [questionText] = contextText.split("\n", 1);
+  const variables = extractKnownNotebookVariables(document, questionText ?? contextText);
+  const chartVariables = variables.length > 0 ? variables : extractKnownNotebookVariables(document, contextText);
+  if (chartVariables.length === 0) {
+    return null;
+  }
+
+  return {
+    name: "createAddChartPatch",
+    args: {
+      runId,
+      title: `Chart: ${chartVariables.join(", ")}`,
+      variables: chartVariables
+    }
+  };
 }
 
 export function evaluateNotebookAssistantDirectPatchPolicy(
@@ -970,6 +1004,104 @@ function findVariableListCellId(document: NotebookDocument, contextText: string)
 
   const [best, next] = scoredCandidates;
   return best && (!next || best.score > next.score) ? best.id : null;
+}
+
+function findRunCellId(document: NotebookDocument, contextText: string): string | null {
+  const runs = document.cells.filter((cell): cell is RunCell => cell.type === "run");
+  if (runs.length === 0) {
+    return null;
+  }
+  if (runs.length === 1) {
+    return runs[0]?.id ?? null;
+  }
+
+  const normalizedContext = contextText.toLowerCase();
+  const scoredRuns = runs
+    .map((run) => ({ id: run.id, score: scoreRunCellMatch(run, normalizedContext) }))
+    .filter((run) => run.score > 0)
+    .sort((left, right) => right.score - left.score);
+  const [best, next] = scoredRuns;
+  if (best && (!next || best.score > next.score)) {
+    return best.id;
+  }
+
+  const baselineRuns = runs.filter((run) => run.mode === "baseline");
+  return baselineRuns.length === 1 ? baselineRuns[0]?.id ?? null : null;
+}
+
+function scoreRunCellMatch(run: RunCell, normalizedContext: string): number {
+  const haystack = [run.id, run.title, run.mode, run.resultKey].join(" ").toLowerCase();
+  let score = 0;
+  if (normalizedContext.includes(run.id.toLowerCase())) {
+    score += 10;
+  }
+  if (normalizedContext.includes(run.title.toLowerCase())) {
+    score += 10;
+  }
+  if (/\b(baseline|main|default|reference)\b/.test(normalizedContext) && run.mode === "baseline") {
+    score += 4;
+  }
+  if (/\bscenario\b/.test(normalizedContext) && run.mode === "scenario") {
+    score += 2;
+  }
+  for (const token of ["baseline", "scenario", "newton", "broyden", "gauss", "adaptive", "interest", "sensitive"]) {
+    if (normalizedContext.includes(token) && haystack.includes(token)) {
+      score += 2;
+    }
+  }
+  return score;
+}
+
+function extractKnownNotebookVariables(document: NotebookDocument, text: string): string[] {
+  const knownVariables = collectKnownNotebookVariables(document);
+  const variables: string[] = [];
+  const seen = new Set<string>();
+  const variablePattern = /`([^`]+)`|\b[A-Za-z][A-Za-z0-9_]*(?:\^\{?[A-Za-z0-9]+\}?)?\b/g;
+  for (const match of text.matchAll(variablePattern)) {
+    const candidate = (match[1] ?? match[0]).trim();
+    if (!knownVariables.has(candidate) || seen.has(candidate)) {
+      continue;
+    }
+    seen.add(candidate);
+    variables.push(candidate);
+  }
+  return variables;
+}
+
+function collectKnownNotebookVariables(document: NotebookDocument): Set<string> {
+  const variables = new Set<string>();
+  for (const cell of document.cells) {
+    if (cell.type === "model") {
+      collectModelCellVariables(cell, variables);
+    } else if (cell.type === "equations") {
+      collectEquationsCellVariables(cell, variables);
+    } else if (cell.type === "externals") {
+      collectExternalsCellVariables(cell, variables);
+    } else if (cell.type === "initial-values") {
+      collectInitialValuesCellVariables(cell, variables);
+    } else if (cell.type === "chart" || cell.type === "table") {
+      cell.variables.forEach((variable) => variables.add(variable));
+    }
+  }
+  return variables;
+}
+
+function collectModelCellVariables(cell: ModelCell, variables: Set<string>): void {
+  cell.editor.equations.forEach((row) => variables.add(row.name));
+  cell.editor.externals.forEach((row) => variables.add(row.name));
+  cell.editor.initialValues.forEach((row) => variables.add(row.name));
+}
+
+function collectEquationsCellVariables(cell: EquationsCell, variables: Set<string>): void {
+  cell.equations.forEach((row) => variables.add(row.name));
+}
+
+function collectExternalsCellVariables(cell: ExternalsCell, variables: Set<string>): void {
+  cell.externals.forEach((row) => variables.add(row.name));
+}
+
+function collectInitialValuesCellVariables(cell: InitialValuesCell, variables: Set<string>): void {
+  cell.initialValues.forEach((row) => variables.add(row.name));
 }
 
 function escapeJsonPointerSegment(value: string): string {

@@ -1,0 +1,15 @@
+{
+  "id": "edit-add-equation",
+  "label": "Edit mode adds a wage share equation",
+  "mode": "edit",
+  "question": "Add wage share as percent of GDP.",
+  "notebookPath": "../../public/notebook-examples/sim.notebook.json",
+  "savedResponsePath": "responses/edit-add-equation.raw.txt",
+  "expected": {
+    "toolNames": ["createAddEquationPatch"],
+    "patch": true,
+    "patchSummary": { "addedCells": 0, "changedCells": 1, "removedCells": 0, "operationCount": 1 },
+    "allowedPathPrefixes": ["/cells/"],
+    "addedEquation": { "name": "wageShare", "expression": "W * Ns / Y * 100" }
+  }
+}

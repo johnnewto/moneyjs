@@ -1,0 +1,15 @@
+{
+  "id": "edit-add-chart",
+  "label": "Edit mode adds a chart for disposable income and consumption",
+  "mode": "edit",
+  "question": "Add a chart for YD and Cd.",
+  "notebookPath": "../../public/notebook-examples/sim.notebook.json",
+  "savedResponsePath": "responses/edit-add-chart.raw.txt",
+  "expected": {
+    "toolNames": ["createAddChartPatch"],
+    "patch": true,
+    "patchSummary": { "addedCells": 1, "changedCells": 0, "removedCells": 0, "operationCount": 1 },
+    "allowedPathPrefixes": ["/cells/-"],
+    "addedChart": { "id": "chart-yd-cd", "variables": ["YD", "Cd"] }
+  }
+}

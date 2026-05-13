@@ -654,7 +654,7 @@ const CHAT_BUILDER_INITIAL_MESSAGES: ChatMessage[] = [
 ];
 
 const CHAT_BUILDER_MODEL_STORAGE_KEY = "sfcr:chat-builder-model";
-const CHAT_BUILDER_DEFAULT_MODEL = "gpt-4.1";
+const CHAT_BUILDER_DEFAULT_MODEL = "gpt-5.4-mini";
 
 const APP_BASE_URL = import.meta.env.BASE_URL;
 const CHAT_BUILDER_API_URL = resolveChatBuilderApiUrl();
@@ -1027,8 +1027,10 @@ function ChatBuilderApp() {
                   value={selectedModel}
                   onChange={(event) => handleModelChange(event.target.value)}
                 >
-                  <option value="gpt-5.5">GPT-5.5 (flagship model)</option>
+                  <option value="gpt-5.4-mini">GPT-5.4 mini (default model)</option>
+                  <option value="gpt-5.4">GPT-5.4</option>
                   <option value="gpt-4.1">GPT-4.1 (fast model)</option>
+                  <option value="gpt-5.5">GPT-5.5 (flagship model)</option>
                   <option value="o3">o3 (strong model)</option>
                 </select>
               </label>

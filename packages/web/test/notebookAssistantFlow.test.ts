@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildNotebookAssistantToolFollowupQuestion,
   evaluateNotebookAssistantDirectPatchPolicy,
+  extractTextAddChartToolRequest,
   extractNotebookAssistantToolRequests,
   extractNotebookPatchProposal,
   extractTextChartVariablesToolRequest,
@@ -500,6 +501,22 @@ describe("notebook assistant flow", () => {
       args: {
         chartId: "baseline-chart",
         variables: ["Y", "Cd", "Mh", "W", "WBs"]
+      }
+    });
+  });
+
+  it("extracts plain-text add-chart proposals into helper requests", () => {
+    expect(
+      extractTextAddChartToolRequest(
+        bmwDocument(),
+        'Add a chart for YD and Cd.\nAssuming you would like the chart for the baseline run, the following patch proposal will add the desired chart.'
+      )
+    ).toEqual({
+      name: "createAddChartPatch",
+      args: {
+        runId: "baseline-newton",
+        title: "Chart: YD, Cd",
+        variables: ["YD", "Cd"]
       }
     });
   });

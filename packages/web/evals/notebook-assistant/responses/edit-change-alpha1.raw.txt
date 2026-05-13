@@ -1,0 +1,9 @@
+I will use the parameter helper so the edit only touches the existing external value.
+
+```json
+{
+  "notebookAssistantToolRequests": [
+    { "name": "createUpdateParameterPatch", "args": { "modelId": "sim", "variable": "alpha1", "value": 0.65 } }
+  ]
+}
+```

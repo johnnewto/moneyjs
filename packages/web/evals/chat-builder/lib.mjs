@@ -41,7 +41,7 @@ export async function runChatBuilderEval(options = {}) {
     betaPassword: options.betaPassword ?? process.env.EVAL_CHAT_BUILDER_BETA_PASSWORD ?? "",
     discoveryUrl: options.discoveryUrl ?? process.env.EVAL_DISCOVERY_URL ?? "http://localhost:5173/.well-known/sfcr.json",
     endpoint: options.endpoint ?? process.env.EVAL_CHAT_BUILDER_API_URL ?? process.env.VITE_CHAT_BUILDER_API_URL ?? "http://localhost:8787/v1/chat-builder/draft",
-    model: options.model ?? process.env.EVAL_OPENAI_MODEL ?? "gpt-4.1",
+    model: options.model ?? process.env.EVAL_OPENAI_MODEL ?? "gpt-5.4-mini",
     origin: options.origin ?? process.env.EVAL_ORIGIN ?? DEFAULT_LIVE_ORIGIN,
     prompt: fixture.prompt
   };

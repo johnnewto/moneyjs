@@ -1,0 +1,9 @@
+I will add a single equation to the SIM model.
+
+```json
+{
+  "notebookAssistantToolRequests": [
+    { "name": "createAddEquationPatch", "args": { "modelId": "sim", "equation": "wageShare = W * Ns / Y * 100", "description": "Wage bill as a percent of GDP.", "role": "definition" } }
+  ]
+}
+```

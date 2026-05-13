@@ -20,7 +20,7 @@ import { summarizeCellTypes } from "./notebookSourceWorkflow";
 import type { NotebookDocument } from "./types";
 
 export const NOTEBOOK_ASSISTANT_API_URL = resolveNotebookAssistantApiUrl();
-export const NOTEBOOK_ASSISTANT_DEFAULT_MODEL = "gpt-4.1";
+export const NOTEBOOK_ASSISTANT_DEFAULT_MODEL = "gpt-5.4-mini";
 export const NOTEBOOK_ASSISTANT_MODEL_STORAGE_KEY = "sfcr:notebook-assistant-model";
 export const NOTEBOOK_ASSISTANT_MODE_STORAGE_KEY = "sfcr:notebook-assistant-mode";
 export const NOTEBOOK_ASSISTANT_MAX_TOOL_REQUESTS_PER_ROUND = 8;

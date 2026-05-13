@@ -1,0 +1,9 @@
+I will update the scenario run options without changing equations.
+
+```json
+{
+  "notebookAssistantToolRequests": [
+    { "name": "createUpdateRunOptionsPatch", "args": { "runId": "scenario-run", "periods": 100 } }
+  ]
+}
+```

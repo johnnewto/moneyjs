@@ -14,7 +14,7 @@ const env = {
   DISCOVERY_ALLOWED_ORIGINS: "http://localhost:5173,https://johnnewto.github.io",
   MAX_OUTPUT_TOKENS: "8000",
   NOTEBOOK_ASSISTANT_SYSTEM_PROMPT: () => readFile(resolve(packageDir, "prompts/notebook-assistant-system.md"), "utf8"),
-  OPENAI_MODEL_ALLOWLIST: "gpt-5.4,gpt-5.5,gpt-4.1,o3",
+  OPENAI_MODEL_ALLOWLIST: "gpt-5.4-mini,gpt-5.4,gpt-4.1,gpt-5.5,o3",
   ...process.env,
   ...(await readDevVars(resolve(packageDir, ".dev.vars")))
 };

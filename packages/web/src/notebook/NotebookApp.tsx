@@ -38,6 +38,7 @@ import {
   evaluateNotebookAssistantDirectPatchPolicy,
   extractNotebookAssistantToolRequests,
   extractNotebookPatchProposal,
+  extractTextAddChartToolRequest,
   extractTextChartVariablesToolRequest,
   filterNotebookAssistantToolRequestsForMode,
   formatNotebookAssistantMode,
@@ -110,6 +111,29 @@ import type { VariableDescriptions } from "../lib/variableDescriptions";
 import { buildVariableUnitMetadata } from "../lib/units";
 
 type NotebookRailTab = "editor" | "inspect" | "contents" | "assistant" | "preview";
+
+const NOTEBOOK_ASSISTANT_LOCAL_LIVE_TESTS: Array<{
+  label: string;
+  mode: NotebookAssistantMode;
+  question: string;
+}> = [
+  { label: "List runs", mode: "ask", question: "What runs are in this notebook?" },
+  { label: "Change alpha1", mode: "edit", question: "Change alpha1 to 0.65." },
+  { label: "Add chart", mode: "edit", question: "Add a chart for YD and Cd." },
+  {
+    label: "BMW consumption sensitivity",
+    mode: "edit",
+    question: "Make consumption less sensitive to current income and more to wealth by reducing α1 and increasing α2 by 20%."
+  }
+];
+
+function isNotebookAssistantLocalLiveTestEnabled(): boolean {
+  return (
+    import.meta.env.DEV &&
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+  );
+}
 
 export function NotebookApp() {
   const mainColumnRef = useRef<HTMLDivElement | null>(null);
@@ -770,8 +794,12 @@ export function NotebookApp() {
     window.localStorage.setItem(NOTEBOOK_ASSISTANT_MODE_STORAGE_KEY, nextMode);
   }
 
-  async function handleAskNotebookAssistant(): Promise<void> {
-    const question = assistantPromptText.trim();
+  async function handleAskNotebookAssistant(args: {
+    mode?: NotebookAssistantMode;
+    question?: string;
+  } = {}): Promise<void> {
+    const question = (args.question ?? assistantPromptText).trim();
+    const activeAssistantMode = args.mode ?? assistantMode;
     if (!question || isAssistantAsking || !NOTEBOOK_ASSISTANT_API_URL) {
       return;
     }
@@ -783,11 +811,11 @@ export function NotebookApp() {
     appendAssistantDebugEvent({
       detail: {
         messageCount: assistantMessages.length,
-        mode: assistantMode,
+        mode: activeAssistantMode,
         model: assistantModel,
         questionChars: question.length
       },
-      label: `Started ${formatNotebookAssistantMode(assistantMode)} assistant turn`,
+      label: `Started ${formatNotebookAssistantMode(activeAssistantMode)} assistant turn`,
       turnId,
       type: "turn:start"
     });
@@ -809,7 +837,7 @@ export function NotebookApp() {
       let streamedText = "";
       let firstStreamDeltaLogged = false;
       const firstContext = buildNotebookAssistantContext({
-        assistantMode,
+        assistantMode: activeAssistantMode,
         document: notebookDocument,
         inspectorContext,
         resultCount,
@@ -911,7 +939,7 @@ export function NotebookApp() {
       }
 
       if (toolRequestExtraction.requests.length === 0) {
-        const directPatch = assistantMode === "edit"
+        const directPatch = activeAssistantMode === "edit"
           ? extractNotebookPatchProposal({ document: notebookDocument, question, text: firstAnswer })
           : null;
         if (directPatch) {
@@ -961,15 +989,19 @@ export function NotebookApp() {
           return;
         }
 
-        const textProposalRequest = assistantMode === "edit"
+        const textProposalRequest = activeAssistantMode === "edit"
           ? extractTextChartVariablesToolRequest(notebookDocument, `${question}\n${firstAnswer}`)
           : null;
-        if (textProposalRequest) {
-          const result = dispatchNotebookAssistantTool(buildNotebookAssistantSnapshot(), textProposalRequest);
+        const textAddChartRequest = activeAssistantMode === "edit" && !textProposalRequest
+          ? extractTextAddChartToolRequest(notebookDocument, `${question}\n${firstAnswer}`)
+          : null;
+        const textFallbackRequest = textProposalRequest ?? textAddChartRequest;
+        if (textFallbackRequest) {
+          const result = dispatchNotebookAssistantTool(buildNotebookAssistantSnapshot(), textFallbackRequest);
           const proposedPatch = getPatchFromNotebookAssistantToolResults([result]);
             appendAssistantDebugEvent({
-              detail: { request: textProposalRequest, result },
-              label: `Ran helper tool ${textProposalRequest.name}`,
+              detail: { request: textFallbackRequest, result },
+              label: `Ran helper tool ${textFallbackRequest.name}`,
               turnId,
               type: "tool:result"
             });
@@ -987,12 +1019,12 @@ export function NotebookApp() {
       }
 
       const modeFilteredRequests = filterNotebookAssistantToolRequestsForMode(
-        assistantMode,
+        activeAssistantMode,
         toolRequestExtraction.requests
       );
       if (modeFilteredRequests.blocked.length > 0) {
         appendAssistantDebugEvent({
-          detail: { blocked: modeFilteredRequests.blocked, mode: assistantMode },
+          detail: { blocked: modeFilteredRequests.blocked, mode: activeAssistantMode },
           label: `Blocked ${modeFilteredRequests.blocked.length} tool request${modeFilteredRequests.blocked.length === 1 ? "" : "s"}`,
           turnId,
           type: "tool:blocked"
@@ -1048,7 +1080,7 @@ export function NotebookApp() {
       streamedText = "";
       let followupStreamDeltaLogged = false;
       const followupContext = buildNotebookAssistantContext({
-        assistantMode,
+        assistantMode: activeAssistantMode,
         document: notebookDocument,
         inspectorContext,
         resultCount,
@@ -1123,7 +1155,7 @@ export function NotebookApp() {
         turnId,
         type: "response:received"
       });
-      const directPatch = assistantMode === "edit"
+      const directPatch = activeAssistantMode === "edit"
         ? extractNotebookPatchProposal({ document: notebookDocument, question, text: finalAnswer })
         : null;
       if (directPatch) {
@@ -1173,7 +1205,7 @@ export function NotebookApp() {
         return;
       }
 
-      const textProposalRequest = assistantMode === "edit"
+      const textProposalRequest = activeAssistantMode === "edit"
         ? extractTextChartVariablesToolRequest(notebookDocument, `${question}\n${finalAnswer}`)
         : null;
       if (textProposalRequest) {
@@ -1235,6 +1267,12 @@ export function NotebookApp() {
       selectedPeriodIndex,
       selectedVariable: inspectorContext?.selectedVariable
     };
+  }
+
+  function handleRunNotebookAssistantLocalLiveTest(test: (typeof NOTEBOOK_ASSISTANT_LOCAL_LIVE_TESTS)[number]): void {
+    handleAssistantModeChange(test.mode);
+    setAssistantPromptText(test.question);
+    void handleAskNotebookAssistant({ mode: test.mode, question: test.question });
   }
 
   function getCurrentValueMapForModelRef(ref: {
@@ -1716,9 +1754,10 @@ export function NotebookApp() {
                   value={assistantModel}
                   onChange={(event) => handleAssistantModelChange(event.target.value)}
                 >
-                  <option value="gpt-5.5">GPT-5.5</option>
+                  <option value="gpt-5.4-mini">GPT-5.4 mini</option>
                   <option value="gpt-5.4">GPT-5.4</option>
                   <option value="gpt-4.1">GPT-4.1</option>
+                  <option value="gpt-5.5">GPT-5.5</option>
                   <option value="o3">o3</option>
                 </select>
               </label>
@@ -1739,6 +1778,29 @@ export function NotebookApp() {
                   ? `Endpoint: ${NOTEBOOK_ASSISTANT_API_URL}`
                   : "Set VITE_NOTEBOOK_ASSISTANT_API_URL or VITE_CHAT_BUILDER_API_URL to enable the assistant."}
               </div>
+              {isNotebookAssistantLocalLiveTestEnabled() ? (
+                <details className="notebook-assistant-debug-panel">
+                  <summary>Local Live Tests</summary>
+                  <div className="notebook-assistant-debug-actions">
+                    <span className="status-hint">
+                      Runs fixed prompts through the same live assistant request and tool loop as the composer.
+                    </span>
+                    <div className="button-row">
+                      {NOTEBOOK_ASSISTANT_LOCAL_LIVE_TESTS.map((test) => (
+                        <button
+                          key={`${test.mode}-${test.label}`}
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => handleRunNotebookAssistantLocalLiveTest(test)}
+                          disabled={isAssistantAsking || !NOTEBOOK_ASSISTANT_API_URL}
+                        >
+                          {test.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </details>
+              ) : null}
               {assistantError ? <div className="field-error">{assistantError}</div> : null}
 
               <details className="notebook-assistant-patch-panel">

@@ -6,7 +6,7 @@ compatibility_date = "2026-05-03"
 ALLOWED_ORIGINS = "http://localhost:5173,https://johnnewto.github.io"
 DISCOVERY_ALLOWED_ORIGINS = "http://localhost:5173,https://johnnewto.github.io"
 MAX_OUTPUT_TOKENS = "8000"
-OPENAI_MODEL_ALLOWLIST = "gpt-5.4,gpt-5.5,gpt-4.1,o3"
+OPENAI_MODEL_ALLOWLIST = "gpt-5.4-mini,gpt-5.4,gpt-4.1,gpt-5.5,o3"
 
 [[ratelimits]]
 name = "CHAT_BUILDER_RATE_LIMITER"

@@ -1,0 +1,9 @@
+I will add a chart cell that uses the existing baseline run.
+
+```json
+{
+  "notebookAssistantToolRequests": [
+    { "name": "createAddChartPatch", "args": { "runId": "baseline-run", "variables": ["YD", "Cd"], "title": "YD and Cd", "chartId": "chart-yd-cd" } }
+  ]
+}
+```

@@ -1,0 +1,13 @@
+{
+  "id": "ask-list-runs",
+  "label": "Ask mode lists available runs",
+  "mode": "ask",
+  "question": "What runs are in this notebook?",
+  "notebookPath": "../../public/notebook-examples/sim.notebook.json",
+  "savedResponsePath": "responses/ask-list-runs.raw.txt",
+  "expected": {
+    "toolNames": ["listRuns"],
+    "forbiddenToolNames": ["createUpdateParameterPatch", "createAddChartPatch", "createUpdateRunOptionsPatch", "createAddEquationPatch"],
+    "patch": false
+  }
+}

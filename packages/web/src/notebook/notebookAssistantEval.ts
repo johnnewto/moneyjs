@@ -1,0 +1,394 @@
+import {
+  dispatchNotebookAssistantTool,
+  dispatchNotebookAssistantToolRequests,
+  type NotebookAssistantSnapshot,
+  type NotebookAssistantToolRequest,
+  type NotebookAssistantToolResult
+} from "./notebookAssistantTools";
+import {
+  evaluateNotebookAssistantDirectPatchPolicy,
+  extractNotebookAssistantToolRequests,
+  extractNotebookPatchProposal,
+  filterNotebookAssistantToolRequestsForMode,
+  getPatchFromNotebookAssistantToolResults,
+  type NotebookAssistantMode,
+  type NotebookAssistantToolRequestExtraction
+} from "./notebookAssistantFlow";
+import {
+  previewNotebookPatch,
+  validateNotebookPatch,
+  type NotebookPatch,
+  type NotebookPatchResult,
+  type NotebookPatchSummary
+} from "./notebookPatch";
+import { notebookFromJson } from "./document";
+import type { NotebookDocument } from "./types";
+
+export interface NotebookAssistantEvalFixture {
+  expected?: NotebookAssistantEvalExpected;
+  id: string;
+  label: string;
+  mode: NotebookAssistantMode;
+  notebookPath: string;
+  question: string;
+  runtime?: NotebookAssistantSnapshot["runtime"];
+  savedResponsePath: string;
+  selectedCellId?: string | null;
+  selectedPeriodIndex?: number;
+  selectedVariable?: string | null;
+}
+
+export interface NotebookAssistantEvalExpected {
+  addedChart?: { id: string; variables?: string[] };
+  addedEquation?: { expression?: string; name: string };
+  allowedPathPrefixes?: string[];
+  changedExternal?: { name: string; valueText: string };
+  forbiddenToolNames?: string[];
+  patch?: boolean;
+  patchSummary?: Partial<NotebookPatchSummary>;
+  runPeriods?: { periods: number; runId: string };
+  toolNames?: string[];
+}
+
+export interface NotebookAssistantEvalDiagnostic {
+  message: string;
+  path?: string;
+  phase: string;
+}
+
+export interface NotebookAssistantEvalSummary {
+  diagnostics: NotebookAssistantEvalDiagnostic[];
+  diagnosticsCount: number;
+  fixtureId: string;
+  label: string;
+  live: boolean;
+  mode: NotebookAssistantMode;
+  ok: boolean;
+  patchSummary: NotebookPatchSummary | null;
+  request: {
+    assistantMode: NotebookAssistantMode;
+    mode: "offline";
+    questionChars: number;
+    questionPreview: string;
+    savedResponsePath: string;
+  };
+  response: {
+    chars: number;
+    preview: string;
+  };
+  tools: {
+    allowed: Array<{ args: Record<string, unknown>; name: string }>;
+    blocked: Array<{ args: Record<string, unknown>; name: string }>;
+    failed: Array<{ error: string; name: string }>;
+    requested: Array<{ args: Record<string, unknown>; name: string }>;
+  };
+}
+
+export interface NotebookAssistantEvalResult {
+  extraction: NotebookAssistantToolRequestExtraction;
+  modeFiltered: {
+    allowed: NotebookAssistantToolRequest[];
+    blocked: NotebookAssistantToolRequest[];
+  };
+  patch: NotebookPatch | null;
+  preview: NotebookPatchResult | null;
+  scoring: {
+    diagnostics: NotebookAssistantEvalDiagnostic[];
+    ok: boolean;
+  };
+  summary: NotebookAssistantEvalSummary;
+  toolResults: NotebookAssistantToolResult[];
+  validation: NotebookPatchResult | null;
+}
+
+export function evaluateNotebookAssistantResponse(args: {
+  document: NotebookDocument;
+  fixture: NotebookAssistantEvalFixture;
+  live?: boolean;
+  rawResponse: string;
+}): NotebookAssistantEvalResult {
+  const document = notebookFromJson(JSON.stringify(args.document));
+  const snapshot = buildNotebookAssistantEvalSnapshot(document, args.fixture);
+  const extraction = extractNotebookAssistantToolRequests(args.rawResponse);
+  const modeFiltered = filterNotebookAssistantToolRequestsForMode(args.fixture.mode, extraction.requests);
+  const toolDispatch = dispatchNotebookAssistantToolRequests(snapshot, modeFiltered.allowed);
+  const toolResults = toolDispatch.toolResults;
+  const patch = resolveNotebookAssistantEvalPatch({
+    document,
+    fixture: args.fixture,
+    rawResponse: args.rawResponse,
+    snapshot,
+    toolResults,
+    toolDispatchPatch: toolDispatch.proposedPatch,
+    toolRequests: modeFiltered.allowed
+  });
+  const validation = patch ? validateNotebookPatch(document, patch) : null;
+  const preview = patch ? previewNotebookPatch(document, patch) : null;
+  const scoring = scoreNotebookAssistantEval({
+    extraction,
+    fixture: args.fixture,
+    modeFiltered,
+    patch,
+    preview,
+    toolResults,
+    validation
+  });
+  const summary = buildNotebookAssistantEvalSummary({
+    extraction,
+    fixture: args.fixture,
+    live: Boolean(args.live),
+    modeFiltered,
+    preview,
+    rawResponse: args.rawResponse,
+    scoring,
+    toolResults
+  });
+
+  return {
+    extraction,
+    modeFiltered,
+    patch,
+    preview,
+    scoring,
+    summary,
+    toolResults,
+    validation
+  };
+}
+
+export function buildNotebookAssistantEvalSnapshot(
+  document: NotebookDocument,
+  fixture: NotebookAssistantEvalFixture
+): NotebookAssistantSnapshot {
+  return {
+    document,
+    runtime: fixture.runtime ?? { errors: {}, outputs: {}, status: {} },
+    selectedCellId: fixture.selectedCellId ?? null,
+    selectedPeriodIndex: fixture.selectedPeriodIndex ?? 0,
+    selectedVariable: fixture.selectedVariable ?? null
+  };
+}
+
+export function scoreNotebookAssistantEval(args: {
+  extraction: NotebookAssistantToolRequestExtraction;
+  fixture: NotebookAssistantEvalFixture;
+  modeFiltered: { allowed: NotebookAssistantToolRequest[]; blocked: NotebookAssistantToolRequest[] };
+  patch: NotebookPatch | null;
+  preview: NotebookPatchResult | null;
+  toolResults: NotebookAssistantToolResult[];
+  validation: NotebookPatchResult | null;
+}): { diagnostics: NotebookAssistantEvalDiagnostic[]; ok: boolean } {
+  const diagnostics: NotebookAssistantEvalDiagnostic[] = [];
+  const expected = args.fixture.expected ?? {};
+  const requestedNames = args.extraction.requests.map((request) => request.name);
+  const allowedNames = args.modeFiltered.allowed.map((request) => request.name);
+  const failedToolResults = args.toolResults.filter((result): result is Extract<NotebookAssistantToolResult, { ok: false }> => !result.ok);
+
+  if (args.extraction.error) {
+    diagnostics.push({ phase: "tools", message: args.extraction.error });
+  }
+  if (args.modeFiltered.blocked.length > 0) {
+    diagnostics.push({
+      phase: "mode",
+      message: `Blocked tools in ${args.fixture.mode} mode: ${args.modeFiltered.blocked.map((request) => request.name).join(", ")}`
+    });
+  }
+  for (const toolName of expected.toolNames ?? []) {
+    if (!allowedNames.includes(toolName)) {
+      diagnostics.push({ phase: "tools", message: `Expected tool ${toolName} to be allowed.` });
+    }
+  }
+  for (const toolName of expected.forbiddenToolNames ?? []) {
+    if (requestedNames.includes(toolName)) {
+      diagnostics.push({ phase: "tools", message: `Forbidden tool ${toolName} was requested.` });
+    }
+  }
+  for (const result of failedToolResults) {
+    diagnostics.push({ phase: "tools", message: `${result.name} failed: ${result.error}` });
+  }
+  if (expected.patch === false && args.patch) {
+    diagnostics.push({ phase: "patch", message: "Expected no patch, but a patch was proposed." });
+  }
+  if (expected.patch === true && !args.patch) {
+    diagnostics.push({ phase: "patch", message: "Expected a patch, but none was proposed." });
+  }
+  if (args.patch && args.validation && !args.validation.ok) {
+    diagnostics.push(...args.validation.issues.map((issue) => ({ phase: "validation", message: issue.message, path: issue.path })));
+  }
+  if (args.patch && args.preview && !args.preview.ok) {
+    diagnostics.push(...args.preview.issues.map((issue) => ({ phase: "preview", message: issue.message, path: issue.path })));
+  }
+  if (expected.patchSummary && args.preview) {
+    for (const [key, value] of Object.entries(expected.patchSummary) as Array<[keyof NotebookPatchSummary, number]>) {
+      if (args.preview.summary[key] !== value) {
+        diagnostics.push({ phase: "summary", message: `Expected patch summary ${key}=${value}, got ${args.preview.summary[key]}.` });
+      }
+    }
+  }
+  if (expected.allowedPathPrefixes && args.patch) {
+    for (const operation of args.patch.operations) {
+      if (!expected.allowedPathPrefixes.some((prefix) => operation.path.startsWith(prefix))) {
+        diagnostics.push({ phase: "target", path: operation.path, message: `Patch path ${operation.path} is outside the expected target.` });
+      }
+    }
+  }
+  if (args.preview?.ok) {
+    diagnostics.push(...validateExpectedDocument(args.preview.document, expected));
+  }
+
+  return { diagnostics, ok: diagnostics.length === 0 };
+}
+
+function resolveNotebookAssistantEvalPatch(args: {
+  document: NotebookDocument;
+  fixture: NotebookAssistantEvalFixture;
+  rawResponse: string;
+  snapshot: NotebookAssistantSnapshot;
+  toolDispatchPatch: NotebookPatch | null;
+  toolRequests: NotebookAssistantToolRequest[];
+  toolResults: NotebookAssistantToolResult[];
+}): NotebookPatch | null {
+  const toolPatch = args.toolDispatchPatch ?? getPatchFromNotebookAssistantToolResults(args.toolResults, args.toolRequests);
+  if (toolPatch) {
+    return toolPatch;
+  }
+  if (args.fixture.mode !== "edit") {
+    return null;
+  }
+
+  const directPatch = extractNotebookPatchProposal({
+    document: args.document,
+    question: args.fixture.question,
+    text: args.rawResponse
+  });
+  if (!directPatch) {
+    return null;
+  }
+
+  const policy = evaluateNotebookAssistantDirectPatchPolicy(args.document, directPatch);
+  if (!policy.ok) {
+    return directPatch;
+  }
+  if ("patch" in policy) {
+    return policy.patch;
+  }
+
+  const helperResult = dispatchNotebookAssistantTool(args.snapshot, policy.request);
+  return getPatchFromNotebookAssistantToolResults([helperResult], [policy.request]);
+}
+
+function buildNotebookAssistantEvalSummary(args: {
+  extraction: NotebookAssistantToolRequestExtraction;
+  fixture: NotebookAssistantEvalFixture;
+  live: boolean;
+  modeFiltered: { allowed: NotebookAssistantToolRequest[]; blocked: NotebookAssistantToolRequest[] };
+  preview: NotebookPatchResult | null;
+  rawResponse: string;
+  scoring: { diagnostics: NotebookAssistantEvalDiagnostic[]; ok: boolean };
+  toolResults: NotebookAssistantToolResult[];
+}): NotebookAssistantEvalSummary {
+  return {
+    fixtureId: args.fixture.id,
+    label: args.fixture.label,
+    live: args.live,
+    mode: args.fixture.mode,
+    ok: args.scoring.ok,
+    diagnosticsCount: args.scoring.diagnostics.length,
+    request: {
+      mode: "offline",
+      assistantMode: args.fixture.mode,
+      questionChars: args.fixture.question.length,
+      questionPreview: summarizeText(args.fixture.question),
+      savedResponsePath: args.fixture.savedResponsePath
+    },
+    response: {
+      chars: args.rawResponse.length,
+      preview: summarizeText(args.rawResponse)
+    },
+    tools: {
+      requested: args.extraction.requests.map(summarizeToolRequest),
+      allowed: args.modeFiltered.allowed.map(summarizeToolRequest),
+      blocked: args.modeFiltered.blocked.map(summarizeToolRequest),
+      failed: args.toolResults
+        .filter((result): result is Extract<NotebookAssistantToolResult, { ok: false }> => !result.ok)
+        .map((result) => ({ name: result.name, error: result.error }))
+    },
+    patchSummary: args.preview?.summary ?? null,
+    diagnostics: args.scoring.diagnostics
+  };
+}
+
+function validateExpectedDocument(
+  document: NotebookDocument,
+  expected: NotebookAssistantEvalExpected
+): NotebookAssistantEvalDiagnostic[] {
+  const diagnostics: NotebookAssistantEvalDiagnostic[] = [];
+
+  if (expected.changedExternal) {
+    const external = findExternal(document, expected.changedExternal.name);
+    if (!external || external.valueText !== String(expected.changedExternal.valueText)) {
+      diagnostics.push({ phase: "expected", message: `Expected external ${expected.changedExternal.name} valueText=${expected.changedExternal.valueText}.` });
+    }
+  }
+  if (expected.addedChart) {
+    const chart = document.cells.find((cell) => cell.type === "chart" && cell.id === expected.addedChart?.id);
+    if (!chart || chart.type !== "chart") {
+      diagnostics.push({ phase: "expected", message: `Expected chart ${expected.addedChart.id} to exist.` });
+    } else if (expected.addedChart.variables && !sameStrings(chart.variables, expected.addedChart.variables)) {
+      diagnostics.push({ phase: "expected", message: `Expected chart ${expected.addedChart.id} variables ${expected.addedChart.variables.join(", ")}.` });
+    }
+  }
+  if (expected.runPeriods) {
+    const run = document.cells.find((cell) => cell.type === "run" && cell.id === expected.runPeriods?.runId);
+    if (!run || run.type !== "run" || run.periods !== expected.runPeriods.periods) {
+      diagnostics.push({ phase: "expected", message: `Expected run ${expected.runPeriods.runId} periods=${expected.runPeriods.periods}.` });
+    }
+  }
+  if (expected.addedEquation) {
+    const equation = findEquation(document, expected.addedEquation.name);
+    if (!equation) {
+      diagnostics.push({ phase: "expected", message: `Expected equation ${expected.addedEquation.name} to exist.` });
+    } else if (expected.addedEquation.expression && equation.expression !== expected.addedEquation.expression) {
+      diagnostics.push({ phase: "expected", message: `Expected equation ${expected.addedEquation.name} expression ${expected.addedEquation.expression}.` });
+    }
+  }
+
+  return diagnostics;
+}
+
+function findExternal(document: NotebookDocument, name: string): { valueText: string } | null {
+  for (const cell of document.cells) {
+    if (cell.type === "externals") {
+      const external = cell.externals.find((candidate) => candidate.name === name);
+      if (external) {
+        return external;
+      }
+    }
+  }
+  return null;
+}
+
+function findEquation(document: NotebookDocument, name: string): { expression: string } | null {
+  for (const cell of document.cells) {
+    if (cell.type === "equations") {
+      const equation = cell.equations.find((candidate) => candidate.name === name);
+      if (equation) {
+        return equation;
+      }
+    }
+  }
+  return null;
+}
+
+function sameStrings(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function summarizeToolRequest(request: NotebookAssistantToolRequest): { args: Record<string, unknown>; name: string } {
+  return { name: request.name, args: request.args ?? {} };
+}
+
+function summarizeText(value: string, max = 120): string {
+  const singleLine = value.replace(/\s+/g, " ").trim();
+  return singleLine.length <= max ? singleLine : `${singleLine.slice(0, max - 1)}...`;
+}

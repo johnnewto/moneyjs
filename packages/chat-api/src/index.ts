@@ -61,7 +61,7 @@ interface SfcrNotebookManifest {
   schemaUrl?: string;
 }
 
-const DEFAULT_ALLOWED_MODELS = ["gpt-5.4","gpt-5.5", "gpt-4.1", "o3"];
+const DEFAULT_ALLOWED_MODELS = ["gpt-5.4-mini", "gpt-5.4", "gpt-4.1", "gpt-5.5", "o3"];
 const DEFAULT_DISCOVERY_ALLOWED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173", "https://johnnewto.github.io"];
 const DEFAULT_MAX_OUTPUT_TOKENS = 8000;
 const DISCOVERY_CACHE_TTL_SECONDS = 600;

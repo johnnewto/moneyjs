@@ -26,7 +26,14 @@ describe("App workspace and chat builder", () => {
     expect(screen.getByRole("heading", { name: /conversation/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /draft model preview/i })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /prompt/i })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: /gpt-5\.5/i })).toBeInTheDocument();
+    const modelSelect = screen.getByLabelText(/model/i) as HTMLSelectElement;
+    expect(Array.from(modelSelect.options).map((option) => option.value)).toEqual([
+      "gpt-5.4-mini",
+      "gpt-5.4",
+      "gpt-4.1",
+      "gpt-5.5",
+      "o3"
+    ]);
     expect(screen.getByLabelText(/beta password/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /start draft/i })).toBeInTheDocument();
   });
@@ -193,7 +200,7 @@ describe("App workspace and chat builder", () => {
       prompt?: string;
     };
     expect(requestBody.betaPassword).toBe("beta-test-password");
-    expect(requestBody.model).toBe("gpt-4.1");
+    expect(requestBody.model).toBe("gpt-5.4-mini");
     expect(requestBody.discoveryUrl).toBe(`${origin}/.well-known/sfcr.json`);
     expect(requestBody.prompt).toBe("Build a small SFC model with government spending and a baseline chart.");
     expect(window.localStorage.getItem("sfcr:chat-builder-beta-password")).toBeNull();

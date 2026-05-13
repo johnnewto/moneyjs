@@ -1,0 +1,15 @@
+{
+  "id": "edit-change-alpha1",
+  "label": "Edit mode changes the SIM alpha1 parameter",
+  "mode": "edit",
+  "question": "Change alpha1 to 0.65.",
+  "notebookPath": "../../public/notebook-examples/sim.notebook.json",
+  "savedResponsePath": "responses/edit-change-alpha1.raw.txt",
+  "expected": {
+    "toolNames": ["createUpdateParameterPatch"],
+    "patch": true,
+    "patchSummary": { "addedCells": 0, "changedCells": 1, "removedCells": 0, "operationCount": 1 },
+    "allowedPathPrefixes": ["/cells/"],
+    "changedExternal": { "name": "alpha1", "valueText": "0.65" }
+  }
+}

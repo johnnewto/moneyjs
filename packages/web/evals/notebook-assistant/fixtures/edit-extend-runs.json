@@ -1,0 +1,15 @@
+{
+  "id": "edit-extend-runs",
+  "label": "Edit mode extends a run to one hundred periods",
+  "mode": "edit",
+  "question": "Run this for 100 periods.",
+  "notebookPath": "../../public/notebook-examples/sim.notebook.json",
+  "savedResponsePath": "responses/edit-extend-runs.raw.txt",
+  "expected": {
+    "toolNames": ["createUpdateRunOptionsPatch"],
+    "patch": true,
+    "patchSummary": { "addedCells": 0, "changedCells": 1, "removedCells": 0, "operationCount": 1 },
+    "allowedPathPrefixes": ["/cells/"],
+    "runPeriods": { "runId": "scenario-run", "periods": 100 }
+  }
+}

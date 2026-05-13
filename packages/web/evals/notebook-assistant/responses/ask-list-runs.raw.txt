@@ -1,0 +1,9 @@
+I need the current run cells before answering.
+
+```json
+{
+  "notebookAssistantToolRequests": [
+    { "name": "listRuns", "args": {} }
+  ]
+}
+```
