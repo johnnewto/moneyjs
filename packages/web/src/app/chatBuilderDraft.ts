@@ -151,7 +151,10 @@ function extractJsonObjectText(rawText: string): string | null {
 function extractPrimaryEditorStateFromNotebook(document: NotebookDocument): EditorState | null {
   const runCell = document.cells.find((cell) => cell.type === "run");
   if (runCell?.type === "run") {
-    const editor = buildEditorStateForNotebookModel(document, runCell);
+    const editor = buildEditorStateForNotebookModel(document, {
+      sourceModelCellId: runCell.sourceModelCellId,
+      sourceModelId: runCell.sourceModelId
+    });
     if (editor) {
       return editor;
     }

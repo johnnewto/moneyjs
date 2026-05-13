@@ -1,8 +1,8 @@
 import type { Dispatch, SetStateAction } from "react";
 import { createNotebookDiagnostic } from "@sfcr/notebook-core";
 
-import { extractOpenAiTextResponse, postAssistantJson } from "../assistant/client";
-import { readAssistantSseResponse } from "../assistant/sse";
+import { extractOpenAiTextResponse, extractOpenAiUsageResponse, postAssistantJson } from "../assistant/client";
+import { readAssistantSseResponse, type AssistantTokenUsage } from "../assistant/sse";
 import type { NotebookPatch, NotebookPatchResult } from "./notebookPatch";
 import { previewNotebookPatch } from "./notebookPatch";
 import { notebookToJson } from "./document";
@@ -32,6 +32,11 @@ export interface NotebookAssistantMessage {
   text: string;
 }
 
+export interface NotebookAssistantAnswer {
+  text: string;
+  usage?: AssistantTokenUsage;
+}
+
 export interface NotebookAssistantInlinePatch {
   isJsonVisible: boolean;
   isJsonDirty?: boolean;
@@ -56,7 +61,7 @@ export async function requestNotebookAssistantAnswer(args: {
   model: string;
   onTextDelta?: (delta: string) => void;
   question: string;
-}): Promise<string> {
+}): Promise<NotebookAssistantAnswer> {
   if (!NOTEBOOK_ASSISTANT_API_URL) {
     throw new Error("Notebook assistant API endpoint is not configured.");
   }
@@ -78,20 +83,27 @@ export async function requestNotebookAssistantAnswer(args: {
 
   const contentType = response.headers.get("Content-Type") ?? "";
   if (response.body && contentType.includes("text/event-stream")) {
-    const streamedText = await readNotebookAssistantSseResponse(response, args.onTextDelta);
-    if (streamedText.trim()) {
-      return streamedText.trim();
+    const streamedResult = await readNotebookAssistantSseResponse(response, args.onTextDelta);
+    if (streamedResult.text.trim()) {
+      return {
+        text: streamedResult.text.trim(),
+        usage: streamedResult.usage
+      };
     }
   }
 
-  const text = extractOpenAiTextResponse(await response.json());
+  const result = await response.json();
+  const text = extractOpenAiTextResponse(result);
 
   if (!text) {
     throw new Error("Assistant response did not include text.");
   }
 
   args.onTextDelta?.(text);
-  return text;
+  return {
+    text,
+    usage: extractOpenAiUsageResponse(result)
+  };
 }
 
 export function setNotebookAssistantMessageText(
@@ -220,7 +232,7 @@ function resolveNotebookAssistantApiUrl(): string {
 async function readNotebookAssistantSseResponse(
   response: Response,
   onTextDelta: ((delta: string) => void) | undefined
-): Promise<string> {
+): Promise<Awaited<ReturnType<typeof readAssistantSseResponse>>> {
   return readAssistantSseResponse(response, parseNotebookAssistantSseEvent, onTextDelta);
 }
 

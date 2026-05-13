@@ -1,3 +1,5 @@
+import { extractAssistantTokenUsage, type AssistantTokenUsage } from "./sse";
+
 export interface OpenAiTextResponse {
   output?: Array<{
     content?: Array<{
@@ -5,6 +7,7 @@ export interface OpenAiTextResponse {
     }>;
   }>;
   output_text?: string;
+  usage?: unknown;
 }
 
 export async function postAssistantJson(args: {
@@ -37,6 +40,10 @@ export function extractOpenAiTextResponse(result: OpenAiTextResponse): string | 
       ?.flatMap((entry) => entry.content ?? [])
       .find((entry) => typeof entry.text === "string" && entry.text.trim())?.text ?? null
   );
+}
+
+export function extractOpenAiUsageResponse(result: OpenAiTextResponse): AssistantTokenUsage | undefined {
+  return extractAssistantTokenUsage(result) ?? undefined;
 }
 
 async function readAssistantErrorMessage(

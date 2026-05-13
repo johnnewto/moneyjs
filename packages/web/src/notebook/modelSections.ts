@@ -91,7 +91,7 @@ export function resolveRunCellModelKey(cells: NotebookCell[], cell: RunCell): st
 
 export function buildEditorStateForNotebookModel(
   document: NotebookDocument,
-  source: { modelId?: string; sourceModelId?: string; sourceModelCellId?: string }
+  source: { modelId?: string; sourceModelId?: string; sourceModelCellId?: string; periods?: number }
 ): EditorState | null {
   const modelId = source.modelId ?? source.sourceModelId;
   if (typeof modelId === "string" && modelId.trim() !== "") {
@@ -105,7 +105,10 @@ export function buildEditorStateForNotebookModel(
       equations: equationsCell.equations,
       externals: findExternalsCell(document.cells, modelId)?.externals ?? [],
       initialValues: findInitialValuesCell(document.cells, modelId)?.initialValues ?? [],
-      options: solverCell.options,
+      options: {
+        ...solverCell.options,
+        periods: source.periods ?? solverCell.options.periods
+      },
       scenario: { shocks: [] }
     };
   }

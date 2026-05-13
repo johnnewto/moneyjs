@@ -102,6 +102,7 @@ import { validateNotebookDocument } from "./validation";
 import { buildRuntimeConfig, type EditorState } from "../lib/editorModel";
 import { PeriodScrubber } from "../components/PeriodScrubber";
 import { AssistantMarkdown } from "../components/AssistantMarkdown";
+import { formatAssistantTokenUsage, mergeAssistantTokenUsage, type AssistantTokenUsage } from "../assistant/sse";
 import { VariableInspector } from "../components/VariableInspector";
 import { VariableMathLabel } from "../components/VariableMathLabel";
 import { useDragScroll } from "../hooks/useDragScroll";
@@ -836,6 +837,7 @@ export function NotebookApp() {
     try {
       let streamedText = "";
       let firstStreamDeltaLogged = false;
+      let turnUsage: AssistantTokenUsage | undefined;
       const firstContext = buildNotebookAssistantContext({
         assistantMode: activeAssistantMode,
         document: notebookDocument,
@@ -870,7 +872,7 @@ export function NotebookApp() {
         turnId,
         type: "request:start"
       });
-      const firstAnswer = await requestNotebookAssistantAnswer({
+      const firstAnswerResult = await requestNotebookAssistantAnswer({
         betaPassword: assistantBetaPassword,
         context: firstContext,
         messages: assistantMessages.slice(-8),
@@ -907,6 +909,13 @@ export function NotebookApp() {
         },
         question
       });
+      if (firstAnswerResult.usage) {
+        turnUsage = mergeAssistantTokenUsage(turnUsage, firstAnswerResult.usage);
+        if (turnUsage) {
+          setUiMessage(formatAssistantTokenUsage(turnUsage, assistantModel));
+        }
+      }
+      const firstAnswer = firstAnswerResult.text;
       appendAssistantDebugEvent({
         detail: { chars: firstAnswer.length, text: firstAnswer },
         label: `Received first assistant response (${firstAnswer.length} chars)`,
@@ -1112,7 +1121,7 @@ export function NotebookApp() {
         turnId,
         type: "request:start"
       });
-      const finalAnswer = await requestNotebookAssistantAnswer({
+      const finalAnswerResult = await requestNotebookAssistantAnswer({
         betaPassword: assistantBetaPassword,
         context: followupContext,
         messages: [
@@ -1148,6 +1157,13 @@ export function NotebookApp() {
           toolResults
         })
       });
+      if (finalAnswerResult.usage) {
+        turnUsage = mergeAssistantTokenUsage(turnUsage, finalAnswerResult.usage);
+        if (turnUsage) {
+          setUiMessage(formatAssistantTokenUsage(turnUsage, assistantModel));
+        }
+      }
+      const finalAnswer = finalAnswerResult.text;
       appendAssistantDebugEvent({
         detail: { chars: finalAnswer.length, text: finalAnswer },
         label: `Received final assistant response (${finalAnswer.length} chars)`,
@@ -1364,6 +1380,7 @@ export function NotebookApp() {
               uiMessage.toLowerCase().includes("exported") ||
               uiMessage.toLowerCase().includes("downloaded") ||
               uiMessage.toLowerCase().includes("loaded") ||
+              uiMessage.toLowerCase().includes("llm usage") ||
               uiMessage.toLowerCase().includes("ran all") ||
               uiMessage.toLowerCase().includes("previous-run trace")
                 ? "is-success"

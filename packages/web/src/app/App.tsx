@@ -18,8 +18,8 @@ import { PeriodScrubber } from "../components/PeriodScrubber";
 import { ResultChart, type ChartAxisMode } from "../components/ResultChart";
 import { ResultTable } from "../components/ResultTable";
 import { AssistantMarkdown } from "../components/AssistantMarkdown";
-import { extractOpenAiTextResponse, postAssistantJson } from "../assistant/client";
-import { readAssistantSseResponse } from "../assistant/sse";
+import { extractOpenAiTextResponse, extractOpenAiUsageResponse, postAssistantJson } from "../assistant/client";
+import { formatAssistantTokenUsage, readAssistantSseResponse, type AssistantTokenUsage } from "../assistant/sse";
 import { ScenarioEditor } from "../components/ScenarioEditor";
 import { SolverPanel } from "../components/SolverPanel";
 import { ValidationSummary } from "../components/ValidationSummary";
@@ -685,7 +685,7 @@ async function requestChatBuilderDraft(args: {
   messages: ChatMessage[];
   onTextDelta?: (delta: string) => void;
   prompt: string;
-}): Promise<ChatBuilderDraftPlan> {
+}): Promise<{ plan: ChatBuilderDraftPlan; usage?: AssistantTokenUsage }> {
   if (!CHAT_BUILDER_API_URL) {
     throw new Error("Chat builder API endpoint is not configured.");
   }
@@ -707,16 +707,23 @@ async function requestChatBuilderDraft(args: {
 
   const contentType = response.headers.get("Content-Type") ?? "";
   if (response.body && contentType.includes("text/event-stream")) {
-    const streamedText = await readChatBuilderSseResponse(response, args.onTextDelta);
-    if (streamedText.trim() !== "") {
-      return normalizeChatBuilderDraftPlan(streamedText.trim());
+    const streamedResult = await readChatBuilderSseResponse(response, args.onTextDelta);
+    if (streamedResult.text.trim() !== "") {
+      return {
+        plan: normalizeChatBuilderDraftPlan(streamedResult.text.trim()),
+        usage: streamedResult.usage
+      };
     }
   }
 
-  const text = extractOpenAiTextResponse(await response.json());
+  const result = await response.json();
+  const text = extractOpenAiTextResponse(result);
 
   if (typeof text === "string" && text.trim() !== "") {
-    return normalizeChatBuilderDraftPlan(text.trim());
+    return {
+      plan: normalizeChatBuilderDraftPlan(text.trim()),
+      usage: extractOpenAiUsageResponse(result)
+    };
   }
 
   throw new Error("The model response did not include any assistant text.");
@@ -725,7 +732,7 @@ async function requestChatBuilderDraft(args: {
 async function readChatBuilderSseResponse(
   response: Response,
   onTextDelta: ((delta: string) => void) | undefined
-): Promise<string> {
+): Promise<Awaited<ReturnType<typeof readAssistantSseResponse>>> {
   return readAssistantSseResponse(response, parseChatBuilderSseEvent, onTextDelta);
 }
 
@@ -855,7 +862,7 @@ function ChatBuilderApp() {
     try {
       const assistantMessageId = `assistant-${nextMessages.length + 1}`;
       let streamedAssistantText = "";
-      const draftPlan = await requestChatBuilderDraft({
+      const draftResult = await requestChatBuilderDraft({
         betaPassword: betaPasswordInput,
         model: selectedModel,
         messages,
@@ -884,6 +891,7 @@ function ChatBuilderApp() {
           });
         }
       });
+      const draftPlan = draftResult.plan;
 
       setMessages((current) => {
         const hasStreamingMessage = current.some((message) => message.id === assistantMessageId);
@@ -909,7 +917,11 @@ function ChatBuilderApp() {
       setDraftSummary(draftPlan.summary);
       setDraftSections(draftPlan.sections);
       setDraftSolverOptions(draftPlan.solverOptions);
-      setDraftStatus("Draft generated from model response.");
+      setDraftStatus(
+        draftResult.usage
+          ? formatAssistantTokenUsage(draftResult.usage, selectedModel)
+          : "Draft generated from model response."
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to start draft.";
       setDraftError(message);
