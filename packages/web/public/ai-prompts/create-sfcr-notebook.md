@@ -6,8 +6,8 @@ Before generating the notebook:
 
 1. Read `../notebook-guide.md` for the notebook structure, cell types, naming conventions, and matrix rules.
 2. Read `../sfcr-notebook.schema.json` for the machine-readable constraints.
-3. Use `../notebook-examples/bmw.notebook.json` as the default reference for sectors and accounting bands.
-4. Use `../notebook-examples/gl6-dis-rentier.notebook.v2.json` when the model splits households or needs distributional accounting.
+3. Use `../notebook-examples/bmw.example.notebook.json` as the default reference for sectors and accounting bands.
+4. Use `../notebook-examples/gl6-dis-rentier-v2.example.notebook.json` when the model splits households or needs distributional accounting.
 
 Requirements:
 

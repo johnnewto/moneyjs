@@ -19,12 +19,12 @@
     <loc>/ai-prompts/create-sfcr-notebook.md</loc>
   </url>
   <url>
-    <loc>/notebook-examples/sim.notebook.json</loc>
+    <loc>/notebook-examples/sim.example.notebook.json</loc>
   </url>
   <url>
-    <loc>/notebook-examples/bmw.notebook.json</loc>
+    <loc>/notebook-examples/bmw.example.notebook.json</loc>
   </url>
   <url>
-    <loc>/notebook-examples/gl6-dis-rentier.notebook.v2.json</loc>
+    <loc>/notebook-examples/gl6-dis-rentier-v2.example.notebook.json</loc>
   </url>
 </urlset>

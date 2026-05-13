@@ -3,7 +3,7 @@
   "label": "Edit mode extends a run to one hundred periods",
   "mode": "edit",
   "question": "Run this for 100 periods.",
-  "notebookPath": "../../public/notebook-examples/sim.notebook.json",
+  "notebookPath": "../../public/notebook-examples/sim.example.notebook.json",
   "savedResponsePath": "responses/edit-extend-runs.raw.txt",
   "expected": {
     "toolNames": ["createUpdateRunOptionsPatch"],

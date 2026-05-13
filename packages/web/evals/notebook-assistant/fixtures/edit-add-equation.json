@@ -3,7 +3,7 @@
   "label": "Edit mode adds a wage share equation",
   "mode": "edit",
   "question": "Add wage share as percent of GDP.",
-  "notebookPath": "../../public/notebook-examples/sim.notebook.json",
+  "notebookPath": "../../public/notebook-examples/sim.example.notebook.json",
   "savedResponsePath": "responses/edit-add-equation.raw.txt",
   "expected": {
     "toolNames": ["createAddEquationPatch"],

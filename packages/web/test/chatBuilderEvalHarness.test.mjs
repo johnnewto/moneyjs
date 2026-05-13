@@ -14,8 +14,8 @@ import {
 } from "../evals/chat-builder/lib.mjs";
 
 const schema = JSON.parse(await fs.readFile(path.resolve(webRoot, "public/sfcr-notebook.schema.json"), "utf8"));
-const simNotebook = JSON.parse(await fs.readFile(path.resolve(webRoot, "public/notebook-examples/sim.notebook.json"), "utf8"));
-const bmwNotebook = JSON.parse(await fs.readFile(path.resolve(webRoot, "public/notebook-examples/bmw.notebook.json"), "utf8"));
+const simNotebook = JSON.parse(await fs.readFile(path.resolve(webRoot, "public/notebook-examples/sim.example.notebook.json"), "utf8"));
+const bmwNotebook = JSON.parse(await fs.readFile(path.resolve(webRoot, "public/notebook-examples/bmw.example.notebook.json"), "utf8"));
 
 const fixture = await loadFixture("sim-basic");
 

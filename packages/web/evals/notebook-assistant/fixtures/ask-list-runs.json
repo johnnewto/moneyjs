@@ -3,7 +3,7 @@
   "label": "Ask mode lists available runs",
   "mode": "ask",
   "question": "What runs are in this notebook?",
-  "notebookPath": "../../public/notebook-examples/sim.notebook.json",
+  "notebookPath": "../../public/notebook-examples/sim.example.notebook.json",
   "savedResponsePath": "responses/ask-list-runs.raw.txt",
   "expected": {
     "toolNames": ["listRuns"],

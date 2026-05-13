@@ -3,7 +3,7 @@
   "label": "Edit mode adds a chart for disposable income and consumption",
   "mode": "edit",
   "question": "Add a chart for YD and Cd.",
-  "notebookPath": "../../public/notebook-examples/sim.notebook.json",
+  "notebookPath": "../../public/notebook-examples/sim.example.notebook.json",
   "savedResponsePath": "responses/edit-add-chart.raw.txt",
   "expected": {
     "toolNames": ["createAddChartPatch"],

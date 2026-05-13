@@ -8,26 +8,26 @@
       "guide": "../notebook-guide.md",
       "schema": "../sfcr-notebook.schema.json",
       "prompt": "../ai-prompts/create-sfcr-notebook.md",
-      "starterTemplate": "../notebook-examples/starter.notebook.json",
+      "starterTemplate": "../notebook-examples/starter.example.notebook.json",
       "examples": [
         {
           "id": "starter",
-          "url": "../notebook-examples/starter.notebook.json",
+          "url": "../notebook-examples/starter.example.notebook.json",
           "focus": ["minimum valid scaffold", "matrices", "sequences", "baseline"]
         },
         {
           "id": "sim",
-          "url": "../notebook-examples/sim.notebook.json",
+          "url": "../notebook-examples/sim.example.notebook.json",
           "focus": ["canonical SIM model", "baseline", "scenario", "government spending shock"]
         },
         {
           "id": "bmw",
-          "url": "../notebook-examples/bmw.notebook.json",
+          "url": "../notebook-examples/bmw.example.notebook.json",
           "focus": ["sectors", "bands", "baseline", "scenarios"]
         },
         {
           "id": "gl6-dis-rentier-v2",
-          "url": "../notebook-examples/gl6-dis-rentier.notebook.v2.json",
+          "url": "../notebook-examples/gl6-dis-rentier-v2.example.notebook.json",
           "focus": ["distribution", "multi-household sectors", "bands"]
         }
       ]

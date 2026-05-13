@@ -8,7 +8,7 @@ For public AI clients, the recommended bootstrap order is:
 
 1. Fetch the discovery JSON in `.well-known/`.
 2. Fetch the manifest or this guide.
-3. Start from `notebook-examples/starter.notebook.json` for the minimum valid notebook shape.
+3. Start from `notebook-examples/starter.example.notebook.json` for the minimum valid notebook shape.
 4. Use the schema to validate the final notebook JSON.
 5. Use the larger examples for sector, band, and scenario patterns instead of copying them wholesale.
 
@@ -37,7 +37,7 @@ For public AI clients, the recommended bootstrap order is:
 
 ## Starter Template
 
-Use `notebook-examples/starter.notebook.json` when generating a new notebook from scratch. It provides the minimum valid scaffold with an intro cell, balance-sheet and transactions-flow matrices, a transaction-flow sequence, a dependency graph, an equation cell, a solver cell, externals, initial values, and a baseline run cell.
+Use `notebook-examples/starter.example.notebook.json` when generating a new notebook from scratch. It provides the minimum valid scaffold with an intro cell, balance-sheet and transactions-flow matrices, a transaction-flow sequence, a dependency graph, an equation cell, a solver cell, externals, initial values, and a baseline run cell.
 
 Use the starter template first for structure, then borrow targeted patterns from the larger public examples:
 

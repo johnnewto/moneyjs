@@ -3,7 +3,7 @@
   "label": "SIM baseline and government spending scenario",
   "phase": "offline",
   "prompt": "Build the SIM model from Godley and Lavoie chapter 3 with a 60-period baseline and a government spending shock that raises Gd from 20 to 30 from period 5 onward.",
-  "savedResponsePath": "../../public/notebook-examples/sim.notebook.json",
+  "savedResponsePath": "../../public/notebook-examples/sim.example.notebook.json",
   "expected": {
     "titleIncludes": "SIM",
     "cellTypes": ["markdown", "matrix", "sequence", "equations", "solver", "externals", "initial-values", "run", "chart", "table"],

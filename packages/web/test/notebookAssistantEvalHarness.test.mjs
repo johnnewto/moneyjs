@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-import simNotebook from "../public/notebook-examples/sim.notebook.json";
+import simNotebook from "../public/notebook-examples/sim.example.notebook.json";
 import {
   listFixtures,
   loadFixture,

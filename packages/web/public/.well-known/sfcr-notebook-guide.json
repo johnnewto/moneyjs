@@ -8,7 +8,7 @@
   "schemaUrl": "../sfcr-notebook.schema.json",
   "promptUrl": "../ai-prompts/create-sfcr-notebook.md",
   "schemaVersion": "1.0.0",
-  "starterTemplateUrl": "../notebook-examples/starter.notebook.json",
+  "starterTemplateUrl": "../notebook-examples/starter.example.notebook.json",
   "supportedFormats": ["sfcr-notebook-json"],
   "supportedNotebookKinds": ["baseline", "scenario-analysis"],
   "supportedFeatures": ["sectors", "bands", "equations", "initial-values", "scenarios"],
@@ -17,19 +17,19 @@
     {
       "id": "sim",
       "label": "SIM notebook",
-      "url": "../notebook-examples/sim.notebook.json",
+      "url": "../notebook-examples/sim.example.notebook.json",
       "focus": ["canonical SIM model", "baseline run", "government spending scenario"]
     },
     {
       "id": "bmw",
       "label": "BMW notebook",
-      "url": "../notebook-examples/bmw.notebook.json",
+      "url": "../notebook-examples/bmw.example.notebook.json",
       "focus": ["sectors", "bands", "baseline run", "scenario runs"]
     },
     {
       "id": "gl6-dis-rentier-v2",
       "label": "GL6 DIS rentier split v2",
-      "url": "../notebook-examples/gl6-dis-rentier.notebook.v2.json",
+      "url": "../notebook-examples/gl6-dis-rentier-v2.example.notebook.json",
       "focus": ["multi-household sectors", "distribution", "inventory dynamics", "matrix bands"]
     }
   ],

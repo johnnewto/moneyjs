@@ -55,7 +55,7 @@ Each fixture supplies an existing notebook, assistant mode, user question, saved
   "id": "edit-change-alpha1",
   "mode": "edit",
   "question": "Change alpha1 to 0.65.",
-  "notebookPath": "../../public/notebook-examples/sim.notebook.json",
+  "notebookPath": "../../public/notebook-examples/sim.example.notebook.json",
   "savedResponsePath": "responses/edit-change-alpha1.raw.txt",
   "expected": {
     "toolNames": ["createUpdateParameterPatch"],
