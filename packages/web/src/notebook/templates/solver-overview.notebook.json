@@ -29,7 +29,6 @@
       "title": "Solver",
       "modelId": "solver-overview",
       "options": {
-        "periods": 30,
         "solverMethod": "GAUSS_SEIDEL",
         "toleranceText": "1e-10",
         "maxIterations": 100,
@@ -71,6 +70,7 @@
       "type": "run",
       "title": "Baseline run",
       "mode": "baseline",
+      "periods": 30,
       "resultKey": "solver_overview_baseline",
       "description": "Baseline run for the block-order example using a convergent cyclic pair with lagged feedback.",
       "sourceModelId": "solver-overview"

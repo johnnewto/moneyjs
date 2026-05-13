@@ -980,7 +980,6 @@
       "title": "Solver",
       "modelId": "equations",
       "options": {
-        "periods": 210,
         "solverMethod": "GAUSS_SEIDEL",
         "toleranceText": "1e-15",
         "maxIterations": 400,
@@ -1411,6 +1410,7 @@
       "type": "run",
       "title": "Baseline run",
       "mode": "baseline",
+      "periods": 210,
       "resultKey": "gl7_insout_baseline",
       "description": "Baseline INSOUT simulation with the hidden-equation condition Hbd = Hbs.",
       "sourceModelId": "equations"

@@ -239,6 +239,10 @@ function validateRunCellReferences(
     sectionModelIds: Set<string>;
   }
 ): void {
+  if (!Number.isInteger(cell.periods) || cell.periods < 1) {
+    context.issues.push(createNotebookIssue(`Run cell '${cell.id}' must define periods as an integer >= 1.`));
+  }
+
   if (cell.baselineRunCellId && !context.runCellIds.has(cell.baselineRunCellId)) {
     context.issues.push(createNotebookIssue(`Run cell '${cell.id}' references missing baseline run '${cell.baselineRunCellId}'.`));
   }

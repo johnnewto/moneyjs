@@ -3,10 +3,11 @@ import type { EditorOptions } from "../lib/editorModel";
 interface SolverPanelProps {
   options: EditorOptions;
   issues: Record<string, string | undefined>;
+  showPeriods?: boolean;
   onChange(next: EditorOptions): void;
 }
 
-export function SolverPanel({ options, issues, onChange }: SolverPanelProps) {
+export function SolverPanel({ options, issues, showPeriods = true, onChange }: SolverPanelProps) {
   return (
     <section className="editor-panel">
       <div className="panel-header">
@@ -14,15 +15,17 @@ export function SolverPanel({ options, issues, onChange }: SolverPanelProps) {
       </div>
 
       <div className="option-grid">
-        <label className="field">
-          <span>Periods</span>
-          <input
-            className={issues["options.periods"] ? "input-error" : ""}
-            type="number"
-            value={options.periods}
-            onChange={(event) => onChange({ ...options, periods: Number(event.target.value) })}
-          />
-        </label>
+        {showPeriods ? (
+          <label className="field">
+            <span>Periods</span>
+            <input
+              className={issues["options.periods"] ? "input-error" : ""}
+              type="number"
+              value={options.periods}
+              onChange={(event) => onChange({ ...options, periods: Number(event.target.value) })}
+            />
+          </label>
+        ) : null}
 
         <label className="field">
           <span>Solver</span>
@@ -119,7 +122,7 @@ export function SolverPanel({ options, issues, onChange }: SolverPanelProps) {
       </div>
 
       {[
-        issues["options.periods"],
+        showPeriods ? issues["options.periods"] : undefined,
         issues["options.maxIterations"],
         issues["options.toleranceText"],
         issues["options.defaultInitialValueText"],

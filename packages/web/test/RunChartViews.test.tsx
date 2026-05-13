@@ -59,6 +59,7 @@ const cells: NotebookCell[] = [
   {
     id: "run-1",
     mode: "baseline",
+    periods: 3,
     resultKey: "baseline",
     sourceModelId: "model-1",
     title: "Run",

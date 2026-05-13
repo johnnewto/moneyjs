@@ -158,7 +158,7 @@ export interface RunCell extends NotebookCellBase {
   scenario?: ScenarioDefinition | null;
   resultKey: string;
   description?: string;
-  periods?: number;
+  periods: number;
 }
 
 export interface ChartCell extends NotebookCellBase {

@@ -508,7 +508,6 @@
       "title": "Solver",
       "modelId": "opensimplest-levy",
       "options": {
-        "periods": 150,
         "solverMethod": "NEWTON",
         "toleranceText": "1e-8",
         "maxIterations": 200,
@@ -848,6 +847,7 @@
       "type": "run",
       "title": "Baseline",
       "mode": "baseline",
+      "periods": 150,
       "resultKey": "opensimplest_levy_baseline",
       "description": "Baseline simulation for the Levy WP 1105 aligned OPENSIMPLEST model over 150 periods.",
       "sourceModelId": "opensimplest-levy"

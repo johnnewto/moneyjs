@@ -62,7 +62,7 @@
       ],
       "collapsed": true
     },
-    { "id": "solver", "type": "solver", "title": "Solver options", "modelId": "sim", "options": { "periods": 60, "solverMethod": "BROYDEN", "toleranceText": "1e-8", "maxIterations": 350, "defaultInitialValueText": "1e-15", "hiddenLeftVariable": "Hh", "hiddenRightVariable": "Hs", "hiddenToleranceText": "1e-5", "relativeHiddenTolerance": false }, "collapsed": true },
+    { "id": "solver", "type": "solver", "title": "Solver options", "modelId": "sim", "options": { "solverMethod": "BROYDEN", "toleranceText": "1e-8", "maxIterations": 350, "defaultInitialValueText": "1e-15", "hiddenLeftVariable": "Hh", "hiddenRightVariable": "Hs", "hiddenToleranceText": "1e-5", "relativeHiddenTolerance": false }, "collapsed": true },
     {
       "id": "externals",
       "type": "externals",
@@ -78,7 +78,7 @@
       "collapsed": true
     },
     { "id": "initial-values", "type": "initial-values", "title": "Initial values", "modelId": "sim", "initialValues": [], "collapsed": true },
-    { "id": "baseline-run", "type": "run", "title": "Baseline run", "mode": "baseline", "resultKey": "sim_baseline", "sourceModelId": "sim", "description": "Baseline SIM run with government expenditure fixed at 20." },
+    { "id": "baseline-run", "type": "run", "title": "Baseline run", "mode": "baseline", "periods": 60, "resultKey": "sim_baseline", "sourceModelId": "sim", "description": "Baseline SIM run with government expenditure fixed at 20." },
     { "id": "baseline-chart", "type": "chart", "title": "Baseline income, consumption, and money", "sourceRunCellId": "baseline-run", "variables": ["Y", "YD", "Cd", "Hh"], "axisMode": "separate", "referenceTrace": "none", "timeRangeInclusive": [1, 60] },
     { "id": "baseline-table", "type": "table", "title": "Baseline SIM summary", "sourceRunCellId": "baseline-run", "variables": ["Y", "YD", "Cd", "Hh", "TXd", "Gd"] },
     { "id": "scenario-note", "type": "markdown", "title": "Scenario 1", "source": "Scenario 1 increases government expenditure `Gd` from `20` to `30` from period 5 through period 60, matching the introductory SIM scenario in the R `sfcr` README." },

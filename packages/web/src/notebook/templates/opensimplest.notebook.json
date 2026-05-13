@@ -508,7 +508,6 @@
       "title": "Solver",
       "modelId": "opensimplest",
       "options": {
-        "periods": 40,
         "solverMethod": "NEWTON",
         "toleranceText": "1e-8",
         "maxIterations": 200,
@@ -848,6 +847,7 @@
       "type": "run",
       "title": "Baseline",
       "mode": "baseline",
+      "periods": 40,
       "resultKey": "opensimplest_baseline",
       "description": "Baseline OPENSIMPLEST simulation over 40 periods.",
       "sourceModelId": "opensimplest"

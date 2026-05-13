@@ -72,7 +72,6 @@
       "title": "Solver",
       "modelId": "simple-epidemic",
       "options": {
-        "periods": 200,
         "solverMethod": "GAUSS_SEIDEL",
         "toleranceText": "1e-10",
         "maxIterations": 100,
@@ -131,6 +130,7 @@
       "type": "run",
       "title": "Baseline run",
       "mode": "baseline",
+      "periods": 200,
       "resultKey": "simple_epidemic_baseline",
       "description": "Baseline epidemic run over 200 quarter-day steps, corresponding to 50 days.",
       "sourceModelId": "simple-epidemic"

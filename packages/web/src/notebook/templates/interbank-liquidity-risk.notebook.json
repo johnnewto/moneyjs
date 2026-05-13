@@ -1330,7 +1330,6 @@
       "title": "Solver",
       "modelId": "interbank-liquidity-risk",
       "options": {
-        "periods": 38,
         "solverMethod": "BROYDEN",
         "toleranceText": "1e-8",
         "maxIterations": 200,
@@ -2216,6 +2215,7 @@
       "type": "run",
       "title": "Baseline run",
       "mode": "baseline",
+      "periods": 38,
       "resultKey": "interbank_liquidity_risk_baseline",
       "description": "Baseline simulation for the full Reale interbank-liquidity model.",
       "sourceModelId": "interbank-liquidity-risk"

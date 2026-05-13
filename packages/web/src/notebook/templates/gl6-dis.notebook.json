@@ -41,7 +41,6 @@
           ]
         },
         {
-          "band": "Loans",
           "label": "Loans",
           "values": [
             "",
@@ -378,7 +377,6 @@
       "title": "Solver",
       "modelId": "equations",
       "options": {
-        "periods": 100,
         "solverMethod": "GAUSS_SEIDEL",
         "toleranceText": "1e-10",
         "maxIterations": 100,
@@ -496,6 +494,7 @@
       "type": "run",
       "title": "Baseline run",
       "mode": "baseline",
+      "periods": 100,
       "resultKey": "gl6_dis_baseline",
       "description": "Baseline DIS simulation showing how inventory adjustment, bank credit, and household wealth co-evolve under the Mh = Ms closure condition.",
       "sourceModelId": "equations"

@@ -137,6 +137,7 @@ describe("App workspace and chat builder", () => {
                   type: "run",
                   title: "Baseline run",
                   mode: "baseline",
+                  periods: 20,
                   resultKey: "draft_baseline",
                   sourceModelId: "draft-model"
                 },

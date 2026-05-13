@@ -101,7 +101,6 @@
           ]
         },
         {
-          "band": "Government",
           "label": "Govt. expenditures",
           "values": [
             "",
@@ -342,7 +341,6 @@
       "title": "Solver",
       "modelId": "pc-baseline",
       "options": {
-        "periods": 70,
         "solverMethod": "GAUSS_SEIDEL",
         "toleranceText": "1e-10",
         "maxIterations": 200,
@@ -475,6 +473,7 @@
       "type": "run",
       "title": "Baseline run",
       "mode": "baseline",
+      "periods": 70,
       "resultKey": "gl2_pc_baseline",
       "description": "Baseline PC simulation with the hidden-equation condition Hh = Hs.",
       "sourceModelId": "pc-baseline"
@@ -764,7 +763,6 @@
       "title": "Solver",
       "modelId": "pc-pcex1",
       "options": {
-        "periods": 60,
         "solverMethod": "GAUSS_SEIDEL",
         "toleranceText": "1e-10",
         "maxIterations": 200,
@@ -908,6 +906,7 @@
       "type": "run",
       "title": "PCEX1 baseline run",
       "mode": "baseline",
+      "periods": 60,
       "resultKey": "gl2_pc_pcex1_baseline",
       "description": "PCEX1 with a stored `Ra` shock series and the hidden-equation condition Hh = Hs.",
       "sourceModelId": "pc-pcex1"
@@ -1150,7 +1149,6 @@
       "title": "Solver",
       "modelId": "pc-adaptive",
       "options": {
-        "periods": 60,
         "solverMethod": "GAUSS_SEIDEL",
         "toleranceText": "1e-10",
         "maxIterations": 200,
@@ -1283,6 +1281,7 @@
       "type": "run",
       "title": "Adaptive baseline run",
       "mode": "baseline",
+      "periods": 60,
       "resultKey": "gl2_pc_adaptive_baseline",
       "description": "Adaptive-expectations PC model with expected disposable income set to lagged income.",
       "sourceModelId": "pc-adaptive"
@@ -1565,7 +1564,6 @@
       "title": "Solver",
       "modelId": "pc-interest-sensitive",
       "options": {
-        "periods": 60,
         "solverMethod": "GAUSS_SEIDEL",
         "toleranceText": "1e-10",
         "maxIterations": 200,
@@ -1711,6 +1709,7 @@
       "type": "run",
       "title": "Interest-sensitive baseline run",
       "mode": "baseline",
+      "periods": 60,
       "resultKey": "gl2_pc_interest_baseline",
       "description": "Adaptive-expectations PC model with endogenous alpha1.",
       "sourceModelId": "pc-interest-sensitive"

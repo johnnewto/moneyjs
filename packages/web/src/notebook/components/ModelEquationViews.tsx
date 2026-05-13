@@ -137,9 +137,6 @@ export function ModelCellView({
             Solver <strong>{cell.editor.options.solverMethod}</strong>
           </span>
           <span className="notebook-model-chip">
-            Periods <strong>{runtime?.options.periods ?? "invalid"}</strong>
-          </span>
-          <span className="notebook-model-chip">
             Hidden <strong>{runtime?.options.hiddenEquation ? "on" : "off"}</strong>
           </span>
           <span className="notebook-model-chip">
@@ -453,9 +450,6 @@ export function EquationsCellView({
           </span>
           <span className="notebook-model-chip">
             Solver <strong>{solverCell?.options.solverMethod ?? "missing"}</strong>
-          </span>
-          <span className="notebook-model-chip">
-            Periods <strong>{runtime?.options.periods ?? solverCell?.options.periods ?? "invalid"}</strong>
           </span>
           <span className="notebook-model-chip">
             Hidden <strong>{runtime?.options.hiddenEquation ? "on" : "off"}</strong>

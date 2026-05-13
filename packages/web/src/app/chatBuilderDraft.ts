@@ -404,6 +404,7 @@ export function buildDraftNotebookDocument(args: {
         type: "run",
         title: "Baseline run",
         mode: "baseline",
+        periods: args.editor.options.periods,
         resultKey: `${notebookId}_baseline`,
         sourceModelId: modelId,
         description: args.summary

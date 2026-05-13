@@ -341,7 +341,6 @@
       "title": "Solver",
       "modelId": "equations",
       "options": {
-        "periods": 80,
         "solverMethod": "NEWTON",
         "toleranceText": "1e-10",
         "maxIterations": 200,
@@ -498,6 +497,7 @@
       "type": "run",
       "title": "Baseline run",
       "mode": "baseline",
+      "periods": 80,
       "resultKey": "gl6_dis_rentier_baseline",
       "description": "Baseline distributive DIS simulation with workers, rentiers, taxes, and a bond-money portfolio split.",
       "sourceModelId": "equations"

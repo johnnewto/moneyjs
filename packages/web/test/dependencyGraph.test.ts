@@ -675,6 +675,7 @@ function buildBmwDependencyScenario(): {
       type: "run",
       title: "Baseline run",
       mode: "baseline",
+      periods: 20,
       resultKey: "bmw",
       sourceModelId: "equations-newton"
     }

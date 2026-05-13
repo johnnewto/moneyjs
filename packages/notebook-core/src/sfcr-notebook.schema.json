@@ -386,7 +386,7 @@
             {
               "type": "object",
               "additionalProperties": false,
-              "required": ["mode", "resultKey"],
+              "required": ["mode", "resultKey", "periods"],
               "properties": {
                 "id": { "type": "string" },
                 "type": { "const": "run" },

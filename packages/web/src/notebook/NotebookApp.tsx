@@ -216,7 +216,7 @@ export function NotebookApp() {
           return [];
         }
 
-        const periods = cell.periods ?? buildRuntimeConfig(editor).options.periods;
+        const periods = cell.periods;
         return [Math.max(periods - 1, 0)];
       })
     );

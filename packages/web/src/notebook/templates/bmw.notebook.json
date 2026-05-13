@@ -495,7 +495,6 @@
       "title": "Solver options",
       "modelId": "equations-newton",
       "options": {
-        "periods": 50,
         "solverMethod": "NEWTON",
         "toleranceText": "1e-10",
         "maxIterations": 100,
@@ -633,6 +632,7 @@
       "type": "run",
       "title": "Baseline run with Newton",
       "mode": "baseline",
+      "periods": 50,
       "resultKey": "bmw_newton",
       "description": "This Newton baseline provides the reference path for the BMW scenarios.",
       "sourceModelId": "equations-newton"
@@ -696,7 +696,8 @@
       "baselineRunCellId": "baseline-newton",
       "periods": 50,
       "resultKey": "bmw_s1",
-      "sourceModelId": "equations-newton"
+      "sourceModelId": "equations-newton",
+      "baselineStartPeriod": 40
     },
     {
       "id": "scenario-1-chart",

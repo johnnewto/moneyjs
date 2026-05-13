@@ -5,9 +5,10 @@ import type { SimulationResult } from "@sfcr/core";
 import {
   buildNotebookRunnerResetKey,
   buildRunHistorySignatures,
+  resolveRunCellOptions,
   resolvePreviousRunResult
 } from "../src/notebook/useNotebookRunner";
-import type { NotebookDocument } from "../src/notebook/types";
+import type { NotebookDocument, RunCell } from "../src/notebook/types";
 
 const baseDocument: NotebookDocument = {
   id: "test-doc",
@@ -25,7 +26,7 @@ const baseDocument: NotebookDocument = {
       type: "equations",
       title: "Equations",
       modelId: "main",
-      equations: [{ id: "eq-1", name: "C", expression: "YD", description: "" }]
+      equations: [{ id: "eq-1", name: "C", expression: "YD", desc: "" }]
     },
     {
       id: "solver-main",
@@ -50,6 +51,7 @@ const baseDocument: NotebookDocument = {
       title: "Baseline run",
       sourceModelId: "main",
       mode: "baseline",
+      periods: 10,
       resultKey: "baseline"
     },
     {
@@ -126,7 +128,7 @@ describe("buildNotebookRunnerResetKey", () => {
         cell.id === "equations-main"
           ? {
               ...cell,
-              equations: [{ id: "eq-1", name: "C", expression: "YD - T", description: "" }]
+              equations: [{ id: "eq-1", name: "C", expression: "YD - T", desc: "" }]
             }
           : cell
       )
@@ -153,6 +155,22 @@ describe("resolvePreviousRunResult", () => {
 
   it("captures the last successful result after an input-changing reset", () => {
     expect(resolvePreviousRunResult(undefined, testResult, true)).toBe(testResult);
+  });
+});
+
+describe("resolveRunCellOptions", () => {
+  const baselineRunCell = baseDocument.cells.find(
+    (cell): cell is RunCell => cell.type === "run" && cell.id === "baseline-run"
+  );
+
+  it("uses run-cell periods", () => {
+    expect(baselineRunCell).toBeDefined();
+    expect(resolveRunCellOptions(testResult.options, baselineRunCell!).periods).toBe(10);
+  });
+
+  it("overrides the runtime periods when run-cell periods change", () => {
+    expect(baselineRunCell).toBeDefined();
+    expect(resolveRunCellOptions(testResult.options, { ...baselineRunCell!, periods: 25 }).periods).toBe(25);
   });
 });
 

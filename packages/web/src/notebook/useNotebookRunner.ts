@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import type { SimulationResult } from "@sfcr/core";
+import type { SimulationOptions, SimulationResult } from "@sfcr/core";
 
 import { buildRuntimeConfig } from "../lib/editorModel";
 import { createWorkerClient } from "../lib/workerClient";
@@ -83,6 +83,13 @@ export function resolvePreviousRunResult(
   return shouldCapturePrevious ? lastSuccessfulResult : undefined;
 }
 
+export function resolveRunCellOptions(options: SimulationOptions, cell: RunCell): SimulationOptions {
+  return {
+    ...options,
+    periods: cell.periods
+  };
+}
+
 export function buildRunHistorySignatures(document: NotebookDocument): Record<string, string> {
   return Object.fromEntries(
     document.cells
@@ -147,14 +154,7 @@ export function useNotebookRunner(document: NotebookDocument): NotebookRunnerApi
     }
 
     const runtime = buildRuntimeConfig(editor);
-    if (cell.periods == null) {
-      return runtime.options;
-    }
-
-    return {
-      ...runtime.options,
-      periods: cell.periods
-    };
+    return resolveRunCellOptions(runtime.options, cell);
   }
 
   function resolveBaselineRunCell(cell: RunCell): RunCell | null {
@@ -250,13 +250,7 @@ export function useNotebookRunner(document: NotebookDocument): NotebookRunnerApi
 
     try {
       const runtime = buildRuntimeConfig(editor);
-      const runOptions =
-        cell.periods == null
-          ? runtime.options
-          : {
-              ...runtime.options,
-              periods: cell.periods
-            };
+      const runOptions = resolveRunCellOptions(runtime.options, cell);
       let result: SimulationResult;
 
       if (cell.mode === "baseline") {

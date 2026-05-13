@@ -189,11 +189,11 @@ export function buildSourceHelpText(cell: NotebookCell): string {
 - sourceModelId or sourceModelCellId
 - mode: "baseline" | "scenario"
 - resultKey
+- periods
 
 Optional:
 - baselineRunCellId
 - baselineStartPeriod
-- periods
 
 Scenario example:
 ${formatCellBody(

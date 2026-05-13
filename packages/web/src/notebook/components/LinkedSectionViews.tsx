@@ -91,9 +91,6 @@ export function SolverCellView({
             Solver <strong>{options.solverMethod}</strong>
           </span>
           <span className="notebook-model-chip">
-            Periods <strong>{options.periods}</strong>
-          </span>
-          <span className="notebook-model-chip">
             Hidden <strong>{hiddenEquationEnabled ? "on" : "off"}</strong>
           </span>
           <span className="notebook-model-chip">
@@ -103,7 +100,7 @@ export function SolverCellView({
       </NotebookLinkedEditorHeader>
       {cell.collapsed ? null : isEditingSolver ? (
         <div className="notebook-model-editor-body">
-          <SolverPanel options={draftOptions} issues={issueMap} onChange={setDraftOptions} />
+          <SolverPanel options={draftOptions} issues={issueMap} showPeriods={false} onChange={setDraftOptions} />
         </div>
       ) : (
         <section
@@ -134,11 +131,6 @@ export function SolverCellView({
                 label: "Solver",
                 value: options.solverMethod,
                 status: issueMap["options.solverMethod"] ? "Issue" : "OK"
-              },
-              {
-                label: "Periods",
-                value: String(options.periods),
-                status: issueMap["options.periods"] ? "Issue" : "OK"
               },
               {
                 label: "Tolerance",

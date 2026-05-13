@@ -1189,7 +1189,6 @@
       "title": "Solver",
       "modelId": "equations",
       "options": {
-        "periods": 350,
         "solverMethod": "GAUSS_SEIDEL",
         "toleranceText": "1e-15",
         "maxIterations": 350,
@@ -2248,6 +2247,7 @@
       "type": "run",
       "title": "Baseline run",
       "mode": "baseline",
+      "periods": 350,
       "resultKey": "gl8_growth_baseline",
       "description": "Baseline GROWTH simulation with the relative hidden-equation condition Bbs = Bbd.",
       "sourceModelId": "equations"

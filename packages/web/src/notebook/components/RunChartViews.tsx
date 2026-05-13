@@ -2,7 +2,6 @@ import { InstantTooltip } from "../../components/InstantTooltip";
 import { ResultChart } from "../../components/ResultChart";
 import type { buildVariableUnitMetadata } from "../../lib/units";
 import { getVariableDescription, type VariableDescriptions } from "../../lib/variableDescriptions";
-import { buildEditorStateForNotebookModel } from "../modelSections";
 import type { ChartCell, NotebookCell, RunCell } from "../types";
 import type { useNotebookRunner } from "../useNotebookRunner";
 
@@ -40,7 +39,7 @@ export function RunCellView({
         ) : null}
         {cell.periods != null ? (
           <span className="notebook-run-meta-chip">
-            Periods <strong>{cell.periods}</strong>
+            {cell.mode === "scenario" ? "Scenario periods" : "Periods"} <strong>{cell.periods}</strong>
           </span>
         ) : null}
       </div>
@@ -234,19 +233,7 @@ function resolveEffectiveScenarioStartPeriod(
     return undefined;
   }
 
-  if (baselineRunCell.periods != null) {
-    return baselineRunCell.periods;
-  }
-
-  return buildEditorStateForNotebookModel(
-    {
-      id: "notebook",
-      title: "notebook",
-      metadata: { version: 1 },
-      cells
-    },
-    baselineRunCell
-  )?.options.periods;
+  return baselineRunCell.periods;
 }
 
 function formatShockValue(
