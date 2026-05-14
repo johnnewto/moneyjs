@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 
 import {
   bmwBaselineModel,
@@ -27,7 +27,6 @@ import { VariableInspector } from "../components/VariableInspector";
 import { useDragScroll } from "../hooks/useDragScroll";
 import { usePanelSplitter } from "../hooks/usePanelSplitter";
 import { useSolver } from "../hooks/useSolver";
-import { NotebookApp } from "../notebook/NotebookApp";
 import { notebookToJson } from "../notebook/document";
 import type { NotebookDocument } from "../notebook/types";
 import {
@@ -60,6 +59,10 @@ import { buildVariableUnitMetadata } from "../lib/units";
 import "../styles/app.css";
 
 type PresetId = "sim" | "bmw";
+
+const NotebookApp = lazy(() =>
+  import("../notebook/NotebookApp").then((module) => ({ default: module.NotebookApp }))
+);
 
 const BMW_DESCRIPTIONS: Record<string, string> = {
   AF: "Amortization funds",
@@ -165,7 +168,11 @@ export function App() {
   }
 
   if (route === "notebook") {
-    return <NotebookApp />;
+    return (
+      <Suspense fallback={<div className="app-loading">Loading notebook...</div>}>
+        <NotebookApp />
+      </Suspense>
+    );
   }
 
   return <WorkspaceApp />;

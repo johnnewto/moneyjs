@@ -8,13 +8,14 @@ import { App, screen, setSuccessfulNotebookRunner, setupAppTestEnv } from "./app
 setupAppTestEnv();
 
 describe("App balance matrix stock-role chips", () => {
-  it("shows stock-role chips on the BMW balance sheet but not the transaction-flow matrix", () => {
+  it("shows stock-role chips on the BMW balance sheet but not the transaction-flow matrix", async () => {
     window.location.hash = "#/notebook";
     setSuccessfulNotebookRunner();
+    await import("../src/notebook/NotebookApp");
 
     render(<App />);
 
-    const balanceHeading = screen.getByRole("heading", { name: /bmw balance sheet/i });
+    const balanceHeading = await screen.findByRole("heading", { name: /bmw balance sheet/i });
     const balanceCell = balanceHeading.closest("article");
     expect(balanceCell).not.toBeNull();
     if (!balanceCell) {

@@ -2075,6 +2075,27 @@ body.panel-splitter-body-lock {
   gap: 0.08rem;
 }
 
+.notebook-app-bar-meta {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.notebook-build-badge {
+  background: rgba(15, 118, 110, 0.08);
+  border: 1px solid rgba(15, 118, 110, 0.18);
+  border-radius: 999px;
+  color: #0f766e;
+  display: inline-flex;
+  font-size: 0.64rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.14rem 0.36rem;
+  white-space: nowrap;
+}
+
 .toast-stack {
   display: grid;
   gap: 0.6rem;

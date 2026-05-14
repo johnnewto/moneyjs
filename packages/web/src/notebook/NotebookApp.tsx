@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   detectNotebookSourceFormat,
@@ -67,7 +67,6 @@ import {
 import { NotebookCellView } from "./NotebookCellView";
 import { NotebookRenderProfiler } from "./notebookProfiler";
 import { AssistantInlinePatchView } from "./AssistantInlinePatchView";
-import { SourceCodeEditor } from "./SourceCodeEditor";
 import { SourceValidationPanel } from "./SourceValidationPanel";
 import {
   buildNotebookSourceValidation,
@@ -115,6 +114,12 @@ import { buildVariableUnitMetadata } from "../lib/units";
 
 type NotebookRailTab = "editor" | "inspect" | "contents" | "assistant" | "preview";
 
+const BUILD_DATE_LABEL = formatBuildDate(__SFCR_BUILD_DATE__);
+
+const SourceCodeEditor = lazy(() =>
+  import("./SourceCodeEditor").then((module) => ({ default: module.SourceCodeEditor }))
+);
+
 const NOTEBOOK_ASSISTANT_LOCAL_LIVE_TESTS: Array<{
   label: string;
   mode: NotebookAssistantMode;
@@ -136,6 +141,21 @@ function isNotebookAssistantLocalLiveTestEnabled(): boolean {
     typeof window !== "undefined" &&
     (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
   );
+}
+
+function formatBuildDate(buildDate: string): string {
+  const parsedDate = new Date(buildDate);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "Build unknown";
+  }
+
+  return `Built ${parsedDate.toLocaleString(undefined, {
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "short",
+    year: "numeric"
+  })}`;
 }
 
 export function NotebookApp() {
@@ -1439,7 +1459,12 @@ export function NotebookApp() {
           <section className="control-panel notebook-app-bar">
             <div className="notebook-app-bar-main">
               <div className="notebook-app-bar-brand">
-                <span className="eyebrow">Notebook commands</span>
+                <div className="notebook-app-bar-meta">
+                  <span className="eyebrow">Notebook commands</span>
+                  <span className="notebook-build-badge" title={__SFCR_BUILD_DATE__}>
+                    {BUILD_DATE_LABEL}
+                  </span>
+                </div>
                 <strong>{notebookDocument.title}</strong>
               </div>
 
@@ -1672,19 +1697,31 @@ export function NotebookApp() {
                 </button>
               </div>
 
-              <SourceCodeEditor
-                diagnostics={{
-                  issues: sourceValidation.diagnostics,
-                  parseValid: sourceValidation.parse.status === "valid",
-                  schemaValid: sourceValidation.schema.status === "valid"
-                }}
-                document={notebookDocument}
-                format={sourceFormat}
-                onChange={updateImportText}
-                placeholderText={getNotebookSourcePlaceholder(sourceFormat)}
-                selectedCellId={selectedCellId}
-                value={importText}
-              />
+              <Suspense
+                fallback={
+                  <textarea
+                    aria-label="Notebook source preview"
+                    className="json-area notebook-utility-textarea notebook-editor-textarea"
+                    placeholder={getNotebookSourcePlaceholder(sourceFormat)}
+                    readOnly
+                    value={importText}
+                  />
+                }
+              >
+                <SourceCodeEditor
+                  diagnostics={{
+                    issues: sourceValidation.diagnostics,
+                    parseValid: sourceValidation.parse.status === "valid",
+                    schemaValid: sourceValidation.schema.status === "valid"
+                  }}
+                  document={notebookDocument}
+                  format={sourceFormat}
+                  onChange={updateImportText}
+                  placeholderText={getNotebookSourcePlaceholder(sourceFormat)}
+                  selectedCellId={selectedCellId}
+                  value={importText}
+                />
+              </Suspense>
 
               <SourceValidationPanel validation={sourceValidation} />
 
