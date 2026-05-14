@@ -2271,8 +2271,10 @@
       "scenario": {
         "shocks": [
           {
-            "startPeriodInclusive": 15,
-            "endPeriodInclusive": 38,
+            "rangeInclusive": [
+              15,
+              38
+            ],
             "variables": {
               "PDU": {
                 "kind": "constant",
@@ -2320,8 +2322,10 @@
       "scenario": {
         "shocks": [
           {
-            "startPeriodInclusive": 15,
-            "endPeriodInclusive": 38,
+            "rangeInclusive": [
+              15,
+              38
+            ],
             "variables": {
               "ilcb": {
                 "kind": "constant",

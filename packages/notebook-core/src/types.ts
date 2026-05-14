@@ -110,7 +110,9 @@ export type NotebookCell =
 
 export interface NotebookCellBase {
   collapsed?: boolean;
+  description?: string;
   id: string;
+  note?: string;
   title: string;
 }
 
@@ -157,7 +159,6 @@ export interface RunCell extends NotebookCellBase {
   mode: "baseline" | "scenario";
   scenario?: ScenarioDefinition | null;
   resultKey: string;
-  description?: string;
   periods: number;
 }
 
@@ -191,15 +192,11 @@ export interface MatrixCell extends NotebookCellBase {
     label: string;
     values: string[];
   }>;
-  description?: string;
-  note?: string;
 }
 
 export interface SequenceCell extends NotebookCellBase {
   type: "sequence";
   source: SequenceCellSource;
-  description?: string;
-  note?: string;
 }
 
 export type SequenceCellSource =

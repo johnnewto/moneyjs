@@ -51,6 +51,12 @@
           "type": "string",
           "minLength": 1
         },
+        "description": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
         "collapsed": {
           "type": "boolean"
         }
@@ -269,6 +275,8 @@
                 "type": { "const": "markdown" },
                 "title": { "type": "string" },
                 "collapsed": { "type": "boolean" },
+                "description": { "type": "string" },
+                "note": { "type": "string" },
                 "source": { "type": "string" }
               }
             }
@@ -286,6 +294,8 @@
                 "type": { "const": "equations" },
                 "title": { "type": "string" },
                 "collapsed": { "type": "boolean" },
+                "description": { "type": "string" },
+                "note": { "type": "string" },
                 "modelId": { "type": "string" },
                 "equations": {
                   "type": "array",
@@ -307,6 +317,8 @@
                 "type": { "const": "solver" },
                 "title": { "type": "string" },
                 "collapsed": { "type": "boolean" },
+                "description": { "type": "string" },
+                "note": { "type": "string" },
                 "modelId": { "type": "string" },
                 "options": {
                   "type": "object",
@@ -349,6 +361,8 @@
                 "type": { "const": "externals" },
                 "title": { "type": "string" },
                 "collapsed": { "type": "boolean" },
+                "description": { "type": "string" },
+                "note": { "type": "string" },
                 "modelId": { "type": "string" },
                 "externals": {
                   "type": "array",
@@ -370,6 +384,8 @@
                 "type": { "const": "initial-values" },
                 "title": { "type": "string" },
                 "collapsed": { "type": "boolean" },
+                "description": { "type": "string" },
+                "note": { "type": "string" },
                 "modelId": { "type": "string" },
                 "initialValues": {
                   "type": "array",
@@ -391,6 +407,8 @@
                 "type": { "const": "run" },
                 "title": { "type": "string" },
                 "collapsed": { "type": "boolean" },
+                "description": { "type": "string" },
+                "note": { "type": "string" },
                 "sourceModelCellId": { "type": "string" },
                 "sourceModelId": { "type": "string" },
                 "baselineRunCellId": { "type": "string" },
@@ -398,7 +416,6 @@
                 "mode": { "enum": ["baseline", "scenario"] },
                 "scenario": { "$ref": "#/$defs/scenario" },
                 "resultKey": { "type": "string" },
-                "description": { "type": "string" },
                 "periods": { "type": "integer", "minimum": 1 }
               }
             }
@@ -416,6 +433,8 @@
                 "type": { "const": "chart" },
                 "title": { "type": "string" },
                 "collapsed": { "type": "boolean" },
+                "description": { "type": "string" },
+                "note": { "type": "string" },
                 "sourceRunCellId": { "type": "string" },
                 "variables": {
                   "type": "array",
@@ -467,6 +486,8 @@
                 "type": { "const": "table" },
                 "title": { "type": "string" },
                 "collapsed": { "type": "boolean" },
+                "description": { "type": "string" },
+                "note": { "type": "string" },
                 "sourceRunCellId": { "type": "string" },
                 "variables": {
                   "type": "array",
@@ -488,6 +509,8 @@
                 "type": { "const": "matrix" },
                 "title": { "type": "string" },
                 "collapsed": { "type": "boolean" },
+                "description": { "type": "string" },
+                "note": { "type": "string" },
                 "columns": {
                   "type": "array",
                   "items": { "type": "string" }
@@ -500,9 +523,7 @@
                 "rows": {
                   "type": "array",
                   "items": { "$ref": "#/$defs/matrixRow" }
-                },
-                "description": { "type": "string" },
-                "note": { "type": "string" }
+                }
               }
             }
           ]
@@ -519,9 +540,9 @@
                 "type": { "const": "sequence" },
                 "title": { "type": "string" },
                 "collapsed": { "type": "boolean" },
-                "source": { "$ref": "#/$defs/sequenceSource" },
                 "description": { "type": "string" },
-                "note": { "type": "string" }
+                "note": { "type": "string" },
+                "source": { "$ref": "#/$defs/sequenceSource" }
               }
             }
           ]

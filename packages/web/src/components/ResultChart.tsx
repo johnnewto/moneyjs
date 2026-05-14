@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { formatVariableTooltip, type VariableUnitMetadata } from "../lib/unitMeta";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
@@ -27,9 +27,13 @@ export type ChartAxisMode = "shared" | "separate";
 export type { ChartAxisRange } from "./ResultChartScales";
 
 interface ResultChartProps {
+  addVariableOptions?: string[];
   axisMode?: ChartAxisMode;
   axisSnapTolarance?: number;
   niceScale?: boolean;
+  onAddVariable?(variableName: string): void;
+  onMoveVariable?(variableName: string, direction: "left" | "right"): void;
+  onRemoveVariable?(variableName: string): void;
   overlaySeries?: ChartSeries[];
   periodLabelOffset?: number;
   seriesRanges?: Record<string, ChartAxisRange | undefined>;
@@ -47,9 +51,13 @@ const SERIES_COLORS = ["#111827", "#ec4899", "#ea580c", "#6366f1", "#059669", "#
 const X_TICK_LABEL_OFFSET = 16;
 
 export function ResultChart({
+  addVariableOptions,
   axisMode = "shared",
   axisSnapTolarance,
   niceScale = false,
+  onAddVariable,
+  onMoveVariable,
+  onRemoveVariable,
   overlaySeries = [],
   periodLabelOffset = 0,
   seriesRanges,
@@ -64,6 +72,10 @@ export function ResultChart({
 }: ResultChartProps) {
   const [hoveredDatum, setHoveredDatum] = useState<{ index: number; seriesName: string } | null>(null);
   const [hiddenSeriesNames, setHiddenSeriesNames] = useState<Set<string>>(() => new Set());
+  const [isAddVariableMenuOpen, setIsAddVariableMenuOpen] = useState(false);
+  const [openLegendMenuSeriesName, setOpenLegendMenuSeriesName] = useState<string | null>(null);
+  const addVariableMenuRef = useRef<HTMLDivElement | null>(null);
+  const addVariableMenuId = useId();
   const normalizedSeries = series
     .map((entry, index) => ({
       ...entry,
@@ -177,6 +189,75 @@ export function ResultChart({
           variableUnitMetadata
         )
       : null;
+  const selectableVariableNames = (addVariableOptions ?? []).filter(
+    (name) => !normalizedSeries.some((entry) => entry.name === name)
+  );
+  const canAddVariable = onAddVariable != null && selectableVariableNames.length > 0;
+  const hasLegendContextMenu = onMoveVariable != null || onRemoveVariable != null;
+
+  useEffect(() => {
+    if (!canAddVariable && isAddVariableMenuOpen) {
+      setIsAddVariableMenuOpen(false);
+    }
+  }, [canAddVariable, isAddVariableMenuOpen]);
+
+  useEffect(() => {
+    if (!isAddVariableMenuOpen) {
+      return undefined;
+    }
+
+    function handlePointerDown(event: MouseEvent): void {
+      const target = event.target;
+      if (target instanceof Node && addVariableMenuRef.current?.contains(target)) {
+        return;
+      }
+
+      setIsAddVariableMenuOpen(false);
+    }
+
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (event.key === "Escape") {
+        setIsAddVariableMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isAddVariableMenuOpen]);
+
+  useEffect(() => {
+    if (!openLegendMenuSeriesName) {
+      return undefined;
+    }
+
+    function handleClick(event: MouseEvent): void {
+      const target = event.target;
+      if (target instanceof Element && target.closest(".chart-legend-context-menu")) {
+        return;
+      }
+
+      setOpenLegendMenuSeriesName(null);
+    }
+
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (event.key === "Escape") {
+        setOpenLegendMenuSeriesName(null);
+      }
+    }
+
+    document.addEventListener("click", handleClick);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("click", handleClick);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [openLegendMenuSeriesName]);
 
   function toggleSeriesVisibility(seriesName: string): void {
     setHiddenSeriesNames((current) => {
@@ -202,9 +283,66 @@ export function ResultChart({
       <div className="panel-header">
         <h2>Chart</h2>
         <div className="chart-legend">
-          {normalizedSeries.map((entry) => {
+          {onAddVariable ? (
+            <div className="legend-item legend-item-add chart-legend-add" ref={addVariableMenuRef}>
+              <button
+                type="button"
+                className="chart-legend-add-button"
+                aria-controls={addVariableMenuId}
+                aria-expanded={isAddVariableMenuOpen ? "true" : "false"}
+                aria-label={
+                  canAddVariable ? "Add chart variable" : "No more variables available to add"
+                }
+                disabled={!canAddVariable}
+                onClick={() => {
+                  if (!canAddVariable) {
+                    return;
+                  }
+
+                  setIsAddVariableMenuOpen((current) => !current);
+                }}
+              >
+                <svg viewBox="0 0 16 16" focusable="false" aria-hidden="true">
+                  <circle cx="8" cy="8" r="6.25" />
+                  <path d="M8 3.25v9.5M3.25 8h9.5" />
+                </svg>
+              </button>
+              {isAddVariableMenuOpen ? (
+                <div
+                  id={addVariableMenuId}
+                  className="chart-legend-add-menu"
+                  role="listbox"
+                  aria-label="Available chart variables"
+                >
+                  {selectableVariableNames.map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      className="chart-legend-add-option"
+                      role="option"
+                      onClick={() => {
+                        onAddVariable(name);
+                        setIsAddVariableMenuOpen(false);
+                      }}
+                    >
+                      <span className="chart-legend-add-option-name">
+                        <VariableMathLabel name={name} />
+                      </span>
+                      {variableDescriptions?.get(name) ? (
+                        <span className="chart-legend-add-option-description">
+                          {variableDescriptions.get(name)}
+                        </span>
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          {normalizedSeries.map((entry, entryIndex) => {
             const isHidden = hiddenSeriesNames.has(entry.name);
             const isHovered = hoveredDatum?.seriesName === entry.name;
+            const isLegendMenuOpen = openLegendMenuSeriesName === entry.name;
             const className = `legend-item${
               isHidden
                 ? " is-hidden"
@@ -225,6 +363,17 @@ export function ResultChart({
                   }
                 }}
                 onMouseLeave={() => setHoveredDatum(null)}
+                onContextMenu={(event: ReactMouseEvent<HTMLElement>) => {
+                  if (!hasLegendContextMenu) {
+                    return;
+                  }
+
+                  event.preventDefault();
+                  setIsAddVariableMenuOpen(false);
+                  setOpenLegendMenuSeriesName((current) =>
+                    current === entry.name ? null : entry.name
+                  );
+                }}
                 tooltip={formatVariableTooltip(
                   variableDescriptions?.get(entry.name),
                   variableUnitMetadata?.get(entry.name)
@@ -271,6 +420,54 @@ export function ResultChart({
                   <span className="unit-badge">
                     {getVariableUnitLabel(variableUnitMetadata ?? new Map(), entry.name)}
                   </span>
+                ) : null}
+                {isLegendMenuOpen ? (
+                  <div
+                    className="chart-legend-context-menu"
+                    role="menu"
+                    aria-label={`${entry.name} chart variable actions`}
+                    onContextMenu={(event) => event.preventDefault()}
+                  >
+                    {onRemoveVariable ? (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        disabled={normalizedSeries.length <= 1}
+                        onClick={() => {
+                          onRemoveVariable(entry.name);
+                          setOpenLegendMenuSeriesName(null);
+                        }}
+                      >
+                        Remove from chart
+                      </button>
+                    ) : null}
+                    {onMoveVariable ? (
+                      <>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          disabled={entryIndex === 0}
+                          onClick={() => {
+                            onMoveVariable(entry.name, "left");
+                            setOpenLegendMenuSeriesName(null);
+                          }}
+                        >
+                          Move left
+                        </button>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          disabled={entryIndex === normalizedSeries.length - 1}
+                          onClick={() => {
+                            onMoveVariable(entry.name, "right");
+                            setOpenLegendMenuSeriesName(null);
+                          }}
+                        >
+                          Move right
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
                 ) : null}
               </InstantTooltip>
             );

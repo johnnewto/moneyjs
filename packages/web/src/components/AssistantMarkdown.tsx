@@ -4,23 +4,54 @@ import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 
 import type { VariableDescriptions } from "../lib/variableDescriptions";
+import type { VariableUnitMetadata } from "../lib/unitMeta";
 import { VariableLabel } from "./VariableLabel";
 import { renderVariableMathPlainText } from "./VariableMathLabel";
 
 interface AssistantMarkdownProps {
+  className?: string;
+  currentValues?: Record<string, number | undefined>;
+  inline?: boolean;
+  onSelectVariable?(variableName: string): void;
   text: string;
   variableDescriptions?: VariableDescriptions;
+  variableUnitMetadata?: VariableUnitMetadata;
 }
 
-export function AssistantMarkdown({ text, variableDescriptions }: AssistantMarkdownProps) {
+export function AssistantMarkdown({
+  className,
+  currentValues,
+  inline = false,
+  onSelectVariable,
+  text,
+  variableDescriptions,
+  variableUnitMetadata
+}: AssistantMarkdownProps) {
   const annotatedText = annotateAssistantVariableMentions(text, variableDescriptions);
+  const Wrapper = inline ? "span" : "div";
+  const inlineComponents = inline
+    ? {
+        h1: ({ children }: { children?: ReactNode }) => <>{children}</>,
+        h2: ({ children }: { children?: ReactNode }) => <>{children}</>,
+        h3: ({ children }: { children?: ReactNode }) => <>{children}</>,
+        h4: ({ children }: { children?: ReactNode }) => <>{children}</>,
+        h5: ({ children }: { children?: ReactNode }) => <>{children}</>,
+        h6: ({ children }: { children?: ReactNode }) => <>{children}</>,
+        p: ({ children }: { children?: ReactNode }) => <>{children}</>
+      }
+    : {};
 
   return (
-    <div className="assistant-markdown">
+    <Wrapper
+      className={["assistant-markdown", inline ? "assistant-markdown-inline" : "", className]
+        .filter(Boolean)
+        .join(" ")}
+    >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeSanitize]}
         components={{
+          ...inlineComponents,
           a: ({ children, href }) => (
             <a href={href} rel="noreferrer" target="_blank">
               {children}
@@ -30,14 +61,26 @@ export function AssistantMarkdown({ text, variableDescriptions }: AssistantMarkd
             const rawText = String(children).replace(/\n$/, "");
             const variableName = rawText.trim();
             if (!className && shouldRenderAssistantEquationCode(rawText)) {
-              return <code className="assistant-equation-code">{renderAssistantEquationText(rawText)}</code>;
+              return (
+                <code className="assistant-equation-code">
+                  {renderAssistantEquationTextWithOptions(
+                    rawText,
+                    onSelectVariable,
+                    variableDescriptions,
+                    variableUnitMetadata,
+                    currentValues
+                  )}
+                </code>
+              );
             }
 
             if (!className && shouldRenderAssistantVariableCode(variableName, variableDescriptions)) {
-              return (
-                <code className="assistant-variable-code">
-                  <VariableLabel name={variableName} variableDescriptions={variableDescriptions} />
-                </code>
+              return renderAssistantVariableCode(
+                variableName,
+                onSelectVariable,
+                variableDescriptions,
+                variableUnitMetadata,
+                currentValues
               );
             }
             return <code className={className}>{children}</code>;
@@ -46,7 +89,7 @@ export function AssistantMarkdown({ text, variableDescriptions }: AssistantMarkd
       >
         {annotatedText}
       </ReactMarkdown>
-    </div>
+    </Wrapper>
   );
 }
 
@@ -63,16 +106,100 @@ function shouldRenderAssistantEquationCode(value: string): boolean {
 }
 
 function renderAssistantEquationText(value: string): ReactNode[] {
+  return renderAssistantEquationTextWithOptions(value);
+}
+
+function renderAssistantEquationTextWithOptions(
+  value: string,
+  onSelectVariable?: (variableName: string) => void,
+  variableDescriptions?: VariableDescriptions,
+  variableUnitMetadata?: VariableUnitMetadata,
+  currentValues?: Record<string, number | undefined>
+): ReactNode[] {
   return value.split(/(`[^`\n]+`)/g).map((part, index) => {
     if (part.startsWith("`") && part.endsWith("`")) {
       const variableName = part.slice(1, -1).trim();
       if (variableName) {
-        return <VariableLabel key={`variable-${index}`} name={variableName} />;
+        return renderAssistantVariableInline(
+          variableName,
+          onSelectVariable,
+          variableDescriptions,
+          variableUnitMetadata,
+          currentValues,
+          `variable-${index}`
+        );
       }
     }
 
     return part;
   });
+}
+
+function renderAssistantVariableCode(
+  variableName: string,
+  onSelectVariable?: (variableName: string) => void,
+  variableDescriptions?: VariableDescriptions,
+  variableUnitMetadata?: VariableUnitMetadata,
+  currentValues?: Record<string, number | undefined>
+): ReactNode {
+  return renderAssistantVariableInline(
+    variableName,
+    onSelectVariable,
+    variableDescriptions,
+    variableUnitMetadata,
+    currentValues,
+    `code-${variableName}`,
+    true
+  );
+}
+
+function renderAssistantVariableInline(
+  variableName: string,
+  onSelectVariable: ((variableName: string) => void) | undefined,
+  variableDescriptions: VariableDescriptions | undefined,
+  variableUnitMetadata: VariableUnitMetadata | undefined,
+  currentValues: Record<string, number | undefined> | undefined,
+  key: string,
+  wrapInCode = false
+): ReactNode {
+  const label = (
+    <VariableLabel
+      currentValues={currentValues}
+      name={variableName}
+      variableDescriptions={variableDescriptions}
+      variableUnitMetadata={variableUnitMetadata}
+    />
+  );
+
+  if (!onSelectVariable) {
+    return wrapInCode ? (
+      <code key={key} className="assistant-variable-code">
+        {label}
+      </code>
+    ) : (
+      <VariableLabel
+        key={key}
+        currentValues={currentValues}
+        name={variableName}
+        variableDescriptions={variableDescriptions}
+        variableUnitMetadata={variableUnitMetadata}
+      />
+    );
+  }
+
+  const content = wrapInCode ? <code className="assistant-variable-code">{label}</code> : label;
+
+  return (
+    <button
+      key={key}
+      type="button"
+      className="assistant-variable-button"
+      aria-label={`Inspect variable ${variableName}`}
+      onClick={() => onSelectVariable(variableName)}
+    >
+      {content}
+    </button>
+  );
 }
 
 function shouldRenderAssistantVariableCode(

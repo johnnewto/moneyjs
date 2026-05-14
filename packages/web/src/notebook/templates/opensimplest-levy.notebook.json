@@ -772,8 +772,10 @@
       "scenario": {
         "shocks": [
           {
-            "startPeriodInclusive": 5,
-            "endPeriodInclusive": 150,
+            "rangeInclusive": [
+              5,
+              150
+            ],
             "variables": {
               "eps0": {
                 "kind": "constant",

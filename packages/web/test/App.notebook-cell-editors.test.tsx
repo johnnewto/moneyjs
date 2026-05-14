@@ -85,6 +85,80 @@ describe("App per-cell source editors", () => {
     expect(screen.getByRole("heading", { name: /updated baseline run/i })).toBeInTheDocument();
   }, 15000);
 
+  it("renders matrix notes as inline markdown in the cell header", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    setSuccessfulNotebookRunner();
+
+    render(<App />);
+
+    const matrixHeading = screen.getByRole("heading", { name: /bmw balance sheet/i });
+    const matrixArticle = matrixHeading.closest("article");
+    expect(matrixArticle).not.toBeNull();
+    if (!(matrixArticle instanceof HTMLElement)) {
+      throw new Error("Expected BMW balance sheet article.");
+    }
+
+    await user.click(within(matrixArticle).getByRole("button", { name: /^edit$/i }));
+    await user.click(within(matrixArticle).getByRole("radio", { name: /compact/i }));
+
+    const sourceEditor = within(matrixArticle).getByRole("textbox", {
+      name: /source editor for bmw balance sheet/i
+    }) as HTMLTextAreaElement;
+
+    fireEvent.change(sourceEditor, {
+      target: {
+        value: sourceEditor.value.replace(/"note"\s*:\s*"[^"]+"/, '"note":"# Source **structure** for Y."')
+      }
+    });
+    await user.click(within(matrixArticle).getByRole("button", { name: /^apply$/i }));
+
+    const note = matrixArticle.querySelector(".notebook-cell-note-inline");
+    expect(note).not.toBeNull();
+    expect(note).toHaveTextContent("Source structure for Y.");
+    expect(note?.querySelector("strong")).toHaveTextContent("structure");
+    expect(note?.querySelector("h1")).toBeNull();
+    expect(matrixArticle.querySelector(".notebook-matrix-note")).toBeNull();
+  }, 15000);
+
+  it("renders chart descriptions in the shared header second line", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    setSuccessfulNotebookRunner();
+
+    render(<App />);
+
+    const chartHeading = screen.getByRole("heading", { name: /baseline headline variables/i });
+    const chartArticle = chartHeading.closest("article");
+    expect(chartArticle).not.toBeNull();
+    if (!(chartArticle instanceof HTMLElement)) {
+      throw new Error("Expected baseline chart article.");
+    }
+
+    await user.click(within(chartArticle).getByRole("button", { name: /^edit$/i }));
+    await user.click(within(chartArticle).getByRole("radio", { name: /compact/i }));
+
+    const sourceEditor = within(chartArticle).getByRole("textbox", {
+      name: /source editor for baseline headline variables/i
+    }) as HTMLTextAreaElement;
+
+    fireEvent.change(sourceEditor, {
+      target: {
+        value: sourceEditor.value.replace(
+          '"title": "Baseline headline variables",',
+          '"title": "Baseline headline variables", "description": "**Charts** compare `Y` and peers.",'
+        )
+      }
+    });
+    await user.click(within(chartArticle).getByRole("button", { name: /^apply$/i }));
+
+    const description = chartArticle.querySelector(".notebook-cell-description-block");
+    expect(description).not.toBeNull();
+    expect(description).toHaveTextContent(/Charts compare Y.*and peers\./i);
+    expect(description?.querySelector("strong")).toHaveTextContent("Charts");
+    expect(description?.querySelector(".variable-label-inline")).toHaveTextContent(/Y/i);
+  }, 15000);
+
   it("edits a scenario run cell through the structured scenario source editor", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";

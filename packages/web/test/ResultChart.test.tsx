@@ -4,7 +4,7 @@ import "@testing-library/jest-dom/vitest";
 
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ResultChart } from "../src/components/ResultChart";
 
@@ -78,6 +78,72 @@ describe("ResultChart", () => {
     expect(screen.getByText("P", { selector: ".chart-legend sup" })).toBeInTheDocument();
     expect(screen.getByText("CB", { selector: ".chart-legend sup" })).toBeInTheDocument();
     expect(screen.getByText("CB", { selector: ".chart-scale sup" })).toBeInTheDocument();
+  });
+
+  it("adds a variable from the legend picker", async () => {
+    const user = userEvent.setup();
+    const handleAddVariable = vi.fn();
+
+    render(
+      <ResultChart
+        addVariableOptions={["A", "B", "C"]}
+        onAddVariable={handleAddVariable}
+        series={[
+          { name: "A", values: [2, 3, 5, 4] },
+          { name: "B", values: [10, 15, 25, 20] }
+        ]}
+        variableDescriptions={new Map([["C", "Household consumption"]])}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /add chart variable/i }));
+
+    const menu = screen.getByRole("listbox", { name: /available chart variables/i });
+    expect(within(menu).getByRole("option", { name: /C/i })).toBeInTheDocument();
+    expect(within(menu).queryByRole("option", { name: /A/i })).not.toBeInTheDocument();
+
+    await user.click(within(menu).getByRole("option", { name: /C/i }));
+
+    expect(handleAddVariable).toHaveBeenCalledWith("C");
+    expect(screen.queryByRole("listbox", { name: /available chart variables/i })).not.toBeInTheDocument();
+  });
+
+  it("opens legend variable actions from right-click", async () => {
+    const user = userEvent.setup();
+    const handleMoveVariable = vi.fn();
+    const handleRemoveVariable = vi.fn();
+
+    render(
+      <ResultChart
+        onMoveVariable={handleMoveVariable}
+        onRemoveVariable={handleRemoveVariable}
+        series={[
+          { name: "A", values: [2, 3, 5, 4] },
+          { name: "B", values: [10, 15, 25, 20] },
+          { name: "C", values: [30, 31, 32, 33] }
+        ]}
+      />
+    );
+
+    const legendB = screen.getByText("B").closest(".legend-item");
+    if (!legendB) {
+      throw new Error("Expected B legend item.");
+    }
+
+    fireEvent.contextMenu(legendB);
+
+    const menu = screen.getByRole("menu", { name: /B chart variable actions/i });
+    await user.click(within(menu).getByRole("menuitem", { name: /move left/i }));
+
+    expect(handleMoveVariable).toHaveBeenCalledWith("B", "left");
+    expect(screen.queryByRole("menu", { name: /B chart variable actions/i })).not.toBeInTheDocument();
+
+    fireEvent.contextMenu(legendB);
+    await user.click(
+      screen.getByRole("menuitem", { name: /remove from chart/i })
+    );
+
+    expect(handleRemoveVariable).toHaveBeenCalledWith("B");
   });
 
   it("keeps separate-axis tick rows aligned by using the same tick count on each axis", () => {

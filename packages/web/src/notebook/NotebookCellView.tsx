@@ -1,5 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 
+import { AssistantMarkdown } from "../components/AssistantMarkdown";
 import type { EditorState } from "../lib/editorModel";
 import {
   buildVariableDescriptions,
@@ -92,6 +93,8 @@ export interface NotebookCellViewProps {
   onActiveEditorCellIdChange(cellId: string | null): void;
   onSelectedCellIdChange(cellId: string): void;
   onSelectedPeriodIndexChange(nextIndex: number): void;
+  onDeleteCell(cellId: string): void;
+  onMoveCell(cellId: string, direction: -1 | 1): void;
   onModelChange(cellId: string, editor: EditorState): void;
   onCellChange(cellId: string, updater: (cell: NotebookCell) => NotebookCell): void;
   onVariableInspectRequest(args: {
@@ -116,6 +119,8 @@ function NotebookCellViewComponent({
   onActiveEditorCellIdChange,
   onSelectedCellIdChange,
   onSelectedPeriodIndexChange,
+  onDeleteCell,
+  onMoveCell,
   runner,
   selectedCellId,
   selectedPeriodIndex,
@@ -134,7 +139,9 @@ function NotebookCellViewComponent({
   const [openSourceMenu, setOpenSourceMenu] = useState<"insert" | null>(null);
   const [sourceError, setSourceError] = useState<string | null>(null);
   const [sourceValidationError, setSourceValidationError] = useState<string | null>(null);
+  const [cellContextMenu, setCellContextMenu] = useState<{ x: number; y: number } | null>(null);
   const insertMenuRef = useRef<HTMLDivElement | null>(null);
+  const cellContextMenuRef = useRef<HTMLDivElement | null>(null);
   const sourceTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const sourceHighlightRef = useRef<HTMLPreElement | null>(null);
   const sourceGutterRef = useRef<HTMLPreElement | null>(null);
@@ -156,6 +163,43 @@ function NotebookCellViewComponent({
   const variableUnitMetadata = useMemo(
     () => resolveCellVariableUnitMetadata(cells, cell),
     [cells, cell]
+  );
+  const markdownInspectionContext = useMemo(
+    () =>
+      cell.type === "markdown"
+        ? resolveNotebookInspectionContext({
+            cell,
+            cells,
+            getModelCurrentValues,
+            runner,
+            selectedPeriodIndex
+          })
+        : null,
+    [cell, cells, getModelCurrentValues, runner, selectedPeriodIndex]
+  );
+  const runInspectionContext = useMemo(
+    () =>
+      cell.type === "run"
+        ? resolveNotebookInspectionContext({
+            cell,
+            cells,
+            getModelCurrentValues,
+            runner,
+            selectedPeriodIndex
+          })
+        : null,
+    [cell, cells, getModelCurrentValues, runner, selectedPeriodIndex]
+  );
+  const noteInspectionContext = useMemo(
+    () =>
+      resolveNotebookInspectionContext({
+        cell,
+        cells,
+        getModelCurrentValues,
+        runner,
+        selectedPeriodIndex
+      }),
+    [cell, cells, getModelCurrentValues, runner, selectedPeriodIndex]
   );
   const showToolbarHelp = !isLinkedModelEditorCell(cell);
   const [isLinkedEditorEditing, setIsLinkedEditorEditing] = useState(false);
@@ -181,6 +225,11 @@ function NotebookCellViewComponent({
     !isActivelyEditing &&
     isViewportDeferredCellType(cell.type) &&
     !shouldMountViewportDeferredBody;
+  const cellIndex = cells.findIndex((candidate) => candidate.id === cell.id);
+  const canMoveCellUp = cellIndex > 0;
+  const canMoveCellDown = cellIndex >= 0 && cellIndex < cells.length - 1;
+  const cellDescription = getNotebookCellDescription(cell);
+  const cellNote = getNotebookCellNote(cell);
 
   useEffect(() => {
     setTitleDraft(cell.title);
@@ -391,6 +440,53 @@ function NotebookCellViewComponent({
     onSelectedCellIdChange(cell.id);
   }
 
+  function handleCellContextMenu(event: React.MouseEvent<HTMLElement>): void {
+    const target = event.target;
+    if (
+      target instanceof Element &&
+      target.closest("input, select, textarea, [contenteditable='true']")
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    onSelectedCellIdChange(cell.id);
+    setCellContextMenu({ x: event.clientX, y: event.clientY });
+  }
+
+  function closeCellContextMenu(): void {
+    setCellContextMenu(null);
+  }
+
+  useEffect(() => {
+    if (cellContextMenu && cellContextMenuRef.current) {
+      cellContextMenuRef.current.style.left = `${cellContextMenu.x}px`;
+      cellContextMenuRef.current.style.top = `${cellContextMenu.y}px`;
+    }
+
+    if (cellContextMenu == null) {
+      return;
+    }
+
+    function handlePointerDown(): void {
+      closeCellContextMenu();
+    }
+
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (event.key === "Escape") {
+        closeCellContextMenu();
+      }
+    }
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [cellContextMenu]);
+
   return (
     <NotebookRenderProfiler
       id="NotebookCellView"
@@ -412,6 +508,7 @@ function NotebookCellViewComponent({
           activeEditorCellId === cell.id ? " notebook-cell-is-active-editor" : ""
         }`}
         onClick={handleCellClick}
+        onContextMenu={handleCellContextMenu}
       >
         <div className="notebook-cell-content">
         <div className="notebook-cell-toolbar">
@@ -506,13 +603,36 @@ function NotebookCellViewComponent({
                 }
               />
             }
+            descriptionContent={
+              !isCollapsed && cellDescription ? (
+                <AssistantMarkdown
+                  className="notebook-cell-description-markdown"
+                  currentValues={noteInspectionContext?.currentValues}
+                  onSelectVariable={
+                    noteInspectionContext == null
+                      ? undefined
+                      : (selectedVariable) =>
+                          onVariableInspectRequest({
+                            currentValues: noteInspectionContext.currentValues,
+                            editor: noteInspectionContext.editor,
+                            selectedVariable,
+                            variableDescriptions: noteInspectionContext.variableDescriptions,
+                            variableUnitMetadata: noteInspectionContext.variableUnitMetadata
+                          })
+                  }
+                  text={cellDescription}
+                  variableDescriptions={variableDescriptions}
+                  variableUnitMetadata={variableUnitMetadata}
+                />
+              ) : null
+            }
             title={cell.title}
             typeLabel={cell.type}
           />
         </div>
 
-        {error ? <div className="error-text">Error: {error}</div> : null}
-        {sourceError ? <div className="error-text">Source error: {sourceError}</div> : null}
+        {!isCollapsed && error ? <div className="error-text">Error: {error}</div> : null}
+        {!isCollapsed && sourceError ? <div className="error-text">Source error: {sourceError}</div> : null}
 
         {isEditingSource ? (
           <div className="notebook-source-editor">
@@ -655,7 +775,25 @@ function NotebookCellViewComponent({
         ) : null}
 
         {isCollapsed ? null : cell.type === "markdown" ? (
-          <p className="notebook-markdown">{cell.source}</p>
+          <AssistantMarkdown
+            className="notebook-markdown"
+            currentValues={markdownInspectionContext?.currentValues}
+            onSelectVariable={
+              markdownInspectionContext == null
+                ? undefined
+                : (selectedVariable) =>
+                    onVariableInspectRequest({
+                      currentValues: markdownInspectionContext.currentValues,
+                      editor: markdownInspectionContext.editor,
+                      selectedVariable,
+                      variableDescriptions: markdownInspectionContext.variableDescriptions,
+                      variableUnitMetadata: markdownInspectionContext.variableUnitMetadata
+                    })
+            }
+            text={cell.source}
+            variableDescriptions={variableDescriptions}
+            variableUnitMetadata={variableUnitMetadata}
+          />
         ) : null}
         {isCollapsed ? null : cell.type === "equations" ? (
           <EquationsCellView
@@ -769,8 +907,12 @@ function NotebookCellViewComponent({
           <RunCellView
             cell={cell}
             cells={cells}
+            currentValues={runInspectionContext?.currentValues ?? {}}
+            editor={runInspectionContext?.editor ?? null}
+            onVariableInspectRequest={onVariableInspectRequest}
             runner={runner}
             variableDescriptions={variableDescriptions}
+            variableUnitMetadata={variableUnitMetadata}
           />
         ) : null}
         {showViewportDeferredPlaceholder ? (
@@ -785,6 +927,27 @@ function NotebookCellViewComponent({
               <ChartCellView
                 cell={cell}
                 cells={cells}
+                onAddVariable={(variableName) =>
+                  onCellChange(cell.id, (current) =>
+                    current.type === "chart" && !current.variables.includes(variableName)
+                      ? { ...current, variables: [variableName, ...current.variables] }
+                      : current
+                  )
+                }
+                onMoveVariable={(variableName, direction) =>
+                  onCellChange(cell.id, (current) =>
+                    current.type === "chart"
+                      ? { ...current, variables: moveChartVariable(current.variables, variableName, direction) }
+                      : current
+                  )
+                }
+                onRemoveVariable={(variableName) =>
+                  onCellChange(cell.id, (current) =>
+                    current.type === "chart" && current.variables.length > 1
+                      ? { ...current, variables: current.variables.filter((name) => name !== variableName) }
+                      : current
+                  )
+                }
                 runner={runner}
                 selectedPeriodIndex={selectedPeriodIndex}
                 variableDescriptions={variableDescriptions}
@@ -832,6 +995,74 @@ function NotebookCellViewComponent({
           </div>
         ) : null}
         </div>
+        {!isCollapsed && cellNote ? (
+          <div className="notebook-cell-note-footer">
+            <AssistantMarkdown
+              className="notebook-cell-note-markdown"
+              currentValues={noteInspectionContext?.currentValues}
+              onSelectVariable={
+                noteInspectionContext == null
+                  ? undefined
+                  : (selectedVariable) =>
+                      onVariableInspectRequest({
+                        currentValues: noteInspectionContext.currentValues,
+                        editor: noteInspectionContext.editor,
+                        selectedVariable,
+                        variableDescriptions: noteInspectionContext.variableDescriptions,
+                        variableUnitMetadata: noteInspectionContext.variableUnitMetadata
+                      })
+              }
+              text={cellNote}
+              variableDescriptions={variableDescriptions}
+              variableUnitMetadata={variableUnitMetadata}
+            />
+          </div>
+        ) : null}
+        {cellContextMenu ? (
+          <div
+            ref={cellContextMenuRef}
+            className="notebook-cell-context-menu"
+            role="menu"
+            aria-label={`Cell actions for ${cell.title}`}
+            onClick={(event) => event.stopPropagation()}
+            onContextMenu={(event) => event.preventDefault()}
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              role="menuitem"
+              disabled={!canMoveCellUp}
+              onClick={() => {
+                onMoveCell(cell.id, -1);
+                closeCellContextMenu();
+              }}
+            >
+              Move up
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={!canMoveCellDown}
+              onClick={() => {
+                onMoveCell(cell.id, 1);
+                closeCellContextMenu();
+              }}
+            >
+              Move down
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="is-danger"
+              onClick={() => {
+                onDeleteCell(cell.id);
+                closeCellContextMenu();
+              }}
+            >
+              Delete
+            </button>
+          </div>
+        ) : null}
       </article>
     </NotebookRenderProfiler>
   );
@@ -922,6 +1153,29 @@ function formatChartReferenceTrace(trace: NonNullable<ChartCell["referenceTrace"
   }
 }
 
+function moveChartVariable(
+  variables: string[],
+  variableName: string,
+  direction: "left" | "right"
+): string[] {
+  const currentIndex = variables.indexOf(variableName);
+  if (currentIndex === -1) {
+    return variables;
+  }
+
+  const nextIndex = direction === "left" ? currentIndex - 1 : currentIndex + 1;
+  if (nextIndex < 0 || nextIndex >= variables.length) {
+    return variables;
+  }
+
+  const nextVariables = [...variables];
+  [nextVariables[currentIndex], nextVariables[nextIndex]] = [
+    nextVariables[nextIndex]!,
+    nextVariables[currentIndex]!
+  ];
+  return nextVariables;
+}
+
 function isNotebookCellSelected(cellId: string, selectedCellId: string | null): boolean {
   return cellId === selectedCellId;
 }
@@ -932,6 +1186,22 @@ function isNotebookCellActiveEditor(cellId: string, activeEditorCellId: string |
 
 function isViewportDeferredCellType(cellType: NotebookCell["type"]): boolean {
   return VIEWPORT_DEFERRED_CELL_TYPES.has(cellType);
+}
+
+function getNotebookCellNote(cell: NotebookCell): string {
+  if (cell.note?.trim()) {
+    return cell.note;
+  }
+
+  return "";
+}
+
+function getNotebookCellDescription(cell: NotebookCell): string {
+  if (cell.description?.trim()) {
+    return cell.description;
+  }
+
+  return "";
 }
 
 function getViewportDeferredPlaceholderHeight(cell: NotebookCell): number {
@@ -1038,6 +1308,11 @@ function resolveCellVariableDescriptions(
   cells: NotebookCell[],
   cell: NotebookCell
 ): VariableDescriptions {
+  if (cell.type === "markdown") {
+    const contextCell = resolveNearestNotebookContextCell(cells, cell);
+    return contextCell ? resolveCellVariableDescriptions(cells, contextCell) : new Map();
+  }
+
   if (cell.type === "model") {
     return buildVariableDescriptions({
       equations: cell.editor.equations,
@@ -1090,7 +1365,15 @@ function resolveCellVariableDescriptions(
   return new Map();
 }
 
-function resolveCellVariableUnitMetadata(cells: NotebookCell[], cell: NotebookCell) {
+function resolveCellVariableUnitMetadata(
+  cells: NotebookCell[],
+  cell: NotebookCell
+): ReturnType<typeof buildVariableUnitMetadata> {
+  if (cell.type === "markdown") {
+    const contextCell = resolveNearestNotebookContextCell(cells, cell);
+    return contextCell ? resolveCellVariableUnitMetadata(cells, contextCell) : new Map();
+  }
+
   if (cell.type === "model") {
     return buildVariableUnitMetadata({
       equations: cell.editor.equations,
@@ -1195,6 +1478,166 @@ function resolveModelVariableUnitMetadataForModelId(cells: NotebookCell[], model
     equations: findEquationsCell(cells, modelId)?.equations,
     externals: findExternalsCell(cells, modelId)?.externals
   });
+}
+
+function resolveNearestNotebookContextCell(cells: NotebookCell[], cell: NotebookCell): NotebookCell | null {
+  const currentIndex = cells.findIndex((candidate) => candidate.id === cell.id);
+  if (currentIndex < 0) {
+    return null;
+  }
+
+  for (let offset = 1; offset < cells.length; offset += 1) {
+    const forwardCandidate = cells[currentIndex + offset];
+    if (forwardCandidate && forwardCandidate.type !== "markdown") {
+      return forwardCandidate;
+    }
+
+    const backwardCandidate = cells[currentIndex - offset];
+    if (backwardCandidate && backwardCandidate.type !== "markdown") {
+      return backwardCandidate;
+    }
+  }
+
+  return null;
+}
+
+function resolveNotebookInspectionContext({
+  cell,
+  cells,
+  getModelCurrentValues,
+  runner,
+  selectedPeriodIndex
+}: {
+  cell: NotebookCell;
+  cells: NotebookCell[];
+  getModelCurrentValues(ref: {
+    modelId?: string;
+    sourceModelId?: string;
+    sourceModelCellId?: string;
+  }): Record<string, number | undefined>;
+  runner: ReturnType<typeof useNotebookRunner>;
+  selectedPeriodIndex: number;
+}): {
+  currentValues: Record<string, number | undefined>;
+  editor: EditorState;
+  variableDescriptions: VariableDescriptions;
+  variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
+} | null {
+  if (cell.type === "markdown") {
+    const contextCell = resolveNearestNotebookContextCell(cells, cell);
+    return contextCell
+      ? resolveNotebookInspectionContext({
+          cell: contextCell,
+          cells,
+          getModelCurrentValues,
+          runner,
+          selectedPeriodIndex
+        })
+      : null;
+  }
+
+  if (cell.type === "model") {
+    return {
+      currentValues: getModelCurrentValues({ sourceModelCellId: cell.id }),
+      editor: cell.editor,
+      variableDescriptions: buildVariableDescriptions({
+        equations: cell.editor.equations,
+        externals: cell.editor.externals
+      }),
+      variableUnitMetadata: buildVariableUnitMetadata({
+        equations: cell.editor.equations,
+        externals: cell.editor.externals
+      })
+    };
+  }
+
+  if (
+    cell.type === "equations" ||
+    cell.type === "externals" ||
+    cell.type === "initial-values" ||
+    cell.type === "solver"
+  ) {
+    return {
+      currentValues: getModelCurrentValues({ modelId: cell.modelId }),
+      editor: buildEditorStateForStandaloneModelSections(cells, cell.modelId),
+      variableDescriptions: resolveModelVariableDescriptionsForModelId(cells, cell.modelId),
+      variableUnitMetadata: resolveModelVariableUnitMetadataForModelId(cells, cell.modelId)
+    };
+  }
+
+  if (cell.type === "run") {
+    const editor = buildEditorStateForNotebookModel(
+      {
+        id: "notebook",
+        title: "notebook",
+        metadata: { version: 1 },
+        cells
+      },
+      cell
+    );
+    if (!editor) {
+      return null;
+    }
+
+    const result = runner.getResult(cell.id);
+    const currentValues = result
+      ? Object.fromEntries(
+          Object.entries(result.series).map(([name, values]) => [
+            name,
+            values[Math.min(selectedPeriodIndex, Math.max(values.length - 1, 0))]
+          ])
+        )
+      : {};
+
+    return {
+      currentValues,
+      editor,
+      variableDescriptions: resolveModelVariableDescriptionsForRunCell(cells, cell),
+      variableUnitMetadata: resolveModelVariableUnitMetadataForRunCell(cells, cell)
+    };
+  }
+
+  if (cell.type === "chart" || cell.type === "table" || cell.type === "matrix") {
+    const sourceRunCell = cells.find(
+      (candidate): candidate is RunCell =>
+        candidate.type === "run" && candidate.id === cell.sourceRunCellId
+    );
+    return sourceRunCell
+      ? resolveNotebookInspectionContext({
+          cell: sourceRunCell,
+          cells,
+          getModelCurrentValues,
+          runner,
+          selectedPeriodIndex
+        })
+      : null;
+  }
+
+  if (cell.type === "sequence" && cell.source.kind === "matrix") {
+    const source = cell.source;
+    const matrixCell = cells.find(
+      (candidate): candidate is MatrixCell =>
+        candidate.type === "matrix" && candidate.id === source.matrixCellId
+    );
+    const sourceRunCellId = source.sourceRunCellId ?? matrixCell?.sourceRunCellId;
+    const sourceRunCell = sourceRunCellId
+      ? cells.find(
+          (candidate): candidate is RunCell =>
+            candidate.type === "run" && candidate.id === sourceRunCellId
+        )
+      : null;
+    return sourceRunCell
+      ? resolveNotebookInspectionContext({
+          cell: sourceRunCell,
+          cells,
+          getModelCurrentValues,
+          runner,
+          selectedPeriodIndex
+        })
+      : null;
+  }
+
+  return null;
 }
 
 

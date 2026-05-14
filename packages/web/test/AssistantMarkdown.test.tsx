@@ -2,7 +2,7 @@
 
 import "@testing-library/jest-dom/vitest";
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { AssistantMarkdown } from "../src/components/AssistantMarkdown";
@@ -54,6 +54,45 @@ describe("AssistantMarkdown", () => {
     expect(container.querySelector("pre > .assistant-equation-code")).not.toBeNull();
     expect(screen.getAllByText("ε")).toHaveLength(2);
     expect(screen.getByText("F", { selector: ".assistant-equation-code sup" })).toBeInTheDocument();
+  });
+
+  it("can make rendered variable mentions clickable", () => {
+    const selectedVariables: string[] = [];
+
+    render(
+      <AssistantMarkdown
+        text="Scenario raises alpha0 for later periods."
+        onSelectVariable={(variableName) => selectedVariables.push(variableName)}
+        variableDescriptions={new Map([["alpha0", "Autonomous consumption"]])}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /inspect variable alpha0/i }));
+
+    expect(selectedVariables).toEqual(["alpha0"]);
+    expect(screen.getByText("0", { selector: ".assistant-variable-button sub" })).toBeInTheDocument();
+  });
+
+  it("renders inline markdown with clickable variable mentions", () => {
+    const selectedVariables: string[] = [];
+    const { container } = render(
+      <h2>
+        <AssistantMarkdown
+          inline
+          text="**Run** alpha0"
+          onSelectVariable={(variableName) => selectedVariables.push(variableName)}
+          variableDescriptions={new Map([["alpha0", "Autonomous consumption"]])}
+        />
+      </h2>
+    );
+
+    expect(container.querySelector("p")).toBeNull();
+    expect(screen.getByText("Run", { selector: "strong" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /inspect variable alpha0/i }));
+
+    expect(selectedVariables).toEqual(["alpha0"]);
+    expect(screen.getByText("0", { selector: ".assistant-variable-button sub" })).toBeInTheDocument();
   });
 
   it("keeps ordinary code blocks as code blocks", () => {

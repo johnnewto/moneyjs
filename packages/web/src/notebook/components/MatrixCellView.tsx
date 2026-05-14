@@ -337,7 +337,6 @@ export function MatrixCellView({
       }}
     >
       <div className="notebook-matrix">
-        {cell.description ? <p className="notebook-markdown">{cell.description}</p> : null}
         <NotebookRenderProfiler
           id="MatrixCellTable"
           metadata={{
@@ -440,7 +439,6 @@ export function MatrixCellView({
             </div>
           </div>
         </NotebookRenderProfiler>
-        {cell.note ? <p className="notebook-matrix-note">{cell.note}</p> : null}
       </div>
     </NotebookRenderProfiler>
   );

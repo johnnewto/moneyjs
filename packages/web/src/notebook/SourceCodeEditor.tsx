@@ -210,7 +210,6 @@ const CELL_TYPE_PROPERTY_KEYS: Record<string, string[]> = {
     "mode",
     "scenario",
     "resultKey",
-    "description",
     "periods"
   ],
   chart: [
@@ -226,11 +225,11 @@ const CELL_TYPE_PROPERTY_KEYS: Record<string, string[]> = {
     "timeRangeInclusive"
   ],
   table: ["sourceRunCellId", "variables"],
-  matrix: ["sourceRunCellId", "columns", "sectors", "rows", "description", "note"],
-  sequence: ["source", "description", "note"]
+  matrix: ["sourceRunCellId", "columns", "sectors", "rows"],
+  sequence: ["source"]
 };
 
-const COMMON_CELL_PROPERTY_KEYS = ["id", "type", "title", "collapsed"];
+const COMMON_CELL_PROPERTY_KEYS = ["id", "type", "title", "note", "description", "collapsed"];
 const ROOT_PROPERTY_KEYS = ["id", "title", "metadata", "cells"];
 const CONTEXT_PROPERTY_KEYS: Array<{ property: string; pattern: RegExp; keys: string[] }> = [
   { property: "stripMapping", pattern: /"stripMapping"\s*:\s*\{[^{}]*$/s, keys: ["transactionMatrixCellId", "balanceMatrixCellId"] },

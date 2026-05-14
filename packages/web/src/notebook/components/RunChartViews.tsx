@@ -1,5 +1,8 @@
+import { AssistantMarkdown } from "../../components/AssistantMarkdown";
 import { InstantTooltip } from "../../components/InstantTooltip";
 import { ResultChart } from "../../components/ResultChart";
+import { VariableLabel } from "../../components/VariableLabel";
+import type { EditorState } from "../../lib/editorModel";
 import type { buildVariableUnitMetadata } from "../../lib/units";
 import { getVariableDescription, type VariableDescriptions } from "../../lib/variableDescriptions";
 import type { ChartCell, NotebookCell, RunCell } from "../types";
@@ -8,21 +11,46 @@ import type { useNotebookRunner } from "../useNotebookRunner";
 export function RunCellView({
   cell,
   cells,
+  currentValues,
+  editor,
+  onVariableInspectRequest,
   runner,
-  variableDescriptions
+  variableDescriptions,
+  variableUnitMetadata
 }: {
   cell: RunCell;
   cells: NotebookCell[];
+  currentValues: Record<string, number | undefined>;
+  editor: EditorState | null;
+  onVariableInspectRequest(args: {
+    currentValues: Record<string, number | undefined>;
+    editor: EditorState;
+    selectedVariable: string;
+    variableDescriptions: VariableDescriptions;
+    variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
+  }): void;
   runner: ReturnType<typeof useNotebookRunner>;
   variableDescriptions: VariableDescriptions;
+  variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
 }) {
   const baselineStartPeriod = resolveEffectiveScenarioStartPeriod(cells, cell);
   const result = runner.getResult(cell.id);
   const warnings = result?.warnings ?? [];
+  const handleInspectVariable =
+    editor == null
+      ? undefined
+      : (selectedVariable: string) => {
+          onVariableInspectRequest({
+            currentValues,
+            editor,
+            selectedVariable,
+            variableDescriptions,
+            variableUnitMetadata
+          });
+        };
 
   return (
     <div className="notebook-run-summary">
-      {cell.description ? <p>{cell.description}</p> : null}
       <div className="notebook-run-meta">
         <span className="notebook-run-meta-chip">
           Mode <strong>{cell.mode}</strong>
@@ -53,12 +81,33 @@ export function RunCellView({
               <ul className="notebook-run-shock-list">
                 {Object.entries(shock.variables).map(([name, value]) => (
                   <li key={name}>
-                    <InstantTooltip
-                      as="strong"
-                      tooltip={getVariableDescription(variableDescriptions, name)}
-                    >
-                      {name}
-                    </InstantTooltip>
+                    {handleInspectVariable ? (
+                      <button
+                        type="button"
+                        className="result-variable-button"
+                        aria-label={`Inspect variable ${name}`}
+                        onClick={() => handleInspectVariable(name)}
+                      >
+                        <VariableLabel
+                          currentValues={currentValues}
+                          name={name}
+                          variableDescriptions={variableDescriptions}
+                          variableUnitMetadata={variableUnitMetadata}
+                        />
+                      </button>
+                    ) : (
+                      <InstantTooltip
+                        as="strong"
+                        tooltip={getVariableDescription(variableDescriptions, name)}
+                      >
+                        <VariableLabel
+                          currentValues={currentValues}
+                          name={name}
+                          variableDescriptions={variableDescriptions}
+                          variableUnitMetadata={variableUnitMetadata}
+                        />
+                      </InstantTooltip>
+                    )}
                     : {formatShockValue(value)}
                   </li>
                 ))}
@@ -86,6 +135,9 @@ export function RunCellView({
 export function ChartCellView({
   cell,
   cells,
+  onAddVariable,
+  onMoveVariable,
+  onRemoveVariable,
   runner,
   selectedPeriodIndex,
   variableDescriptions,
@@ -93,6 +145,9 @@ export function ChartCellView({
 }: {
   cell: ChartCell;
   cells: NotebookCell[];
+  onAddVariable?(variableName: string): void;
+  onMoveVariable?(variableName: string, direction: "left" | "right"): void;
+  onRemoveVariable?(variableName: string): void;
   runner: ReturnType<typeof useNotebookRunner>;
   selectedPeriodIndex: number;
   variableDescriptions: VariableDescriptions;
@@ -137,12 +192,20 @@ export function ChartCellView({
       ? buildBaselineOverlaySeries(cell, sourceRunCell, baselineStartPeriod, baselineResult, series)
       : [];
   const timeRangeDefaults = resolveChartTimeRangeDefaults(series[0]?.values.length ?? 0);
+  const addVariableOptions = Object.entries(result.series)
+    .filter(([, values]) => values.length > 1 && Array.from(values).some(Number.isFinite))
+    .map(([name]) => name)
+    .sort((left, right) => left.localeCompare(right));
 
   return (
     <ResultChart
+      addVariableOptions={addVariableOptions}
       axisMode={cell.axisMode ?? "shared"}
       axisSnapTolarance={cell.axisSnapTolarance}
       niceScale={cell.niceScale}
+      onAddVariable={onAddVariable}
+      onMoveVariable={onMoveVariable}
+      onRemoveVariable={onRemoveVariable}
       overlaySeries={overlaySeries}
       periodLabelOffset={periodLabelOffset}
       seriesRanges={cell.seriesRanges}

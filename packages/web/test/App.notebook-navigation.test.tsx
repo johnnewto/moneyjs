@@ -211,6 +211,43 @@ describe("App notebook navigation and inspection", () => {
     expect(screen.getAllByRole("button", { name: /bmw model/i }).length).toBeGreaterThan(0);
   });
 
+  it("supports right-click cell actions for moving and deleting notebook cells", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    const introCell = document.getElementById("intro");
+    expect(introCell).toBeInstanceOf(HTMLElement);
+    if (!(introCell instanceof HTMLElement)) {
+      throw new Error("Expected intro notebook cell article.");
+    }
+
+    fireEvent.contextMenu(introCell);
+
+    const initialMenu = screen.getByRole("menu", { name: /cell actions for overview/i });
+    expect(within(initialMenu).getByRole("menuitem", { name: /move up/i })).toBeDisabled();
+
+    await user.click(within(initialMenu).getByRole("menuitem", { name: /move down/i }));
+
+    const cellsAfterMove = Array.from(document.querySelectorAll(".notebook-canvas article"));
+    expect(cellsAfterMove[1]).toHaveAttribute("id", "intro");
+
+    const movedIntroCell = document.getElementById("intro");
+    expect(movedIntroCell).toBeInstanceOf(HTMLElement);
+    if (!(movedIntroCell instanceof HTMLElement)) {
+      throw new Error("Expected moved intro notebook cell article.");
+    }
+
+    fireEvent.contextMenu(movedIntroCell);
+
+    const movedMenu = screen.getByRole("menu", { name: /cell actions for overview/i });
+    await user.click(within(movedMenu).getByRole("menuitem", { name: /delete/i }));
+
+    expect(document.getElementById("intro")).toBeNull();
+    expect(screen.queryByRole("heading", { name: /^overview$/i })).not.toBeInTheDocument();
+  });
+
   it("switches the notebook rail back to the contents tab", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";
@@ -271,6 +308,58 @@ describe("App notebook navigation and inspection", () => {
     expect(screen.getByRole("heading", { name: /^Y\b/i })).toBeInTheDocument();
     expect(screen.getAllByText(/income = gdp/i).length).toBeGreaterThan(0);
     expect(document.querySelector("code.inspector-equation")).toHaveTextContent(/Y.*=\s*Cs\s*\+\s*Is/);
+  });
+
+  it("opens the notebook variable inspector from markdown variable mentions", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    setSuccessfulNotebookRunner();
+
+    render(<App />);
+
+    const scenarioHeading = screen.getByRole("heading", { name: /^scenario 1$/i });
+    const scenarioArticle = scenarioHeading.closest("article");
+    expect(scenarioArticle).not.toBeNull();
+    if (!(scenarioArticle instanceof HTMLElement)) {
+      throw new Error("Expected scenario markdown article.");
+    }
+
+    await user.click(
+      within(scenarioArticle).getByRole("button", { name: /^Inspect variable alpha0$/i })
+    );
+
+    expect(screen.getByText("Selected variable")).toBeInTheDocument();
+    const inspectorHeading = document.querySelector(".variable-inspector-panel h3");
+    expect(inspectorHeading).not.toBeNull();
+    expect(inspectorHeading?.textContent).toMatch(/α|alpha/i);
+    expect(inspectorHeading?.querySelector("sub")?.textContent).toBe("0");
+  });
+
+  it("opens the notebook variable inspector from scenario run shock variables", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    setSuccessfulNotebookRunner();
+
+    render(<App />);
+
+    const scenarioRunHeading = screen.getByRole("heading", {
+      name: /scenario 1: autonomous consumption shock/i
+    });
+    const scenarioRunArticle = scenarioRunHeading.closest("article");
+    expect(scenarioRunArticle).not.toBeNull();
+    if (!(scenarioRunArticle instanceof HTMLElement)) {
+      throw new Error("Expected scenario run article.");
+    }
+
+    await user.click(
+      within(scenarioRunArticle).getByRole("button", { name: /^Inspect variable alpha0$/i })
+    );
+
+    expect(screen.getByText("Selected variable")).toBeInTheDocument();
+    const inspectorHeading = document.querySelector(".variable-inspector-panel h3");
+    expect(inspectorHeading).not.toBeNull();
+    expect(inspectorHeading?.textContent).toMatch(/α|alpha/i);
+    expect(inspectorHeading?.querySelector("sub")?.textContent).toBe("0");
   });
 
   it("opens the notebook variable inspector from the model equations table", async () => {

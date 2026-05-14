@@ -631,11 +631,45 @@
       "id": "baseline-newton",
       "type": "run",
       "title": "Baseline run with Newton",
+      "note": "This Newton baseline provides the reference path for the BMW scenarios.", 
+      "description": "Run the baseline for 50 periods using the Newton solver to generate the reference path for the BMW scenarios.",
       "mode": "baseline",
       "periods": 50,
       "resultKey": "bmw_newton",
-      "description": "This Newton baseline provides the reference path for the BMW scenarios.",
       "sourceModelId": "equations-newton"
+    },
+    {
+      "id": "baseline-chart",
+      "type": "chart",
+      "title": "Baseline headline variables",
+      "description": "Chart of key variables in the baseline run to show the model's dynamic behavior over time.",
+      "note": "This chart shows the time paths of selected variables in the baseline run, which serves as the reference for the scenario comparisons.", 
+      "sourceRunCellId": "baseline-newton",
+      "variables": [
+        "Y",
+        "Cd",
+        "Mh",
+        "W"
+      ],
+      "axisMode": "separate",
+      "axisSnapTolarance": 0.1,
+      "niceScale": true
+    },
+    {
+      "id": "baseline-table",
+      "type": "table",
+      "title": "Baseline variable summary",
+      "note": "Table of selected variables for the baseline run, showing values at each period.",
+      "description": "This table shows the values of key variables in the baseline run across all periods.",
+      "sourceRunCellId": "baseline-newton",
+      "variables": [
+        "Y",
+        "Cd",
+        "Id",
+        "K",
+        "Mh",
+        "W"
+      ]
     },
     {
       "id": "scenario-1-note",
@@ -647,6 +681,8 @@
       "id": "scenario-1-run",
       "type": "run",
       "title": "Scenario 1: autonomous consumption shock",
+      "note": "This scenario applies a shock to autonomous consumption by increasing alpha0 for a period of time",
+      "description": "allowing us to see the effect on the economy compared to the baseline.",
       "mode": "scenario",
       "scenario": {
         "shocks": [
@@ -671,6 +707,67 @@
       "baselineStartPeriod": 40
     },
     {
+      "id": "scenario-1-chart",
+      "type": "chart",
+      "title": "Scenario 1 consumption and income",
+      "sourceRunCellId": "scenario-1-run",
+      "variables": [
+        "Cd",
+        "YD",
+        "Id",
+        "AF"
+      ],
+      "sharedRange": {
+        "includeZero": true
+      },
+      "axisMode": "separate",
+      "axisSnapTolarance": 0.1,
+      "niceScale": true
+    },
+
+    {
+      "id": "scenario-2-run",
+      "type": "run",
+      "title": "Scenario 2: propensity-to-save shock",
+      "description": "Scenario 2 lowers alpha1 from period 5 to period 50 to examine the effect of a higher propensity to save.",
+
+      "mode": "scenario",
+      "scenario": {
+        "shocks": [
+          {
+            "variables": {
+              "alpha1": {
+                "kind": "constant",
+                "value": 0.7
+              }
+            },
+            "rangeInclusive": [
+              5,
+              50
+            ]
+          }
+        ]
+      },
+      "baselineRunCellId": "baseline-newton",
+      "periods": 50,
+      "resultKey": "bmw_s2",
+      "sourceModelId": "equations-newton"
+    },
+    {
+      "id": "scenario-2-chart",
+      "type": "chart",
+      "title": "Scenario 2 headline variables",
+      "sourceRunCellId": "scenario-2-run",
+      "variables": [
+        "Cd",
+        "YD",
+        "W"
+      ],
+      "sharedRange": {
+        "includeZero": true
+      }
+    },
+    {
       "id": "equation-dependency-graph",
       "type": "sequence",
       "title": "BMW equation dependency graph",
@@ -681,7 +778,8 @@
         "showExogenous": false
       },
       "description": "Dependency view of the BMW equations organized by sector strips and accounting bands.",
-      "note": "Use this alongside the transaction-flow sequence to compare accounting flows with equation structure."
+      "note": "Use this alongside the transaction-flow sequence to compare accounting flows with equation structure.",
+      "collapsed": true
     }
   ]
 }

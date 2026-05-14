@@ -370,6 +370,47 @@ export function NotebookApp() {
     }));
   }
 
+  function deleteCell(cellId: string): void {
+    const cellIndex = notebookDocument.cells.findIndex((cell) => cell.id === cellId);
+    if (cellIndex < 0) {
+      return;
+    }
+
+    const nextCells = notebookDocument.cells.filter((cell) => cell.id !== cellId);
+    const fallbackCell = nextCells[Math.min(cellIndex, nextCells.length - 1)] ?? null;
+
+    setNotebookDocument((current) => ({
+      ...current,
+      cells: current.cells.filter((cell) => cell.id !== cellId)
+    }));
+    if (selectedCellId === cellId) {
+      setSelectedCellId(fallbackCell?.id ?? null);
+    }
+    if (activeEditorCellId === cellId) {
+      setActiveEditorCellId(null);
+    }
+  }
+
+  function moveCell(cellId: string, direction: -1 | 1): void {
+    setNotebookDocument((current) => {
+      const cellIndex = current.cells.findIndex((cell) => cell.id === cellId);
+      const nextIndex = cellIndex + direction;
+      if (cellIndex < 0 || nextIndex < 0 || nextIndex >= current.cells.length) {
+        return current;
+      }
+
+      const nextCells = [...current.cells];
+      const [movedCell] = nextCells.splice(cellIndex, 1);
+      nextCells.splice(nextIndex, 0, movedCell);
+
+      return {
+        ...current,
+        cells: nextCells
+      };
+    });
+    setSelectedCellId(cellId);
+  }
+
   function handleVariableInspectRequest(args: {
     currentValues: Record<string, number | undefined>;
     editor: EditorState;
@@ -1559,6 +1600,8 @@ export function NotebookApp() {
                   onSelectedPeriodIndexChange={setSelectedPeriodIndex}
                   runner={runner}
                   onActiveEditorCellIdChange={setActiveEditorCellId}
+                  onDeleteCell={deleteCell}
+                  onMoveCell={moveCell}
                   onModelChange={updateModelCell}
                   onCellChange={updateCell}
                   onVariableInspectRequest={handleVariableInspectRequest}

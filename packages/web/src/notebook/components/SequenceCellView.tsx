@@ -347,7 +347,6 @@ function DependencySequenceCellView({
       }}
     >
       <div className="sequence-viewer">
-        {cell.description ? <p className="notebook-markdown">{cell.description}</p> : null}
         <div className="sequence-toolbar">
         <div className="sequence-toolbar-meta">
           <span>
@@ -440,7 +439,6 @@ function DependencySequenceCellView({
             ))}
           </ul>
         ) : null}
-        {cell.note ? <p className="notebook-matrix-note">{cell.note}</p> : null}
       </div>
     </NotebookRenderProfiler>
   );
@@ -649,7 +647,6 @@ function MatrixSequenceCellView({
       }}
     >
       <div className="sequence-viewer">
-        {cell.description ? <p className="notebook-markdown">{cell.description}</p> : null}
         <div className="sequence-toolbar">
         <div className="sequence-toolbar-meta">
           <span>
@@ -723,7 +720,6 @@ function MatrixSequenceCellView({
           ))}
         </ul>
       ) : null}
-        {cell.note ? <p className="notebook-matrix-note">{cell.note}</p> : null}
       </div>
     </NotebookRenderProfiler>
   );

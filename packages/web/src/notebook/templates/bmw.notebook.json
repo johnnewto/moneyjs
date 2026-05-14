@@ -631,16 +631,19 @@
       "id": "baseline-newton",
       "type": "run",
       "title": "Baseline run with Newton",
+      "note": "This Newton baseline provides the reference path for the BMW scenarios.", 
+      "description": "Run the baseline for 50 periods using the Newton solver to generate the reference path for the BMW scenarios.",
       "mode": "baseline",
       "periods": 50,
       "resultKey": "bmw_newton",
-      "description": "This Newton baseline provides the reference path for the BMW scenarios.",
       "sourceModelId": "equations-newton"
     },
     {
       "id": "baseline-chart",
       "type": "chart",
       "title": "Baseline headline variables",
+      "description": "Chart of key variables in the baseline run to show the model's dynamic behavior over time.",
+      "note": "This chart shows the time paths of selected variables in the baseline run, which serves as the reference for the scenario comparisons.", 
       "sourceRunCellId": "baseline-newton",
       "variables": [
         "Y",
@@ -656,6 +659,8 @@
       "id": "baseline-table",
       "type": "table",
       "title": "Baseline variable summary",
+      "note": "Table of selected variables for the baseline run, showing values at each period.",
+      "description": "This table shows the values of key variables in the baseline run across all periods.",
       "sourceRunCellId": "baseline-newton",
       "variables": [
         "Y",
@@ -676,6 +681,8 @@
       "id": "scenario-1-run",
       "type": "run",
       "title": "Scenario 1: autonomous consumption shock",
+      "note": "This scenario applies a shock to autonomous consumption by increasing alpha0 for a period of time",
+      "description": "allowing us to see the effect on the economy compared to the baseline.",
       "mode": "scenario",
       "scenario": {
         "shocks": [
@@ -717,16 +724,13 @@
       "axisSnapTolarance": 0.1,
       "niceScale": true
     },
-    {
-      "id": "scenario-2-note",
-      "type": "markdown",
-      "title": "Scenario 2",
-      "source": "Scenario 2 lowers alpha1 from period 5 to period 50 to examine the effect of a higher propensity to save."
-    },
+
     {
       "id": "scenario-2-run",
       "type": "run",
       "title": "Scenario 2: propensity-to-save shock",
+      "description": "Scenario 2 lowers alpha1 from period 5 to period 50 to examine the effect of a higher propensity to save.",
+
       "mode": "scenario",
       "scenario": {
         "shocks": [

@@ -124,11 +124,13 @@ function NotebookHelpButton({
 export function NotebookLinkedEditorHeader({
   actions,
   children,
+  descriptionContent,
   title,
   typeLabel
 }: {
   actions: ReactNode;
   children?: ReactNode;
+  descriptionContent?: ReactNode;
   title: string;
   typeLabel: string;
 }) {
@@ -137,7 +139,14 @@ export function NotebookLinkedEditorHeader({
       <div className="notebook-linked-editor-meta">
         <div className="notebook-linked-editor-titleline">
           <span className="notebook-cell-type-tag">{typeLabel}</span>
-          <h2>{title}</h2>
+          <div className="notebook-linked-editor-titlecontent">
+            <div className="notebook-linked-editor-titlerow">
+              <h2>{title}</h2>
+            </div>
+            {descriptionContent ? (
+              <div className="notebook-cell-description-block">{descriptionContent}</div>
+            ) : null}
+          </div>
         </div>
         {children ?? null}
       </div>
