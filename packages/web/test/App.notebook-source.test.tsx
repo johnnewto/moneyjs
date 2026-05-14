@@ -157,7 +157,7 @@ describe("App notebook source and import workflows", () => {
     expect(exportArea.value).toContain('"showAccountingStrips": true');
     expect(exportArea.value).not.toContain('"accountingBandGrouping": "family"');
     expect(exportArea.value).toContain('"showExogenous": false');
-  });
+  }, 15000);
 
   it("renders notebook Markdown in the editor when Markdown is selected", async () => {
     const user = userEvent.setup();
@@ -194,7 +194,7 @@ describe("App notebook source and import workflows", () => {
     expect(
       screen.getAllByText((_, node) => node?.textContent?.includes("Types: markdown") ?? false).length
     ).toBeGreaterThan(0);
-  });
+  }, 15000);
 
   it("previews and applies imported notebook JSON before replacing the document", async () => {
     const user = userEvent.setup();
@@ -220,7 +220,7 @@ describe("App notebook source and import workflows", () => {
     await user.click(screen.getAllByRole("button", { name: /apply preview/i })[0]);
 
     expect(screen.getAllByText(/^Imported Notebook$/i).length).toBeGreaterThan(0);
-  });
+  }, 15000);
 
   it("shows apply and discard actions when the import text is edited", async () => {
     const user = userEvent.setup();

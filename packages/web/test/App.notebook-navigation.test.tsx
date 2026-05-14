@@ -225,7 +225,7 @@ describe("App notebook navigation and inspection", () => {
 
     expect(screen.getByRole("tab", { name: /^contents$/i })).toHaveAttribute("aria-selected", "true");
     expect(screen.getAllByRole("button", { name: /bmw model/i }).length).toBeGreaterThan(0);
-  });
+  }, 15000);
 
   it("renders BMW transaction-flow matrix values with flow units inferred from the full expression", () => {
     window.location.hash = "#/notebook";

@@ -2,7 +2,7 @@
 
 import "@testing-library/jest-dom/vitest";
 
-import { cleanup, fireEvent as testingFireEvent, screen as testingScreen } from "@testing-library/react";
+import { cleanup, fireEvent as testingFireEvent, screen as testingScreen, waitFor } from "@testing-library/react";
 import userEventLib from "@testing-library/user-event";
 import { EditorView } from "@codemirror/view";
 import { runBaseline as runCoreBaseline } from "@sfcr/core";
@@ -10,11 +10,16 @@ import { afterEach, beforeAll, beforeEach, vi } from "vitest";
 
 import { bmwBaselineModel, bmwBaselineOptions } from "../../core/src/fixtures/bmw";
 import { App as AppComponent } from "../src/app/App";
+import { getRouteFromHash } from "../src/app/routes";
+import { NotebookApp } from "../src/notebook/NotebookApp";
 
 export const fireEvent = testingFireEvent;
 export const screen = testingScreen;
 export const userEvent = userEventLib;
-export const App = AppComponent;
+
+export function App(): JSX.Element {
+  return getRouteFromHash(window.location.hash) === "notebook" ? <NotebookApp /> : <AppComponent />;
+}
 
 export const runBaseline = vi.fn();
 export const runScenario = vi.fn();
@@ -157,4 +162,16 @@ export async function setNotebookSourceFormat(
   if (currentFormat !== format) {
     await user.click(screen.getByRole("button", { name: /source format is /i }));
   }
+
+  if (format === "json") {
+    await screen.findByRole("textbox", { name: /notebook source editor/i });
+    await waitFor(() => {
+      if (!document.querySelector(".notebook-code-editor .cm-scroller")) {
+        throw new Error("Notebook JSON editor has not finished mounting yet.");
+      }
+    });
+    return;
+  }
+
+  await screen.findByTestId("notebook-source-text");
 }

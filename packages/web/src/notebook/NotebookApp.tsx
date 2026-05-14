@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   detectNotebookSourceFormat,
@@ -67,6 +67,7 @@ import {
 import { NotebookCellView } from "./NotebookCellView";
 import { NotebookRenderProfiler } from "./notebookProfiler";
 import { AssistantInlinePatchView } from "./AssistantInlinePatchView";
+import { SourceCodeEditor } from "./SourceCodeEditor";
 import { SourceValidationPanel } from "./SourceValidationPanel";
 import {
   buildNotebookSourceValidation,
@@ -115,10 +116,6 @@ import { buildVariableUnitMetadata } from "../lib/units";
 type NotebookRailTab = "editor" | "inspect" | "contents" | "assistant" | "preview";
 
 const BUILD_DATE_LABEL = formatBuildDate(__SFCR_BUILD_DATE__);
-
-const SourceCodeEditor = lazy(() =>
-  import("./SourceCodeEditor").then((module) => ({ default: module.SourceCodeEditor }))
-);
 
 const NOTEBOOK_ASSISTANT_LOCAL_LIVE_TESTS: Array<{
   label: string;
@@ -1697,31 +1694,19 @@ export function NotebookApp() {
                 </button>
               </div>
 
-              <Suspense
-                fallback={
-                  <textarea
-                    aria-label="Notebook source preview"
-                    className="json-area notebook-utility-textarea notebook-editor-textarea"
-                    placeholder={getNotebookSourcePlaceholder(sourceFormat)}
-                    readOnly
-                    value={importText}
-                  />
-                }
-              >
-                <SourceCodeEditor
-                  diagnostics={{
-                    issues: sourceValidation.diagnostics,
-                    parseValid: sourceValidation.parse.status === "valid",
-                    schemaValid: sourceValidation.schema.status === "valid"
-                  }}
-                  document={notebookDocument}
-                  format={sourceFormat}
-                  onChange={updateImportText}
-                  placeholderText={getNotebookSourcePlaceholder(sourceFormat)}
-                  selectedCellId={selectedCellId}
-                  value={importText}
-                />
-              </Suspense>
+              <SourceCodeEditor
+                diagnostics={{
+                  issues: sourceValidation.diagnostics,
+                  parseValid: sourceValidation.parse.status === "valid",
+                  schemaValid: sourceValidation.schema.status === "valid"
+                }}
+                document={notebookDocument}
+                format={sourceFormat}
+                onChange={updateImportText}
+                placeholderText={getNotebookSourcePlaceholder(sourceFormat)}
+                selectedCellId={selectedCellId}
+                value={importText}
+              />
 
               <SourceValidationPanel validation={sourceValidation} />
 

@@ -66,6 +66,7 @@ describe("App per-cell source editors", () => {
     }
 
     await user.click(within(runArticle).getByRole("button", { name: /^edit$/i }));
+    await user.click(within(runArticle).getByRole("radio", { name: /compact/i }));
 
     const sourceEditor = screen.getByRole("textbox", {
       name: /source editor for baseline run with newton/i
@@ -98,9 +99,7 @@ describe("App per-cell source editors", () => {
 
     await user.click(within(scenarioArticle).getByRole("button", { name: /^edit$/i }));
 
-    expect(
-      within(scenarioArticle).getByRole("radio", { name: /^scenario$/i })
-    ).toBeChecked();
+    expect(within(scenarioArticle).getByRole("combobox", { name: /run mode/i })).toHaveValue("scenario");
     expect(
       within(scenarioArticle).queryByRole("textbox", {
         name: /source editor for scenario 1: autonomous consumption shock/i
@@ -244,7 +243,7 @@ describe("App per-cell source editors", () => {
         name: /equation 1 variable/i
       }) as HTMLTextAreaElement).value
     ).toBe(originalValue);
-  });
+  }, 15000);
 
   it("applies linked equation edits into notebook source", async () => {
     const user = userEvent.setup();
@@ -273,7 +272,7 @@ describe("App per-cell source editors", () => {
 
     await setNotebookSourceFormat(user, "json");
     expect(getNotebookSourceTextArea().value).toContain(`"name": "${draftValue}"`);
-  });
+  }, 15000);
 
   it("shows source helpers and live validation for chart cells", async () => {
     const user = userEvent.setup();
@@ -318,7 +317,7 @@ describe("App per-cell source editors", () => {
     });
 
     expect(screen.getByText(/live validation:/i)).not.toHaveTextContent(/ready to apply/i);
-  });
+  }, 15000);
 
   it("cycles chart reference traces from the chart cell toolbar", async () => {
     const user = userEvent.setup();

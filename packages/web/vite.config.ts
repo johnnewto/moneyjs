@@ -8,6 +8,14 @@ export default defineConfig(({ command }) => ({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          if (id.includes("/src/notebook/notebookAssistant") || id.includes("/src/assistant/")) {
+            return "assistant";
+          }
+
+          if (id.includes("/src/components/AssistantMarkdown.tsx")) {
+            return "assistant";
+          }
+
           if (!id.includes("node_modules")) {
             return undefined;
           }

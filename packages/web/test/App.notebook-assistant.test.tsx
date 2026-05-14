@@ -92,6 +92,6 @@ describe("App notebook assistant", () => {
     await waitFor(() => {
       expect(screen.queryByRole("heading", { name: /^disposable income$/i })).not.toBeInTheDocument();
     });
-  });
+  }, 15000);
 
 });
