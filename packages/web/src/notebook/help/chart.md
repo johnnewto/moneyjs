@@ -1,0 +1,102 @@
+Chart cells plot variables from a run result. They are the fastest way to see model dynamics, compare scenario paths, and spot unexpected behavior.
+
+## How To Use
+
+1. Make sure the source run cell has been run successfully.
+2. Press **Edit** on the chart cell if you need to change its source or variables.
+3. Choose the run cell with `sourceRunCellId`.
+4. Add variables to the `variables` list.
+5. Apply the change and run the source run if needed.
+
+A chart cell reads output from a run cell. It does not run the model by itself.
+
+## Variables
+
+The `variables` list controls which series appear in the chart:
+
+```json
+{
+  "type": "chart",
+  "sourceRunCellId": "baseline-run",
+  "variables": ["Y", "Cd", "Mh"]
+}
+```
+
+Choose variables that answer one question at a time. For example:
+
+- Income and demand: `Y`, `Cd`, `Id`.
+- Stocks: `Mh`, `Ld`, `K`, `Vh`.
+- Prices or rates: `W`, `rl`, `rm`.
+- Scenario comparison: a small group of variables most affected by the shock.
+
+## Axis Modes
+
+Charts can use shared or separate axes.
+
+Use a shared axis when variables have comparable units and scale. This makes direct visual comparison easier.
+
+Use separate axes when variables have different magnitudes or units. This keeps small series visible when plotted with large stocks or flows.
+
+```json
+{
+  "axisMode": "separate"
+}
+```
+
+## Ranges And Scaling
+
+Useful options include:
+
+- `sharedRange` to control the shared axis.
+- `seriesRanges` to control individual variable ranges.
+- `niceScale` to expand automatic bounds to readable tick values.
+- `timeRangeInclusive` to focus on a period window.
+- `yAxisTickCount` to guide tick density.
+
+Example:
+
+```json
+{
+  "timeRangeInclusive": [5, 30],
+  "axisMode": "separate",
+  "niceScale": true,
+  "sharedRange": {
+    "includeZero": true
+  }
+}
+```
+
+Include zero when the sign or distance from zero matters. Avoid forcing zero when it compresses important movement in a series that varies within a narrow positive range.
+
+## Baseline And Scenario Charts
+
+For scenario analysis, chart the variables directly affected by the shock and the main stocks or flows that transmit the effect.
+
+A good scenario chart often includes:
+
+- The shocked external or a close consequence.
+- A flow response such as output, consumption, investment, or income.
+- A stock response such as money, loans, capital, debt, or wealth.
+
+Keep charts focused. Several small charts are usually easier to read than one crowded chart.
+
+## Reading A Chart
+
+When inspecting a chart, ask:
+
+- Does the first period make sense given the initial values?
+- Does the shock begin in the expected period?
+- Is the response direction plausible?
+- Do stocks move gradually while flows can jump?
+- Does the result settle, cycle, explode, or drift?
+
+If the chart looks wrong, inspect the source run, solver status, and the equations feeding the plotted variables.
+
+## Common Problems
+
+- `sourceRunCellId` points to a run that has not been executed.
+- A variable name is misspelled or no longer exists.
+- Too many variables are plotted at once.
+- Shared axis hides smaller series.
+- A scenario chart is interpreted before the baseline is understood.
+- A time range excludes the shock period or the adjustment period.

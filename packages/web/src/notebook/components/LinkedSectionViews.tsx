@@ -20,6 +20,7 @@ export function SolverCellView({
   cell,
   issueMap,
   onEditingChange,
+  onHelpRequest,
   title,
   onChange,
   onToggleCollapsed
@@ -27,6 +28,7 @@ export function SolverCellView({
   cell: SolverCell;
   issueMap: Record<string, string | undefined>;
   onEditingChange?(isEditing: boolean): void;
+  onHelpRequest?: (() => void) | null;
   title: string;
   onChange(options: EditorState["options"]): void;
   onToggleCollapsed(): void;
@@ -76,6 +78,7 @@ export function SolverCellView({
             onApply={handleApply}
             onCancel={handleCancel}
             onEditToggle={handleEditToggle}
+            onHelpRequest={onHelpRequest}
             onToggleCollapsed={onToggleCollapsed}
             title={title}
           />
@@ -200,6 +203,7 @@ export function ExternalsCellView({
   editor,
   issueMap,
   onEditingChange,
+  onHelpRequest,
   onVariableInspectRequest,
   title,
   onChange,
@@ -210,6 +214,7 @@ export function ExternalsCellView({
   editor: EditorState;
   issueMap: Record<string, string | undefined>;
   onEditingChange?(isEditing: boolean): void;
+  onHelpRequest?: (() => void) | null;
   onVariableInspectRequest(args: {
     currentValues: Record<string, number | undefined>;
     editor: EditorState;
@@ -272,6 +277,7 @@ export function ExternalsCellView({
             onApply={handleApply}
             onCancel={handleCancel}
             onEditToggle={handleEditToggle}
+            onHelpRequest={onHelpRequest}
             onToggleCollapsed={onToggleCollapsed}
             title={title}
           />
@@ -398,6 +404,7 @@ export function InitialValuesCellView({
   editor,
   issueMap,
   onEditingChange,
+  onHelpRequest,
   onVariableInspectRequest,
   title,
   variableDescriptions,
@@ -410,6 +417,7 @@ export function InitialValuesCellView({
   editor: EditorState;
   issueMap: Record<string, string | undefined>;
   onEditingChange?(isEditing: boolean): void;
+  onHelpRequest?: (() => void) | null;
   onVariableInspectRequest(args: {
     currentValues: Record<string, number | undefined>;
     editor: EditorState;
@@ -466,6 +474,7 @@ export function InitialValuesCellView({
             onApply={handleApply}
             onCancel={handleCancel}
             onEditToggle={handleEditToggle}
+            onHelpRequest={onHelpRequest}
             onToggleCollapsed={onToggleCollapsed}
             title={title}
           />

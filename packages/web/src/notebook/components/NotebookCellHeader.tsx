@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
+import { AssistantMarkdown } from "../../components/AssistantMarkdown";
 import { useDragScroll } from "../../hooks/useDragScroll";
 import { buildNotebookCellHelpText } from "../sourceEditing";
 import type {
@@ -13,11 +14,13 @@ import type {
 function NotebookHelpButton({
   dialogContent,
   dialogTitle,
+  onHelpRequest,
   title,
   helpText
 }: {
   dialogContent?: ReactNode;
   dialogTitle?: string;
+  onHelpRequest?: () => void;
   title: string;
   helpText: string;
 }) {
@@ -106,16 +109,19 @@ function NotebookHelpButton({
     );
   }
 
+  if (onHelpRequest) {
+    return (
+      <button type="button" className="notebook-run-button" onClick={onHelpRequest}>
+        Help
+      </button>
+    );
+  }
+
   return (
     <details className="notebook-cell-help">
       <summary className="notebook-run-button">Help</summary>
       <div className="notebook-cell-help-panel" role="note" aria-label={`Help for ${title}`}>
-        {helpText
-          .split("\n")
-          .filter((line) => line.trim().length > 0)
-          .map((line, index) => (
-            <p key={`${title}-help-${index}`}>{line}</p>
-          ))}
+        <AssistantMarkdown text={helpText} />
       </div>
     </details>
   );
@@ -163,6 +169,7 @@ export function NotebookCellHeaderActions({
   isEditing,
   leadingActions,
   onEditToggle,
+  onHelpRequest,
   onToggleCollapsed,
   title,
   trailingActions
@@ -174,6 +181,7 @@ export function NotebookCellHeaderActions({
   isEditing: boolean;
   leadingActions?: ReactNode;
   onEditToggle?: (() => void) | null;
+  onHelpRequest?: (() => void) | null;
   onToggleCollapsed: (() => void) | null;
   title: string;
   trailingActions?: ReactNode;
@@ -187,6 +195,7 @@ export function NotebookCellHeaderActions({
           <NotebookHelpButton
             dialogContent={helpDialogContent}
             dialogTitle={helpDialogTitle}
+            onHelpRequest={onHelpRequest ?? undefined}
             title={title}
             helpText={helpText}
           />
@@ -220,6 +229,7 @@ export function NotebookLinkedEditorActions({
   onApply,
   onCancel,
   onEditToggle,
+  onHelpRequest,
   onToggleCollapsed,
   title
 }: {
@@ -230,6 +240,7 @@ export function NotebookLinkedEditorActions({
   onApply(): void;
   onCancel(): void;
   onEditToggle(): void;
+  onHelpRequest?: (() => void) | null;
   onToggleCollapsed(): void;
   title: string;
 }) {
@@ -249,6 +260,7 @@ export function NotebookLinkedEditorActions({
       isCollapsed={cell.collapsed === true}
       isEditing={isEditing}
       onEditToggle={onEditToggle}
+      onHelpRequest={onHelpRequest}
       onToggleCollapsed={onToggleCollapsed}
       title={title}
       trailingActions={

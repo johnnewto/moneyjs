@@ -97,6 +97,11 @@ export interface NotebookCellViewProps {
   onMoveCell(cellId: string, direction: -1 | 1): void;
   onModelChange(cellId: string, editor: EditorState): void;
   onCellChange(cellId: string, updater: (cell: NotebookCell) => NotebookCell): void;
+  onCellHelpRequest(args: {
+    cellId: string;
+    cellType: NotebookCell["type"];
+    title: string;
+  }): void;
   onVariableInspectRequest(args: {
     currentValues: Record<string, number | undefined>;
     editor: EditorState;
@@ -126,6 +131,7 @@ function NotebookCellViewComponent({
   selectedPeriodIndex,
   onModelChange,
   onCellChange,
+  onCellHelpRequest,
   onVariableInspectRequest
 }: NotebookCellViewProps) {
   const status = runner.status[cell.id] ?? "idle";
@@ -202,6 +208,13 @@ function NotebookCellViewComponent({
     [cell, cells, getModelCurrentValues, runner, selectedPeriodIndex]
   );
   const showToolbarHelp = !isLinkedModelEditorCell(cell);
+  const toolbarHelpText = showToolbarHelp ? buildNotebookCellHelpText(cell) : null;
+  const requestCellHelp = () =>
+    onCellHelpRequest({
+      cellId: cell.id,
+      cellType: cell.type,
+      title: cell.title
+    });
   const [isLinkedEditorEditing, setIsLinkedEditorEditing] = useState(false);
   const [matrixSequenceViewState, setMatrixSequenceViewState] = useState<MatrixSequenceViewState | null>(null);
   const isActivelyEditing = isEditingSource || isLinkedEditorEditing;
@@ -523,7 +536,7 @@ function NotebookCellViewComponent({
                 helpDialogTitle={
                   isEditingSource && cell.type === "chart" ? "Chart Syntax" : undefined
                 }
-                helpText={showToolbarHelp ? buildNotebookCellHelpText(cell) : null}
+                helpText={toolbarHelpText}
                 isCollapsed={cell.collapsed === true}
                 isEditing={isEditingSource}
                 leadingActions={
@@ -544,6 +557,16 @@ function NotebookCellViewComponent({
                 onEditToggle={
                   !isLinkedModelEditorCell(cell) && !isEditingSource
                     ? () => setIsEditingSource(true)
+                    : null
+                }
+                onHelpRequest={
+                  toolbarHelpText
+                    ? () =>
+                        onCellHelpRequest({
+                          cellId: cell.id,
+                          cellType: cell.type,
+                          title: cell.title
+                        })
                     : null
                 }
                 onToggleCollapsed={
@@ -804,6 +827,7 @@ function NotebookCellViewComponent({
               findInitialValuesCell(cells, cell.modelId)?.initialValues.length ?? 0
             }
             onEditingChange={setIsLinkedEditorEditing}
+            onHelpRequest={requestCellHelp}
             onVariableInspectRequest={onVariableInspectRequest}
             selectedPeriodIndex={selectedPeriodIndex}
             solverCell={findSolverCell(cells, cell.modelId)}
@@ -827,6 +851,7 @@ function NotebookCellViewComponent({
             cell={cell}
             currentValues={getModelCurrentValues({ sourceModelCellId: cell.id })}
             onEditingChange={setIsLinkedEditorEditing}
+            onHelpRequest={requestCellHelp}
             onChange={(editor) => onModelChange(cell.id, editor)}
             onToggleCollapsed={() =>
               onCellChange(cell.id, (current) =>
@@ -842,6 +867,7 @@ function NotebookCellViewComponent({
             cell={cell}
             issueMap={buildIssueMapForStandaloneModelSections(cells, cell.modelId)}
             onEditingChange={setIsLinkedEditorEditing}
+            onHelpRequest={requestCellHelp}
             title={cell.title}
             onChange={(options) =>
               onCellChange(cell.id, (current) =>
@@ -862,6 +888,7 @@ function NotebookCellViewComponent({
             editor={buildEditorStateForStandaloneModelSections(cells, cell.modelId)}
             issueMap={buildIssueMapForStandaloneModelSections(cells, cell.modelId)}
             onEditingChange={setIsLinkedEditorEditing}
+            onHelpRequest={requestCellHelp}
             onVariableInspectRequest={onVariableInspectRequest}
             title={cell.title}
             onChange={(externals) =>
@@ -885,6 +912,7 @@ function NotebookCellViewComponent({
             editor={buildEditorStateForStandaloneModelSections(cells, cell.modelId)}
             issueMap={buildIssueMapForStandaloneModelSections(cells, cell.modelId)}
             onEditingChange={setIsLinkedEditorEditing}
+            onHelpRequest={requestCellHelp}
             onVariableInspectRequest={onVariableInspectRequest}
             title={cell.title}
             variableDescriptions={variableDescriptions}

@@ -18,6 +18,7 @@ export function ModelCellView({
   cell,
   currentValues,
   onEditingChange,
+  onHelpRequest,
   onChange,
   onToggleCollapsed,
   onVariableInspectRequest,
@@ -26,6 +27,7 @@ export function ModelCellView({
   cell: ModelCell;
   currentValues: Record<string, number | undefined>;
   onEditingChange?(isEditing: boolean): void;
+  onHelpRequest?: (() => void) | null;
   onChange(editor: EditorState): void;
   onToggleCollapsed(): void;
   onVariableInspectRequest(args: {
@@ -116,6 +118,7 @@ export function ModelCellView({
             onApply={handleApply}
             onCancel={handleCancel}
             onEditToggle={handleEditToggle}
+            onHelpRequest={onHelpRequest}
             onToggleCollapsed={onToggleCollapsed}
             title={title}
           />
@@ -296,6 +299,7 @@ export function EquationsCellView({
   externals,
   initialValuesCount,
   onEditingChange,
+  onHelpRequest,
   onVariableInspectRequest,
   selectedPeriodIndex,
   solverCell,
@@ -308,6 +312,7 @@ export function EquationsCellView({
   externals: ExternalsCell["externals"];
   initialValuesCount: number;
   onEditingChange?(isEditing: boolean): void;
+  onHelpRequest?: (() => void) | null;
   onVariableInspectRequest(args: {
     currentValues: Record<string, number | undefined>;
     editor: EditorState;
@@ -431,6 +436,7 @@ export function EquationsCellView({
             onApply={handleApply}
             onCancel={handleCancel}
             onEditToggle={handleEditToggle}
+            onHelpRequest={onHelpRequest}
             onToggleCollapsed={onToggleCollapsed}
             title={title}
           />

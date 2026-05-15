@@ -70,6 +70,12 @@ import { AssistantInlinePatchView } from "./AssistantInlinePatchView";
 import { SourceCodeEditor } from "./SourceCodeEditor";
 import { SourceValidationPanel } from "./SourceValidationPanel";
 import {
+  findNotebookHelpTopic,
+  getNotebookHelpTopicIdForCell,
+  NOTEBOOK_HELP_TOPICS,
+  type NotebookHelpTopicId
+} from "./sourceEditing";
+import {
   buildNotebookSourceValidation,
   formatNotebookSourceLabel,
   getNotebookSourceFileSuffix,
@@ -113,7 +119,7 @@ import { buildVariableInspectorData } from "../lib/variableInspector";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
 import { buildVariableUnitMetadata } from "../lib/units";
 
-type NotebookRailTab = "editor" | "inspect" | "contents" | "assistant" | "preview";
+type NotebookRailTab = "editor" | "inspect" | "contents" | "assistant" | "help" | "preview";
 
 const BUILD_DATE_LABEL = formatBuildDate(__SFCR_BUILD_DATE__);
 
@@ -174,6 +180,14 @@ export function NotebookApp() {
   const [activeEditorCellId, setActiveEditorCellId] = useState<string | null>(null);
   const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
   const [activeRailTab, setActiveRailTab] = useState<NotebookRailTab>("contents");
+  const [helpContext, setHelpContext] = useState<{
+    cellId: string;
+    cellType: NotebookCell["type"];
+    title: string;
+  } | null>(null);
+  const [selectedHelpTopicId, setSelectedHelpTopicId] =
+    useState<NotebookHelpTopicId>("introduction");
+  const [isHelpContentsVisible, setIsHelpContentsVisible] = useState(true);
   const [assistantMessages, setAssistantMessages] = useState<NotebookAssistantMessage[]>(
     NOTEBOOK_ASSISTANT_INITIAL_MESSAGES
   );
@@ -282,6 +296,7 @@ export function NotebookApp() {
     () => buildNotebookSourceValidation(importText, sourceFormat),
     [importText, sourceFormat]
   );
+  const selectedHelpTopic = findNotebookHelpTopic(selectedHelpTopicId);
 
   useEffect(() => {
     setSelectedPeriodIndex((current) => Math.min(current, maxResultPeriodIndex));
@@ -420,6 +435,19 @@ export function NotebookApp() {
   }): void {
     setInspectorContext(args);
     setActiveRailTab("inspect");
+  }
+
+  function handleCellHelpRequest(args: {
+    cellId: string;
+    cellType: NotebookCell["type"];
+    title: string;
+  }): void {
+    const cell = notebookDocument.cells.find((candidate) => candidate.id === args.cellId);
+    setHelpContext(args);
+    setSelectedHelpTopicId(cell ? getNotebookHelpTopicIdForCell(cell) : args.cellType);
+    setIsHelpContentsVisible(false);
+    setSelectedCellId(args.cellId);
+    setActiveRailTab("help");
   }
 
   function updateModelCell(cellId: string, editor: EditorState): void {
@@ -1604,6 +1632,7 @@ export function NotebookApp() {
                   onMoveCell={moveCell}
                   onModelChange={updateModelCell}
                   onCellChange={updateCell}
+                  onCellHelpRequest={handleCellHelpRequest}
                   onVariableInspectRequest={handleVariableInspectRequest}
                   selectedCellId={selectedCellId}
                   selectedPeriodIndex={selectedPeriodIndex}
@@ -1671,6 +1700,20 @@ export function NotebookApp() {
                 onClick={() => setActiveRailTab("assistant")}
               >
                 Assistant
+              </button>
+              <button
+                type="button"
+                role="tab"
+                {...{ "aria-selected": activeRailTab === "help" }}
+                className={`notebook-rail-tab${activeRailTab === "help" ? " is-active" : ""}`}
+                onClick={() => {
+                  setSelectedHelpTopicId("introduction");
+                  setHelpContext(null);
+                  setIsHelpContentsVisible(true);
+                  setActiveRailTab("help");
+                }}
+              >
+                Help
               </button>
               <button
                 type="button"
@@ -1831,6 +1874,49 @@ export function NotebookApp() {
                   </li>
                 ))}
               </ol>
+            </section>
+          ) : null}
+
+          {activeRailTab === "help" ? (
+            <section className="notebook-sidebar-panel notebook-help-panel" role="tabpanel">
+              <div className="panel-header">
+                <div>
+                  <h2>{selectedHelpTopic.title}</h2>
+                  <p className="panel-subtitle">
+                    {helpContext ? helpContext.title : selectedHelpTopic.description}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="notebook-help-more-chip"
+                  {...{ "aria-expanded": isHelpContentsVisible ? "true" : "false" }}
+                  onClick={() => setIsHelpContentsVisible((current) => !current)}
+                >
+                  More Help
+                </button>
+              </div>
+              {isHelpContentsVisible ? (
+                <nav className="notebook-help-topic-nav" aria-label="Help contents">
+                  {NOTEBOOK_HELP_TOPICS.map((topic) => (
+                    <button
+                      key={topic.id}
+                      type="button"
+                      className={`notebook-help-topic-button${
+                        selectedHelpTopic.id === topic.id ? " is-active" : ""
+                      }`}
+                      onClick={() => {
+                        setSelectedHelpTopicId(topic.id);
+                        setHelpContext(null);
+                        setIsHelpContentsVisible(false);
+                      }}
+                    >
+                      <span>{topic.title}</span>
+                      <small>{topic.description}</small>
+                    </button>
+                  ))}
+                </nav>
+              ) : null}
+              <AssistantMarkdown text={selectedHelpTopic.text} />
             </section>
           ) : null}
 

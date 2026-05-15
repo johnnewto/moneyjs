@@ -2,6 +2,20 @@ import type { ReactNode } from "react";
 
 import { stringifyJsonWithCompactLeaves } from "../lib/jsonFormat";
 import { normalizeUnitMetaAliases } from "../lib/unitMeta";
+import balanceSheetMatrixHelp from "./help/balance-sheet-matrix.md?raw";
+import chartHelp from "./help/chart.md?raw";
+import equationsHelp from "./help/equations.md?raw";
+import externalsHelp from "./help/externals.md?raw";
+import initialValuesHelp from "./help/initial-values.md?raw";
+import introductionHelp from "./help/introduction.md?raw";
+import markdownHelp from "./help/markdown.md?raw";
+import matrixHelp from "./help/matrix.md?raw";
+import modelHelp from "./help/model.md?raw";
+import runAndScenariosHelp from "./help/run-and-scenarios.md?raw";
+import sequenceHelp from "./help/sequence.md?raw";
+import solverHelp from "./help/solver.md?raw";
+import tableHelp from "./help/table.md?raw";
+import transactionFlowMatrixHelp from "./help/transaction-flow-matrix.md?raw";
 import { serializeNotebookCell } from "./document";
 import type {
   ChartCell,
@@ -16,6 +30,120 @@ import type {
   SolverCell,
   TableCell
 } from "./types";
+
+export type NotebookHelpTopicId =
+  | "introduction"
+  | "markdown"
+  | "model"
+  | "equations"
+  | "solver"
+  | "externals"
+  | "initial-values"
+  | "run"
+  | "chart"
+  | "table"
+  | "matrix"
+  | "balance-sheet-matrix"
+  | "transaction-flow-matrix"
+  | "sequence";
+
+export interface NotebookHelpTopic {
+  description: string;
+  id: NotebookHelpTopicId;
+  text: string;
+  title: string;
+}
+
+export const NOTEBOOK_HELP_TOPICS: NotebookHelpTopic[] = [
+  {
+    id: "introduction",
+    title: "Introduction",
+    description: "Notebook concepts, workflow, and how the help system is organized.",
+    text: introductionHelp
+  },
+  {
+    id: "markdown",
+    title: "Markdown",
+    description: "Narrative text, notes, assumptions, and interpretation.",
+    text: markdownHelp
+  },
+  {
+    id: "matrix",
+    title: "Matrix",
+    description: "General matrix editing, formulas, and accounting checks.",
+    text: matrixHelp
+  },
+  {
+    id: "balance-sheet-matrix",
+    title: "Balance Sheet Matrix",
+    description: "SFC stock accounting at a point in time.",
+    text: balanceSheetMatrixHelp
+  },
+  {
+    id: "transaction-flow-matrix",
+    title: "Transaction Flow Matrix",
+    description: "SFC flow accounting across sectors over a period.",
+    text: transactionFlowMatrixHelp
+  },
+  {
+    id: "sequence",
+    title: "Sequence",
+    description: "Step-by-step transaction flows and dependency views.",
+    text: sequenceHelp
+  },
+  {
+    id: "model",
+    title: "Model",
+    description: "Combined model cells with equations, externals, initial values, and solver settings.",
+    text: modelHelp
+  },
+  {
+    id: "equations",
+    title: "Equations",
+    description: "Model equations, roles, lag syntax, and stock-flow units.",
+    text: equationsHelp
+  },
+  {
+    id: "externals",
+    title: "Externals",
+    description: "Parameters, exogenous series, and scenario shock targets.",
+    text: externalsHelp
+  },
+  {
+    id: "initial-values",
+    title: "Initial Values",
+    description: "Starting values for lagged variables and stocks.",
+    text: initialValuesHelp
+  },
+  {
+    id: "solver",
+    title: "Solver",
+    description: "Numerical methods, tolerances, iterations, and hidden-equation checks.",
+    text: solverHelp
+  },
+  {
+    id: "run",
+    title: "Run And Scenarios",
+    description: "Baseline runs, scenario shocks, periods, and result keys.",
+    text: runAndScenariosHelp
+  },
+  {
+    id: "chart",
+    title: "Chart",
+    description: "Plot variables from run results and inspect time paths.",
+    text: chartHelp
+  },
+  {
+    id: "table",
+    title: "Table",
+    description: "Inspect exact variable values from run results.",
+    text: tableHelp
+  }
+];
+
+export function findNotebookHelpTopic(topicId: NotebookHelpTopicId): NotebookHelpTopic {
+  return NOTEBOOK_HELP_TOPICS.find((topic) => topic.id === topicId) ?? NOTEBOOK_HELP_TOPICS[0];
+}
 
 export function isSourceEditable(cell: NotebookCell): boolean {
   return !["model", "equations", "solver", "externals", "initial-values"].includes(cell.type);
@@ -351,49 +479,29 @@ Source can be:
 }
 
 export function buildNotebookCellHelpText(cell: NotebookCell): string {
-  switch (cell.type) {
-    case "markdown":
-      return "Markdown cell for narrative text, notes, and section explanations.";
-    case "model":
-      return [
-        "Combined model cell with equations, externals, initial values, and solver settings.",
-        "Use Edit to switch between the compact model view and the editor.",
-        "Hover previews inputs. Click shows both, Shift+click pins outputs, Ctrl/Cmd+click pins inputs."
-      ].join("\n");
-    case "equations":
-      return [
-        "Equation ledger for the linked model.",
-        "Use Edit to switch between the compact read-only view and the equation editor.",
-        "Hover previews inputs. Click shows both, Shift+click pins outputs, Ctrl/Cmd+click pins inputs."
-      ].join("\n");
-    case "solver":
-      return [
-        "Solver settings for the linked model.",
-        "Use Edit to switch between the compact read-only view and the solver editor."
-      ].join("\n");
-    case "externals":
-      return [
-        "External parameters and exogenous series for the linked model.",
-        "Use Edit to switch between the compact read-only view and the externals editor."
-      ].join("\n");
-    case "initial-values":
-      return [
-        "Initial conditions for the linked model.",
-        "Use Edit to switch between the compact read-only view and the initial values editor."
-      ].join("\n");
-    case "run":
-      return "Run cell for baseline or scenario simulation. Use it to execute the linked model and populate downstream result cells.";
-    case "chart":
-      return "Chart cell that plots variables from a run cell result.";
-    case "table":
-      return "Summary table cell that shows selected, start, and end values for chosen variables.";
-    case "matrix":
-      return "Matrix cell that evaluates transaction or balance-sheet style formulas against the selected run result.";
-    case "sequence":
-      return "Sequence viewer cell for either matrix-derived transaction flows or a sector-strip equation dependency graph.";
-    default:
-      return "Notebook cell help is not available for this cell type.";
+  return findNotebookHelpTopic(getNotebookHelpTopicIdForCell(cell)).text;
+}
+
+export function getNotebookHelpTopicIdForCell(cell: NotebookCell): NotebookHelpTopicId {
+  if (cell.type === "matrix") {
+    return getMatrixHelpTopicId(cell);
   }
+
+  return cell.type;
+}
+
+function getMatrixHelpTopicId(cell: MatrixCell): NotebookHelpTopicId {
+  const normalizedLabel = `${cell.id} ${cell.title}`.toLowerCase();
+
+  if (normalizedLabel.includes("transaction-flow") || normalizedLabel.includes("transaction flow")) {
+    return "transaction-flow-matrix";
+  }
+
+  if (normalizedLabel.includes("balance-sheet") || normalizedLabel.includes("balance sheet")) {
+    return "balance-sheet-matrix";
+  }
+
+  return "matrix";
 }
 
 export function applySourceHelper(currentSource: string, insert: string): string {

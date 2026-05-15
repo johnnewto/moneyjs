@@ -2546,6 +2546,70 @@ body.panel-splitter-body-lock {
   min-width: 0;
 }
 
+.notebook-help-panel {
+  align-content: start;
+  min-width: 0;
+}
+
+.notebook-help-more-chip {
+  align-self: start;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 999px;
+  color: #14213d;
+  cursor: pointer;
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 0.22rem 0.54rem;
+}
+
+.notebook-help-more-chip:hover,
+.notebook-help-more-chip[aria-expanded="true"] {
+  background: rgba(219, 234, 254, 0.72);
+  border-color: rgba(37, 99, 235, 0.42);
+}
+
+.notebook-help-topic-nav {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.notebook-help-topic-button {
+  background: rgba(248, 250, 252, 0.94);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 8px;
+  color: #14213d;
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  gap: 0.12rem;
+  padding: 0.42rem 0.52rem;
+  text-align: left;
+}
+
+.notebook-help-topic-button:hover {
+  background: #fff;
+  border-color: rgba(100, 116, 139, 0.38);
+}
+
+.notebook-help-topic-button.is-active {
+  background: rgba(219, 234, 254, 0.72);
+  border-color: rgba(37, 99, 235, 0.42);
+}
+
+.notebook-help-topic-button span {
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.notebook-help-topic-button small {
+  color: #64748b;
+  font-size: 0.74rem;
+  line-height: 1.25;
+}
+
 .notebook-assistant-mode-switch {
   background: #e2e8f0;
   border: 1px solid rgba(148, 163, 184, 0.65);
@@ -4558,8 +4622,10 @@ body.panel-splitter-body-lock {
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
   color: #334155;
   margin-top: 0.4rem;
+  max-height: min(34rem, 72vh);
   max-width: min(32rem, 80vw);
   min-width: 16rem;
+  overflow: auto;
   padding: 0.75rem 0.85rem;
   position: absolute;
   right: 0;
@@ -4574,6 +4640,11 @@ body.panel-splitter-body-lock {
 
 .notebook-cell-help-panel p + p {
   margin-top: 0.45rem;
+}
+
+.notebook-cell-help-panel .assistant-markdown {
+  font-size: 0.9rem;
+  line-height: 1.48;
 }
 
 .notebook-help-dialog-backdrop {
