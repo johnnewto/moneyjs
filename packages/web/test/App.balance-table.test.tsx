@@ -22,6 +22,10 @@ describe("App balance matrix stock-role chips", () => {
       throw new Error("Expected BMW balance-sheet matrix article.");
     }
 
+    expect(
+      within(balanceCell).getByRole("columnheader", { name: /asset \/ liability/i })
+    ).toBeInTheDocument();
+
     const depositsRow = within(balanceCell).getByText("Money deposits").closest("tr");
     expect(depositsRow).not.toBeNull();
     if (!depositsRow) {
@@ -47,5 +51,11 @@ describe("App balance matrix stock-role chips", () => {
     expect(within(transactionCell).queryByText("A")).toBeNull();
     expect(within(transactionCell).queryByText("L")).toBeNull();
     expect(within(transactionCell).queryByText("E")).toBeNull();
+    expect(
+      within(transactionCell).queryByRole("columnheader", { name: /asset \/ liability/i })
+    ).toBeNull();
+    expect(
+      within(transactionCell).getByRole("columnheader", { name: /transaction/i })
+    ).toBeInTheDocument();
   });
 });

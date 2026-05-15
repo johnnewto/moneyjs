@@ -84,14 +84,6 @@ describe("App notebook navigation and inspection", () => {
     }
 
     await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
-
-    const equationsHelpText = within(equationsCell).getByText(
-      /hover previews inputs\. click shows both, shift\+click pins outputs, ctrl\/cmd\+click pins inputs\./i
-    );
-    expect(equationsHelpText).not.toBeVisible();
-
-    await user.click(within(equationsCell).getByText(/^help$/i));
-    expect(equationsHelpText).toBeVisible();
     await user.click(within(equationsCell).getByRole("button", { name: /^edit$/i }));
     await user.click(within(equationsCell).getByRole("button", { name: /^help$/i }));
 
@@ -243,9 +235,62 @@ describe("App notebook navigation and inspection", () => {
 
     const movedMenu = screen.getByRole("menu", { name: /cell actions for overview/i });
     await user.click(within(movedMenu).getByRole("menuitem", { name: /delete/i }));
+    const deleteDialog = screen.getByRole("dialog", { name: /delete overview/i });
+    expect(deleteDialog).toHaveTextContent(/delete overview from this notebook/i);
+
+    await user.click(within(deleteDialog).getByRole("button", { name: /cancel/i }));
+    expect(document.getElementById("intro")).not.toBeNull();
+
+    fireEvent.contextMenu(movedIntroCell);
+    await user.click(within(screen.getByRole("menu", { name: /cell actions for overview/i })).getByRole("menuitem", { name: /delete/i }));
+    await user.click(within(screen.getByRole("dialog", { name: /delete overview/i })).getByRole("button", { name: /^delete$/i }));
 
     expect(document.getElementById("intro")).toBeNull();
     expect(screen.queryByRole("heading", { name: /^overview$/i })).not.toBeInTheDocument();
+  });
+
+  it("supports adding notebook cells from the right-click type picker", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    const introCell = document.getElementById("intro");
+    expect(introCell).toBeInstanceOf(HTMLElement);
+    if (!(introCell instanceof HTMLElement)) {
+      throw new Error("Expected intro notebook cell article.");
+    }
+
+    fireEvent.contextMenu(introCell);
+    const introMenu = screen.getByRole("menu", { name: /cell actions for overview/i });
+
+    fireEvent.mouseEnter(within(introMenu).getByRole("menuitem", { name: /add cell/i }));
+    const introInsertMenu = screen.getByRole("menu", { name: /add cell below options/i });
+
+    expect(within(introInsertMenu).getByRole("menuitem", { name: /^run$/i })).toBeEnabled();
+    expect(within(introInsertMenu).getByRole("menuitem", { name: /^chart$/i })).toBeEnabled();
+
+    await user.click(within(introInsertMenu).getByRole("menuitem", { name: /^markdown$/i }));
+
+    const cellsAfterMarkdownInsert = Array.from(document.querySelectorAll(".notebook-canvas article"));
+    expect(cellsAfterMarkdownInsert[1]).toHaveAttribute("id", "note");
+    expect(screen.getByRole("heading", { name: /^new note$/i })).toBeInTheDocument();
+
+    const noteCell = document.getElementById("note");
+    expect(noteCell).toBeInstanceOf(HTMLElement);
+    if (!(noteCell instanceof HTMLElement)) {
+      throw new Error("Expected inserted note cell article.");
+    }
+
+    fireEvent.contextMenu(noteCell);
+    const noteMenu = screen.getByRole("menu", { name: /cell actions for new note/i });
+    fireEvent.mouseEnter(within(noteMenu).getByRole("menuitem", { name: /add cell/i }));
+    const noteInsertMenu = screen.getByRole("menu", { name: /add cell below options/i });
+    await user.click(within(noteInsertMenu).getByRole("menuitem", { name: /^chart$/i }));
+
+    const cellsAfterChartInsert = Array.from(document.querySelectorAll(".notebook-canvas article"));
+    expect(cellsAfterChartInsert[2]).toHaveAttribute("id", "chart");
+    expect(screen.getByRole("heading", { name: /^new chart$/i })).toBeInTheDocument();
   });
 
   it("switches the notebook rail back to the contents tab", async () => {
@@ -351,8 +396,10 @@ describe("App notebook navigation and inspection", () => {
       throw new Error("Expected scenario run article.");
     }
 
+    const shockVariableList = within(scenarioRunArticle).getByRole("list");
+
     await user.click(
-      within(scenarioRunArticle).getByRole("button", { name: /^Inspect variable alpha0$/i })
+      within(shockVariableList).getByRole("button", { name: /^Inspect variable alpha0$/i })
     );
 
     expect(screen.getByText("Selected variable")).toBeInTheDocument();

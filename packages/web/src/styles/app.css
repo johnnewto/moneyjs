@@ -2938,11 +2938,42 @@ body.panel-splitter-body-lock {
   display: grid;
   gap: 0.12rem;
   left: 0;
-  min-width: 9rem;
+  min-width: 11rem;
   padding: 0.28rem;
   position: fixed;
   top: 0;
   z-index: 80;
+}
+
+.notebook-cell-context-menu-separator {
+  background: rgba(148, 163, 184, 0.32);
+  height: 1px;
+  margin: 0.18rem 0.1rem;
+}
+
+.notebook-cell-context-menu-submenu-wrap {
+  position: relative;
+}
+
+.notebook-cell-context-menu-submenu-wrap > button {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.notebook-cell-context-submenu {
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 8px;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
+  display: grid;
+  gap: 0.12rem;
+  left: calc(100% + 0.35rem);
+  min-width: 10rem;
+  padding: 0.28rem;
+  position: absolute;
+  top: 0;
 }
 
 .notebook-cell-context-menu button {
@@ -2974,6 +3005,60 @@ body.panel-splitter-body-lock {
 .notebook-cell-context-menu button.is-danger:hover,
 .notebook-cell-context-menu button.is-danger:focus-visible {
   background: rgba(220, 38, 38, 0.1);
+}
+
+.notebook-cell-delete-dialog-backdrop {
+  align-items: center;
+  background: rgba(15, 23, 42, 0.36);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 1rem;
+  position: fixed;
+  z-index: 120;
+}
+
+.notebook-cell-delete-dialog {
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 8px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+  color: #0f172a;
+  max-width: min(24rem, 100%);
+  padding: 1rem;
+}
+
+.notebook-cell-delete-dialog h3 {
+  font-size: 1rem;
+  margin: 0 0 0.45rem;
+}
+
+.notebook-cell-delete-dialog p {
+  color: #475569;
+  margin: 0;
+}
+
+.notebook-cell-delete-dialog-actions {
+  display: flex;
+  gap: 0.55rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.notebook-cell-delete-dialog-actions button.is-danger {
+  background: #b91c1c;
+  border: 1px solid #991b1b;
+  border-radius: 6px;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  padding: 0.45rem 0.75rem;
+}
+
+.notebook-cell-delete-dialog-actions button.is-danger:hover,
+.notebook-cell-delete-dialog-actions button.is-danger:focus-visible {
+  background: #991b1b;
+  outline: none;
 }
 
 .notebook-cell-type-rule {

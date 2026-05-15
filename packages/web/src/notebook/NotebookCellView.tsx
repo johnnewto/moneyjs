@@ -54,6 +54,7 @@ import type {
   InitialValuesCell,
   MatrixCell,
   ModelCell,
+  NotebookCellInsertType,
   NotebookCell,
   RunCell,
   SequenceCell,
@@ -69,6 +70,56 @@ const VIEWPORT_DEFERRED_CELL_TYPES = new Set<NotebookCell["type"]>([
   "matrix",
   "sequence"
 ]);
+
+const CELL_INSERT_TYPES: NotebookCellInsertType[] = [
+  "markdown",
+  "run",
+  "chart",
+  "table",
+  "matrix",
+  "sequence"
+];
+
+function formatCellInsertType(type: NotebookCellInsertType): string {
+  switch (type) {
+    case "markdown":
+      return "Markdown";
+    case "run":
+      return "Run";
+    case "chart":
+      return "Chart";
+    case "table":
+      return "Table";
+    case "matrix":
+      return "Matrix";
+    case "sequence":
+      return "Sequence";
+  }
+}
+
+function getInsertDisabledReason(
+  type: NotebookCellInsertType,
+  context: { hasModelSource: boolean; hasRunSource: boolean }
+): string | null {
+  if (type === "run" && !context.hasModelSource) {
+    return "Requires a model cell.";
+  }
+  if ((type === "chart" || type === "table") && !context.hasRunSource) {
+    return "Requires a run cell.";
+  }
+  return null;
+}
+
+function hasRunnableModelSource(cells: NotebookCell[]): boolean {
+  if (cells.some((cell) => cell.type === "model")) {
+    return true;
+  }
+
+  const equationModelIds = new Set(
+    cells.filter((cell) => cell.type === "equations").map((cell) => cell.modelId)
+  );
+  return cells.some((cell) => cell.type === "solver" && equationModelIds.has(cell.modelId));
+}
 
 interface MatrixSequenceViewState {
   highlightedStepIndex: number | null;
@@ -94,6 +145,7 @@ export interface NotebookCellViewProps {
   onSelectedCellIdChange(cellId: string): void;
   onSelectedPeriodIndexChange(nextIndex: number): void;
   onDeleteCell(cellId: string): void;
+  onInsertCell(cellId: string, placement: "above" | "below", type: NotebookCellInsertType): void;
   onMoveCell(cellId: string, direction: -1 | 1): void;
   onModelChange(cellId: string, editor: EditorState): void;
   onCellChange(cellId: string, updater: (cell: NotebookCell) => NotebookCell): void;
@@ -125,6 +177,7 @@ function NotebookCellViewComponent({
   onSelectedCellIdChange,
   onSelectedPeriodIndexChange,
   onDeleteCell,
+  onInsertCell,
   onMoveCell,
   runner,
   selectedCellId,
@@ -146,6 +199,8 @@ function NotebookCellViewComponent({
   const [sourceError, setSourceError] = useState<string | null>(null);
   const [sourceValidationError, setSourceValidationError] = useState<string | null>(null);
   const [cellContextMenu, setCellContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [isCellInsertMenuOpen, setIsCellInsertMenuOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const insertMenuRef = useRef<HTMLDivElement | null>(null);
   const cellContextMenuRef = useRef<HTMLDivElement | null>(null);
   const sourceTextareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -241,6 +296,8 @@ function NotebookCellViewComponent({
   const cellIndex = cells.findIndex((candidate) => candidate.id === cell.id);
   const canMoveCellUp = cellIndex > 0;
   const canMoveCellDown = cellIndex >= 0 && cellIndex < cells.length - 1;
+  const hasCellInsertModelSource = hasRunnableModelSource(cells);
+  const hasCellInsertRunSource = cells.some((candidate) => candidate.type === "run");
   const cellDescription = getNotebookCellDescription(cell);
   const cellNote = getNotebookCellNote(cell);
 
@@ -469,6 +526,7 @@ function NotebookCellViewComponent({
 
   function closeCellContextMenu(): void {
     setCellContextMenu(null);
+    setIsCellInsertMenuOpen(false);
   }
 
   useEffect(() => {
@@ -627,7 +685,7 @@ function NotebookCellViewComponent({
               />
             }
             descriptionContent={
-              !isCollapsed && cellDescription ? (
+              cellDescription ? (
                 <AssistantMarkdown
                   className="notebook-cell-description-markdown"
                   currentValues={noteInspectionContext?.currentValues}
@@ -1056,6 +1114,53 @@ function NotebookCellViewComponent({
             onContextMenu={(event) => event.preventDefault()}
             onPointerDown={(event) => event.stopPropagation()}
           >
+            <div
+              className="notebook-cell-context-menu-submenu-wrap"
+              onMouseEnter={() => setIsCellInsertMenuOpen(true)}
+            >
+              <button
+                type="button"
+                role="menuitem"
+                aria-haspopup="menu"
+                onClick={() => setIsCellInsertMenuOpen((current) => !current)}
+                onFocus={() => setIsCellInsertMenuOpen(true)}
+                onMouseEnter={() => setIsCellInsertMenuOpen(true)}
+                onPointerDown={(event) => event.stopPropagation()}
+              >
+                <span>Add cell</span>
+                <span aria-hidden="true">›</span>
+              </button>
+              {isCellInsertMenuOpen ? (
+                <div
+                  className="notebook-cell-context-submenu"
+                  role="menu"
+                  aria-label="Add cell below options"
+                >
+                  {CELL_INSERT_TYPES.map((cellType) => {
+                    const disabledReason = getInsertDisabledReason(cellType, {
+                      hasModelSource: hasCellInsertModelSource,
+                      hasRunSource: hasCellInsertRunSource
+                    });
+                    return (
+                      <button
+                        key={cellType}
+                        type="button"
+                        role="menuitem"
+                        disabled={disabledReason != null}
+                        title={disabledReason ?? undefined}
+                        onClick={() => {
+                          onInsertCell(cell.id, "below", cellType);
+                          closeCellContextMenu();
+                        }}
+                      >
+                        {formatCellInsertType(cellType)}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+            <div className="notebook-cell-context-menu-separator" role="separator" />
             <button
               type="button"
               role="menuitem"
@@ -1083,12 +1188,50 @@ function NotebookCellViewComponent({
               role="menuitem"
               className="is-danger"
               onClick={() => {
-                onDeleteCell(cell.id);
+                setIsDeleteDialogOpen(true);
                 closeCellContextMenu();
               }}
             >
               Delete
             </button>
+          </div>
+        ) : null}
+        {isDeleteDialogOpen ? (
+          <div
+            className="notebook-cell-delete-dialog-backdrop"
+            onClick={() => setIsDeleteDialogOpen(false)}
+          >
+            <div
+              className="notebook-cell-delete-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Delete ${cell.title}`}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <h3>Delete cell?</h3>
+              <p>
+                Delete <strong>{cell.title}</strong> from this notebook?
+              </p>
+              <div className="notebook-cell-delete-dialog-actions">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => setIsDeleteDialogOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="is-danger"
+                  onClick={() => {
+                    setIsDeleteDialogOpen(false);
+                    onDeleteCell(cell.id);
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
           </div>
         ) : null}
       </article>

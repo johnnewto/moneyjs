@@ -113,11 +113,11 @@ describe("App per-cell source editors", () => {
     });
     await user.click(within(matrixArticle).getByRole("button", { name: /^apply$/i }));
 
-    const note = matrixArticle.querySelector(".notebook-cell-note-inline");
+    const note = matrixArticle.querySelector(".notebook-cell-note-footer");
     expect(note).not.toBeNull();
     expect(note).toHaveTextContent("Source structure for Y.");
     expect(note?.querySelector("strong")).toHaveTextContent("structure");
-    expect(note?.querySelector("h1")).toBeNull();
+    expect(note?.querySelector("h1")).toHaveTextContent("Source structure for Y.");
     expect(matrixArticle.querySelector(".notebook-matrix-note")).toBeNull();
   }, 15000);
 
@@ -145,8 +145,8 @@ describe("App per-cell source editors", () => {
     fireEvent.change(sourceEditor, {
       target: {
         value: sourceEditor.value.replace(
-          '"title": "Baseline headline variables",',
-          '"title": "Baseline headline variables", "description": "**Charts** compare `Y` and peers.",'
+          /"description"\s*:\s*"[^"]*"/,
+          '"description": "**Charts** compare `Y` and peers."'
         )
       }
     });
@@ -185,8 +185,10 @@ describe("App per-cell source editors", () => {
     await user.type(shockValueInput, "25.75");
     await user.click(within(scenarioArticle).getByRole("button", { name: /^apply$/i }));
 
-    expect(within(scenarioArticle).getByText(/alpha0/i)).toBeInTheDocument();
-    expect(scenarioArticle).toHaveTextContent(/alpha0:\s*25\.75/i);
+    expect(
+      within(scenarioArticle).getAllByRole("button", { name: /inspect variable alpha0/i }).length
+    ).toBeGreaterThan(0);
+    expect(scenarioArticle).toHaveTextContent(/25\.75/i);
   }, 15000);
 
   it("shows simulation warnings on successful run cells", async () => {
@@ -370,7 +372,7 @@ describe("App per-cell source editors", () => {
     expect(screen.getByRole("button", { name: /axis snap/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /shared range/i })).toBeInTheDocument();
     expect(screen.getByText(/live validation: ready to apply/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^help$/i })).toBeInTheDocument();
+    expect(within(chartArticle).getByRole("button", { name: /^help$/i })).toBeInTheDocument();
 
     const sourceEditor = screen.getByRole("textbox", {
       name: /source editor for baseline headline variables/i
@@ -471,7 +473,7 @@ describe("App per-cell source editors", () => {
     await user.keyboard("{Escape}");
     expect(screen.queryByLabelText(/source insert actions/i)).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /^help$/i }));
+    await user.click(within(chartArticle).getByRole("button", { name: /^help$/i }));
     expect(screen.getByText(/required fields:/i)).toBeInTheDocument();
   });
 });

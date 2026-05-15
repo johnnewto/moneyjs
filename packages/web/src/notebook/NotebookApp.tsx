@@ -103,7 +103,9 @@ import {
 } from "./notebookAppHelpers";
 import type {
   NotebookCell,
-  NotebookDocument
+  NotebookDocument,
+  NotebookCellInsertType,
+  RunCell
 } from "./types";
 import { useNotebookRunner } from "./useNotebookRunner";
 import { validateNotebookDocument } from "./validation";
@@ -144,6 +146,264 @@ function isNotebookAssistantLocalLiveTestEnabled(): boolean {
     typeof window !== "undefined" &&
     (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
   );
+}
+
+function createNotebookCellForInsert(
+  cells: NotebookCell[],
+  anchorIndex: number,
+  type: NotebookCellInsertType
+): NotebookCell | null {
+  const anchorCell = cells[anchorIndex];
+  switch (type) {
+    case "markdown":
+      return {
+        id: createUniqueNotebookCellId(cells, "note"),
+        type: "markdown",
+        title: "New note",
+        source: ""
+      };
+    case "run": {
+      const modelSource = resolveDefaultModelSource(cells, anchorIndex);
+      if (!modelSource) {
+        return null;
+      }
+      const runId = createUniqueNotebookCellId(cells, "run");
+      return {
+        id: runId,
+        type: "run",
+        title: "New run",
+        mode: "baseline",
+        periods: resolveDefaultRunPeriods(cells, anchorCell),
+        resultKey: runId.replace(/-/g, "_"),
+        ...modelSource
+      };
+    }
+    case "chart": {
+      const runCell = resolveDefaultRunCell(cells, anchorIndex);
+      if (!runCell) {
+        return null;
+      }
+      return {
+        id: createUniqueNotebookCellId(cells, "chart"),
+        type: "chart",
+        title: "New chart",
+        sourceRunCellId: runCell.id,
+        variables: resolveDefaultVariablesForRun(cells, runCell).slice(0, 3),
+        axisMode: "separate",
+        referenceTrace: "none"
+      };
+    }
+    case "table": {
+      const runCell = resolveDefaultRunCell(cells, anchorIndex);
+      if (!runCell) {
+        return null;
+      }
+      return {
+        id: createUniqueNotebookCellId(cells, "table"),
+        type: "table",
+        title: "New table",
+        sourceRunCellId: runCell.id,
+        variables: resolveDefaultVariablesForRun(cells, runCell).slice(0, 6)
+      };
+    }
+    case "matrix": {
+      const runCell = resolveDefaultRunCell(cells, anchorIndex);
+      return {
+        id: createUniqueNotebookCellId(cells, "matrix"),
+        type: "matrix",
+        title: "New matrix",
+        ...(runCell ? { sourceRunCellId: runCell.id } : {}),
+        columns: ["Column 1", "Column 2", "Sum"],
+        sectors: ["", "", ""],
+        rows: [{ label: "Sum", values: ["", "", "0"] }]
+      };
+    }
+    case "sequence": {
+      const matrixCell = resolveDefaultMatrixCell(cells, anchorIndex);
+      if (matrixCell) {
+        return {
+          id: createUniqueNotebookCellId(cells, "sequence"),
+          type: "sequence",
+          title: "New sequence",
+          source: { kind: "matrix", matrixCellId: matrixCell.id }
+        };
+      }
+      const modelSource = resolveDefaultModelSource(cells, anchorIndex);
+      if (modelSource) {
+        return {
+          id: createUniqueNotebookCellId(cells, "sequence"),
+          type: "sequence",
+          title: "New dependency sequence",
+          source: { kind: "dependency", ...modelSource }
+        };
+      }
+      return {
+        id: createUniqueNotebookCellId(cells, "sequence"),
+        type: "sequence",
+        title: "New sequence",
+        source: { kind: "plantuml", source: "" }
+      };
+    }
+  }
+}
+
+function createUniqueNotebookCellId(cells: NotebookCell[], base: string): string {
+  const existingIds = new Set(cells.map((cell) => cell.id));
+  if (!existingIds.has(base)) {
+    return base;
+  }
+  let suffix = 2;
+  while (existingIds.has(`${base}-${suffix}`)) {
+    suffix += 1;
+  }
+  return `${base}-${suffix}`;
+}
+
+function resolveDefaultRunPeriods(cells: NotebookCell[], anchorCell: NotebookCell | undefined): number {
+  if (anchorCell?.type === "run") {
+    return anchorCell.periods;
+  }
+  return cells.find((cell): cell is RunCell => cell.type === "run")?.periods ?? 60;
+}
+
+function resolveDefaultRunCell(cells: NotebookCell[], anchorIndex: number): RunCell | null {
+  const anchorCell = cells[anchorIndex];
+  if (anchorCell?.type === "run") {
+    return anchorCell;
+  }
+  if (
+    (anchorCell?.type === "chart" || anchorCell?.type === "table" || anchorCell?.type === "matrix") &&
+    anchorCell.sourceRunCellId
+  ) {
+    const sourceRun = cells.find(
+      (cell): cell is RunCell => cell.type === "run" && cell.id === anchorCell.sourceRunCellId
+    );
+    if (sourceRun) {
+      return sourceRun;
+    }
+  }
+  return resolveNearestCell(cells, anchorIndex, (cell): cell is RunCell => cell.type === "run");
+}
+
+function resolveDefaultMatrixCell(cells: NotebookCell[], anchorIndex: number) {
+  const anchorCell = cells[anchorIndex];
+  if (anchorCell?.type === "matrix") {
+    return anchorCell;
+  }
+  if (anchorCell?.type === "sequence" && anchorCell.source.kind === "matrix") {
+    const source = anchorCell.source;
+    const sourceMatrix = cells.find(
+      (cell) => cell.type === "matrix" && cell.id === source.matrixCellId
+    );
+    if (sourceMatrix?.type === "matrix") {
+      return sourceMatrix;
+    }
+  }
+  return resolveNearestCell(cells, anchorIndex, (cell) => cell.type === "matrix");
+}
+
+function resolveDefaultModelSource(
+  cells: NotebookCell[],
+  anchorIndex: number
+): { sourceModelCellId: string } | { sourceModelId: string } | null {
+  const anchorCell = cells[anchorIndex];
+  const fromAnchor = anchorCell ? resolveModelSourceFromCell(cells, anchorCell) : null;
+  if (fromAnchor) {
+    return fromAnchor;
+  }
+
+  const nearest = resolveNearestCell(cells, anchorIndex, (cell) => resolveModelSourceFromCell(cells, cell) != null);
+  return nearest ? resolveModelSourceFromCell(cells, nearest) : null;
+}
+
+function resolveModelSourceFromCell(
+  cells: NotebookCell[],
+  cell: NotebookCell
+): { sourceModelCellId: string } | { sourceModelId: string } | null {
+  if (cell.type === "model") {
+    return { sourceModelCellId: cell.id };
+  }
+  if (
+    cell.type === "equations" ||
+    cell.type === "solver" ||
+    cell.type === "externals" ||
+    cell.type === "initial-values"
+  ) {
+    return hasRunnableSectionModel(cells, cell.modelId) ? { sourceModelId: cell.modelId } : null;
+  }
+  if (cell.type === "run") {
+    if (cell.sourceModelId && hasRunnableSectionModel(cells, cell.sourceModelId)) {
+      return { sourceModelId: cell.sourceModelId };
+    }
+    if (cell.sourceModelCellId && cells.some((candidate) => candidate.type === "model" && candidate.id === cell.sourceModelCellId)) {
+      return { sourceModelCellId: cell.sourceModelCellId };
+    }
+  }
+  if (cell.type === "sequence" && cell.source.kind === "dependency") {
+    const source = cell.source;
+    const modelId = source.modelId ?? source.sourceModelId;
+    if (modelId && hasRunnableSectionModel(cells, modelId)) {
+      return { sourceModelId: modelId };
+    }
+    if (source.sourceModelCellId && cells.some((candidate) => candidate.type === "model" && candidate.id === source.sourceModelCellId)) {
+      return { sourceModelCellId: source.sourceModelCellId };
+    }
+  }
+  return null;
+}
+
+function hasRunnableSectionModel(cells: NotebookCell[], modelId: string): boolean {
+  return (
+    cells.some((cell) => cell.type === "equations" && cell.modelId === modelId) &&
+    cells.some((cell) => cell.type === "solver" && cell.modelId === modelId)
+  );
+}
+
+function resolveDefaultVariablesForRun(cells: NotebookCell[], runCell: RunCell): string[] {
+  const modelId = runCell.sourceModelId;
+  if (modelId) {
+    const equationsCell = cells.find(
+      (cell) => cell.type === "equations" && cell.modelId === modelId
+    );
+    if (equationsCell?.type === "equations") {
+      return equationsCell.equations.map((equation) => equation.name).filter(Boolean);
+    }
+  }
+
+  const modelCell = runCell.sourceModelCellId
+    ? cells.find((cell) => cell.type === "model" && cell.id === runCell.sourceModelCellId)
+    : null;
+  return modelCell?.type === "model"
+    ? modelCell.editor.equations.map((equation) => equation.name).filter(Boolean)
+    : [];
+}
+
+function resolveNearestCell<T extends NotebookCell>(
+  cells: NotebookCell[],
+  anchorIndex: number,
+  predicate: (cell: NotebookCell) => cell is T
+): T | null;
+function resolveNearestCell(
+  cells: NotebookCell[],
+  anchorIndex: number,
+  predicate: (cell: NotebookCell) => boolean
+): NotebookCell | null;
+function resolveNearestCell(
+  cells: NotebookCell[],
+  anchorIndex: number,
+  predicate: (cell: NotebookCell) => boolean
+): NotebookCell | null {
+  for (let index = anchorIndex - 1; index >= 0; index -= 1) {
+    if (predicate(cells[index])) {
+      return cells[index];
+    }
+  }
+  for (let index = anchorIndex + 1; index < cells.length; index += 1) {
+    if (predicate(cells[index])) {
+      return cells[index];
+    }
+  }
+  return null;
 }
 
 function formatBuildDate(buildDate: string): string {
@@ -424,6 +684,34 @@ export function NotebookApp() {
       };
     });
     setSelectedCellId(cellId);
+  }
+
+  function insertCell(
+    anchorCellId: string,
+    placement: "above" | "below",
+    type: NotebookCellInsertType
+  ): void {
+    const anchorIndex = notebookDocument.cells.findIndex((cell) => cell.id === anchorCellId);
+    if (anchorIndex < 0) {
+      return;
+    }
+
+    const nextCell = createNotebookCellForInsert(notebookDocument.cells, anchorIndex, type);
+    if (!nextCell) {
+      setUiMessage(`Add a ${type === "run" ? "model" : "run"} cell before creating this cell type.`);
+      return;
+    }
+
+    const insertIndex = placement === "above" ? anchorIndex : anchorIndex + 1;
+    setNotebookDocument((current) => ({
+      ...current,
+      cells: [
+        ...current.cells.slice(0, insertIndex),
+        nextCell,
+        ...current.cells.slice(insertIndex)
+      ]
+    }));
+    setSelectedCellId(nextCell.id);
   }
 
   function handleVariableInspectRequest(args: {
@@ -1629,6 +1917,7 @@ export function NotebookApp() {
                   runner={runner}
                   onActiveEditorCellIdChange={setActiveEditorCellId}
                   onDeleteCell={deleteCell}
+                  onInsertCell={insertCell}
                   onMoveCell={moveCell}
                   onModelChange={updateModelCell}
                   onCellChange={updateCell}

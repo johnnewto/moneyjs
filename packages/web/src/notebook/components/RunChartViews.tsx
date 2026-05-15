@@ -155,7 +155,7 @@ export function ChartCellView({
 }) {
   const result = runner.getResult(cell.sourceRunCellId);
   if (!result) {
-    return <div className="status-hint">Run the source cell to populate this chart.</div>;
+    return null;
   }
 
   const series = cell.variables

@@ -191,7 +191,13 @@ export function MatrixCellView({
   );
   const matrixHeaderRow = (
     <tr>
-      <th scope="col" />
+      <th scope="col">
+        {matrixKind === "stocks"
+          ? "Asset / Liability"
+          : matrixKind === "flows"
+            ? "Transaction"
+            : null}
+      </th>
       {cell.columns.map((column, columnIndex) => (
         <th
           key={column}
