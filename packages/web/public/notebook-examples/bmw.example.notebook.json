@@ -94,15 +94,17 @@
         "Firms_current",
         "Firms_capital",
         "Banks_current",
-        "Banks_capital"
-      ],
+        "Banks_capital",
+      
+        "Sum"],
       "sectors": [
         "Households",
         "Firms",
         "Firms",
         "Banks",
-        "Banks"
-      ],
+        "Banks",
+      
+        ""],
       "rows": [
         {
           "band": "Consumption",
@@ -112,8 +114,9 @@
             "+Cd",
             "",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Investment",
@@ -123,8 +126,9 @@
             "+Is",
             "-Id",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Wages",
@@ -134,8 +138,9 @@
             "-WBd",
             "",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Depreciation",
@@ -145,8 +150,9 @@
             "-AF",
             "+AF",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Loans",
@@ -156,8 +162,9 @@
             "-rl[-1] * Ld[-1]",
             "",
             "+rl[-1] * Ls[-1]",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Deposits",
@@ -167,8 +174,9 @@
             "",
             "",
             "-rm[-1] * Ms[-1]",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Loans",
@@ -178,8 +186,9 @@
             "",
             "+d(Ld)",
             "",
-            "-d(Ls)"
-          ]
+            "-d(Ls)",
+          
+            "0"]
         },
         {
           "band": "Deposits",
@@ -189,7 +198,21 @@
             "",
             "",
             "",
-            "+d(Ms)"
+            "+d(Ms)",
+          
+            "0"]
+        }
+      ,
+        {
+          "band": "Sum",
+          "label": "Sum",
+          "values": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
           ]
         }
       ],

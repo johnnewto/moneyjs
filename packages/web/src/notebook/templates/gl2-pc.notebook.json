@@ -65,6 +65,18 @@
             "0"
           ]
         }
+      ,
+        {
+          "band": "Sum",
+          "label": "Sum",
+          "values": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        }
       ],
       "description": "Balance-sheet matrix for model PC following the article structure.",
       "note": "Validated against the baseline simulation from the source vignette."
@@ -79,15 +91,17 @@
         "Firms",
         "Government",
         "CB current",
-        "CB capital"
-      ],
+        "CB capital",
+      
+        "Sum"],
       "sectors": [
         "Households",
         "Firms",
         "Government",
         "Central bank",
-        "Central bank"
-      ],
+        "Central bank",
+      
+        ""],
       "rows": [
         {
           "band": "Consumption",
@@ -97,8 +111,9 @@
             "+C",
             "",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "label": "Govt. expenditures",
@@ -107,8 +122,9 @@
             "+G",
             "-G",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Income",
@@ -118,8 +134,9 @@
             "-Y",
             "",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Interest",
@@ -129,8 +146,9 @@
             "",
             "-lag(r) * lag(Bs)",
             "+lag(r) * lag(Bcb)",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Profits",
@@ -140,8 +158,9 @@
             "",
             "+lag(r) * lag(Bcb)",
             "-lag(r) * lag(Bcb)",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Taxes",
@@ -151,8 +170,9 @@
             "",
             "+TX",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Money",
@@ -162,8 +182,9 @@
             "",
             "",
             "",
-            "+(Hs - lag(Hs))"
-          ]
+            "+(Hs - lag(Hs))",
+          
+            "0"]
         },
         {
           "band": "Bills",
@@ -173,7 +194,21 @@
             "",
             "+(Bs - lag(Bs))",
             "",
-            "-(Bcb - lag(Bcb))"
+            "-(Bcb - lag(Bcb))",
+          
+            "0"]
+        }
+      ,
+        {
+          "band": "Sum",
+          "label": "Sum",
+          "values": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
           ]
         }
       ],

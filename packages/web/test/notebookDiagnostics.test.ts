@@ -70,6 +70,79 @@ describe("notebook diagnostics", () => {
     });
   });
 
+  it("warns when accounting matrices omit explicit balance checks", () => {
+    const document: NotebookDocument = {
+      id: "example",
+      title: "Example",
+      metadata: { version: 1 },
+      cells: [
+        {
+          id: "transaction-flow",
+          type: "matrix",
+          title: "Transactions-flow matrix",
+          columns: ["Households", "Firms"],
+          rows: [{ label: "Consumption", values: ["-C", "+C"] }]
+        },
+        {
+          id: "balance-sheet",
+          type: "matrix",
+          title: "Balance sheet matrix",
+          columns: ["Households", "Banks"],
+          rows: [{ label: "Deposits", values: ["+M", "-M"] }]
+        }
+      ]
+    };
+
+    expect(validateNotebookDocument(document)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          domain: "notebook",
+          message: "Matrix cell 'transaction-flow' should include a 'Sum' column so row balances are visible.",
+          severity: "warning"
+        }),
+        expect.objectContaining({
+          domain: "notebook",
+          message: "Matrix cell 'transaction-flow' should include a 'Sum' row so column balances are visible.",
+          severity: "warning"
+        }),
+        expect.objectContaining({
+          domain: "notebook",
+          message: "Matrix cell 'balance-sheet' should include a 'Sum' column so row balances are visible.",
+          severity: "warning"
+        })
+      ])
+    );
+  });
+
+  it("accepts accounting matrices with explicit balance checks", () => {
+    const document: NotebookDocument = {
+      id: "example",
+      title: "Example",
+      metadata: { version: 1 },
+      cells: [
+        {
+          id: "transaction-flow",
+          type: "matrix",
+          title: "Transactions-flow matrix",
+          columns: ["Households", "Firms", "Sum"],
+          rows: [
+            { label: "Consumption", values: ["-C", "+C", "0"] },
+            { label: "Sum", values: ["0", "0", "0"] }
+          ]
+        },
+        {
+          id: "balance-sheet",
+          type: "matrix",
+          title: "Balance sheet matrix",
+          columns: ["Households", "Banks", "Sum"],
+          rows: [{ label: "Deposits", values: ["+M", "-M", "0"] }]
+        }
+      ]
+    };
+
+    expect(validateNotebookDocument(document)).toEqual([]);
+  });
+
   it("classifies model and runtime editor diagnostics", () => {
     const editor = buildInvalidEditor();
 

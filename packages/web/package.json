@@ -10,6 +10,8 @@
     "eval:chat-builder:live": "node evals/chat-builder/runChatBuilderEval.mjs --live",
     "eval:notebook-assistant": "node evals/notebook-assistant/runNotebookAssistantEval.mjs",
     "eval:notebook-assistant:live": "node evals/notebook-assistant/runNotebookAssistantEval.mjs --live",
+    "accounting-matrices:add-sums": "node scripts/add-accounting-matrix-sums.mjs",
+    "balance-sheets:add-sum-rows": "node scripts/add-accounting-matrix-sums.mjs --kind balance-sheet",
     "format:notebooks": "node scripts/format-notebook-json.mjs",
     "units:report": "node scripts/unit-metadata-report.mjs",
     "lint": "tsc -p tsconfig.json --noEmit",

@@ -90,16 +90,18 @@
         "Firms_current",
         "Firms_capital",
         "Banks_current",
-        "Banks_capital"
-      ],
+        "Banks_capital",
+      
+        "Sum"],
       "sectors": [
         "Workers",
         "Rentiers",
         "Production firms",
         "Production firms",
         "Banks",
-        "Banks"
-      ],
+        "Banks",
+      
+        ""],
       "rows": [
         {
           "band": "Consumption",
@@ -110,8 +112,9 @@
             "+Cw",
             "",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Consumption",
@@ -122,8 +125,9 @@
             "+Cr",
             "",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Inventories",
@@ -134,8 +138,9 @@
             "+d(INV)",
             "-d(INV)",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Wages",
@@ -146,8 +151,9 @@
             "-WB",
             "",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Interest",
@@ -158,8 +164,9 @@
             "-rl[-1] * Ld[-1]",
             "",
             "+rl[-1] * Ls[-1]",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Profits",
@@ -170,8 +177,9 @@
             "-EF",
             "",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Profits",
@@ -182,8 +190,9 @@
             "",
             "",
             "-EFb",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Interest",
@@ -194,8 +203,9 @@
             "",
             "",
             "-rm[-1] * Mhw[-1]",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Interest",
@@ -206,8 +216,9 @@
             "",
             "",
             "-rm[-1] * Mhr[-1]",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Loans",
@@ -218,8 +229,9 @@
             "",
             "+d(Ld)",
             "",
-            "-d(Ls)"
-          ]
+            "-d(Ls)",
+          
+            "0"]
         },
         {
           "band": "Deposits",
@@ -230,7 +242,22 @@
             "",
             "",
             "",
-            "+d(Ms)"
+            "+d(Ms)",
+          
+            "0"]
+        }
+      ,
+        {
+          "band": "Sum",
+          "label": "Sum",
+          "values": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
           ]
         }
       ],

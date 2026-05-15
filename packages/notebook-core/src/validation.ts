@@ -203,8 +203,12 @@ function createSchemaIssue(input: Omit<NotebookValidationIssue, "domain" | "seve
   return createNotebookDiagnostic(input, { domain: "schema" }) as NotebookValidationIssue;
 }
 
-function createNotebookIssue(message: string, path?: string): NotebookValidationIssue {
-  return createNotebookDiagnostic({ message, path }, { domain: "notebook" }) as NotebookValidationIssue;
+function createNotebookIssue(
+  message: string,
+  path?: string,
+  severity: NotebookValidationIssue["severity"] = "error"
+): NotebookValidationIssue {
+  return createNotebookDiagnostic({ message, path, severity }, { domain: "notebook" }) as NotebookValidationIssue;
 }
 
 function validateCellReferences(
@@ -293,6 +297,61 @@ function validateMatrixCell(cell: MatrixCell, issues: NotebookValidationIssue[])
       issues.push(createNotebookIssue(`Matrix cell '${cell.id}' row ${index + 1} has ${row.values.length} values for ${cell.columns.length} columns.`));
     }
   });
+
+  validateMatrixBalanceChecks(cell, issues);
+}
+
+function validateMatrixBalanceChecks(cell: MatrixCell, issues: NotebookValidationIssue[]): void {
+  const matrixKind = inferAccountingMatrixKind(cell);
+  if (!matrixKind) {
+    return;
+  }
+
+  const hasSumColumn = cell.columns.some((column) => isSumLabel(column));
+  const hasSumRow = cell.rows.some((row) => isSumLabel(row.label));
+
+  if ((matrixKind === "transaction-flow" || matrixKind === "balance-sheet") && !hasSumColumn) {
+    issues.push(
+      createNotebookIssue(
+        `Matrix cell '${cell.id}' should include a 'Sum' column so row balances are visible.`,
+        undefined,
+        "warning"
+      )
+    );
+  }
+
+  if (matrixKind === "transaction-flow" && !hasSumRow) {
+    issues.push(
+      createNotebookIssue(
+        `Matrix cell '${cell.id}' should include a 'Sum' row so column balances are visible.`,
+        undefined,
+        "warning"
+      )
+    );
+  }
+}
+
+function inferAccountingMatrixKind(cell: MatrixCell): "transaction-flow" | "balance-sheet" | null {
+  const title = normalizeAccountingLabel(cell.title);
+  const id = normalizeAccountingLabel(cell.id);
+
+  if (title.includes("transaction") || id.includes("transaction")) {
+    return "transaction-flow";
+  }
+
+  if (title.includes("balance sheet") || id.includes("balance sheet")) {
+    return "balance-sheet";
+  }
+
+  return null;
+}
+
+function isSumLabel(value: string): boolean {
+  return normalizeAccountingLabel(value) === "sum";
+}
+
+function normalizeAccountingLabel(value: string): string {
+  return value.trim().toLowerCase().replace(/[\s_-]+/g, " ");
 }
 
 function validateModelSectionNames(

@@ -60,6 +60,17 @@
             "0"
           ]
         }
+      ,
+        {
+          "band": "Sum",
+          "label": "Sum",
+          "values": [
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        }
       ],
       "description": "Stylized balance-sheet matrix for the distributive DIS model with workers, rentiers, and the government.",
       "note": "Workers hold their saving as money, while rentiers split wealth between money and government bonds."
@@ -73,14 +84,16 @@
         "Workers",
         "Rentiers",
         "Firms",
-        "Government"
-      ],
+        "Government",
+      
+        "Sum"],
       "sectors": [
         "Workers",
         "Rentiers",
         "Firms",
-        "Government"
-      ],
+        "Government",
+      
+        ""],
       "rows": [
         {
           "band": "Consumption",
@@ -89,8 +102,9 @@
             "-Cw",
             "-Cr",
             "+C",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Government",
@@ -99,8 +113,9 @@
             "",
             "",
             "+G",
-            "-G"
-          ]
+            "-G",
+          
+            "0"]
         },
         {
           "band": "Wages",
@@ -109,8 +124,9 @@
             "+WB",
             "",
             "-WB",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Profits",
@@ -119,8 +135,9 @@
             "",
             "+F",
             "-F",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Taxes",
@@ -129,8 +146,9 @@
             "-Tw",
             "-Tr",
             "",
-            "+T"
-          ]
+            "+T",
+          
+            "0"]
         },
         {
           "band": "Bond interest",
@@ -139,8 +157,9 @@
             "",
             "+lag(rb) * lag(Bh)",
             "",
-            "-lag(rb) * lag(Bs)"
-          ]
+            "-lag(rb) * lag(Bs)",
+          
+            "0"]
         },
         {
           "band": "Money",
@@ -149,8 +168,9 @@
             "-d(Mhw)",
             "-d(Mhr)",
             "",
-            "+d(Hs)"
-          ]
+            "+d(Hs)",
+          
+            "0"]
         },
         {
           "band": "Bonds",
@@ -159,7 +179,20 @@
             "",
             "-d(Bh)",
             "",
-            "+d(Bs)"
+            "+d(Bs)",
+          
+            "0"]
+        }
+      ,
+        {
+          "band": "Sum",
+          "label": "Sum",
+          "values": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
           ]
         }
       ],

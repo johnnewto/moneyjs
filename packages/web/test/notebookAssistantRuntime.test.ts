@@ -137,7 +137,7 @@ describe("notebook assistant runtime", () => {
     expect(model.eq).toBeUndefined();
     expect(model.iv).toBeUndefined();
     expect(model.ex).toEqual([["alpha1", "constant", "0.75", "Propensity to consume out of income"]]);
-    expect(context.length).toBeLessThan(3500);
+    expect(context.length).toBeLessThan(3600);
   });
 
   it("uses parameter-only compact context for multiple explicit parameter edits", () => {
@@ -162,7 +162,7 @@ describe("notebook assistant runtime", () => {
       ["alpha1", "constant", "0.75", "Propensity to consume out of income"],
       ["alpha2", "constant", "0.1", "Propensity to consume out of wealth"]
     ]);
-    expect(context.length).toBeLessThan(3600);
+    expect(context.length).toBeLessThan(3700);
   });
 
   it("uses parameter-only compact context for description-based parameter edits", () => {
@@ -187,7 +187,7 @@ describe("notebook assistant runtime", () => {
       ["alpha1", "constant", "0.75", "Propensity to consume out of income"],
       ["alpha2", "constant", "0.1", "Propensity to consume out of wealth"]
     ]);
-    expect(context.length).toBeLessThan(3600);
+    expect(context.length).toBeLessThan(3700);
   });
 
   it("uses parameter-only compact context for unique description token parameter edits", () => {
@@ -209,7 +209,7 @@ describe("notebook assistant runtime", () => {
     expect(model.eq).toBeUndefined();
     expect(model.iv).toBeUndefined();
     expect(model.ex).toEqual([["delta", "constant", "0.1", "Depreciation rate"]]);
-    expect(context.length).toBeLessThan(3500);
+    expect(context.length).toBeLessThan(3600);
   });
 
   it("uses a compact tool-result context for follow-up requests", () => {

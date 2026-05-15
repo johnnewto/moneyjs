@@ -1110,7 +1110,7 @@ describe("notebook assistant tools", () => {
           label: "Memo row",
           band: "Memo",
           insertAfterLabel: "Interest on deposits",
-          values: ["memo", "", "", "", ""]
+          values: ["memo", "", "", "", "", "0"]
         }
       })
     ).toEqual(
@@ -1125,7 +1125,7 @@ describe("notebook assistant tools", () => {
                 value: expect.objectContaining({
                   label: "Memo row",
                   band: "Memo",
-                  values: ["memo", "", "", "", ""]
+                  values: ["memo", "", "", "", "", "0"]
                 })
               })
             ]
@@ -1142,7 +1142,7 @@ describe("notebook assistant tools", () => {
           label: "Interest on deposits",
           newLabel: "Deposit interest",
           band: "Deposits",
-          values: ["+rm[-1] * Mh[-1]", "", "", "-rm[-1] * Ms[-1]", "memo"]
+          values: ["+rm[-1] * Mh[-1]", "", "", "-rm[-1] * Ms[-1]", "memo", "0"]
         }
       })
     ).toEqual(
@@ -1156,7 +1156,7 @@ describe("notebook assistant tools", () => {
                 path: "/cells/by-id/transaction-flow/rows/5",
                 value: expect.objectContaining({
                   label: "Deposit interest",
-                  values: ["+rm[-1] * Mh[-1]", "", "", "-rm[-1] * Ms[-1]", "memo"]
+                  values: ["+rm[-1] * Mh[-1]", "", "", "-rm[-1] * Ms[-1]", "memo", "0"]
                 })
               })
             ]

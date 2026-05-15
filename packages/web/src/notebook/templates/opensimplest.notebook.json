@@ -76,6 +76,18 @@
             "0"
           ]
         }
+      ,
+        {
+          "band": "Sum",
+          "label": "Sum",
+          "values": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        }
       ],
       "description": "Compact balance-sheet view for the OPENSIMPLEST open-economy model."
     },
@@ -278,6 +290,19 @@
             "+dBs",
             "",
             "+dNFA",
+            "0"
+          ]
+        }
+      ,
+        {
+          "band": "Sum",
+          "label": "Sum",
+          "values": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
             "0"
           ]
         }

@@ -125,6 +125,19 @@
             "-INV"
           ]
         }
+      ,
+        {
+          "band": "Sum",
+          "label": "Sum",
+          "values": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        }
       ],
       "description": "Balance-sheet matrix for model INSOUT following the gl7 article.",
       "note": "Validated against the baseline simulation in the R vignette fixture."
@@ -142,8 +155,9 @@
         "CB current",
         "CB capital",
         "Banks current",
-        "Banks capital"
-      ],
+        "Banks capital",
+      
+        "Sum"],
       "sectors": [
         "Households",
         "Production firms",
@@ -152,8 +166,9 @@
         "Central bank",
         "Central bank",
         "Banks",
-        "Banks"
-      ],
+        "Banks",
+      
+        ""],
       "rows": [
         {
           "band": "Consumption",
@@ -166,8 +181,9 @@
             "",
             "",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Government",
@@ -180,8 +196,9 @@
             "",
             "",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Inventories",
@@ -194,8 +211,9 @@
             "",
             "",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Taxes",
@@ -208,8 +226,9 @@
             "",
             "",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Wages",
@@ -222,8 +241,9 @@
             "",
             "",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Profits",
@@ -236,8 +256,9 @@
             "",
             "",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Profits",
@@ -250,8 +271,9 @@
             "",
             "",
             "-FXb",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Profits",
@@ -264,8 +286,9 @@
             "-FXcb",
             "",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Interest",
@@ -278,8 +301,9 @@
             "+lag(ra) * lag(As)",
             "",
             "-lag(ra) * lag(Ad)",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Interest",
@@ -292,8 +316,9 @@
             "",
             "",
             "+lag(rl) * lag(Ld)",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Interest",
@@ -306,8 +331,9 @@
             "",
             "",
             "-lag(rm) * lag(M2h)",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Interest",
@@ -320,8 +346,9 @@
             "+lag(rb) * lag(Bcb)",
             "",
             "+lag(rb) * lag(Bbd)",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Interest",
@@ -334,8 +361,9 @@
             "",
             "",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Advances",
@@ -348,8 +376,9 @@
             "",
             "-d(As)",
             "",
-            "+d(Ad)"
-          ]
+            "+d(Ad)",
+          
+            "0"]
         },
         {
           "band": "Loans",
@@ -362,8 +391,9 @@
             "",
             "",
             "",
-            "-d(Ls)"
-          ]
+            "-d(Ls)",
+          
+            "0"]
         },
         {
           "band": "Money",
@@ -376,8 +406,9 @@
             "",
             "+d(Hs)",
             "",
-            "-d(Hbd)"
-          ]
+            "-d(Hbd)",
+          
+            "0"]
         },
         {
           "band": "Money",
@@ -390,8 +421,9 @@
             "",
             "",
             "",
-            "+d(M1s)"
-          ]
+            "+d(M1s)",
+          
+            "0"]
         },
         {
           "band": "Money",
@@ -404,8 +436,9 @@
             "",
             "",
             "",
-            "+d(M2s)"
-          ]
+            "+d(M2s)",
+          
+            "0"]
         },
         {
           "band": "Bills",
@@ -418,8 +451,9 @@
             "",
             "-d(Bcb)",
             "",
-            "-d(Bbd)"
-          ]
+            "-d(Bbd)",
+          
+            "0"]
         },
         {
           "band": "Bonds",
@@ -432,7 +466,24 @@
             "",
             "",
             "",
-            ""
+            "",
+          
+            "0"]
+        }
+      ,
+        {
+          "band": "Sum",
+          "label": "Sum",
+          "values": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
           ]
         }
       ],

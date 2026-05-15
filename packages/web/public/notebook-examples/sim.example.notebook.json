@@ -31,6 +31,17 @@
         { "band": "Income", "label": "Wages", "values": ["+W * Ns", "-W * Ns", "", "0"] },
         { "band": "Taxes", "label": "Taxes", "values": ["-TXs", "", "+TXd", "0"] },
         { "band": "Money", "label": "Change in money stock", "values": ["+d(Hh)", "", "-d(Hs)", "0"] }
+      ,
+        {
+          "band": "Sum",
+          "label": "Sum",
+          "values": [
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        }
       ],
       "description": "Transactions-flow matrix for the SIM model, arranged around households, production, and government."
     },

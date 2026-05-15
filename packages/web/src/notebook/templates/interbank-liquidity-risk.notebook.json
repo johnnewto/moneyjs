@@ -237,6 +237,20 @@
             "+ph * Hh + K"
           ]
         }
+      ,
+        {
+          "band": "Sum",
+          "label": "Sum",
+          "values": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        }
       ],
       "description": "Article-style balance-sheet matrix adapted from Table 4 of the paper.",
       "note": "This accounting table preserves the paper's full institutional structure. Some symbols shown here go beyond the reduced-form starter equations and are included as a modeling scaffold."
@@ -255,8 +269,9 @@
         "Bank j capital",
         "Central bank current",
         "Bank k current",
-        "Bank k capital"
-      ],
+        "Bank k capital",
+      
+        "Sum"],
       "sectors": [
         "Households",
         "Firms",
@@ -266,8 +281,9 @@
         "Banks",
         "Central bank",
         "Banks",
-        "Banks"
-      ],
+        "Banks",
+      
+        ""],
       "rows": [
         {
           "band": "Consumption",
@@ -281,8 +297,9 @@
             "",
             "",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Government",
@@ -296,8 +313,9 @@
             "",
             "",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Investment",
@@ -311,8 +329,9 @@
             "",
             "",
             "+I",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Investment",
@@ -326,8 +345,9 @@
             "",
             "",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Wages",
@@ -341,8 +361,9 @@
             "",
             "",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Taxes",
@@ -356,8 +377,9 @@
             "",
             "",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Interest",
@@ -371,8 +393,9 @@
             "",
             "+ib[-1] * Bcb[-1]",
             "+ib[-1] * Bk[-1]",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Interest",
@@ -386,8 +409,9 @@
             "",
             "",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Interest",
@@ -401,8 +425,9 @@
             "",
             "",
             "+ilf[-1] * Lf[-1]",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Interest",
@@ -416,8 +441,9 @@
             "",
             "",
             "-idf[-1] * Df[-1]",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Interest",
@@ -431,8 +457,9 @@
             "",
             "",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Interest",
@@ -446,8 +473,9 @@
             "",
             "",
             "+ion_ib[-1] * IBon[-1]",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Interest",
@@ -461,8 +489,9 @@
             "",
             "",
             "+iterm_ib[-1] * IBterm[-1]",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Interest",
@@ -476,8 +505,9 @@
             "",
             "+ilcb[-1] * MRO[-1]",
             "-ilcb[-1] * MROk[-1]",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Interest",
@@ -491,8 +521,9 @@
             "",
             "+ilcb[-1] * Rcb_l[-1]",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Interest",
@@ -506,8 +537,9 @@
             "",
             "-idcb[-1] * Rcb_d[-1]",
             "+idcb[-1] * Rcb_d[-1]",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Profits",
@@ -521,8 +553,9 @@
             "",
             "",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Profits",
@@ -536,8 +569,9 @@
             "+Pbju",
             "",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Profits",
@@ -551,8 +585,9 @@
             "",
             "",
             "-Pbk",
-            "+Pbku"
-          ]
+            "+Pbku",
+          
+            "0"]
         },
         {
           "band": "Profits",
@@ -566,8 +601,9 @@
             "",
             "-Pcb",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Changes",
@@ -581,8 +617,9 @@
             "",
             "",
             "+d(Df)",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Changes",
@@ -596,8 +633,9 @@
             "",
             "",
             "+d(Lf)",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Changes",
@@ -611,8 +649,9 @@
             "",
             "",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Changes",
@@ -626,8 +665,9 @@
             "",
             "-d(Bcb)",
             "-d(Bk)",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Changes",
@@ -641,8 +681,9 @@
             "",
             "",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Changes",
@@ -656,8 +697,9 @@
             "",
             "-d(HPM)",
             "+d(HPMk)",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Changes",
@@ -671,8 +713,9 @@
             "",
             "-d(MRO)",
             "+d(MROk)",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Changes",
@@ -686,8 +729,9 @@
             "",
             "-d(Ovd)",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Changes",
@@ -701,8 +745,9 @@
             "",
             "",
             "-d(IBon)",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Changes",
@@ -716,8 +761,9 @@
             "",
             "",
             "-d(IBterm)",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Changes",
@@ -731,8 +777,9 @@
             "",
             "-d(Rcb_l)",
             "",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Changes",
@@ -746,8 +793,9 @@
             "",
             "-d(Rcb_d)",
             "+d(Rcb_d)",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Balance",
@@ -761,8 +809,9 @@
             "",
             "d(Vcb)",
             "d(Vbk)",
-            ""
-          ]
+            "",
+          
+            "0"]
         },
         {
           "band": "Balance",
@@ -776,8 +825,9 @@
             "0",
             "0",
             "0",
-            "0"
-          ]
+            "0",
+          
+            "0"]
         }
       ],
       "description": "Article-style transaction-flow matrix adapted from Table 5 of the paper.",

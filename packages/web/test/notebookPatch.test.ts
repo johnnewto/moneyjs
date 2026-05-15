@@ -192,7 +192,7 @@ describe("notebook patch", () => {
 
     expect(result.ok).toBe(false);
     expect(result.issues.map((issue) => issue.message).join("\n")).toContain(
-      "has 1 values for 5 columns"
+      "has 1 values for 6 columns"
     );
   });
 

@@ -51,6 +51,16 @@
           "label": "Government spending",
           "values": ["-G", "+G", "0"]
         }
+      ,
+        {
+          "band": "Sum",
+          "label": "Sum",
+          "values": [
+            "0",
+            "0",
+            "0"
+          ]
+        }
       ],
       "description": "Minimal transactions-flow matrix for the starter notebook. Expand this into the accounting layout your model requires."
     },
