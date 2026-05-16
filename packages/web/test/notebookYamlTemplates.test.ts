@@ -7,6 +7,7 @@ import { validateNotebookModels } from "../src/notebook/notebookSourceWorkflow";
 import { validateNotebookDocument } from "../src/notebook/validation";
 
 const templateRoot = path.resolve(__dirname, "../src/notebook/templates");
+const legacyJsonRoot = path.join(templateRoot, "legacy_json");
 const PILOT_TEMPLATE_IDS = ["bmw", "sim"] as const;
 
 describe("canonical YAML notebook templates", () => {
@@ -17,7 +18,7 @@ describe("canonical YAML notebook templates", () => {
         path.join(templateRoot, "generated", `${templateId}.notebook.json`),
         "utf8"
       );
-      const legacyJsonSource = fs.readFileSync(path.join(templateRoot, `${templateId}.notebook.json`), "utf8");
+      const legacyJsonSource = fs.readFileSync(path.join(legacyJsonRoot, `${templateId}.notebook.json`), "utf8");
 
       const compiledDocument = notebookFromYaml(yamlSource);
       const generatedDocument = notebookFromJson(generatedJsonSource);

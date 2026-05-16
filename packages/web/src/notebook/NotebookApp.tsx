@@ -519,7 +519,7 @@ export function NotebookApp() {
   );
   const [storedCustomNotebook, setStoredCustomNotebook] = useState(loadStoredCustomNotebook);
   const [uiMessage, setUiMessage] = useState<string | null>(null);
-  const [sourceFormat, setSourceFormat] = useState<NotebookSourceFormat>("json");
+  const [sourceFormat, setSourceFormat] = useState<NotebookSourceFormat>("yaml");
   const [importText, setImportText] = useState(() =>
     serializeNotebookSource(notebookDocument, sourceFormat)
   );

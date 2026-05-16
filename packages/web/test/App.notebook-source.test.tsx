@@ -37,7 +37,7 @@ describe("App notebook source and import workflows", () => {
     expect(document.querySelector(".notebook-code-editor .cm-scroller")).toBeTruthy();
   });
 
-  it("renders and previews notebook JSON from the editor tab", async () => {
+  it("renders and previews notebook YAML from the editor tab by default", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";
 
@@ -51,15 +51,16 @@ describe("App notebook source and import workflows", () => {
 
     const textarea = getNotebookSourceTextArea();
 
-    expect(textarea.value).toContain('"title": "BMW Browser Notebook"');
-    expect(textarea.value).toContain('"type": "equations"');
+    expect(textarea.value).toContain("format: sfcr-notebook-yaml");
+    expect(textarea.value).toContain("title: BMW Browser Notebook");
+    expect(textarea.value).toContain("equations: |-");
 
     setNotebookSourceValue(textarea.value.replace("BMW Browser Notebook", "JSON Notebook"));
     await user.click(screen.getByRole("button", { name: /preview import/i }));
 
     expect(screen.getByRole("heading", { name: /import preview/i })).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent(
-      /previewed notebook json\. apply to replace the current notebook\./i
+      /previewed notebook yaml\. apply to replace the current notebook\./i
     );
     expect(screen.getByRole("button", { name: /apply preview/i })).toBeInTheDocument();
   }, 15000);

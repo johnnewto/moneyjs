@@ -9,6 +9,7 @@ const __dirname = path.dirname(__filename);
 const webRoot = path.resolve(__dirname, "..");
 const workspaceRoot = path.resolve(webRoot, "../..");
 const templatesRoot = path.resolve(webRoot, "src/notebook/templates");
+const legacyJsonRoot = path.resolve(templatesRoot, "legacy_json");
 const generatedRoot = path.resolve(templatesRoot, "generated");
 const schemaPath = path.resolve(workspaceRoot, "packages/notebook-core/src/sfcr-notebook.schema.json");
 
@@ -40,7 +41,7 @@ if (compactOutputRoot) {
 
 for (const templateId of templateIds) {
   const yamlPath = compactInit && compactOutputRoot ? path.resolve(compactOutputRoot, `${templateId}.notebook.yaml`) : path.resolve(templatesRoot, `${templateId}.notebook.yaml`);
-  const sourceJsonPath = path.resolve(templatesRoot, SOURCE_JSON_FILE_BY_TEMPLATE_ID[templateId] ?? `${templateId}.notebook.json`);
+  const sourceJsonPath = path.resolve(legacyJsonRoot, SOURCE_JSON_FILE_BY_TEMPLATE_ID[templateId] ?? `${templateId}.notebook.json`);
   const generatedJsonPath = path.resolve(generatedRoot, `${templateId}.notebook.json`);
 
   if (init) {
