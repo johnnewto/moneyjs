@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { notebookToJson, notebookToYaml } from "../src/notebook/document";
+import { notebookToCompactYaml, notebookToJson } from "../src/notebook/document";
 import { createNotebookFromTemplate } from "../src/notebook/templates";
 import type { NotebookDocument } from "../src/notebook/types";
 import {
@@ -62,7 +62,7 @@ describe("resolveSelectedCellSourceRange", () => {
 
   it("finds the YAML source block for a selected notebook cell", () => {
     const document = createNotebookFromTemplate("bmw");
-    const source = notebookToYaml(document);
+    const source = notebookToCompactYaml(document, { preserveIds: true });
 
     const range = resolveSelectedCellSourceRange({
       document,
@@ -73,7 +73,7 @@ describe("resolveSelectedCellSourceRange", () => {
 
     expect(range).not.toBeNull();
     expect(source.slice(range!.from, range!.to)).toContain("id: equations-newton");
-    expect(source.slice(range!.from, range!.to)).toContain("type: equations");
+    expect(source.slice(range!.from, range!.to)).toContain("title: BMW model");
   });
 
   it("serializes notebook JSON without undefined unitMeta properties", () => {

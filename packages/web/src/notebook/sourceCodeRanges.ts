@@ -1,6 +1,5 @@
 import {
   notebookToMarkdown,
-  notebookToYaml,
   serializeNotebookCell,
   type NotebookSourceDiagnostic,
   type NotebookSourceFormat
@@ -52,22 +51,6 @@ export function resolveSelectedCellSourceRange(args: {
   }
 
   if (args.format === "yaml") {
-    const singleCellSource = notebookToYaml({
-      ...args.document,
-      cells: [cell]
-    });
-    const singleCellMatch = singleCellSource.match(/\n\s*-\s+id:\s+.+[\s\S]*$/);
-    const sectionSource = singleCellMatch?.[0].trim();
-    if (sectionSource) {
-      const exactMatchIndex = args.source.indexOf(sectionSource);
-      if (exactMatchIndex >= 0) {
-        return {
-          from: exactMatchIndex,
-          to: exactMatchIndex + sectionSource.length
-        };
-      }
-    }
-
     return resolveYamlCellSourceRange(args.source, cell.id);
   }
 

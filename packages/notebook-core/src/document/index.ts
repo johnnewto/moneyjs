@@ -1,5 +1,5 @@
 import type { NotebookCell, NotebookDocument } from "../types";
-import { Document as YamlDocument, isSeq, parseDocument as parseYamlDocument, stringify as stringifyYaml } from "yaml";
+import { Document as YamlDocument, isSeq, parseDocument as parseYamlDocument } from "yaml";
 import { stringifyJsonWithCompactLeaves } from "../jsonFormat";
 import { normalizeUnitMetaAliases, serializeUnitMetaAliases } from "../unitMetaAliases";
 import { validateNotebookSchemaObject, type NotebookValidationIssue } from "../validation";
@@ -142,21 +142,6 @@ export function notebookToMarkdown(document: NotebookDocument): string {
   });
 
   return lines.join("\n").trim();
-}
-
-export function notebookToYaml(document: NotebookDocument): string {
-  return stringifyYaml(
-    {
-      format: NOTEBOOK_YAML_FORMAT,
-      formatVersion: NOTEBOOK_YAML_FORMAT_VERSION,
-      ...serializeNotebookDocument(document)
-    },
-    {
-      aliasDuplicateObjects: false,
-      collectionStyle: "block",
-      lineWidth: 0
-    }
-  ).trimEnd();
 }
 
 export function notebookToCompactYaml(document: NotebookDocument, options: CompactYamlFormatOptions = {}): string {

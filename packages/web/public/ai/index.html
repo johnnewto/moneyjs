@@ -136,6 +136,7 @@
         <h1>SFCR notebook authoring resources</h1>
         <p>
           This page is the human-readable landing page for browser-based AI clients and notebook authors.
+          Use YAML for notebook authoring and examples, then validate against the JSON schema when needed.
           For automated discovery, start with <code>../.well-known/sfcr.json</code>.
         </p>
       </header>
@@ -164,31 +165,39 @@
       <section aria-label="Resources">
         <ul class="link-list">
           <li>
-            <a href="../ai-prompts/create-sfcr-notebook.md">Prompt for ChatGPT or Claude</a>
-            <p>Copy-paste prompt that tells the model how to generate a valid notebook JSON document.</p>
+            <a href="../ai-prompts/create-sfcr-notebook-yaml.md">YAML prompt for ChatGPT or Claude</a>
+            <p>Recommended copy-paste prompt for generating readable, importable notebook YAML.</p>
           </li>
           <li>
-            <a href="../notebook-examples/starter.example.notebook.json">Starter notebook</a>
-            <p>Default scaffold with matrices, sequences, model cells, and a baseline run for new notebooks.</p>
+            <a href="../ai-prompts/create-sfcr-notebook.md">JSON prompt for strict machine output</a>
+            <p>Compatibility prompt for generating expanded notebook JSON against the schema.</p>
           </li>
           <li>
-            <a href="../notebook-examples/sim.example.notebook.json">SIM example notebook</a>
+            <a href="../notebook-examples/starter.example.notebook.yaml">Starter notebook YAML</a>
+            <p>Default authoring scaffold with matrices, sequences, model cells, and a baseline run for new notebooks.</p>
+          </li>
+          <li>
+            <a href="../notebook-examples/sim.example.notebook.yaml">SIM example notebook YAML</a>
             <p>Canonical Godley-Lavoie SIM baseline and government spending scenario.</p>
           </li>
           <li>
-            <a href="../notebook-examples/bmw.example.notebook.json">BMW example notebook</a>
+            <a href="../notebook-examples/bmw.example.notebook.yaml">BMW example notebook YAML</a>
             <p>Reference for sectors, accounting bands, baseline runs, and scenarios.</p>
           </li>
           <li>
-            <a href="../notebook-examples/gl6-dis-rentier-v2.example.notebook.json">GL6 DIS rentier example notebook</a>
+            <a href="../notebook-examples/gl6-dis-rentier-v2.example.notebook.yaml">GL6 DIS rentier example notebook YAML</a>
             <p>Reference for multi-household layouts, distributional flows, and matrix structures.</p>
+          </li>
+          <li>
+            <a href="../notebook-examples/starter.example.notebook.json">JSON examples remain available</a>
+            <p>Use the <code>.json</code> examples when a client needs expanded runtime JSON or direct schema validation.</p>
           </li>
         </ul>
       </section>
 
       <section class="callout" aria-label="Usage guidance">
         <p>
-          Recommended flow: fetch <code>../.well-known/sfcr.json</code>, start from the starter notebook, then read the guide, schema, and one richer example before generating JSON.
+          Recommended flow: fetch <code>../.well-known/sfcr.json</code>, start from the YAML starter notebook, then read the guide, schema, and one richer YAML example before generating notebook source.
         </p>
       </section>
     </main>

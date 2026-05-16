@@ -1,13 +1,16 @@
 # SFCR notebook JSON generation prompt
 
+Prefer `create-sfcr-notebook-yaml.md` for human-readable notebook authoring. Use this JSON prompt only when the client explicitly needs expanded runtime JSON or direct schema validation output.
+
 You are generating a single valid SFCR notebook JSON document for the sfcr browser app.
 
 Before generating the notebook:
 
 1. Read `../notebook-guide.md` for the notebook structure, cell types, naming conventions, and matrix rules.
 2. Read `../sfcr-notebook.schema.json` for the machine-readable constraints.
-3. Use `../notebook-examples/bmw.example.notebook.json` as the default reference for sectors and accounting bands.
-4. Use `../notebook-examples/gl6-dis-rentier-v2.example.notebook.json` when the model splits households or needs distributional accounting.
+3. Use `../notebook-examples/starter.example.notebook.json` as the default expanded JSON scaffold.
+4. Use `../notebook-examples/bmw.example.notebook.json` as the default reference for sectors and accounting bands.
+5. Use `../notebook-examples/gl6-dis-rentier-v2.example.notebook.json` when the model splits households or needs distributional accounting.
 
 Requirements:
 

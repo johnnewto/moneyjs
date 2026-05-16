@@ -2,7 +2,7 @@ import Ajv2020 from "ajv/dist/2020.js";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { Document as YamlDocument, isSeq, parseDocument, stringify as stringifyYaml } from "yaml";
+import { Document as YamlDocument, isSeq, parseDocument } from "yaml";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,7 +22,6 @@ const SOURCE_JSON_FILE_BY_TEMPLATE_ID = {
 
 const args = process.argv.slice(2);
 const write = args.includes("--write");
-const init = args.includes("--init");
 const compactInit = args.includes("--compact-init");
 const preserveIds = args.includes("--preserve-ids");
 const convertOnly = args.includes("--convert-only");
@@ -44,13 +43,10 @@ for (const templateId of templateIds) {
   const sourceJsonPath = path.resolve(legacyJsonRoot, SOURCE_JSON_FILE_BY_TEMPLATE_ID[templateId] ?? `${templateId}.notebook.json`);
   const generatedJsonPath = path.resolve(generatedRoot, `${templateId}.notebook.json`);
 
-  if (init) {
-    await writeYamlFromJson(sourceJsonPath, yamlPath);
-  }
   if (compactInit) {
     await writeCompactYamlFromJson(sourceJsonPath, yamlPath, { preserveIds });
   }
-  if (convertOnly && (init || compactInit)) {
+  if (convertOnly && compactInit) {
     console.log(`${templateId}: ${path.relative(webRoot, sourceJsonPath)} -> ${path.relative(webRoot, yamlPath)}`);
     continue;
   }
@@ -66,24 +62,6 @@ for (const templateId of templateIds) {
   }
 
   console.log(`${templateId}: ${path.relative(webRoot, yamlPath)} -> ${path.relative(webRoot, generatedJsonPath)}`);
-}
-
-async function writeYamlFromJson(jsonPath, yamlPath) {
-  const source = await fs.readFile(jsonPath, "utf8");
-  const document = JSON.parse(source);
-  const yaml = stringifyYaml(
-    {
-      format: NOTEBOOK_YAML_FORMAT,
-      formatVersion: NOTEBOOK_YAML_FORMAT_VERSION,
-      ...document
-    },
-    {
-      aliasDuplicateObjects: false,
-      collectionStyle: "block",
-      lineWidth: 0
-    }
-  );
-  await fs.writeFile(yamlPath, `${yaml.trimEnd()}\n`, "utf8");
 }
 
 async function writeCompactYamlFromJson(jsonPath, yamlPath, options) {

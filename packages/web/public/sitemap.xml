@@ -19,6 +19,24 @@
     <loc>/ai-prompts/create-sfcr-notebook.md</loc>
   </url>
   <url>
+    <loc>/ai-prompts/create-sfcr-notebook-yaml.md</loc>
+  </url>
+  <url>
+    <loc>/notebook-examples/starter.example.notebook.yaml</loc>
+  </url>
+  <url>
+    <loc>/notebook-examples/sim.example.notebook.yaml</loc>
+  </url>
+  <url>
+    <loc>/notebook-examples/bmw.example.notebook.yaml</loc>
+  </url>
+  <url>
+    <loc>/notebook-examples/gl6-dis-rentier-v2.example.notebook.yaml</loc>
+  </url>
+  <url>
+    <loc>/notebook-examples/starter.example.notebook.json</loc>
+  </url>
+  <url>
     <loc>/notebook-examples/sim.example.notebook.json</loc>
   </url>
   <url>

@@ -1,45 +1,52 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "indexUrl": "./sfcr.json",
   "title": "SFCR Notebook Authoring Guide",
   "audience": ["browser-based AI assistants", "LLM chat tools", "notebook authors"],
-  "purpose": "Create valid SFCR notebook JSON documents, especially SFC models with matrix sectors and accounting bands.",
+  "purpose": "Create valid SFCR notebook source documents, especially SFC models with matrix sectors and accounting bands. YAML is preferred for authoring; JSON remains available for validation and runtime interchange.",
   "guideUrl": "../notebook-guide.md",
   "schemaUrl": "../sfcr-notebook.schema.json",
-  "promptUrl": "../ai-prompts/create-sfcr-notebook.md",
+  "promptUrl": "../ai-prompts/create-sfcr-notebook-yaml.md",
+  "jsonPromptUrl": "../ai-prompts/create-sfcr-notebook.md",
   "schemaVersion": "1.0.0",
-  "starterTemplateUrl": "../notebook-examples/starter.example.notebook.json",
-  "supportedFormats": ["sfcr-notebook-json"],
+  "starterTemplateUrl": "../notebook-examples/starter.example.notebook.yaml",
+  "starterTemplateJsonUrl": "../notebook-examples/starter.example.notebook.json",
+  "supportedFormats": ["sfcr-notebook-yaml", "sfcr-notebook-json"],
+  "preferredNotebookFormat": "sfcr-notebook-yaml",
   "supportedNotebookKinds": ["baseline", "scenario-analysis"],
   "supportedFeatures": ["sectors", "bands", "equations", "initial-values", "scenarios"],
-  "preferredFormat": "markdown",
+  "preferredFormat": "yaml",
   "examples": [
     {
       "id": "sim",
       "label": "SIM notebook",
-      "url": "../notebook-examples/sim.example.notebook.json",
+      "url": "../notebook-examples/sim.example.notebook.yaml",
+      "jsonUrl": "../notebook-examples/sim.example.notebook.json",
       "focus": ["canonical SIM model", "baseline run", "government spending scenario"]
     },
     {
       "id": "bmw",
       "label": "BMW notebook",
-      "url": "../notebook-examples/bmw.example.notebook.json",
+      "url": "../notebook-examples/bmw.example.notebook.yaml",
+      "jsonUrl": "../notebook-examples/bmw.example.notebook.json",
       "focus": ["sectors", "bands", "baseline run", "scenario runs"]
     },
     {
       "id": "gl6-dis-rentier-v2",
       "label": "GL6 DIS rentier split v2",
-      "url": "../notebook-examples/gl6-dis-rentier-v2.example.notebook.json",
+      "url": "../notebook-examples/gl6-dis-rentier-v2.example.notebook.yaml",
+      "jsonUrl": "../notebook-examples/gl6-dis-rentier-v2.example.notebook.json",
       "focus": ["multi-household sectors", "distribution", "inventory dynamics", "matrix bands"]
     }
   ],
   "instructions": [
     "Fetch guideUrl first and follow its schema and naming conventions.",
-    "Start from starterTemplateUrl for the minimum valid notebook shape, then adapt from examples only when needed.",
+    "Start from starterTemplateUrl for the minimum valid YAML notebook shape, then adapt from examples only when needed.",
     "Use the SIM example for the smallest canonical Godley-Lavoie baseline and scenario notebook.",
     "Use the BMW example when generating matrix cells with sectors and bands.",
     "Use the rentier example when the model splits households or tracks distributional flows.",
-    "Validate the final JSON against schemaUrl before returning it.",
-    "Return a single JSON notebook document with metadata.version set to 1."
+    "Use jsonUrl examples and jsonPromptUrl only when strict expanded JSON output is required.",
+    "Validate generated runtime JSON against schemaUrl after converting YAML, or validate JSON output directly.",
+    "Return a single YAML notebook document with format set to sfcr-notebook-yaml and metadata.version set to 1 unless JSON is explicitly requested."
   ]
 }

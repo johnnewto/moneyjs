@@ -5,8 +5,8 @@ import {
   detectNotebookSourceFormat,
   notebookFromMarkdown,
   notebookFromYaml,
+  notebookToCompactYaml,
   notebookToMarkdown,
-  notebookToYaml,
   parseNotebookSource
 } from "../src/notebook/document";
 
@@ -67,7 +67,7 @@ describe("analyzeNotebookSource", () => {
     expect(parsed.cells[0]).toMatchObject({ type: "markdown", title: "Intro" });
   });
 
-  it("round-trips YAML through the shared notebook source pipeline", () => {
+  it("round-trips compact YAML through the shared notebook source pipeline", () => {
     const document = parseNotebookSource(
       JSON.stringify({
         id: "example",
@@ -87,13 +87,35 @@ describe("analyzeNotebookSource", () => {
       "json"
     ).document;
 
-    const yaml = notebookToYaml(document);
+    const yaml = notebookToCompactYaml(document, { preserveIds: true });
     const parsed = notebookFromYaml(yaml);
 
     expect(yaml).toContain("format: sfcr-notebook-yaml");
+    expect(yaml).toContain("equations:");
+    expect(yaml).toContain("Y ~ G");
     expect(parsed.title).toBe("Example");
-    expect(parsed.cells).toHaveLength(2);
-    expect(parsed.cells[1]).toMatchObject({ type: "equations", title: "Equations" });
+    expect(parsed.cells.some((cell) => cell.type === "equations" && cell.title === "Equations")).toBe(true);
+  });
+
+  it("parses expanded YAML for backwards compatibility", () => {
+    const yaml = [
+      "format: sfcr-notebook-yaml",
+      "formatVersion: 1",
+      "id: example",
+      "title: Example",
+      "metadata:",
+      "  version: 1",
+      "cells:",
+      "  - id: intro",
+      "    type: markdown",
+      "    title: Intro",
+      "    source: Hi"
+    ].join("\n");
+
+    const parsed = notebookFromYaml(yaml);
+
+    expect(parsed.title).toBe("Example");
+    expect(parsed.cells[0]).toMatchObject({ type: "markdown", title: "Intro" });
   });
 
   it("requires the canonical YAML format header", () => {

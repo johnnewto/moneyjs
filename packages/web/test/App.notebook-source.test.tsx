@@ -13,7 +13,7 @@ import {
   setupAppTestEnv,
   userEvent
 } from "./appTestUtils";
-import { notebookToJson, notebookToYaml } from "../src/notebook/document";
+import { notebookToCompactYaml, notebookToJson } from "../src/notebook/document";
 import { CUSTOM_NOTEBOOK_STORAGE_KEY } from "../src/notebook/NotebookApp";
 import { createNotebookFromTemplate } from "../src/notebook/templates";
 
@@ -222,7 +222,7 @@ describe("App notebook source and import workflows", () => {
 
     render(<App />);
 
-    const yamlSource = notebookToYaml(createNotebookFromTemplate("bmw")).replace(
+    const yamlSource = notebookToCompactYaml(createNotebookFromTemplate("bmw"), { preserveIds: true }).replace(
       "BMW Browser Notebook",
       "YAML Notebook"
     );

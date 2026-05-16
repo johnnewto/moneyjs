@@ -1,0 +1,316 @@
+format: sfcr-notebook-yaml
+formatVersion: 1
+id: sim-notebook
+title: SIM Browser Notebook
+metadata:
+  version: 1
+  template: sim
+cells:
+  - id: intro
+    type: markdown
+    title: Overview
+    source: This notebook implements the SIM model from Godley and Lavoie chapter 3. It includes the baseline model, a government-spending shock scenario, accounting matrices, and result views for the main income, consumption, and stock variables.
+  - id: balance-sheet
+    type: matrix
+    title: SIM balance sheet
+    sourceRunCellId: baseline-run
+    columns:
+      - Households
+      - Government
+      - Sum
+    sectors:
+      - Households
+      - Government
+      - ""
+    rows:
+      - band: Money
+        label: Money stock
+        values:
+          - +Hh
+          - -Hs
+          - "0"
+      - band: Balance
+        label: Net worth
+        values:
+          - -Hh
+          - +Hs
+          - "0"
+      - band: Sum
+        label: Sum
+        values:
+          - "0"
+          - "0"
+          - "0"
+    description: Compact balance sheet for the SIM model. Household money holdings mirror government money liabilities.
+  - id: transaction-flow
+    type: matrix
+    title: SIM transactions-flow matrix
+    sourceRunCellId: baseline-run
+    columns:
+      - Households
+      - Production
+      - Government
+      - Sum
+    sectors:
+      - Households
+      - Firms
+      - Government
+      - ""
+    rows:
+      - band: Consumption
+        label: Consumption
+        values:
+          - -Cd
+          - +Cs
+          - ""
+          - "0"
+      - band: Government
+        label: Government expenditure
+        values:
+          - ""
+          - +Gs
+          - -Gd
+          - "0"
+      - band: Income
+        label: Wages
+        values:
+          - +W * Ns
+          - -W * Ns
+          - ""
+          - "0"
+      - band: Taxes
+        label: Taxes
+        values:
+          - -TXs
+          - ""
+          - +TXd
+          - "0"
+      - band: Money
+        label: Change in money stock
+        values:
+          - +d(Hh)
+          - ""
+          - -d(Hs)
+          - "0"
+      - band: Sum
+        label: Sum
+        values:
+          - "0"
+          - "0"
+          - "0"
+          - "0"
+    description: Transactions-flow matrix for the SIM model, arranged around households, production, and government.
+  - id: transaction-flow-sequence
+    type: sequence
+    title: SIM transaction flow sequence
+    source:
+      kind: matrix
+      matrixCellId: transaction-flow
+    description: Sequence view generated from the SIM transactions-flow matrix.
+  - id: equation-dependency-graph
+    type: sequence
+    title: SIM equation dependency graph
+    source:
+      kind: dependency
+      modelId: sim
+      showAccountingStrips: true
+      showExogenous: false
+      stripMapping:
+        transactionMatrixCellId: transaction-flow
+        balanceMatrixCellId: balance-sheet
+    description: Dependency view of the SIM equations. Lagged stock terms keep the dynamic stock accumulation outside same-period dependency cycles.
+  - id: equations
+    type: equations
+    title: SIM equations
+    modelId: sim
+    equations:
+      - id: eq-0-txs
+        name: TXs
+        desc: Taxes paid by households.
+        expression: TXd
+        role: identity
+      - id: eq-1-yd
+        name: YD
+        desc: Disposable income.
+        expression: W * Ns - TXs
+        role: definition
+      - id: eq-2-cd
+        name: Cd
+        desc: Household consumption demand.
+        expression: alpha1 * YD + alpha2 * lag(Hh)
+        role: behavioral
+      - id: eq-3-hh
+        name: Hh
+        desc: Household money holdings.
+        expression: YD - Cd + lag(Hh)
+        role: accumulation
+      - id: eq-4-ns
+        name: Ns
+        desc: Labor supply.
+        expression: Nd
+        role: identity
+      - id: eq-5-nd
+        name: Nd
+        desc: Labor demand.
+        expression: Y / W
+        role: definition
+      - id: eq-6-cs
+        name: Cs
+        desc: Consumption supply.
+        expression: Cd
+        role: identity
+      - id: eq-7-gs
+        name: Gs
+        desc: Government goods supply.
+        expression: Gd
+        role: identity
+      - id: eq-8-y
+        name: Y
+        desc: Output.
+        expression: Cs + Gs
+        role: identity
+      - id: eq-9-txd
+        name: TXd
+        desc: Tax demand.
+        expression: theta * W * Ns
+        role: definition
+      - id: eq-10-hs
+        name: Hs
+        desc: Government money supply.
+        expression: Gd - TXd + lag(Hs)
+        role: accumulation
+    collapsed: true
+  - id: solver
+    type: solver
+    title: Solver options
+    modelId: sim
+    options:
+      solverMethod: BROYDEN
+      toleranceText: "1e-8"
+      maxIterations: 350
+      defaultInitialValueText: "1e-15"
+      hiddenLeftVariable: Hh
+      hiddenRightVariable: Hs
+      hiddenToleranceText: "1e-5"
+      relativeHiddenTolerance: false
+    collapsed: true
+  - id: externals
+    type: externals
+    title: Externals
+    modelId: sim
+    externals:
+      - id: ext-0-gd
+        name: Gd
+        desc: Government expenditure.
+        kind: constant
+        valueText: "20"
+      - id: ext-1-w
+        name: W
+        desc: Wage rate.
+        kind: constant
+        valueText: "1"
+      - id: ext-2-alpha1
+        name: alpha1
+        desc: Propensity to consume from current disposable income.
+        kind: constant
+        valueText: "0.6"
+      - id: ext-3-alpha2
+        name: alpha2
+        desc: Propensity to consume from lagged money holdings.
+        kind: constant
+        valueText: "0.4"
+      - id: ext-4-theta
+        name: theta
+        desc: Tax rate.
+        kind: constant
+        valueText: "0.2"
+    collapsed: true
+  - id: initial-values
+    type: initial-values
+    title: Initial values
+    modelId: sim
+    initialValues:
+      []
+    collapsed: true
+  - id: baseline-run
+    type: run
+    title: Baseline run
+    mode: baseline
+    periods: 60
+    resultKey: sim_baseline
+    sourceModelId: sim
+    description: Baseline SIM run with government expenditure fixed at 20.
+  - id: baseline-chart
+    type: chart
+    title: Baseline income, consumption, and money
+    sourceRunCellId: baseline-run
+    variables:
+      - Y
+      - YD
+      - Cd
+      - Hh
+    axisMode: separate
+    referenceTrace: none
+    timeRangeInclusive:
+      - 1
+      - 60
+  - id: baseline-table
+    type: table
+    title: Baseline SIM summary
+    sourceRunCellId: baseline-run
+    variables:
+      - Y
+      - YD
+      - Cd
+      - Hh
+      - TXd
+      - Gd
+  - id: scenario-note
+    type: markdown
+    title: Scenario 1
+    source: Scenario 1 increases government expenditure `Gd` from `20` to `30` from period 5 through period 60, matching the introductory SIM scenario in the R `sfcr` README.
+  - id: scenario-run
+    type: run
+    title: "Scenario 1: government spending shock"
+    mode: scenario
+    scenario:
+      shocks:
+        - rangeInclusive:
+            - 5
+            - 60
+          variables:
+            Gd:
+              kind: constant
+              value: 30
+    baselineRunCellId: baseline-run
+    periods: 60
+    resultKey: sim_scenario_gd_30
+    sourceModelId: sim
+    description: Scenario run with government expenditure raised to 30 from period 5 onward.
+  - id: scenario-chart
+    type: chart
+    title: Scenario 1 output and fiscal variables
+    sourceRunCellId: scenario-run
+    variables:
+      - Y
+      - YD
+      - Cd
+      - Hh
+      - Gd
+    axisMode: separate
+    referenceTrace: baseline
+    timeRangeInclusive:
+      - 1
+      - 60
+  - id: scenario-table
+    type: table
+    title: Scenario 1 SIM summary
+    sourceRunCellId: scenario-run
+    variables:
+      - Gd
+      - Y
+      - YD
+      - Cd
+      - Hh
+      - TXd
+      - Hs
