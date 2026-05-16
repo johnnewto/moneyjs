@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { notebookToJson } from "../src/notebook/document";
+import { notebookToJson, notebookToYaml } from "../src/notebook/document";
 import { createNotebookFromTemplate } from "../src/notebook/templates";
 import type { NotebookDocument } from "../src/notebook/types";
 import {
@@ -58,6 +58,22 @@ describe("resolveSelectedCellSourceRange", () => {
     expect(range).not.toBeNull();
     expect(source.slice(range!.from, range!.to)).toContain('"id": "equations-newton"');
     expect(source.slice(range!.from, range!.to)).toContain('"type": "equations"');
+  });
+
+  it("finds the YAML source block for a selected notebook cell", () => {
+    const document = createNotebookFromTemplate("bmw");
+    const source = notebookToYaml(document);
+
+    const range = resolveSelectedCellSourceRange({
+      document,
+      format: "yaml",
+      selectedCellId: "equations-newton",
+      source
+    });
+
+    expect(range).not.toBeNull();
+    expect(source.slice(range!.from, range!.to)).toContain("id: equations-newton");
+    expect(source.slice(range!.from, range!.to)).toContain("type: equations");
   });
 
   it("serializes notebook JSON without undefined unitMeta properties", () => {
@@ -129,6 +145,10 @@ describe("resolveCompletionReplacementStart", () => {
 describe("resolveCompletionReplacementEnd", () => {
   it("consumes an existing JSON property suffix after the cursor", () => {
     expect(resolveCompletionReplacementEnd('": ', "json")).toBe(3);
+  });
+
+  it("leaves YAML property suffix text untouched", () => {
+    expect(resolveCompletionReplacementEnd(": ", "yaml")).toBe(0);
   });
 
   it("leaves value text untouched", () => {

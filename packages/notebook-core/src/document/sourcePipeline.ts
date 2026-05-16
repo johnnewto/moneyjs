@@ -1,10 +1,11 @@
 import { createNotebookDiagnostic, type NotebookDiagnostic, type NotebookDiagnosticDomain } from "../diagnostics";
 
-export type NotebookSourceFormat = "json" | "markdown";
+export type NotebookSourceFormat = "json" | "markdown" | "yaml";
 
 export const SUPPORTED_NOTEBOOK_SOURCE_FORMATS: readonly NotebookSourceFormat[] = [
   "json",
-  "markdown"
+  "markdown",
+  "yaml"
 ];
 
 export interface NotebookSourceDiagnostic extends NotebookDiagnostic {
@@ -37,7 +38,7 @@ export interface NotebookSourcePipeline<Parsed, Document> {
   buildDocument(parsed: Parsed): Document;
   detectFormat(source: string): NotebookSourceFormat;
   fallbackFormat: NotebookSourceFormat;
-  formatLabel(format: NotebookSourceFormat): "JSON" | "Markdown";
+  formatLabel(format: NotebookSourceFormat): "JSON" | "Markdown" | "YAML";
   locateSchemaDiagnostic(args: {
     allIssues: Array<{ keyword?: string; path?: string; relatedProperty?: string }>;
     format: NotebookSourceFormat;
@@ -181,7 +182,7 @@ function resolveNotebookSourceFormat<Parsed, Document>(
       message:
         error instanceof Error
           ? error.message
-          : "Unable to detect notebook format. Expected JSON or Markdown.",
+          : "Unable to detect notebook format. Expected JSON, Markdown, or YAML.",
       ok: false
     };
   }

@@ -140,12 +140,102 @@ const NOTEBOOK_ASSISTANT_LOCAL_LIVE_TESTS: Array<{
   }
 ];
 
+export const CUSTOM_NOTEBOOK_STORAGE_KEY = "sfcr:notebook-custom-document";
+
+const CUSTOM_NOTEBOOK_SELECT_VALUE = "__custom__";
+const CUSTOM_NOTEBOOK_HASH = "#/notebook/custom";
+const NOTEBOOK_SOURCE_FORMATS: readonly NotebookSourceFormat[] = ["json", "markdown", "yaml"];
+
 function isNotebookAssistantLocalLiveTestEnabled(): boolean {
   return (
     import.meta.env.DEV &&
     typeof window !== "undefined" &&
     (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
   );
+}
+
+function loadStoredCustomNotebook(): NotebookDocument | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const source = window.localStorage.getItem(CUSTOM_NOTEBOOK_STORAGE_KEY);
+  if (!source) {
+    return null;
+  }
+
+  try {
+    return markNotebookDocumentAsCustom(parseNotebookSource(source, "json").document);
+  } catch {
+    window.localStorage.removeItem(CUSTOM_NOTEBOOK_STORAGE_KEY);
+    return null;
+  }
+}
+
+function saveStoredCustomNotebook(document: NotebookDocument): NotebookDocument | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const customDocument = markNotebookDocumentAsCustom(document);
+  try {
+    window.localStorage.setItem(
+      CUSTOM_NOTEBOOK_STORAGE_KEY,
+      serializeNotebookSource(customDocument, "json")
+    );
+    return customDocument;
+  } catch {
+    return null;
+  }
+}
+
+function markNotebookDocumentAsCustom(document: NotebookDocument): NotebookDocument {
+  const { template: _template, ...metadata } = document.metadata;
+  return {
+    ...structuredClone(document),
+    metadata
+  };
+}
+
+function isCustomNotebookHash(hash: string): boolean {
+  return hash === CUSTOM_NOTEBOOK_HASH;
+}
+
+function writeCustomNotebookHash(): void {
+  if (window.location.hash !== CUSTOM_NOTEBOOK_HASH) {
+    window.location.hash = CUSTOM_NOTEBOOK_HASH;
+  }
+}
+
+function getNextNotebookSourceFormat(format: NotebookSourceFormat): NotebookSourceFormat {
+  const currentIndex = NOTEBOOK_SOURCE_FORMATS.indexOf(format);
+  return NOTEBOOK_SOURCE_FORMATS[(currentIndex + 1) % NOTEBOOK_SOURCE_FORMATS.length] ?? "json";
+}
+
+function formatNotebookSourceFormatOptions(): string {
+  return NOTEBOOK_SOURCE_FORMATS.map(formatNotebookSourceLabel).join(" / ");
+}
+
+function resolveInitialNotebookDocument(hash: string): NotebookDocument {
+  if (isCustomNotebookHash(hash)) {
+    const customNotebook = loadStoredCustomNotebook();
+    if (customNotebook) {
+      return customNotebook;
+    }
+  }
+
+  return createNotebookFromTemplate(resolveNotebookTemplateIdFromHash(hash));
+}
+
+function resolveCurrentTemplateId(document: NotebookDocument): NotebookTemplateId | "" {
+  const templateId = document.metadata.template;
+  if (!templateId || !isNotebookTemplateId(templateId)) {
+    return "";
+  }
+
+  const documentJson = serializeNotebookSource(document, "json");
+  const templateJson = serializeNotebookSource(NOTEBOOK_TEMPLATES[templateId].document, "json");
+  return documentJson === templateJson ? templateId : "";
 }
 
 function createNotebookCellForInsert(
@@ -425,8 +515,9 @@ export function NotebookApp() {
   const mainColumnRef = useRef<HTMLDivElement | null>(null);
   const [mainColumnElement, setMainColumnElement] = useState<HTMLDivElement | null>(null);
   const [notebookDocument, setNotebookDocument] = useState(() =>
-    createNotebookFromTemplate(resolveNotebookTemplateIdFromHash(window.location.hash))
+    resolveInitialNotebookDocument(window.location.hash)
   );
+  const [storedCustomNotebook, setStoredCustomNotebook] = useState(loadStoredCustomNotebook);
   const [uiMessage, setUiMessage] = useState<string | null>(null);
   const [sourceFormat, setSourceFormat] = useState<NotebookSourceFormat>("json");
   const [importText, setImportText] = useState(() =>
@@ -557,6 +648,21 @@ export function NotebookApp() {
     [importText, sourceFormat]
   );
   const selectedHelpTopic = findNotebookHelpTopic(selectedHelpTopicId);
+  const currentTemplateId = useMemo(
+    () => resolveCurrentTemplateId(notebookDocument),
+    [notebookDocument]
+  );
+
+  useEffect(() => {
+    if (currentTemplateId) {
+      return;
+    }
+
+    const savedNotebook = saveStoredCustomNotebook(notebookDocument);
+    if (savedNotebook) {
+      setStoredCustomNotebook(savedNotebook);
+    }
+  }, [currentTemplateId, notebookDocument]);
 
   useEffect(() => {
     setSelectedPeriodIndex((current) => Math.min(current, maxResultPeriodIndex));
@@ -948,6 +1054,22 @@ export function NotebookApp() {
 
   useEffect(() => {
     function handleHashChange(): void {
+      if (isCustomNotebookHash(window.location.hash)) {
+        const customNotebook = loadStoredCustomNotebook();
+        if (!customNotebook) {
+          setUiMessage("No saved custom notebook found.");
+          return;
+        }
+        if (!currentTemplateId && notebookDocument.id === customNotebook.id) {
+          return;
+        }
+        replaceNotebookDocument(customNotebook);
+        setStoredCustomNotebook(customNotebook);
+        setImportPreview(null);
+        setUiMessage(`Loaded custom notebook ${customNotebook.title}.`);
+        return;
+      }
+
       const templateId = parseNotebookTemplateIdFromHash(window.location.hash);
       if (!templateId) {
         return;
@@ -962,7 +1084,7 @@ export function NotebookApp() {
 
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
-  }, [notebookDocument.metadata.template]);
+  }, [currentTemplateId, notebookDocument.id, notebookDocument.metadata.template]);
 
   function handleExportJson(): void {
     const exported = importText || serializeNotebookSource(notebookDocument, sourceFormat);
@@ -1089,6 +1211,21 @@ export function NotebookApp() {
   }
 
   function handleTemplateChange(templateId: string): void {
+    if (templateId === CUSTOM_NOTEBOOK_SELECT_VALUE) {
+      const customNotebook = loadStoredCustomNotebook();
+      if (!customNotebook) {
+        setUiMessage("No saved custom notebook found.");
+        return;
+      }
+
+      replaceNotebookDocument(customNotebook);
+      setStoredCustomNotebook(customNotebook);
+      writeCustomNotebookHash();
+      setImportPreview(null);
+      setUiMessage(`Loaded custom notebook ${customNotebook.title}.`);
+      return;
+    }
+
     if (!isNotebookTemplateId(templateId)) {
       return;
     }
@@ -1749,9 +1886,9 @@ export function NotebookApp() {
     });
   }
 
-  const currentTemplateId = isNotebookTemplateId(notebookDocument.metadata.template ?? "")
-    ? notebookDocument.metadata.template
-    : "";
+  const templatePickerValue = currentTemplateId || CUSTOM_NOTEBOOK_SELECT_VALUE;
+  const hasCustomNotebookOption = !currentTemplateId || storedCustomNotebook != null;
+  const nextNotebookSourceFormat = getNextNotebookSourceFormat(sourceFormat);
 
   return (
     <NotebookRenderProfiler
@@ -1948,10 +2085,12 @@ export function NotebookApp() {
                   <span className="notebook-rail-template-label">Notebook template</span>
                   <select
                     aria-label="Notebook template"
-                    value={currentTemplateId}
+                    value={templatePickerValue}
                     onChange={(event) => handleTemplateChange(event.target.value)}
                   >
-                    {currentTemplateId ? null : <option value="">Custom notebook</option>}
+                    {hasCustomNotebookOption ? (
+                      <option value={CUSTOM_NOTEBOOK_SELECT_VALUE}>Custom notebook</option>
+                    ) : null}
                     {Object.values(NOTEBOOK_TEMPLATES).map((template) => (
                       <option key={template.id} value={template.id}>
                         {template.label}
@@ -2033,13 +2172,11 @@ export function NotebookApp() {
                 <button
                   type="button"
                   className="notebook-utility-button notebook-source-format-toggle"
-                  aria-label={`Source format is ${formatNotebookSourceLabel(sourceFormat)}. Switch to ${formatNotebookSourceLabel(sourceFormat === "json" ? "markdown" : "json")}.`}
-                  title={`Source format: ${formatNotebookSourceLabel(sourceFormat)}. Click to switch to ${formatNotebookSourceLabel(sourceFormat === "json" ? "markdown" : "json")}.`}
-                  onClick={() =>
-                    handleSourceFormatChange(sourceFormat === "json" ? "markdown" : "json")
-                  }
+                  aria-label={`Source format is ${formatNotebookSourceLabel(sourceFormat)}. Switch to ${formatNotebookSourceLabel(nextNotebookSourceFormat)}.`}
+                  title={`Source format: ${formatNotebookSourceLabel(sourceFormat)}. Click to switch to ${formatNotebookSourceLabel(nextNotebookSourceFormat)}.`}
+                  onClick={() => handleSourceFormatChange(nextNotebookSourceFormat)}
                 >
-                  JSON / Markdown
+                  {formatNotebookSourceFormatOptions()}
                 </button>
                 <label className="notebook-file-picker">
                   <span className="notebook-utility-button notebook-utility-button-muted notebook-file-input-trigger">
@@ -2050,7 +2187,7 @@ export function NotebookApp() {
                     className="notebook-file-input"
                     type="file"
                     aria-label="Choose notebook source file"
-                    accept=".sfnb.json,.json,.sfnb.md,.md,.markdown,.txt,application/json,text/markdown"
+                    accept=".sfnb.json,.json,.sfnb.md,.md,.markdown,.notebook.yaml,.yaml,.yml,.txt,application/json,text/markdown,application/yaml,text/yaml"
                     onChange={(event) => {
                       const file = event.target.files?.[0];
                       if (file) {

@@ -12,6 +12,7 @@
     "eval:notebook-assistant:live": "node evals/notebook-assistant/runNotebookAssistantEval.mjs --live",
     "accounting-matrices:add-sums": "node scripts/add-accounting-matrix-sums.mjs",
     "balance-sheets:add-sum-rows": "node scripts/add-accounting-matrix-sums.mjs --kind balance-sheet",
+    "compile:notebook-yaml": "node scripts/compile-notebook-yaml.mjs",
     "format:notebooks": "node scripts/format-notebook-json.mjs",
     "units:report": "node scripts/unit-metadata-report.mjs",
     "lint": "tsc -p tsconfig.json --noEmit",
@@ -23,6 +24,7 @@
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.1",
     "@codemirror/lang-json": "^6.0.2",
+    "@codemirror/lang-yaml": "^6.1.2",
     "@codemirror/lint": "^6.9.5",
     "@codemirror/state": "^6.6.0",
     "@codemirror/view": "^6.41.1",
@@ -35,7 +37,8 @@
     "react-dom": "^19.1.0",
     "react-markdown": "^10.1.0",
     "rehype-sanitize": "^6.0.0",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "yaml": "^2.8.4"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",

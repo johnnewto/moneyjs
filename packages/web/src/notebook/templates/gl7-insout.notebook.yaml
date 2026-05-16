@@ -1,0 +1,936 @@
+format: sfcr-notebook-yaml
+formatVersion: 1
+id: gl7-insout-notebook
+title: GL7 INSOUT Notebook
+metadata:
+  version: 1
+  template: gl7-insout
+  description: "This notebook adapts the `gl7-insout.Rmd` article into executable browser cells. It includes the INSOUT balance-sheet and transactions-flow matrices, the full baseline model, and three representative simulations from the article: higher targeted inventories, higher government expenditure, and the combined inflation-plus-interest-rate experiment."
+modelId: equations
+introCell:
+  id: intro
+  title: Overview
+sectors: [Households, Firms, Government, Central bank, Banks, Sum]
+variables:
+  y:
+    description: Output determined by expected sales and inventory adjustment.
+  N:
+    description: Employment from output and productivity.
+  WB:
+    description: Wage bill.
+  UC:
+    description: Unit cost.
+  sE:
+    description: Expected sales formed adaptively.
+  invT:
+    description: Target inventory stock.
+  sigmaT:
+    description: Target inventory-sales ratio responds to the loan rate.
+  invE:
+    description: Expected inventory stock.
+  p:
+    description: Price level.
+  NHUC:
+    description: Normalized historic unit cost.
+  s:
+    description: Real sales.
+  S:
+    description: Nominal sales.
+  inv:
+    description: Real inventories.
+  sigmas:
+    description: Inventory-sales ratio.
+  INV:
+    description: Nominal inventories.
+  Ld:
+    description: Firms' demand for loans.
+  FXf:
+    description: Entrepreneurial profits.
+  pi:
+    description: Inflation rate.
+  YDr:
+    description: Nominal disposable income.
+  CG:
+    description: Capital gains on bonds.
+  YDhs:
+    description: Haig-Simons disposable income.
+  FX:
+    description: Total distributed profits to households.
+  V:
+    description: Household wealth.
+  Vnc:
+    description: Wealth net of cash.
+  ydr:
+    description: Real disposable income.
+  ydhs:
+    description: Real Haig-Simons disposable income.
+  v:
+    description: Real wealth.
+  c:
+    description: Real consumption demand.
+  ydrE:
+    description: Expected real disposable income.
+  C:
+    description: Nominal consumption demand.
+  YDrE:
+    description: Expected nominal disposable income.
+  VE:
+    description: Expected wealth.
+  Hhd:
+    description: Cash demand.
+  VncE:
+    description: Expected wealth net of cash.
+  ERrbl:
+    description: Expected bond return.
+  M2d:
+    description: Household time-deposit demand.
+  Bhd:
+    description: Household bill demand.
+  BLd:
+    description: Household bond demand.
+  M1d:
+    description: Household checking-deposit demand.
+  M1d2:
+    description: Checking-deposit residual definition.
+  Hhh:
+    description: Realized cash holdings.
+  Bhh:
+    description: Realized household bill holdings.
+  BLh:
+    description: Realized household bond holdings.
+  M1hN:
+    description: Notional checking deposits.
+  z1:
+    description: Checking-deposit regime indicator.
+  z2:
+    description: Alternative portfolio regime indicator.
+  M1h:
+    description: Realized checking deposits.
+  M2hN:
+    description: Notional time deposits.
+  M2h:
+    description: Realized time deposits.
+  TX:
+    description: Tax revenues.
+  G:
+    description: Nominal government expenditure.
+  PSBR:
+    description: Public sector borrowing requirement.
+  Bs:
+    description: Treasury bills supplied by government.
+  BLs:
+    description: Treasury bonds supplied by government.
+  pbl:
+    description: Price of bonds.
+  GD:
+    description: Government debt accumulation.
+  Hs:
+    description: High-powered money supplied by the central bank.
+  Hbs:
+    description: Bank reserves at the central bank.
+  Bcb:
+    description: Bills held by the central bank.
+  As:
+    description: Advances supplied by the central bank.
+  ra:
+    description: Interest rate on advances.
+  FXcb:
+    description: Central-bank profits.
+  Hhs:
+    description: Cash supplied to households.
+  M1s:
+    description: Checking deposits supplied by banks.
+  M2s:
+    description: Time deposits supplied by banks.
+  Ls:
+    description: Loans supplied by banks.
+  Hbd:
+    description: Reserve requirement demand.
+  BbdN:
+    description: Notional bank-bill holdings.
+  BLRN:
+    description: Notional bank liquidity ratio.
+  Ad:
+    description: Advances demanded by banks.
+  z3:
+    description: Advance-demand regime indicator.
+  Bbd:
+    description: Realized bank-bill holdings.
+  BLR:
+    description: Realized bank liquidity ratio.
+  rm:
+    description: Deposit rate set by banks.
+  z4:
+    description: Low-liquidity signal.
+  z5:
+    description: High-liquidity signal.
+  FXb:
+    description: Bank profits.
+  rl:
+    description: Loan rate set by banks.
+  z6:
+    description: Low profit-margin signal.
+  z7:
+    description: High profit-margin signal.
+  lM1s:
+    description: Lag helper for M1s.
+  lM2s:
+    description: Lag helper for M2s.
+  BPM:
+    description: Bank profit margin.
+  omegaT:
+    description: Target real wage.
+  W:
+    description: Money wage.
+  Y:
+    description: Nominal output.
+  rbl:
+    description: Interest rate on bonds.
+  rb:
+    description: Interest rate on bills.
+  pr:
+    description: Labor productivity.
+  g:
+    description: Real government expenditure.
+  Nfe:
+    description: Full-employment labor supply.
+  alpha0:
+    description: Autonomous consumption.
+  alpha1:
+    description: Propensity to consume from expected income.
+  alpha2:
+    description: Propensity to consume from wealth.
+  beta:
+    description: Sales expectations adjustment speed.
+  bot:
+    description: Lower bound for the bank liquidity ratio.
+  botpm:
+    description: Lower bound for the bank profit margin.
+  epsilon:
+    description: Income expectations adjustment speed.
+  gamma:
+    description: Inventory adjustment speed.
+  lambdac:
+    description: Cash-to-consumption ratio.
+  phi:
+    description: Mark-up parameter.
+  ro1:
+    description: Reserve requirement on M1.
+  ro2:
+    description: Reserve requirement on M2.
+  sigma0:
+    description: Intercept for desired inventories.
+  sigma1:
+    description: Sensitivity of desired inventories to the loan rate.
+  tau:
+    description: Tax rate.
+  zetab:
+    description: Pass-through from bill rate to deposit rate.
+  zetal:
+    description: Loan-rate adjustment speed.
+  zetam:
+    description: Deposit-rate adjustment speed.
+  Omega0:
+    description: Wage target intercept.
+  Omega1:
+    description: Wage target productivity elasticity.
+  Omega2:
+    description: Wage target employment elasticity.
+  Omega3:
+    description: Wage adjustment speed.
+  top:
+    description: Upper bound for the bank liquidity ratio.
+  toppm:
+    description: Upper bound for the bank profit margin.
+  lambda10:
+    description: Portfolio parameter.
+  lambda11:
+    description: Portfolio parameter.
+  lambda12:
+    description: Portfolio parameter.
+  lambda13:
+    description: Portfolio parameter.
+  lambda14:
+    description: Portfolio parameter.
+  lambda15:
+    description: Portfolio parameter.
+  lambda20:
+    description: Portfolio parameter.
+  lambda21:
+    description: Portfolio parameter.
+  lambda22:
+    description: Portfolio parameter.
+  lambda23:
+    description: Portfolio parameter.
+  lambda24:
+    description: Portfolio parameter.
+  lambda25:
+    description: Portfolio parameter.
+  lambda30:
+    description: Portfolio parameter.
+  lambda31:
+    description: Portfolio parameter.
+  lambda32:
+    description: Portfolio parameter.
+  lambda33:
+    description: Portfolio parameter.
+  lambda34:
+    description: Portfolio parameter.
+  lambda35:
+    description: Portfolio parameter.
+  lambda40:
+    description: Portfolio parameter.
+  lambda41:
+    description: Portfolio parameter.
+  lambda42:
+    description: Portfolio parameter.
+  lambda43:
+    description: Portfolio parameter.
+  lambda44:
+    description: Portfolio parameter.
+  lambda45:
+    description: Portfolio parameter.
+equations: |-
+  # Output determined by expected sales and inventory adjustment.
+  y ~ sE + (invE - lag(inv))
+
+  # Employment from output and productivity.
+  N ~ y / pr
+
+  # Wage bill.
+  WB ~ N * W
+
+  # Unit cost.
+  UC ~ WB / y
+
+  # Expected sales formed adaptively.
+  sE ~ beta * lag(s) + (1 - beta) * lag(sE)
+
+  # Target inventory stock.
+  invT ~ sigmaT * sE
+
+  # Target inventory-sales ratio responds to the loan rate.
+  sigmaT ~ sigma0 - sigma1 * rl
+
+  # Expected inventory stock.
+  invE ~ lag(inv) + gamma * (invT - lag(inv))
+
+  # Price level.
+  p ~ (1 + tau) * (1 + phi) * NHUC
+
+  # Normalized historic unit cost.
+  NHUC ~ (1 - sigmaT) * UC + sigmaT * (1 + lag(rl)) * lag(UC)
+
+  # Real sales.
+  s ~ c + g
+
+  # Nominal sales.
+  S ~ s * p
+
+  # Real inventories.
+  inv ~ lag(inv) + y - s
+
+  # Inventory-sales ratio.
+  sigmas ~ lag(inv) / s
+
+  # Nominal inventories.
+  INV ~ inv * UC
+
+  # Firms' demand for loans.
+  Ld ~ INV
+
+  # Entrepreneurial profits.
+  FXf ~ S - TX - WB + (INV - lag(INV)) - lag(rl) * lag(INV)
+
+  # Inflation rate.
+  pi ~ (p / lag(p)) - 1
+
+  # Nominal disposable income.
+  YDr ~ FX + WB + lag(rm) * lag(M2h) + lag(rb) * lag(Bhh) + lag(BLh)
+
+  # Capital gains on bonds.
+  CG ~ (pbl - lag(pbl)) * lag(BLh)
+
+  # Haig-Simons disposable income.
+  YDhs ~ YDr + CG
+
+  # Total distributed profits to households.
+  FX ~ FXf + FXb
+
+  # Household wealth.
+  V ~ lag(V) + YDhs - C
+
+  # Wealth net of cash.
+  Vnc ~ V - Hhh
+
+  # Real disposable income.
+  ydr ~ (YDr / p) - pi * (lag(V) / p)
+
+  # Real Haig-Simons disposable income.
+  ydhs ~ (YDr - pi * lag(V) + CG) / p
+
+  # Real wealth.
+  v ~ V / p
+
+  # Real consumption demand.
+  c ~ alpha0 + alpha1 * ydrE + alpha2 * lag(v)
+
+  # Expected real disposable income.
+  ydrE ~ epsilon * lag(ydr) + (1 - epsilon) * lag(ydrE)
+
+  # Nominal consumption demand.
+  C ~ p * c
+
+  # Expected nominal disposable income.
+  YDrE ~ p * ydrE + pi * (lag(V) / p)
+
+  # Expected wealth.
+  VE ~ lag(V) + (YDrE - C)
+
+  # Cash demand.
+  Hhd ~ lambdac * C
+
+  # Expected wealth net of cash.
+  VncE ~ VE - Hhd
+
+  # Expected bond return.
+  ERrbl ~ rbl
+
+  # Household time-deposit demand.
+  M2d ~ VncE * (lambda20 + lambda22 * rm + lambda23 * rb + lambda24 * ERrbl + lambda25 * (YDrE / VncE))
+
+  # Household bill demand.
+  Bhd ~ VncE * (lambda30 + lambda32 * rm + lambda33 * rb + lambda34 * ERrbl + lambda35 * (YDrE / VncE))
+
+  # Household bond demand.
+  BLd ~ (VncE / pbl) * (lambda40 + lambda42 * rm + lambda43 * rb + lambda44 * ERrbl + lambda45 * (YDrE / VncE))
+
+  # Household checking-deposit demand.
+  M1d ~ VncE * (lambda10 + lambda12 * rm + lambda13 * rb + lambda14 * ERrbl + lambda15 * (YDrE / VncE))
+
+  # Checking-deposit residual definition.
+  M1d2 ~ VncE - M2d - Bhd - pbl * BLd
+
+  # Realized cash holdings.
+  Hhh ~ Hhd
+
+  # Realized household bill holdings.
+  Bhh ~ Bhd
+
+  # Realized household bond holdings.
+  BLh ~ BLd
+
+  # Notional checking deposits.
+  M1hN ~ Vnc - M2d - Bhd - pbl * BLd
+
+  # Checking-deposit regime indicator.
+  z1 ~ if (M1hN > 0) {1} else {0}
+
+  # Alternative portfolio regime indicator.
+  z2 ~ 1 - z1
+
+  # Realized checking deposits.
+  M1h ~ M1hN * z1
+
+  # Notional time deposits.
+  M2hN ~ M2d
+
+  # Realized time deposits.
+  M2h ~ M2d * z1 + (Vnc - Bhh - pbl * BLd) * z2
+
+  # Tax revenues.
+  TX ~ S * (tau / (1 + tau))
+
+  # Nominal government expenditure.
+  G ~ p * g
+
+  # Public sector borrowing requirement.
+  PSBR ~ G + lag(rb) * lag(Bs) + lag(BLs) - (TX + FXcb)
+
+  # Treasury bills supplied by government.
+  Bs ~ lag(Bs) + PSBR - (BLs - lag(BLs)) * pbl
+
+  # Treasury bonds supplied by government.
+  BLs ~ BLd
+
+  # Price of bonds.
+  pbl ~ 1 / rbl
+
+  # Government debt accumulation.
+  GD ~ lag(GD) + PSBR
+
+  # High-powered money supplied by the central bank.
+  Hs ~ Bcb + As
+
+  # Bank reserves at the central bank.
+  Hbs ~ Hs - Hhs
+
+  # Bills held by the central bank.
+  Bcb ~ Bs - Bhh - Bbd
+
+  # Advances supplied by the central bank.
+  As ~ Ad
+
+  # Interest rate on advances.
+  ra ~ rb
+
+  # Central-bank profits.
+  FXcb ~ lag(rb) * lag(Bcb) + lag(ra) * lag(As)
+
+  # Cash supplied to households.
+  Hhs ~ Hhd
+
+  # Checking deposits supplied by banks.
+  M1s ~ M1h
+
+  # Time deposits supplied by banks.
+  M2s ~ M2h
+
+  # Loans supplied by banks.
+  Ls ~ Ld
+
+  # Reserve requirement demand.
+  Hbd ~ ro1 * M1s + ro2 * M2s
+
+  # Notional bank-bill holdings.
+  BbdN ~ M1s + M2s - Ls - Hbd
+
+  # Notional bank liquidity ratio.
+  BLRN ~ BbdN / (M1s + M2s)
+
+  # Advances demanded by banks.
+  Ad ~ (bot * (M1s + M2s) - BbdN) * z3
+
+  # Advance-demand regime indicator.
+  z3 ~ if (BLRN < bot) {1} else {0}
+
+  # Realized bank-bill holdings.
+  Bbd ~ Ad + M1s + M2s - Ls - Hbd
+
+  # Realized bank liquidity ratio.
+  BLR ~ Bbd / (M1s + M2s)
+
+  # Deposit rate set by banks.
+  rm ~ lag(rm) + zetam * (z4 - z5) + zetab * (rb - lag(rb))
+
+  # Low-liquidity signal.
+  z4 ~ if (lag(BLRN) < bot) {1} else {0}
+
+  # High-liquidity signal.
+  z5 ~ if (lag(BLRN) > top) {1} else {0}
+
+  # Bank profits.
+  FXb ~ lag(rl) * lag(Ls) + lag(rb) * lag(Bbd) - lag(rm) * lag(M2s) - lag(ra) * lag(Ad)
+
+  # Loan rate set by banks.
+  rl ~ lag(rl) + zetal * (z6 - z7) + (rb - lag(rb))
+
+  # Low profit-margin signal.
+  z6 ~ if (BPM < botpm) {1} else {0}
+
+  # High profit-margin signal.
+  z7 ~ if (BPM > toppm) {1} else {0}
+
+  # Lag helper for M1s.
+  lM1s ~ lag(M1s)
+
+  # Lag helper for M2s.
+  lM2s ~ lag(M2s)
+
+  # Bank profit margin.
+  BPM ~ (FXb + lag(FXb)) / (lM1s + lag(lM1s) + lM2s + lag(lM2s))
+
+  # Target real wage.
+  omegaT ~ exp(Omega0 + Omega1 * log(pr) + Omega2 * log(N / Nfe))
+
+  # Money wage.
+  W ~ lag(W) * (1 + Omega3 * (lag(omegaT) - (lag(W) / lag(p))))
+
+  # Nominal output.
+  Y ~ p * s + UC * (inv - lag(inv))
+equationCell:
+  id: equations
+  title: INSOUT model
+  collapsed: true
+balance:
+  id: balance-sheet
+  title: INSOUT balance sheet
+  description: Balance-sheet matrix for model INSOUT following the gl7 article.
+  note: Validated against the baseline simulation in the R vignette fixture.
+  columns: [Households, Firms, Government, Central bank, Banks, Sum]
+  rows:
+    - label: Inventories
+      values:
+        - ""
+        - +INV
+        - ""
+        - ""
+        - ""
+        - +INV
+    - label: HPM
+      values:
+        - +Hhd
+        - ""
+        - ""
+        - -Hs
+        - +Hbd
+        - "0"
+    - label: Advances
+      values:
+        - ""
+        - ""
+        - ""
+        - +As
+        - -Ad
+        - "0"
+    - label: Checking deposits
+      values:
+        - +M1h
+        - ""
+        - ""
+        - ""
+        - -M1s
+        - "0"
+    - label: Time deposits
+      values:
+        - +M2h
+        - ""
+        - ""
+        - ""
+        - -M2s
+        - "0"
+    - label: Bills
+      values:
+        - +Bhh
+        - ""
+        - -Bs
+        - +Bcb
+        - +Bbd
+        - "0"
+    - label: Bonds
+      values:
+        - +BLh * pbl
+        - ""
+        - -BLs * pbl
+        - ""
+        - ""
+        - "0"
+    - label: Loans
+      values:
+        - ""
+        - -Ld
+        - ""
+        - ""
+        - +Ls
+        - "0"
+    - label: Balance
+      values:
+        - -V
+        - "0"
+        - +GD
+        - "0"
+        - "0"
+        - -INV
+    - [Sum, Sum, "0", "0", "0", "0", "0", "0"]
+transactions:
+  id: transaction-flow
+  title: INSOUT transactions-flow matrix
+  description: Transactions-flow matrix for model INSOUT following the gl7 article.
+  note: Validated against the baseline simulation in the R vignette fixture.
+  columns: [Households, Firms current, Firms capital, Government, CB current, CB capital, Banks current, Banks capital, Sum]
+  sectors: [Households, Production firms, Production firms, Government, Central bank, Central bank, Banks, Banks, ""]
+  rows:
+    - [Consumption, Consumption, -C, +C, "", "", "", "", "", "", "0"]
+    - [Government, Govt. expenditures, "", +G, "", -G, "", "", "", "", "0"]
+    - [Inventories, Change inventories, "", +d(INV), -d(INV), "", "", "", "", "", "0"]
+    - [Taxes, Taxes, "", -TX, "", +TX, "", "", "", "", "0"]
+    - [Wages, Wages, +WB, -WB, "", "", "", "", "", "", "0"]
+    - [Profits, Entrepreneurial profits, +FXf, -FXf, "", "", "", "", "", "", "0"]
+    - [Profits, Bank profits, +FXb, "", "", "", "", "", -FXb, "", "0"]
+    - [Profits, CB profits, "", "", "", +FXcb, -FXcb, "", "", "", "0"]
+    - [Interest, Interest advances, "", "", "", "", +lag(ra) * lag(As), "", -lag(ra) * lag(Ad), "", "0"]
+    - [Interest, Interest loans, "", -lag(rl) * lag(Ld), "", "", "", "", +lag(rl) * lag(Ld), "", "0"]
+    - [Interest, Interest deposits, +lag(rm) * lag(M2h), "", "", "", "", "", -lag(rm) * lag(M2h), "", "0"]
+    - [Interest, Interest bills, +lag(rb) * lag(Bhh), "", "", -lag(rb) * lag(Bs), +lag(rb) * lag(Bcb), "", +lag(rb) * lag(Bbd), "", "0"]
+    - [Interest, Interest bonds, +lag(BLh), "", "", -lag(BLs), "", "", "", "", "0"]
+    - [Advances, Change advances, "", "", "", "", "", -d(As), "", +d(Ad), "0"]
+    - [Loans, Change loans, "", "", +d(Ld), "", "", "", "", -d(Ls), "0"]
+    - [Money, Change cash, -d(Hhh), "", "", "", "", +d(Hs), "", -d(Hbd), "0"]
+    - [Money, Change M1, -d(M1h), "", "", "", "", "", "", +d(M1s), "0"]
+    - [Money, Change M2, -d(M2h), "", "", "", "", "", "", +d(M2s), "0"]
+    - [Bills, Change bills, -d(Bhh), "", "", +d(Bs), "", -d(Bcb), "", -d(Bbd), "0"]
+    - [Bonds, Change bonds, -d(BLh) * pbl, "", "", +d(BLs) * pbl, "", "", "", "", "0"]
+    - [Sum, Sum, "0", "0", "0", "0", "0", "0", "0", "0", "0"]
+parameters:
+  rbl: 0.027
+  rb: 0.023
+  pr: 1
+  g: 25
+  Nfe: 133.28
+  alpha0: 0
+  alpha1: 0.95
+  alpha2: 0.05
+  beta: 0.5
+  bot: 0.02
+  botpm: 0.003
+  epsilon: 0.5
+  gamma: 0.5
+  lambdac: 0.1
+  phi: 0.1
+  ro1: 0.1
+  ro2: 0.1
+  sigma0: 0.3612
+  sigma1: 3
+  tau: 0.25
+  zetab: 0.9
+  zetal: 0.0002
+  zetam: 0.0002
+  Omega0: -0.32549
+  Omega1: 1
+  Omega2: 1.5
+  Omega3: 0.1
+  top: 0.06
+  toppm: 0.005
+  lambda10: -0.17071
+  lambda11: 0
+  lambda12: 0
+  lambda13: 0
+  lambda14: 0
+  lambda15: 0.18
+  lambda20: 0.52245
+  lambda21: 0
+  lambda22: 30
+  lambda23: -15
+  lambda24: -15
+  lambda25: -0.06
+  lambda30: 0.47311
+  lambda31: 0
+  lambda32: -15
+  lambda33: 30
+  lambda34: -15
+  lambda35: -0.06
+  lambda40: 0.17515
+  lambda41: 0
+  lambda42: -15
+  lambda43: -15
+  lambda44: 30
+  lambda45: -0.06
+parametersCell:
+  id: externals-equations
+  title: Externals
+  collapsed: true
+initial-values:
+  p: 1
+  W: 1
+  UC: 1
+  BPM: 0.0035
+  rb: 1e-15
+initialValuesCell:
+  id: initial-values-equations
+  collapsed: true
+solver:
+  method: gauss-seidel
+  tolerance: "1e-15"
+  maxIterations: 400
+  defaultInitialValue: "1e-15"
+  hiddenLeftVariable: Hbd
+  hiddenRightVariable: Hbs
+  hiddenTolerance: "0.00001"
+  relativeHiddenTolerance: false
+solverCell:
+  id: solver
+  title: Solver
+  collapsed: true
+baselineRun:
+  id: baseline-run
+  title: Baseline run
+  description: Baseline INSOUT simulation with the hidden-equation condition Hbd = Hbs.
+  resultKey: gl7_insout_baseline
+  periods: 210
+charts:
+  - id: baseline-chart
+    title: Baseline steady-state checks
+    variables:
+      - Y
+      - pi
+      - BLRN
+      - BPM
+    axisMode: separate
+    axisSnapTolarance: 0.5
+    seriesRanges:
+      pi:
+        includeZero: true
+      BLRN:
+        includeZero: true
+      BPM:
+        includeZero: true
+tables:
+  - id: baseline-table
+    title: Baseline variable summary
+    variables:
+      - y
+      - s
+      - p
+      - V
+      - INV
+      - BLRN
+      - BPM
+cells:
+  - id: transaction-flow-sequence
+    type: sequence
+    title: INSOUT transaction flow sequence
+    source:
+      kind: matrix
+      matrixCellId: transaction-flow
+    description: Sequence view generated from the INSOUT transactions-flow matrix at the selected simulation period.
+  - id: scenario-1-note
+    type: markdown
+    title: Simulation 1
+    source: Simulation 1 raises `sigma0` from `0.3612` to `0.4` between periods 5 and 70, increasing the targeted inventories-to-sales ratio through the `sigmaT` rule.
+  - id: scenario-1-run
+    type: run
+    title: "Simulation 1: targeted inventories shock"
+    mode: scenario
+    scenario:
+      shocks:
+        - rangeInclusive:
+            - 5
+            - 70
+          variables:
+            sigma0:
+              kind: constant
+              value: 0.4
+    baselineRunCellId: baseline-run
+    periods: 70
+    resultKey: gl7_insout_s1
+    sourceModelId: equations
+  - id: scenario-1-chart
+    type: chart
+    title: Simulation 1 inventories and rates
+    sourceRunCellId: scenario-1-run
+    variables:
+      - INV
+      - Ls
+      - rm
+      - rb
+    axisMode: separate
+    axisSnapTolarance: 0.5
+    seriesRanges:
+      rm:
+        includeZero: true
+      rb:
+        includeZero: true
+  - id: scenario-2-note
+    type: markdown
+    title: Simulation 2
+    source: Simulation 2 raises real government expenditure `g` from `25` to `30` between periods 5 and 55.
+  - id: scenario-2-run
+    type: run
+    title: "Simulation 2: government expenditure shock"
+    mode: scenario
+    scenario:
+      shocks:
+        - rangeInclusive:
+            - 5
+            - 55
+          variables:
+            g:
+              kind: constant
+              value: 30
+    baselineRunCellId: baseline-run
+    baselineStartPeriod: 60
+    periods: 55
+    resultKey: gl7_insout_s2
+    sourceModelId: equations
+  - id: scenario-2-chart
+    type: chart
+    title: Simulation 2 income, wealth, and inflation
+    sourceRunCellId: scenario-2-run
+    variables:
+      - c
+      - v
+      - ydr
+      - pi
+    axisMode: separate
+    axisSnapTolarance: 0.5
+    seriesRanges:
+      pi:
+        includeZero: true
+  - id: scenario-7-note
+    type: markdown
+    title: Simulation 7
+    source: "Simulation 7 combines a higher target real wage with higher bill and bond rates: `Omega0` rises from `-0.32549` to `-0.2` during periods 4 to 55, while `rb` rises from `0.023` to `0.03` and `rbl` rises from `0.027` to `0.039` during periods 5 to 55."
+  - id: scenario-7-run
+    type: run
+    title: "Simulation 7: inflation and rate shock"
+    mode: scenario
+    scenario:
+      shocks:
+        - rangeInclusive:
+            - 4
+            - 55
+          variables:
+            Omega0:
+              kind: constant
+              value: -0.2
+        - rangeInclusive:
+            - 5
+            - 55
+          variables:
+            rb:
+              kind: constant
+              value: 0.03
+            rbl:
+              kind: constant
+              value: 0.039
+    baselineRunCellId: baseline-run
+    periods: 55
+    resultKey: gl7_insout_s7
+    sourceModelId: equations
+  - id: scenario-7-chart
+    type: chart
+    title: Simulation 7 inflation, sales, and debt
+    sourceRunCellId: scenario-7-run
+    variables:
+      - pi
+      - s
+      - V
+      - Bs
+    axisMode: separate
+    axisSnapTolarance: 0.5
+    seriesRanges:
+      pi:
+        includeZero: true
+  - id: equation-dependency-graph
+    type: sequence
+    title: INSOUT  dependency graph
+    source:
+      kind: dependency
+      modelId: equations
+      showAccountingStrips: true
+      showExogenous: false
+    description: Dependency view of the pc equations organized by sector strips and accounting bands.
+    note: ""
+    collapsed: true
+cellOrder:
+  - intro
+  - balance-sheet
+  - transaction-flow
+  - transaction-flow-sequence
+  - equations
+  - solver
+  - externals-equations
+  - initial-values-equations
+  - baseline-run
+  - baseline-chart
+  - baseline-table
+  - scenario-1-note
+  - scenario-1-run
+  - scenario-1-chart
+  - scenario-2-note
+  - scenario-2-run
+  - scenario-2-chart
+  - scenario-7-note
+  - scenario-7-run
+  - scenario-7-chart
+  - equation-dependency-graph

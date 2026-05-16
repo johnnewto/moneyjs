@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 
 import { CompletionContext, autocompletion, type Completion } from "@codemirror/autocomplete";
 import { json } from "@codemirror/lang-json";
+import { yaml } from "@codemirror/lang-yaml";
 import { linter, type Diagnostic } from "@codemirror/lint";
 import { Compartment, EditorState, type Extension, type Text } from "@codemirror/state";
 import { Decoration, EditorView, placeholder, type DecorationSet } from "@codemirror/view";
@@ -77,7 +78,7 @@ export function SourceCodeEditor({
         doc: value,
         extensions: [
           basicSetup,
-          json(),
+          format === "yaml" ? yaml() : json(),
           highlightCompartment.of(
             buildSelectedCellHighlightExtension(selectedCellRange, EditorState.create({ doc: value }).doc)
           ),
@@ -366,6 +367,9 @@ export function resolveCompletionReplacementEnd(
   sourceAfterCursor: string,
   format: NotebookSourceFormat
 ): number {
+  if (format !== "json") {
+    return 0;
+  }
   return sourceAfterCursor.match(/^"\s*:\s*/)?.[0].length ?? 0;
 }
 

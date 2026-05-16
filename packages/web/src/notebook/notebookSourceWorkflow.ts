@@ -2,6 +2,7 @@ import {
   analyzeNotebookSource,
   createNotebookSourceDiagnostic,
   notebookToJson,
+  notebookToCompactYaml,
   notebookToMarkdown,
   type NotebookSourceDiagnostic,
   type NotebookSourceFormat
@@ -43,6 +44,9 @@ export function inferFormatFromFileName(fileName: string): NotebookSourceFormat 
   if (normalized.endsWith(".md") || normalized.endsWith(".markdown")) {
     return "markdown";
   }
+  if (normalized.endsWith(".yaml") || normalized.endsWith(".yml")) {
+    return "yaml";
+  }
   return null;
 }
 
@@ -53,12 +57,18 @@ export function serializeNotebookSource(
   if (format === "json") {
     return notebookToJson(document);
   }
+  if (format === "yaml") {
+    return notebookToCompactYaml(document, { preserveIds: true });
+  }
   return notebookToMarkdown(document);
 }
 
 export function formatNotebookSourceLabel(format: NotebookSourceFormat): string {
   if (format === "json") {
     return "JSON";
+  }
+  if (format === "yaml") {
+    return "YAML";
   }
   return "Markdown";
 }
@@ -67,6 +77,9 @@ export function getNotebookSourceMimeType(format: NotebookSourceFormat): string 
   if (format === "json") {
     return "application/json";
   }
+  if (format === "yaml") {
+    return "application/yaml";
+  }
   return "text/markdown";
 }
 
@@ -74,12 +87,18 @@ export function getNotebookSourceFileSuffix(format: NotebookSourceFormat): strin
   if (format === "json") {
     return "sfnb.json";
   }
+  if (format === "yaml") {
+    return "notebook.yaml";
+  }
   return "sfnb.md";
 }
 
 export function getNotebookSourcePlaceholder(format: NotebookSourceFormat): string {
   if (format === "json") {
     return "Paste a notebook JSON document";
+  }
+  if (format === "yaml") {
+    return "Paste a notebook YAML document with format and formatVersion headers";
   }
   return "Paste notebook Markdown with headings and fenced sfcr-* blocks";
 }

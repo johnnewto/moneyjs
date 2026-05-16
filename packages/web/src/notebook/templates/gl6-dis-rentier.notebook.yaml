@@ -1,0 +1,379 @@
+format: sfcr-notebook-yaml
+formatVersion: 1
+id: gl6-dis-rentier-notebook
+title: GL6 DIS Rentier Notebook
+metadata:
+  version: 1
+  template: gl6-dis-rentier
+  description: This notebook adds a distributive DIS variant with two household classes. Workers receive wages and maintain a high propensity to consume, while rentiers receive firms' profits and bond interest, save more heavily, and allocate wealth between money and government bonds. Government spending supports demand, taxes withdraw income from both classes, and deficits accumulate as money and bonds held by the private sector.
+modelId: equations
+introCell:
+  id: intro
+  title: Overview
+sectors: [Workers, Rentiers, Government, ""]
+variables:
+  lambda_b:
+    description: Rentier target share of wealth allocated to government bonds.
+  C:
+    description: Total consumption demand.
+  Y:
+    description: Output set by aggregate demand.
+  WB:
+    description: Wage bill paid to workers.
+  F:
+    description: Firms' profits distributed to rentiers.
+  Tw:
+    description: Taxes paid by workers.
+  Tr:
+    description: Taxes paid by rentiers on profit and bond income.
+  YDw:
+    description: Workers' disposable income.
+  YDr:
+    description: Rentiers' disposable income.
+  Cw:
+    description: Workers' consumption out of income and lagged money balances.
+  Cr:
+    description: Rentiers' consumption out of income and lagged wealth.
+  Vw:
+    description: Workers' money wealth.
+  Vr:
+    description: Rentiers' total wealth.
+  V:
+    description: Total private wealth.
+  Bh:
+    description: Rentiers' holdings of government bonds.
+  Mhr:
+    description: Rentiers' money balances.
+  Mhw:
+    description: Workers' money balances.
+  Mh:
+    description: Aggregate money holdings of households.
+  T:
+    description: Total taxes collected by government.
+  D:
+    description: Government debt accumulated from the deficit plus bond interest.
+  Bs:
+    description: Government bond supply, supplied on demand to rentiers.
+  Hs:
+    description: Government money liability as the residual part of debt.
+  gap:
+    description: Accounting gap between private money demand and government money supply.
+  profit_share:
+    description: Share of output accruing as profits.
+  worker_share:
+    description: Share of output accruing as wages.
+  G:
+    description: Government spending.
+  rb:
+    description: Interest rate on government bonds.
+  omega:
+    description: Wage share in current output.
+  theta_w:
+    description: Tax rate on wage income.
+  theta_r:
+    description: Tax rate on rentier income.
+  alpha_w:
+    description: Workers' propensity to consume out of current disposable income.
+  alpha_wv:
+    description: Workers' propensity to consume out of lagged wealth.
+  alpha_r:
+    description: Rentiers' propensity to consume out of current disposable income.
+  alpha_rv:
+    description: Rentiers' propensity to consume out of lagged wealth.
+  lambda0:
+    description: Base portfolio preference for government bonds.
+  lambda1:
+    description: Interest sensitivity of rentier bond demand.
+equations: |-
+  # Rentier target share of wealth allocated to government bonds.
+  lambda_b ~ lambda0 + lambda1 * rb
+
+  # Total consumption demand.
+  C ~ Cw + Cr
+
+  # Output set by aggregate demand.
+  Y ~ C + G
+
+  # Wage bill paid to workers.
+  WB ~ omega * Y
+
+  # Firms' profits distributed to rentiers.
+  F ~ Y - WB
+
+  # Taxes paid by workers.
+  Tw ~ theta_w * WB
+
+  # Taxes paid by rentiers on profit and bond income.
+  Tr ~ theta_r * (F + lag(rb) * lag(Bh))
+
+  # Workers' disposable income.
+  YDw ~ WB - Tw
+
+  # Rentiers' disposable income.
+  YDr ~ F + lag(rb) * lag(Bh) - Tr
+
+  # Workers' consumption out of income and lagged money balances.
+  Cw ~ alpha_w * YDw + alpha_wv * lag(Vw)
+
+  # Rentiers' consumption out of income and lagged wealth.
+  Cr ~ alpha_r * YDr + alpha_rv * lag(Vr)
+
+  # Workers' money wealth.
+  Vw ~ lag(Vw) + YDw - Cw
+
+  # Rentiers' total wealth.
+  Vr ~ lag(Vr) + YDr - Cr
+
+  # Total private wealth.
+  V ~ Vw + Vr
+
+  # Rentiers' holdings of government bonds.
+  Bh ~ lambda_b * Vr
+
+  # Rentiers' money balances.
+  Mhr ~ Vr - Bh
+
+  # Workers' money balances.
+  Mhw ~ Vw
+
+  # Aggregate money holdings of households.
+  Mh ~ Mhw + Mhr
+
+  # Total taxes collected by government.
+  T ~ Tw + Tr
+
+  # Government debt accumulated from the deficit plus bond interest.
+  D ~ lag(D) + G + lag(rb) * lag(Bs) - T
+
+  # Government bond supply, supplied on demand to rentiers.
+  Bs ~ Bh
+
+  # Government money liability as the residual part of debt.
+  Hs ~ D - Bs
+
+  # Accounting gap between private money demand and government money supply.
+  gap ~ Mh - Hs
+
+  # Share of output accruing as profits.
+  profit_share ~ F / Y
+
+  # Share of output accruing as wages.
+  worker_share ~ WB / Y
+equationCell:
+  id: equations
+  title: DIS rentier model
+  collapsed: true
+balance:
+  id: balance-sheet
+  title: DIS rentier balance sheet
+  description: Stylized balance-sheet matrix for the distributive DIS model with workers, rentiers, and the government.
+  note: Workers hold their saving as money, while rentiers split wealth between money and government bonds.
+  columns: [Workers, Rentiers, Government, Sum]
+  sectors: [Workers, Rentiers, Government, ""]
+  rows:
+    - [Money, Money, +Mhw, +Mhr, -Hs, "0"]
+    - [Bonds, Government bonds, "", +Bh, -Bs, "0"]
+    - [Net worth, Net worth, -Vw, -Vr, +D, "0"]
+    - [Sum, Sum, "0", "0", "0", "0"]
+transactions:
+  id: transaction-flow
+  title: DIS rentier transactions-flow matrix
+  description: Transactions-flow matrix for the rentier extension, showing class-based income distribution and government-liability financing.
+  note: The money-versus-bonds split appears only on the rentier side, reflecting class-based portfolio behavior.
+  columns: [Workers, Rentiers, Firms, Government, Sum]
+  sectors: [Workers, Rentiers, Firms, Government, ""]
+  rows:
+    - [Consumption, Consumption, -Cw, -Cr, +C, "", "0"]
+    - [Government, Government spending, "", "", +G, -G, "0"]
+    - [Wages, Wages, +WB, "", -WB, "", "0"]
+    - [Profits, Profits, "", +F, -F, "", "0"]
+    - [Taxes, Taxes, -Tw, -Tr, "", +T, "0"]
+    - [Bond interest, Bond interest, "", +lag(rb) * lag(Bh), "", -lag(rb) * lag(Bs), "0"]
+    - [Money, Change money, -d(Mhw), -d(Mhr), "", +d(Hs), "0"]
+    - [Bonds, Change bonds, "", -d(Bh), "", +d(Bs), "0"]
+    - [Sum, Sum, "0", "0", "0", "0", "0"]
+parameters:
+  G: 25
+  rb: 0.02
+  omega: 0.72
+  theta_w: 0.2
+  theta_r: 0.3
+  alpha_w: 0.96
+  alpha_wv: 0.02
+  alpha_r: 0.55
+  alpha_rv: 0.03
+  lambda0: 0.35
+  lambda1: 2.5
+parametersCell:
+  id: externals-equations
+  title: Externals
+  collapsed: true
+initial-values:
+  Vw: 5
+  Vr: 60
+  Bh: 24
+  Bs: 24
+  D: 65
+  Mhw: 5
+  Mhr: 36
+  Mh: 41
+  Hs: 41
+initialValuesCell:
+  id: initial-values-equations
+  collapsed: true
+solver:
+  method: newton
+  tolerance: "1e-10"
+  maxIterations: 200
+  defaultInitialValue: "1e-15"
+  hiddenLeftVariable: ""
+  hiddenRightVariable: ""
+  hiddenTolerance: "0.00001"
+  relativeHiddenTolerance: false
+solverCell:
+  id: solver
+  title: Solver
+  collapsed: true
+baselineRun:
+  id: baseline-run
+  title: Baseline run
+  description: Baseline distributive DIS simulation with workers, rentiers, taxes, and a bond-money portfolio split.
+  resultKey: gl6_dis_rentier_baseline
+  periods: 80
+charts:
+  - id: baseline-chart
+    title: Baseline distribution and portfolio variables
+    variables:
+      - Y
+      - Cw
+      - Cr
+      - Vr
+      - Bh
+      - Mh
+      - gap
+    axisMode: separate
+    axisSnapTolarance: 0.5
+    seriesRanges:
+      gap:
+        includeZero: true
+tables:
+  - id: baseline-table
+    title: Baseline variable summary
+    variables:
+      - Y
+      - WB
+      - F
+      - YDw
+      - YDr
+      - Vw
+      - Vr
+      - Bh
+      - Mh
+      - D
+      - gap
+cells:
+  - id: transaction-flow-sequence
+    type: sequence
+    title: DIS rentier transaction flow sequence
+    source:
+      kind: matrix
+      matrixCellId: transaction-flow
+    description: Sequence view of the distributive DIS accounting flows for the selected period.
+  - id: scenario-1-note
+    type: markdown
+    title: Scenario 1
+    source: Scenario 1 raises government spending `G` from 25 to 30 between periods 10 and 40 to show how a larger deficit supports demand, profits, and private wealth.
+  - id: scenario-1-run
+    type: run
+    title: "Scenario 1: fiscal expansion"
+    mode: scenario
+    scenario:
+      shocks:
+        - rangeInclusive:
+            - 10
+            - 40
+          variables:
+            G:
+              kind: constant
+              value: 30
+    baselineRunCellId: baseline-run
+    periods: 50
+    resultKey: gl6_dis_rentier_s1
+    sourceModelId: equations
+  - id: scenario-1-chart
+    type: chart
+    title: Scenario 1 output and wealth
+    sourceRunCellId: scenario-1-run
+    variables:
+      - Y
+      - F
+      - Vr
+      - D
+    axisMode: separate
+    axisSnapTolarance: 0.5
+  - id: scenario-2-note
+    type: markdown
+    title: Scenario 2
+    source: Scenario 2 raises the base rentier preference for government bonds `lambda0` from 0.35 to 0.5 between periods 10 and 45, shifting wealth away from money and toward bonds.
+  - id: scenario-2-run
+    type: run
+    title: "Scenario 2: stronger bond preference"
+    mode: scenario
+    scenario:
+      shocks:
+        - rangeInclusive:
+            - 10
+            - 45
+          variables:
+            lambda0:
+              kind: constant
+              value: 0.5
+    baselineRunCellId: baseline-run
+    periods: 55
+    resultKey: gl6_dis_rentier_s2
+    sourceModelId: equations
+  - id: scenario-2-chart
+    type: chart
+    title: Scenario 2 portfolio composition
+    sourceRunCellId: scenario-2-run
+    variables:
+      - Bh
+      - Mh
+      - Vr
+      - gap
+    axisMode: separate
+    axisSnapTolarance: 0.5
+    seriesRanges:
+      gap:
+        includeZero: true
+  - id: equation-dependency-graph
+    type: sequence
+    title: DIS rentier equation dependency graph
+    source:
+      kind: dependency
+      modelId: equations
+      stripSectorSource: columns
+      showAccountingStrips: true
+      showExogenous: false
+    description: Dependency view showing how wages, profits, taxes, government debt, and portfolio allocation interact in the rentier variant.
+    note: The largest same-period feedback block comes from output, disposable incomes, and class-specific consumption.
+    collapsed: true
+cellOrder:
+  - intro
+  - balance-sheet
+  - transaction-flow
+  - transaction-flow-sequence
+  - equations
+  - solver
+  - externals-equations
+  - initial-values-equations
+  - baseline-run
+  - baseline-chart
+  - baseline-table
+  - scenario-1-note
+  - scenario-1-run
+  - scenario-1-chart
+  - scenario-2-note
+  - scenario-2-run
+  - scenario-2-chart
+  - equation-dependency-graph

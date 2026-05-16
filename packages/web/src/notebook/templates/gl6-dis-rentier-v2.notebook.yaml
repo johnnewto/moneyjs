@@ -1,0 +1,463 @@
+format: sfcr-notebook-yaml
+formatVersion: 1
+id: gl6-dis-rentier-v2-notebook
+title: GL6 DIS Rentier Split v2
+metadata:
+  version: 1
+  template: gl6-dis-rentier-v2
+  description: This notebook presents a rentier-split extension of the Godley and Lavoie DIS model. It preserves the original inventory, pricing, bank credit, and wealth dynamics, while splitting households into workers and rentiers so that wages, profits, deposit interest, consumption, and wealth accumulation can be tracked separately.
+modelId: equations
+introCell:
+  id: intro
+  title: Overview
+sectors: [Workers, Rentiers, Production firms, Banks, ""]
+variables:
+  y:
+    description: Output determined by expected sales and inventory adjustment.
+  inv_T:
+    description: Target inventory stock as a ratio of expected sales.
+  inv_E:
+    description: Expected inventory stock adjusts toward the target.
+  inv:
+    description: Realized inventories evolve with production minus sales.
+  s_E:
+    description: Expected sales formed adaptively.
+  s:
+    description: Real sales equal real consumption demand.
+  N:
+    description: Employment from output and productivity.
+  WB:
+    description: Wage bill.
+  UC:
+    description: Unit cost.
+  INV:
+    description: Nominal inventories.
+  S:
+    description: Nominal sales.
+  p:
+    description: Price level.
+  NHUC:
+    description: Normalized historic unit cost.
+  EF:
+    description: Entrepreneurial profits.
+  Ld:
+    description: Demand for loans.
+  Ls:
+    description: Supply of loans.
+  Ms:
+    description: Supply of deposits.
+  rm:
+    description: Deposit rate.
+  EFb:
+    description: Bank profits.
+  YDw:
+    description: Worker disposable income.
+  YDr:
+    description: Rentier disposable income.
+  Mhw:
+    description: Worker deposits.
+  Mhr:
+    description: Rentier deposits.
+  Mh:
+    description: Aggregate household deposits.
+  mhw:
+    description: Real worker wealth.
+  mhr:
+    description: Real rentier wealth.
+  ydhsw:
+    description: Worker Haig-Simons real disposable income.
+  ydhsr:
+    description: Rentier Haig-Simons real disposable income.
+  ydhsw_E:
+    description: Expected worker Haig-Simons income.
+  ydhsr_E:
+    description: Expected rentier Haig-Simons income.
+  c_w:
+    description: Real worker consumption demand.
+  c_r:
+    description: Real rentier consumption demand.
+  c:
+    description: Real aggregate consumption demand.
+  Cw:
+    description: Nominal worker consumption.
+  Cr:
+    description: Nominal rentier consumption.
+  ydhs:
+    description: Aggregate Haig-Simons real disposable income.
+  rl:
+    description: Interest rate on loans.
+  pr:
+    description: Labor productivity.
+  W:
+    description: Money wage.
+  add:
+    description: Spread between loan and deposit rates.
+  alpha0w:
+    description: Autonomous worker consumption.
+  alpha1w:
+    description: Worker propensity to consume out of expected disposable income.
+  alpha2w:
+    description: Worker propensity to consume out of wealth.
+  alpha0r:
+    description: Autonomous rentier consumption.
+  alpha1r:
+    description: Rentier propensity to consume out of expected disposable income.
+  alpha2r:
+    description: Rentier propensity to consume out of wealth.
+  beta:
+    description: Speed of sales expectations adjustment.
+  epsilon:
+    description: Speed of income expectations adjustment.
+  gamma:
+    description: Speed of inventory adjustment.
+  phi:
+    description: Costing margin.
+  sigma_T:
+    description: Target inventory-to-sales ratio.
+equations: |-
+  # Output determined by expected sales and inventory adjustment.
+  y ~ s_E + inv_E - lag(inv)
+
+  # Target inventory stock as a ratio of expected sales.
+  inv_T ~ sigma_T * s_E
+
+  # Expected inventory stock adjusts toward the target.
+  inv_E ~ lag(inv) + gamma * (inv_T - lag(inv))
+
+  # Realized inventories evolve with production minus sales.
+  inv ~ lag(inv) + (y - s)
+
+  # Expected sales formed adaptively.
+  s_E ~ beta * lag(s) + (1 - beta) * lag(s_E)
+
+  # Real sales equal real consumption demand.
+  s ~ c
+
+  # Employment from output and productivity.
+  N ~ y / pr
+
+  # Wage bill.
+  WB ~ N * W
+
+  # Unit cost.
+  UC ~ WB / y
+
+  # Nominal inventories.
+  INV ~ inv * UC
+
+  # Nominal sales.
+  S ~ p * s
+
+  # Price level.
+  p ~ (1 + phi) * NHUC
+
+  # Normalized historic unit cost.
+  NHUC ~ (1 - sigma_T) * UC + sigma_T * (1 + lag(rl)) * lag(UC)
+
+  # Entrepreneurial profits.
+  EF ~ S - WB + (INV - lag(INV)) - lag(rl) * lag(INV)
+
+  # Demand for loans.
+  Ld ~ INV
+
+  # Supply of loans.
+  Ls ~ Ld
+
+  # Supply of deposits.
+  Ms ~ Ls
+
+  # Deposit rate.
+  rm ~ rl - add
+
+  # Bank profits.
+  EFb ~ lag(rl) * lag(Ls) - lag(rm) * lag(Mh)
+
+  # Worker disposable income.
+  YDw ~ WB + lag(rm) * lag(Mhw)
+
+  # Rentier disposable income.
+  YDr ~ EF + EFb + lag(rm) * lag(Mhr)
+
+  # Worker deposits.
+  Mhw ~ lag(Mhw) + YDw - Cw
+
+  # Rentier deposits.
+  Mhr ~ lag(Mhr) + YDr - Cr
+
+  # Aggregate household deposits.
+  Mh ~ Mhw + Mhr
+
+  # Real worker wealth.
+  mhw ~ Mhw / p
+
+  # Real rentier wealth.
+  mhr ~ Mhr / p
+
+  # Worker Haig-Simons real disposable income.
+  ydhsw ~ c_w + (mhw - lag(mhw))
+
+  # Rentier Haig-Simons real disposable income.
+  ydhsr ~ c_r + (mhr - lag(mhr))
+
+  # Expected worker Haig-Simons income.
+  ydhsw_E ~ epsilon * lag(ydhsw) + (1 - epsilon) * lag(ydhsw_E)
+
+  # Expected rentier Haig-Simons income.
+  ydhsr_E ~ epsilon * lag(ydhsr) + (1 - epsilon) * lag(ydhsr_E)
+
+  # Real worker consumption demand.
+  c_w ~ alpha0w + alpha1w * ydhsw_E + alpha2w * lag(mhw)
+
+  # Real rentier consumption demand.
+  c_r ~ alpha0r + alpha1r * ydhsr_E + alpha2r * lag(mhr)
+
+  # Real aggregate consumption demand.
+  c ~ c_w + c_r
+
+  # Nominal worker consumption.
+  Cw ~ c_w * p
+
+  # Nominal rentier consumption.
+  Cr ~ c_r * p
+
+  # Aggregate Haig-Simons real disposable income.
+  ydhs ~ ydhsw + ydhsr
+equationCell:
+  id: equations
+  title: DIS rentier model
+  collapsed: true
+balance:
+  id: balance-sheet
+  title: DIS rentier balance sheet
+  description: Balance-sheet matrix for the rentier-split DIS model, separating worker and rentier deposit holdings while keeping firms, inventories, and banks explicit.
+  note: "This makes wealth distribution visible: workers and rentiers hold distinct money stocks, while bank liabilities and firm borrowing remain stock-flow consistent."
+  columns: [Workers, Rentiers, Production firms, Banks, Sum]
+  sectors: [Workers, Rentiers, Production firms, Banks, ""]
+  rows:
+    - [Money, Money deposits, +Mhw, +Mhr, "", -Ms, "0"]
+    - label: Loans
+      values:
+        - ""
+        - ""
+        - -Ld
+        - +Ls
+        - "0"
+    - [Inventories, Inventories, "", "", +INV, "", +INV]
+    - [Balance, Balance, -Mhw, -Mhr, "", "", -Mh]
+transactions:
+  id: transaction-flow
+  title: DIS rentier transactions-flow matrix
+  description: Transactions-flow matrix for the rentier-split DIS model, separating wages, profits, deposit interest, consumption, and wealth accumulation between workers and rentiers.
+  note: Use this to show that wages primarily fund worker consumption while profits, bank profits, and deposit interest accrue to rentiers, making distributional feedbacks visible in the accounting.
+  columns: [Workers, Rentiers, Firms_current, Firms_capital, Banks_current, Banks_capital, Sum]
+  sectors: [Workers, Rentiers, Production firms, Production firms, Banks, Banks, ""]
+  rows:
+    - [Consumption, Consumption by workers, -Cw, "", +Cw, "", "", "", "0"]
+    - [Consumption, Consumption by rentiers, "", -Cr, +Cr, "", "", "", "0"]
+    - [Inventories, Ch. Inventories, "", "", +d(INV), -d(INV), "", "", "0"]
+    - [Wages, Wages, +WB, "", -WB, "", "", "", "0"]
+    - [Interest, Interest on loans, "", "", "-rl[-1] * Ld[-1]", "", "+rl[-1] * Ls[-1]", "", "0"]
+    - [Profits, Entrepreneurial profits, "", +EF, -EF, "", "", "", "0"]
+    - [Profits, Bank profits, "", +EFb, "", "", -EFb, "", "0"]
+    - [Interest, Interest on worker deposits, "+rm[-1] * Mhw[-1]", "", "", "", "-rm[-1] * Mhw[-1]", "", "0"]
+    - [Interest, Interest on rentier deposits, "", "+rm[-1] * Mhr[-1]", "", "", "-rm[-1] * Mhr[-1]", "", "0"]
+    - [Loans, Change loans, "", "", "", +d(Ld), "", -d(Ls), "0"]
+    - [Deposits, Change deposits, -d(Mhw), -d(Mhr), "", "", "", +d(Ms), "0"]
+    - [Sum, Sum, "0", "0", "0", "0", "0", "0", "0"]
+parameters:
+  rl: 0.025
+  pr: 1
+  W: 0.75
+  add: 0.02
+  alpha0w: 10
+  alpha1w: 0.85
+  alpha2w: 0.05
+  alpha0r: 5
+  alpha1r: 0.7
+  alpha2r: 0.2
+  beta: 0.75
+  epsilon: 0.75
+  gamma: 0.25
+  phi: 0.25
+  sigma_T: 0.15
+parametersCell:
+  id: externals-equations
+  title: Externals
+  collapsed: true
+initial-values:
+  Mhw: 40
+  Mhr: 60
+  Mh: 100
+  inv: 15
+  s_E: 100
+  ydhsw_E: 40
+  ydhsr_E: 35
+initialValuesCell:
+  id: initial-values-equations
+  collapsed: true
+solver:
+  method: newton
+  tolerance: "1e-10"
+  maxIterations: 200
+  defaultInitialValue: "1e-15"
+  hiddenLeftVariable: ""
+  hiddenRightVariable: ""
+  hiddenTolerance: "0.00001"
+  relativeHiddenTolerance: false
+solverCell:
+  id: solver
+  title: Solver
+  collapsed: true
+baselineRun:
+  id: baseline-run
+  title: Baseline run
+  description: Baseline rentier-split DIS simulation showing how inventory adjustment, bank credit, and worker/rentier wealth co-evolve under the Mh = Ms closure condition.
+  resultKey: gl6_dis_rentier_baseline
+  periods: 100
+charts:
+  - id: baseline-chart
+    title: Baseline distribution variables
+    variables:
+      - ydhsw
+      - ydhsr
+      - c_w
+      - c_r
+      - Mhw
+      - Mhr
+    axisMode: separate
+    axisSnapTolarance: 0.5
+    seriesRanges:
+      Mhw:
+        includeZero: true
+      Mhr:
+        includeZero: true
+tables:
+  - id: baseline-table
+    title: Baseline variable summary
+    variables:
+      - y
+      - ydhs
+      - ydhsw
+      - ydhsr
+      - c
+      - c_w
+      - c_r
+      - p
+      - Mh
+      - Mhw
+      - Mhr
+      - INV
+cells:
+  - id: transaction-flow-sequence
+    type: sequence
+    title: DIS rentier transaction flow sequence
+    source:
+      kind: matrix
+      matrixCellId: transaction-flow
+    description: Sequence view of the rentier-split DIS transactions-flow matrix, showing how spending, income, and financial positions propagate through the selected period.
+  - id: scenario-1-note
+    type: markdown
+    title: Scenario 1
+    source: Scenario 1 raises the costing margin `phi` from 0.25 to 0.35 between periods 5 and 40.
+  - id: scenario-1-run
+    type: run
+    title: "Scenario 1: costing margin shock"
+    mode: scenario
+    scenario:
+      shocks:
+        - rangeInclusive:
+            - 5
+            - 40
+          variables:
+            phi:
+              kind: constant
+              value: 0.35
+    baselineRunCellId: baseline-run
+    periods: 40
+    resultKey: gl6_dis_rentier_s1
+    sourceModelId: equations
+  - id: scenario-1-chart
+    type: chart
+    title: Scenario 1 distribution and prices
+    sourceRunCellId: scenario-1-run
+    variables:
+      - c_w
+      - c_r
+      - ydhsw
+      - ydhsr
+      - p
+    axisMode: separate
+    axisSnapTolarance: 0.5
+    seriesRanges:
+      p:
+        includeZero: true
+  - id: scenario-2-note
+    type: markdown
+    title: Scenario 2
+    source: Scenario 2 raises the target inventories-to-sales ratio `sigma_T` from 0.15 to 0.25 between periods 5 and 50.
+  - id: scenario-2-run
+    type: run
+    title: "Scenario 2: inventory target shock"
+    mode: scenario
+    scenario:
+      shocks:
+        - rangeInclusive:
+            - 5
+            - 50
+          variables:
+            sigma_T:
+              kind: constant
+              value: 0.25
+    baselineRunCellId: baseline-run
+    periods: 50
+    resultKey: gl6_dis_rentier_s2
+    sourceModelId: equations
+  - id: scenario-2-chart
+    type: chart
+    title: Scenario 2 inventories and distribution
+    sourceRunCellId: scenario-2-run
+    variables:
+      - ydhsw
+      - ydhsr
+      - inv
+      - inv_E
+      - Mhw
+      - Mhr
+    axisMode: separate
+    axisSnapTolarance: 0.5
+    seriesRanges:
+      inv:
+        includeZero: true
+      inv_E:
+        includeZero: true
+  - id: equation-dependency-graph
+    type: sequence
+    title: DIS rentier equation dependency graph
+    source:
+      kind: dependency
+      modelId: equations
+      stripSectorSource: columns
+      showAccountingStrips: true
+      showExogenous: false
+    description: Dependency view of the rentier-split DIS equations, highlighting how expected sales, inventories, pricing, bank credit, wage income, profits, deposit interest, and wealth feed back through the model over time.
+    note: Use this alongside the transactions-flow matrix to connect the accounting structure with the model's dynamic distributional adjustment mechanisms.
+    collapsed: true
+cellOrder:
+  - intro
+  - balance-sheet
+  - transaction-flow
+  - transaction-flow-sequence
+  - equations
+  - solver
+  - externals-equations
+  - initial-values-equations
+  - baseline-run
+  - baseline-chart
+  - baseline-table
+  - scenario-1-note
+  - scenario-1-run
+  - scenario-1-chart
+  - scenario-2-note
+  - scenario-2-run
+  - scenario-2-chart
+  - equation-dependency-graph

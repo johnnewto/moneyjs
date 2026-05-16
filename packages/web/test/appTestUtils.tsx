@@ -147,31 +147,42 @@ export function getFormulaTokensByText(container: HTMLElement, text: string): HT
 
 export async function setNotebookSourceFormat(
   user: ReturnType<typeof userEventLib.setup>,
-  format: "json" | "markdown"
+  format: "json" | "markdown" | "yaml"
 ): Promise<void> {
   const editorTab = screen.getByRole("tab", { name: /^editor$/i });
   if (editorTab.getAttribute("aria-selected") !== "true") {
     await user.click(editorTab);
   }
 
-  const downloadButton = screen.getByRole("button", { name: /download /i });
-  const currentFormat = (downloadButton.textContent ?? "").toLowerCase().includes("markdown")
-    ? "markdown"
-    : "json";
-
-  if (currentFormat !== format) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const downloadButton = screen.getByRole("button", { name: /download /i });
+    const currentFormat = resolveNotebookSourceFormatFromText(downloadButton.textContent ?? "");
+    if (currentFormat === format) {
+      break;
+    }
     await user.click(screen.getByRole("button", { name: /source format is /i }));
   }
 
-  if (format === "json") {
+  if (format !== "markdown") {
     await screen.findByRole("textbox", { name: /notebook source editor/i });
     await waitFor(() => {
       if (!document.querySelector(".notebook-code-editor .cm-scroller")) {
-        throw new Error("Notebook JSON editor has not finished mounting yet.");
+        throw new Error("Notebook source editor has not finished mounting yet.");
       }
     });
     return;
   }
 
   await screen.findByTestId("notebook-source-text");
+}
+
+function resolveNotebookSourceFormatFromText(text: string): "json" | "markdown" | "yaml" {
+  const normalized = text.toLowerCase();
+  if (normalized.includes("markdown")) {
+    return "markdown";
+  }
+  if (normalized.includes("yaml")) {
+    return "yaml";
+  }
+  return "json";
 }

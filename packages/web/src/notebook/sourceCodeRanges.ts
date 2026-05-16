@@ -1,5 +1,6 @@
 import {
   notebookToMarkdown,
+  notebookToYaml,
   serializeNotebookCell,
   type NotebookSourceDiagnostic,
   type NotebookSourceFormat
@@ -50,6 +51,26 @@ export function resolveSelectedCellSourceRange(args: {
     return resolveJsonCellSourceRange(args.source, cell.id);
   }
 
+  if (args.format === "yaml") {
+    const singleCellSource = notebookToYaml({
+      ...args.document,
+      cells: [cell]
+    });
+    const singleCellMatch = singleCellSource.match(/\n\s*-\s+id:\s+.+[\s\S]*$/);
+    const sectionSource = singleCellMatch?.[0].trim();
+    if (sectionSource) {
+      const exactMatchIndex = args.source.indexOf(sectionSource);
+      if (exactMatchIndex >= 0) {
+        return {
+          from: exactMatchIndex,
+          to: exactMatchIndex + sectionSource.length
+        };
+      }
+    }
+
+    return resolveYamlCellSourceRange(args.source, cell.id);
+  }
+
   const markdownSource = notebookToMarkdown({
     ...args.document,
     cells: [cell]
@@ -64,6 +85,29 @@ export function resolveSelectedCellSourceRange(args: {
     from: exactMatchIndex,
     to: exactMatchIndex + sectionSource.length
   };
+}
+
+function resolveYamlCellSourceRange(source: string, cellId: string): SourceRange | null {
+  const idPattern = new RegExp(`(^|\\n)(\\s*-\\s+id:\\s+|\\s+id:\\s+)["']?${escapeRegExp(cellId)}["']?(?:\\s|$)`);
+  const match = source.match(idPattern);
+  if (!match || match.index == null) {
+    return null;
+  }
+
+  const start = match.index + match[1].length;
+  const indentMatch = match[2].match(/^(\s*)/);
+  const indent = indentMatch?.[1] ?? "";
+  const nextCellPattern = new RegExp(`\\n${escapeRegExp(indent)}-\\s+id:\\s+`, "g");
+  nextCellPattern.lastIndex = start + match[0].length;
+  const nextMatch = nextCellPattern.exec(source);
+  return {
+    from: start,
+    to: nextMatch?.index ?? source.length
+  };
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function resolveJsonCellSourceRange(source: string, cellId: string): SourceRange | null {

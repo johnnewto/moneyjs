@@ -1,0 +1,405 @@
+format: sfcr-notebook-yaml
+formatVersion: 1
+id: bmw-notebook
+title: BMW Browser Notebook
+metadata:
+  version: 1
+  template: bmw
+  description: >
+    This browser notebook adapts the BMW vignette into executable model, run, and chart
+    cells. It focuses on a Newton baseline and two scenario comparisons.
+modelId: equations-newton
+introCell:
+  id: intro
+  title: Overview
+sectors: [Households, Firms, Banks, ""]
+units:
+  currency: "$"
+  time: year
+  labor: items
+
+variables:
+  Cs:
+    description: Consumption goods supply
+    unit: $/year
+    type: flow
+    role: definition
+  Is:
+    description: Supply of investment goods
+    unit: $/year
+    type: flow
+    role: definition
+  Ns:
+    description: Supply of labor
+    unit: items/year
+    type: flow
+    role: definition
+  Ls:
+    description: Supply of bank loans
+    unit: "$"
+    type: stock
+    role: accumulation
+  Y:
+    description: Income = GDP
+    unit: $/year
+    type: flow
+    role: identity
+  WBd:
+    description: Wage bill - demand
+    unit: $/year
+    type: flow
+    role: identity
+  AF:
+    description: Amortization funds
+    unit: $/year
+    type: flow
+    role: definition
+  Ld:
+    description: Demand for bank loans
+    unit: "$"
+    type: stock
+    role: accumulation
+  YD:
+    description: Disposable income of households
+    unit: $/year
+    type: flow
+    role: identity
+  Mh:
+    description: Bank deposits held by households
+    unit: "$"
+    type: stock
+    role: accumulation
+  Ms:
+    description: Supply of bank deposits
+    unit: "$"
+    type: stock
+    role: accumulation
+  rm:
+    description: Rate of interest on bank deposits
+    unit: 1/year
+    type: aux
+    role: definition
+  WBs:
+    description: Wage bill - supply
+    unit: $/year
+    type: flow
+    role: identity
+  Nd:
+    description: Demand for labor
+    unit: items/year
+    type: flow
+    role: definition
+  W:
+    description: Wage rate
+    unit: $/item
+    type: aux
+    role: definition
+  Cd:
+    description: Consumption goods demand by households
+    unit: $/year
+    type: flow
+    role: behavioral
+  K:
+    description: Stock of capital
+    unit: "$"
+    type: stock
+    role: accumulation
+  DA:
+    description: Depreciation allowance
+    unit: $/year
+    type: flow
+    role: definition
+  KT:
+    description: Target stock of capital
+    unit: "$"
+    type: stock
+    role: target
+  Id:
+    description: Demand for investment goods
+    unit: $/year
+    type: flow
+    role: behavioral
+  rl:
+    description: Rate of interest on bank loans, set exogenously
+    unit: 1/year
+    type: aux
+  alpha0:
+    description: Exogenous component in consumption
+    unit: $/year
+    type: aux
+  alpha1:
+    description: Propensity to consume out of income
+    unit: "1"
+    type: aux
+  alpha2:
+    description: Propensity to consume out of wealth
+    unit: 1/year
+    type: aux
+  delta:
+    description: Depreciation rate
+    unit: 1/year
+    type: aux
+  gamma:
+    description: Speed of adjustment of capital to its target value
+    unit: 1/year
+    type: aux
+  kappa:
+    description: Capital-output ratio
+    unit: year
+    type: aux
+  pr:
+    description: Labor productivity
+    unit: $/item
+    type: aux
+
+equations: |
+  # Consumption goods supply
+  Cs ~ Cd
+
+  # Supply of investment goods
+  Is ~ Id
+
+  # Supply of labor
+  Ns ~ Nd
+
+  # Supply of bank loans
+  Ls ~ lag(Ls) + d(Ld) * dt
+
+  # Income = GDP
+  Y ~ Cs + Is
+
+  # Wage bill - demand
+  WBd ~ Y - lag(rl) * lag(Ld) - AF
+
+  # Amortization funds
+  AF ~ delta * lag(K)
+
+  # Demand for bank loans
+  Ld ~ lag(Ld) + (Id - AF) * dt
+
+  # Disposable income of households
+  YD ~ WBs + lag(rm) * lag(Mh)
+
+  # Bank deposits held by households
+  Mh ~ lag(Mh) + (YD - Cd) * dt
+
+  # Supply of bank deposits
+  Ms ~ lag(Ms) + d(Ls) * dt
+
+  # Rate of interest on bank deposits
+  rm ~ rl
+
+  # Wage bill - supply
+  WBs ~ W * Ns
+
+  # Demand for labor
+  Nd ~ Y / pr
+
+  # Wage rate
+  W ~ WBd / Nd
+
+  # Consumption goods demand by households
+  Cd ~ alpha0 + alpha1 * YD + alpha2 * lag(Mh)
+
+  # Stock of capital
+  K ~ lag(K) + (Id - DA) * dt
+
+  # Depreciation allowance
+  DA ~ delta * lag(K)
+
+  # Target stock of capital
+  KT ~ kappa * lag(Y)
+
+  # Demand for investment goods
+  Id ~ gamma * (KT - lag(K)) + DA
+
+balance:
+  id: balance-sheet
+  title: BMW balance sheet
+  description: Balance-sheet matrix for the BMW model, following the sfcr article presentation.
+  note: Source structure adapted from the sfcr BMW article balance-sheet display.
+  columns: [Households, Production firms, Banks, Sum]
+  sectors: [Households, Firms, Banks, ""]
+  rows:
+    - [Deposits, Money deposits, +Mh, "", -Ms, "0"]
+    - [Loans, Loans, "", -Ld, +Ls, "0"]
+    - [Investment, Fixed capital, "", +K, "", +K]
+    - [Balance, Balance (net worth), -Vh, -V, "0", "0"]
+    - [Sum, Sum, "0", "0", "0", "0"]
+
+transactions:
+  id: transaction-flow
+  title: BMW transactions-flow matrix
+  description: Transactions-flow matrix for the BMW model, shown in the same accounting style as the sfcr article.
+  note: Signs and row structure follow the BMW transactions-flow matrix in the sfcr article.
+  columns: [Households, Firms_current, Firms_capital, Banks_current, Banks_capital, Sum]
+  sectors: [Households, Firms, Firms, Banks, Banks, ""]
+  rows:
+    - [Consumption, Consumption, -Cs, +Cd, "", "", "", "0"]
+    - [Investment, Investment, "", +Is, -Id, "", "", "0"]
+    - [Wages, Wages, +WBs, -WBd, "", "", "", "0"]
+    - [Depreciation, Depreciation, "", -AF, +AF, "", "", "0"]
+    - [Loans, Interest loans, "", "-rl[-1] * Ld[-1]", "", "+rl[-1] * Ls[-1]", "", "0"]
+    - [Deposits, Interest on deposits, "+rm[-1] * Mh[-1]", "", "", "-rm[-1] * Ms[-1]", "", "0"]
+    - [Loans, Ch. loans, "", "", +d(Ld), "", -d(Ls), "0"]
+    - [Deposits, Ch. deposits, -d(Mh), "", "", "", +d(Ms), "0"]
+    - [Sum, Sum, "0", "0", "0", "0", "0", "0"]
+
+initial-values: {}
+
+parameters:
+  rl: 0.025
+  alpha0: 20
+  alpha1: 0.75
+  alpha2: 0.1
+  delta: 0.1
+  gamma: 0.15
+  kappa: 1
+  pr: 1
+
+solver:
+  method: newton
+  tolerance: 1e-10
+  maxIterations: 100
+  defaultInitialValue: 1e-15
+  hiddenLeftVariable: Ms
+  hiddenRightVariable: Mh
+  hiddenTolerance: "0.00001"
+  relativeHiddenTolerance: false
+
+baselineRun:
+  id: baseline-newton
+  title: Baseline run with Newton
+  note: This Newton baseline provides the reference path for the BMW scenarios.
+  description: Run the baseline for 50 periods using the Newton solver to generate the reference path for the BMW scenarios.
+  resultKey: bmw_newton
+  periods: 50
+
+charts:
+  - id: baseline-chart
+    title: Baseline headline variables
+    description: Chart of key variables in the baseline run to show the model's dynamic behavior over time.
+    note: This chart shows the time paths of selected variables in the baseline run, which serves as the reference for the scenario comparisons.
+    variables: [Y, Cd, Mh, W]
+    axisMode: separate
+    axisSnapTolarance: 0.1
+    niceScale: true
+
+tables:
+  - id: baseline-table
+    title: Baseline variable summary
+    description: This table shows the values of key variables in the baseline run across all periods.
+    note: Table of selected variables for the baseline run, showing values at each period.
+    variables: [Y, Cd, Id, K, Mh, W]
+
+equationCell:
+  id: equations-newton
+  title: BMW model
+  collapsed: true
+solverCell:
+  id: solver-newton
+  title: Solver options
+  collapsed: true
+parametersCell:
+  id: externals-equations-newton
+  title: Externals
+  collapsed: true
+initialValuesCell:
+  id: initial-values-equations-newton
+  title: Initial values
+  collapsed: true
+
+cells:
+  - id: transaction-flow-sequence
+    type: sequence
+    title: BMW transaction flow sequence
+    source:
+      kind: matrix
+      matrixCellId: transaction-flow
+    description: Canvas-rendered sequence view generated from the transactions-flow matrix at the selected simulation period.
+    note: Use Reset and Next step to manually reveal flows in order.
+  - id: scenario-1-note
+    type: markdown
+    title: Scenario 1
+    source: Scenario 1 increases autonomous consumption expenditure by raising alpha0 from period 5 to period 50.
+  - id: scenario-1-run
+    type: run
+    title: "Scenario 1: autonomous consumption shock"
+    note: This scenario applies a shock to autonomous consumption by increasing alpha0 for a period of time
+    description: allowing us to see the effect on the economy compared to the baseline.
+    mode: scenario
+    scenario:
+      shocks:
+        - variables:
+            alpha0:
+              kind: constant
+              value: 30
+          rangeInclusive: [5, 50]
+    baselineRunCellId: baseline-newton
+    periods: 50
+    resultKey: bmw_s1
+    sourceModelId: equations-newton
+    baselineStartPeriod: 40
+  - id: scenario-1-chart
+    type: chart
+    title: Scenario 1 consumption and income
+    sourceRunCellId: scenario-1-run
+    variables: [Cd, YD, Id, AF]
+    sharedRange:
+      includeZero: true
+    axisMode: separate
+    axisSnapTolarance: 0.1
+    niceScale: true
+  - id: scenario-2-run
+    type: run
+    title: "Scenario 2: propensity-to-save shock"
+    description: Scenario 2 lowers alpha1 from period 5 to period 50 to examine the effect of a higher propensity to save.
+    mode: scenario
+    scenario:
+      shocks:
+        - variables:
+            alpha1:
+              kind: constant
+              value: 0.7
+          rangeInclusive: [5, 50]
+    baselineRunCellId: baseline-newton
+    periods: 50
+    resultKey: bmw_s2
+    sourceModelId: equations-newton
+  - id: scenario-2-chart
+    type: chart
+    title: Scenario 2 headline variables
+    sourceRunCellId: scenario-2-run
+    variables: [Cd, YD, W]
+    sharedRange:
+      includeZero: true
+  - id: equation-dependency-graph
+    type: sequence
+    title: BMW equation dependency graph
+    source:
+      kind: dependency
+      modelId: equations-newton
+      showAccountingStrips: true
+      showExogenous: false
+    description: Dependency view of the BMW equations organized by sector strips and accounting bands.
+    note: Use this alongside the transaction-flow sequence to compare accounting flows with equation structure.
+    collapsed: true
+
+cellOrder:
+  - intro
+  - balance-sheet
+  - transaction-flow
+  - transaction-flow-sequence
+  - equations-newton
+  - solver-newton
+  - externals-equations-newton
+  - initial-values-equations-newton
+  - baseline-newton
+  - baseline-chart
+  - baseline-table
+  - scenario-1-note
+  - scenario-1-run
+  - scenario-1-chart
+  - scenario-2-run
+  - scenario-2-chart
+  - equation-dependency-graph

@@ -1,0 +1,187 @@
+format: sfcr-notebook-yaml
+formatVersion: 1
+id: solver-overview-notebook
+title: Solver Overview Notebook
+metadata:
+  version: 1
+  template: solver-overview
+  description: This notebook turns the concrete block-ordering example from `devdocs/solver-overview.md` into a runnable model. The document uses `c = d + 1` and `d = c + 1` to illustrate a cyclic component, but that pair has no finite solution. This notebook keeps the same overall teaching shape while using a convergent cyclic pair, an explicit dependency from the cyclic block back to `b`, and a lagged feedback term from `e` into `c`. That keeps the ordered blocks exactly `[a]`, `[b]`, `[c, d]`, `[e]` while also creating a more interesting period-to-period transition.
+modelId: solver-overview
+introCell:
+  id: intro
+  title: Overview
+variables:
+  a:
+    description: Acyclic starting value.
+  b:
+    description: Depends only on the solved value of a.
+  c:
+    description: First member of the simultaneous block, with current dependence on d and b plus lagged feedback from e.
+  d:
+    description: Second member of the simultaneous block.
+  e:
+    description: Acyclic tail equation that waits for b and c.
+  a_level:
+    description: Constant for equation a.
+  b_offset:
+    description: Offset used by b = a + b_offset.
+  c_weight:
+    description: Feedback weight from d into c.
+  c_offset:
+    description: Constant term in equation c.
+  d_weight:
+    description: Feedback weight from c into d.
+  d_offset:
+    description: Constant term in equation d.
+  c_from_b:
+    description: Links the cyclic block to b so the block order matches the overview document.
+  c_from_lag_e:
+    description: Lagged feedback from e into the cyclic block to create period-to-period dynamics.
+equations: |-
+  # Acyclic starting value.
+  a ~ a_level
+
+  # Depends only on the solved value of a.
+  b ~ a + b_offset
+
+  # First member of the simultaneous block, with current dependence on d and b plus lagged feedback from e.
+  c ~ c_weight * d + c_offset + c_from_b * b + c_from_lag_e * lag(e)
+
+  # Second member of the simultaneous block.
+  d ~ d_weight * c + d_offset
+
+  # Acyclic tail equation that waits for b and c.
+  e ~ b + c
+equationCell:
+  id: equations
+  title: Block-order example model
+  collapsed: true
+parameters:
+  a_level: 1
+  b_offset: 1
+  c_weight: 0.45
+  c_offset: 0.8
+  d_weight: 0.5
+  d_offset: 1
+  c_from_b: 0.1
+  c_from_lag_e: 0.2
+parametersCell:
+  id: externals
+  title: Externals
+  collapsed: true
+initial-values: {}
+initialValuesCell:
+  id: initial-values
+  collapsed: true
+solver:
+  method: gauss-seidel
+  tolerance: "1e-10"
+  maxIterations: 100
+  defaultInitialValue: "1e-15"
+  hiddenLeftVariable: ""
+  hiddenRightVariable: ""
+  hiddenTolerance: "0.00001"
+  relativeHiddenTolerance: false
+solverCell:
+  id: solver
+  title: Solver
+  collapsed: true
+baselineRun:
+  id: baseline-run
+  title: Baseline run
+  description: Baseline run for the block-order example using a convergent cyclic pair with lagged feedback.
+  resultKey: solver_overview_baseline
+  periods: 30
+charts:
+  - id: baseline-chart
+    title: Baseline variables by block position
+    variables:
+      - a
+      - b
+      - c
+      - d
+      - e
+    axisMode: separate
+    axisSnapTolarance: 0.5
+    seriesRanges:
+      a:
+        includeZero: true
+      b:
+        includeZero: true
+      c:
+        includeZero: true
+      d:
+        includeZero: true
+      e:
+        includeZero: true
+tables:
+  - id: baseline-table
+    title: Baseline variable summary
+    variables:
+      - a
+      - b
+      - c
+      - d
+      - e
+cells:
+  - id: scenario-note
+    type: markdown
+    title: Scenario 1
+    source: This scenario raises `c_offset` from `0.8` to `1.1` between periods 5 and 20. It shifts the cyclic block upward while leaving the acyclic equations and overall block ordering unchanged.
+  - id: scenario-run
+    type: run
+    title: "Scenario 1: higher c offset"
+    mode: scenario
+    scenario:
+      shocks:
+        - rangeInclusive:
+            - 5
+            - 20
+          variables:
+            c_offset:
+              kind: constant
+              value: 1.1
+    baselineRunCellId: baseline-run
+    periods: 20
+    resultKey: solver_overview_s1
+    sourceModelId: solver-overview
+  - id: scenario-chart
+    type: chart
+    title: Scenario 1 cyclic block response
+    sourceRunCellId: scenario-run
+    variables:
+      - c
+      - d
+      - e
+    axisMode: separate
+    axisSnapTolarance: 0.5
+    seriesRanges:
+      c:
+        includeZero: true
+      d:
+        includeZero: true
+      e:
+        includeZero: true
+  - id: scenario-table
+    type: table
+    title: Scenario 1 variable summary
+    sourceRunCellId: scenario-run
+    variables:
+      - a
+      - b
+      - c
+      - d
+      - e
+cellOrder:
+  - intro
+  - equations
+  - solver
+  - externals
+  - initial-values
+  - baseline-run
+  - baseline-chart
+  - baseline-table
+  - scenario-note
+  - scenario-run
+  - scenario-chart
+  - scenario-table

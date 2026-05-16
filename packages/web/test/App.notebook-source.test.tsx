@@ -13,6 +13,9 @@ import {
   setupAppTestEnv,
   userEvent
 } from "./appTestUtils";
+import { notebookToJson, notebookToYaml } from "../src/notebook/document";
+import { CUSTOM_NOTEBOOK_STORAGE_KEY } from "../src/notebook/NotebookApp";
+import { createNotebookFromTemplate } from "../src/notebook/templates";
 
 setupAppTestEnv();
 
@@ -176,6 +179,22 @@ describe("App notebook source and import workflows", () => {
     expect(getNotebookSourceTextArea().value).toMatch(/# BMW Browser Notebook/i);
   });
 
+  it("renders notebook YAML in the editor when YAML is selected", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    await setNotebookSourceFormat(user, "yaml");
+
+    expect(getNotebookSourceTextArea().value).toMatch(/format: sfcr-notebook-yaml/i);
+    expect(getNotebookSourceTextArea().value).toMatch(/title: BMW Browser Notebook/i);
+    expect(getNotebookSourceTextArea().value).toMatch(/variables:/i);
+    expect(getNotebookSourceTextArea().value).toMatch(/equations: \|-/i);
+    expect(getNotebookSourceTextArea().value).toMatch(/method: newton/i);
+    expect(document.querySelector(".notebook-code-editor .cm-scroller")).toBeTruthy();
+  });
+
   it("auto-detects Markdown during preview import even when JSON is selected", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";
@@ -194,6 +213,28 @@ describe("App notebook source and import workflows", () => {
     expect(
       screen.getAllByText((_, node) => node?.textContent?.includes("Types: markdown") ?? false).length
     ).toBeGreaterThan(0);
+  }, 15000);
+
+  it("auto-detects YAML during preview import even when JSON is selected", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    const yamlSource = notebookToYaml(createNotebookFromTemplate("bmw")).replace(
+      "BMW Browser Notebook",
+      "YAML Notebook"
+    );
+
+    await setNotebookSourceFormat(user, "json");
+    setNotebookSourceValue(yamlSource);
+    await user.click(screen.getByRole("button", { name: /preview import/i }));
+
+    expect(screen.getByRole("heading", { name: /import preview/i })).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      /previewed notebook yaml\. apply to replace the current notebook\./i
+    );
+    expect(screen.getAllByText(/YAML Notebook/i).length).toBeGreaterThan(0);
   }, 15000);
 
   it("previews and applies imported notebook JSON before replacing the document", async () => {
@@ -220,6 +261,49 @@ describe("App notebook source and import workflows", () => {
     await user.click(screen.getAllByRole("button", { name: /apply preview/i })[0]);
 
     expect(screen.getAllByText(/^Imported Notebook$/i).length).toBeGreaterThan(0);
+  }, 15000);
+
+  it("saves an applied custom notebook to browser storage", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    await setNotebookSourceFormat(user, "json");
+
+    const textarea = getNotebookSourceTextArea();
+    const customSource = textarea.value.replace("BMW Browser Notebook", "Stored Custom Notebook");
+
+    setNotebookSourceValue(customSource);
+    await user.click(screen.getByRole("button", { name: /preview import/i }));
+    await user.click(screen.getAllByRole("button", { name: /apply preview/i })[0]);
+
+    await waitFor(() => {
+      expect(window.localStorage.getItem(CUSTOM_NOTEBOOK_STORAGE_KEY)).toContain(
+        "Stored Custom Notebook"
+      );
+    });
+    expect(screen.getByRole("combobox", { name: /notebook template/i })).toHaveValue("__custom__");
+  }, 15000);
+
+  it("recalls a saved custom notebook from the template selector", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    const customNotebook = createNotebookFromTemplate("bmw");
+    customNotebook.title = "Recalled Custom Notebook";
+    customNotebook.metadata = { version: 1 };
+    window.localStorage.setItem(CUSTOM_NOTEBOOK_STORAGE_KEY, notebookToJson(customNotebook));
+
+    render(<App />);
+
+    const templatePicker = screen.getByRole("combobox", { name: /notebook template/i });
+    expect(templatePicker).toHaveValue("bmw");
+    expect(within(templatePicker).getByRole("option", { name: /custom notebook/i })).toBeInTheDocument();
+
+    await user.selectOptions(templatePicker, "__custom__");
+
+    expect(screen.getAllByText(/^Recalled Custom Notebook$/i).length).toBeGreaterThan(0);
+    expect(templatePicker).toHaveValue("__custom__");
   }, 15000);
 
   it("shows apply and discard actions when the import text is edited", async () => {
