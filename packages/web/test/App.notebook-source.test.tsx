@@ -53,7 +53,8 @@ describe("App notebook source and import workflows", () => {
 
     expect(textarea.value).toContain("format: sfcr-notebook-yaml");
     expect(textarea.value).toContain("title: BMW Browser Notebook");
-    expect(textarea.value).toContain("equations: |-");
+    expect(textarea.value).toContain("  - equations:");
+    expect(textarea.value).toContain('        - [Ls, lag(Ls) + d(Ld) * dt, "Supply of bank loans", $, stock, accumulation]');
 
     setNotebookSourceValue(textarea.value.replace("BMW Browser Notebook", "JSON Notebook"));
     await user.click(screen.getByRole("button", { name: /preview import/i }));
@@ -190,8 +191,10 @@ describe("App notebook source and import workflows", () => {
 
     expect(getNotebookSourceTextArea().value).toMatch(/format: sfcr-notebook-yaml/i);
     expect(getNotebookSourceTextArea().value).toMatch(/title: BMW Browser Notebook/i);
-    expect(getNotebookSourceTextArea().value).toMatch(/variables:/i);
-    expect(getNotebookSourceTextArea().value).toMatch(/equations: \|-/i);
+    expect(getNotebookSourceTextArea().value).toMatch(/  - equations:/i);
+    expect(getNotebookSourceTextArea().value).toMatch(
+      /- \[Ls, lag\(Ls\) \+ d\(Ld\) \* dt, "Supply of bank loans", \$, stock, accumulation\]/i
+    );
     expect(getNotebookSourceTextArea().value).toMatch(/method: newton/i);
     expect(document.querySelector(".notebook-code-editor .cm-scroller")).toBeTruthy();
   });
