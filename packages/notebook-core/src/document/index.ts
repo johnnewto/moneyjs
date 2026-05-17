@@ -584,7 +584,7 @@ function serializeCompactYamlCell(cell: NotebookCell): Record<string, unknown> {
         title: cell.title,
         modelId: cell.modelId,
         ...compactCellFlags(cell),
-        rows: cell.initialValues.map((initialValue) => [initialValue.name, scalarFromValueText(initialValue.valueText)])
+        rows: cell.initialValues.map(buildCompactInitialValueRow)
       };
     case "solver":
       return {
@@ -665,24 +665,66 @@ function buildCompactEquationVariables(
   return variables;
 }
 
-function buildCompactEquationRow(equation: Extract<NotebookCell, { type: "equations" }>["equations"][number]): unknown[] {
+function buildCompactEquationRow(
+  equation: Extract<NotebookCell, { type: "equations" }>["equations"][number],
+  index: number
+): unknown[] {
   const unit = formatCompactUnit(equation.unitMeta);
   const type = equation.unitMeta?.stockFlow;
   const row = [equation.name, equation.expression, equation.desc, unit, type, equation.role];
   while (row.length > 2 && row[row.length - 1] == null) {
     row.pop();
   }
-  return row.map((value) => value ?? "");
+  const normalized = row.map((value) => value ?? "");
+  const fallbackId = `eq-${index}-${slugifyIdentifier(equation.name)}`;
+  if (equation.id === fallbackId) {
+    return normalized;
+  }
+  while (normalized.length < 6) {
+    normalized.push("");
+  }
+  return [...normalized, equation.id];
 }
 
-function buildCompactExternalRow(external: Extract<NotebookCell, { type: "externals" }>["externals"][number]): unknown[] {
+function buildCompactExternalRow(
+  external: Extract<NotebookCell, { type: "externals" }>["externals"][number],
+  index: number
+): unknown[] | Record<string, unknown> {
+  if (external.kind !== "constant") {
+    return {
+      id: external.id,
+      name: external.name,
+      ...(external.desc ? { desc: external.desc } : {}),
+      kind: external.kind,
+      valueText: external.valueText,
+      ...compactUnitFields(external.unitMeta)
+    };
+  }
+
   const unit = formatCompactUnit(external.unitMeta);
   const type = external.unitMeta?.stockFlow;
   const row = [external.name, scalarFromValueText(external.valueText), external.desc, unit, type];
   while (row.length > 2 && row[row.length - 1] == null) {
     row.pop();
   }
-  return row.map((value) => value ?? "");
+  const normalized = row.map((value) => value ?? "");
+  const fallbackId = `ext-${index}-${slugifyIdentifier(external.name)}`;
+  if (external.id === fallbackId) {
+    return normalized;
+  }
+  while (normalized.length < 5) {
+    normalized.push("");
+  }
+  return [...normalized, external.id];
+}
+
+function buildCompactInitialValueRow(
+  initialValue: Extract<NotebookCell, { type: "initial-values" }>["initialValues"][number],
+  index: number
+): unknown[] {
+  const row = [initialValue.name, scalarFromValueText(initialValue.valueText)];
+  const fallbackId = `init-${index}-${slugifyIdentifier(initialValue.name)}`;
+  return initialValue.id === fallbackId ? row : [...row, initialValue.id];
 }
 
 function buildCompactExternalVariables(
@@ -1331,7 +1373,7 @@ function parseCompactEquationRows(rows: unknown[], variables: unknown): Extract<
   const variableMeta = isRecord(variables) ? variables : {};
   return rows.map((row, index) => {
     if (Array.isArray(row)) {
-      const [rawName, rawExpression, rawDescription, rawUnit, rawType, rawRole] = row;
+      const [rawName, rawExpression, rawDescription, rawUnit, rawType, rawRole, rawId] = row;
       const name = stringValue(rawName, "");
       const meta = {
         ...(isRecord(variableMeta[name]) ? variableMeta[name] : {}),
@@ -1341,7 +1383,7 @@ function parseCompactEquationRows(rows: unknown[], variables: unknown): Extract<
         ...(rawRole == null || rawRole === "" ? {} : { role: String(rawRole) })
       };
       return {
-        id: `eq-${index}-${slugifyIdentifier(name)}`,
+        id: stringValue(rawId, `eq-${index}-${slugifyIdentifier(name)}`),
         name,
         ...(typeof meta.description === "string" ? { desc: meta.description } : {}),
         expression: stringValue(rawExpression, "").trim(),
@@ -1397,7 +1439,7 @@ function parseCompactExternalRows(rows: unknown[], variables: unknown): Extract<
   const variableMeta = isRecord(variables) ? variables : {};
   return rows.map((row, index) => {
     if (Array.isArray(row)) {
-      const [rawName, rawValue, rawDescription, rawUnit, rawType] = row;
+      const [rawName, rawValue, rawDescription, rawUnit, rawType, rawId] = row;
       const name = stringValue(rawName, "");
       const meta = {
         ...(isRecord(variableMeta[name]) ? variableMeta[name] : {}),
@@ -1406,7 +1448,7 @@ function parseCompactExternalRows(rows: unknown[], variables: unknown): Extract<
         ...(rawType == null || rawType === "" ? {} : { type: String(rawType) })
       };
       return {
-        id: `ext-${index}-${slugifyIdentifier(name)}`,
+        id: stringValue(rawId, `ext-${index}-${slugifyIdentifier(name)}`),
         name,
         ...(typeof meta.description === "string" ? { desc: meta.description } : {}),
         kind: "constant",
@@ -1428,7 +1470,7 @@ function parseCompactExternalRows(rows: unknown[], variables: unknown): Extract<
         id: stringValue(row.id, `ext-${index}-${slugifyIdentifier(name)}`),
         name,
         ...(typeof meta.description === "string" ? { desc: meta.description } : {}),
-        kind: "constant",
+        kind: row.kind === "series" ? "series" : "constant",
         valueText: stringValue(row.value ?? row.valueText, ""),
         ...(buildUnitMeta(meta) ? { unitMeta: buildUnitMeta(meta) } : {})
       };
@@ -1453,10 +1495,10 @@ function buildCompactInitialValues(initialValues: unknown): Extract<NotebookCell
 function parseCompactInitialValueRows(rows: unknown[]): Extract<NotebookCell, { type: "initial-values" }>["initialValues"] {
   return rows.map((row, index) => {
     if (Array.isArray(row)) {
-      const [rawName, rawValue] = row;
+      const [rawName, rawValue, rawId] = row;
       const name = stringValue(rawName, "");
       return {
-        id: `init-${index}-${slugifyIdentifier(name)}`,
+        id: stringValue(rawId, `init-${index}-${slugifyIdentifier(name)}`),
         name,
         valueText: String(rawValue)
       };

@@ -5,970 +5,474 @@ title: Interbank Liquidity Risk Notebook
 metadata:
   version: 1
   template: interbank-liquidity-risk
-  description: "This notebook is a runnable browser-first template inspired by Jessica Reale's *Interbank Market and Funding Liquidity Risk in a Stock-Flow Consistent Model* (2019). It keeps the paper's institutional structure in compact form: households, firms, government, a central bank, and two heterogeneous banks linked by overnight and term interbank funding."
-modelId: interbank-liquidity-risk
-introCell:
-  id: intro
-  title: Overview
-sectors: [Households, Firms, Government, Central bank, Banks, Banks, ""]
-variables:
-  HPMj:
-    description: Reserve requirement of bank j.
-  HPMk:
-    description: Reserve requirement of bank k.
-  HPM:
-    description: Aggregate reserve requirement.
-  Ovd:
-    description: Accommodating overdrafts supplied by the central bank.
-  itcb:
-    description: Target policy rate at the midpoint of the corridor.
-  Pcb:
-    description: Central-bank profits transferred to government.
-  MROj:
-    description: Main refinancing operations to bank j.
-  MROk:
-    description: Main refinancing operations to bank k.
-  MRO:
-    description: Total main refinancing operations.
-  Bcb:
-    description: Bills held by the central bank.
-  DSm:
-    description: Bank-j degree of stability.
-  Lm:
-    description: Total liabilities entering the degree-of-stability measure.
-  Am:
-    description: Total assets entering the degree-of-stability measure.
-  am:
-    description: Available-stable-funds fraction.
-  bm:
-    description: Required-stable-funds fraction.
-  DOvd:
-    description: Demand for overdrafts by bank j.
-  IBD:
-    description: Total interbank funding demand by bank j.
-  IBonD:
-    description: Demand for overnight interbank loans.
-  IBtermD:
-    description: Demand for term interbank loans.
-  theta:
-    description: Bank-j willingness to borrow overnight.
-  LFk:
-    description: Loanable funds of bank k.
-  IBS:
-    description: Total interbank funding supply.
-  IBonS:
-    description: Supply of overnight interbank loans.
-  IBtermS:
-    description: Supply of term interbank loans.
-  LbW:
-    description: Bank-k willingness to lend overnight.
-  DERj:
-    description: Debt-to-equity ratio of bank j.
-  QR:
-    description: Quick ratio of bank j.
-  Rcb_l:
-    description: Use of the lending facility under interbank frictions.
-  Rcb_d:
-    description: Use of the deposit facility under interbank frictions.
-  IBon:
-    description: Stock of overnight interbank loans determined on the short side of the market.
-  IBterm:
-    description: Stock of term interbank loans determined on the short side of the market.
-  ion_ib:
-    description: Overnight interbank rate.
-  eps_on:
-    description: Excess demand in the overnight segment.
-  iterm_ib:
-    description: Term interbank rate.
-  eps_term:
-    description: Excess demand in the term segment.
-  Lh:
-    description: Loans supplied by bank j to households.
-  Lf:
-    description: Loans supplied by bank k to firms.
-  Fj:
-    description: External finance supplied by bank j.
-  CRh:
-    description: Credit rationing toward households.
-  Fk:
-    description: External finance supplied by bank k.
-  CRf:
-    description: Credit rationing toward firms.
-  Bjlr:
-    description: Long-term government bonds demanded by bank j.
-  Mh:
-    description: Mortgages supplied by bank j.
-  Bj:
-    description: Short-term bills demanded by bank j.
-  Bk:
-    description: Short-term bills demanded by bank k.
-  fcj:
-    description: Funding cost of bank j.
-  iib_star:
-    description: Effective interbank cost faced by bank j.
-  icb_star:
-    description: Effective standing-facility cost faced by bank j.
-  zeta:
-    description: Number of cost components entering bank-j average funding costs.
-  ilh:
-    description: Interest rate on household loans.
-  idh:
-    description: Interest rate on household deposits.
-  imh:
-    description: Interest rate on mortgages.
-  ilf:
-    description: Interest rate on firm loans.
-  idf:
-    description: Interest rate on firm deposits.
-  Pbj:
-    description: Profits of bank j.
-  Pbk:
-    description: Profits of bank k.
-  Divbj:
-    description: Distributed profits of bank j.
-  Divbk:
-    description: Distributed profits of bank k.
-  Pbju:
-    description: Undistributed profits of bank j.
-  Pbku:
-    description: Undistributed profits of bank k.
-  Vbj:
-    description: Net worth of bank j.
-  Vbk:
-    description: Net worth of bank k.
-  G:
-    description: Government expenditure grows with income.
-  gy:
-    description: Growth rate of national income.
-  Y:
-    description: National income.
-  T:
-    description: Taxes on wages.
-  B:
-    description: Government bills financed through the budget identity.
-  Blr:
-    description: Long-term government bonds supplied to match bank-j demand.
-  ib:
-    description: Interest rate on bills equals the policy target.
-  C:
-    description: Household consumption.
-  Vh:
-    description: Household net worth identity.
-  Yda:
-    description: Expected disposable income of households.
-  Yd:
-    description: Disposable income of households.
-  Dh:
-    description: Household deposits at bank j.
-  LDh:
-    description: Demand for household loans.
-  Hh:
-    description: Housing demand of households.
-  MhD:
-    description: Demand for mortgages.
-  K:
-    description: Capital stock of firms.
-  Id:
-    description: Desired investment of firms.
-  I:
-    description: Net business investment identity.
-  W:
-    description: Wages paid to households.
-  Pf:
-    description: Profits of firms.
-  Divf:
-    description: Distributed profits of firms.
-  Pfu:
-    description: Undistributed profits of firms.
-  LDf:
-    description: Demand for firm external finance.
-  Df:
-    description: Firm deposits at bank k.
-  Vcb:
-    description: Central-bank capital-account identity.
-  tau:
-    description: Tax rate on wages.
-  a1:
-    description: Propensity to consume out of income.
-  a2:
-    description: Propensity to consume out of past wealth.
-  phi:
-    description: Adaptive expectations parameter.
-  b:
-    description: Households' loan demand parameter.
-  ph:
-    description: House prices.
-  delta0:
-    description: Autonomous housing demand parameter.
-  delta1:
-    description: Housing demand parameter out of past house prices.
-  delta2:
-    description: Housing demand parameter out of mortgage interest.
-  delta3:
-    description: Autonomous mortgage demand parameter.
-  delta4:
-    description: Mortgage demand parameter out of mortgage interest.
-  gk:
-    description: Desired investments parameter.
-  rho:
-    description: Markup on prices.
-  delta:
-    description: Depreciation of capital.
-  s:
-    description: Firms' profit share distributed as dividends.
-  sj:
-    description: Bank-j profit share distributed as dividends.
-  sk:
-    description: Bank-k profit share distributed as dividends.
-  sw:
-    description: Parameter for the proportion of deposits held at the banks.
-  m1:
-    description: RSF factor on household loans.
-  m2:
-    description: RSF factor on mortgages.
-  m3:
-    description: RSF factor on bank-j bills.
-  m4:
-    description: RSF factor on bank-j bonds.
-  m5:
-    description: ASF factor on household deposits.
-  m6:
-    description: ASF factor on term interbank loans.
-  alpha:
-    description: Bank-j sensitivity to the outside spread for overnight borrowing.
-  alpha1:
-    description: Bank-j sensitivity to the interbank spread.
-  alpha2:
-    description: Bank-j sensitivity to degree of stability.
-  alpha3:
-    description: Bank-j sensitivity to the outside spread for term borrowing.
-  alpha4:
-    description: Bank-j sensitivity to PDU.
-  ilcb:
-    description: Central-bank lending-facility rate.
-  PDU:
-    description: Perceived degree of uncertainty.
-  sigma:
-    description: Bank-k autonomous willingness to lend overnight.
-  sigma1:
-    description: Bank-k sensitivity to PDU.
-  sigma2:
-    description: Bank-k sensitivity to the outside spread for overnight lending.
-  sigma3:
-    description: Bank-k sensitivity to the debt-to-equity ratio.
-  sigma4:
-    description: Bank-k sensitivity to the interbank spread.
-  sigma5:
-    description: Bank-k sensitivity to the term-rate outside spread.
-  sigma6:
-    description: Bank-k sensitivity to the quick ratio.
-  idcb:
-    description: Central-bank deposit-facility rate.
-  sigmaib:
-    description: Banks' sensitivity to interbank disequilibrium.
-  eta1:
-    description: Floor for the term interbank rate.
-  eta2:
-    description: Width parameter for the term interbank rate.
-  omega1:
-    description: Sensitivity to PDU in credit rationing.
-  omega2:
-    description: Sensitivity to past loans in credit rationing.
-  chi1:
-    description: Markup on loan interest rates.
-  chi2:
-    description: Markdown on deposit interest rates.
-  chi3:
-    description: Markup on mortgage interest rates.
-  mu:
-    description: Reserve requirement.
-  ilrb:
-    description: Rate of interest on bonds.
-  gamma:
-    description: Debt-to-equity threshold.
-  lambda10:
-    description: Liquidity-preference parameter of bank j for loans.
-  lambda11:
-    description: Bank-j liquidity preference out of the loan rate.
-  lambda12:
-    description: Bank-j liquidity preference out of the bond rate.
-  lambda13:
-    description: Bank-j liquidity preference out of the mortgage rate.
-  lambda14:
-    description: Bank-j liquidity preference out of the bills rate.
-  lambda20:
-    description: Liquidity-preference parameter of bank j for bonds.
-  lambda21:
-    description: Bank-j bond demand response to the loan rate.
-  lambda22:
-    description: Bank-j bond demand response to the bond rate.
-  lambda23:
-    description: Bank-j bond demand response to the mortgage rate.
-  lambda24:
-    description: Bank-j bond demand response to the bills rate.
-  lambda30:
-    description: Liquidity-preference parameter of bank j for mortgages.
-  lambda31:
-    description: Bank-j mortgage demand response to the loan rate.
-  lambda32:
-    description: Bank-j mortgage demand response to the bond rate.
-  lambda33:
-    description: Bank-j mortgage demand response to the mortgage rate.
-  lambda34:
-    description: Bank-j mortgage demand response to the bills rate.
-  beta10:
-    description: Bank-k liquidity-preference intercept.
-  beta11:
-    description: Bank-k liquidity preference out of the loan rate.
-  beta12:
-    description: Bank-k liquidity preference out of the bills rate.
-equations: |-
-  # Reserve requirement of bank j.
-  HPMj ~ mu * lag(Dh)
-
-  # Reserve requirement of bank k.
-  HPMk ~ mu * lag(Df)
-
-  # Aggregate reserve requirement.
-  HPM ~ HPMj + HPMk
-
-  # Accommodating overdrafts supplied by the central bank.
-  Ovd ~ DOvd
-
-  # Target policy rate at the midpoint of the corridor.
-  itcb ~ (ilcb + idcb) / 2
-
-  # Central-bank profits transferred to government.
-  Pcb ~ itcb * (lag(MROj) + lag(MROk)) + ib * lag(Bcb) + ilcb * lag(Rcb_l) - idcb * lag(Rcb_d)
-
-  # Main refinancing operations to bank j.
-  MROj ~ HPMj
-
-  # Main refinancing operations to bank k.
-  MROk ~ HPMk
-
-  # Total main refinancing operations.
-  MRO ~ MROj + MROk
-
-  # Bills held by the central bank.
-  Bcb ~ B - Bj - Bk
-
-  # Bank-j degree of stability.
-  DSm ~ Lm - (bm / am) * Am
-
-  # Total liabilities entering the degree-of-stability measure.
-  Lm ~ lag(Dh) + lag(MROj) + lag(Ovd) + lag(IBon) + lag(IBterm) + lag(Rcb_l)
-
-  # Total assets entering the degree-of-stability measure.
-  Am ~ lag(Lh) + lag(HPMj) + lag(Bj) + lag(Blr) + lag(Mh)
-
-  # Available-stable-funds fraction.
-  am ~ (m5 * lag(Dh) + m6 * lag(IBterm)) / Lm
-
-  # Required-stable-funds fraction.
-  bm ~ (m1 * lag(Lh) + m2 * lag(Mh) + m3 * lag(Bj) + m4 * lag(Blr)) / Am
-
-  # Demand for overdrafts by bank j.
-  DOvd ~ if (C >= lag(HPMj)) { C - lag(HPMj) } else { 0 }
-
-  # Total interbank funding demand by bank j.
-  IBD ~ DOvd
-
-  # Demand for overnight interbank loans.
-  IBonD ~ IBD * theta
-
-  # Demand for term interbank loans.
-  IBtermD ~ IBD - IBonD
-
-  # Bank-j willingness to borrow overnight.
-  theta ~ max(0, min(1, alpha * (ilcb - ion_ib) + alpha1 * (iterm_ib - ion_ib) + alpha2 * (DSm / abs(lag(Vbj))) - alpha3 * (ilcb - iterm_ib) - alpha4 * PDU))
-
-  # Loanable funds of bank k.
-  LFk ~ C + lag(Rcb_d)
-
-  # Total interbank funding supply.
-  IBS ~ LFk
-
-  # Supply of overnight interbank loans.
-  IBonS ~ IBS * LbW
-
-  # Supply of term interbank loans.
-  IBtermS ~ IBS - IBonS
-
-  # Bank-k willingness to lend overnight.
-  LbW ~ max(0, min(1, sigma + sigma1 * PDU + sigma2 * (ion_ib - idcb) + sigma3 * (abs(DERj) - gamma) - sigma4 * (iterm_ib - ion_ib) - sigma5 * (iterm_ib - idcb) - sigma6 * QR))
-
-  # Debt-to-equity ratio of bank j.
-  DERj ~ (lag(Ovd) + lag(IBon) + lag(IBterm) + lag(MROj)) / lag(Vbj)
-
-  # Quick ratio of bank j.
-  QR ~ (lag(Lh) + lag(Bj) + lag(HPMj)) / (lag(Ovd) + lag(MROj) + lag(IBon) + lag(Rcb_l))
-
-  # Use of the lending facility under interbank frictions.
-  Rcb_l ~ if (((theta <= 0) && (LbW >= 1)) || ((theta >= 1) && (LbW <= 0))) { IBD } else { if ((theta > 0 && theta < 1) && (LbW <= 0)) { IBonD } else { if ((theta > 0 && theta < 1) && (LbW >= 1)) { IBtermD } else { 0 } } }
-
-  # Use of the deposit facility under interbank frictions.
-  Rcb_d ~ if (((theta <= 0) && (LbW >= 1)) || ((theta >= 1) && (LbW <= 0))) { IBS } else { if ((theta <= 0) && (LbW > 0 && LbW < 1)) { IBonS } else { if ((theta >= 1) && (LbW > 0 && LbW < 1)) { IBtermS } else { 0 } } }
-
-  # Stock of overnight interbank loans determined on the short side of the market.
-  IBon ~ min(IBonD, IBonS)
-
-  # Stock of term interbank loans determined on the short side of the market.
-  IBterm ~ min(IBtermD, IBtermS)
-
-  # Overnight interbank rate.
-  ion_ib ~ idcb + (ilcb - idcb) / (1 + exp(-(sigmaib * eps_on)))
-
-  # Excess demand in the overnight segment.
-  eps_on ~ IBonD - IBonS
-
-  # Term interbank rate.
-  iterm_ib ~ eta1 + eta2 / (1 + exp(-(sigmaib * eps_term)))
-
-  # Excess demand in the term segment.
-  eps_term ~ IBtermD - IBtermS
-
-  # Loans supplied by bank j to households.
-  Lh ~ (lambda10 + lambda11 * ilh - lambda12 * ilrb - lambda13 * imh - lambda14 * ib) * Fj
-
-  # Loans supplied by bank k to firms.
-  Lf ~ (beta10 + beta11 * ilf - beta12 * ib) * Fk
-
-  # External finance supplied by bank j.
-  Fj ~ lag(Fj) + (LDh + MhD - lag(Fj)) * (1 - CRh)
-
-  # Credit rationing toward households.
-  CRh ~ omega1 * PDU + omega2 * ((lag(Lh) + lag(Mh)) / lag(Vh))
-
-  # External finance supplied by bank k.
-  Fk ~ lag(Fk) + (LDf - lag(Fk)) * (1 - CRf)
-
-  # Credit rationing toward firms.
-  CRf ~ omega1 * PDU + omega2 * (lag(Lf) / lag(K))
-
-  # Long-term government bonds demanded by bank j.
-  Bjlr ~ (lambda20 - lambda21 * ilh + lambda22 * ilrb - lambda23 * imh - lambda24 * ib) * Fj
-
-  # Mortgages supplied by bank j.
-  Mh ~ (lambda30 - lambda31 * ilh - lambda32 * ilrb + lambda33 * imh - lambda34 * ib) * Fj
-
-  # Short-term bills demanded by bank j.
-  Bj ~ Fj - Lh - Bjlr - Mh
-
-  # Short-term bills demanded by bank k.
-  Bk ~ Fk - Lf
-
-  # Funding cost of bank j.
-  fcj ~ (itcb + iib_star + icb_star) / zeta
-
-  # Effective interbank cost faced by bank j.
-  iib_star ~ if (((theta >= 1) && (LbW >= 1)) || ((theta > 0 && theta < 1) && (LbW >= 1)) || ((theta >= 1) && (LbW > 0 && LbW < 1))) { ion_ib } else { if (((theta <= 0) && (LbW <= 0)) || ((theta > 0 && theta < 1) && (LbW <= 0)) || ((theta <= 0) && (LbW > 0 && LbW < 1))) { iterm_ib } else { if ((theta > 0 && theta < 1) && (LbW > 0 && LbW < 1)) { (ion_ib + iterm_ib) / 2 } else { 0 } } }
-
-  # Effective standing-facility cost faced by bank j.
-  icb_star ~ if (Rcb_l != 0) { ilcb } else { 0 }
-
-  # Number of cost components entering bank-j average funding costs.
-  zeta ~ if ((iib_star == 0) && (icb_star == 0)) { 1 } else { if (((iib_star == 0) && (icb_star != 0)) || ((iib_star != 0) && (icb_star == 0))) { 2 } else { 3 } }
-
-  # Interest rate on household loans.
-  ilh ~ fcj + chi1
-
-  # Interest rate on household deposits.
-  idh ~ fcj - chi2
-
-  # Interest rate on mortgages.
-  imh ~ iterm_ib + chi3
-
-  # Interest rate on firm loans.
-  ilf ~ itcb + chi1
-
-  # Interest rate on firm deposits.
-  idf ~ itcb - chi2
-
-  # Profits of bank j.
-  Pbj ~ ib * lag(Bj) + lag(ilh) * lag(Lh) + ilrb * lag(Blr) + lag(imh) * lag(Mh) - itcb * lag(MROj) - lag(idh) * lag(Dh) - ilcb * lag(Rcb_l) - lag(ion_ib) * lag(IBon) - lag(iterm_ib) * lag(IBterm)
-
-  # Profits of bank k.
-  Pbk ~ idcb * lag(Rcb_d) + lag(ilf) * lag(Lf) + ib * lag(Bk) + lag(ion_ib) * lag(IBon) + lag(iterm_ib) * lag(IBterm) - lag(idf) * lag(Df) - itcb * lag(MROk)
-
-  # Distributed profits of bank j.
-  Divbj ~ sj * Pbj
-
-  # Distributed profits of bank k.
-  Divbk ~ sk * Pbk
-
-  # Undistributed profits of bank j.
-  Pbju ~ Pbj - Divbj
-
-  # Undistributed profits of bank k.
-  Pbku ~ Pbk - Divbk
-
-  # Net worth of bank j.
-  Vbj ~ lag(Vbj) + (HPMj - lag(HPMj)) + (Bj - lag(Bj)) + (Bjlr - lag(Bjlr)) + (Lh - lag(Lh)) + (Mh - lag(Mh)) - Pbju - (Dh - lag(Dh)) - (Ovd - lag(Ovd)) - (IBon - lag(IBon)) - (IBterm - lag(IBterm)) - (MROj - lag(MROj)) - (Rcb_l - lag(Rcb_l))
-
-  # Net worth of bank k.
-  Vbk ~ lag(Vbk) + (Bk - lag(Bk)) + (HPMk - lag(HPMk)) + (Lf - lag(Lf)) + (IBon - lag(IBon)) + (IBterm - lag(IBterm)) + (Rcb_d - lag(Rcb_d)) - Pbku - (MROk - lag(MROk)) - (Df - lag(Df))
-
-  # Government expenditure grows with income.
-  G ~ lag(G) * (1 + lag(gy))
-
-  # Growth rate of national income.
-  gy ~ (Y - lag(Y)) / lag(Y)
-
-  # National income.
-  Y ~ C + I + G + ph * (Hh - lag(Hh))
-
-  # Taxes on wages.
-  T ~ tau * lag(W)
-
-  # Government bills financed through the budget identity.
-  B ~ lag(B) + ib * lag(B) + G + ilrb * lag(Blr) - T - Pcb - (Blr - lag(Blr))
-
-  # Long-term government bonds supplied to match bank-j demand.
-  Blr ~ Bjlr
-
-  # Interest rate on bills equals the policy target.
-  ib ~ itcb
-
-  # Household consumption.
-  C ~ a1 * Yda + a2 * lag(Vh)
-
-  # Household net worth identity.
-  Vh ~ lag(Vh) + Yd + (Lh - lag(Lh)) + (Mh - lag(Mh)) - C - ph * (Hh - lag(Hh)) - (Dh - lag(Dh))
-
-  # Expected disposable income of households.
-  Yda ~ lag(Yd) + phi * (lag(Yd) - lag(Yda))
-
-  # Disposable income of households.
-  Yd ~ W + lag(idh) * lag(Dh) + Divf + Divbj + Divbk - T - lag(ilh) * lag(Lh) - lag(imh) * lag(Mh)
-
-  # Household deposits at bank j.
-  Dh ~ sw * Yd - (C - lag(C))
-
-  # Demand for household loans.
-  LDh ~ b * Yd
-
-  # Housing demand of households.
-  Hh ~ delta0 - delta1 * ph - delta2 * lag(imh)
-
-  # Demand for mortgages.
-  MhD ~ delta3 - delta4 * lag(imh)
-
-  # Capital stock of firms.
-  K ~ lag(K) - delta * lag(K) + I
-
-  # Desired investment of firms.
-  Id ~ gk * lag(K)
-
-  # Net business investment identity.
-  I ~ Pfu + (Lf - lag(Lf)) - (Df - lag(Df))
-
-  # Wages paid to households.
-  W ~ Y / (1 + rho)
-
-  # Profits of firms.
-  Pf ~ Y + ph * (Hh - lag(Hh)) + lag(idf) * lag(Df) - W - lag(ilf) * lag(Lf)
-
-  # Distributed profits of firms.
-  Divf ~ s * Pf
-
-  # Undistributed profits of firms.
-  Pfu ~ Pf - Divf
-
-  # Demand for firm external finance.
-  LDf ~ lag(LDf) - lag(Lf) + Id
-
-  # Firm deposits at bank k.
-  Df ~ sw * W + (C - lag(C))
-
-  # Central-bank capital-account identity.
-  Vcb ~ MRO + Ovd + Bcb + Rcb_l - Rcb_d - HPM
-equationCell:
-  id: equations
-  title: Interbank liquidity risk model
-  collapsed: true
-balance:
-  id: balance-sheet
-  title: "Table 4: Balance Sheet Matrix"
-  description: Article-style balance-sheet matrix adapted from Table 4 of the paper.
-  note: This accounting table preserves the paper's full institutional structure. Some symbols shown here go beyond the reduced-form starter equations and are included as a modeling scaffold.
-  columns: [Households, Firms, Government, Central bank, Bank j, Bank k, Sum]
-  sectors: [Households, Firms, Government, Central bank, Banks, Banks, ""]
-  rows:
-    - [Real assets, Capital stock (K), "", +K, "", "", "", "", +K]
-    - [Real assets, Houses (H), +ph * Hh, "", "", "", "", "", +ph * Hh]
-    - [Deposits, Deposits (D), +Dh, +Df, "", "", -Dh, -Df, "0"]
-    - [Loans, Loans (L), -Lh, -Lf, "", "", +Lh, +Lf, "0"]
-    - [Mortgages, Mortgages (M), -Mh, "", "", "", +Mh, "", "0"]
-    - [Bills, Bills (B), "", "", -B, +Bcb, +Bj, +Bk, "0"]
-    - [Bonds, Bonds (Blr), "", "", -Blr, "", +Blr, "", "0"]
-    - [Central bank, Overdrafts (Ovd), "", "", "", +Ovd, -Ovd, "", "0"]
-    - [Reserves, Required reserves (HPM), "", "", "", -HPM, +HPMj, +HPMk, "0"]
-    - [Interbank, Overnight interbank loan (IBon), "", "", "", "", -IBon, +IBon, "0"]
-    - [Interbank, Term interbank loan (IBterm), "", "", "", "", -IBterm, +IBterm, "0"]
-    - [Central bank, Main refinancing operations (MRO), "", "", "", +MRO, -MROj, -MROk, "0"]
-    - [Central bank, Lending facility reserves (Rcb_l), "", "", "", +Rcb_l, -Rcb_l, "", "0"]
-    - [Central bank, Deposit facility reserves (Rcb_d), "", "", "", -Rcb_d, "", +Rcb_d, "0"]
-    - [Balance, "Net Worth: Sigma", +Vh, +Vf, "", +Vcb, +Vbj, +Vbk, +ph * Hh + K]
-    - [Sum, Sum, "0", "0", "0", "0", "0", "0", "0"]
-transactions:
-  id: transaction-flow
-  title: "Table 5: Transaction Flow Matrix"
-  description: Article-style transaction-flow matrix adapted from Table 5 of the paper.
-  note: This matrix follows the paper's accounting layout and keeps article notation where helpful. It is meant as a structural modeling template, not a strict one-for-one rendering of the reduced-form executable equations above.
-  columns: [Households, Firms current, Firms capital, Government, Bank j current, Bank j capital, Central bank current, Bank k current, Bank k capital, Sum]
-  sectors: [Households, Firms, Firms, Government, Banks, Banks, Central bank, Banks, Banks, ""]
-  rows:
-    - [Consumption, Consumption, -C, +C, "", "", "", "", "", "", "", "0"]
-    - [Government, Government expenditure, "", +G, "", -G, "", "", "", "", "", "0"]
-    - [Investment, Business investments, "", "", -I, "", "", "", "", +I, "", "0"]
-    - [Investment, Housing investments, -ph * d(Hh), +ph * d(Hh), "", "", "", "", "", "", "", "0"]
-    - [Wages, Wages, +W, -W, "", "", "", "", "", "", "", "0"]
-    - [Taxes, Taxes, -T, "", "", +T, "", "", "", "", "", "0"]
-    - [Interest, Interest on bills, "", "", "", "-ib[-1] * B[-1]", "+ib[-1] * Bj[-1]", "", "+ib[-1] * Bcb[-1]", "+ib[-1] * Bk[-1]", "", "0"]
-    - [Interest, Interest on bonds, "", "", "", "-ilrb[-1] * Blr[-1]", "+ilrb[-1] * Blr[-1]", "", "", "", "", "0"]
-    - [Interest, Interest on loans, "-ilh[-1] * Lh[-1]", "-ilf[-1] * Lf[-1]", "", "", "+ilh[-1] * Lh[-1]", "", "", "+ilf[-1] * Lf[-1]", "", "0"]
-    - [Interest, Interest on deposits, "+idh[-1] * Dh[-1]", "+idf[-1] * Df[-1]", "", "", "-idh[-1] * Dh[-1]", "", "", "-idf[-1] * Df[-1]", "", "0"]
-    - [Interest, Interest on mortgages, "-imh[-1] * Mh[-1]", "", "", "", "+imh[-1] * Mh[-1]", "", "", "", "", "0"]
-    - [Interest, Interest on IBon, "", "", "", "", "-ion_ib[-1] * IBon[-1]", "", "", "+ion_ib[-1] * IBon[-1]", "", "0"]
-    - [Interest, Interest on IBterm, "", "", "", "", "-iterm_ib[-1] * IBterm[-1]", "", "", "+iterm_ib[-1] * IBterm[-1]", "", "0"]
-    - [Interest, Interest on MRO, "", "", "", "", "-ilcb[-1] * MROj[-1]", "", "+ilcb[-1] * MRO[-1]", "-ilcb[-1] * MROk[-1]", "", "0"]
-    - [Interest, Interest on lending facility, "", "", "", "", "-ilcb[-1] * Rcb_l[-1]", "", "+ilcb[-1] * Rcb_l[-1]", "", "", "0"]
-    - [Interest, Interest on deposit facility, "", "", "", "", "", "", "-idcb[-1] * Rcb_d[-1]", "+idcb[-1] * Rcb_d[-1]", "", "0"]
-    - [Profits, Profits of firms, +Divf, -Pf, +Pfu, "", "", "", "", "", "", "0"]
-    - [Profits, Profits of bank j, +Divbj, "", "", "", -Pbj, +Pbju, "", "", "", "0"]
-    - [Profits, Profits of bank k, +Divbk, "", "", "", "", "", "", -Pbk, +Pbku, "0"]
-    - [Profits, Profits of the central bank, "", "", "", +Pcb, "", "", -Pcb, "", "", "0"]
-    - [Changes, Delta deposits, -d(Dh), -d(Df), "", "", +d(Dh), "", "", +d(Df), "", "0"]
-    - [Changes, Delta loans, +d(Lh), -d(Lf), "", "", -d(Lh), "", "", +d(Lf), "", "0"]
-    - [Changes, Delta mortgages, +d(Mh), "", "", "", -d(Mh), "", "", "", "", "0"]
-    - [Changes, Delta bills, "", "", "", +d(B), -d(Bj), "", -d(Bcb), -d(Bk), "", "0"]
-    - [Changes, Delta bonds, "", "", "", +d(Blr), -d(Blr), "", "", "", "", "0"]
-    - [Changes, Delta HPM, "", "", "", "", +d(HPMj), "", -d(HPM), +d(HPMk), "", "0"]
-    - [Changes, Delta MRO, "", "", "", "", +d(MROj), "", -d(MRO), +d(MROk), "", "0"]
-    - [Changes, Delta advances, "", "", "", "", +d(Ovd), "", -d(Ovd), "", "", "0"]
-    - [Changes, Delta IBon, "", "", "", "", +d(IBon), "", "", -d(IBon), "", "0"]
-    - [Changes, Delta IBterm, "", "", "", "", +d(IBterm), "", "", -d(IBterm), "", "0"]
-    - [Changes, Delta lending facility, "", "", "", "", +d(Rcb_l), "", -d(Rcb_l), "", "", "0"]
-    - [Changes, Delta deposit facility, "", "", "", "", "", "", -d(Rcb_d), +d(Rcb_d), "", "0"]
-    - [Balance, Delta net worth, d(Vh), d(Vf), "", "", d(Vbj), "", d(Vcb), d(Vbk), "", "0"]
-    - [Balance, Sum, "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
-parameters:
-  tau: 0.18
-  a1: 0.25
-  a2: 0.25
-  phi: 0.25
-  b: 0.7
-  ph: 400
-  delta0: 100
-  delta1: 0.00125
-  delta2: 4
-  delta3: 20
-  delta4: 0.5
-  gk: 0.5
-  rho: 0.4
-  delta: 0.5
-  s: 0.6
-  sj: 0.9
-  sk: 0.9
-  sw: 0.1
-  m1: 0.1
-  m2: 0.65
-  m3: 0.5
-  m4: 0.05
-  m5: 0.9
-  m6: 0.5
-  alpha: 0.4
-  alpha1: 0.2
-  alpha2: 0.4
-  alpha3: 0.4
-  alpha4: 0.2
-  ilcb: 0.006
-  PDU: 0.1
-  sigma: 0.1
-  sigma1: 0.2
-  sigma2: 0.4
-  sigma3: 0.2
-  sigma4: 0.4
-  sigma5: 0.1
-  sigma6: 0.3
-  idcb: 0.002
-  sigmaib: 0.01
-  eta1: 0
-  eta2: 0.006
-  omega1: 0.2
-  omega2: 0.3
-  chi1: 0.001
-  chi2: 0.001
-  chi3: 0.0355
-  mu: 0.2
-  ilrb: 0.0269
-  gamma: 1
-  lambda10: 0.2
-  lambda11: 0.6
-  lambda12: 0.3
-  lambda13: 0.2
-  lambda14: 0.1
-  lambda20: 0.2
-  lambda21: 0.3
-  lambda22: 0.6
-  lambda23: 0.2
-  lambda24: 0.1
-  lambda30: 0.2
-  lambda31: 0.3
-  lambda32: 0.2
-  lambda33: 0.6
-  lambda34: 0.1
-  beta10: 0.2
-  beta11: 0.3
-  beta12: 0.1
-parametersCell:
-  id: externals
-  title: Externals
-  collapsed: true
-initial-values:
-  K: 7062.3364
-  Hh: 99.3337
-  Dh: 2143.3681
-  Df: 2313.1847
-  Lh: 3320.4279
-  Lf: 3403.7153
-  Mh: 3515.3187
-  B: 22430.8679
-  Blr: 3313.30572
-  Bjlr: 3313.30572
-  Bj: 6037.8922
-  Bk: 13589.3715
-  Bcb: 2803.6041
-  Ovd: 21916.5145
-  HPMj: 425.4825
-  HPMk: "459.1930"
-  HPM: 884.6755
-  IBon: 10958.2572
-  IBterm: 10958.2572
-  MROj: 425.4825
-  MROk: "459.1930"
-  MRO: 884.6755
-  Rcb_l: 0
-  Rcb_d: 0
-  Vh: 35041.1015
-  Vf: 5971.8058
-  Vcb: 24720.1195
-  Vbj: -29789.45278
-  Vbk: 36596.4165
-  C: 22338.8296
-  G: 3864.4033
-  I: 3557.4548
-  W: 21468.9076
-  T: 3835.6361
-  Y: 30056.4704
-  gy: 0.0075
-  Yd: 23097.8159
-  Yda: 54314.2169
-  LDh: 16168.4711
-  MhD: 19.97875
-  Id: 3531.1682
-  LDf: 16993.0868
-  Fj: 16186.94452
-  Fk: 16993.0868
-  CRh: 0.005
-  CRf: 0.005
-  DOvd: 21916.5145
-  IBD: 21916.5145
-  IBonD: 10958.2572
-  IBtermD: 10958.2572
-  LFk: 21916.5144
-  IBS: 21916.5144
-  IBonS: 10958.2572
-  IBtermS: 10958.2572
-  theta: 0.5
-  LbW: 0.5
-  ion_ib: 0.004
-  iterm_ib: 0.007
-  itcb: 0.004
-  ib: 0.004
-  idh: 0.0065
-  ilh: 0.0085
-  imh: 0.0425
-  ilf: 0.005
-  idf: 0.003
-  Pf: 8873.34188
-  Divf: 5324.0051
-  Pfu: 3549.3367
-  Pbj: 153.5776
-  Divbj: 138.2199
-  Pbju: 15.3577
-  Pbk: 181.7772
-  Divbk: 163.5995
-  Pbku: 18.1777
-  Pcb: 14.6432
-initialValuesCell:
-  id: initial-values
-  collapsed: true
-solver:
-  method: broyden
-  tolerance: "1e-8"
-  maxIterations: 200
-  defaultInitialValue: "1e-9"
-  hiddenLeftVariable: ""
-  hiddenRightVariable: ""
-  hiddenTolerance: "0.00001"
-  relativeHiddenTolerance: false
-solverCell:
-  id: solver
-  title: Solver
-  collapsed: true
-baselineRun:
-  id: baseline-run
-  title: Baseline run
-  description: Baseline simulation for the full Reale interbank-liquidity model.
-  resultKey: interbank_liquidity_risk_baseline
-  periods: 38
-charts:
-  - id: baseline-chart
-    title: Baseline interbank dynamics
-    variables:
-      - IBon
-      - IBterm
-      - theta
-      - LbW
-      - DSm
-      - ion_ib
-      - iterm_ib
-    axisMode: separate
-    axisSnapTolarance: 0.1
-    niceScale: true
-tables:
-  - id: baseline-table
-    title: Baseline key variables
-    variables:
-      - Y
-      - C
-      - G
-      - I
-      - DSm
-      - DERj
-      - QR
-      - IBon
-      - IBterm
-      - Pbj
-      - Pbk
 cells:
-  - id: scope-note
-    type: markdown
-    title: Template Scope
-    source: "The original paper develops a much larger calibrated system. This template is a starter model rather than a full replication. It preserves the core mechanisms we usually want to extend first in the editor: reserve requirements, deposit splitting across two banks, a borrowing bank's maturity choice between overnight and term funding, a lending bank's overnight-versus-term preference, and a central-bank backstop through a refinancing facility."
-  - id: transaction-flow-sequence
-    type: sequence
-    title: Interbank transaction flow sequence
-    source:
-      kind: matrix
-      matrixCellId: transaction-flow
-    description: Sequence view generated from the Table 5 transaction-flow matrix.
-  - id: scenario-note
-    type: markdown
-    title: Scenario 1
-    source: This scenario reproduces the paper's uncertainty experiment by increasing `PDU` from `0.1` to `0.6` from period 15 onward.
-  - id: stress-run
-    type: run
-    title: Perceived uncertainty shock
-    mode: scenario
-    scenario:
-      shocks:
-        - rangeInclusive:
-            - 15
-            - 38
-          variables:
-            PDU:
-              kind: constant
-              value: 0.6
-    baselineRunCellId: baseline-run
-    periods: 38
-    resultKey: interbank_liquidity_risk_stress
-    sourceModelId: interbank-liquidity-risk
-  - id: stress-chart
-    type: chart
-    title: Uncertainty-shock dynamics
-    sourceRunCellId: stress-run
-    variables:
-      - IBon
-      - IBterm
-      - theta
-      - LbW
-      - ion_ib
-      - iterm_ib
-      - Rcb_d
-      - Rcb_l
-    axisMode: separate
-    axisSnapTolarance: 0.1
-    niceScale: true
-  - id: scenario-2-note
-    type: markdown
-    title: Scenario 2
-    source: This scenario reproduces the contractionary monetary-policy experiment by raising `ilcb` from `0.006` to `0.106` and `idcb` from `0.002` to `0.102` from period 15 onward.
-  - id: policy-run
-    type: run
-    title: Contractionary monetary policy shock
-    mode: scenario
-    scenario:
-      shocks:
-        - rangeInclusive:
-            - 15
-            - 38
-          variables:
-            ilcb:
-              kind: constant
-              value: 0.106
-            idcb:
-              kind: constant
-              value: 0.102
-    baselineRunCellId: baseline-run
-    periods: 38
-    resultKey: interbank_liquidity_risk_policy
-    sourceModelId: interbank-liquidity-risk
-  - id: policy-chart
-    type: chart
-    title: Monetary-policy-shock dynamics
-    sourceRunCellId: policy-run
-    variables:
-      - IBon
-      - IBterm
-      - ion_ib
-      - iterm_ib
-      - ilh
-      - ilf
-      - C
-      - I
-    axisMode: separate
-    axisSnapTolarance: 0.1
-    niceScale: true
-  - id: equation-dependency-graph
-    type: sequence
-    title: Interbank liquidity dependency graph
-    source:
-      kind: dependency
+  - markdown:
+      id: intro
+      title: Overview
+      source: "This notebook is a runnable browser-first template inspired by Jessica Reale's *Interbank Market and Funding Liquidity Risk in a Stock-Flow Consistent Model* (2019). It keeps the paper's institutional structure in compact form: households, firms, government, a central bank, and two heterogeneous banks linked by overnight and term interbank funding."
+  - markdown:
+      id: scope-note
+      title: Template Scope
+      source: "The original paper develops a much larger calibrated system. This template is a starter model rather than a full replication. It preserves the core mechanisms we usually want to extend first in the editor: reserve requirements, deposit splitting across two banks, a borrowing bank's maturity choice between overnight and term funding, a lending bank's overnight-versus-term preference, and a central-bank backstop through a refinancing facility."
+  - matrix:
+      id: balance-sheet
+      title: "Table 4: Balance Sheet Matrix"
+      description: Article-style balance-sheet matrix adapted from Table 4 of the paper.
+      note: This accounting table preserves the paper's full institutional structure. Some symbols shown here go beyond the reduced-form starter equations and are included as a modeling scaffold.
+      sourceRunCellId: baseline-run
+      columns: [Households, Firms, Government, Central bank, Bank j, Bank k, Sum]
+      sectors: [Households, Firms, Government, Central bank, Banks, Banks, ""]
+      rows:
+        - [Real assets, Capital stock (K), "", +K, "", "", "", "", +K]
+        - [Real assets, Houses (H), +ph * Hh, "", "", "", "", "", +ph * Hh]
+        - [Deposits, Deposits (D), +Dh, +Df, "", "", -Dh, -Df, "0"]
+        - [Loans, Loans (L), -Lh, -Lf, "", "", +Lh, +Lf, "0"]
+        - [Mortgages, Mortgages (M), -Mh, "", "", "", +Mh, "", "0"]
+        - [Bills, Bills (B), "", "", -B, +Bcb, +Bj, +Bk, "0"]
+        - [Bonds, Bonds (Blr), "", "", -Blr, "", +Blr, "", "0"]
+        - [Central bank, Overdrafts (Ovd), "", "", "", +Ovd, -Ovd, "", "0"]
+        - [Reserves, Required reserves (HPM), "", "", "", -HPM, +HPMj, +HPMk, "0"]
+        - [Interbank, Overnight interbank loan (IBon), "", "", "", "", -IBon, +IBon, "0"]
+        - [Interbank, Term interbank loan (IBterm), "", "", "", "", -IBterm, +IBterm, "0"]
+        - [Central bank, Main refinancing operations (MRO), "", "", "", +MRO, -MROj, -MROk, "0"]
+        - [Central bank, Lending facility reserves (Rcb_l), "", "", "", +Rcb_l, -Rcb_l, "", "0"]
+        - [Central bank, Deposit facility reserves (Rcb_d), "", "", "", -Rcb_d, "", +Rcb_d, "0"]
+        - [Balance, "Net Worth: Sigma", +Vh, +Vf, "", +Vcb, +Vbj, +Vbk, +ph * Hh + K]
+        - [Sum, Sum, "0", "0", "0", "0", "0", "0", "0"]
+  - matrix:
+      id: transaction-flow
+      title: "Table 5: Transaction Flow Matrix"
+      description: Article-style transaction-flow matrix adapted from Table 5 of the paper.
+      note: This matrix follows the paper's accounting layout and keeps article notation where helpful. It is meant as a structural modeling template, not a strict one-for-one rendering of the reduced-form executable equations above.
+      sourceRunCellId: baseline-run
+      columns: [Households, Firms current, Firms capital, Government, Bank j current, Bank j capital, Central bank current, Bank k current, Bank k capital, Sum]
+      sectors: [Households, Firms, Firms, Government, Banks, Banks, Central bank, Banks, Banks, ""]
+      rows:
+        - [Consumption, Consumption, -C, +C, "", "", "", "", "", "", "", "0"]
+        - [Government, Government expenditure, "", +G, "", -G, "", "", "", "", "", "0"]
+        - [Investment, Business investments, "", "", -I, "", "", "", "", +I, "", "0"]
+        - [Investment, Housing investments, -ph * d(Hh), +ph * d(Hh), "", "", "", "", "", "", "", "0"]
+        - [Wages, Wages, +W, -W, "", "", "", "", "", "", "", "0"]
+        - [Taxes, Taxes, -T, "", "", +T, "", "", "", "", "", "0"]
+        - [Interest, Interest on bills, "", "", "", "-ib[-1] * B[-1]", "+ib[-1] * Bj[-1]", "", "+ib[-1] * Bcb[-1]", "+ib[-1] * Bk[-1]", "", "0"]
+        - [Interest, Interest on bonds, "", "", "", "-ilrb[-1] * Blr[-1]", "+ilrb[-1] * Blr[-1]", "", "", "", "", "0"]
+        - [Interest, Interest on loans, "-ilh[-1] * Lh[-1]", "-ilf[-1] * Lf[-1]", "", "", "+ilh[-1] * Lh[-1]", "", "", "+ilf[-1] * Lf[-1]", "", "0"]
+        - [Interest, Interest on deposits, "+idh[-1] * Dh[-1]", "+idf[-1] * Df[-1]", "", "", "-idh[-1] * Dh[-1]", "", "", "-idf[-1] * Df[-1]", "", "0"]
+        - [Interest, Interest on mortgages, "-imh[-1] * Mh[-1]", "", "", "", "+imh[-1] * Mh[-1]", "", "", "", "", "0"]
+        - [Interest, Interest on IBon, "", "", "", "", "-ion_ib[-1] * IBon[-1]", "", "", "+ion_ib[-1] * IBon[-1]", "", "0"]
+        - [Interest, Interest on IBterm, "", "", "", "", "-iterm_ib[-1] * IBterm[-1]", "", "", "+iterm_ib[-1] * IBterm[-1]", "", "0"]
+        - [Interest, Interest on MRO, "", "", "", "", "-ilcb[-1] * MROj[-1]", "", "+ilcb[-1] * MRO[-1]", "-ilcb[-1] * MROk[-1]", "", "0"]
+        - [Interest, Interest on lending facility, "", "", "", "", "-ilcb[-1] * Rcb_l[-1]", "", "+ilcb[-1] * Rcb_l[-1]", "", "", "0"]
+        - [Interest, Interest on deposit facility, "", "", "", "", "", "", "-idcb[-1] * Rcb_d[-1]", "+idcb[-1] * Rcb_d[-1]", "", "0"]
+        - [Profits, Profits of firms, +Divf, -Pf, +Pfu, "", "", "", "", "", "", "0"]
+        - [Profits, Profits of bank j, +Divbj, "", "", "", -Pbj, +Pbju, "", "", "", "0"]
+        - [Profits, Profits of bank k, +Divbk, "", "", "", "", "", "", -Pbk, +Pbku, "0"]
+        - [Profits, Profits of the central bank, "", "", "", +Pcb, "", "", -Pcb, "", "", "0"]
+        - [Changes, Delta deposits, -d(Dh), -d(Df), "", "", +d(Dh), "", "", +d(Df), "", "0"]
+        - [Changes, Delta loans, +d(Lh), -d(Lf), "", "", -d(Lh), "", "", +d(Lf), "", "0"]
+        - [Changes, Delta mortgages, +d(Mh), "", "", "", -d(Mh), "", "", "", "", "0"]
+        - [Changes, Delta bills, "", "", "", +d(B), -d(Bj), "", -d(Bcb), -d(Bk), "", "0"]
+        - [Changes, Delta bonds, "", "", "", +d(Blr), -d(Blr), "", "", "", "", "0"]
+        - [Changes, Delta HPM, "", "", "", "", +d(HPMj), "", -d(HPM), +d(HPMk), "", "0"]
+        - [Changes, Delta MRO, "", "", "", "", +d(MROj), "", -d(MRO), +d(MROk), "", "0"]
+        - [Changes, Delta advances, "", "", "", "", +d(Ovd), "", -d(Ovd), "", "", "0"]
+        - [Changes, Delta IBon, "", "", "", "", +d(IBon), "", "", -d(IBon), "", "0"]
+        - [Changes, Delta IBterm, "", "", "", "", +d(IBterm), "", "", -d(IBterm), "", "0"]
+        - [Changes, Delta lending facility, "", "", "", "", +d(Rcb_l), "", -d(Rcb_l), "", "", "0"]
+        - [Changes, Delta deposit facility, "", "", "", "", "", "", -d(Rcb_d), +d(Rcb_d), "", "0"]
+        - [Balance, Delta net worth, d(Vh), d(Vf), "", "", d(Vbj), "", d(Vcb), d(Vbk), "", "0"]
+        - [Balance, Sum, "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
+  - sequence:
+      id: transaction-flow-sequence
+      title: Interbank transaction flow sequence
+      source:
+        kind: matrix
+        matrixCellId: transaction-flow
+      description: Sequence view generated from the Table 5 transaction-flow matrix.
+  - equations:
+      id: equations
+      title: Interbank liquidity risk model
       modelId: interbank-liquidity-risk
-      showAccountingStrips: true
-      showExogenous: false
-    description: Dependency view of the full paper model organized around central-bank operations, interbank funding, bank portfolios, and the real economy.
-    collapsed: true
-cellOrder:
-  - intro
-  - scope-note
-  - balance-sheet
-  - transaction-flow
-  - transaction-flow-sequence
-  - equations
-  - solver
-  - externals
-  - initial-values
-  - baseline-run
-  - baseline-chart
-  - baseline-table
-  - scenario-note
-  - stress-run
-  - stress-chart
-  - scenario-2-note
-  - policy-run
-  - policy-chart
-  - equation-dependency-graph
+      collapsed: true
+      rows:
+        - [HPMj, mu * lag(Dh), "Reserve requirement of bank j."]
+        - [HPMk, mu * lag(Df), "Reserve requirement of bank k."]
+        - [HPM, HPMj + HPMk, "Aggregate reserve requirement."]
+        - [Ovd, DOvd, "Accommodating overdrafts supplied by the central bank."]
+        - [itcb, (ilcb + idcb) / 2, "Target policy rate at the midpoint of the corridor."]
+        - [Pcb, itcb * (lag(MROj) + lag(MROk)) + ib * lag(Bcb) + ilcb * lag(Rcb_l) - idcb * lag(Rcb_d), "Central-bank profits transferred to government."]
+        - [MROj, HPMj, "Main refinancing operations to bank j."]
+        - [MROk, HPMk, "Main refinancing operations to bank k."]
+        - [MRO, MROj + MROk, "Total main refinancing operations."]
+        - [Bcb, B - Bj - Bk, "Bills held by the central bank."]
+        - [DSm, Lm - (bm / am) * Am, "Bank-j degree of stability."]
+        - [Lm, lag(Dh) + lag(MROj) + lag(Ovd) + lag(IBon) + lag(IBterm) + lag(Rcb_l), "Total liabilities entering the degree-of-stability measure."]
+        - [Am, lag(Lh) + lag(HPMj) + lag(Bj) + lag(Blr) + lag(Mh), "Total assets entering the degree-of-stability measure."]
+        - [am, (m5 * lag(Dh) + m6 * lag(IBterm)) / Lm, "Available-stable-funds fraction."]
+        - [bm, (m1 * lag(Lh) + m2 * lag(Mh) + m3 * lag(Bj) + m4 * lag(Blr)) / Am, "Required-stable-funds fraction."]
+        - [DOvd, "if (C >= lag(HPMj)) { C - lag(HPMj) } else { 0 }", "Demand for overdrafts by bank j."]
+        - [IBD, DOvd, "Total interbank funding demand by bank j."]
+        - [IBonD, IBD * theta, "Demand for overnight interbank loans."]
+        - [IBtermD, IBD - IBonD, "Demand for term interbank loans."]
+        - [theta, "max(0, min(1, alpha * (ilcb - ion_ib) + alpha1 * (iterm_ib - ion_ib) + alpha2 * (DSm / abs(lag(Vbj))) - alpha3 * (ilcb - iterm_ib) - alpha4 * PDU))", "Bank-j willingness to borrow overnight."]
+        - [LFk, C + lag(Rcb_d), "Loanable funds of bank k."]
+        - [IBS, LFk, "Total interbank funding supply."]
+        - [IBonS, IBS * LbW, "Supply of overnight interbank loans."]
+        - [IBtermS, IBS - IBonS, "Supply of term interbank loans."]
+        - [LbW, "max(0, min(1, sigma + sigma1 * PDU + sigma2 * (ion_ib - idcb) + sigma3 * (abs(DERj) - gamma) - sigma4 * (iterm_ib - ion_ib) - sigma5 * (iterm_ib - idcb) - sigma6 * QR))", "Bank-k willingness to lend overnight."]
+        - [DERj, (lag(Ovd) + lag(IBon) + lag(IBterm) + lag(MROj)) / lag(Vbj), "Debt-to-equity ratio of bank j."]
+        - [QR, (lag(Lh) + lag(Bj) + lag(HPMj)) / (lag(Ovd) + lag(MROj) + lag(IBon) + lag(Rcb_l)), "Quick ratio of bank j."]
+        - [Rcb_l, "if (((theta <= 0) && (LbW >= 1)) || ((theta >= 1) && (LbW <= 0))) { IBD } else { if ((theta > 0 && theta < 1) && (LbW <= 0)) { IBonD } else { if ((theta > 0 && theta < 1) && (LbW >= 1)) { IBtermD } else { 0 } } }", "Use of the lending facility under interbank frictions."]
+        - [Rcb_d, "if (((theta <= 0) && (LbW >= 1)) || ((theta >= 1) && (LbW <= 0))) { IBS } else { if ((theta <= 0) && (LbW > 0 && LbW < 1)) { IBonS } else { if ((theta >= 1) && (LbW > 0 && LbW < 1)) { IBtermS } else { 0 } } }", "Use of the deposit facility under interbank frictions."]
+        - [IBon, "min(IBonD, IBonS)", "Stock of overnight interbank loans determined on the short side of the market."]
+        - [IBterm, "min(IBtermD, IBtermS)", "Stock of term interbank loans determined on the short side of the market."]
+        - [ion_ib, idcb + (ilcb - idcb) / (1 + exp(-(sigmaib * eps_on))), "Overnight interbank rate."]
+        - [eps_on, IBonD - IBonS, "Excess demand in the overnight segment."]
+        - [iterm_ib, eta1 + eta2 / (1 + exp(-(sigmaib * eps_term))), "Term interbank rate."]
+        - [eps_term, IBtermD - IBtermS, "Excess demand in the term segment."]
+        - [Lh, (lambda10 + lambda11 * ilh - lambda12 * ilrb - lambda13 * imh - lambda14 * ib) * Fj, "Loans supplied by bank j to households."]
+        - [Lf, (beta10 + beta11 * ilf - beta12 * ib) * Fk, "Loans supplied by bank k to firms."]
+        - [Fj, lag(Fj) + (LDh + MhD - lag(Fj)) * (1 - CRh), "External finance supplied by bank j."]
+        - [CRh, omega1 * PDU + omega2 * ((lag(Lh) + lag(Mh)) / lag(Vh)), "Credit rationing toward households."]
+        - [Fk, lag(Fk) + (LDf - lag(Fk)) * (1 - CRf), "External finance supplied by bank k."]
+        - [CRf, omega1 * PDU + omega2 * (lag(Lf) / lag(K)), "Credit rationing toward firms."]
+        - [Bjlr, (lambda20 - lambda21 * ilh + lambda22 * ilrb - lambda23 * imh - lambda24 * ib) * Fj, "Long-term government bonds demanded by bank j."]
+        - [Mh, (lambda30 - lambda31 * ilh - lambda32 * ilrb + lambda33 * imh - lambda34 * ib) * Fj, "Mortgages supplied by bank j."]
+        - [Bj, Fj - Lh - Bjlr - Mh, "Short-term bills demanded by bank j."]
+        - [Bk, Fk - Lf, "Short-term bills demanded by bank k."]
+        - [fcj, (itcb + iib_star + icb_star) / zeta, "Funding cost of bank j."]
+        - [iib_star, "if (((theta >= 1) && (LbW >= 1)) || ((theta > 0 && theta < 1) && (LbW >= 1)) || ((theta >= 1) && (LbW > 0 && LbW < 1))) { ion_ib } else { if (((theta <= 0) && (LbW <= 0)) || ((theta > 0 && theta < 1) && (LbW <= 0)) || ((theta <= 0) && (LbW > 0 && LbW < 1))) { iterm_ib } else { if ((theta > 0 && theta < 1) && (LbW > 0 && LbW < 1)) { (ion_ib + iterm_ib) / 2 } else { 0 } } }", "Effective interbank cost faced by bank j."]
+        - [icb_star, "if (Rcb_l != 0) { ilcb } else { 0 }", "Effective standing-facility cost faced by bank j."]
+        - [zeta, "if ((iib_star == 0) && (icb_star == 0)) { 1 } else { if (((iib_star == 0) && (icb_star != 0)) || ((iib_star != 0) && (icb_star == 0))) { 2 } else { 3 } }", "Number of cost components entering bank-j average funding costs."]
+        - [ilh, fcj + chi1, "Interest rate on household loans."]
+        - [idh, fcj - chi2, "Interest rate on household deposits."]
+        - [imh, iterm_ib + chi3, "Interest rate on mortgages."]
+        - [ilf, itcb + chi1, "Interest rate on firm loans."]
+        - [idf, itcb - chi2, "Interest rate on firm deposits."]
+        - [Pbj, ib * lag(Bj) + lag(ilh) * lag(Lh) + ilrb * lag(Blr) + lag(imh) * lag(Mh) - itcb * lag(MROj) - lag(idh) * lag(Dh) - ilcb * lag(Rcb_l) - lag(ion_ib) * lag(IBon) - lag(iterm_ib) * lag(IBterm), "Profits of bank j."]
+        - [Pbk, idcb * lag(Rcb_d) + lag(ilf) * lag(Lf) + ib * lag(Bk) + lag(ion_ib) * lag(IBon) + lag(iterm_ib) * lag(IBterm) - lag(idf) * lag(Df) - itcb * lag(MROk), "Profits of bank k."]
+        - [Divbj, sj * Pbj, "Distributed profits of bank j."]
+        - [Divbk, sk * Pbk, "Distributed profits of bank k."]
+        - [Pbju, Pbj - Divbj, "Undistributed profits of bank j."]
+        - [Pbku, Pbk - Divbk, "Undistributed profits of bank k."]
+        - [Vbj, lag(Vbj) + (HPMj - lag(HPMj)) + (Bj - lag(Bj)) + (Bjlr - lag(Bjlr)) + (Lh - lag(Lh)) + (Mh - lag(Mh)) - Pbju - (Dh - lag(Dh)) - (Ovd - lag(Ovd)) - (IBon - lag(IBon)) - (IBterm - lag(IBterm)) - (MROj - lag(MROj)) - (Rcb_l - lag(Rcb_l)), "Net worth of bank j."]
+        - [Vbk, lag(Vbk) + (Bk - lag(Bk)) + (HPMk - lag(HPMk)) + (Lf - lag(Lf)) + (IBon - lag(IBon)) + (IBterm - lag(IBterm)) + (Rcb_d - lag(Rcb_d)) - Pbku - (MROk - lag(MROk)) - (Df - lag(Df)), "Net worth of bank k."]
+        - [G, lag(G) * (1 + lag(gy)), "Government expenditure grows with income."]
+        - [gy, (Y - lag(Y)) / lag(Y), "Growth rate of national income."]
+        - [Y, C + I + G + ph * (Hh - lag(Hh)), "National income."]
+        - [T, tau * lag(W), "Taxes on wages."]
+        - [B, lag(B) + ib * lag(B) + G + ilrb * lag(Blr) - T - Pcb - (Blr - lag(Blr)), "Government bills financed through the budget identity."]
+        - [Blr, Bjlr, "Long-term government bonds supplied to match bank-j demand."]
+        - [ib, itcb, "Interest rate on bills equals the policy target."]
+        - [C, a1 * Yda + a2 * lag(Vh), "Household consumption."]
+        - [Vh, lag(Vh) + Yd + (Lh - lag(Lh)) + (Mh - lag(Mh)) - C - ph * (Hh - lag(Hh)) - (Dh - lag(Dh)), "Household net worth identity."]
+        - [Yda, lag(Yd) + phi * (lag(Yd) - lag(Yda)), "Expected disposable income of households."]
+        - [Yd, W + lag(idh) * lag(Dh) + Divf + Divbj + Divbk - T - lag(ilh) * lag(Lh) - lag(imh) * lag(Mh), "Disposable income of households."]
+        - [Dh, sw * Yd - (C - lag(C)), "Household deposits at bank j."]
+        - [LDh, b * Yd, "Demand for household loans."]
+        - [Hh, delta0 - delta1 * ph - delta2 * lag(imh), "Housing demand of households."]
+        - [MhD, delta3 - delta4 * lag(imh), "Demand for mortgages."]
+        - [K, lag(K) - delta * lag(K) + I, "Capital stock of firms."]
+        - [Id, gk * lag(K), "Desired investment of firms."]
+        - [I, Pfu + (Lf - lag(Lf)) - (Df - lag(Df)), "Net business investment identity."]
+        - [W, Y / (1 + rho), "Wages paid to households."]
+        - [Pf, Y + ph * (Hh - lag(Hh)) + lag(idf) * lag(Df) - W - lag(ilf) * lag(Lf), "Profits of firms."]
+        - [Divf, s * Pf, "Distributed profits of firms."]
+        - [Pfu, Pf - Divf, "Undistributed profits of firms."]
+        - [LDf, lag(LDf) - lag(Lf) + Id, "Demand for firm external finance."]
+        - [Df, sw * W + (C - lag(C)), "Firm deposits at bank k."]
+        - [Vcb, MRO + Ovd + Bcb + Rcb_l - Rcb_d - HPM, "Central-bank capital-account identity."]
+  - solver:
+      id: solver
+      title: Solver
+      modelId: interbank-liquidity-risk
+      collapsed: true
+      method: broyden
+      tolerance: "1e-8"
+      maxIterations: 200
+      defaultInitialValue: "1e-9"
+      hiddenLeftVariable: ""
+      hiddenRightVariable: ""
+      hiddenTolerance: "0.00001"
+      relativeHiddenTolerance: false
+  - externals:
+      id: externals
+      title: Externals
+      modelId: interbank-liquidity-risk
+      collapsed: true
+      rows:
+        - [tau, 0.18, "Tax rate on wages."]
+        - [a1, 0.25, "Propensity to consume out of income."]
+        - [a2, 0.25, "Propensity to consume out of past wealth."]
+        - [phi, 0.25, "Adaptive expectations parameter."]
+        - [b, 0.7, "Households' loan demand parameter."]
+        - [ph, 400, "House prices."]
+        - [delta0, 100, "Autonomous housing demand parameter."]
+        - [delta1, 0.00125, "Housing demand parameter out of past house prices."]
+        - [delta2, 4, "Housing demand parameter out of mortgage interest."]
+        - [delta3, 20, "Autonomous mortgage demand parameter."]
+        - [delta4, 0.5, "Mortgage demand parameter out of mortgage interest."]
+        - [gk, 0.5, "Desired investments parameter."]
+        - [rho, 0.4, "Markup on prices."]
+        - [delta, 0.5, "Depreciation of capital."]
+        - [s, 0.6, "Firms' profit share distributed as dividends."]
+        - [sj, 0.9, "Bank-j profit share distributed as dividends."]
+        - [sk, 0.9, "Bank-k profit share distributed as dividends."]
+        - [sw, 0.1, "Parameter for the proportion of deposits held at the banks."]
+        - [m1, 0.1, "RSF factor on household loans."]
+        - [m2, 0.65, "RSF factor on mortgages."]
+        - [m3, 0.5, "RSF factor on bank-j bills."]
+        - [m4, 0.05, "RSF factor on bank-j bonds."]
+        - [m5, 0.9, "ASF factor on household deposits."]
+        - [m6, 0.5, "ASF factor on term interbank loans."]
+        - [alpha, 0.4, "Bank-j sensitivity to the outside spread for overnight borrowing."]
+        - [alpha1, 0.2, "Bank-j sensitivity to the interbank spread."]
+        - [alpha2, 0.4, "Bank-j sensitivity to degree of stability."]
+        - [alpha3, 0.4, "Bank-j sensitivity to the outside spread for term borrowing."]
+        - [alpha4, 0.2, "Bank-j sensitivity to PDU."]
+        - [ilcb, 0.006, "Central-bank lending-facility rate."]
+        - [PDU, 0.1, "Perceived degree of uncertainty."]
+        - [sigma, 0.1, "Bank-k autonomous willingness to lend overnight."]
+        - [sigma1, 0.2, "Bank-k sensitivity to PDU."]
+        - [sigma2, 0.4, "Bank-k sensitivity to the outside spread for overnight lending."]
+        - [sigma3, 0.2, "Bank-k sensitivity to the debt-to-equity ratio."]
+        - [sigma4, 0.4, "Bank-k sensitivity to the interbank spread."]
+        - [sigma5, 0.1, "Bank-k sensitivity to the term-rate outside spread."]
+        - [sigma6, 0.3, "Bank-k sensitivity to the quick ratio."]
+        - [idcb, 0.002, "Central-bank deposit-facility rate."]
+        - [sigmaib, 0.01, "Banks' sensitivity to interbank disequilibrium."]
+        - [eta1, 0, "Floor for the term interbank rate."]
+        - [eta2, 0.006, "Width parameter for the term interbank rate."]
+        - [omega1, 0.2, "Sensitivity to PDU in credit rationing."]
+        - [omega2, 0.3, "Sensitivity to past loans in credit rationing."]
+        - [chi1, 0.001, "Markup on loan interest rates."]
+        - [chi2, 0.001, "Markdown on deposit interest rates."]
+        - [chi3, 0.0355, "Markup on mortgage interest rates."]
+        - [mu, 0.2, "Reserve requirement."]
+        - [ilrb, 0.0269, "Rate of interest on bonds."]
+        - [gamma, 1, "Debt-to-equity threshold."]
+        - [lambda10, 0.2, "Liquidity-preference parameter of bank j for loans."]
+        - [lambda11, 0.6, "Bank-j liquidity preference out of the loan rate."]
+        - [lambda12, 0.3, "Bank-j liquidity preference out of the bond rate."]
+        - [lambda13, 0.2, "Bank-j liquidity preference out of the mortgage rate."]
+        - [lambda14, 0.1, "Bank-j liquidity preference out of the bills rate."]
+        - [lambda20, 0.2, "Liquidity-preference parameter of bank j for bonds."]
+        - [lambda21, 0.3, "Bank-j bond demand response to the loan rate."]
+        - [lambda22, 0.6, "Bank-j bond demand response to the bond rate."]
+        - [lambda23, 0.2, "Bank-j bond demand response to the mortgage rate."]
+        - [lambda24, 0.1, "Bank-j bond demand response to the bills rate."]
+        - [lambda30, 0.2, "Liquidity-preference parameter of bank j for mortgages."]
+        - [lambda31, 0.3, "Bank-j mortgage demand response to the loan rate."]
+        - [lambda32, 0.2, "Bank-j mortgage demand response to the bond rate."]
+        - [lambda33, 0.6, "Bank-j mortgage demand response to the mortgage rate."]
+        - [lambda34, 0.1, "Bank-j mortgage demand response to the bills rate."]
+        - [beta10, 0.2, "Bank-k liquidity-preference intercept."]
+        - [beta11, 0.3, "Bank-k liquidity preference out of the loan rate."]
+        - [beta12, 0.1, "Bank-k liquidity preference out of the bills rate."]
+  - initial-values:
+      id: initial-values
+      title: Initial values
+      modelId: interbank-liquidity-risk
+      collapsed: true
+      rows:
+        - [K, 7062.3364]
+        - [Hh, 99.3337]
+        - [Dh, 2143.3681]
+        - [Df, 2313.1847]
+        - [Lh, 3320.4279]
+        - [Lf, 3403.7153]
+        - [Mh, 3515.3187]
+        - [B, 22430.8679]
+        - [Blr, 3313.30572]
+        - [Bjlr, 3313.30572]
+        - [Bj, 6037.8922]
+        - [Bk, 13589.3715]
+        - [Bcb, 2803.6041]
+        - [Ovd, 21916.5145]
+        - [HPMj, 425.4825]
+        - [HPMk, "459.1930"]
+        - [HPM, 884.6755]
+        - [IBon, 10958.2572]
+        - [IBterm, 10958.2572]
+        - [MROj, 425.4825]
+        - [MROk, "459.1930"]
+        - [MRO, 884.6755]
+        - [Rcb_l, 0]
+        - [Rcb_d, 0]
+        - [Vh, 35041.1015]
+        - [Vf, 5971.8058]
+        - [Vcb, 24720.1195]
+        - [Vbj, -29789.45278]
+        - [Vbk, 36596.4165]
+        - [C, 22338.8296]
+        - [G, 3864.4033]
+        - [I, 3557.4548]
+        - [W, 21468.9076]
+        - [T, 3835.6361]
+        - [Y, 30056.4704]
+        - [gy, 0.0075]
+        - [Yd, 23097.8159]
+        - [Yda, 54314.2169]
+        - [LDh, 16168.4711]
+        - [MhD, 19.97875]
+        - [Id, 3531.1682]
+        - [LDf, 16993.0868]
+        - [Fj, 16186.94452]
+        - [Fk, 16993.0868]
+        - [CRh, 0.005]
+        - [CRf, 0.005]
+        - [DOvd, 21916.5145]
+        - [IBD, 21916.5145]
+        - [IBonD, 10958.2572]
+        - [IBtermD, 10958.2572]
+        - [LFk, 21916.5144]
+        - [IBS, 21916.5144]
+        - [IBonS, 10958.2572]
+        - [IBtermS, 10958.2572]
+        - [theta, 0.5]
+        - [LbW, 0.5]
+        - [ion_ib, 0.004]
+        - [iterm_ib, 0.007]
+        - [itcb, 0.004]
+        - [ib, 0.004]
+        - [idh, 0.0065]
+        - [ilh, 0.0085]
+        - [imh, 0.0425]
+        - [ilf, 0.005]
+        - [idf, 0.003]
+        - [Pf, 8873.34188]
+        - [Divf, 5324.0051]
+        - [Pfu, 3549.3367]
+        - [Pbj, 153.5776]
+        - [Divbj, 138.2199]
+        - [Pbju, 15.3577]
+        - [Pbk, 181.7772]
+        - [Divbk, 163.5995]
+        - [Pbku, 18.1777]
+        - [Pcb, 14.6432]
+  - run:
+      id: baseline-run
+      title: Baseline run
+      description: Baseline simulation for the full Reale interbank-liquidity model.
+      mode: baseline
+      periods: 38
+      resultKey: interbank_liquidity_risk_baseline
+      sourceModelId: interbank-liquidity-risk
+  - chart:
+      id: baseline-chart
+      title: Baseline interbank dynamics
+      variables:
+        - IBon
+        - IBterm
+        - theta
+        - LbW
+        - DSm
+        - ion_ib
+        - iterm_ib
+      axisMode: separate
+      axisSnapTolarance: 0.1
+      niceScale: true
+      sourceRunCellId: baseline-run
+  - table:
+      id: baseline-table
+      title: Baseline key variables
+      variables:
+        - Y
+        - C
+        - G
+        - I
+        - DSm
+        - DERj
+        - QR
+        - IBon
+        - IBterm
+        - Pbj
+        - Pbk
+      sourceRunCellId: baseline-run
+  - markdown:
+      id: scenario-note
+      title: Scenario 1
+      source: This scenario reproduces the paper's uncertainty experiment by increasing `PDU` from `0.1` to `0.6` from period 15 onward.
+  - run:
+      id: stress-run
+      title: Perceived uncertainty shock
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 15
+              - 38
+            variables:
+              PDU:
+                kind: constant
+                value: 0.6
+      baselineRunCellId: baseline-run
+      periods: 38
+      resultKey: interbank_liquidity_risk_stress
+      sourceModelId: interbank-liquidity-risk
+  - chart:
+      id: stress-chart
+      title: Uncertainty-shock dynamics
+      variables:
+        - IBon
+        - IBterm
+        - theta
+        - LbW
+        - ion_ib
+        - iterm_ib
+        - Rcb_d
+        - Rcb_l
+      axisMode: separate
+      axisSnapTolarance: 0.1
+      niceScale: true
+      sourceRunCellId: stress-run
+  - markdown:
+      id: scenario-2-note
+      title: Scenario 2
+      source: This scenario reproduces the contractionary monetary-policy experiment by raising `ilcb` from `0.006` to `0.106` and `idcb` from `0.002` to `0.102` from period 15 onward.
+  - run:
+      id: policy-run
+      title: Contractionary monetary policy shock
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 15
+              - 38
+            variables:
+              ilcb:
+                kind: constant
+                value: 0.106
+              idcb:
+                kind: constant
+                value: 0.102
+      baselineRunCellId: baseline-run
+      periods: 38
+      resultKey: interbank_liquidity_risk_policy
+      sourceModelId: interbank-liquidity-risk
+  - chart:
+      id: policy-chart
+      title: Monetary-policy-shock dynamics
+      variables:
+        - IBon
+        - IBterm
+        - ion_ib
+        - iterm_ib
+        - ilh
+        - ilf
+        - C
+        - I
+      axisMode: separate
+      axisSnapTolarance: 0.1
+      niceScale: true
+      sourceRunCellId: policy-run
+  - sequence:
+      id: equation-dependency-graph
+      title: Interbank liquidity dependency graph
+      source:
+        kind: dependency
+        modelId: interbank-liquidity-risk
+        showAccountingStrips: true
+        showExogenous: false
+      description: Dependency view of the full paper model organized around central-bank operations, interbank funding, bank portfolios, and the real economy.
+      collapsed: true

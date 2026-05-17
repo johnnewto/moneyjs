@@ -5,14 +5,11 @@ title: BMW Browser Notebook
 metadata:
   version: 1
   template: bmw
-
 cells:
   - markdown:
       id: intro
       title: Overview
-      source: >-
-        This browser notebook adapts the BMW vignette into executable model, run, and chart
-        cells. It focuses on a Newton baseline and two scenario comparisons.
+      source: This browser notebook adapts the BMW vignette into executable model, run, and chart cells. It focuses on a Newton baseline and two scenario comparisons.
   - matrix:
       id: balance-sheet
       title: BMW balance sheet
@@ -85,9 +82,9 @@ cells:
       modelId: equations-newton
       collapsed: true
       method: newton
-      tolerance: 1e-10
+      tolerance: "1e-10"
       maxIterations: 100
-      defaultInitialValue: 1e-15
+      defaultInitialValue: "1e-15"
       hiddenLeftVariable: Ms
       hiddenRightVariable: Mh
       hiddenTolerance: "0.00001"
@@ -100,7 +97,7 @@ cells:
       rows:
         - [rl, 0.025, "Rate of interest on bank loans, set exogenously", 1/year, aux]
         - [alpha0, 20, "Exogenous component in consumption", $/year, aux]
-        - [alpha1, 0.75, "Propensity to consume out of income", "1", aux]
+        - [alpha1, 0.75, "Propensity to consume out of income", "", aux]
         - [alpha2, 0.1, "Propensity to consume out of wealth", 1/year, aux]
         - [delta, 0.1, "Depreciation rate", 1/year, aux]
         - [gamma, 0.15, "Speed of adjustment of capital to its target value", 1/year, aux]
@@ -126,18 +123,28 @@ cells:
       title: Baseline headline variables
       description: Chart of key variables in the baseline run to show the model's dynamic behavior over time.
       note: This chart shows the time paths of selected variables in the baseline run, which serves as the reference for the scenario comparisons.
-      sourceRunCellId: baseline-newton
-      variables: [Y, Cd, Mh, W]
+      variables:
+        - Y
+        - Cd
+        - Mh
+        - W
       axisMode: separate
       axisSnapTolarance: 0.1
       niceScale: true
+      sourceRunCellId: baseline-newton
   - table:
       id: baseline-table
       title: Baseline variable summary
-      description: This table shows the values of key variables in the baseline run across all periods.
       note: Table of selected variables for the baseline run, showing values at each period.
+      description: This table shows the values of key variables in the baseline run across all periods.
+      variables:
+        - Y
+        - Cd
+        - Id
+        - K
+        - Mh
+        - W
       sourceRunCellId: baseline-newton
-      variables: [Y, Cd, Id, K, Mh, W]
   - markdown:
       id: scenario-1-note
       title: Scenario 1
@@ -154,7 +161,9 @@ cells:
               alpha0:
                 kind: constant
                 value: 30
-            rangeInclusive: [5, 50]
+            rangeInclusive:
+              - 5
+              - 50
       baselineRunCellId: baseline-newton
       periods: 50
       resultKey: bmw_s1
@@ -163,13 +172,17 @@ cells:
   - chart:
       id: scenario-1-chart
       title: Scenario 1 consumption and income
-      sourceRunCellId: scenario-1-run
-      variables: [Cd, YD, Id, AF]
-      sharedRange:
-        includeZero: true
+      variables:
+        - Cd
+        - YD
+        - Id
+        - AF
       axisMode: separate
       axisSnapTolarance: 0.1
       niceScale: true
+      sharedRange:
+        includeZero: true
+      sourceRunCellId: scenario-1-run
   - run:
       id: scenario-2-run
       title: "Scenario 2: propensity-to-save shock"
@@ -181,7 +194,9 @@ cells:
               alpha1:
                 kind: constant
                 value: 0.7
-            rangeInclusive: [5, 50]
+            rangeInclusive:
+              - 5
+              - 50
       baselineRunCellId: baseline-newton
       periods: 50
       resultKey: bmw_s2
@@ -189,10 +204,13 @@ cells:
   - chart:
       id: scenario-2-chart
       title: Scenario 2 headline variables
-      sourceRunCellId: scenario-2-run
-      variables: [Cd, YD, W]
+      variables:
+        - Cd
+        - YD
+        - W
       sharedRange:
         includeZero: true
+      sourceRunCellId: scenario-2-run
   - sequence:
       id: equation-dependency-graph
       title: BMW equation dependency graph

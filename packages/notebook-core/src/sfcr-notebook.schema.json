@@ -198,6 +198,8 @@
                 "minItems": 2,
                 "maxItems": 2
               },
+              "startPeriodInclusive": { "type": "integer" },
+              "endPeriodInclusive": { "type": "integer" },
               "variables": {
                 "type": "object",
                 "additionalProperties": {
@@ -262,290 +264,168 @@
       ]
     },
     "cell": {
-      "oneOf": [
-        {
-          "allOf": [
-            { "$ref": "#/$defs/cellBase" },
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["source"],
-              "properties": {
-                "id": { "type": "string" },
-                "type": { "const": "markdown" },
-                "title": { "type": "string" },
-                "collapsed": { "type": "boolean" },
-                "description": { "type": "string" },
-                "note": { "type": "string" },
-                "source": { "type": "string" }
-              }
-            }
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "title"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": {
+          "enum": [
+            "markdown",
+            "equations",
+            "solver",
+            "externals",
+            "initial-values",
+            "run",
+            "chart",
+            "table",
+            "matrix",
+            "sequence"
           ]
         },
-        {
-          "allOf": [
-            { "$ref": "#/$defs/cellBase" },
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["modelId", "equations"],
-              "properties": {
-                "id": { "type": "string" },
-                "type": { "const": "equations" },
-                "title": { "type": "string" },
-                "collapsed": { "type": "boolean" },
-                "description": { "type": "string" },
-                "note": { "type": "string" },
-                "modelId": { "type": "string" },
-                "equations": {
-                  "type": "array",
-                  "items": { "$ref": "#/$defs/equation" }
-                }
-              }
+        "title": { "type": "string", "minLength": 1 },
+        "collapsed": { "type": "boolean" },
+        "description": { "type": "string" },
+        "note": { "type": "string" },
+        "source": {
+          "oneOf": [{ "type": "string" }, { "$ref": "#/$defs/sequenceSource" }]
+        },
+        "modelId": { "type": "string" },
+        "equations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/equation" }
+        },
+        "options": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "solverMethod",
+            "toleranceText",
+            "maxIterations",
+            "defaultInitialValueText",
+            "hiddenLeftVariable",
+            "hiddenRightVariable",
+            "hiddenToleranceText",
+            "relativeHiddenTolerance"
+          ],
+          "properties": {
+            "periods": { "type": "integer", "minimum": 1 },
+            "solverMethod": { "enum": ["GAUSS_SEIDEL", "BROYDEN", "NEWTON"] },
+            "toleranceText": { "type": "string" },
+            "maxIterations": { "type": "integer", "minimum": 1 },
+            "defaultInitialValueText": { "type": "string" },
+            "hiddenLeftVariable": { "type": "string" },
+            "hiddenRightVariable": { "type": "string" },
+            "hiddenToleranceText": { "type": "string" },
+            "relativeHiddenTolerance": { "type": "boolean" }
+          }
+        },
+        "externals": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/external" }
+        },
+        "initialValues": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/initialValue" }
+        },
+        "sourceModelCellId": { "type": "string" },
+        "sourceModelId": { "type": "string" },
+        "baselineRunCellId": { "type": "string" },
+        "baselineStartPeriod": { "type": "integer" },
+        "mode": { "enum": ["baseline", "scenario"] },
+        "scenario": { "$ref": "#/$defs/scenario" },
+        "resultKey": { "type": "string" },
+        "periods": { "type": "integer", "minimum": 1 },
+        "sourceRunCellId": { "type": "string" },
+        "variables": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "axisMode": { "enum": ["shared", "separate"] },
+        "axisSnapTolarance": { "type": "number" },
+        "niceScale": { "type": "boolean" },
+        "referenceTrace": { "enum": ["none", "baseline", "previous-run"] },
+        "yAxisTickCount": { "type": "integer", "minimum": 1 },
+        "sharedRange": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "includeZero": { "type": "boolean" },
+            "min": { "type": "number" },
+            "max": { "type": "number" }
+          }
+        },
+        "seriesRanges": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "includeZero": { "type": "boolean" },
+              "min": { "type": "number" },
+              "max": { "type": "number" }
             }
-          ]
+          }
+        },
+        "timeRangeInclusive": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "columns": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "sectors": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/matrixRow" }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "markdown" } } },
+          "then": { "required": ["source"] }
         },
         {
-          "allOf": [
-            { "$ref": "#/$defs/cellBase" },
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["modelId", "options"],
-              "properties": {
-                "id": { "type": "string" },
-                "type": { "const": "solver" },
-                "title": { "type": "string" },
-                "collapsed": { "type": "boolean" },
-                "description": { "type": "string" },
-                "note": { "type": "string" },
-                "modelId": { "type": "string" },
-                "options": {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": [
-                    "solverMethod",
-                    "toleranceText",
-                    "maxIterations",
-                    "defaultInitialValueText",
-                    "hiddenLeftVariable",
-                    "hiddenRightVariable",
-                    "hiddenToleranceText",
-                    "relativeHiddenTolerance"
-                  ],
-                  "properties": {
-                    "periods": { "type": "integer", "minimum": 1 },
-                    "solverMethod": { "enum": ["GAUSS_SEIDEL", "BROYDEN", "NEWTON"] },
-                    "toleranceText": { "type": "string" },
-                    "maxIterations": { "type": "integer", "minimum": 1 },
-                    "defaultInitialValueText": { "type": "string" },
-                    "hiddenLeftVariable": { "type": "string" },
-                    "hiddenRightVariable": { "type": "string" },
-                    "hiddenToleranceText": { "type": "string" },
-                    "relativeHiddenTolerance": { "type": "boolean" }
-                  }
-                }
-              }
-            }
-          ]
+          "if": { "properties": { "type": { "const": "equations" } } },
+          "then": { "required": ["modelId", "equations"] }
         },
         {
-          "allOf": [
-            { "$ref": "#/$defs/cellBase" },
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["modelId", "externals"],
-              "properties": {
-                "id": { "type": "string" },
-                "type": { "const": "externals" },
-                "title": { "type": "string" },
-                "collapsed": { "type": "boolean" },
-                "description": { "type": "string" },
-                "note": { "type": "string" },
-                "modelId": { "type": "string" },
-                "externals": {
-                  "type": "array",
-                  "items": { "$ref": "#/$defs/external" }
-                }
-              }
-            }
-          ]
+          "if": { "properties": { "type": { "const": "solver" } } },
+          "then": { "required": ["modelId", "options"] }
         },
         {
-          "allOf": [
-            { "$ref": "#/$defs/cellBase" },
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["modelId", "initialValues"],
-              "properties": {
-                "id": { "type": "string" },
-                "type": { "const": "initial-values" },
-                "title": { "type": "string" },
-                "collapsed": { "type": "boolean" },
-                "description": { "type": "string" },
-                "note": { "type": "string" },
-                "modelId": { "type": "string" },
-                "initialValues": {
-                  "type": "array",
-                  "items": { "$ref": "#/$defs/initialValue" }
-                }
-              }
-            }
-          ]
+          "if": { "properties": { "type": { "const": "externals" } } },
+          "then": { "required": ["modelId", "externals"] }
         },
         {
-          "allOf": [
-            { "$ref": "#/$defs/cellBase" },
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["mode", "resultKey", "periods"],
-              "properties": {
-                "id": { "type": "string" },
-                "type": { "const": "run" },
-                "title": { "type": "string" },
-                "collapsed": { "type": "boolean" },
-                "description": { "type": "string" },
-                "note": { "type": "string" },
-                "sourceModelCellId": { "type": "string" },
-                "sourceModelId": { "type": "string" },
-                "baselineRunCellId": { "type": "string" },
-                "baselineStartPeriod": { "type": "integer" },
-                "mode": { "enum": ["baseline", "scenario"] },
-                "scenario": { "$ref": "#/$defs/scenario" },
-                "resultKey": { "type": "string" },
-                "periods": { "type": "integer", "minimum": 1 }
-              }
-            }
-          ]
+          "if": { "properties": { "type": { "const": "initial-values" } } },
+          "then": { "required": ["modelId", "initialValues"] }
         },
         {
-          "allOf": [
-            { "$ref": "#/$defs/cellBase" },
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["sourceRunCellId", "variables"],
-              "properties": {
-                "id": { "type": "string" },
-                "type": { "const": "chart" },
-                "title": { "type": "string" },
-                "collapsed": { "type": "boolean" },
-                "description": { "type": "string" },
-                "note": { "type": "string" },
-                "sourceRunCellId": { "type": "string" },
-                "variables": {
-                  "type": "array",
-                  "items": { "type": "string" }
-                },
-                "axisMode": { "enum": ["shared", "separate"] },
-                "axisSnapTolarance": { "type": "number" },
-                "niceScale": { "type": "boolean" },
-                "referenceTrace": { "enum": ["none", "baseline", "previous-run"] },
-                "yAxisTickCount": { "type": "integer", "minimum": 1 },
-                "sharedRange": {
-                  "type": "object",
-                  "properties": {
-                    "includeZero": { "type": "boolean" },
-                    "min": { "type": "number" },
-                    "max": { "type": "number" }
-                  }
-                },
-                "seriesRanges": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "object",
-                    "properties": {
-                      "includeZero": { "type": "boolean" },
-                      "min": { "type": "number" },
-                      "max": { "type": "number" }
-                    }
-                  }
-                },
-                "timeRangeInclusive": {
-                  "type": "array",
-                  "items": { "type": "integer" },
-                  "minItems": 2,
-                  "maxItems": 2
-                }
-              }
-            }
-          ]
+          "if": { "properties": { "type": { "const": "run" } } },
+          "then": { "required": ["mode", "resultKey", "periods"] }
         },
         {
-          "allOf": [
-            { "$ref": "#/$defs/cellBase" },
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["sourceRunCellId", "variables"],
-              "properties": {
-                "id": { "type": "string" },
-                "type": { "const": "table" },
-                "title": { "type": "string" },
-                "collapsed": { "type": "boolean" },
-                "description": { "type": "string" },
-                "note": { "type": "string" },
-                "sourceRunCellId": { "type": "string" },
-                "variables": {
-                  "type": "array",
-                  "items": { "type": "string" }
-                }
-              }
-            }
-          ]
+          "if": { "properties": { "type": { "const": "chart" } } },
+          "then": { "required": ["sourceRunCellId", "variables"] }
         },
         {
-          "allOf": [
-            { "$ref": "#/$defs/cellBase" },
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["columns", "rows"],
-              "properties": {
-                "id": { "type": "string" },
-                "type": { "const": "matrix" },
-                "title": { "type": "string" },
-                "collapsed": { "type": "boolean" },
-                "description": { "type": "string" },
-                "note": { "type": "string" },
-                "columns": {
-                  "type": "array",
-                  "items": { "type": "string" }
-                },
-                "sectors": {
-                  "type": "array",
-                  "items": { "type": "string" }
-                },
-                "sourceRunCellId": { "type": "string" },
-                "rows": {
-                  "type": "array",
-                  "items": { "$ref": "#/$defs/matrixRow" }
-                }
-              }
-            }
-          ]
+          "if": { "properties": { "type": { "const": "table" } } },
+          "then": { "required": ["sourceRunCellId", "variables"] }
         },
         {
-          "allOf": [
-            { "$ref": "#/$defs/cellBase" },
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["source"],
-              "properties": {
-                "id": { "type": "string" },
-                "type": { "const": "sequence" },
-                "title": { "type": "string" },
-                "collapsed": { "type": "boolean" },
-                "description": { "type": "string" },
-                "note": { "type": "string" },
-                "source": { "$ref": "#/$defs/sequenceSource" }
-              }
-            }
-          ]
+          "if": { "properties": { "type": { "const": "matrix" } } },
+          "then": { "required": ["columns", "rows"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "sequence" } } },
+          "then": { "required": ["source"] }
         }
       ]
     }

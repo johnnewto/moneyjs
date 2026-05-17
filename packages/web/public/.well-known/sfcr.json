@@ -1,5 +1,5 @@
 {
-  "version": "1.2.0",
+  "version": "1.3.0",
   "service": "SFCR AI discovery index",
   "purpose": "Entry point for browser-based AI clients that need to create SFCR notebook source. YAML is preferred for authoring; JSON remains available for validation and runtime interchange.",
   "resources": {
@@ -43,19 +43,19 @@
     "schemaUrl": "../sfcr-notebook.schema.json",
     "schemaVersion": "1.0.0",
     "manifestUrl": "./sfcr-notebook-guide.json",
-    "manifestVersion": "1.2.0"
+    "manifestVersion": "1.3.0"
   },
   "capabilities": {
     "preferredFormat": "sfcr-notebook-yaml",
     "supportedFormats": ["sfcr-notebook-yaml", "sfcr-notebook-json"],
     "supportedNotebookKinds": ["baseline", "scenario-analysis"],
-    "supportedFeatures": ["sectors", "bands", "equations", "initial-values", "scenarios"]
+    "supportedFeatures": ["wrapped-cells", "compact-matrix-rows", "compact-equation-rows", "compact-external-rows", "initial-values", "scenarios"]
   },
   "instructions": [
     "Fetch resources.notebooks.manifest or resources.notebooks.guide first.",
-    "Use resources.notebooks.starterTemplate as the default YAML notebook shape unless a specific example is a better fit.",
+    "Use resources.notebooks.starterTemplate as the default wrapped-cells YAML notebook shape unless a specific example is a better fit.",
     "Use resources.notebooks.jsonPrompt and jsonUrl examples only when strict expanded JSON output is required.",
     "Use contract.schemaUrl to validate generated runtime JSON after converting YAML, or to validate JSON output directly.",
-    "Use the YAML examples when generating sector and band matrices."
+    "Use the YAML examples when generating sector and band matrices, compact equation rows, externals, initial values, runs, charts, and scenarios."
   ]
 }

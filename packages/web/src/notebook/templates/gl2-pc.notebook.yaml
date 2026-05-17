@@ -5,1175 +5,505 @@ title: GL2 PC Notebook
 metadata:
   version: 1
   template: gl2-pc
-  description: This notebook adapts `gl2-pc.Rmd` into executable browser cells. It includes the PC balance-sheet and transactions-flow matrices, the baseline portfolio-choice model, the interest-rate scenario from the article, a deterministic `PCEX1` random-shock section with a stored `Ra` sequence, the `PCEX2` adaptive-expectations variant, and the `PCEX3` interest-sensitive propensity-to-consume extension.
-modelId: pc-baseline
-introCell:
-  id: intro
-  title: Overview
-sectors: [Households, Firms, Government, Central bank, ""]
-units:
-  currency: $
-  time: year
-variables:
-  Y:
-    description: National income.
-    unit: $/year
-    type: flow
-  YD:
-    description: Disposable income including interest on bills.
-    unit: $/year
-    type: flow
-  TX:
-    description: Taxes levied on income and bill interest.
-    unit: $/year
-    type: flow
-  V:
-    description: Household wealth.
-    unit: $
-    type: stock
-  C:
-    description: Consumption depends on disposable income and lagged wealth.
-    unit: $/year
-    type: flow
-  Hh:
-    description: Household money holdings.
-    unit: $
-    type: stock
-  Hh1:
-    description: Alternative portfolio-choice definition for money holdings.
-    unit: $
-    type: stock
-  Bh:
-    description: Household bill holdings.
-    unit: $
-    type: stock
-  Bs:
-    description: Government bill supply.
-    unit: $
-    type: stock
-  Hs:
-    description: High-powered money supplied by the central bank.
-    unit: $
-    type: stock
-  Bcb:
-    description: Central-bank bill holdings.
-    unit: $
-    type: stock
-  r:
-    description: Interest rate on bills.
-    unit: 1/year
-    type: aux
-  G:
-    description: Government expenditure.
-    unit: $/year
-    type: aux
-  alpha1:
-    description: Propensity to consume out of disposable income.
-    unit: "1"
-    type: aux
-  alpha2:
-    description: Propensity to consume out of lagged wealth.
-    unit: 1/year
-    type: aux
-  theta:
-    description: Tax rate.
-    unit: "1"
-    type: aux
-  lambda0:
-    description: Portfolio parameter for bills.
-    unit: "1"
-    type: aux
-  lambda1:
-    description: Interest sensitivity of bill demand.
-    unit: year
-    type: aux
-  lambda2:
-    description: Income sensitivity of bill demand.
-    unit: year
-    type: aux
-equations: |-
-  # National income.
-  Y ~ C + G
-
-  # Disposable income including interest on bills.
-  YD ~ Y - TX + lag(r) * lag(Bh)
-
-  # Taxes levied on income and bill interest.
-  TX ~ theta * (Y + lag(r) * lag(Bh))
-
-  # Household wealth.
-  V ~ I(YD - C)
-
-  # Consumption depends on disposable income and lagged wealth.
-  C ~ alpha1 * YD + alpha2 * lag(V)
-
-  # Household money holdings.
-  Hh ~ V - Bh
-
-  # Alternative portfolio-choice definition for money holdings.
-  Hh1 ~ V * ((1 - lambda0) - lambda1 * r + lambda2 * (YD / V))
-
-  # Household bill holdings.
-  Bh ~ V * (lambda0 + lambda1 * r - lambda2 * (YD / V))
-
-  # Government bill supply.
-  Bs ~ I(G + lag(r) * lag(Bs) - TX - lag(r) * lag(Bcb))
-
-  # High-powered money supplied by the central bank.
-  Hs ~ I(d(Bcb))
-
-  # Central-bank bill holdings.
-  Bcb ~ Bs - Bh
-equationCell:
-  id: equations
-  title: PC model
-  collapsed: true
-balance:
-  id: balance-sheet
-  title: PC balance sheet
-  description: Balance-sheet matrix for model PC following the article structure.
-  note: Validated against the baseline simulation from the source vignette.
-  columns: [Households, Firms, Government, Central bank, Sum]
-  sectors: [Households, Firms, Government, Central bank, ""]
-  rows:
-    - [Money, Money, +Hh, "", "", -Hs, "0"]
-    - [Bills, Bills, +Bh, "", -Bs, +Bcb, "0"]
-    - ["", Balance, -V, "", +V, "", "0"]
-    - [Sum, Sum, "0", "0", "0", "0", "0"]
-transactions:
-  id: transaction-flow
-  title: PC transactions-flow matrix
-  description: Transactions-flow matrix for model PC following the article structure.
-  note: Validated against the baseline simulation from the source vignette.
-  columns: [Households, Firms, Government, CB current, CB capital, Sum]
-  sectors: [Households, Firms, Government, Central bank, Central bank, ""]
-  rows:
-    - [Consumption, Consumption, -C, +C, "", "", "", "0"]
-    - label: Govt. expenditures
-      values:
-        - ""
-        - +G
-        - -G
-        - ""
-        - ""
-        - "0"
-    - [Income, Income, +Y, -Y, "", "", "", "0"]
-    - [Interest, Interest payments, +lag(r) * lag(Bh), "", -lag(r) * lag(Bs), +lag(r) * lag(Bcb), "", "0"]
-    - [Profits, CB profits, "", "", +lag(r) * lag(Bcb), -lag(r) * lag(Bcb), "", "0"]
-    - [Taxes, Taxes, -TX, "", +TX, "", "", "0"]
-    - [Money, Change money, -(Hh - lag(Hh)), "", "", "", +(Hs - lag(Hs)), "0"]
-    - [Bills, Change bills, -(Bh - lag(Bh)), "", +(Bs - lag(Bs)), "", -(Bcb - lag(Bcb)), "0"]
-    - [Sum, Sum, "0", "0", "0", "0", "0", "0"]
-parameters:
-  r: 0.025
-  G: 20
-  alpha1: 0.6
-  alpha2: 0.4
-  theta: 0.2
-  lambda0: 0.635
-  lambda1: 0.05
-  lambda2: 0.01
-parametersCell:
-  id: externals-equations
-  title: Externals
-  collapsed: true
-initial-values: {}
-initialValuesCell:
-  id: initial-values-equations
-  collapsed: true
-solver:
-  method: gauss-seidel
-  tolerance: "1e-10"
-  maxIterations: 200
-  defaultInitialValue: "1e-15"
-  hiddenLeftVariable: Hh
-  hiddenRightVariable: Hs
-  hiddenTolerance: "0.00001"
-  relativeHiddenTolerance: false
-solverCell:
-  id: solver
-  title: Solver
-  collapsed: true
-baselineRun:
-  id: baseline-run
-  title: Baseline run
-  description: Baseline PC simulation with the hidden-equation condition Hh = Hs.
-  resultKey: gl2_pc_baseline
-  periods: 70
-charts:
-  - id: baseline-chart
-    title: Baseline headline variables
-    variables:
-      - Y
-      - YD
-      - C
-      - V
-      - Bh
-      - Hh
-    axisMode: separate
-    axisSnapTolarance: 0.5
-tables:
-  - id: baseline-table
-    title: Baseline variable summary
-    variables:
-      - Y
-      - YD
-      - TX
-      - C
-      - V
-      - Bh
-      - Hh
-      - Bcb
 cells:
-  - id: transaction-flow-sequence
-    type: sequence
-    title: PC transaction flow sequence
-    source:
-      kind: matrix
-      matrixCellId: transaction-flow
-    description: Sequence view generated from the PC transactions-flow matrix at the selected simulation period.
-  - id: scenario-1-note
-    type: markdown
-    title: Interest-rate scenario
-    source: This scenario raises the bills rate `r` from `0.025` to `0.035` between periods 5 and 60, matching the first deterministic experiment in the vignette.
-  - id: scenario-1-run
-    type: run
-    title: "Scenario 1: higher bills rate"
-    mode: scenario
-    scenario:
-      shocks:
-        - rangeInclusive:
-            - 5
-            - 60
-          variables:
-            r:
-              kind: constant
-              value: 0.035
-    baselineRunCellId: baseline-run
-    periods: 60
-    resultKey: gl2_pc_s1
-    sourceModelId: pc-baseline
-  - id: scenario-1-chart
-    type: chart
-    title: Scenario 1 portfolio adjustment
-    sourceRunCellId: scenario-1-run
-    variables:
-      - Y
-      - YD
-      - C
-      - Bh
-      - Hh
-    axisMode: separate
-    axisSnapTolarance: 0.5
-  - id: pcex1-note
-    type: markdown
-    title: PCEX1
-    source: This section mirrors the random-shock experiment from `gl2-pc.Rmd`, but uses a fixed stored `Ra` sequence instead of runtime randomness so that browser regressions remain deterministic.
-  - id: pcex1-equations
-    type: equations
-    title: PCEX1 fixed-shock model
-    modelId: pc-pcex1
-    equations:
-      - id: p1-eq-0-Y
-        name: Y
-        desc: National income.
-        expression: C + G
-        unitMeta:
-          stockFlow: flow
-          signature:
-            money: 1
-            time: -1
-      - id: p1-eq-1-YD
-        name: YD
-        desc: Disposable income including lagged bill interest.
-        expression: Y - TX + lag(r) * lag(Bh)
-        unitMeta:
-          stockFlow: flow
-          signature:
-            money: 1
-            time: -1
-      - id: p1-eq-2-TX
-        name: TX
-        desc: Taxes on income and interest receipts.
-        expression: theta * (Y + lag(r) * lag(Bh))
-        unitMeta:
-          stockFlow: flow
-          signature:
-            money: 1
-            time: -1
-      - id: p1-eq-3-V
-        name: V
-        desc: Household wealth.
-        expression: I(YD - C)
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: p1-eq-4-C
-        name: C
-        desc: Consumption based on expected disposable income and lagged wealth.
-        expression: alpha1 * YDE + alpha2 * lag(V)
-        unitMeta:
-          stockFlow: flow
-          signature:
-            money: 1
-            time: -1
-      - id: p1-eq-5-Hh
-        name: Hh
-        desc: Household money holdings.
-        expression: V - Bh
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: p1-eq-6-Hh1
-        name: Hh1
-        desc: Alternative portfolio-choice definition for money holdings.
-        expression: V * ((1 - lambda0) - lambda1 * r + lambda2 * (YD / V))
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: p1-eq-7-Bh
-        name: Bh
-        desc: Realized household bill holdings.
-        expression: Bd
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: p1-eq-8-Bs
-        name: Bs
-        desc: Government bill supply.
-        expression: I(G + lag(r) * lag(Bs) - TX - lag(r) * lag(Bcb))
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: p1-eq-9-Hs
-        name: Hs
-        desc: High-powered money supplied by the central bank.
-        expression: I(d(Bcb))
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: p1-eq-10-Bcb
-        name: Bcb
-        desc: Central-bank bill holdings.
-        expression: Bs - Bh
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: p1-eq-11-Hd
-        name: Hd
-        desc: Desired household money holdings.
-        expression: VE - Bd
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: p1-eq-12-VE
-        name: VE
-        desc: Expected household wealth.
-        expression: lag(V) + (YDE - C) * dt
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: p1-eq-13-Bd
-        name: Bd
-        desc: Desired household bill holdings.
-        expression: VE * (lambda0 + lambda1 * r - lambda2 * (YDE / VE))
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: p1-eq-14-YDE
-        name: YDE
-        desc: Expected disposable income with the fixed shock sequence.
-        expression: YD * (1 + Ra)
-        unitMeta:
-          stockFlow: flow
-          signature:
-            money: 1
-            time: -1
-    collapsed: true
-  - id: pcex1-solver
-    type: solver
-    title: Solver
-    modelId: pc-pcex1
-    options:
-      solverMethod: GAUSS_SEIDEL
-      toleranceText: "1e-10"
+  - markdown:
+      id: intro
+      title: Overview
+      source: This notebook adapts `gl2-pc.Rmd` into executable browser cells. It includes the PC balance-sheet and transactions-flow matrices, the baseline portfolio-choice model, the interest-rate scenario from the article, a deterministic `PCEX1` random-shock section with a stored `Ra` sequence, the `PCEX2` adaptive-expectations variant, and the `PCEX3` interest-sensitive propensity-to-consume extension.
+  - matrix:
+      id: balance-sheet
+      title: PC balance sheet
+      description: Balance-sheet matrix for model PC following the article structure.
+      note: Validated against the baseline simulation from the source vignette.
+      sourceRunCellId: baseline-run
+      columns: [Households, Firms, Government, Central bank, Sum]
+      sectors: [Households, Firms, Government, Central bank, ""]
+      rows:
+        - [Money, Money, +Hh, "", "", -Hs, "0"]
+        - [Bills, Bills, +Bh, "", -Bs, +Bcb, "0"]
+        - ["", Balance, -V, "", +V, "", "0"]
+        - [Sum, Sum, "0", "0", "0", "0", "0"]
+  - matrix:
+      id: transaction-flow
+      title: PC transactions-flow matrix
+      description: Transactions-flow matrix for model PC following the article structure.
+      note: Validated against the baseline simulation from the source vignette.
+      sourceRunCellId: baseline-run
+      columns: [Households, Firms, Government, CB current, CB capital, Sum]
+      sectors: [Households, Firms, Government, Central bank, Central bank, ""]
+      rows:
+        - [Consumption, Consumption, -C, +C, "", "", "", "0"]
+        - label: Govt. expenditures
+          values:
+            - ""
+            - +G
+            - -G
+            - ""
+            - ""
+            - "0"
+        - [Income, Income, +Y, -Y, "", "", "", "0"]
+        - [Interest, Interest payments, +lag(r) * lag(Bh), "", -lag(r) * lag(Bs), +lag(r) * lag(Bcb), "", "0"]
+        - [Profits, CB profits, "", "", +lag(r) * lag(Bcb), -lag(r) * lag(Bcb), "", "0"]
+        - [Taxes, Taxes, -TX, "", +TX, "", "", "0"]
+        - [Money, Change money, -(Hh - lag(Hh)), "", "", "", +(Hs - lag(Hs)), "0"]
+        - [Bills, Change bills, -(Bh - lag(Bh)), "", +(Bs - lag(Bs)), "", -(Bcb - lag(Bcb)), "0"]
+        - [Sum, Sum, "0", "0", "0", "0", "0", "0"]
+  - sequence:
+      id: transaction-flow-sequence
+      title: PC transaction flow sequence
+      source:
+        kind: matrix
+        matrixCellId: transaction-flow
+      description: Sequence view generated from the PC transactions-flow matrix at the selected simulation period.
+  - equations:
+      id: equations
+      title: PC model
+      modelId: pc-baseline
+      collapsed: true
+      rows:
+        - [Y, C + G, "National income.", $/year, flow, identity]
+        - [YD, Y - TX + lag(r) * lag(Bh), "Disposable income including interest on bills.", $/year, flow, identity]
+        - [TX, theta * (Y + lag(r) * lag(Bh)), "Taxes levied on income and bill interest.", $/year, flow, identity]
+        - [V, I(YD - C), "Household wealth.", $, stock, accumulation]
+        - [C, alpha1 * YD + alpha2 * lag(V), "Consumption depends on disposable income and lagged wealth.", $/year, flow, identity]
+        - [Hh, V - Bh, "Household money holdings.", $, stock, accumulation]
+        - [Hh1, V * ((1 - lambda0) - lambda1 * r + lambda2 * (YD / V)), "Alternative portfolio-choice definition for money holdings.", $, stock, accumulation]
+        - [Bh, V * (lambda0 + lambda1 * r - lambda2 * (YD / V)), "Household bill holdings.", $, stock, accumulation]
+        - [Bs, I(G + lag(r) * lag(Bs) - TX - lag(r) * lag(Bcb)), "Government bill supply.", $, stock, accumulation]
+        - [Hs, I(d(Bcb)), "High-powered money supplied by the central bank.", $, stock, accumulation]
+        - [Bcb, Bs - Bh, "Central-bank bill holdings.", $, stock, accumulation]
+  - solver:
+      id: solver
+      title: Solver
+      modelId: pc-baseline
+      collapsed: true
+      method: gauss-seidel
+      tolerance: "1e-10"
       maxIterations: 200
-      defaultInitialValueText: "1e-15"
+      defaultInitialValue: "1e-15"
       hiddenLeftVariable: Hh
       hiddenRightVariable: Hs
-      hiddenToleranceText: "0.00001"
+      hiddenTolerance: "0.00001"
       relativeHiddenTolerance: false
-    collapsed: true
-  - id: pcex1-externals
-    type: externals
-    title: Externals
-    modelId: pc-pcex1
-    externals:
-      - id: p1-ext-0-r
-        name: r
-        desc: Interest rate on bills.
-        kind: constant
-        valueText: "0.025"
-        unitMeta:
-          stockFlow: aux
-          signature:
-            time: -1
-      - id: p1-ext-1-G
-        name: G
-        desc: Government expenditure.
-        kind: constant
-        valueText: "20"
-        unitMeta:
-          stockFlow: aux
-          signature:
-            money: 1
-            time: -1
-      - id: p1-ext-2-alpha1
-        name: alpha1
-        desc: Propensity to consume out of expected disposable income.
-        kind: constant
-        valueText: "0.6"
-        unitMeta:
-          stockFlow: aux
-          signature: {}
-      - id: p1-ext-3-alpha2
-        name: alpha2
-        desc: Propensity to consume out of lagged wealth.
-        kind: constant
-        valueText: "0.4"
-        unitMeta:
-          stockFlow: aux
-          signature:
-            time: -1
-      - id: p1-ext-4-theta
-        name: theta
-        desc: Tax rate.
-        kind: constant
-        valueText: "0.2"
-        unitMeta:
-          stockFlow: aux
-          signature: {}
-      - id: p1-ext-5-lambda0
-        name: lambda0
-        desc: Portfolio parameter for bills.
-        kind: constant
-        valueText: "0.635"
-        unitMeta:
-          stockFlow: aux
-          signature: {}
-      - id: p1-ext-6-lambda1
-        name: lambda1
-        desc: Interest sensitivity of bill demand.
-        kind: constant
-        valueText: "0.05"
-        unitMeta:
-          stockFlow: aux
-          signature:
-            time: 1
-      - id: p1-ext-7-lambda2
-        name: lambda2
-        desc: Income sensitivity of bill demand.
-        kind: constant
-        valueText: "0.01"
-        unitMeta:
-          stockFlow: aux
-          signature:
-            time: 1
-      - id: p1-ext-8-Ra
-        name: Ra
-        desc: Fixed shock sequence for expected disposable income.
-        kind: series
-        valueText: -0.028023782328, -0.011508874474, 0.077935415707, 0.003525419571, 0.006464386758, 0.085753249344, 0.023045810299, -0.06325306173, -0.034342642595, -0.022283098505, 0.061204089872, 0.017990691353, 0.02003857253, 0.005534135797, -0.027792056738, 0.08934565684, 0.024892523911, -0.098330857831, 0.035067795078, -0.023639570386, -0.053391185299, -0.010898745733, -0.051300222415, -0.036444561465, -0.031251963392, -0.084334665537, 0.041889352225, 0.007668655892, -0.056906846851, 0.062690746053, 0.021323211074, -0.01475357415, 0.044756283052, 0.043906674377, 0.041079054082, 0.034432012705, 0.027695882677, -0.003095585529, -0.015298133187, -0.019023550051, -0.034735348946, -0.010395863901, -0.063269817578, 0.108447798267, 0.060398099915, -0.05615542916, -0.020144241765, -0.023332767681, 0.038998255917, -0.004168453324, 0.0126659257, -0.001427337767, -0.002143522865, 0.068430114201, -0.011288549283, 0.075823530221, -0.077437640212, 0.029230687482, 0.006192712192, 0.010797078437
-        unitMeta:
-          stockFlow: aux
-          signature: {}
-    collapsed: true
-  - id: pcex1-initial-values
-    type: initial-values
-    title: Initial values
-    modelId: pc-pcex1
-    initialValues: []
-    collapsed: true
-  - id: pcex1-baseline-run
-    type: run
-    title: PCEX1 baseline run
-    mode: baseline
-    periods: 60
-    resultKey: gl2_pc_pcex1_baseline
-    description: PCEX1 with a stored `Ra` shock series and the hidden-equation condition Hh = Hs.
-    sourceModelId: pc-pcex1
-  - id: pcex1-baseline-chart
-    type: chart
-    title: PCEX1 stocks and desired holdings
-    sourceRunCellId: pcex1-baseline-run
-    variables:
-      - Hh
-      - Hd
-      - Bh
-      - Bd
-      - YDE
-    axisMode: separate
-    axisSnapTolarance: 0.5
-  - id: pcex1-baseline-table
-    type: table
-    title: PCEX1 variable summary
-    sourceRunCellId: pcex1-baseline-run
-    variables:
-      - Y
-      - YD
-      - YDE
-      - C
-      - V
-      - Hh
-      - Hd
-      - Bh
-      - Bd
-  - id: adaptive-note
-    type: markdown
-    title: Adaptive expectations
-    source: The next model follows the adaptive-expectations section of `gl2-pc.Rmd`. Expected disposable income is set to `lag(YD)`, and the wealth-allocation equations are rewritten in terms of desired bills `Bd` and expected wealth `VE`.
-  - id: adaptive-equations
-    type: equations
-    title: PCEX2 adaptive model
-    modelId: pc-adaptive
-    equations:
-      - id: ad-eq-0-Y
-        name: Y
-        desc: National income.
-        expression: C + G
-        unitMeta:
-          stockFlow: flow
-          signature:
-            money: 1
-            time: -1
-      - id: ad-eq-1-YD
-        name: YD
-        desc: Disposable income including lagged bill interest.
-        expression: Y - TX + lag(r) * lag(Bh)
-        unitMeta:
-          stockFlow: flow
-          signature:
-            money: 1
-            time: -1
-      - id: ad-eq-2-TX
-        name: TX
-        desc: Taxes on income and interest receipts.
-        expression: theta * (Y + lag(r) * lag(Bh))
-        unitMeta:
-          stockFlow: flow
-          signature:
-            money: 1
-            time: -1
-      - id: ad-eq-3-V
-        name: V
-        desc: Household wealth.
-        expression: I(YD - C)
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: ad-eq-4-C
-        name: C
-        desc: Consumption based on expected disposable income and lagged wealth.
-        expression: alpha1 * YDE + alpha2 * lag(V)
-        unitMeta:
-          stockFlow: flow
-          signature:
-            money: 1
-            time: -1
-      - id: ad-eq-5-Hh
-        name: Hh
-        desc: Household money holdings.
-        expression: V - Bh
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: ad-eq-6-Hh1
-        name: Hh1
-        desc: Alternative portfolio-choice definition for money holdings.
-        expression: V * ((1 - lambda0) - lambda1 * r + lambda2 * (YD / V))
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: ad-eq-7-Bh
-        name: Bh
-        desc: Realized household bill holdings.
-        expression: Bd
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: ad-eq-8-Bs
-        name: Bs
-        desc: Government bill supply.
-        expression: I(G + lag(r) * lag(Bs) - TX - lag(r) * lag(Bcb))
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: ad-eq-9-Hs
-        name: Hs
-        desc: High-powered money supplied by the central bank.
-        expression: I(Bcb - lag(Bcb))
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: ad-eq-10-Bcb
-        name: Bcb
-        desc: Central-bank bill holdings.
-        expression: Bs - Bh
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: ad-eq-11-Hd
-        name: Hd
-        desc: Desired household money holdings.
-        expression: VE - Bd
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: ad-eq-12-VE
-        name: VE
-        desc: Expected household wealth.
-        expression: lag(V) + (YDE - C) * dt
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: ad-eq-13-Bd
-        name: Bd
-        desc: Desired household bill holdings.
-        expression: VE * (lambda0 + lambda1 * r - lambda2 * (YDE / VE))
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: ad-eq-14-YDE
-        name: YDE
-        desc: Expected disposable income formed adaptively.
-        expression: lag(YD)
-        unitMeta:
-          stockFlow: flow
-          signature:
-            money: 1
-            time: -1
-    collapsed: true
-  - id: adaptive-solver
-    type: solver
-    title: Solver
-    modelId: pc-adaptive
-    options:
-      solverMethod: GAUSS_SEIDEL
-      toleranceText: "1e-10"
-      maxIterations: 200
-      defaultInitialValueText: "1e-15"
-      hiddenLeftVariable: ""
-      hiddenRightVariable: ""
-      hiddenToleranceText: "0.00001"
-      relativeHiddenTolerance: false
-    collapsed: true
-  - id: adaptive-externals
-    type: externals
-    title: Externals
-    modelId: pc-adaptive
-    externals:
-      - id: ad-ext-0-r
-        name: r
-        desc: Interest rate on bills.
-        kind: constant
-        valueText: "0.025"
-        unitMeta:
-          stockFlow: aux
-          signature:
-            time: -1
-      - id: ad-ext-1-G
-        name: G
-        desc: Government expenditure.
-        kind: constant
-        valueText: "20"
-        unitMeta:
-          stockFlow: aux
-          signature:
-            money: 1
-            time: -1
-      - id: ad-ext-2-alpha1
-        name: alpha1
-        desc: Propensity to consume out of expected disposable income.
-        kind: constant
-        valueText: "0.6"
-        unitMeta:
-          stockFlow: aux
-          signature: {}
-      - id: ad-ext-3-alpha2
-        name: alpha2
-        desc: Propensity to consume out of lagged wealth.
-        kind: constant
-        valueText: "0.4"
-        unitMeta:
-          stockFlow: aux
-          signature:
-            time: -1
-      - id: ad-ext-4-theta
-        name: theta
-        desc: Tax rate.
-        kind: constant
-        valueText: "0.2"
-        unitMeta:
-          stockFlow: aux
-          signature: {}
-      - id: ad-ext-5-lambda0
-        name: lambda0
-        desc: Portfolio parameter for bills.
-        kind: constant
-        valueText: "0.635"
-        unitMeta:
-          stockFlow: aux
-          signature: {}
-      - id: ad-ext-6-lambda1
-        name: lambda1
-        desc: Interest sensitivity of bill demand.
-        kind: constant
-        valueText: "0.05"
-        unitMeta:
-          stockFlow: aux
-          signature:
-            time: 1
-      - id: ad-ext-7-lambda2
-        name: lambda2
-        desc: Income sensitivity of bill demand.
-        kind: constant
-        valueText: "0.01"
-        unitMeta:
-          stockFlow: aux
-          signature:
-            time: 1
-    collapsed: true
-  - id: adaptive-initial-values
-    type: initial-values
-    title: Initial values
-    modelId: pc-adaptive
-    initialValues: []
-    collapsed: true
-  - id: adaptive-baseline-run
-    type: run
-    title: Adaptive baseline run
-    mode: baseline
-    periods: 60
-    resultKey: gl2_pc_adaptive_baseline
-    description: Adaptive-expectations PC model with expected disposable income set to lagged income.
-    sourceModelId: pc-adaptive
-  - id: adaptive-baseline-chart
-    type: chart
-    title: Adaptive baseline headline variables
-    sourceRunCellId: adaptive-baseline-run
-    variables:
-      - Y
-      - YDE
-      - C
-      - V
-      - Bd
-      - Hd
-    axisMode: separate
-    axisSnapTolarance: 0.5
-  - id: adaptive-scenario-note
-    type: markdown
-    title: Paradox of thrift experiment
-    source: This scenario raises `alpha1` from `0.6` to `0.7` between periods 5 and 60, matching the thrift experiment in the adaptive-expectations section.
-  - id: adaptive-scenario-run
-    type: run
-    title: "Adaptive scenario: higher alpha1"
-    mode: scenario
-    scenario:
-      shocks:
-        - rangeInclusive:
-            - 5
-            - 60
-          variables:
-            alpha1:
-              kind: constant
-              value: 0.7
-    baselineRunCellId: adaptive-baseline-run
-    periods: 60
-    resultKey: gl2_pc_adaptive_s1
-    sourceModelId: pc-adaptive
-  - id: adaptive-scenario-chart
-    type: chart
-    title: Adaptive scenario income and wealth
-    sourceRunCellId: adaptive-scenario-run
-    variables:
-      - Y
-      - C
-      - YDE
-      - V
-    axisMode: separate
-    axisSnapTolarance: 0.5
-  - id: interest-sensitive-note
-    type: markdown
-    title: Interest-sensitive consumption
-    source: "The final model follows the vignette extension where the propensity to consume is endogenous: `alpha1 = alpha10 - iota * lag(r)`."
-  - id: interest-sensitive-equations
-    type: equations
-    title: PCEX3 interest-sensitive model
-    modelId: pc-interest-sensitive
-    equations:
-      - id: is-eq-0-Y
-        name: Y
-        desc: National income.
-        expression: C + G
-        unitMeta:
-          stockFlow: flow
-          signature:
-            money: 1
-            time: -1
-      - id: is-eq-1-YD
-        name: YD
-        desc: Disposable income including lagged bill interest.
-        expression: Y - TX + lag(r) * lag(Bh)
-        unitMeta:
-          stockFlow: flow
-          signature:
-            money: 1
-            time: -1
-      - id: is-eq-2-TX
-        name: TX
-        desc: Taxes on income and interest receipts.
-        expression: theta * (Y + lag(r) * lag(Bh))
-        unitMeta:
-          stockFlow: flow
-          signature:
-            money: 1
-            time: -1
-      - id: is-eq-3-V
-        name: V
-        desc: Household wealth.
-        expression: I(YD - C)
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: is-eq-4-C
-        name: C
-        desc: Consumption based on endogenous alpha1 and expected disposable income.
-        expression: alpha1 * YDE + alpha2 * lag(V)
-        unitMeta:
-          stockFlow: flow
-          signature:
-            money: 1
-            time: -1
-      - id: is-eq-5-Hh
-        name: Hh
-        desc: Household money holdings.
-        expression: V - Bh
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: is-eq-6-Hh1
-        name: Hh1
-        desc: Alternative portfolio-choice definition for money holdings.
-        expression: V * ((1 - lambda0) - lambda1 * r + lambda2 * (YD / V))
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: is-eq-7-Bh
-        name: Bh
-        desc: Realized household bill holdings.
-        expression: Bd
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: is-eq-8-Bs
-        name: Bs
-        desc: Government bill supply.
-        expression: I(G + lag(r) * lag(Bs) - TX - lag(r) * lag(Bcb))
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: is-eq-9-Hs
-        name: Hs
-        desc: High-powered money supplied by the central bank.
-        expression: I(Bcb - lag(Bcb))
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: is-eq-10-Bcb
-        name: Bcb
-        desc: Central-bank bill holdings.
-        expression: Bs - Bh
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: is-eq-11-Hd
-        name: Hd
-        desc: Desired household money holdings.
-        expression: VE - Bd
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: is-eq-12-VE
-        name: VE
-        desc: Expected household wealth.
-        expression: lag(V) + (YDE - C) * dt
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: is-eq-13-Bd
-        name: Bd
-        desc: Desired household bill holdings.
-        expression: VE * (lambda0 + lambda1 * r - lambda2 * (YDE / VE))
-        unitMeta:
-          stockFlow: stock
-          signature:
-            money: 1
-      - id: is-eq-14-YDE
-        name: YDE
-        desc: Expected disposable income formed adaptively.
-        expression: lag(YD)
-        unitMeta:
-          stockFlow: flow
-          signature:
-            money: 1
-            time: -1
-      - id: is-eq-15-alpha1
-        name: alpha1
-        desc: Propensity to consume responds negatively to the lagged bills rate.
-        expression: alpha10 - iota * lag(r)
-        unitMeta:
-          stockFlow: aux
-          signature: {}
-    collapsed: true
-  - id: interest-sensitive-solver
-    type: solver
-    title: Solver
-    modelId: pc-interest-sensitive
-    options:
-      solverMethod: GAUSS_SEIDEL
-      toleranceText: "1e-10"
-      maxIterations: 200
-      defaultInitialValueText: "1e-15"
-      hiddenLeftVariable: ""
-      hiddenRightVariable: ""
-      hiddenToleranceText: "0.00001"
-      relativeHiddenTolerance: false
-    collapsed: true
-  - id: interest-sensitive-externals
-    type: externals
-    title: Externals
-    modelId: pc-interest-sensitive
-    externals:
-      - id: is-ext-0-r
-        name: r
-        desc: Interest rate on bills.
-        kind: constant
-        valueText: "0.025"
-        unitMeta:
-          stockFlow: aux
-          signature:
-            time: -1
-      - id: is-ext-1-G
-        name: G
-        desc: Government expenditure.
-        kind: constant
-        valueText: "20"
-        unitMeta:
-          stockFlow: aux
-          signature:
-            money: 1
-            time: -1
-      - id: is-ext-2-alpha2
-        name: alpha2
-        desc: Propensity to consume out of lagged wealth.
-        kind: constant
-        valueText: "0.4"
-        unitMeta:
-          stockFlow: aux
-          signature:
-            time: -1
-      - id: is-ext-3-theta
-        name: theta
-        desc: Tax rate.
-        kind: constant
-        valueText: "0.2"
-        unitMeta:
-          stockFlow: aux
-          signature: {}
-      - id: is-ext-4-lambda0
-        name: lambda0
-        desc: Portfolio parameter for bills.
-        kind: constant
-        valueText: "0.635"
-        unitMeta:
-          stockFlow: aux
-          signature: {}
-      - id: is-ext-5-lambda1
-        name: lambda1
-        desc: Interest sensitivity of bill demand.
-        kind: constant
-        valueText: "0.05"
-        unitMeta:
-          stockFlow: aux
-          signature:
-            time: 1
-      - id: is-ext-6-lambda2
-        name: lambda2
-        desc: Income sensitivity of bill demand.
-        kind: constant
-        valueText: "0.01"
-        unitMeta:
-          stockFlow: aux
-          signature:
-            time: 1
-      - id: is-ext-7-alpha10
-        name: alpha10
-        desc: Intercept for the endogenous propensity to consume.
-        kind: constant
-        valueText: "0.7"
-        unitMeta:
-          stockFlow: aux
-          signature: {}
-      - id: is-ext-8-iota
-        name: iota
-        desc: Sensitivity of alpha1 to the lagged interest rate.
-        kind: constant
-        valueText: "4"
-        unitMeta:
-          stockFlow: aux
-          signature:
-            time: 1
-    collapsed: true
-  - id: interest-sensitive-initial-values
-    type: initial-values
-    title: Initial values
-    modelId: pc-interest-sensitive
-    initialValues: []
-    collapsed: true
-  - id: interest-sensitive-baseline-run
-    type: run
-    title: Interest-sensitive baseline run
-    mode: baseline
-    periods: 60
-    resultKey: gl2_pc_interest_baseline
-    description: Adaptive-expectations PC model with endogenous alpha1.
-    sourceModelId: pc-interest-sensitive
-  - id: interest-sensitive-baseline-chart
-    type: chart
-    title: Interest-sensitive baseline headline variables
-    sourceRunCellId: interest-sensitive-baseline-run
-    variables:
-      - alpha1
-      - Y
-      - YDE
-      - C
-      - V
-    axisMode: separate
-    axisSnapTolarance: 0.5
-  - id: interest-sensitive-scenario-note
-    type: markdown
-    title: Bills-rate shock revisited
-    source: This scenario reapplies the bills-rate increase to the interest-sensitive model, raising `r` from `0.025` to `0.035` between periods 5 and 60.
-  - id: interest-sensitive-scenario-run
-    type: run
-    title: "Interest-sensitive scenario: higher bills rate"
-    mode: scenario
-    scenario:
-      shocks:
-        - rangeInclusive:
-            - 5
-            - 60
-          variables:
-            r:
-              kind: constant
-              value: 0.035
-    baselineRunCellId: interest-sensitive-baseline-run
-    periods: 60
-    resultKey: gl2_pc_interest_s1
-    sourceModelId: pc-interest-sensitive
-  - id: interest-sensitive-scenario-chart
-    type: chart
-    title: Interest-sensitive scenario output and public finances
-    sourceRunCellId: interest-sensitive-scenario-run
-    variables:
-      - alpha1
-      - Y
-      - YD
-      - C
-      - TX
-    axisMode: separate
-    axisSnapTolarance: 0.5
-  - id: equation-dependency-graph
-    type: sequence
-    title: PC  dependency graph
-    source:
-      kind: dependency
+  - externals:
+      id: externals-equations
+      title: Externals
       modelId: pc-baseline
-      showAccountingStrips: true
-      showExogenous: false
-    description: Dependency view of the pc equations organized by sector strips and accounting bands.
-    note: ""
-    collapsed: true
-cellOrder:
-  - intro
-  - balance-sheet
-  - transaction-flow
-  - transaction-flow-sequence
-  - equations
-  - solver
-  - externals-equations
-  - initial-values-equations
-  - baseline-run
-  - baseline-chart
-  - baseline-table
-  - scenario-1-note
-  - scenario-1-run
-  - scenario-1-chart
-  - pcex1-note
-  - pcex1-equations
-  - pcex1-solver
-  - pcex1-externals
-  - pcex1-initial-values
-  - pcex1-baseline-run
-  - pcex1-baseline-chart
-  - pcex1-baseline-table
-  - adaptive-note
-  - adaptive-equations
-  - adaptive-solver
-  - adaptive-externals
-  - adaptive-initial-values
-  - adaptive-baseline-run
-  - adaptive-baseline-chart
-  - adaptive-scenario-note
-  - adaptive-scenario-run
-  - adaptive-scenario-chart
-  - interest-sensitive-note
-  - interest-sensitive-equations
-  - interest-sensitive-solver
-  - interest-sensitive-externals
-  - interest-sensitive-initial-values
-  - interest-sensitive-baseline-run
-  - interest-sensitive-baseline-chart
-  - interest-sensitive-scenario-note
-  - interest-sensitive-scenario-run
-  - interest-sensitive-scenario-chart
-  - equation-dependency-graph
+      collapsed: true
+      rows:
+        - [r, 0.025, "Interest rate on bills.", 1/year, aux]
+        - [G, 20, "Government expenditure.", $/year, aux]
+        - [alpha1, 0.6, "Propensity to consume out of disposable income.", "", aux]
+        - [alpha2, 0.4, "Propensity to consume out of lagged wealth.", 1/year, aux]
+        - [theta, 0.2, "Tax rate.", "", aux]
+        - [lambda0, 0.635, "Portfolio parameter for bills.", "", aux]
+        - [lambda1, 0.05, "Interest sensitivity of bill demand.", year, aux]
+        - [lambda2, 0.01, "Income sensitivity of bill demand.", year, aux]
+  - initial-values:
+      id: initial-values-equations
+      title: Initial values
+      modelId: pc-baseline
+      collapsed: true
+      rows: []
+  - run:
+      id: baseline-run
+      title: Baseline run
+      description: Baseline PC simulation with the hidden-equation condition Hh = Hs.
+      mode: baseline
+      periods: 70
+      resultKey: gl2_pc_baseline
+      sourceModelId: pc-baseline
+  - chart:
+      id: baseline-chart
+      title: Baseline headline variables
+      variables:
+        - Y
+        - YD
+        - C
+        - V
+        - Bh
+        - Hh
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      sourceRunCellId: baseline-run
+  - table:
+      id: baseline-table
+      title: Baseline variable summary
+      variables:
+        - Y
+        - YD
+        - TX
+        - C
+        - V
+        - Bh
+        - Hh
+        - Bcb
+      sourceRunCellId: baseline-run
+  - markdown:
+      id: scenario-1-note
+      title: Interest-rate scenario
+      source: This scenario raises the bills rate `r` from `0.025` to `0.035` between periods 5 and 60, matching the first deterministic experiment in the vignette.
+  - run:
+      id: scenario-1-run
+      title: "Scenario 1: higher bills rate"
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 5
+              - 60
+            variables:
+              r:
+                kind: constant
+                value: 0.035
+      baselineRunCellId: baseline-run
+      periods: 60
+      resultKey: gl2_pc_s1
+      sourceModelId: pc-baseline
+  - chart:
+      id: scenario-1-chart
+      title: Scenario 1 portfolio adjustment
+      variables:
+        - Y
+        - YD
+        - C
+        - Bh
+        - Hh
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      sourceRunCellId: scenario-1-run
+  - markdown:
+      id: pcex1-note
+      title: PCEX1
+      source: This section mirrors the random-shock experiment from `gl2-pc.Rmd`, but uses a fixed stored `Ra` sequence instead of runtime randomness so that browser regressions remain deterministic.
+  - equations:
+      id: pcex1-equations
+      title: PCEX1 fixed-shock model
+      modelId: pc-pcex1
+      collapsed: true
+      rows:
+        - [Y, C + G, "National income.", $/year, flow, "", p1-eq-0-Y]
+        - [YD, Y - TX + lag(r) * lag(Bh), "Disposable income including lagged bill interest.", $/year, flow, "", p1-eq-1-YD]
+        - [TX, theta * (Y + lag(r) * lag(Bh)), "Taxes on income and interest receipts.", $/year, flow, "", p1-eq-2-TX]
+        - [V, I(YD - C), "Household wealth.", $, stock, "", p1-eq-3-V]
+        - [C, alpha1 * YDE + alpha2 * lag(V), "Consumption based on expected disposable income and lagged wealth.", $/year, flow, "", p1-eq-4-C]
+        - [Hh, V - Bh, "Household money holdings.", $, stock, "", p1-eq-5-Hh]
+        - [Hh1, V * ((1 - lambda0) - lambda1 * r + lambda2 * (YD / V)), "Alternative portfolio-choice definition for money holdings.", $, stock, "", p1-eq-6-Hh1]
+        - [Bh, Bd, "Realized household bill holdings.", $, stock, "", p1-eq-7-Bh]
+        - [Bs, I(G + lag(r) * lag(Bs) - TX - lag(r) * lag(Bcb)), "Government bill supply.", $, stock, "", p1-eq-8-Bs]
+        - [Hs, I(d(Bcb)), "High-powered money supplied by the central bank.", $, stock, "", p1-eq-9-Hs]
+        - [Bcb, Bs - Bh, "Central-bank bill holdings.", $, stock, "", p1-eq-10-Bcb]
+        - [Hd, VE - Bd, "Desired household money holdings.", $, stock, "", p1-eq-11-Hd]
+        - [VE, lag(V) + (YDE - C) * dt, "Expected household wealth.", $, stock, "", p1-eq-12-VE]
+        - [Bd, VE * (lambda0 + lambda1 * r - lambda2 * (YDE / VE)), "Desired household bill holdings.", $, stock, "", p1-eq-13-Bd]
+        - [YDE, YD * (1 + Ra), "Expected disposable income with the fixed shock sequence.", $/year, flow, "", p1-eq-14-YDE]
+  - solver:
+      id: pcex1-solver
+      title: Solver
+      modelId: pc-pcex1
+      collapsed: true
+      method: gauss-seidel
+      tolerance: "1e-10"
+      maxIterations: 200
+      defaultInitialValue: "1e-15"
+      hiddenLeftVariable: Hh
+      hiddenRightVariable: Hs
+      hiddenTolerance: "0.00001"
+      relativeHiddenTolerance: false
+  - externals:
+      id: pcex1-externals
+      title: Externals
+      modelId: pc-pcex1
+      collapsed: true
+      rows:
+        - [r, 0.025, "Interest rate on bills.", 1/year, aux, p1-ext-0-r]
+        - [G, 20, "Government expenditure.", $/year, aux, p1-ext-1-G]
+        - [alpha1, 0.6, "Propensity to consume out of expected disposable income.", "", aux, p1-ext-2-alpha1]
+        - [alpha2, 0.4, "Propensity to consume out of lagged wealth.", 1/year, aux, p1-ext-3-alpha2]
+        - [theta, 0.2, "Tax rate.", "", aux, p1-ext-4-theta]
+        - [lambda0, 0.635, "Portfolio parameter for bills.", "", aux, p1-ext-5-lambda0]
+        - [lambda1, 0.05, "Interest sensitivity of bill demand.", year, aux, p1-ext-6-lambda1]
+        - [lambda2, 0.01, "Income sensitivity of bill demand.", year, aux, p1-ext-7-lambda2]
+        - id: p1-ext-8-Ra
+          name: Ra
+          desc: Fixed shock sequence for expected disposable income.
+          kind: series
+          valueText: -0.028023782328, -0.011508874474, 0.077935415707, 0.003525419571, 0.006464386758, 0.085753249344, 0.023045810299, -0.06325306173, -0.034342642595, -0.022283098505, 0.061204089872, 0.017990691353, 0.02003857253, 0.005534135797, -0.027792056738, 0.08934565684, 0.024892523911, -0.098330857831, 0.035067795078, -0.023639570386, -0.053391185299, -0.010898745733, -0.051300222415, -0.036444561465, -0.031251963392, -0.084334665537, 0.041889352225, 0.007668655892, -0.056906846851, 0.062690746053, 0.021323211074, -0.01475357415, 0.044756283052, 0.043906674377, 0.041079054082, 0.034432012705, 0.027695882677, -0.003095585529, -0.015298133187, -0.019023550051, -0.034735348946, -0.010395863901, -0.063269817578, 0.108447798267, 0.060398099915, -0.05615542916, -0.020144241765, -0.023332767681, 0.038998255917, -0.004168453324, 0.0126659257, -0.001427337767, -0.002143522865, 0.068430114201, -0.011288549283, 0.075823530221, -0.077437640212, 0.029230687482, 0.006192712192, 0.010797078437
+          unitMeta:
+            stockFlow: aux
+          type: aux
+  - initial-values:
+      id: pcex1-initial-values
+      title: Initial values
+      modelId: pc-pcex1
+      collapsed: true
+      rows: []
+  - run:
+      id: pcex1-baseline-run
+      title: PCEX1 baseline run
+      mode: baseline
+      periods: 60
+      resultKey: gl2_pc_pcex1_baseline
+      description: PCEX1 with a stored `Ra` shock series and the hidden-equation condition Hh = Hs.
+      sourceModelId: pc-pcex1
+  - chart:
+      id: pcex1-baseline-chart
+      title: PCEX1 stocks and desired holdings
+      variables:
+        - Hh
+        - Hd
+        - Bh
+        - Bd
+        - YDE
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      sourceRunCellId: pcex1-baseline-run
+  - table:
+      id: pcex1-baseline-table
+      title: PCEX1 variable summary
+      variables:
+        - Y
+        - YD
+        - YDE
+        - C
+        - V
+        - Hh
+        - Hd
+        - Bh
+        - Bd
+      sourceRunCellId: pcex1-baseline-run
+  - markdown:
+      id: adaptive-note
+      title: Adaptive expectations
+      source: The next model follows the adaptive-expectations section of `gl2-pc.Rmd`. Expected disposable income is set to `lag(YD)`, and the wealth-allocation equations are rewritten in terms of desired bills `Bd` and expected wealth `VE`.
+  - equations:
+      id: adaptive-equations
+      title: PCEX2 adaptive model
+      modelId: pc-adaptive
+      collapsed: true
+      rows:
+        - [Y, C + G, "National income.", $/year, flow, "", ad-eq-0-Y]
+        - [YD, Y - TX + lag(r) * lag(Bh), "Disposable income including lagged bill interest.", $/year, flow, "", ad-eq-1-YD]
+        - [TX, theta * (Y + lag(r) * lag(Bh)), "Taxes on income and interest receipts.", $/year, flow, "", ad-eq-2-TX]
+        - [V, I(YD - C), "Household wealth.", $, stock, "", ad-eq-3-V]
+        - [C, alpha1 * YDE + alpha2 * lag(V), "Consumption based on expected disposable income and lagged wealth.", $/year, flow, "", ad-eq-4-C]
+        - [Hh, V - Bh, "Household money holdings.", $, stock, "", ad-eq-5-Hh]
+        - [Hh1, V * ((1 - lambda0) - lambda1 * r + lambda2 * (YD / V)), "Alternative portfolio-choice definition for money holdings.", $, stock, "", ad-eq-6-Hh1]
+        - [Bh, Bd, "Realized household bill holdings.", $, stock, "", ad-eq-7-Bh]
+        - [Bs, I(G + lag(r) * lag(Bs) - TX - lag(r) * lag(Bcb)), "Government bill supply.", $, stock, "", ad-eq-8-Bs]
+        - [Hs, I(Bcb - lag(Bcb)), "High-powered money supplied by the central bank.", $, stock, "", ad-eq-9-Hs]
+        - [Bcb, Bs - Bh, "Central-bank bill holdings.", $, stock, "", ad-eq-10-Bcb]
+        - [Hd, VE - Bd, "Desired household money holdings.", $, stock, "", ad-eq-11-Hd]
+        - [VE, lag(V) + (YDE - C) * dt, "Expected household wealth.", $, stock, "", ad-eq-12-VE]
+        - [Bd, VE * (lambda0 + lambda1 * r - lambda2 * (YDE / VE)), "Desired household bill holdings.", $, stock, "", ad-eq-13-Bd]
+        - [YDE, lag(YD), "Expected disposable income formed adaptively.", $/year, flow, "", ad-eq-14-YDE]
+  - solver:
+      id: adaptive-solver
+      title: Solver
+      modelId: pc-adaptive
+      collapsed: true
+      method: gauss-seidel
+      tolerance: "1e-10"
+      maxIterations: 200
+      defaultInitialValue: "1e-15"
+      hiddenLeftVariable: ""
+      hiddenRightVariable: ""
+      hiddenTolerance: "0.00001"
+      relativeHiddenTolerance: false
+  - externals:
+      id: adaptive-externals
+      title: Externals
+      modelId: pc-adaptive
+      collapsed: true
+      rows:
+        - [r, 0.025, "Interest rate on bills.", 1/year, aux, ad-ext-0-r]
+        - [G, 20, "Government expenditure.", $/year, aux, ad-ext-1-G]
+        - [alpha1, 0.6, "Propensity to consume out of expected disposable income.", "", aux, ad-ext-2-alpha1]
+        - [alpha2, 0.4, "Propensity to consume out of lagged wealth.", 1/year, aux, ad-ext-3-alpha2]
+        - [theta, 0.2, "Tax rate.", "", aux, ad-ext-4-theta]
+        - [lambda0, 0.635, "Portfolio parameter for bills.", "", aux, ad-ext-5-lambda0]
+        - [lambda1, 0.05, "Interest sensitivity of bill demand.", year, aux, ad-ext-6-lambda1]
+        - [lambda2, 0.01, "Income sensitivity of bill demand.", year, aux, ad-ext-7-lambda2]
+  - initial-values:
+      id: adaptive-initial-values
+      title: Initial values
+      modelId: pc-adaptive
+      collapsed: true
+      rows: []
+  - run:
+      id: adaptive-baseline-run
+      title: Adaptive baseline run
+      mode: baseline
+      periods: 60
+      resultKey: gl2_pc_adaptive_baseline
+      description: Adaptive-expectations PC model with expected disposable income set to lagged income.
+      sourceModelId: pc-adaptive
+  - chart:
+      id: adaptive-baseline-chart
+      title: Adaptive baseline headline variables
+      variables:
+        - Y
+        - YDE
+        - C
+        - V
+        - Bd
+        - Hd
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      sourceRunCellId: adaptive-baseline-run
+  - markdown:
+      id: adaptive-scenario-note
+      title: Paradox of thrift experiment
+      source: This scenario raises `alpha1` from `0.6` to `0.7` between periods 5 and 60, matching the thrift experiment in the adaptive-expectations section.
+  - run:
+      id: adaptive-scenario-run
+      title: "Adaptive scenario: higher alpha1"
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 5
+              - 60
+            variables:
+              alpha1:
+                kind: constant
+                value: 0.7
+      baselineRunCellId: adaptive-baseline-run
+      periods: 60
+      resultKey: gl2_pc_adaptive_s1
+      sourceModelId: pc-adaptive
+  - chart:
+      id: adaptive-scenario-chart
+      title: Adaptive scenario income and wealth
+      variables:
+        - Y
+        - C
+        - YDE
+        - V
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      sourceRunCellId: adaptive-scenario-run
+  - markdown:
+      id: interest-sensitive-note
+      title: Interest-sensitive consumption
+      source: "The final model follows the vignette extension where the propensity to consume is endogenous: `alpha1 = alpha10 - iota * lag(r)`."
+  - equations:
+      id: interest-sensitive-equations
+      title: PCEX3 interest-sensitive model
+      modelId: pc-interest-sensitive
+      collapsed: true
+      rows:
+        - [Y, C + G, "National income.", $/year, flow, "", is-eq-0-Y]
+        - [YD, Y - TX + lag(r) * lag(Bh), "Disposable income including lagged bill interest.", $/year, flow, "", is-eq-1-YD]
+        - [TX, theta * (Y + lag(r) * lag(Bh)), "Taxes on income and interest receipts.", $/year, flow, "", is-eq-2-TX]
+        - [V, I(YD - C), "Household wealth.", $, stock, "", is-eq-3-V]
+        - [C, alpha1 * YDE + alpha2 * lag(V), "Consumption based on endogenous alpha1 and expected disposable income.", $/year, flow, "", is-eq-4-C]
+        - [Hh, V - Bh, "Household money holdings.", $, stock, "", is-eq-5-Hh]
+        - [Hh1, V * ((1 - lambda0) - lambda1 * r + lambda2 * (YD / V)), "Alternative portfolio-choice definition for money holdings.", $, stock, "", is-eq-6-Hh1]
+        - [Bh, Bd, "Realized household bill holdings.", $, stock, "", is-eq-7-Bh]
+        - [Bs, I(G + lag(r) * lag(Bs) - TX - lag(r) * lag(Bcb)), "Government bill supply.", $, stock, "", is-eq-8-Bs]
+        - [Hs, I(Bcb - lag(Bcb)), "High-powered money supplied by the central bank.", $, stock, "", is-eq-9-Hs]
+        - [Bcb, Bs - Bh, "Central-bank bill holdings.", $, stock, "", is-eq-10-Bcb]
+        - [Hd, VE - Bd, "Desired household money holdings.", $, stock, "", is-eq-11-Hd]
+        - [VE, lag(V) + (YDE - C) * dt, "Expected household wealth.", $, stock, "", is-eq-12-VE]
+        - [Bd, VE * (lambda0 + lambda1 * r - lambda2 * (YDE / VE)), "Desired household bill holdings.", $, stock, "", is-eq-13-Bd]
+        - [YDE, lag(YD), "Expected disposable income formed adaptively.", $/year, flow, "", is-eq-14-YDE]
+        - [alpha1, alpha10 - iota * lag(r), "Propensity to consume responds negatively to the lagged bills rate.", "", aux, "", is-eq-15-alpha1]
+  - solver:
+      id: interest-sensitive-solver
+      title: Solver
+      modelId: pc-interest-sensitive
+      collapsed: true
+      method: gauss-seidel
+      tolerance: "1e-10"
+      maxIterations: 200
+      defaultInitialValue: "1e-15"
+      hiddenLeftVariable: ""
+      hiddenRightVariable: ""
+      hiddenTolerance: "0.00001"
+      relativeHiddenTolerance: false
+  - externals:
+      id: interest-sensitive-externals
+      title: Externals
+      modelId: pc-interest-sensitive
+      collapsed: true
+      rows:
+        - [r, 0.025, "Interest rate on bills.", 1/year, aux, is-ext-0-r]
+        - [G, 20, "Government expenditure.", $/year, aux, is-ext-1-G]
+        - [alpha2, 0.4, "Propensity to consume out of lagged wealth.", 1/year, aux, is-ext-2-alpha2]
+        - [theta, 0.2, "Tax rate.", "", aux, is-ext-3-theta]
+        - [lambda0, 0.635, "Portfolio parameter for bills.", "", aux, is-ext-4-lambda0]
+        - [lambda1, 0.05, "Interest sensitivity of bill demand.", year, aux, is-ext-5-lambda1]
+        - [lambda2, 0.01, "Income sensitivity of bill demand.", year, aux, is-ext-6-lambda2]
+        - [alpha10, 0.7, "Intercept for the endogenous propensity to consume.", "", aux, is-ext-7-alpha10]
+        - [iota, 4, "Sensitivity of alpha1 to the lagged interest rate.", year, aux, is-ext-8-iota]
+  - initial-values:
+      id: interest-sensitive-initial-values
+      title: Initial values
+      modelId: pc-interest-sensitive
+      collapsed: true
+      rows: []
+  - run:
+      id: interest-sensitive-baseline-run
+      title: Interest-sensitive baseline run
+      mode: baseline
+      periods: 60
+      resultKey: gl2_pc_interest_baseline
+      description: Adaptive-expectations PC model with endogenous alpha1.
+      sourceModelId: pc-interest-sensitive
+  - chart:
+      id: interest-sensitive-baseline-chart
+      title: Interest-sensitive baseline headline variables
+      variables:
+        - alpha1
+        - Y
+        - YDE
+        - C
+        - V
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      sourceRunCellId: interest-sensitive-baseline-run
+  - markdown:
+      id: interest-sensitive-scenario-note
+      title: Bills-rate shock revisited
+      source: This scenario reapplies the bills-rate increase to the interest-sensitive model, raising `r` from `0.025` to `0.035` between periods 5 and 60.
+  - run:
+      id: interest-sensitive-scenario-run
+      title: "Interest-sensitive scenario: higher bills rate"
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 5
+              - 60
+            variables:
+              r:
+                kind: constant
+                value: 0.035
+      baselineRunCellId: interest-sensitive-baseline-run
+      periods: 60
+      resultKey: gl2_pc_interest_s1
+      sourceModelId: pc-interest-sensitive
+  - chart:
+      id: interest-sensitive-scenario-chart
+      title: Interest-sensitive scenario output and public finances
+      variables:
+        - alpha1
+        - Y
+        - YD
+        - C
+        - TX
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      sourceRunCellId: interest-sensitive-scenario-run
+  - sequence:
+      id: equation-dependency-graph
+      title: PC  dependency graph
+      source:
+        kind: dependency
+        modelId: pc-baseline
+        showAccountingStrips: true
+        showExogenous: false
+      description: Dependency view of the pc equations organized by sector strips and accounting bands.
+      note: ""
+      collapsed: true

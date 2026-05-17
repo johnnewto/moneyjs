@@ -2,7 +2,9 @@
 
 ## Overview
 
-This guide explains how to create Stock-Flow Consistent (SFC) model notebooks for the SFCR browser application. Compact `sfcr-notebook-yaml` is the recommended authoring format for humans and AI assistants because it keeps the model close to the way economists describe it: sectors, matrices, equations, parameters, runs, charts, and tables. Expanded JSON remains the runtime interchange and schema-validation format.
+This guide explains how to create Stock-Flow Consistent (SFC) model notebooks for the SFCR browser application. Compact `sfcr-notebook-yaml` is the recommended authoring format for humans and AI assistants. Expanded JSON remains the runtime interchange and schema-validation format.
+
+The current compact YAML style uses one ordered `cells:` list. Each cell is wrapped by its JSON cell type, for example `- matrix:`, `- equations:`, `- externals:`, or `- run:`. This keeps every cell in the same place while allowing compact matrix, equation, external, and initial-value rows.
 
 For public AI clients, the recommended bootstrap order is:
 
@@ -20,11 +22,11 @@ Use JSON examples and the JSON generation prompt only when a client explicitly n
 - Preferred examples: `notebook-examples/*.example.notebook.yaml`
 - JSON compatibility prompt: `ai-prompts/create-sfcr-notebook.md`
 - JSON compatibility examples: `notebook-examples/*.example.notebook.json`
-- Machine schema: `sfcr-notebook.schema.json`
+- Machine schema for expanded runtime JSON: `sfcr-notebook.schema.json`
 
 ## Compact YAML Shape
 
-A compact notebook starts with a small document header and then uses domain-first sections. The serializer may omit empty sections, but generated notebooks should keep the main sections in a predictable order.
+A compact notebook starts with a small document header and then an ordered `cells:` list.
 
 ```yaml
 format: sfcr-notebook-yaml
@@ -34,10 +36,17 @@ title: Simple Model
 metadata:
   version: 1
   template: simple
-modelId: simple
-introCell:
-  id: intro
-  title: Overview
+cells:
+  - markdown:
+      id: intro
+      title: Overview
+      source: A small executable SFC model.
+  - equations:
+      id: equations-main
+      title: Model equations
+      modelId: simple
+      rows:
+        - [Y, G, "Income", $/year, flow, identity]
 ```
 
 Required top-level fields:
@@ -47,30 +56,30 @@ Required top-level fields:
 - `id`: unique kebab-case notebook identifier
 - `title`: descriptive notebook title shown in the UI
 - `metadata.version`: must be `1`
-- `modelId`: default model id used by equation, solver, parameter, initial-value, and run sections
+- `cells`: ordered list of wrapped cell entries
 
-Common authoring sections:
+Supported wrapped cell keys include:
 
-- `introCell`: overview markdown cell metadata
-- `sectors`: optional default sector list used by matrices and dependency strips
-- `variables`: variable descriptions and optional unit metadata
-- `balance`: balance-sheet matrix
-- `transactions`: transactions-flow matrix
-- `equations`: equation system as a literal block scalar
-- `parameters`: exogenous constants or series
-- `initial-values`: period-0 stock or expectation values
-- `solver`: solver options
-- `baselineRun`: default baseline simulation
-- `charts` and `tables`: result views
-- `cells`: extra explicit cells such as scenario notes, scenario runs, sequence views, or dependency graphs
-- `cellOrder`: optional display order when explicit ordering is needed
+- `markdown`
+- `matrix`
+- `sequence`
+- `equations`
+- `solver`
+- `externals`
+- `initial-values`
+- `run`
+- `chart`
+- `table`
+
+Each entry should contain exactly one wrapper key. The fields inside the wrapper are the cell fields, minus the redundant `type`.
 
 ## Starter Template
 
-Use `notebook-examples/starter.example.notebook.yaml` when generating a new notebook from scratch. It provides the minimum valid scaffold with matrices, equations, parameters, initial values, a solver, a baseline run, and sequence views.
+Use `notebook-examples/starter.example.notebook.yaml` when generating a new notebook from scratch. It provides the minimum valid scaffold with matrices, equations, externals, initial values, a solver, a baseline run, and sequence views.
 
 Use the larger examples selectively:
 
+- Use the SIM notebook for the smallest canonical Godley-Lavoie baseline and scenario notebook.
 - Use the BMW notebook for sector and band matrices, baseline runs, and scenario layout.
 - Use the GL6-DIS rentier notebook when the model splits households or needs distributional structure.
 - Treat examples as pattern references, not as whole-notebook defaults.
@@ -85,57 +94,78 @@ title: Simple Model
 metadata:
   version: 1
   template: simple
-modelId: simple
-introCell:
-  id: intro
-  title: Overview
-
-equations: |
-  # Income
-  Y ~ 100
-
-  # Consumption
-  C ~ alpha0 + alpha1 * Y + alpha2 * lag(M)
-
-  # Money stock
-  M ~ lag(M) + Y - C
-parameters:
-  alpha0: 20
-  alpha1: 0.6
-  alpha2: 0.1
-initial-values:
-  M: 50
-solver:
-  method: gauss-seidel
-  tolerance: 1e-10
-  maxIterations: 100
-  defaultInitialValue: 0
-baselineRun:
-  id: baseline-run
-  title: Baseline run
-  resultKey: simple_baseline
-  periods: 50
-charts:
-  - id: baseline-chart
-    title: Results
-    variables: [Y, C, M]
+cells:
+  - markdown:
+      id: intro
+      title: Overview
+      source: Minimal executable notebook.
+  - equations:
+      id: equations-main
+      title: Model equations
+      modelId: simple
+      rows:
+        - [Y, G, "Income", $/year, flow, identity]
+        - [C, alpha0 + alpha1 * Y + alpha2 * lag(M), "Consumption", $/year, flow, behavioral]
+        - [M, lag(M) + Y - C, "Money stock", $, stock, accumulation]
+  - solver:
+      id: solver-main
+      title: Solver options
+      modelId: simple
+      method: gauss-seidel
+      tolerance: "1e-10"
+      maxIterations: 100
+      defaultInitialValue: "0"
+  - externals:
+      id: externals-main
+      title: Externals
+      modelId: simple
+      rows:
+        - [G, 100, "Government expenditure", $/year, aux]
+        - [alpha0, 20, "Autonomous consumption", $/year, aux]
+        - [alpha1, 0.6, "Income propensity", "", aux]
+        - [alpha2, 0.1, "Wealth propensity", 1/year, aux]
+  - initial-values:
+      id: initial-values-main
+      title: Initial values
+      modelId: simple
+      rows:
+        - [M, 50]
+  - run:
+      id: baseline-run
+      title: Baseline run
+      mode: baseline
+      periods: 50
+      resultKey: simple_baseline
+      sourceModelId: simple
+  - chart:
+      id: baseline-chart
+      title: Results
+      sourceRunCellId: baseline-run
+      variables: [Y, C, M]
 ```
 
 ## Equations
 
-Use a literal YAML block for equation systems. Put one equation per line and use comments for descriptions.
+Use compact row arrays inside an `equations` cell.
 
 ```yaml
-equations: |
-  # Consumption goods supply
-  Cs ~ Cd
-
-  # Disposable income
-  YD ~ WBs + lag(rm) * lag(Mh)
-
-  # Household money deposits
-  Mh ~ lag(Mh) + (YD - Cd) * dt
+  - equations:
+      id: equations-main
+      title: Model equations
+      modelId: sim
+      rows:
+        - [Y, Cs + Gs, "Income = GDP", $/year, flow, identity]
+        - [YD, WBs + lag(rm) * lag(Mh), "Disposable income", $/year, flow, identity]
+        - [Mh, lag(Mh) + (YD - Cd) * dt, "Household money deposits", $, stock, accumulation]
 ```
+
+Equation row shape:
+
+- `[name, expression]`
+- `[name, expression, "description", unit, type, role]`
+- Optional trailing `id` may be used when preserving a runtime ID that differs from the generated ID.
+
+Always quote descriptions in generated YAML. Units and expressions may stay unquoted when YAML accepts them safely; quote expressions containing characters that YAML could misread.
 
 Expression syntax:
 
@@ -149,63 +179,70 @@ Expression syntax:
 
 Equation ordering does not determine execution order. The solver builds the dependency order from the expressions.
 
-## Variables And Units
+## Externals And Initial Values
 
-Use `variables` to document model variables and, when useful, add unit metadata.
+Use `externals` for exogenous constants or series. Most constant externals should use compact row arrays.
 
 ```yaml
-variables:
-  Y:
-    description: Income = GDP
-    unit: $/year
-    type: flow
-    role: identity
-  Mh:
-    description: Household money deposits
-    unit: "$"
-    type: stock
-    role: accumulation
-  rm:
-    description: Deposit interest rate
-    unit: 1/year
-    type: aux
-    role: definition
+  - externals:
+      id: externals-main
+      title: Externals
+      modelId: sim
+      rows:
+        - [G, 20, "Government expenditure", $/year, aux]
+        - [theta, 0.2, "Tax rate", "", aux]
 ```
 
-Common types are `stock`, `flow`, and `aux`. Common roles are `identity`, `definition`, `behavioral`, `target`, and `accumulation`.
+External row shape:
 
-## Parameters And Initial Values
+- `[name, value]`
+- `[name, value, "description", unit, type]`
+- Optional trailing `id` may be used when preserving a runtime ID.
 
-Use `parameters` for exogenous variables. A scalar means a constant path; an array means a time series.
+Use object rows for non-constant series when the row needs `kind: series` and `valueText`.
 
 ```yaml
-parameters:
-  G: 20
-  theta: 0.2
-  shock: [0, 0, 1.5, 1.5, 1.0, 0.5, 0]
+        - id: ext-shock
+          name: shock
+          desc: Shock sequence.
+          kind: series
+          valueText: "[0, 0, 1.5, 1.5, 1.0]"
+          type: aux
 ```
 
 Use `initial-values` for stock variables, lagged expectations, and any variable whose period-0 value should not come from the solver default.
 
 ```yaml
-initial-values:
-  Mh: 100
-  K: 150
-  s_E: 100
+  - initial-values:
+      id: initial-values-main
+      title: Initial values
+      modelId: sim
+      rows:
+        - [Mh, 100]
+        - [K, 150]
+        - [s_E, 100]
 ```
+
+Initial-value row shape:
+
+- `[name, value]`
+- Optional trailing `id` may be used when preserving a runtime ID.
 
 ## Solver
 
 ```yaml
-solver:
-  method: newton
-  tolerance: 1e-10
-  maxIterations: 200
-  defaultInitialValue: 1e-15
-  hiddenLeftVariable: Ms
-  hiddenRightVariable: Mh
-  hiddenTolerance: 0.00001
-  relativeHiddenTolerance: false
+  - solver:
+      id: solver-main
+      title: Solver options
+      modelId: sim
+      method: newton
+      tolerance: "1e-10"
+      maxIterations: 200
+      defaultInitialValue: "1e-15"
+      hiddenLeftVariable: Ms
+      hiddenRightVariable: Mh
+      hiddenTolerance: "0.00001"
+      relativeHiddenTolerance: false
 ```
 
 Solver methods:
@@ -218,34 +255,34 @@ Use the hidden-equation fields when one equation is redundant, such as a Walras-
 
 ## Matrices
 
-Use compact row arrays for top-level `balance` and `transactions` sections. Each row is `[band, label, ...values]`, and the number of values must match `columns`.
+Use compact row arrays inside `matrix` cells. Each row is `[band, label, ...values]`, and the number of values must match `columns`.
 
 ```yaml
-balance:
-  id: balance-sheet
-  title: Balance sheet
-  columns: [Households, Government, Sum]
-  sectors: [Households, Government, ""]
-  rows:
-    - [Money, Money stock, +Hh, -Hs, "0"]
-    - [Balance, Net worth, -Hh, +Hs, "0"]
-    - [Sum, Sum, "0", "0", "0"]
+  - matrix:
+      id: balance-sheet
+      title: Balance sheet
+      columns: [Households, Government, Sum]
+      sectors: [Households, Government, ""]
+      rows:
+        - [Money, Money stock, +Hh, -Hs, "0"]
+        - [Balance, Net worth, -Hh, +Hs, "0"]
+        - [Sum, Sum, "0", "0", "0"]
 ```
 
 Transactions-flow matrices use the same structure.
 
 ```yaml
-transactions:
-  id: transaction-flow
-  title: Transactions-flow matrix
-  columns: [Households, Production, Government, Sum]
-  sectors: [Households, Firms, Government, ""]
-  rows:
-    - [Consumption, Consumption, -Cd, +Cs, "", "0"]
-    - [Government, Government expenditure, "", +Gs, -Gd, "0"]
-    - [Taxes, Taxes, -TXs, "", +TXd, "0"]
-    - [Money, Change in money stock, +d(Hh), "", -d(Hs), "0"]
-    - [Sum, Sum, "0", "0", "0", "0"]
+  - matrix:
+      id: transaction-flow
+      title: Transactions-flow matrix
+      columns: [Households, Production, Government, Sum]
+      sectors: [Households, Firms, Government, ""]
+      rows:
+        - [Consumption, Consumption, -Cd, +Cs, "", "0"]
+        - [Government, Government expenditure, "", +Gs, -Gd, "0"]
+        - [Taxes, Taxes, -TXs, "", +TXd, "0"]
+        - [Money, Change in money stock, +d(Hh), "", -d(Hs), "0"]
+        - [Sum, Sum, "0", "0", "0", "0"]
 ```
 
 Matrix rules:
@@ -261,62 +298,65 @@ Matrix rules:
 
 ## Runs, Charts, And Tables
 
-Use `baselineRun` for the main simulation.
+Use a `run` cell for the main simulation.
 
 ```yaml
-baselineRun:
-  id: baseline-run
-  title: Baseline run
-  description: Baseline simulation with government expenditure fixed at 20.
-  resultKey: sim_baseline
-  periods: 60
+  - run:
+      id: baseline-run
+      title: Baseline run
+      description: Baseline simulation with government expenditure fixed at 20.
+      mode: baseline
+      resultKey: sim_baseline
+      periods: 60
+      sourceModelId: sim
 ```
 
-Use `charts` and `tables` for common result views.
+Use `chart` and `table` cells for result views.
 
 ```yaml
-charts:
-  - id: baseline-chart
-    title: Baseline income and money
-    variables: [Y, YD, Cd, Hh]
-    axisMode: separate
-    timeRangeInclusive: [1, 60]
-tables:
-  - id: baseline-table
-    title: Baseline summary
-    variables: [Y, YD, Cd, Hh, TXd, Gd]
+  - chart:
+      id: baseline-chart
+      title: Baseline income and money
+      sourceRunCellId: baseline-run
+      variables: [Y, YD, Cd, Hh]
+      axisMode: separate
+      timeRangeInclusive: [1, 60]
+  - table:
+      id: baseline-table
+      title: Baseline summary
+      sourceRunCellId: baseline-run
+      variables: [Y, YD, Cd, Hh, TXd, Gd]
 ```
 
-For scenarios, use explicit `cells` entries because they need to reference a baseline run and often have a note before the run.
+For scenarios, use a markdown note, a scenario run, and scenario result views.
 
 ```yaml
-cells:
-  - id: scenario-note
-    type: markdown
-    title: Scenario 1
-    source: Scenario 1 raises government expenditure from period 5 through 60.
-  - id: scenario-run
-    type: run
-    title: "Scenario 1: government spending shock"
-    mode: scenario
-    scenario:
-      shocks:
-        - rangeInclusive: [5, 60]
-          variables:
-            Gd:
-              kind: constant
-              value: 30
-    baselineRunCellId: baseline-run
-    periods: 60
-    resultKey: sim_scenario_gd_30
-    sourceModelId: sim
-  - id: scenario-chart
-    type: chart
-    title: Scenario 1 output and fiscal variables
-    sourceRunCellId: scenario-run
-    variables: [Y, YD, Cd, Hh, Gd]
-    axisMode: separate
-    referenceTrace: baseline
+  - markdown:
+      id: scenario-note
+      title: Scenario 1
+      source: Scenario 1 raises government expenditure from period 5 through 60.
+  - run:
+      id: scenario-run
+      title: "Scenario 1: government spending shock"
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive: [5, 60]
+            variables:
+              Gd:
+                kind: constant
+                value: 30
+      baselineRunCellId: baseline-run
+      periods: 60
+      resultKey: sim_scenario_gd_30
+      sourceModelId: sim
+  - chart:
+      id: scenario-chart
+      title: Scenario 1 output and fiscal variables
+      sourceRunCellId: scenario-run
+      variables: [Y, YD, Cd, Hh, Gd]
+      axisMode: separate
+      referenceTrace: baseline
 ```
 
 Scenario rules:
@@ -331,26 +371,25 @@ Scenario rules:
 Sequence cells can visualize transaction flows or equation dependencies.
 
 ```yaml
-cells:
-  - id: transaction-flow-sequence
-    type: sequence
-    title: Transaction flow sequence
-    source:
-      kind: matrix
-      matrixCellId: transaction-flow
-      includeZeroFlows: false
-    description: Sequence view generated from the transactions-flow matrix.
-  - id: equation-dependency-graph
-    type: sequence
-    title: Equation dependency graph
-    source:
-      kind: dependency
-      modelId: sim
-      showAccountingStrips: true
-      showExogenous: false
-      stripMapping:
-        transactionMatrixCellId: transaction-flow
-        balanceMatrixCellId: balance-sheet
+  - sequence:
+      id: transaction-flow-sequence
+      title: Transaction flow sequence
+      source:
+        kind: matrix
+        matrixCellId: transaction-flow
+        includeZeroFlows: false
+      description: Sequence view generated from the transactions-flow matrix.
+  - sequence:
+      id: equation-dependency-graph
+      title: Equation dependency graph
+      source:
+        kind: dependency
+        modelId: sim
+        showAccountingStrips: true
+        showExogenous: false
+        stripMapping:
+          transactionMatrixCellId: transaction-flow
+          balanceMatrixCellId: balance-sheet
 ```
 
 Dependency source options:
@@ -364,36 +403,21 @@ Dependency source options:
 
 ## Recommended Notebook Order
 
-1. Overview / intro cell
+Because the compact format now uses one ordered `cells:` list, the file order is the display order.
+
+1. Overview / intro markdown
 2. Balance sheet, if applicable
 3. Transactions-flow matrix, if applicable
 4. Sequence cells derived from matrices or dependency graphs
 5. Equations
 6. Solver
-7. Parameters / externals
+7. Externals
 8. Initial values
 9. Baseline run
 10. Baseline charts and tables
 11. Scenario notes
 12. Scenario runs
 13. Scenario charts and tables
-
-Use `cellOrder` only when the natural generated order is not enough.
-
-```yaml
-cellOrder:
-  - intro
-  - balance-sheet
-  - transaction-flow
-  - transaction-flow-sequence
-  - equations
-  - solver
-  - externals-equations
-  - initial-values-equations
-  - baseline-run
-  - baseline-chart
-  - baseline-table
-```
 
 ## Naming And Documentation
 
@@ -417,18 +441,15 @@ Equation naming conventions:
 ## Common Equation Patterns
 
 ```yaml
-equations: |
-  # Accumulation
-  K ~ lag(K) + (I - delta * lag(K)) * dt
-
-  # Adaptive expectations
-  Y_E ~ theta * lag(Y) + (1 - theta) * lag(Y_E)
-
-  # Target-based adjustment
-  I ~ gamma * (K_T - lag(K)) + delta * lag(K)
-
-  # Consumption function
-  C ~ alpha0 + alpha1 * YD + alpha2 * lag(Mh)
+  - equations:
+      id: equations-main
+      title: Model equations
+      modelId: model
+      rows:
+        - [K, lag(K) + (I - delta * lag(K)) * dt, "Accumulation", $, stock, accumulation]
+        - [Y_E, theta * lag(Y) + (1 - theta) * lag(Y_E), "Adaptive expectations", $/year, flow, definition]
+        - [I, gamma * (K_T - lag(K)) + delta * lag(K), "Target-based adjustment", $/year, flow, behavioral]
+        - [C, alpha0 + alpha1 * YD + alpha2 * lag(Mh), "Consumption function", $/year, flow, behavioral]
 ```
 
 ## Validation Checklist
@@ -436,8 +457,9 @@ equations: |
 Before finalizing a notebook:
 
 - [ ] Top-level `format`, `formatVersion`, `id`, `title`, and `metadata.version: 1` are present.
-- [ ] `modelId` is consistent across equations, solver, parameters, initial values, and runs.
-- [ ] All explicit cells have unique `id` and `title` fields.
+- [ ] `cells` is an ordered list of wrapped cell entries.
+- [ ] Every wrapped cell has a unique `id` and a meaningful `title`.
+- [ ] `modelId` is consistent across equations, solver, externals, initial values, and runs.
 - [ ] `sourceModelId` references point to valid model ids.
 - [ ] `sourceRunCellId`, `baselineRunCellId`, and `matrixCellId` references point to valid cells.
 - [ ] Matrix `columns` and `sectors` arrays have the same length.
@@ -452,7 +474,7 @@ Before finalizing a notebook:
 
 Expanded JSON is still useful for runtime interchange, direct schema validation, and clients that cannot emit YAML reliably. It is not the preferred authoring surface.
 
-The compact YAML sections compile into expanded notebook cells shaped like this:
+The compact wrapped YAML cells compile into expanded notebook cells shaped like this:
 
 ```json
 {
@@ -461,19 +483,19 @@ The compact YAML sections compile into expanded notebook cells shaped like this:
   "metadata": { "version": 1 },
   "cells": [
     {
-      "id": "equations",
+      "id": "equations-main",
       "type": "equations",
       "title": "Model equations",
       "modelId": "simple",
       "equations": [
-        { "id": "eq-0-Y", "name": "Y", "expression": "100" }
+        { "id": "eq-0-y", "name": "Y", "expression": "G" }
       ]
     }
   ]
 }
 ```
 
-Expanded YAML that mirrors the JSON cell array may still be imported for backwards compatibility, but new generated YAML should use the compact domain-first sections shown above.
+Expanded YAML that mirrors the JSON cell array, and the older top-level shorthand sections, may still be imported for backwards compatibility. New generated YAML should use the wrapped `cells:` pattern shown above.
 
 ## Common Errors And Solutions
 
@@ -487,15 +509,15 @@ Add `metadata.version: 1` at the top level.
 
 ### Error: "Cell source must include id"
 
-Every explicit cell in the `cells` array must have an `id` field. Compact generated sections such as `equations`, `solver`, and `baselineRun` create their own cells.
+Every wrapped cell in the `cells` array must include an `id` field.
 
 ### Error: "Matrix cells require columns to be an array"
 
-Matrix sections must have `columns: [...]` as an array.
+Matrix cells must have `columns: [...]` as an array.
 
 ### Error: "Unknown variable in expression"
 
-Ensure all variables are defined as equations, parameters, initial values, or valid lag references.
+Ensure all variables are defined as equations, externals, initial values, or valid lag references.
 
 ### Error: "Circular dependency"
 
@@ -511,4 +533,4 @@ Check that source references, such as `sourceRunCellId` and `matrixCellId`, poin
 
 ## Summary
 
-Create new notebooks in compact `sfcr-notebook-yaml`. Start from the YAML starter template, borrow targeted patterns from the BMW and GL6-DIS examples, and keep expanded JSON for schema validation or clients that explicitly require runtime interchange. The compact YAML authoring path should be the default for both human readers and AI assistants.
+Create new notebooks in compact `sfcr-notebook-yaml` with one ordered `cells:` list. Start from the YAML starter template, borrow targeted patterns from the BMW and GL6-DIS examples, and keep expanded JSON for schema validation or clients that explicitly require runtime interchange.

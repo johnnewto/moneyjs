@@ -5,377 +5,238 @@ title: GL6 DIS Notebook
 metadata:
   version: 1
   template: gl6-dis
-  description: This notebook presents the Godley and Lavoie DIS model as an executable browser notebook. It focuses on how expected sales, inventory adjustment, bank credit, and household wealth accumulation interact through a stock-flow consistent structure, and includes the baseline model, accounting matrices, and two scenario experiments from the chapter.
-modelId: equations
-introCell:
-  id: intro
-  title: Overview
-sectors: [Households, Production firms, Banks, ""]
-variables:
-  y:
-    description: Output determined by expected sales and inventory adjustment.
-  inv_T:
-    description: Target inventory stock as a ratio of expected sales.
-  inv_E:
-    description: Expected inventory stock adjusts toward the target.
-  inv:
-    description: Realized inventories evolve with production minus sales.
-  s_E:
-    description: Expected sales formed adaptively.
-  s:
-    description: Real sales equal real consumption demand.
-  N:
-    description: Employment from output and productivity.
-  WB:
-    description: Wage bill.
-  UC:
-    description: Unit cost.
-  INV:
-    description: Nominal inventories.
-  S:
-    description: Nominal sales.
-  p:
-    description: Price level.
-  NHUC:
-    description: Normalized historic unit cost.
-  EF:
-    description: Entrepreneurial profits.
-  Ld:
-    description: Demand for loans.
-  Ls:
-    description: Supply of loans.
-  Ms:
-    description: Supply of deposits.
-  rm:
-    description: Deposit rate.
-  EFb:
-    description: Bank profits.
-  YD:
-    description: Disposable income.
-  Mh:
-    description: Household deposits.
-  ydhs:
-    description: Haig-Simons real disposable income.
-  C:
-    description: Nominal consumption.
-  mh:
-    description: Real household wealth.
-  c:
-    description: Real consumption demand.
-  ydhs_E:
-    description: Expected Haig-Simons disposable income.
-  rl:
-    description: Interest rate on loans.
-  pr:
-    description: Labor productivity.
-  W:
-    description: Money wage.
-  add:
-    description: Spread between loan and deposit rates.
-  alpha0:
-    description: Autonomous consumption.
-  alpha1:
-    description: Propensity to consume out of expected disposable income.
-  alpha2:
-    description: Propensity to consume out of wealth.
-  beta:
-    description: Speed of sales expectations adjustment.
-  epsilon:
-    description: Speed of income expectations adjustment.
-  gamma:
-    description: Speed of inventory adjustment.
-  phi:
-    description: Costing margin.
-  sigma_T:
-    description: Target inventory-to-sales ratio.
-equations: |-
-  # Output determined by expected sales and inventory adjustment.
-  y ~ s_E + inv_E - lag(inv)
-
-  # Target inventory stock as a ratio of expected sales.
-  inv_T ~ sigma_T * s_E
-
-  # Expected inventory stock adjusts toward the target.
-  inv_E ~ lag(inv) + gamma * (inv_T - lag(inv))
-
-  # Realized inventories evolve with production minus sales.
-  inv ~ lag(inv) + (y - s)
-
-  # Expected sales formed adaptively.
-  s_E ~ beta * lag(s) + (1 - beta) * lag(s_E)
-
-  # Real sales equal real consumption demand.
-  s ~ c
-
-  # Employment from output and productivity.
-  N ~ y / pr
-
-  # Wage bill.
-  WB ~ N * W
-
-  # Unit cost.
-  UC ~ WB / y
-
-  # Nominal inventories.
-  INV ~ inv * UC
-
-  # Nominal sales.
-  S ~ p * s
-
-  # Price level.
-  p ~ (1 + phi) * NHUC
-
-  # Normalized historic unit cost.
-  NHUC ~ (1 - sigma_T) * UC + sigma_T * (1 + lag(rl)) * lag(UC)
-
-  # Entrepreneurial profits.
-  EF ~ S - WB + (INV - lag(INV)) - lag(rl) * lag(INV)
-
-  # Demand for loans.
-  Ld ~ INV
-
-  # Supply of loans.
-  Ls ~ Ld
-
-  # Supply of deposits.
-  Ms ~ Ls
-
-  # Deposit rate.
-  rm ~ rl - add
-
-  # Bank profits.
-  EFb ~ lag(rl) * lag(Ls) - lag(rm) * lag(Mh)
-
-  # Disposable income.
-  YD ~ WB + EF + EFb + lag(rm) * lag(Mh)
-
-  # Household deposits.
-  Mh ~ lag(Mh) + YD - C
-
-  # Haig-Simons real disposable income.
-  ydhs ~ c + (mh - lag(mh))
-
-  # Nominal consumption.
-  C ~ c * p
-
-  # Real household wealth.
-  mh ~ Mh / p
-
-  # Real consumption demand.
-  c ~ alpha0 + alpha1 * ydhs_E + alpha2 * lag(mh)
-
-  # Expected Haig-Simons disposable income.
-  ydhs_E ~ epsilon * lag(ydhs) + (1 - epsilon) * lag(ydhs_E)
-equationCell:
-  id: equations
-  title: DIS model
-  collapsed: true
-balance:
-  id: balance-sheet
-  title: DIS balance sheet
-  description: Balance-sheet matrix for the DIS model, showing how household deposits, firm inventories, and bank liabilities align across sectors.
-  note: Use this view to track how inventory finance and household wealth accumulation are mirrored by the banking system in the baseline simulation.
-  columns: [Households, Production firms, Banks, Sum]
-  sectors: [Households, Production firms, Banks, ""]
-  rows:
-    - [Money, Money, +Mh, "", -Ms, "0"]
-    - label: Loans
-      values:
-        - ""
-        - -Ld
-        - +Ls
-        - "0"
-    - [Inventories, Inventories, "", +INV, "", +INV]
-    - [Balance, Balance, -Mh, "", "", -Mh]
-    - [Sum, Sum, "0", "0", "0", "0"]
-transactions:
-  id: transaction-flow
-  title: DIS transactions-flow matrix
-  description: Transactions-flow matrix for the DIS model, tracing consumption, wages, interest, profits, and financing flows across households, firms, and banks.
-  note: This view makes the model's stock-flow consistency explicit by pairing each income, credit, and wealth flow with its offsetting entry.
-  columns: [Households, Firms_current, Firms_capital, Banks_current, Banks_capital, Sum]
-  sectors: [Households, Production firms, Production firms, Banks, Banks, ""]
-  rows:
-    - [Consumption, Consumption, -C, +C, "", "", "", "0"]
-    - [Inventories, Ch. Inventories, "", +d(INV), -d(INV), "", "", "0"]
-    - [Wages, Wages, +WB, -WB, "", "", "", "0"]
-    - [Interest, Interest on loans, "", "-rl[-1] * Ld[-1]", "", "+rl[-1] * Ls[-1]", "", "0"]
-    - [Profits, Entrepreneurial Profits, +EF, -EF, "", "", "", "0"]
-    - [Profits, Banks profits, +EFb, "", "", -EFb, "", "0"]
-    - [Interest, Interest on deposits, "+rm[-1] * Mh[-1]", "", "", "-rm[-1] * Mh[-1]", "", "0"]
-    - [Loans, Change loans, "", "", +d(Ld), "", -d(Ls), "0"]
-    - [Deposits, Change deposits, -d(Mh), "", "", "", +d(Ms), "0"]
-    - [Sum, Sum, "0", "0", "0", "0", "0", "0"]
-parameters:
-  rl: 0.025
-  pr: 1
-  W: 0.75
-  add: 0.02
-  alpha0: 15
-  alpha1: 0.8
-  alpha2: 0.1
-  beta: 0.75
-  epsilon: 0.75
-  gamma: 0.25
-  phi: 0.25
-  sigma_T: 0.15
-parametersCell:
-  id: externals-equations
-  title: Externals
-  collapsed: true
-initial-values: {}
-initialValuesCell:
-  id: initial-values-equations
-  collapsed: true
-solver:
-  method: gauss-seidel
-  tolerance: "1e-10"
-  maxIterations: 100
-  defaultInitialValue: "1e-15"
-  hiddenLeftVariable: Mh
-  hiddenRightVariable: Ms
-  hiddenTolerance: "0.00001"
-  relativeHiddenTolerance: false
-solverCell:
-  id: solver
-  title: Solver
-  collapsed: true
-baselineRun:
-  id: baseline-run
-  title: Baseline run
-  description: Baseline DIS simulation showing how inventory adjustment, bank credit, and household wealth co-evolve under the Mh = Ms closure condition.
-  resultKey: gl6_dis_baseline
-  periods: 100
-charts:
-  - id: baseline-chart
-    title: Baseline headline variables
-    variables:
-      - ydhs
-      - c
-      - p
-      - Mh
-    axisMode: separate
-    axisSnapTolarance: 0.5
-    seriesRanges:
-      p:
-        includeZero: true
-tables:
-  - id: baseline-table
-    title: Baseline variable summary
-    variables:
-      - y
-      - ydhs
-      - c
-      - p
-      - Mh
-      - INV
 cells:
-  - id: transaction-flow-sequence
-    type: sequence
-    title: DIS transaction flow sequence
-    source:
-      kind: matrix
-      matrixCellId: transaction-flow
-    description: Sequence view of the DIS transactions-flow matrix, showing how spending, income, and financial positions propagate through the selected period.
-  - id: scenario-1-note
-    type: markdown
-    title: Scenario 1
-    source: Scenario 1 raises the costing margin `phi` from 0.25 to 0.35 between periods 5 and 40.
-  - id: scenario-1-run
-    type: run
-    title: "Scenario 1: costing margin shock"
-    mode: scenario
-    scenario:
-      shocks:
-        - rangeInclusive:
-            - 5
-            - 40
-          variables:
-            phi:
-              kind: constant
-              value: 0.35
-    baselineRunCellId: baseline-run
-    periods: 40
-    resultKey: gl6_dis_s1
-    sourceModelId: equations
-  - id: scenario-1-chart
-    type: chart
-    title: Scenario 1 consumption and income
-    sourceRunCellId: scenario-1-run
-    variables:
-      - c
-      - ydhs
-      - p
-    axisMode: separate
-    axisSnapTolarance: 0.5
-    seriesRanges:
-      p:
-        includeZero: true
-  - id: scenario-2-note
-    type: markdown
-    title: Scenario 2
-    source: Scenario 2 raises the target inventories-to-sales ratio `sigma_T` from 0.15 to 0.25 between periods 5 and 50.
-  - id: scenario-2-run
-    type: run
-    title: "Scenario 2: inventory target shock"
-    mode: scenario
-    scenario:
-      shocks:
-        - rangeInclusive:
-            - 5
-            - 50
-          variables:
-            sigma_T:
-              kind: constant
-              value: 0.25
-    baselineRunCellId: baseline-run
-    periods: 50
-    resultKey: gl6_dis_s2
-    sourceModelId: equations
-  - id: scenario-2-chart
-    type: chart
-    title: Scenario 2 inventories and income
-    sourceRunCellId: scenario-2-run
-    variables:
-      - ydhs
-      - c
-      - inv
-      - inv_E
-    axisMode: separate
-    axisSnapTolarance: 0.5
-    seriesRanges:
-      inv:
-        includeZero: true
-      inv_E:
-        includeZero: true
-  - id: equation-dependency-graph
-    type: sequence
-    title: DIS equation dependency graph
-    source:
-      kind: dependency
+  - markdown:
+      id: intro
+      title: Overview
+      source: This notebook presents the Godley and Lavoie DIS model as an executable browser notebook. It focuses on how expected sales, inventory adjustment, bank credit, and household wealth accumulation interact through a stock-flow consistent structure, and includes the baseline model, accounting matrices, and two scenario experiments from the chapter.
+  - matrix:
+      id: balance-sheet
+      title: DIS balance sheet
+      description: Balance-sheet matrix for the DIS model, showing how household deposits, firm inventories, and bank liabilities align across sectors.
+      note: Use this view to track how inventory finance and household wealth accumulation are mirrored by the banking system in the baseline simulation.
+      sourceRunCellId: baseline-run
+      columns: [Households, Production firms, Banks, Sum]
+      sectors: [Households, Production firms, Banks, ""]
+      rows:
+        - [Money, Money, +Mh, "", -Ms, "0"]
+        - label: Loans
+          values:
+            - ""
+            - -Ld
+            - +Ls
+            - "0"
+        - [Inventories, Inventories, "", +INV, "", +INV]
+        - [Balance, Balance, -Mh, "", "", -Mh]
+        - [Sum, Sum, "0", "0", "0", "0"]
+  - matrix:
+      id: transaction-flow
+      title: DIS transactions-flow matrix
+      description: Transactions-flow matrix for the DIS model, tracing consumption, wages, interest, profits, and financing flows across households, firms, and banks.
+      note: This view makes the model's stock-flow consistency explicit by pairing each income, credit, and wealth flow with its offsetting entry.
+      sourceRunCellId: baseline-run
+      columns: [Households, Firms_current, Firms_capital, Banks_current, Banks_capital, Sum]
+      sectors: [Households, Production firms, Production firms, Banks, Banks, ""]
+      rows:
+        - [Consumption, Consumption, -C, +C, "", "", "", "0"]
+        - [Inventories, Ch. Inventories, "", +d(INV), -d(INV), "", "", "0"]
+        - [Wages, Wages, +WB, -WB, "", "", "", "0"]
+        - [Interest, Interest on loans, "", "-rl[-1] * Ld[-1]", "", "+rl[-1] * Ls[-1]", "", "0"]
+        - [Profits, Entrepreneurial Profits, +EF, -EF, "", "", "", "0"]
+        - [Profits, Banks profits, +EFb, "", "", -EFb, "", "0"]
+        - [Interest, Interest on deposits, "+rm[-1] * Mh[-1]", "", "", "-rm[-1] * Mh[-1]", "", "0"]
+        - [Loans, Change loans, "", "", +d(Ld), "", -d(Ls), "0"]
+        - [Deposits, Change deposits, -d(Mh), "", "", "", +d(Ms), "0"]
+        - [Sum, Sum, "0", "0", "0", "0", "0", "0"]
+  - sequence:
+      id: transaction-flow-sequence
+      title: DIS transaction flow sequence
+      source:
+        kind: matrix
+        matrixCellId: transaction-flow
+      description: Sequence view of the DIS transactions-flow matrix, showing how spending, income, and financial positions propagate through the selected period.
+  - equations:
+      id: equations
+      title: DIS model
       modelId: equations
-      stripSectorSource: columns
-      showAccountingStrips: true
-      showExogenous: false
-    description: Dependency view of the DIS equations, highlighting how expected sales, inventories, pricing, bank credit, and household income feed back through the model over time.
-    note: Use this alongside the transactions-flow matrix to connect the accounting structure with the model's dynamic adjustment mechanisms.
-    collapsed: true
-cellOrder:
-  - intro
-  - balance-sheet
-  - transaction-flow
-  - transaction-flow-sequence
-  - equations
-  - solver
-  - externals-equations
-  - initial-values-equations
-  - baseline-run
-  - baseline-chart
-  - baseline-table
-  - scenario-1-note
-  - scenario-1-run
-  - scenario-1-chart
-  - scenario-2-note
-  - scenario-2-run
-  - scenario-2-chart
-  - equation-dependency-graph
+      collapsed: true
+      rows:
+        - [y, s_E + inv_E - lag(inv), "Output determined by expected sales and inventory adjustment."]
+        - [inv_T, sigma_T * s_E, "Target inventory stock as a ratio of expected sales."]
+        - [inv_E, lag(inv) + gamma * (inv_T - lag(inv)), "Expected inventory stock adjusts toward the target."]
+        - [inv, lag(inv) + (y - s), "Realized inventories evolve with production minus sales."]
+        - [s_E, beta * lag(s) + (1 - beta) * lag(s_E), "Expected sales formed adaptively."]
+        - [s, c, "Real sales equal real consumption demand."]
+        - [N, y / pr, "Employment from output and productivity."]
+        - [WB, N * W, "Wage bill."]
+        - [UC, WB / y, "Unit cost."]
+        - [INV, inv * UC, "Nominal inventories."]
+        - [S, p * s, "Nominal sales."]
+        - [p, (1 + phi) * NHUC, "Price level."]
+        - [NHUC, (1 - sigma_T) * UC + sigma_T * (1 + lag(rl)) * lag(UC), "Normalized historic unit cost."]
+        - [EF, S - WB + (INV - lag(INV)) - lag(rl) * lag(INV), "Entrepreneurial profits."]
+        - [Ld, INV, "Demand for loans."]
+        - [Ls, Ld, "Supply of loans."]
+        - [Ms, Ls, "Supply of deposits."]
+        - [rm, rl - add, "Deposit rate."]
+        - [EFb, lag(rl) * lag(Ls) - lag(rm) * lag(Mh), "Bank profits."]
+        - [YD, WB + EF + EFb + lag(rm) * lag(Mh), "Disposable income."]
+        - [Mh, lag(Mh) + YD - C, "Household deposits."]
+        - [ydhs, c + (mh - lag(mh)), "Haig-Simons real disposable income."]
+        - [C, c * p, "Nominal consumption."]
+        - [mh, Mh / p, "Real household wealth."]
+        - [c, alpha0 + alpha1 * ydhs_E + alpha2 * lag(mh), "Real consumption demand."]
+        - [ydhs_E, epsilon * lag(ydhs) + (1 - epsilon) * lag(ydhs_E), "Expected Haig-Simons disposable income."]
+  - solver:
+      id: solver
+      title: Solver
+      modelId: equations
+      collapsed: true
+      method: gauss-seidel
+      tolerance: "1e-10"
+      maxIterations: 100
+      defaultInitialValue: "1e-15"
+      hiddenLeftVariable: Mh
+      hiddenRightVariable: Ms
+      hiddenTolerance: "0.00001"
+      relativeHiddenTolerance: false
+  - externals:
+      id: externals-equations
+      title: Externals
+      modelId: equations
+      collapsed: true
+      rows:
+        - [rl, 0.025, "Interest rate on loans."]
+        - [pr, 1, "Labor productivity."]
+        - [W, 0.75, "Money wage."]
+        - [add, 0.02, "Spread between loan and deposit rates."]
+        - [alpha0, 15, "Autonomous consumption."]
+        - [alpha1, 0.8, "Propensity to consume out of expected disposable income."]
+        - [alpha2, 0.1, "Propensity to consume out of wealth."]
+        - [beta, 0.75, "Speed of sales expectations adjustment."]
+        - [epsilon, 0.75, "Speed of income expectations adjustment."]
+        - [gamma, 0.25, "Speed of inventory adjustment."]
+        - [phi, 0.25, "Costing margin."]
+        - [sigma_T, 0.15, "Target inventory-to-sales ratio."]
+  - initial-values:
+      id: initial-values-equations
+      title: Initial values
+      modelId: equations
+      collapsed: true
+      rows: []
+  - run:
+      id: baseline-run
+      title: Baseline run
+      description: Baseline DIS simulation showing how inventory adjustment, bank credit, and household wealth co-evolve under the Mh = Ms closure condition.
+      mode: baseline
+      periods: 100
+      resultKey: gl6_dis_baseline
+      sourceModelId: equations
+  - chart:
+      id: baseline-chart
+      title: Baseline headline variables
+      variables:
+        - ydhs
+        - c
+        - p
+        - Mh
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      seriesRanges:
+        p:
+          includeZero: true
+      sourceRunCellId: baseline-run
+  - table:
+      id: baseline-table
+      title: Baseline variable summary
+      variables:
+        - y
+        - ydhs
+        - c
+        - p
+        - Mh
+        - INV
+      sourceRunCellId: baseline-run
+  - markdown:
+      id: scenario-1-note
+      title: Scenario 1
+      source: Scenario 1 raises the costing margin `phi` from 0.25 to 0.35 between periods 5 and 40.
+  - run:
+      id: scenario-1-run
+      title: "Scenario 1: costing margin shock"
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 5
+              - 40
+            variables:
+              phi:
+                kind: constant
+                value: 0.35
+      baselineRunCellId: baseline-run
+      periods: 40
+      resultKey: gl6_dis_s1
+      sourceModelId: equations
+  - chart:
+      id: scenario-1-chart
+      title: Scenario 1 consumption and income
+      variables:
+        - c
+        - ydhs
+        - p
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      seriesRanges:
+        p:
+          includeZero: true
+      sourceRunCellId: scenario-1-run
+  - markdown:
+      id: scenario-2-note
+      title: Scenario 2
+      source: Scenario 2 raises the target inventories-to-sales ratio `sigma_T` from 0.15 to 0.25 between periods 5 and 50.
+  - run:
+      id: scenario-2-run
+      title: "Scenario 2: inventory target shock"
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 5
+              - 50
+            variables:
+              sigma_T:
+                kind: constant
+                value: 0.25
+      baselineRunCellId: baseline-run
+      periods: 50
+      resultKey: gl6_dis_s2
+      sourceModelId: equations
+  - chart:
+      id: scenario-2-chart
+      title: Scenario 2 inventories and income
+      variables:
+        - ydhs
+        - c
+        - inv
+        - inv_E
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      seriesRanges:
+        inv:
+          includeZero: true
+        inv_E:
+          includeZero: true
+      sourceRunCellId: scenario-2-run
+  - sequence:
+      id: equation-dependency-graph
+      title: DIS equation dependency graph
+      source:
+        kind: dependency
+        modelId: equations
+        stripSectorSource: columns
+        showAccountingStrips: true
+        showExogenous: false
+      description: Dependency view of the DIS equations, highlighting how expected sales, inventories, pricing, bank credit, and household income feed back through the model over time.
+      note: Use this alongside the transactions-flow matrix to connect the accounting structure with the model's dynamic adjustment mechanisms.
+      collapsed: true

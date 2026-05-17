@@ -5,98 +5,83 @@ title: SFCR Starter Notebook
 metadata:
   version: 1
   template: starter
-  description: Use this starter notebook as the minimum valid scaffold for new SFCR models. Replace placeholder equations, externals, and initial values with your model-specific content.
-modelId: main-model
-introCell:
-  id: intro
-  title: Overview
-
-balance:
-  id: balance-sheet
-  title: Starter balance sheet
-  description: Minimal balance-sheet style matrix for the starter notebook. Replace sector labels and row formulas with your model structure.
-  columns: [Households, Government, Sum]
-  sectors: [Households, Government, ""]
-  rows:
-    - [Deposits, Money deposits, +Y, -Y, "0"]
-    - [Sum, Sum, "0", "0", "0"]
-
-transactions:
-  id: transaction-flow
-  title: Starter transactions-flow matrix
-  description: Minimal transactions-flow matrix for the starter notebook. Expand this into the accounting layout your model requires.
-  columns: [Households, Government, Sum]
-  sectors: [Households, Government, ""]
-  rows:
-    - [Income, Income, +Y, -Y, "0"]
-    - [Spending, Government spending, -G, +G, "0"]
-    - [Sum, Sum, "0", "0", "0"]
-
-equations: |
-  Y ~ G
-
-parameters:
-  G: 20
-
-initial-values:
-  Y: 20
-
-solver:
-  method: newton
-  tolerance: 1e-10
-  maxIterations: 100
-  defaultInitialValue: 1e-15
-  hiddenLeftVariable: ""
-  hiddenRightVariable: ""
-  hiddenTolerance: 1e-8
-  relativeHiddenTolerance: false
-
-baselineRun:
-  id: baseline-run
-  title: Baseline run
-  description: Baseline run for the starter scaffold.
-  resultKey: baseline_result
-  periods: 20
-
-equationCell:
-  id: equations-main
-  title: Model equations
-parametersCell:
-  id: externals-main
-  title: Externals
-initialValuesCell:
-  id: initial-values-main
-  title: Initial values
-solverCell:
-  id: solver-main
-  title: Solver options
-
 cells:
-  - id: transaction-flow-sequence
-    type: sequence
-    title: Starter transaction flow sequence
-    source:
-      kind: matrix
-      matrixCellId: transaction-flow
-    description: Sequence view generated from the starter transactions-flow matrix.
-  - id: equation-dependency-graph
-    type: sequence
-    title: Starter equation dependency graph
-    source:
-      kind: dependency
+  - markdown:
+      id: intro
+      title: Overview
+      source: Use this starter notebook as the minimum valid scaffold for new SFCR models. Replace placeholder equations, externals, and initial values with your model-specific content.
+  - matrix:
+      id: balance-sheet
+      title: Starter balance sheet
+      description: Minimal balance-sheet style matrix for the starter notebook. Replace sector labels and row formulas with your model structure.
+      sourceRunCellId: baseline-run
+      columns: [Households, Government, Sum]
+      sectors: [Households, Government, ""]
+      rows:
+        - [Deposits, Money deposits, +Y, -Y, "0"]
+        - [Sum, Sum, "0", "0", "0"]
+  - matrix:
+      id: transaction-flow
+      title: Starter transactions-flow matrix
+      description: Minimal transactions-flow matrix for the starter notebook. Expand this into the accounting layout your model requires.
+      sourceRunCellId: baseline-run
+      columns: [Households, Government, Sum]
+      sectors: [Households, Government, ""]
+      rows:
+        - [Income, Income, +Y, -Y, "0"]
+        - [Spending, Government spending, -G, +G, "0"]
+        - [Sum, Sum, "0", "0", "0"]
+  - sequence:
+      id: transaction-flow-sequence
+      title: Starter transaction flow sequence
+      source:
+        kind: matrix
+        matrixCellId: transaction-flow
+      description: Sequence view generated from the starter transactions-flow matrix.
+  - sequence:
+      id: equation-dependency-graph
+      title: Starter equation dependency graph
+      source:
+        kind: dependency
+        modelId: main-model
+        showAccountingStrips: true
+        showExogenous: false
+      description: Dependency view of the starter equations organized by accounting strips.
+  - equations:
+      id: equations-main
+      title: Model equations
       modelId: main-model
-      showAccountingStrips: true
-      showExogenous: false
-    description: Dependency view of the starter equations organized by accounting strips.
-
-cellOrder:
-  - intro
-  - balance-sheet
-  - transaction-flow
-  - transaction-flow-sequence
-  - equation-dependency-graph
-  - equations-main
-  - solver-main
-  - externals-main
-  - initial-values-main
-  - baseline-run
+      rows:
+        - [Y, G, "", "", "", "", eq-0-y]
+  - solver:
+      id: solver-main
+      title: Solver options
+      modelId: main-model
+      method: newton
+      tolerance: "1e-10"
+      maxIterations: 100
+      defaultInitialValue: "1e-15"
+      hiddenLeftVariable: ""
+      hiddenRightVariable: ""
+      hiddenTolerance: "1e-8"
+      relativeHiddenTolerance: false
+  - externals:
+      id: externals-main
+      title: Externals
+      modelId: main-model
+      rows:
+        - [G, 20, "", "", "", ext-0-g]
+  - initial-values:
+      id: initial-values-main
+      title: Initial values
+      modelId: main-model
+      rows:
+        - [Y, 20, init-0-y]
+  - run:
+      id: baseline-run
+      title: Baseline run
+      mode: baseline
+      periods: 20
+      resultKey: baseline_result
+      sourceModelId: main-model
+      description: Baseline run for the starter scaffold.

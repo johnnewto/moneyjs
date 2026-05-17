@@ -5,134 +5,95 @@ title: Simple Epidemic Notebook
 metadata:
   version: 1
   template: simple-epidemic
-  description: This notebook captures the legacy SIMPLE EPIDEMIC MODEL as a runnable browser notebook. The original model used `DT = 0.25` days and a `TABLE(...)` contact lookup. In this notebook the quarter-day step is folded into per-step rates, the contact lookup is represented as a piecewise linear interpolation over the original table points, and the infection-flow calculation uses lagged stocks so the model runs as a stable explicit update in the current browser solver.
-modelId: simple-epidemic
-introCell:
-  id: intro
-  title: Overview
-variables:
-  total:
-    description: Total population.
-  susceptible_share:
-    description: Lagged share of population still susceptible, used by the contact lookup.
-  contacts:
-    description: Piecewise linear contact function based on the original lookup table.
-  infections:
-    description: New infections per simulation step from lagged stocks. The original daily infection rate is scaled by the quarter-day step.
-  cure:
-    description: Recoveries per simulation step from the lagged sick stock. The original daily cure rate is scaled by the quarter-day step.
-  susceptible:
-    description: Susceptible population stock.
-  sick:
-    description: Sick population stock.
-  recovered:
-    description: Recovered population stock.
-  frsick_step:
-    description: Per-step infection factor from the original `FRSICK = 0.05` with `DT = 0.25`.
-  cure_rate_step:
-    description: Per-step cure rate from the original `DUR = 10` days with `DT = 0.25`.
-  total_population:
-    description: Constant total population used in the lagged contact-share lookup.
-equations: |-
-  # Total population.
-  total ~ susceptible + sick + recovered
-
-  # Lagged share of population still susceptible, used by the contact lookup.
-  susceptible_share ~ lag(susceptible) / total_population
-
-  # Piecewise linear contact function based on the original lookup table.
-  contacts ~ if (susceptible_share < 0.2) { 14 * susceptible_share } else { if (susceptible_share < 0.4) { 2.8 + 13.5 * (susceptible_share - 0.2) } else { if (susceptible_share < 0.6) { 5.5 + 12.5 * (susceptible_share - 0.4) } else { if (susceptible_share < 0.8) { 8 + 7.5 * (susceptible_share - 0.6) } else { 9.5 + 2.5 * (susceptible_share - 0.8) } } } }
-
-  # New infections per simulation step from lagged stocks. The original daily infection rate is scaled by the quarter-day step.
-  infections ~ lag(sick) * contacts * frsick_step
-
-  # Recoveries per simulation step from the lagged sick stock. The original daily cure rate is scaled by the quarter-day step.
-  cure ~ lag(sick) * cure_rate_step
-
-  # Susceptible population stock.
-  susceptible ~ lag(susceptible) - infections
-
-  # Sick population stock.
-  sick ~ lag(sick) + infections - cure
-
-  # Recovered population stock.
-  recovered ~ lag(recovered) + cure
-equationCell:
-  id: equations
-  title: Simple epidemic model
-  collapsed: true
-parameters:
-  frsick_step: 0.0125
-  cure_rate_step: 0.025
-  total_population: 1000
-parametersCell:
-  id: externals
-  title: Externals
-  collapsed: true
-initial-values:
-  susceptible: 988
-  sick: 2
-  recovered: 10
-initialValuesCell:
-  id: initial-values
-  collapsed: true
-solver:
-  method: gauss-seidel
-  tolerance: "1e-10"
-  maxIterations: 100
-  defaultInitialValue: "1e-15"
-  hiddenLeftVariable: ""
-  hiddenRightVariable: ""
-  hiddenTolerance: "0.00001"
-  relativeHiddenTolerance: false
-solverCell:
-  id: solver
-  title: Solver
-  collapsed: true
-baselineRun:
-  id: baseline-run
-  title: Baseline run
-  description: Baseline epidemic run over 200 quarter-day steps, corresponding to 50 days.
-  resultKey: simple_epidemic_baseline
-  periods: 200
-charts:
-  - id: baseline-chart
-    title: Epidemic stocks and flows
-    variables:
-      - susceptible
-      - sick
-      - recovered
-      - infections
-      - cure
-    axisMode: separate
-    axisSnapTolarance: 0.5
-    seriesRanges:
-      susceptible:
-        includeZero: true
-      sick:
-        includeZero: true
-      recovered:
-        includeZero: true
-      infections:
-        includeZero: true
-      cure:
-        includeZero: true
-tables:
-  - id: baseline-table
-    title: Baseline variable summary
-    variables:
-      - susceptible
-      - sick
-      - recovered
-      - infections
-      - cure
-      - contacts
-cellOrder:
-  - intro
-  - equations
-  - solver
-  - externals
-  - initial-values
-  - baseline-run
-  - baseline-chart
-  - baseline-table
+cells:
+  - markdown:
+      id: intro
+      title: Overview
+      source: This notebook captures the legacy SIMPLE EPIDEMIC MODEL as a runnable browser notebook. The original model used `DT = 0.25` days and a `TABLE(...)` contact lookup. In this notebook the quarter-day step is folded into per-step rates, the contact lookup is represented as a piecewise linear interpolation over the original table points, and the infection-flow calculation uses lagged stocks so the model runs as a stable explicit update in the current browser solver.
+  - equations:
+      id: equations
+      title: Simple epidemic model
+      modelId: simple-epidemic
+      collapsed: true
+      rows:
+        - [total, susceptible + sick + recovered, "Total population."]
+        - [susceptible_share, lag(susceptible) / total_population, "Lagged share of population still susceptible, used by the contact lookup."]
+        - [contacts, "if (susceptible_share < 0.2) { 14 * susceptible_share } else { if (susceptible_share < 0.4) { 2.8 + 13.5 * (susceptible_share - 0.2) } else { if (susceptible_share < 0.6) { 5.5 + 12.5 * (susceptible_share - 0.4) } else { if (susceptible_share < 0.8) { 8 + 7.5 * (susceptible_share - 0.6) } else { 9.5 + 2.5 * (susceptible_share - 0.8) } } } }", "Piecewise linear contact function based on the original lookup table."]
+        - [infections, lag(sick) * contacts * frsick_step, "New infections per simulation step from lagged stocks. The original daily infection rate is scaled by the quarter-day step."]
+        - [cure, lag(sick) * cure_rate_step, "Recoveries per simulation step from the lagged sick stock. The original daily cure rate is scaled by the quarter-day step."]
+        - [susceptible, lag(susceptible) - infections, "Susceptible population stock."]
+        - [sick, lag(sick) + infections - cure, "Sick population stock."]
+        - [recovered, lag(recovered) + cure, "Recovered population stock."]
+  - solver:
+      id: solver
+      title: Solver
+      modelId: simple-epidemic
+      collapsed: true
+      method: gauss-seidel
+      tolerance: "1e-10"
+      maxIterations: 100
+      defaultInitialValue: "1e-15"
+      hiddenLeftVariable: ""
+      hiddenRightVariable: ""
+      hiddenTolerance: "0.00001"
+      relativeHiddenTolerance: false
+  - externals:
+      id: externals
+      title: Externals
+      modelId: simple-epidemic
+      collapsed: true
+      rows:
+        - [frsick_step, 0.0125, "Per-step infection factor from the original `FRSICK = 0.05` with `DT = 0.25`."]
+        - [cure_rate_step, 0.025, "Per-step cure rate from the original `DUR = 10` days with `DT = 0.25`."]
+        - [total_population, 1000, "Constant total population used in the lagged contact-share lookup."]
+  - initial-values:
+      id: initial-values
+      title: Initial values
+      modelId: simple-epidemic
+      collapsed: true
+      rows:
+        - [susceptible, 988]
+        - [sick, 2]
+        - [recovered, 10]
+  - run:
+      id: baseline-run
+      title: Baseline run
+      description: Baseline epidemic run over 200 quarter-day steps, corresponding to 50 days.
+      mode: baseline
+      periods: 200
+      resultKey: simple_epidemic_baseline
+      sourceModelId: simple-epidemic
+  - chart:
+      id: baseline-chart
+      title: Epidemic stocks and flows
+      variables:
+        - susceptible
+        - sick
+        - recovered
+        - infections
+        - cure
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      seriesRanges:
+        susceptible:
+          includeZero: true
+        sick:
+          includeZero: true
+        recovered:
+          includeZero: true
+        infections:
+          includeZero: true
+        cure:
+          includeZero: true
+      sourceRunCellId: baseline-run
+  - table:
+      id: baseline-table
+      title: Baseline variable summary
+      variables:
+        - susceptible
+        - sick
+        - recovered
+        - infections
+        - cure
+        - contacts
+      sourceRunCellId: baseline-run

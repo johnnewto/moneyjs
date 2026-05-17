@@ -104,7 +104,7 @@
       "mode": "scenario",
       "scenario": {
         "shocks": [
-          { "variables": { "alpha0": { "kind": "constant", "value": 30 } }, "rangeInclusive": [5, 50] }
+          { "variables": { "alpha0": { "kind": "constant", "value": 30 } }, "rangeInclusive": [5, 50], "startPeriodInclusive": 5, "endPeriodInclusive": 50 }
         ]
       },
       "baselineRunCellId": "baseline-newton",
@@ -122,7 +122,7 @@
       "mode": "scenario",
       "scenario": {
         "shocks": [
-          { "variables": { "alpha1": { "kind": "constant", "value": 0.7 } }, "rangeInclusive": [5, 50] }
+          { "variables": { "alpha1": { "kind": "constant", "value": 0.7 } }, "rangeInclusive": [5, 50], "startPeriodInclusive": 5, "endPeriodInclusive": 50 }
         ]
       },
       "baselineRunCellId": "baseline-newton",

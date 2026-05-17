@@ -92,7 +92,7 @@ describe("analyzeNotebookSource", () => {
 
     expect(yaml).toContain("format: sfcr-notebook-yaml");
     expect(yaml).toContain("equations:");
-    expect(yaml).toContain("Y ~ G");
+    expect(yaml).toContain("- [Y, G]");
     expect(parsed.title).toBe("Example");
     expect(parsed.cells.some((cell) => cell.type === "equations" && cell.title === "Equations")).toBe(true);
   });

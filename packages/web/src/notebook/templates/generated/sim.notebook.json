@@ -84,7 +84,7 @@
       "mode": "scenario",
       "scenario": {
         "shocks": [
-          { "rangeInclusive": [5, 60], "variables": { "Gd": { "kind": "constant", "value": 30 } } }
+          { "rangeInclusive": [5, 60], "variables": { "Gd": { "kind": "constant", "value": 30 } }, "startPeriodInclusive": 5, "endPeriodInclusive": 60 }
         ]
       },
       "baselineRunCellId": "baseline-run",

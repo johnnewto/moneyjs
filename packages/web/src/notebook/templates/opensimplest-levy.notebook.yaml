@@ -5,356 +5,216 @@ title: OPENSIMPLEST Levy WP 1105 Aligned Model
 metadata:
   version: 1
   template: opensimplest-levy
-  description: A Levy WP 1105 aligned OPENSIMPLEST notebook using superscripted paper-style variable names directly in the runnable model, including `H^P`, `H^S`, `B^P`, `B^S`, `B^{CB}`, `B^W`, `BF^P`, `yd^R`, and `yd^{HS}`. Exponentiation is written with `pow(base, exponent)`, leaving `^` available for paper notation in variable names.
-modelId: opensimplest-levy
-introCell:
-  id: overview
-  title: Overview
-sectors: [Private, Government, Central bank, Rest of world, ""]
-variables:
-  yd^R:
-    description: Regular disposable income (excluding capital gains).
-  yd^{HS}:
-    description: Haig-Simons disposable income (including valuation effects).
-  v:
-    description: Household net financial wealth.
-  t:
-    description: Tax revenue.
-  y:
-    description: GDP / income (output).
-  pe:
-    description: Household consumption.
-  NAFA:
-    description: Net acquisition of financial assets by domestic private sector (NAFA).
-  x:
-    description: Exports of goods and services.
-  im:
-    description: Imports of goods and services.
-  TB:
-    description: Trade balance (exports - imports).
-  CA:
-    description: Current account balance (CA > 0 = surplus).
-  NFA:
-    description: Net foreign assets (country external position, NETFA).
-  B^W:
-    description: Foreign holdings of domestic government bills (residual from NETFA identity).
-  B^P:
-    description: Domestic bills held by households.
-  BF^P:
-    description: Foreign bills held by domestic households (in foreign currency).
-  H^P:
-    description: Money balances held by households.
-  F^{CB}:
-    description: Central bank profits.
-  B^{CB}:
-    description: Domestic bills held by the central bank.
-  H^S:
-    description: Money supply (high-powered money).
-  PSBR:
-    description: Public Sector Borrowing Requirement (government deficit).
-  B^S:
-    description: Total stock of domestic government bills.
-  xr:
-    description: Nominal exchange rate (domestic currency per unit of foreign currency).
-  sectoral_check:
-    description: Sectoral balance identity (NAFA - PSBR - CA, should equal zero).
-  g:
-    description: Government expenditure on goods and services.
-  r:
-    description: Interest rate on domestic government bills.
-  r^F:
-    description: Interest rate on foreign bills (exogenous).
-  y^F:
-    description: Foreign income (exogenous).
-  alpha1:
-    description: Propensity to consume out of disposable income.
-  alpha2:
-    description: Propensity to consume out of wealth.
-  theta:
-    description: Average tax rate on income.
-  eps0:
-    description: Export equation constant term.
-  eps1:
-    description: Export elasticity with respect to the exchange rate.
-  eps2:
-    description: Export elasticity with respect to foreign income.
-  mu0:
-    description: Import equation constant term.
-  mu1:
-    description: Import elasticity with respect to the exchange rate.
-  mu2:
-    description: Import elasticity with respect to domestic income.
-  lambda10:
-    description: "Portfolio share parameter: domestic bills (baseline)."
-  lambda11:
-    description: Portfolio sensitivity to domestic interest rate (domestic bills).
-  lambda12:
-    description: Portfolio sensitivity to foreign interest rate (domestic bills).
-  lambda20:
-    description: "Portfolio share parameter: foreign bills (baseline)."
-  lambda21:
-    description: Portfolio sensitivity to domestic interest rate (foreign bills).
-  lambda22:
-    description: Portfolio sensitivity to foreign interest rate (foreign bills).
-  phi:
-    description: Exchange-rate adjustment speed.
-equations: |-
-  # Regular disposable income (excluding capital gains).
-  yd^R ~ y + (lag(r) * lag(B^P) + lag(r^F) * lag(BF^P) * xr) - t
-
-  # Haig-Simons disposable income (including valuation effects).
-  yd^{HS} ~ yd^R + d(xr) * lag(BF^P)
-
-  # Household net financial wealth.
-  v ~ I(yd^{HS} - pe)
-
-  # Tax revenue.
-  t ~ theta * (y + lag(r) * lag(B^P) + lag(r^F) * lag(BF^P) * xr)
-
-  # GDP / income (output).
-  y ~ pe + g + x - im
-
-  # Household consumption.
-  pe ~ alpha1 * yd^{HS} + alpha2 * lag(v)
-
-  # Net acquisition of financial assets by domestic private sector (NAFA).
-  NAFA ~ PSBR + CA
-
-  # Exports of goods and services.
-  x ~ exp(eps0 + eps1 * log(lag(xr)) + eps2 * log(y^F))
-
-  # Imports of goods and services.
-  im ~ exp(mu0 - mu1 * log(lag(xr)) + mu2 * log(y))
-
-  # Trade balance (exports - imports).
-  TB ~ x - im
-
-  # Current account balance (CA > 0 = surplus).
-  CA ~ TB + lag(r^F) * lag(BF^P) * xr - lag(r) * lag(B^W)
-
-  # Net foreign assets (country external position, NETFA).
-  NFA ~ I(CA + d(xr) * lag(BF^P))
-
-  # Foreign holdings of domestic government bills (residual from NETFA identity).
-  B^W ~ BF^P * xr - NFA
-
-  # Domestic bills held by households.
-  B^P ~ v * (lambda10 + lambda11 * r - lambda12 * r^F)
-
-  # Foreign bills held by domestic households (in foreign currency).
-  BF^P ~ v * (lambda20 - lambda21 * r + lambda22 * r^F) / xr
-
-  # Money balances held by households.
-  H^P ~ v - B^P - BF^P * xr
-
-  # Central bank profits.
-  F^{CB} ~ lag(r) * lag(B^{CB})
-
-  # Domestic bills held by the central bank.
-  B^{CB} ~ B^S - B^P - B^W
-
-  # Money supply (high-powered money).
-  H^S ~ B^{CB}
-
-  # Public Sector Borrowing Requirement (government deficit).
-  PSBR ~ g + lag(r) * lag(B^S) - t - F^{CB}
-
-  # Total stock of domestic government bills.
-  B^S ~ I(PSBR)
-
-  # Nominal exchange rate (domestic currency per unit of foreign currency).
-  xr ~ I(phi * (-lag(CA)))
-
-  # Sectoral balance identity (NAFA - PSBR - CA, should equal zero).
-  sectoral_check ~ NAFA - PSBR - CA
-equationCell:
-  id: model-equations
-  title: OPENSIMPLEST model
-  collapsed: true
-balance:
-  id: balance-sheet
-  title: Balance sheet matrix
-  description: Compact balance-sheet view for the OPENSIMPLEST open-economy model.
-  columns: [Private, Government, Central bank, Rest of world, Sum]
-  sectors: [Private, Government, Central bank, Rest of world, ""]
-  rows:
-    - [financial-assets, High-powered money, +H^P, "", -H^S, "", "0"]
-    - [financial-assets, Domestic bills, +B^P, -B^S, "+B^{CB}", +B^W, "0"]
-    - [financial-assets, Foreign bills (domestic value), +BF^P * xr, "", "", -BF^P * xr, "0"]
-    - [net-worth, Net worth, -v, +B^S, "", +NFA, "0"]
-    - [Sum, Sum, "0", "0", "0", "0", "0"]
-transactions:
-  id: transactions-flow
-  title: Transactions-flow matrix
-  description: Transactions-flow matrix for the OPENSIMPLEST open-economy model.
-  columns: [Production, Private, Government, Central bank, Rest of world, Sum]
-  sectors: [Private, Government, Central bank, Rest of world, "", ""]
-  rows:
-    - [current, Government expenditure, +g, "", -g, "", "", "0"]
-    - [current, Private expenditure, +pe, -pe, "", "", "", "0"]
-    - [current, Taxes, "", -t, +t, "", "", "0"]
-    - [external, Exports, +x, "", "", "", -x, "0"]
-    - [external, Imports, -im, "", "", "", +im, "0"]
-    - [income, GDP income, -y, +y, "", "", "", "0"]
-    - [income, Interest on domestic bills, "", +r * lag(B^P), -r * lag(B^S), "+r * lag(B^{CB})", +r * lag(B^W), "0"]
-    - [income, Interest on foreign bills, "", +r^F * lag(BF^P) * xr, "", "", -r^F * lag(BF^P) * xr, "0"]
-    - [revaluation, Valuation gains, "", +d(xr) * lag(BF^P), "", "", -d(xr) * lag(BF^P), "0"]
-    - [income, Central-bank profits, "", "", "+F^{CB}", "-F^{CB}", "", "0"]
-    - [balances, Sectoral balances, "", +NAFA, -PSBR, "", -CA, "0"]
-    - [financial, Change in money, "", +d(H^P), "", -d(H^S), "", "0"]
-    - [financial, Change in domestic bills, "", +d(B^P), -d(B^S), "+d(B^{CB})", +d(B^W), "0"]
-    - [financial, Change in foreign bills, "", +d(BF^P) * xr, "", "", -d(BF^P) * xr, "0"]
-    - [balances, Change in net worth, "", -d(v), +d(B^S), "", +d(NFA), "0"]
-    - [Sum, Sum, "0", "0", "0", "0", "0", "0"]
-parameters:
-  g: 16
-  r: 0.03
-  r^F: 0.03
-  y^F: 80
-  alpha1: 0.7548
-  alpha2: 0.13333
-  theta: 0.2
-  eps0: -2.1
-  eps1: 0.7
-  eps2: 1.2
-  mu0: -2.1
-  mu1: 0.7
-  mu2: 1.2
-  lambda10: 0.7
-  lambda11: 5
-  lambda12: 5
-  lambda20: 0.25
-  lambda21: 5
-  lambda22: 5
-  phi: 0.01
-parametersCell:
-  id: model-externals
-  title: Externals
-  collapsed: true
-initial-values:
-  xr: 1.141
-  B^P: 87.1
-  BF^P: 21.775
-  B^S: 144.977
-  B^W: 24.668
-  NFA: 0.174775
-  v: 145.151775
-  H^P: 33.20675
-  B^{CB}: 33.209
-  H^S: 33.209
-  F^{CB}: 0.99627
-  PSBR: 0
-  CA: 0
-  NAFA: 0
-  y: 80
-  x: 16
-  im: 16
-  TB: 0
-  t: 16
-  yd^R: 67.93252
-  yd^{HS}: 67.93252
-  pe: 80
-  sectoral_check: 0
-initialValuesCell:
-  id: model-initial-values
-  collapsed: true
-solver:
-  method: newton
-  tolerance: "1e-8"
-  maxIterations: 200
-  defaultInitialValue: "1e-15"
-  hiddenLeftVariable: ""
-  hiddenRightVariable: ""
-  hiddenTolerance: "0.00001"
-  relativeHiddenTolerance: false
-solverCell:
-  id: model-solver
-  title: Solver
-  collapsed: true
-baselineRun:
-  id: baseline-run
-  title: Baseline
-  description: Baseline simulation for the Levy WP 1105 aligned OPENSIMPLEST model over 150 periods.
-  resultKey: opensimplest_levy_baseline
-  periods: 150
-charts:
-  - id: baseline-chart
-    title: Baseline dynamics
-    variables:
-      - y
-      - x
-      - im
-      - CA
-      - xr
-      - v
-    axisMode: separate
-    axisSnapTolarance: 0.5
 cells:
-  - id: model-sequence
-    type: sequence
-    title: model sequence
-    source:
-      kind: matrix
-      matrixCellId: transactions-flow
-    description: Canvas-rendered sequence view generated from the transactions-flow matrix at the selected simulation period.
-    note: Use Reset and Next step to manually reveal flows in order.
-  - id: scenario-note
-    type: markdown
-    title: Scenario
-    source: A permanent adverse export shock is introduced from period 5 by lowering the export intercept `eps0` from `-2.1` to `-2.2`. This reduces exports on impact, weakens the current account, and induces exchange-rate depreciation, which then partly stabilizes activity through the trade channel.
-  - id: export-shock-run
-    type: run
-    title: Export shock
-    mode: scenario
-    scenario:
-      shocks:
-        - rangeInclusive:
-            - 5
-            - 150
-          variables:
-            eps0:
-              kind: constant
-              value: -2.2
-    baselineRunCellId: baseline-run
-    periods: 150
-    resultKey: opensimplest_levy_export_shock
-    sourceModelId: opensimplest-levy
-  - id: scenario-chart
-    type: chart
-    title: Scenario dynamics
-    sourceRunCellId: export-shock-run
-    variables:
-      - y
-      - x
-      - im
-      - CA
-      - xr
-      - v
-    axisMode: separate
-    axisSnapTolarance: 0.5
-  - id: equation-dependency-graph
-    type: sequence
-    title: dependency graph
-    source:
-      kind: dependency
+  - markdown:
+      id: overview
+      title: Overview
+      source: A Levy WP 1105 aligned OPENSIMPLEST notebook using superscripted paper-style variable names directly in the runnable model, including `H^P`, `H^S`, `B^P`, `B^S`, `B^{CB}`, `B^W`, `BF^P`, `yd^R`, and `yd^{HS}`. Exponentiation is written with `pow(base, exponent)`, leaving `^` available for paper notation in variable names.
+  - matrix:
+      id: balance-sheet
+      title: Balance sheet matrix
+      description: Compact balance-sheet view for the OPENSIMPLEST open-economy model.
+      sourceRunCellId: baseline-run
+      columns: [Private, Government, Central bank, Rest of world, Sum]
+      sectors: [Private, Government, Central bank, Rest of world, ""]
+      rows:
+        - [financial-assets, High-powered money, +H^P, "", -H^S, "", "0"]
+        - [financial-assets, Domestic bills, +B^P, -B^S, "+B^{CB}", +B^W, "0"]
+        - [financial-assets, Foreign bills (domestic value), +BF^P * xr, "", "", -BF^P * xr, "0"]
+        - [net-worth, Net worth, -v, +B^S, "", +NFA, "0"]
+        - [Sum, Sum, "0", "0", "0", "0", "0"]
+  - matrix:
+      id: transactions-flow
+      title: Transactions-flow matrix
+      description: Transactions-flow matrix for the OPENSIMPLEST open-economy model.
+      sourceRunCellId: baseline-run
+      columns: [Production, Private, Government, Central bank, Rest of world, Sum]
+      sectors: [Private, Government, Central bank, Rest of world, "", ""]
+      rows:
+        - [current, Government expenditure, +g, "", -g, "", "", "0"]
+        - [current, Private expenditure, +pe, -pe, "", "", "", "0"]
+        - [current, Taxes, "", -t, +t, "", "", "0"]
+        - [external, Exports, +x, "", "", "", -x, "0"]
+        - [external, Imports, -im, "", "", "", +im, "0"]
+        - [income, GDP income, -y, +y, "", "", "", "0"]
+        - [income, Interest on domestic bills, "", +r * lag(B^P), -r * lag(B^S), "+r * lag(B^{CB})", +r * lag(B^W), "0"]
+        - [income, Interest on foreign bills, "", +r^F * lag(BF^P) * xr, "", "", -r^F * lag(BF^P) * xr, "0"]
+        - [revaluation, Valuation gains, "", +d(xr) * lag(BF^P), "", "", -d(xr) * lag(BF^P), "0"]
+        - [income, Central-bank profits, "", "", "+F^{CB}", "-F^{CB}", "", "0"]
+        - [balances, Sectoral balances, "", +NAFA, -PSBR, "", -CA, "0"]
+        - [financial, Change in money, "", +d(H^P), "", -d(H^S), "", "0"]
+        - [financial, Change in domestic bills, "", +d(B^P), -d(B^S), "+d(B^{CB})", +d(B^W), "0"]
+        - [financial, Change in foreign bills, "", +d(BF^P) * xr, "", "", -d(BF^P) * xr, "0"]
+        - [balances, Change in net worth, "", -d(v), +d(B^S), "", +d(NFA), "0"]
+        - [Sum, Sum, "0", "0", "0", "0", "0", "0"]
+  - sequence:
+      id: model-sequence
+      title: model sequence
+      source:
+        kind: matrix
+        matrixCellId: transactions-flow
+      description: Canvas-rendered sequence view generated from the transactions-flow matrix at the selected simulation period.
+      note: Use Reset and Next step to manually reveal flows in order.
+  - equations:
+      id: model-equations
+      title: OPENSIMPLEST model
       modelId: opensimplest-levy
-      showAccountingStrips: true
-      showExogenous: false
-    description: Dependency view of the equations organized by sector strips and accounting bands.
-    note: Use this alongside the transaction-flow sequence to compare accounting flows with equation structure.
-    collapsed: true
-cellOrder:
-  - overview
-  - balance-sheet
-  - transactions-flow
-  - model-sequence
-  - model-equations
-  - model-solver
-  - model-externals
-  - model-initial-values
-  - baseline-run
-  - baseline-chart
-  - scenario-note
-  - export-shock-run
-  - scenario-chart
-  - equation-dependency-graph
+      collapsed: true
+      rows:
+        - [yd^R, y + (lag(r) * lag(B^P) + lag(r^F) * lag(BF^P) * xr) - t, "Regular disposable income (excluding capital gains)."]
+        - ["yd^{HS}", yd^R + d(xr) * lag(BF^P), "Haig-Simons disposable income (including valuation effects)."]
+        - [v, "I(yd^{HS} - pe)", "Household net financial wealth."]
+        - [t, theta * (y + lag(r) * lag(B^P) + lag(r^F) * lag(BF^P) * xr), "Tax revenue."]
+        - [y, pe + g + x - im, "GDP / income (output)."]
+        - [pe, "alpha1 * yd^{HS} + alpha2 * lag(v)", "Household consumption."]
+        - [NAFA, PSBR + CA, "Net acquisition of financial assets by domestic private sector (NAFA)."]
+        - [x, exp(eps0 + eps1 * log(lag(xr)) + eps2 * log(y^F)), "Exports of goods and services."]
+        - [im, exp(mu0 - mu1 * log(lag(xr)) + mu2 * log(y)), "Imports of goods and services."]
+        - [TB, x - im, "Trade balance (exports - imports)."]
+        - [CA, TB + lag(r^F) * lag(BF^P) * xr - lag(r) * lag(B^W), "Current account balance (CA > 0 = surplus)."]
+        - [NFA, I(CA + d(xr) * lag(BF^P)), "Net foreign assets (country external position, NETFA)."]
+        - [B^W, BF^P * xr - NFA, "Foreign holdings of domestic government bills (residual from NETFA identity)."]
+        - [B^P, v * (lambda10 + lambda11 * r - lambda12 * r^F), "Domestic bills held by households."]
+        - [BF^P, v * (lambda20 - lambda21 * r + lambda22 * r^F) / xr, "Foreign bills held by domestic households (in foreign currency)."]
+        - [H^P, v - B^P - BF^P * xr, "Money balances held by households."]
+        - ["F^{CB}", "lag(r) * lag(B^{CB})", "Central bank profits."]
+        - ["B^{CB}", B^S - B^P - B^W, "Domestic bills held by the central bank."]
+        - [H^S, "B^{CB}", "Money supply (high-powered money)."]
+        - [PSBR, "g + lag(r) * lag(B^S) - t - F^{CB}", "Public Sector Borrowing Requirement (government deficit)."]
+        - [B^S, I(PSBR), "Total stock of domestic government bills."]
+        - [xr, I(phi * (-lag(CA))), "Nominal exchange rate (domestic currency per unit of foreign currency)."]
+        - [sectoral_check, NAFA - PSBR - CA, "Sectoral balance identity (NAFA - PSBR - CA, should equal zero)."]
+  - solver:
+      id: model-solver
+      title: Solver
+      modelId: opensimplest-levy
+      collapsed: true
+      method: newton
+      tolerance: "1e-8"
+      maxIterations: 200
+      defaultInitialValue: "1e-15"
+      hiddenLeftVariable: ""
+      hiddenRightVariable: ""
+      hiddenTolerance: "0.00001"
+      relativeHiddenTolerance: false
+  - externals:
+      id: model-externals
+      title: Externals
+      modelId: opensimplest-levy
+      collapsed: true
+      rows:
+        - [g, 16, "Government expenditure on goods and services."]
+        - [r, 0.03, "Interest rate on domestic government bills."]
+        - [r^F, 0.03, "Interest rate on foreign bills (exogenous)."]
+        - [y^F, 80, "Foreign income (exogenous)."]
+        - [alpha1, 0.7548, "Propensity to consume out of disposable income."]
+        - [alpha2, 0.13333, "Propensity to consume out of wealth."]
+        - [theta, 0.2, "Average tax rate on income."]
+        - [eps0, -2.1, "Export equation constant term."]
+        - [eps1, 0.7, "Export elasticity with respect to the exchange rate."]
+        - [eps2, 1.2, "Export elasticity with respect to foreign income."]
+        - [mu0, -2.1, "Import equation constant term."]
+        - [mu1, 0.7, "Import elasticity with respect to the exchange rate."]
+        - [mu2, 1.2, "Import elasticity with respect to domestic income."]
+        - [lambda10, 0.7, "Portfolio share parameter: domestic bills (baseline)."]
+        - [lambda11, 5, "Portfolio sensitivity to domestic interest rate (domestic bills)."]
+        - [lambda12, 5, "Portfolio sensitivity to foreign interest rate (domestic bills)."]
+        - [lambda20, 0.25, "Portfolio share parameter: foreign bills (baseline)."]
+        - [lambda21, 5, "Portfolio sensitivity to domestic interest rate (foreign bills)."]
+        - [lambda22, 5, "Portfolio sensitivity to foreign interest rate (foreign bills)."]
+        - [phi, 0.01, "Exchange-rate adjustment speed."]
+  - initial-values:
+      id: model-initial-values
+      title: Initial values
+      modelId: opensimplest-levy
+      collapsed: true
+      rows:
+        - [xr, 1.141]
+        - [B^P, 87.1]
+        - [BF^P, 21.775]
+        - [B^S, 144.977]
+        - [B^W, 24.668]
+        - [NFA, 0.174775]
+        - [v, 145.151775]
+        - [H^P, 33.20675]
+        - ["B^{CB}", 33.209]
+        - [H^S, 33.209]
+        - ["F^{CB}", 0.99627]
+        - [PSBR, 0]
+        - [CA, 0]
+        - [NAFA, 0]
+        - [y, 80]
+        - [x, 16]
+        - [im, 16]
+        - [TB, 0]
+        - [t, 16]
+        - [yd^R, 67.93252]
+        - ["yd^{HS}", 67.93252]
+        - [pe, 80]
+        - [sectoral_check, 0]
+  - run:
+      id: baseline-run
+      title: Baseline
+      description: Baseline simulation for the Levy WP 1105 aligned OPENSIMPLEST model over 150 periods.
+      mode: baseline
+      periods: 150
+      resultKey: opensimplest_levy_baseline
+      sourceModelId: opensimplest-levy
+  - chart:
+      id: baseline-chart
+      title: Baseline dynamics
+      variables:
+        - y
+        - x
+        - im
+        - CA
+        - xr
+        - v
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      sourceRunCellId: baseline-run
+  - markdown:
+      id: scenario-note
+      title: Scenario
+      source: A permanent adverse export shock is introduced from period 5 by lowering the export intercept `eps0` from `-2.1` to `-2.2`. This reduces exports on impact, weakens the current account, and induces exchange-rate depreciation, which then partly stabilizes activity through the trade channel.
+  - run:
+      id: export-shock-run
+      title: Export shock
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 5
+              - 150
+            variables:
+              eps0:
+                kind: constant
+                value: -2.2
+      baselineRunCellId: baseline-run
+      periods: 150
+      resultKey: opensimplest_levy_export_shock
+      sourceModelId: opensimplest-levy
+  - chart:
+      id: scenario-chart
+      title: Scenario dynamics
+      variables:
+        - y
+        - x
+        - im
+        - CA
+        - xr
+        - v
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      sourceRunCellId: export-shock-run
+  - sequence:
+      id: equation-dependency-graph
+      title: dependency graph
+      source:
+        kind: dependency
+        modelId: opensimplest-levy
+        showAccountingStrips: true
+        showExogenous: false
+      description: Dependency view of the equations organized by sector strips and accounting bands.
+      note: Use this alongside the transaction-flow sequence to compare accounting flows with equation structure.
+      collapsed: true

@@ -5,416 +5,236 @@ title: OPENSIMPLEST Open Economy SFC Model (Levy WP 1105)
 metadata:
   version: 1
   template: opensimplest
-  description: "A compact one-country open-economy stock-flow consistent model with four sectors: private, government, central bank, and rest of world. The notebook includes a balance sheet, a transactions-flow matrix, a sequence outline, behavioral and accounting equations, a baseline calibration, and a simple export-shock scenario."
-modelId: opensimplest
-introCell:
-  id: overview
-  title: Overview
-sectors: [Private, Government, Central bank, Rest of world, ""]
-variables:
-  YDr:
-    description: Private disposable income before valuation gains.
-  YDhs:
-    description: Disposable income including foreign-asset valuation gains.
-  V:
-    description: Private sector net worth.
-  T:
-    description: Taxes on income and interest receipts.
-  Y:
-    description: Open-economy goods-market equilibrium.
-  PE:
-    description: Private expenditure from income and lagged wealth.
-  NAFA:
-    description: Net acquisition of financial assets.
-  X:
-    description: Exports as a function of the lagged exchange rate and foreign income.
-  IM:
-    description: Imports as a function of the lagged exchange rate and domestic income.
-  TB:
-    description: Trade balance.
-  CA:
-    description: Current account.
-  NFA:
-    description: Net foreign assets.
-  Bw:
-    description: Rest-of-world holdings of domestic bills.
-  Bp:
-    description: Private demand for domestic bills.
-  BWp:
-    description: Private demand for foreign bills.
-  Hp:
-    description: Private money holdings.
-  FCB:
-    description: Central-bank profits from domestic bills.
-  Bcb:
-    description: Central-bank bill holdings.
-  Hs:
-    description: High-powered money supplied by the central bank.
-  PSBR:
-    description: Public-sector borrowing requirement.
-  Bs:
-    description: Government bill supply.
-  XR:
-    description: Exchange rate adjusted by the lagged current account.
-  sectoral_check:
-    description: Accounting check for sectoral balances.
-  dHp:
-    description: Change in private money holdings.
-  dHs:
-    description: Change in supplied money.
-  dBp:
-    description: Change in private domestic bills.
-  dBs:
-    description: Change in government bill supply.
-  dBcb:
-    description: Change in central-bank bill holdings.
-  dBw:
-    description: Change in rest-of-world domestic bills.
-  dBWp:
-    description: Change in private foreign bills.
-  dV:
-    description: Change in private net worth.
-  dNFA:
-    description: Change in net foreign assets.
-  dXR:
-    description: Change in the exchange rate.
-  G:
-    description: Government expenditure.
-  r:
-    description: Interest rate on domestic bills.
-  rf:
-    description: Interest rate on foreign bills.
-  Yf:
-    description: Foreign income.
-  alpha1:
-    description: Propensity to spend out of disposable income.
-  alpha2:
-    description: Propensity to spend out of lagged wealth.
-  theta:
-    description: Tax rate.
-  eps0:
-    description: Export intercept.
-  eps1:
-    description: Exchange-rate elasticity of exports.
-  eps2:
-    description: Foreign-income elasticity of exports.
-  mu0:
-    description: Import intercept.
-  mu1:
-    description: Exchange-rate elasticity of imports.
-  mu2:
-    description: Income elasticity of imports.
-  lambda10:
-    description: Domestic-bills portfolio intercept.
-  lambda11:
-    description: Domestic-rate sensitivity of domestic bills.
-  lambda12:
-    description: Foreign-rate sensitivity of domestic bills.
-  lambda20:
-    description: Foreign-bills portfolio intercept.
-  lambda21:
-    description: Domestic-rate sensitivity of foreign bills.
-  lambda22:
-    description: Foreign-rate sensitivity of foreign bills.
-  phi:
-    description: Exchange-rate adjustment speed.
-equations: |-
-  # Private disposable income before valuation gains.
-  YDr ~ Y + r * lag(Bp) + rf * lag(BWp) * XR - T
-
-  # Disposable income including foreign-asset valuation gains.
-  YDhs ~ YDr + dXR * lag(BWp)
-
-  # Private sector net worth.
-  V ~ lag(V) + YDhs - PE
-
-  # Taxes on income and interest receipts.
-  T ~ theta * (Y + r * lag(Bp) + rf * lag(BWp) * XR)
-
-  # Open-economy goods-market equilibrium.
-  Y ~ PE + G + X - IM
-
-  # Private expenditure from income and lagged wealth.
-  PE ~ alpha1 * YDhs + alpha2 * lag(V)
-
-  # Net acquisition of financial assets.
-  NAFA ~ PSBR + CA
-
-  # Exports as a function of the lagged exchange rate and foreign income.
-  X ~ exp(eps0 + eps1 * log(lag(XR)) + eps2 * log(Yf))
-
-  # Imports as a function of the lagged exchange rate and domestic income.
-  IM ~ exp(mu0 - mu1 * log(lag(XR)) + mu2 * log(Y))
-
-  # Trade balance.
-  TB ~ X - IM
-
-  # Current account.
-  CA ~ TB + rf * lag(BWp) * XR - r * lag(Bw)
-
-  # Net foreign assets.
-  NFA ~ lag(NFA) + CA + dXR * lag(BWp)
-
-  # Rest-of-world holdings of domestic bills.
-  Bw ~ BWp * XR - NFA
-
-  # Private demand for domestic bills.
-  Bp ~ V * (lambda10 + lambda11 * r - lambda12 * rf)
-
-  # Private demand for foreign bills.
-  BWp ~ V * (lambda20 - lambda21 * r + lambda22 * rf) / XR
-
-  # Private money holdings.
-  Hp ~ V - Bp - BWp * XR
-
-  # Central-bank profits from domestic bills.
-  FCB ~ r * lag(Bcb)
-
-  # Central-bank bill holdings.
-  Bcb ~ Bs - Bp - Bw
-
-  # High-powered money supplied by the central bank.
-  Hs ~ Bcb
-
-  # Public-sector borrowing requirement.
-  PSBR ~ G + r * lag(Bs) - T - FCB
-
-  # Government bill supply.
-  Bs ~ lag(Bs) + PSBR
-
-  # Exchange rate adjusted by the lagged current account.
-  XR ~ lag(XR) + phi * (-lag(CA))
-
-  # Accounting check for sectoral balances.
-  sectoral_check ~ NAFA - PSBR - CA
-
-  # Change in private money holdings.
-  dHp ~ Hp - lag(Hp)
-
-  # Change in supplied money.
-  dHs ~ Hs - lag(Hs)
-
-  # Change in private domestic bills.
-  dBp ~ Bp - lag(Bp)
-
-  # Change in government bill supply.
-  dBs ~ Bs - lag(Bs)
-
-  # Change in central-bank bill holdings.
-  dBcb ~ Bcb - lag(Bcb)
-
-  # Change in rest-of-world domestic bills.
-  dBw ~ Bw - lag(Bw)
-
-  # Change in private foreign bills.
-  dBWp ~ BWp - lag(BWp)
-
-  # Change in private net worth.
-  dV ~ V - lag(V)
-
-  # Change in net foreign assets.
-  dNFA ~ NFA - lag(NFA)
-
-  # Change in the exchange rate.
-  dXR ~ XR - lag(XR)
-equationCell:
-  id: model-equations
-  title: OPENSIMPLEST model
-  collapsed: true
-balance:
-  id: balance-sheet
-  title: Balance sheet matrix
-  description: Compact balance-sheet view for the OPENSIMPLEST open-economy model.
-  columns: [Private, Government, Central bank, Rest of world, Sum]
-  sectors: [Private, Government, Central bank, Rest of world, ""]
-  rows:
-    - [financial-assets, High-powered money, +Hp, "", -Hs, "", "0"]
-    - [financial-assets, Domestic bills, +Bp, -Bs, +Bcb, +Bw, "0"]
-    - [financial-assets, Foreign bills (domestic value), +BWp * XR, "", "", -BWp * XR, "0"]
-    - [net-worth, Net worth, -V, +Bs, "", +NFA, "0"]
-    - [Sum, Sum, "0", "0", "0", "0", "0"]
-transactions:
-  id: transactions-flow
-  title: Transactions-flow matrix
-  description: Transactions-flow matrix for the OPENSIMPLEST open-economy model.
-  columns: [Production, Private, Government, Central bank, Rest of world, Sum]
-  sectors: [Private, Government, Central bank, Rest of world, "", ""]
-  rows:
-    - [current, Government expenditure, +G, "", -G, "", "", "0"]
-    - [current, Private expenditure, +PE, -PE, "", "", "", "0"]
-    - [current, Taxes, "", -T, +T, "", "", "0"]
-    - [external, Exports, +X, "", "", "", -X, "0"]
-    - [external, Imports, -IM, "", "", "", +IM, "0"]
-    - [income, GDP income, -Y, +Y, "", "", "", "0"]
-    - [income, Interest on domestic bills, "", +r * lag(Bp), -r * lag(Bs), +r * lag(Bcb), +r * lag(Bw), "0"]
-    - [income, Interest on foreign bills, "", +rf * lag(BWp) * XR, "", "", -rf * lag(BWp) * XR, "0"]
-    - [revaluation, Valuation gains, "", +dXR * lag(BWp), "", "", -dXR * lag(BWp), "0"]
-    - [income, Central-bank profits, "", "", +FCB, -FCB, "", "0"]
-    - [balances, Sectoral balances, "", +NAFA, -PSBR, "", -CA, "0"]
-    - [financial, Change in money, "", +dHp, "", -dHs, "", "0"]
-    - [financial, Change in domestic bills, "", +dBp, -dBs, +dBcb, +dBw, "0"]
-    - [financial, Change in foreign bills, "", +dBWp * XR, "", "", -dBWp * XR, "0"]
-    - [balances, Change in net worth, "", -dV, +dBs, "", +dNFA, "0"]
-    - [Sum, Sum, "0", "0", "0", "0", "0", "0"]
-parameters:
-  G: 16
-  r: 0.03
-  rf: 0.03
-  Yf: 80
-  alpha1: 0.75
-  alpha2: 0.13333
-  theta: 0.2
-  eps0: -2.1
-  eps1: 0.7
-  eps2: 1.2
-  mu0: -2.1
-  mu1: 0.7
-  mu2: 1.2
-  lambda10: 0.7
-  lambda11: 5
-  lambda12: 5
-  lambda20: 0.25
-  lambda21: 5
-  lambda22: 5
-  phi: 0.01
-parametersCell:
-  id: model-externals
-  title: Externals
-  collapsed: true
-initial-values:
-  XR: 1.141
-  Bp: 87.1
-  BWp: 21.775
-  Bs: 144.977
-  Bw: 24.668
-  NFA: 0.174775
-  V: 145.151775
-  Hp: 33.20675
-  Bcb: 33.209
-  Hs: 33.209
-  FCB: 0.99627
-  PSBR: 0
-  CA: 0
-  NAFA: 0
-  Y: 80
-  X: 16
-  IM: 16
-  TB: 0
-  T: 16
-  YDr: 67.93252
-  YDhs: 67.93252
-  PE: 80
-  dHp: 0
-  dHs: 0
-  dBp: 0
-  dBs: 0
-  dBcb: 0
-  dBw: 0
-  dBWp: 0
-  dV: 0
-  dNFA: 0
-  dXR: 0
-  sectoral_check: 0
-initialValuesCell:
-  id: model-initial-values
-  collapsed: true
-solver:
-  method: newton
-  tolerance: "1e-8"
-  maxIterations: 200
-  defaultInitialValue: "1e-15"
-  hiddenLeftVariable: ""
-  hiddenRightVariable: ""
-  hiddenTolerance: "0.00001"
-  relativeHiddenTolerance: false
-solverCell:
-  id: model-solver
-  title: Solver
-  collapsed: true
-baselineRun:
-  id: baseline-run
-  title: Baseline
-  description: Baseline OPENSIMPLEST simulation over 40 periods.
-  resultKey: opensimplest_baseline
-  periods: 40
-charts:
-  - id: baseline-chart
-    title: Baseline dynamics
-    variables:
-      - Y
-      - X
-      - IM
-      - CA
-      - XR
-      - V
-    axisMode: separate
-    axisSnapTolarance: 0.5
 cells:
-  - id: model-sequence
-    type: sequence
-    title: model sequence
-    source:
-      kind: matrix
-      matrixCellId: transactions-flow
-    description: Canvas-rendered sequence view generated from the transactions-flow matrix at the selected simulation period.
-    note: Use Reset and Next step to manually reveal flows in order.
-  - id: scenario-note
-    type: markdown
-    title: Scenario
-    source: A permanent adverse export shock is introduced from period 5 by lowering the export intercept `eps0` from `-2.1` to `-2.2`. This reduces exports on impact, weakens the current account, and induces exchange-rate depreciation, which then partly stabilizes activity through the trade channel.
-  - id: export-shock-run
-    type: run
-    title: Export shock
-    mode: scenario
-    scenario:
-      shocks:
-        - rangeInclusive:
-            - 5
-            - 40
-          variables:
-            eps0:
-              kind: constant
-              value: -2.2
-    baselineRunCellId: baseline-run
-    periods: 40
-    resultKey: opensimplest_export_shock
-    sourceModelId: opensimplest
-  - id: scenario-chart
-    type: chart
-    title: Scenario dynamics
-    sourceRunCellId: export-shock-run
-    variables:
-      - Y
-      - X
-      - IM
-      - CA
-      - XR
-      - V
-    axisMode: separate
-    axisSnapTolarance: 0.5
-  - id: equation-dependency-graph
-    type: sequence
-    title: dependency graph
-    source:
-      kind: dependency
+  - markdown:
+      id: overview
+      title: Overview
+      source: "A compact one-country open-economy stock-flow consistent model with four sectors: private, government, central bank, and rest of world. The notebook includes a balance sheet, a transactions-flow matrix, a sequence outline, behavioral and accounting equations, a baseline calibration, and a simple export-shock scenario."
+  - matrix:
+      id: balance-sheet
+      title: Balance sheet matrix
+      description: Compact balance-sheet view for the OPENSIMPLEST open-economy model.
+      sourceRunCellId: baseline-run
+      columns: [Private, Government, Central bank, Rest of world, Sum]
+      sectors: [Private, Government, Central bank, Rest of world, ""]
+      rows:
+        - [financial-assets, High-powered money, +Hp, "", -Hs, "", "0"]
+        - [financial-assets, Domestic bills, +Bp, -Bs, +Bcb, +Bw, "0"]
+        - [financial-assets, Foreign bills (domestic value), +BWp * XR, "", "", -BWp * XR, "0"]
+        - [net-worth, Net worth, -V, +Bs, "", +NFA, "0"]
+        - [Sum, Sum, "0", "0", "0", "0", "0"]
+  - matrix:
+      id: transactions-flow
+      title: Transactions-flow matrix
+      description: Transactions-flow matrix for the OPENSIMPLEST open-economy model.
+      sourceRunCellId: baseline-run
+      columns: [Production, Private, Government, Central bank, Rest of world, Sum]
+      sectors: [Private, Government, Central bank, Rest of world, "", ""]
+      rows:
+        - [current, Government expenditure, +G, "", -G, "", "", "0"]
+        - [current, Private expenditure, +PE, -PE, "", "", "", "0"]
+        - [current, Taxes, "", -T, +T, "", "", "0"]
+        - [external, Exports, +X, "", "", "", -X, "0"]
+        - [external, Imports, -IM, "", "", "", +IM, "0"]
+        - [income, GDP income, -Y, +Y, "", "", "", "0"]
+        - [income, Interest on domestic bills, "", +r * lag(Bp), -r * lag(Bs), +r * lag(Bcb), +r * lag(Bw), "0"]
+        - [income, Interest on foreign bills, "", +rf * lag(BWp) * XR, "", "", -rf * lag(BWp) * XR, "0"]
+        - [revaluation, Valuation gains, "", +dXR * lag(BWp), "", "", -dXR * lag(BWp), "0"]
+        - [income, Central-bank profits, "", "", +FCB, -FCB, "", "0"]
+        - [balances, Sectoral balances, "", +NAFA, -PSBR, "", -CA, "0"]
+        - [financial, Change in money, "", +dHp, "", -dHs, "", "0"]
+        - [financial, Change in domestic bills, "", +dBp, -dBs, +dBcb, +dBw, "0"]
+        - [financial, Change in foreign bills, "", +dBWp * XR, "", "", -dBWp * XR, "0"]
+        - [balances, Change in net worth, "", -dV, +dBs, "", +dNFA, "0"]
+        - [Sum, Sum, "0", "0", "0", "0", "0", "0"]
+  - sequence:
+      id: model-sequence
+      title: model sequence
+      source:
+        kind: matrix
+        matrixCellId: transactions-flow
+      description: Canvas-rendered sequence view generated from the transactions-flow matrix at the selected simulation period.
+      note: Use Reset and Next step to manually reveal flows in order.
+  - equations:
+      id: model-equations
+      title: OPENSIMPLEST model
       modelId: opensimplest
-      showAccountingStrips: true
-      showExogenous: false
-    description: Dependency view of the equations organized by sector strips and accounting bands.
-    note: Use this alongside the transaction-flow sequence to compare accounting flows with equation structure.
-    collapsed: true
-cellOrder:
-  - overview
-  - balance-sheet
-  - transactions-flow
-  - model-sequence
-  - model-equations
-  - model-solver
-  - model-externals
-  - model-initial-values
-  - baseline-run
-  - baseline-chart
-  - scenario-note
-  - export-shock-run
-  - scenario-chart
-  - equation-dependency-graph
+      collapsed: true
+      rows:
+        - [YDr, Y + r * lag(Bp) + rf * lag(BWp) * XR - T, "Private disposable income before valuation gains."]
+        - [YDhs, YDr + dXR * lag(BWp), "Disposable income including foreign-asset valuation gains."]
+        - [V, lag(V) + YDhs - PE, "Private sector net worth."]
+        - [T, theta * (Y + r * lag(Bp) + rf * lag(BWp) * XR), "Taxes on income and interest receipts."]
+        - [Y, PE + G + X - IM, "Open-economy goods-market equilibrium."]
+        - [PE, alpha1 * YDhs + alpha2 * lag(V), "Private expenditure from income and lagged wealth."]
+        - [NAFA, PSBR + CA, "Net acquisition of financial assets."]
+        - [X, exp(eps0 + eps1 * log(lag(XR)) + eps2 * log(Yf)), "Exports as a function of the lagged exchange rate and foreign income."]
+        - [IM, exp(mu0 - mu1 * log(lag(XR)) + mu2 * log(Y)), "Imports as a function of the lagged exchange rate and domestic income."]
+        - [TB, X - IM, "Trade balance."]
+        - [CA, TB + rf * lag(BWp) * XR - r * lag(Bw), "Current account."]
+        - [NFA, lag(NFA) + CA + dXR * lag(BWp), "Net foreign assets."]
+        - [Bw, BWp * XR - NFA, "Rest-of-world holdings of domestic bills."]
+        - [Bp, V * (lambda10 + lambda11 * r - lambda12 * rf), "Private demand for domestic bills."]
+        - [BWp, V * (lambda20 - lambda21 * r + lambda22 * rf) / XR, "Private demand for foreign bills."]
+        - [Hp, V - Bp - BWp * XR, "Private money holdings."]
+        - [FCB, r * lag(Bcb), "Central-bank profits from domestic bills."]
+        - [Bcb, Bs - Bp - Bw, "Central-bank bill holdings."]
+        - [Hs, Bcb, "High-powered money supplied by the central bank."]
+        - [PSBR, G + r * lag(Bs) - T - FCB, "Public-sector borrowing requirement."]
+        - [Bs, lag(Bs) + PSBR, "Government bill supply."]
+        - [XR, lag(XR) + phi * (-lag(CA)), "Exchange rate adjusted by the lagged current account."]
+        - [sectoral_check, NAFA - PSBR - CA, "Accounting check for sectoral balances."]
+        - [dHp, Hp - lag(Hp), "Change in private money holdings."]
+        - [dHs, Hs - lag(Hs), "Change in supplied money."]
+        - [dBp, Bp - lag(Bp), "Change in private domestic bills."]
+        - [dBs, Bs - lag(Bs), "Change in government bill supply."]
+        - [dBcb, Bcb - lag(Bcb), "Change in central-bank bill holdings."]
+        - [dBw, Bw - lag(Bw), "Change in rest-of-world domestic bills."]
+        - [dBWp, BWp - lag(BWp), "Change in private foreign bills."]
+        - [dV, V - lag(V), "Change in private net worth."]
+        - [dNFA, NFA - lag(NFA), "Change in net foreign assets."]
+        - [dXR, XR - lag(XR), "Change in the exchange rate."]
+  - solver:
+      id: model-solver
+      title: Solver
+      modelId: opensimplest
+      collapsed: true
+      method: newton
+      tolerance: "1e-8"
+      maxIterations: 200
+      defaultInitialValue: "1e-15"
+      hiddenLeftVariable: ""
+      hiddenRightVariable: ""
+      hiddenTolerance: "0.00001"
+      relativeHiddenTolerance: false
+  - externals:
+      id: model-externals
+      title: Externals
+      modelId: opensimplest
+      collapsed: true
+      rows:
+        - [G, 16, "Government expenditure."]
+        - [r, 0.03, "Interest rate on domestic bills."]
+        - [rf, 0.03, "Interest rate on foreign bills."]
+        - [Yf, 80, "Foreign income."]
+        - [alpha1, 0.75, "Propensity to spend out of disposable income."]
+        - [alpha2, 0.13333, "Propensity to spend out of lagged wealth."]
+        - [theta, 0.2, "Tax rate."]
+        - [eps0, -2.1, "Export intercept."]
+        - [eps1, 0.7, "Exchange-rate elasticity of exports."]
+        - [eps2, 1.2, "Foreign-income elasticity of exports."]
+        - [mu0, -2.1, "Import intercept."]
+        - [mu1, 0.7, "Exchange-rate elasticity of imports."]
+        - [mu2, 1.2, "Income elasticity of imports."]
+        - [lambda10, 0.7, "Domestic-bills portfolio intercept."]
+        - [lambda11, 5, "Domestic-rate sensitivity of domestic bills."]
+        - [lambda12, 5, "Foreign-rate sensitivity of domestic bills."]
+        - [lambda20, 0.25, "Foreign-bills portfolio intercept."]
+        - [lambda21, 5, "Domestic-rate sensitivity of foreign bills."]
+        - [lambda22, 5, "Foreign-rate sensitivity of foreign bills."]
+        - [phi, 0.01, "Exchange-rate adjustment speed."]
+  - initial-values:
+      id: model-initial-values
+      title: Initial values
+      modelId: opensimplest
+      collapsed: true
+      rows:
+        - [XR, 1.141]
+        - [Bp, 87.1]
+        - [BWp, 21.775]
+        - [Bs, 144.977]
+        - [Bw, 24.668]
+        - [NFA, 0.174775]
+        - [V, 145.151775]
+        - [Hp, 33.20675]
+        - [Bcb, 33.209]
+        - [Hs, 33.209]
+        - [FCB, 0.99627]
+        - [PSBR, 0]
+        - [CA, 0]
+        - [NAFA, 0]
+        - [Y, 80]
+        - [X, 16]
+        - [IM, 16]
+        - [TB, 0]
+        - [T, 16]
+        - [YDr, 67.93252]
+        - [YDhs, 67.93252]
+        - [PE, 80]
+        - [dHp, 0]
+        - [dHs, 0]
+        - [dBp, 0]
+        - [dBs, 0]
+        - [dBcb, 0]
+        - [dBw, 0]
+        - [dBWp, 0]
+        - [dV, 0]
+        - [dNFA, 0]
+        - [dXR, 0]
+        - [sectoral_check, 0]
+  - run:
+      id: baseline-run
+      title: Baseline
+      description: Baseline OPENSIMPLEST simulation over 40 periods.
+      mode: baseline
+      periods: 40
+      resultKey: opensimplest_baseline
+      sourceModelId: opensimplest
+  - chart:
+      id: baseline-chart
+      title: Baseline dynamics
+      variables:
+        - Y
+        - X
+        - IM
+        - CA
+        - XR
+        - V
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      sourceRunCellId: baseline-run
+  - markdown:
+      id: scenario-note
+      title: Scenario
+      source: A permanent adverse export shock is introduced from period 5 by lowering the export intercept `eps0` from `-2.1` to `-2.2`. This reduces exports on impact, weakens the current account, and induces exchange-rate depreciation, which then partly stabilizes activity through the trade channel.
+  - run:
+      id: export-shock-run
+      title: Export shock
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 5
+              - 40
+            variables:
+              eps0:
+                kind: constant
+                value: -2.2
+      baselineRunCellId: baseline-run
+      periods: 40
+      resultKey: opensimplest_export_shock
+      sourceModelId: opensimplest
+  - chart:
+      id: scenario-chart
+      title: Scenario dynamics
+      variables:
+        - Y
+        - X
+        - IM
+        - CA
+        - XR
+        - V
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      sourceRunCellId: export-shock-run
+  - sequence:
+      id: equation-dependency-graph
+      title: dependency graph
+      source:
+        kind: dependency
+        modelId: opensimplest
+        showAccountingStrips: true
+        showExogenous: false
+      description: Dependency view of the equations organized by sector strips and accounting bands.
+      note: Use this alongside the transaction-flow sequence to compare accounting flows with equation structure.
+      collapsed: true

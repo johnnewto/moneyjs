@@ -1,9 +1,9 @@
 {
-  "version": "1.2.0",
+  "version": "1.3.0",
   "indexUrl": "./sfcr.json",
   "title": "SFCR Notebook Authoring Guide",
   "audience": ["browser-based AI assistants", "LLM chat tools", "notebook authors"],
-  "purpose": "Create valid SFCR notebook source documents, especially SFC models with matrix sectors and accounting bands. YAML is preferred for authoring; JSON remains available for validation and runtime interchange.",
+  "purpose": "Create valid SFCR notebook source documents, especially SFC models with wrapped YAML cells, compact rows, matrix sectors, and accounting bands. YAML is preferred for authoring; JSON remains available for validation and runtime interchange.",
   "guideUrl": "../notebook-guide.md",
   "schemaUrl": "../sfcr-notebook.schema.json",
   "promptUrl": "../ai-prompts/create-sfcr-notebook-yaml.md",
@@ -14,7 +14,7 @@
   "supportedFormats": ["sfcr-notebook-yaml", "sfcr-notebook-json"],
   "preferredNotebookFormat": "sfcr-notebook-yaml",
   "supportedNotebookKinds": ["baseline", "scenario-analysis"],
-  "supportedFeatures": ["sectors", "bands", "equations", "initial-values", "scenarios"],
+  "supportedFeatures": ["wrapped-cells", "compact-matrix-rows", "compact-equation-rows", "compact-external-rows", "initial-values", "scenarios"],
   "preferredFormat": "yaml",
   "examples": [
     {
@@ -41,12 +41,12 @@
   ],
   "instructions": [
     "Fetch guideUrl first and follow its schema and naming conventions.",
-    "Start from starterTemplateUrl for the minimum valid YAML notebook shape, then adapt from examples only when needed.",
+    "Start from starterTemplateUrl for the minimum valid wrapped-cells YAML notebook shape, then adapt from examples only when needed.",
     "Use the SIM example for the smallest canonical Godley-Lavoie baseline and scenario notebook.",
     "Use the BMW example when generating matrix cells with sectors and bands.",
     "Use the rentier example when the model splits households or tracks distributional flows.",
     "Use jsonUrl examples and jsonPromptUrl only when strict expanded JSON output is required.",
     "Validate generated runtime JSON against schemaUrl after converting YAML, or validate JSON output directly.",
-    "Return a single YAML notebook document with format set to sfcr-notebook-yaml and metadata.version set to 1 unless JSON is explicitly requested."
+    "Return a single YAML notebook document with format set to sfcr-notebook-yaml, metadata.version set to 1, and one ordered cells list unless JSON is explicitly requested."
   ]
 }

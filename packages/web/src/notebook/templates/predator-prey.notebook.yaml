@@ -5,193 +5,141 @@ title: Predator-Prey Notebook
 metadata:
   version: 1
   template: predator-prey
-  description: "This notebook is a small reference example for the browser notebook format. It uses a discrete predator-prey system with lagged state updates, so the model is dynamic across periods without creating a same-period feedback block. That makes it a good companion to `devdocs/solver-overview.md`: the solver still runs period by period, but each period is mostly a direct acyclic pass because the state transition depends on lagged values."
-modelId: predator-prey
-introCell:
-  id: intro
-  title: Overview
-variables:
-  interaction:
-    description: Lagged encounter term between prey and predators.
-  prey_capacity_gap:
-    description: Remaining room before prey reaches carrying capacity.
-  prey_births:
-    description: Prey reproduction damped by carrying capacity.
-  prey_losses:
-    description: Prey removed through predation.
-  predator_births:
-    description: Predator growth from successful encounters.
-  predator_losses:
-    description: Predator decline from natural mortality.
-  prey:
-    description: Prey stock next period.
-  predator:
-    description: Predator stock next period.
-  balance:
-    description: Net biological balance for quick inspection.
-  alpha:
-    description: Prey intrinsic growth rate.
-  beta:
-    description: Predation intensity.
-  delta:
-    description: Predator growth from prey encounters.
-  gamma:
-    description: Predator mortality rate.
-  prey_capacity:
-    description: Environmental carrying capacity for the prey population.
-equations: |-
-  # Lagged encounter term between prey and predators.
-  interaction ~ lag(prey) * lag(predator)
-
-  # Remaining room before prey reaches carrying capacity.
-  prey_capacity_gap ~ 1 - lag(prey) / prey_capacity
-
-  # Prey reproduction damped by carrying capacity.
-  prey_births ~ alpha * lag(prey) * prey_capacity_gap
-
-  # Prey removed through predation.
-  prey_losses ~ beta * interaction
-
-  # Predator growth from successful encounters.
-  predator_births ~ delta * interaction
-
-  # Predator decline from natural mortality.
-  predator_losses ~ gamma * lag(predator)
-
-  # Prey stock next period.
-  prey ~ lag(prey) + prey_births - prey_losses
-
-  # Predator stock next period.
-  predator ~ lag(predator) + predator_births - predator_losses
-
-  # Net biological balance for quick inspection.
-  balance ~ prey - predator
-equationCell:
-  id: equations
-  title: Predator-prey model
-  collapsed: true
-parameters:
-  alpha: 0.12
-  beta: 0.01
-  delta: 0.005
-  gamma: 0.08
-  prey_capacity: 80
-parametersCell:
-  id: externals
-  title: Externals
-  collapsed: true
-initial-values:
-  prey: 40
-  predator: 9
-initialValuesCell:
-  id: initial-values
-  collapsed: true
-solver:
-  method: gauss-seidel
-  tolerance: "1e-10"
-  maxIterations: 50
-  defaultInitialValue: "1e-15"
-  hiddenLeftVariable: ""
-  hiddenRightVariable: ""
-  hiddenTolerance: "0.00001"
-  relativeHiddenTolerance: false
-solverCell:
-  id: solver
-  title: Solver
-  collapsed: true
-baselineRun:
-  id: baseline-run
-  title: Baseline run
-  description: Baseline discrete predator-prey path using lagged state updates.
-  resultKey: predator_prey_baseline
-  periods: 120
-charts:
-  - id: baseline-chart
-    title: Baseline populations and interactions
-    variables:
-      - prey
-      - predator
-      - interaction
-    axisMode: separate
-    axisSnapTolarance: 0.5
-    seriesRanges:
-      prey:
-        includeZero: true
-      predator:
-        includeZero: true
-      interaction:
-        includeZero: true
-tables:
-  - id: baseline-table
-    title: Baseline variable summary
-    variables:
-      - prey
-      - predator
-      - prey_births
-      - prey_losses
-      - predator_births
-      - predator_losses
-      - balance
 cells:
-  - id: scenario-note
-    type: markdown
-    title: Scenario 1
-    source: This scenario raises the prey growth rate `alpha` from `0.12` to `0.14` between periods 25 and 50. It is a compact example of a single external shock applied to an otherwise acyclic lagged system.
-  - id: scenario-run
-    type: run
-    title: "Scenario 1: temporary prey growth shock"
-    mode: scenario
-    scenario:
-      shocks:
-        - rangeInclusive:
-            - 25
-            - 50
-          variables:
-            alpha:
-              kind: constant
-              value: 0.14
-    baselineRunCellId: baseline-run
-    periods: 50
-    resultKey: predator_prey_s1
-    sourceModelId: predator-prey
-  - id: scenario-chart
-    type: chart
-    title: Scenario 1 populations and balance
-    sourceRunCellId: scenario-run
-    variables:
-      - prey
-      - predator
-      - balance
-    axisMode: separate
-    axisSnapTolarance: 0.5
-    seriesRanges:
-      prey:
-        includeZero: true
-      predator:
-        includeZero: true
-      balance:
-        includeZero: true
-  - id: scenario-table
-    type: table
-    title: Scenario 1 variable summary
-    sourceRunCellId: scenario-run
-    variables:
-      - prey
-      - predator
-      - interaction
-      - prey_births
-      - predator_births
-      - balance
-cellOrder:
-  - intro
-  - equations
-  - solver
-  - externals
-  - initial-values
-  - baseline-run
-  - baseline-chart
-  - baseline-table
-  - scenario-note
-  - scenario-run
-  - scenario-chart
-  - scenario-table
+  - markdown:
+      id: intro
+      title: Overview
+      source: "This notebook is a small reference example for the browser notebook format. It uses a discrete predator-prey system with lagged state updates, so the model is dynamic across periods without creating a same-period feedback block. That makes it a good companion to `devdocs/solver-overview.md`: the solver still runs period by period, but each period is mostly a direct acyclic pass because the state transition depends on lagged values."
+  - equations:
+      id: equations
+      title: Predator-prey model
+      modelId: predator-prey
+      collapsed: true
+      rows:
+        - [interaction, lag(prey) * lag(predator), "Lagged encounter term between prey and predators."]
+        - [prey_capacity_gap, 1 - lag(prey) / prey_capacity, "Remaining room before prey reaches carrying capacity."]
+        - [prey_births, alpha * lag(prey) * prey_capacity_gap, "Prey reproduction damped by carrying capacity."]
+        - [prey_losses, beta * interaction, "Prey removed through predation."]
+        - [predator_births, delta * interaction, "Predator growth from successful encounters."]
+        - [predator_losses, gamma * lag(predator), "Predator decline from natural mortality."]
+        - [prey, lag(prey) + prey_births - prey_losses, "Prey stock next period."]
+        - [predator, lag(predator) + predator_births - predator_losses, "Predator stock next period."]
+        - [balance, prey - predator, "Net biological balance for quick inspection."]
+  - solver:
+      id: solver
+      title: Solver
+      modelId: predator-prey
+      collapsed: true
+      method: gauss-seidel
+      tolerance: "1e-10"
+      maxIterations: 50
+      defaultInitialValue: "1e-15"
+      hiddenLeftVariable: ""
+      hiddenRightVariable: ""
+      hiddenTolerance: "0.00001"
+      relativeHiddenTolerance: false
+  - externals:
+      id: externals
+      title: Externals
+      modelId: predator-prey
+      collapsed: true
+      rows:
+        - [alpha, 0.12, "Prey intrinsic growth rate."]
+        - [beta, 0.01, "Predation intensity."]
+        - [delta, 0.005, "Predator growth from prey encounters."]
+        - [gamma, 0.08, "Predator mortality rate."]
+        - [prey_capacity, 80, "Environmental carrying capacity for the prey population."]
+  - initial-values:
+      id: initial-values
+      title: Initial values
+      modelId: predator-prey
+      collapsed: true
+      rows:
+        - [prey, 40]
+        - [predator, 9]
+  - run:
+      id: baseline-run
+      title: Baseline run
+      description: Baseline discrete predator-prey path using lagged state updates.
+      mode: baseline
+      periods: 120
+      resultKey: predator_prey_baseline
+      sourceModelId: predator-prey
+  - chart:
+      id: baseline-chart
+      title: Baseline populations and interactions
+      variables:
+        - prey
+        - predator
+        - interaction
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      seriesRanges:
+        prey:
+          includeZero: true
+        predator:
+          includeZero: true
+        interaction:
+          includeZero: true
+      sourceRunCellId: baseline-run
+  - table:
+      id: baseline-table
+      title: Baseline variable summary
+      variables:
+        - prey
+        - predator
+        - prey_births
+        - prey_losses
+        - predator_births
+        - predator_losses
+        - balance
+      sourceRunCellId: baseline-run
+  - markdown:
+      id: scenario-note
+      title: Scenario 1
+      source: This scenario raises the prey growth rate `alpha` from `0.12` to `0.14` between periods 25 and 50. It is a compact example of a single external shock applied to an otherwise acyclic lagged system.
+  - run:
+      id: scenario-run
+      title: "Scenario 1: temporary prey growth shock"
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 25
+              - 50
+            variables:
+              alpha:
+                kind: constant
+                value: 0.14
+      baselineRunCellId: baseline-run
+      periods: 50
+      resultKey: predator_prey_s1
+      sourceModelId: predator-prey
+  - chart:
+      id: scenario-chart
+      title: Scenario 1 populations and balance
+      variables:
+        - prey
+        - predator
+        - balance
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      seriesRanges:
+        prey:
+          includeZero: true
+        predator:
+          includeZero: true
+        balance:
+          includeZero: true
+      sourceRunCellId: scenario-run
+  - table:
+      id: scenario-table
+      title: Scenario 1 variable summary
+      variables:
+        - prey
+        - predator
+        - interaction
+        - prey_births
+        - predator_births
+        - balance
+      sourceRunCellId: scenario-run
