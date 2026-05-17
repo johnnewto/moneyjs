@@ -3,7 +3,7 @@
 import { render, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { App, fireEvent, screen, setupAppTestEnv, userEvent } from "./appTestUtils";
+import { App, fireEvent, screen, setupAppTestEnv, userEvent, validate } from "./appTestUtils";
 
 setupAppTestEnv();
 
@@ -321,6 +321,20 @@ describe("App workspace and chat builder", () => {
 
     expect(screen.getByText(/editor validation: 1 error\(s\), 0 warning\(s\)\./i)).toBeInTheDocument();
     expect(screen.getAllByText(/equation name is required/i)).not.toHaveLength(0);
+  });
+
+  it("shows solver validation errors instead of reporting validation success", async () => {
+    const user = userEvent.setup();
+    validate.mockRejectedValueOnce(new Error("Unknown variable: missingExternal"));
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /^validate$/i }));
+
+    await waitFor(() => {
+      expect(validate).toHaveBeenCalled();
+      expect(screen.getByText(/unknown variable: missingExternal/i)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/validation passed\./i)).not.toBeInTheDocument();
   });
 
   it("surfaces parser build errors inside the model editor", async () => {

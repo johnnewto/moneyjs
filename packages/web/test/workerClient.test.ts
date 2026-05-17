@@ -32,6 +32,8 @@ class MockWorker {
   static instances: MockWorker[] = [];
 
   onmessage: ((event: MessageEvent<WorkerResponse>) => void) | null = null;
+  onmessageerror: ((event: MessageEvent) => void) | null = null;
+  onerror: ((event: ErrorEvent) => void) | null = null;
   messages: WorkerRequest[] = [];
   terminated = false;
 
@@ -49,6 +51,10 @@ class MockWorker {
 
   emit(message: WorkerResponse): void {
     this.onmessage?.({ data: message } as MessageEvent<WorkerResponse>);
+  }
+
+  emitError(): void {
+    this.onerror?.({ message: "Worker failed" } as ErrorEvent);
   }
 }
 
@@ -118,13 +124,23 @@ describe("worker client", () => {
     await expect(pending).rejects.toThrow("Broken model");
   });
 
-  it("terminates the worker on dispose", () => {
+  it("rejects pending requests when the worker fails", async () => {
     const client = createWorkerClient();
-    void client.runBaseline(model, options);
+    const pending = client.runBaseline(model, options);
+
+    MockWorker.instances[0]?.emitError();
+
+    await expect(pending).rejects.toThrow("Solver worker failed.");
+  });
+
+  it("terminates the worker and rejects pending requests on dispose", async () => {
+    const client = createWorkerClient();
+    const pending = client.runBaseline(model, options);
 
     const worker = MockWorker.instances[0];
     client.dispose();
 
     expect(worker?.terminated).toBe(true);
+    await expect(pending).rejects.toThrow("Solver worker was disposed");
   });
 });

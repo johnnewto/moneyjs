@@ -78,11 +78,13 @@ export function useSolver(): UseSolverApi {
         await client.validateModel(model, options);
         setState((current) => ({ ...current, status: "idle", error: null }));
       } catch (error) {
+        const nextError = error instanceof Error ? error : new Error("Unknown error");
         setState((current) => ({
           ...current,
           status: "error",
-          error: error instanceof Error ? error : new Error("Unknown error")
+          error: nextError
         }));
+        throw nextError;
       }
     }
   };

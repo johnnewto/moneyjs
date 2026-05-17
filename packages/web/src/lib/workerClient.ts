@@ -71,6 +71,14 @@ class BrowserWorkerClient implements SolverClient {
         pending.resolve();
       }
     };
+    worker.onerror = () => {
+      this.rejectAll(new Error("Solver worker failed."));
+      this.worker = null;
+    };
+    worker.onmessageerror = () => {
+      this.rejectAll(new Error("Solver worker sent an unreadable response."));
+      this.worker = null;
+    };
 
     this.worker = worker;
     return worker;
@@ -105,6 +113,13 @@ class BrowserWorkerClient implements SolverClient {
   dispose(): void {
     this.worker?.terminate();
     this.worker = null;
+    this.rejectAll(new Error("Solver worker was disposed before the request completed."));
+  }
+
+  private rejectAll(error: Error): void {
+    for (const pending of this.pending.values()) {
+      pending.reject(error);
+    }
     this.pending.clear();
   }
 
