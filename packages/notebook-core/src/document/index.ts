@@ -1,5 +1,5 @@
 import type { NotebookCell, NotebookDocument } from "../types";
-import { Document as YamlDocument, isSeq, parseDocument as parseYamlDocument } from "yaml";
+import { Document as YamlDocument, isScalar, isSeq, parseDocument as parseYamlDocument, Scalar } from "yaml";
 import { stringifyJsonWithCompactLeaves } from "../jsonFormat";
 import { normalizeUnitMetaAliases, serializeUnitMetaAliases } from "../unitMetaAliases";
 import { validateNotebookSchemaObject, type NotebookValidationIssue } from "../validation";
@@ -108,6 +108,19 @@ interface NotebookYamlEnvelope extends Partial<NotebookDocument> {
 
 const NOTEBOOK_YAML_FORMAT = "sfcr-notebook-yaml";
 const NOTEBOOK_YAML_FORMAT_VERSION = 1;
+const NOTEBOOK_CELL_TYPES = new Set<NotebookCell["type"]>([
+  "markdown",
+  "model",
+  "equations",
+  "solver",
+  "externals",
+  "initial-values",
+  "run",
+  "chart",
+  "table",
+  "matrix",
+  "sequence"
+]);
 
 export interface CompactYamlFormatOptions {
   preserveIds?: boolean;
@@ -153,6 +166,10 @@ function stringifyCompactYamlEnvelope(envelope: NotebookYamlEnvelope): string {
   markFlowSequence(document, ["sectors"]);
   markMatrixFlowSequences(document, "balance");
   markMatrixFlowSequences(document, "transactions");
+  markWrappedMatrixFlowSequences(document);
+  markWrappedEquationFlowSequences(document);
+  markWrappedExternalFlowSequences(document);
+  markWrappedInitialValueFlowSequences(document);
 
   return document.toString({
     collectionStyle: "any",
@@ -161,11 +178,66 @@ function stringifyCompactYamlEnvelope(envelope: NotebookYamlEnvelope): string {
   }).trimEnd();
 }
 
-function markMatrixFlowSequences(document: YamlDocument, matrixKey: "balance" | "transactions"): void {
-  markFlowSequence(document, [matrixKey, "columns"]);
-  markFlowSequence(document, [matrixKey, "sectors"]);
+function markWrappedMatrixFlowSequences(document: YamlDocument): void {
+  const cells = document.get("cells", true);
+  if (!isSeq(cells)) {
+    return;
+  }
 
-  const rows = document.getIn([matrixKey, "rows"], true);
+  cells.items.forEach((_cell, index) => {
+    markMatrixFlowSequencesAtPath(document, ["cells", index, "matrix"]);
+  });
+}
+
+function markWrappedEquationFlowSequences(document: YamlDocument): void {
+  markWrappedCellRowFlowSequences(document, "equations", { quoteColumn: 2 });
+}
+
+function markWrappedExternalFlowSequences(document: YamlDocument): void {
+  markWrappedCellRowFlowSequences(document, "externals", { quoteColumn: 2 });
+}
+
+function markWrappedInitialValueFlowSequences(document: YamlDocument): void {
+  markWrappedCellRowFlowSequences(document, "initial-values");
+}
+
+function markWrappedCellRowFlowSequences(
+  document: YamlDocument,
+  cellType: NotebookCell["type"],
+  options: { quoteColumn?: number } = {}
+): void {
+  const cells = document.get("cells", true);
+  if (!isSeq(cells)) {
+    return;
+  }
+
+  cells.items.forEach((_cell, index) => {
+    const rows = document.getIn(["cells", index, cellType, "rows"], true);
+    if (!isSeq(rows)) {
+      return;
+    }
+    rows.items.forEach((row) => {
+      if (isSeq(row)) {
+        row.flow = true;
+        const description = options.quoteColumn == null ? undefined : row.items[options.quoteColumn];
+        if (isScalar(description) && typeof description.value === "string" && description.value !== "") {
+          description.type = Scalar.QUOTE_DOUBLE;
+        }
+      }
+    });
+  });
+}
+
+
+function markMatrixFlowSequences(document: YamlDocument, matrixKey: "balance" | "transactions"): void {
+  markMatrixFlowSequencesAtPath(document, [matrixKey]);
+}
+
+function markMatrixFlowSequencesAtPath(document: YamlDocument, matrixPath: Array<string | number>): void {
+  markFlowSequence(document, [...matrixPath, "columns"]);
+  markFlowSequence(document, [...matrixPath, "sectors"]);
+
+  const rows = document.getIn([...matrixPath, "rows"], true);
   if (!isSeq(rows)) {
     return;
   }
@@ -444,9 +516,6 @@ function buildCompactYamlEnvelope(document: NotebookDocument, options: CompactYa
   const modelIdMap = new Map<string, string>();
   if (equationsCell?.modelId && modelId) modelIdMap.set(equationsCell.modelId, modelId);
 
-  const compactVariables = equationsCell ? buildCompactVariables(equationsCell, parametersCell) : undefined;
-  const compactUnits = buildCompactUnits(compactVariables);
-
   const compact: NotebookYamlEnvelope = {
     format: NOTEBOOK_YAML_FORMAT,
     formatVersion: NOTEBOOK_YAML_FORMAT_VERSION,
@@ -454,109 +523,95 @@ function buildCompactYamlEnvelope(document: NotebookDocument, options: CompactYa
     title: document.title,
     metadata: {
       version: 1,
-      ...(document.metadata.template ? { template: document.metadata.template } : {}),
-      ...(introCell ? { description: introCell.source } : {})
-    },
-    ...(modelId ? { modelId } : {})
+      ...(document.metadata.template ? { template: document.metadata.template } : {})
+    }
   };
 
-  if (introCell && (preserveIds || introCell.title !== "Overview")) {
-    compact.introCell = {
-      ...(preserveIds ? { id: introCell.id } : {}),
-      title: introCell.title
-    };
-  }
-
-  if (balanceCell) {
-    compact.sectors = balanceCell.sectors ?? balanceCell.columns;
-  }
-  if (compactUnits) {
-    compact.units = compactUnits;
-  }
-
-  if (equationsCell) {
-    compact.variables = compactVariables;
-    compact.equations = equationsCell.equations
-      .map((equation) => `${equation.desc ? `# ${equation.desc}\n` : ""}${equation.name} ~ ${equation.expression}`)
-      .join("\n\n");
-    compact.equationCell = buildCompactCellDescriptor(equationsCell, {
-      fallbackId: modelId ? `equations-${modelId}` : equationsCell.id,
-      fallbackTitle: "Equations",
-      preserveIds
-    });
-  }
-
-  if (balanceCell) {
-    compact.balance = buildCompactMatrixDescriptor(balanceCell, { fallbackId: "balance-sheet", preserveIds });
-  }
-  if (transactionsCell) {
-    compact.transactions = buildCompactMatrixDescriptor(transactionsCell, { fallbackId: "transactions-flow", preserveIds });
-  }
-  if (parametersCell && parametersCell.externals.length > 0) {
-    compact.parameters = Object.fromEntries(parametersCell.externals.map((external) => [external.name, scalarFromValueText(external.valueText)]));
-    compact.parametersCell = buildCompactCellDescriptor(parametersCell, {
-      fallbackId: modelId ? `parameters-${modelId}` : parametersCell.id,
-      fallbackTitle: "Parameters",
-      preserveIds
-    });
-  }
-  if (initialValuesCell) {
-    compact["initial-values"] = Object.fromEntries(
-      initialValuesCell.initialValues.map((initialValue) => [initialValue.name, scalarFromValueText(initialValue.valueText)])
-    );
-    compact.initialValuesCell = buildCompactCellDescriptor(initialValuesCell, {
-      fallbackId: modelId ? `initial-values-${modelId}` : initialValuesCell.id,
-      fallbackTitle: "Initial values",
-      preserveIds
-    });
-  }
-  if (solverCell) {
-    compact.solver = buildCompactSolverDescriptor(solverCell.options);
-    compact.solverCell = buildCompactCellDescriptor(solverCell, {
-      fallbackId: modelId ? `solver-${modelId}` : solverCell.id,
-      fallbackTitle: "Solver options",
-      preserveIds
-    });
-  }
-  if (baselineRunCell) {
-    compact.baselineRun = {
-      ...(preserveIds ? { id: baselineRunCell.id } : {}),
-      title: baselineRunCell.title,
-      ...(baselineRunCell.note ? { note: baselineRunCell.note } : {}),
-      ...(baselineRunCell.description ? { description: baselineRunCell.description } : {}),
-      resultKey: baselineRunCell.resultKey,
-      periods: baselineRunCell.periods,
-      ...(baselineRunCell.baselineStartPeriod == null ? {} : { baselineStartPeriod: baselineRunCell.baselineStartPeriod })
-    };
-  }
-  if (baselineCharts.length > 0) {
-    compact.charts = baselineCharts.map((cell, index) => buildCompactChartDescriptor(cell, { fallbackId: `chart-${index + 1}`, preserveIds }));
-  }
-  if (baselineTables.length > 0) {
-    compact.tables = baselineTables.map((cell, index) => buildCompactTableDescriptor(cell, { fallbackId: `table-${index + 1}`, preserveIds }));
-  }
-
-  const compactedCellIds = new Set([
-    introCell?.id,
-    balanceCell?.id,
-    transactionsCell?.id,
-    equationsCell?.id,
-    solverCell?.id,
-    parametersCell?.id,
-    initialValuesCell?.id,
-    baselineRunCell?.id,
-    ...baselineCharts.map((cell) => cell.id),
-    ...baselineTables.map((cell) => cell.id)
-  ].filter((id): id is string => typeof id === "string"));
-  const passthroughCells = document.cells
-    .filter((cell) => !compactedCellIds.has(cell.id))
-    .map((cell) => rewriteCompactReferences(serializeNotebookCell(cell), idMap, modelIdMap) as NotebookCell);
-  if (passthroughCells.length > 0) {
-    compact.cells = passthroughCells;
-  }
-  compact.cellOrder = document.cells.map((cell) => idMap.get(cell.id) ?? cell.id);
+  (compact as Record<string, unknown>).cells = document.cells.map((cell) =>
+    wrapCompactYamlCell(rewriteCompactReferences(serializeCompactYamlCell(cell), idMap, modelIdMap) as Record<string, unknown>)
+  );
 
   return compact;
+}
+
+function wrapCompactYamlCell(cell: Record<string, unknown>): Record<string, Record<string, unknown>> {
+  const type = typeof cell.type === "string" && isNotebookCellType(cell.type) ? cell.type : "markdown";
+  const { type: _type, ...body } = cell;
+  return {
+    [type]: body
+  };
+}
+
+function serializeCompactYamlCell(cell: NotebookCell): Record<string, unknown> {
+  switch (cell.type) {
+    case "markdown":
+      return structuredClone(cell) as unknown as Record<string, unknown>;
+    case "matrix":
+      return {
+        id: cell.id,
+        type: "matrix",
+        title: cell.title,
+        ...(cell.description ? { description: cell.description } : {}),
+        ...(cell.note ? { note: cell.note } : {}),
+        ...(cell.collapsed == null ? {} : { collapsed: cell.collapsed }),
+        ...(cell.sourceRunCellId ? { sourceRunCellId: cell.sourceRunCellId } : {}),
+        columns: cell.columns,
+        ...(cell.sectors ? { sectors: cell.sectors } : {}),
+        rows: cell.rows.map((row) => (row.band == null ? { label: row.label, values: row.values } : [row.band, row.label, ...row.values]))
+      };
+    case "equations":
+      return {
+        id: cell.id,
+        type: "equations",
+        title: cell.title,
+        modelId: cell.modelId,
+        ...compactCellFlags(cell),
+        rows: cell.equations.map(buildCompactEquationRow)
+      };
+    case "externals":
+      return {
+        id: cell.id,
+        type: "externals",
+        title: cell.title,
+        modelId: cell.modelId,
+        ...compactCellFlags(cell),
+        rows: cell.externals.map(buildCompactExternalRow)
+      };
+    case "initial-values":
+      return {
+        id: cell.id,
+        type: "initial-values",
+        title: cell.title,
+        modelId: cell.modelId,
+        ...compactCellFlags(cell),
+        rows: cell.initialValues.map((initialValue) => [initialValue.name, scalarFromValueText(initialValue.valueText)])
+      };
+    case "solver":
+      return {
+        id: cell.id,
+        type: "solver",
+        title: cell.title,
+        modelId: cell.modelId,
+        ...compactCellFlags(cell),
+        ...buildCompactSolverDescriptor(cell.options)
+      };
+    case "chart":
+      return {
+        id: cell.id,
+        type: "chart",
+        ...buildCompactChartDescriptor(cell, { fallbackId: cell.id, preserveIds: true }),
+        sourceRunCellId: cell.sourceRunCellId
+      };
+    case "table":
+      return {
+        id: cell.id,
+        type: "table",
+        ...buildCompactTableDescriptor(cell, { fallbackId: cell.id, preserveIds: true }),
+        sourceRunCellId: cell.sourceRunCellId
+      };
+    default:
+      return serializeNotebookCell(cell) as unknown as Record<string, unknown>;
+  }
 }
 
 function generatedCompactModelId(document: NotebookDocument): string {
@@ -594,6 +649,55 @@ function buildCompactVariables(
     };
   });
   return variables;
+}
+
+function buildCompactEquationVariables(
+  equationsCell: Extract<NotebookCell, { type: "equations" }>
+): Record<string, Record<string, unknown>> {
+  const variables: Record<string, Record<string, unknown>> = {};
+  equationsCell.equations.forEach((equation) => {
+    variables[equation.name] = {
+      ...(equation.desc ? { description: equation.desc } : {}),
+      ...compactUnitFields(equation.unitMeta),
+      ...(equation.role ? { role: equation.role } : {})
+    };
+  });
+  return variables;
+}
+
+function buildCompactEquationRow(equation: Extract<NotebookCell, { type: "equations" }>["equations"][number]): unknown[] {
+  const unit = formatCompactUnit(equation.unitMeta);
+  const type = equation.unitMeta?.stockFlow;
+  const row = [equation.name, equation.expression, equation.desc, unit, type, equation.role];
+  while (row.length > 2 && row[row.length - 1] == null) {
+    row.pop();
+  }
+  return row.map((value) => value ?? "");
+}
+
+function buildCompactExternalRow(external: Extract<NotebookCell, { type: "externals" }>["externals"][number]): unknown[] {
+  const unit = formatCompactUnit(external.unitMeta);
+  const type = external.unitMeta?.stockFlow;
+  const row = [external.name, scalarFromValueText(external.valueText), external.desc, unit, type];
+  while (row.length > 2 && row[row.length - 1] == null) {
+    row.pop();
+  }
+  return row.map((value) => value ?? "");
+}
+
+function buildCompactExternalVariables(
+  parametersCell: Extract<NotebookCell, { type: "externals" }>
+): Record<string, Record<string, unknown>> | undefined {
+  const variables = Object.fromEntries(
+    parametersCell.externals.flatMap((external) => {
+      const meta = {
+        ...(external.desc ? { description: external.desc } : {}),
+        ...compactUnitFields(external.unitMeta)
+      };
+      return Object.keys(meta).length > 0 ? [[external.name, meta]] : [];
+    })
+  ) as Record<string, Record<string, unknown>>;
+  return Object.keys(variables).length > 0 ? variables : undefined;
 }
 
 function compactUnitFields(unitMeta: Extract<NotebookCell, { type: "equations" }>["equations"][number]["unitMeta"]): Record<string, unknown> {
@@ -898,7 +1002,7 @@ function parseYamlNotebookSource(
 
 function compileYamlNotebookSource(source: NotebookYamlEnvelope): Partial<NotebookDocument> {
   if (Array.isArray(source.cells) && typeof source.equations !== "string") {
-    return source;
+    return normalizeYamlNotebookCells(source);
   }
 
   if (typeof source.equations !== "string") {
@@ -1013,7 +1117,7 @@ function compileYamlNotebookSource(source: NotebookYamlEnvelope): Partial<Notebo
   }
 
   if (Array.isArray(source.cells)) {
-    cells.push(...(source.cells as NotebookCell[]));
+    cells.push(...normalizeYamlCellEntries(source.cells));
   }
 
   return {
@@ -1025,6 +1129,140 @@ function compileYamlNotebookSource(source: NotebookYamlEnvelope): Partial<Notebo
     },
     cells: orderCompactCells(cells, source.cellOrder)
   };
+}
+
+function normalizeYamlNotebookCells(source: NotebookYamlEnvelope): NotebookYamlEnvelope {
+  const { cellOrder: _cellOrder, ...rest } = source;
+  return {
+    ...rest,
+    cells: normalizeYamlCellEntries(source.cells)
+  };
+}
+
+function normalizeYamlCellEntries(cells: unknown): NotebookCell[] {
+  if (!Array.isArray(cells)) {
+    return [];
+  }
+  return cells.map(normalizeYamlCellEntry);
+}
+
+function normalizeYamlCellEntry(cell: unknown): NotebookCell {
+  if (!isRecord(cell)) {
+    return cell as unknown as NotebookCell;
+  }
+  if (typeof cell.type === "string") {
+    return cell as unknown as NotebookCell;
+  }
+
+  const entries = Object.entries(cell);
+  if (entries.length !== 1) {
+    return cell as unknown as NotebookCell;
+  }
+
+  const [type, body] = entries[0];
+  if (!isNotebookCellType(type) || !isRecord(body)) {
+    return cell as unknown as NotebookCell;
+  }
+
+  return buildYamlWrappedCell(type, body);
+}
+
+function buildYamlWrappedCell(type: NotebookCell["type"], body: Record<string, unknown>): NotebookCell {
+  if (Array.isArray(body[type === "initial-values" ? "initialValues" : type])) {
+    return normalizeRawYamlWrappedCell(type, body);
+  }
+
+  switch (type) {
+    case "markdown":
+      return {
+        id: compactCellId(body, "markdown"),
+        type,
+        title: compactCellTitle(body, "Markdown"),
+        source: stringValue(body.source, ""),
+        ...compactCellFlags(body)
+      };
+    case "matrix": {
+      const cell = buildCompactMatrixCell(body, {
+        fallbackColumns: body.sectors,
+        id: "matrix",
+        sourceRunCellId: typeof body.sourceRunCellId === "string" ? body.sourceRunCellId : undefined,
+        title: "Matrix"
+      });
+      return (cell ?? normalizeRawYamlWrappedCell(type, body)) as NotebookCell;
+    }
+    case "equations":
+      if (Array.isArray(body.equations)) {
+        return normalizeRawYamlWrappedCell(type, body);
+      }
+      return {
+        id: compactCellId(body, "equations"),
+        type,
+        title: compactCellTitle(body, "Equations"),
+        modelId: stringValue(body.modelId, "main"),
+        equations: Array.isArray(body.rows)
+          ? parseCompactEquationRows(body.rows, body.variables)
+          : parseCompactEquations(stringValue(body.source ?? body.equations, ""), body.variables),
+        ...compactCellFlags(body)
+      };
+    case "externals":
+      if (Array.isArray(body.externals)) {
+        return normalizeRawYamlWrappedCell(type, body);
+      }
+      return {
+        id: compactCellId(body, "externals"),
+        type,
+        title: compactCellTitle(body, "Externals"),
+        modelId: stringValue(body.modelId, "main"),
+        externals: Array.isArray(body.rows)
+          ? parseCompactExternalRows(body.rows, body.variables)
+          : buildCompactParameters(body.values ?? body.parameters ?? body.externals, body.variables),
+        ...compactCellFlags(body)
+      };
+    case "initial-values":
+      if (Array.isArray(body.initialValues)) {
+        return normalizeRawYamlWrappedCell(type, body);
+      }
+      return {
+        id: compactCellId(body, "initial-values"),
+        type,
+        title: compactCellTitle(body, "Initial values"),
+        modelId: stringValue(body.modelId, "main"),
+        initialValues: Array.isArray(body.rows)
+          ? parseCompactInitialValueRows(body.rows)
+          : buildCompactInitialValues(body.values ?? body.initialValues ?? body["initial-values"]),
+        ...compactCellFlags(body)
+      };
+    case "solver":
+      return {
+        id: compactCellId(body, "solver"),
+        type,
+        title: compactCellTitle(body, "Solver options"),
+        modelId: stringValue(body.modelId, "main"),
+        options: isRecord(body.options)
+          ? (body.options as unknown as Extract<NotebookCell, { type: "solver" }>["options"])
+          : buildCompactSolverOptions(body),
+        ...compactCellFlags(body)
+      };
+    case "chart":
+      return buildCompactChartCells([body], stringValue(body.sourceRunCellId, ""))[0] ?? normalizeRawYamlWrappedCell(type, body);
+    case "table":
+      return buildCompactTableCells([body], stringValue(body.sourceRunCellId, ""))[0] ?? normalizeRawYamlWrappedCell(type, body);
+    default:
+      return normalizeRawYamlWrappedCell(type, body);
+  }
+}
+
+function normalizeRawYamlWrappedCell(type: NotebookCell["type"], body: Record<string, unknown>): NotebookCell {
+  const { id, type: _ignoredType, ...rest } = body;
+  return {
+    ...(typeof id === "string" ? { id } : {}),
+    type,
+    ...rest
+  } as NotebookCell;
+}
+
+function isNotebookCellType(value: string): value is NotebookCell["type"] {
+  return NOTEBOOK_CELL_TYPES.has(value as NotebookCell["type"]);
 }
 
 function compactCellId(input: unknown, fallback: string): string {
@@ -1089,6 +1327,53 @@ function parseCompactEquations(source: string, variables: unknown): Extract<Note
     });
 }
 
+function parseCompactEquationRows(rows: unknown[], variables: unknown): Extract<NotebookCell, { type: "equations" }>["equations"] {
+  const variableMeta = isRecord(variables) ? variables : {};
+  return rows.map((row, index) => {
+    if (Array.isArray(row)) {
+      const [rawName, rawExpression, rawDescription, rawUnit, rawType, rawRole] = row;
+      const name = stringValue(rawName, "");
+      const meta = {
+        ...(isRecord(variableMeta[name]) ? variableMeta[name] : {}),
+        ...(rawDescription == null || rawDescription === "" ? {} : { description: String(rawDescription) }),
+        ...(rawUnit == null || rawUnit === "" ? {} : { unit: String(rawUnit) }),
+        ...(rawType == null || rawType === "" ? {} : { type: String(rawType) }),
+        ...(rawRole == null || rawRole === "" ? {} : { role: String(rawRole) })
+      };
+      return {
+        id: `eq-${index}-${slugifyIdentifier(name)}`,
+        name,
+        ...(typeof meta.description === "string" ? { desc: meta.description } : {}),
+        expression: stringValue(rawExpression, "").trim(),
+        ...(resolveEquationRole(meta) ? { role: resolveEquationRole(meta) } : {}),
+        ...(buildUnitMeta(meta) ? { unitMeta: buildUnitMeta(meta) } : {})
+      };
+    }
+
+    if (isRecord(row)) {
+      const name = stringValue(row.name, "");
+      const meta = {
+        ...(isRecord(variableMeta[name]) ? variableMeta[name] : {}),
+        ...(typeof row.desc === "string" ? { description: row.desc } : {}),
+        ...(typeof row.description === "string" ? { description: row.description } : {}),
+        ...(row.unit == null ? {} : { unit: String(row.unit) }),
+        ...(row.type == null ? {} : { type: String(row.type) }),
+        ...(row.role == null ? {} : { role: String(row.role) })
+      };
+      return {
+        id: stringValue(row.id, `eq-${index}-${slugifyIdentifier(name)}`),
+        name,
+        ...(typeof meta.description === "string" ? { desc: meta.description } : {}),
+        expression: stringValue(row.expr ?? row.expression, "").trim(),
+        ...(resolveEquationRole(meta) ? { role: resolveEquationRole(meta) } : {}),
+        ...(buildUnitMeta(meta) ? { unitMeta: buildUnitMeta(meta) } : {})
+      };
+    }
+
+    throw new Error("Compact equation rows must be arrays or row objects.");
+  });
+}
+
 function buildCompactParameters(parameters: unknown, variables: unknown): Extract<NotebookCell, { type: "externals" }>["externals"] {
   if (!isRecord(parameters)) {
     return [];
@@ -1108,6 +1393,51 @@ function buildCompactParameters(parameters: unknown, variables: unknown): Extrac
   });
 }
 
+function parseCompactExternalRows(rows: unknown[], variables: unknown): Extract<NotebookCell, { type: "externals" }>["externals"] {
+  const variableMeta = isRecord(variables) ? variables : {};
+  return rows.map((row, index) => {
+    if (Array.isArray(row)) {
+      const [rawName, rawValue, rawDescription, rawUnit, rawType] = row;
+      const name = stringValue(rawName, "");
+      const meta = {
+        ...(isRecord(variableMeta[name]) ? variableMeta[name] : {}),
+        ...(rawDescription == null || rawDescription === "" ? {} : { description: String(rawDescription) }),
+        ...(rawUnit == null || rawUnit === "" ? {} : { unit: String(rawUnit) }),
+        ...(rawType == null || rawType === "" ? {} : { type: String(rawType) })
+      };
+      return {
+        id: `ext-${index}-${slugifyIdentifier(name)}`,
+        name,
+        ...(typeof meta.description === "string" ? { desc: meta.description } : {}),
+        kind: "constant",
+        valueText: String(rawValue),
+        ...(buildUnitMeta(meta) ? { unitMeta: buildUnitMeta(meta) } : {})
+      };
+    }
+
+    if (isRecord(row)) {
+      const name = stringValue(row.name, "");
+      const meta = {
+        ...(isRecord(variableMeta[name]) ? variableMeta[name] : {}),
+        ...(typeof row.desc === "string" ? { description: row.desc } : {}),
+        ...(typeof row.description === "string" ? { description: row.description } : {}),
+        ...(row.unit == null ? {} : { unit: String(row.unit) }),
+        ...(row.type == null ? {} : { type: String(row.type) })
+      };
+      return {
+        id: stringValue(row.id, `ext-${index}-${slugifyIdentifier(name)}`),
+        name,
+        ...(typeof meta.description === "string" ? { desc: meta.description } : {}),
+        kind: "constant",
+        valueText: stringValue(row.value ?? row.valueText, ""),
+        ...(buildUnitMeta(meta) ? { unitMeta: buildUnitMeta(meta) } : {})
+      };
+    }
+
+    throw new Error("Compact external rows must be arrays or row objects.");
+  });
+}
+
 function buildCompactInitialValues(initialValues: unknown): Extract<NotebookCell, { type: "initial-values" }>["initialValues"] {
   if (!isRecord(initialValues)) {
     return [];
@@ -1120,9 +1450,34 @@ function buildCompactInitialValues(initialValues: unknown): Extract<NotebookCell
   }));
 }
 
+function parseCompactInitialValueRows(rows: unknown[]): Extract<NotebookCell, { type: "initial-values" }>["initialValues"] {
+  return rows.map((row, index) => {
+    if (Array.isArray(row)) {
+      const [rawName, rawValue] = row;
+      const name = stringValue(rawName, "");
+      return {
+        id: `init-${index}-${slugifyIdentifier(name)}`,
+        name,
+        valueText: String(rawValue)
+      };
+    }
+
+    if (isRecord(row)) {
+      const name = stringValue(row.name, "");
+      return {
+        id: stringValue(row.id, `init-${index}-${slugifyIdentifier(name)}`),
+        name,
+        valueText: stringValue(row.value ?? row.valueText, "")
+      };
+    }
+
+    throw new Error("Compact initial-value rows must be arrays or row objects.");
+  });
+}
+
 function buildCompactMatrixCell(
   input: unknown,
-  options: { fallbackColumns: unknown; id: string; sourceRunCellId: string; title: string }
+  options: { fallbackColumns: unknown; id: string; sourceRunCellId?: string; title: string }
 ): Extract<NotebookCell, { type: "matrix" }> | null {
   if (!isRecord(input)) {
     return null;
@@ -1155,7 +1510,7 @@ function buildCompactMatrixCell(
     id: typeof input.id === "string" ? input.id : options.id,
     type: "matrix",
     title: typeof input.title === "string" ? input.title : options.title,
-    sourceRunCellId: options.sourceRunCellId,
+    ...(options.sourceRunCellId ? { sourceRunCellId: options.sourceRunCellId } : {}),
     columns,
     ...(sectors ? { sectors } : {}),
     rows,
@@ -1190,12 +1545,12 @@ function buildCompactChartCells(charts: unknown, sourceRunCellId: string): Array
     ...compactCellFlags(chart),
     sourceRunCellId,
     variables: stringArray(chart.variables) ?? [],
+    ...(isRecord(chart.sharedRange) ? { sharedRange: chart.sharedRange as Extract<NotebookCell, { type: "chart" }>["sharedRange"] } : {}),
     ...(chart.axisMode === "shared" || chart.axisMode === "separate" ? { axisMode: chart.axisMode } : {}),
     ...(typeof chart.axisSnapTolarance === "number" ? { axisSnapTolarance: chart.axisSnapTolarance } : {}),
     ...(typeof chart.niceScale === "boolean" ? { niceScale: chart.niceScale } : {}),
     ...(chart.referenceTrace === "none" || chart.referenceTrace === "baseline" || chart.referenceTrace === "previous-run" ? { referenceTrace: chart.referenceTrace } : {}),
     ...(typeof chart.yAxisTickCount === "number" ? { yAxisTickCount: chart.yAxisTickCount } : {}),
-    ...(isRecord(chart.sharedRange) ? { sharedRange: chart.sharedRange as Extract<NotebookCell, { type: "chart" }>["sharedRange"] } : {}),
     ...(isRecord(chart.seriesRanges) ? { seriesRanges: chart.seriesRanges as Extract<NotebookCell, { type: "chart" }>["seriesRanges"] } : {}),
     ...(Array.isArray(chart.timeRangeInclusive) ? { timeRangeInclusive: chart.timeRangeInclusive as [number, number] } : {})
   }));

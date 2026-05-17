@@ -41,9 +41,20 @@ describe("canonical YAML notebook templates", () => {
     const reformattedDocument = notebookFromYaml(formattedAgain);
 
     expect(compactYaml).toContain("modelId: bmw");
-    expect(compactYaml).toContain("equations: |-");
-    expect(compactYaml).toContain("columns: [Households, Firms_current, Firms_capital, Banks_current, Banks_capital, Sum]");
-    expect(compactYaml).toContain("- [Consumption, Consumption, -Cs, +Cd,");
+    expect(compactYaml).toContain("  - equations:");
+    expect(compactYaml).toContain("      rows:");
+    expect(compactYaml).toContain('        - [Ls, lag(Ls) + d(Ld) * dt, "Supply of bank loans", $, stock, accumulation]');
+    expect(compactYaml).toContain('        - [alpha0, 20, "Exogenous component in consumption", $/year, aux]');
+    expect(compactYaml).toContain("      rows: []");
+    expect(compactYaml).not.toContain("      source: |");
+    expect(compactYaml).not.toContain("      values:");
+    expect(compactYaml).toContain("  - matrix:");
+    expect(compactYaml).toContain("      columns: [Households, Firms_current, Firms_capital, Banks_current, Banks_capital, Sum]");
+    expect(compactYaml).toContain("        - [Consumption, Consumption, -Cs, +Cd,");
+    expect(compactYaml).toContain("  - sequence:");
+    expect(compactYaml).toContain("  - markdown:");
+    expect(compactYaml).not.toContain("    type: sequence");
+    expect(compactYaml).not.toContain("\nbalance:");
     expect(compactYaml).not.toContain("equations-newton");
     expect(validateNotebookDocument(compactDocument)).toEqual([]);
     expect(validateNotebookModels(compactDocument).issueCount).toBe(0);
@@ -59,8 +70,58 @@ describe("canonical YAML notebook templates", () => {
     const compactDocument = notebookFromYaml(compactYaml);
 
     expect(compactYaml).toContain("equations-newton");
-    expect(compactYaml).toContain("columns: [Households, Firms_current, Firms_capital, Banks_current, Banks_capital, Sum]");
+    expect(compactYaml).toContain("  - equations:");
+    expect(compactYaml).toContain("  - matrix:");
+    expect(compactYaml).toContain("      columns: [Households, Firms_current, Firms_capital, Banks_current, Banks_capital, Sum]");
+    expect(compactYaml).toContain("  - sequence:");
+    expect(compactYaml).not.toContain("    type: sequence");
+    expect(compactYaml).not.toContain("\nbalance:");
     expect(notebookToJson(compactDocument)).toBe(notebookToJson(generatedDocument));
+  });
+
+  it("parses wrapper-style cells as normal typed cells", () => {
+    const wrapperYaml = [
+      "format: sfcr-notebook-yaml",
+      "formatVersion: 1",
+      "id: wrapper-style",
+      "title: Wrapper style",
+      "metadata:",
+      "  version: 1",
+      "cells:",
+      "  - markdown:",
+      "      id: note",
+      "      title: Note",
+      "      source: Wrapped markdown cell",
+      "  - run:",
+      "      id: run-1",
+      "      title: Baseline",
+      "      mode: baseline",
+      "      periods: 5",
+      "      resultKey: baseline",
+      "      sourceModelId: model-1"
+    ].join("\n");
+    const typedYaml = [
+      "format: sfcr-notebook-yaml",
+      "formatVersion: 1",
+      "id: wrapper-style",
+      "title: Wrapper style",
+      "metadata:",
+      "  version: 1",
+      "cells:",
+      "  - id: note",
+      "    type: markdown",
+      "    title: Note",
+      "    source: Wrapped markdown cell",
+      "  - id: run-1",
+      "    type: run",
+      "    title: Baseline",
+      "    mode: baseline",
+      "    periods: 5",
+      "    resultKey: baseline",
+      "    sourceModelId: model-1"
+    ].join("\n");
+
+    expect(notebookToJson(notebookFromYaml(wrapperYaml))).toBe(notebookToJson(notebookFromYaml(typedYaml)));
   });
 });
 
