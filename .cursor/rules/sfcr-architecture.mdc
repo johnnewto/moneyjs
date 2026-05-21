@@ -1,0 +1,23 @@
+---
+description: SFCR monorepo architecture and default edit targets
+alwaysApply: true
+---
+
+# SFCR architecture
+
+Browser-first TypeScript monorepo. Default implementation targets:
+- `packages/web` — React UI, editor, notebook presentation
+- `packages/core` — solver, parser, model runtime (no DOM/React)
+- `packages/core-worker` — worker protocol + `handleWorkerRequest`
+- `packages/notebook-core` — notebook document/schema/YAML (no UI)
+
+Dependency direction:
+`web` → `core-worker`, `notebook-core`, `core` | `core-worker` → `core` | `notebook-core` → `core`
+
+Do **not** edit `references/java/` or `references/r-sfcr/` unless the task is explicit parity/migration work.
+
+Do **not** edit `packages/*/dist/`, `packages/web/dist/`, or hand-edit `templates/generated/*.json` for pilot templates.
+
+Run commands from repo root. Node 22+. No ESLint/Prettier — use `pnpm typecheck` and package tests.
+
+Prefer smallest change; avoid broad refactors unless required.

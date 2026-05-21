@@ -1,0 +1,13 @@
+---
+description: Java/R reference code — parity only
+globs: references/**
+alwaysApply: false
+---
+
+# Reference implementations
+
+`references/java/` and `references/r-sfcr/` are for parity checks, legacy behavior lookup, and migration — not the default runtime.
+
+- Do not port large chunks into TypeScript unless the task requires it.
+- When behavior is inferred from reference code, state that in the PR/summary.
+- Active product code belongs in `packages/core`, `packages/web`, etc.

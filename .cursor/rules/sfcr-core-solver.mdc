@@ -1,0 +1,14 @@
+---
+description: Solver and model runtime conventions in @sfcr/core
+globs: packages/core/**
+alwaysApply: false
+---
+
+# @sfcr/core
+
+- Solver, parser, graph, engine, and fixtures live here.
+- No React, DOM, workers, or browser APIs.
+- Export through `src/index.ts`; consumers use `@sfcr/core`.
+- When changing solver behavior, consider parity against `references/java/` or `references/r-sfcr/`.
+- Tests: `packages/core/test/` (e.g. `core.test.ts`). Run `pnpm --filter @sfcr/core test`.
+- Use `import type` for type-only imports (`verbatimModuleSyntax: true`).

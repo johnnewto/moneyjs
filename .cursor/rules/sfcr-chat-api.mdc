@@ -1,0 +1,12 @@
+---
+description: Chat builder Cloudflare Worker
+globs: packages/chat-api/**
+alwaysApply: false
+---
+
+# @sfcr/chat-api
+
+- Cloudflare Worker for OpenAI proxy / chat builder; `noEmit` TypeScript.
+- Local secrets: `.dev.vars` (gitignored); never commit API keys.
+- Browser connects via `VITE_CHAT_BUILDER_API_URL`; frontend must not embed secrets.
+- Tests: `packages/chat-api/test/`. Deploy/docs: `packages/chat-api/README.md`.

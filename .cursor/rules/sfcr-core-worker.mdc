@@ -1,0 +1,13 @@
+---
+description: Worker protocol and handler in @sfcr/core-worker
+globs: packages/core-worker/**
+alwaysApply: false
+---
+
+# @sfcr/core-worker
+
+- All solver calls go through `handleWorkerRequest` in `handler.ts`.
+- Request/response types live in `protocol.ts` (`runBaseline`, `runScenario`, `validateModel`).
+- Keep `worker.ts` a thin `onmessage` shim; no UI logic.
+- Package `test` is compile-only (`tsc --noEmit`). Protocol tests live in `packages/web/test/workerHandler.test.ts`.
+- Do not add React or DOM dependencies.

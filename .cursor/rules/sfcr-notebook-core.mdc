@@ -1,0 +1,13 @@
+---
+description: Notebook document layer — schema, YAML, validation
+globs: packages/notebook-core/**
+alwaysApply: false
+---
+
+# @sfcr/notebook-core
+
+- Notebook schema, parsing, validation, and document transforms belong here.
+- Forbidden: React, Vite, vitest, imports from `web`, `components/`, `hooks/`.
+- After edits: `pnpm --filter @sfcr/notebook-core run check:boundaries`.
+- Schema file: `src/sfcr-notebook.schema.json`. Also update `packages/web/public/sfcr-notebook.schema.json` when the public contract changes.
+- Package has no runtime vitest suite; behavior is covered via web tests and boundary checks.

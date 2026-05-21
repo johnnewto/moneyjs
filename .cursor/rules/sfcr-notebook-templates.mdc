@@ -1,0 +1,25 @@
+---
+description: Notebook YAML templates and generated JSON
+globs: packages/web/src/notebook/templates/**
+alwaysApply: false
+---
+
+# Notebook templates
+
+**Source of truth:** `*.notebook.yaml` in `templates/`.
+**Generated (checked in):** `templates/generated/*.notebook.json` — do not hand-edit for pilot IDs.
+
+Pilot templates (enforced by compile + tests): `bmw`, `sim`, `werner_quantity_theory_credit`, `werner_qtc_explainer`.
+
+After editing pilot YAML:
+
+```bash
+pnpm --filter @sfcr/web compile:notebook-yaml -- --write
+```
+
+Adding a template requires:
+1. YAML file (underscores in filename, e.g. `werner_quantity_theory_credit.notebook.yaml`)
+2. Entry in `templates.ts` (`?raw` import + `NOTEBOOK_TEMPLATES`; TS id uses hyphens, e.g. `"werner-quantity-theory-credit"`)
+3. Relevant smoke/regression tests
+
+Do not treat `templates/legacy_json/` as source of truth.

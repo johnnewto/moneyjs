@@ -1,0 +1,20 @@
+---
+description: Web package testing and validation commands
+globs: packages/web/**
+alwaysApply: false
+---
+
+# @sfcr/web testing
+
+- Tests live in `packages/web/test/`, not colocated with `src/`.
+- Default iteration: `pnpm web:test:fast` (excludes four `App.notebook-*.test.tsx`).
+- Notebook source/navigation/assistant/cell editors: `pnpm web:test:integration`.
+- Focused run: `pnpm --filter @sfcr/web exec vitest run test/Foo.test.tsx --reporter=dot`
+- DOM tests: `// @vitest-environment jsdom` at top of file.
+
+Worker testing:
+- Prefer `handleWorkerRequest` directly (`workerHandler.test.ts`).
+- For `Worker` global: `vi.stubGlobal("Worker", MockWorker)` (`workerClient.test.ts`, `useSolver.test.tsx`).
+- App integration: reuse `appTestUtils.tsx` mocks.
+
+Prefer `@sfcr/core` imports over deep `../../core/src/...` paths in new tests.
