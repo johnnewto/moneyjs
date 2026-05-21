@@ -7,7 +7,8 @@ alwaysApply: false
 # @sfcr/core-worker
 
 - All solver calls go through `handleWorkerRequest` in `handler.ts`.
-- Request/response types live in `protocol.ts` (`runBaseline`, `runScenario`, `validateModel`).
+- Request/response types live in `protocol.ts` (`runBaseline`, `runScenario`, `validateRunnable`).
+- `validateRunnable` runs `@sfcr/core` `validateRunnable` (capped periods), not structural `validateModel` or full `runBaseline`.
 - Keep `worker.ts` a thin `onmessage` shim; no UI logic.
 - Package `test` is compile-only (`tsc --noEmit`). Protocol tests live in `packages/web/test/workerHandler.test.ts`.
 - Do not add React or DOM dependencies.

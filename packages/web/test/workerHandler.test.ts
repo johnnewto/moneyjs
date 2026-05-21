@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ModelDefinition, SimulationOptions } from "@sfcr/core";
+import { ModelValidationError, type ModelDefinition, type SimulationOptions } from "@sfcr/core";
 import { handleWorkerRequest } from "@sfcr/core-worker";
 
 const options: SimulationOptions = {
@@ -20,7 +20,7 @@ describe("core worker handler", () => {
 
     const response = handleWorkerRequest({
       id: "validate-1",
-      type: "validateModel",
+      type: "validateRunnable",
       payload: { model, options }
     });
 
@@ -29,6 +29,30 @@ describe("core worker handler", () => {
       type: "error",
       payload: {
         message: "Unknown variable: missingExternal"
+      }
+    });
+  });
+
+  it("includes structured details for ModelValidationError", () => {
+    const model: ModelDefinition = {
+      equations: [],
+      externals: {},
+      initialValues: {}
+    };
+
+    const response = handleWorkerRequest({
+      id: "validate-3",
+      type: "validateRunnable",
+      payload: { model, options }
+    });
+
+    expect(response).toMatchObject({
+      id: "validate-3",
+      type: "error",
+      payload: {
+        name: ModelValidationError.name,
+        message: "Model must contain at least one equation",
+        details: { field: "equations" }
       }
     });
   });
@@ -43,7 +67,7 @@ describe("core worker handler", () => {
     expect(
       handleWorkerRequest({
         id: "validate-2",
-        type: "validateModel",
+        type: "validateRunnable",
         payload: { model, options }
       })
     ).toEqual({

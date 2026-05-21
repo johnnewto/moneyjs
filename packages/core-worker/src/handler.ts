@@ -1,4 +1,11 @@
-import { runBaseline, runScenario } from "@sfcr/core";
+import {
+  ConvergenceError,
+  ModelValidationError,
+  ParseError,
+  runBaseline,
+  runScenario,
+  validateRunnable
+} from "@sfcr/core";
 
 import type { WorkerRequest, WorkerResponse } from "./protocol";
 
@@ -21,8 +28,8 @@ export function handleWorkerRequest(request: WorkerRequest): WorkerResponse {
             request.payload.options
           )
         };
-      case "validateModel":
-        runBaseline(request.payload.model, request.payload.options);
+      case "validateRunnable":
+        validateRunnable(request.payload.model, request.payload.options);
         return {
           id: request.id,
           type: "validationSuccess"
@@ -34,6 +41,49 @@ export function handleWorkerRequest(request: WorkerRequest): WorkerResponse {
 }
 
 function toErrorResponse(id: string, error: unknown): WorkerResponse {
+  if (error instanceof ModelValidationError) {
+    return {
+      id,
+      type: "error",
+      payload: {
+        name: error.name,
+        message: error.message,
+        ...(error.field ? { details: { field: error.field } } : {})
+      }
+    };
+  }
+
+  if (error instanceof ParseError) {
+    const details: Record<string, unknown> = {};
+    if (error.equationName) {
+      details.equationName = error.equationName;
+    }
+    if (error.source) {
+      details.source = error.source;
+    }
+    return {
+      id,
+      type: "error",
+      payload: {
+        name: error.name,
+        message: error.message,
+        ...(Object.keys(details).length > 0 ? { details } : {})
+      }
+    };
+  }
+
+  if (error instanceof ConvergenceError) {
+    return {
+      id,
+      type: "error",
+      payload: {
+        name: error.name,
+        message: error.message,
+        details: { period: error.period, blockId: error.blockId }
+      }
+    };
+  }
+
   if (error instanceof Error) {
     return {
       id,

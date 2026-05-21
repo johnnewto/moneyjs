@@ -11,6 +11,7 @@ export * from "./engine/seriesStore";
 export * from "./engine/validate";
 export * from "./engine/runBaseline";
 export * from "./engine/runScenario";
+export * from "./engine/validateRunnable";
 export * from "./solver/types";
 export * from "./solver/gaussSeidel";
 export * from "./solver/newton";

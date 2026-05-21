@@ -306,12 +306,7 @@ export function WorkspaceApp() {
       }
       setUiMessage(null);
       const baseline = await solver.runBaseline(nextRuntime.model, nextRuntime.options);
-      await solver.runScenario(
-        nextRuntime.model,
-        baseline,
-        nextRuntime.scenario,
-        nextRuntime.options
-      );
+      await solver.runScenario(baseline, nextRuntime.scenario, nextRuntime.options);
     } catch (error) {
       setUiMessage(error instanceof Error ? error.message : "Unknown scenario error");
     }

@@ -91,12 +91,12 @@ describe("worker client", () => {
 
   it("resolves validation requests without payload", async () => {
     const client = createWorkerClient();
-    const pending = client.validateModel(model, options);
+    const pending = client.validateRunnable(model, options);
 
     const worker = MockWorker.instances[0];
     expect(worker?.messages[0]).toMatchObject({
       id: "test-id",
-      type: "validateModel"
+      type: "validateRunnable"
     });
 
     worker?.emit({
@@ -105,6 +105,21 @@ describe("worker client", () => {
     });
 
     await expect(pending).resolves.toBeUndefined();
+  });
+
+  it("rejects mismatched success responses for validation requests", async () => {
+    const client = createWorkerClient();
+    const pending = client.validateRunnable(model, options);
+
+    MockWorker.instances[0]?.emit({
+      id: "test-id",
+      type: "success",
+      payload: result
+    });
+
+    await expect(pending).rejects.toThrow(
+      'Unexpected worker response type "success" for pending "validationSuccess" request.'
+    );
   });
 
   it("rejects worker error responses", async () => {

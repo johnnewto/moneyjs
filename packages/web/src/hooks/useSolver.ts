@@ -13,13 +13,11 @@ export interface UseSolverState {
   status: "idle" | "validating" | "running" | "success" | "error";
   result: SimulationResult | null;
   error: Error | null;
-  progress: { period: number; totalPeriods: number } | null;
 }
 
 export interface UseSolverApi extends UseSolverState {
   runBaseline(model: ModelDefinition, options: SimulationOptions): Promise<SimulationResult>;
   runScenario(
-    model: ModelDefinition,
     baseline: SimulationResult,
     scenario: ScenarioDefinition,
     options: SimulationOptions
@@ -32,8 +30,7 @@ export function useSolver(): UseSolverApi {
   const [state, setState] = useState<UseSolverState>({
     status: "idle",
     result: null,
-    error: null,
-    progress: null
+    error: null
   });
 
   useEffect(() => () => client.dispose(), [client]);
@@ -44,30 +41,28 @@ export function useSolver(): UseSolverApi {
       setState((current) => ({ ...current, status: "running", error: null }));
       try {
         const result = await client.runBaseline(model, options);
-        setState({ status: "success", result, error: null, progress: null });
+        setState({ status: "success", result, error: null });
         return result;
       } catch (error) {
         setState({
           status: "error",
           result: null,
-          error: error instanceof Error ? error : new Error("Unknown error"),
-          progress: null
+          error: error instanceof Error ? error : new Error("Unknown error")
         });
         throw error instanceof Error ? error : new Error("Unknown error");
       }
     },
-    async runScenario(_model, baseline, scenario, options) {
+    async runScenario(baseline, scenario, options) {
       setState((current) => ({ ...current, status: "running", error: null }));
       try {
-        const result = await client.runScenario(baseline.model, baseline, scenario, options);
-        setState({ status: "success", result, error: null, progress: null });
+        const result = await client.runScenario(baseline, scenario, options);
+        setState({ status: "success", result, error: null });
         return result;
       } catch (error) {
         setState({
           status: "error",
           result: null,
-          error: error instanceof Error ? error : new Error("Unknown error"),
-          progress: null
+          error: error instanceof Error ? error : new Error("Unknown error")
         });
         throw error instanceof Error ? error : new Error("Unknown error");
       }
@@ -75,7 +70,7 @@ export function useSolver(): UseSolverApi {
     async validate(model, options) {
       setState((current) => ({ ...current, status: "validating", error: null }));
       try {
-        await client.validateModel(model, options);
+        await client.validateRunnable(model, options);
         setState((current) => ({ ...current, status: "idle", error: null }));
       } catch (error) {
         const nextError = error instanceof Error ? error : new Error("Unknown error");

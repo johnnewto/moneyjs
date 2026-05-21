@@ -49,6 +49,12 @@ After editing pilot YAML:
 pnpm --filter @sfcr/web compile:notebook-yaml -- --write
 ```
 
+When pilot templates feed public AI examples (`bmw`, `sim`), also refresh `public/notebook-examples/`:
+
+```bash
+pnpm --filter @sfcr/web compile:notebook-yaml -- --write --write-public-examples
+```
+
 Adding a template requires the YAML file, an entry in `packages/web/src/notebook/templates.ts` (`?raw` import + `NOTEBOOK_TEMPLATES`), and relevant tests. File names use underscores; TypeScript `NotebookTemplateId` values use hyphens (e.g. file `werner_quantity_theory_credit.notebook.yaml` → id `"werner-quantity-theory-credit"`).
 
 Do not treat `packages/web/src/notebook/templates/legacy_json/` as source of truth.
@@ -78,6 +84,7 @@ Common commands:
 - `pnpm --filter @sfcr/web test`
 - `pnpm --filter @sfcr/web exec vitest run test/<file>.test.tsx`
 - `pnpm --filter @sfcr/web compile:notebook-yaml -- --write`
+- `pnpm --filter @sfcr/web compile:notebook-yaml -- --write --write-public-examples` (pilot templates with public examples)
 - `pnpm --filter @sfcr/notebook-core run check:boundaries`
 
 ## Validation

@@ -4,6 +4,7 @@ import type { SimulationOptions, SimulationResult } from "@sfcr/core";
 
 import { buildRuntimeConfig } from "../lib/editorModel";
 import { createWorkerClient } from "../lib/workerClient";
+import { normalizeScenarioFromNotebook } from "./document";
 import { buildEditorStateForNotebookModel, resolveRunCellModelKey } from "./modelSections";
 import type { NotebookCellOutput, NotebookDocument, NotebookRuntimeState, RunCell } from "./types";
 
@@ -286,7 +287,11 @@ export function useNotebookRunner(document: NotebookDocument): NotebookRunnerApi
         if (!cell.scenario) {
           throw new Error("Scenario cell is missing its scenario definition.");
         }
-        result = await client.runScenario(runtime.model, baseline, cell.scenario, runOptions);
+        result = await client.runScenario(
+          baseline,
+          normalizeScenarioFromNotebook(cell.scenario),
+          runOptions
+        );
       }
 
       setState((current) => {

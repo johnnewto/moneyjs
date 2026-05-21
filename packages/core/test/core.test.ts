@@ -18,6 +18,7 @@ import { analyzeParsedEquation } from "../src/parser/analyze";
 import { parseEquation, parseExpression } from "../src/parser/parse";
 import { runBaseline } from "../src/engine/runBaseline";
 import { runScenario } from "../src/engine/runScenario";
+import { validateRunnable, VALIDATION_MAX_PERIODS } from "../src/engine/validateRunnable";
 
 function expectClose(actual: number, expected: number, tolerance: number): void {
   expect(Math.abs(actual - expected)).toBeLessThanOrEqual(tolerance);
@@ -385,5 +386,30 @@ describe("simulation", () => {
         message: expect.stringContaining("Hidden equation is not fulfilled")
       })
     ]);
+  });
+});
+
+describe("validateRunnable", () => {
+  it("throws on solver-time errors such as unknown variables", () => {
+    expect(() =>
+      validateRunnable(
+        {
+          equations: [{ name: "Y", expression: "missingExternal" }],
+          externals: {},
+          initialValues: {}
+        },
+        {
+          periods: 80,
+          solverMethod: "GAUSS_SEIDEL",
+          tolerance: 1e-8,
+          maxIterations: 50
+        }
+      )
+    ).toThrow("Unknown variable: missingExternal");
+  });
+
+  it("completes for runnable models using at most VALIDATION_MAX_PERIODS", () => {
+    expect(VALIDATION_MAX_PERIODS).toBe(5);
+    expect(() => validateRunnable(simBaselineModel, simBaselineOptions)).not.toThrow();
   });
 });

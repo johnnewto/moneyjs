@@ -42,7 +42,6 @@ vi.mock("../src/hooks/useSolver", () => ({
     status: "idle" as const,
     result: null,
     error: null,
-    progress: null,
     runBaseline,
     runScenario,
     validate

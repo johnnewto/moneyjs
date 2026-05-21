@@ -15,7 +15,6 @@ export type WorkerRequest =
       id: string;
       type: "runScenario";
       payload: {
-        model: ModelDefinition;
         baseline: SimulationResult;
         scenario: ScenarioDefinition;
         options: SimulationOptions;
@@ -23,7 +22,8 @@ export type WorkerRequest =
     }
   | {
       id: string;
-      type: "validateModel";
+      /** Shortened baseline via @sfcr/core validateRunnable (not a full simulation). */
+      type: "validateRunnable";
       payload: { model: ModelDefinition; options: SimulationOptions };
     };
 
@@ -36,11 +36,6 @@ export type WorkerResponse =
   | {
       id: string;
       type: "validationSuccess";
-    }
-  | {
-      id: string;
-      type: "progress";
-      payload: { period: number; totalPeriods: number };
     }
   | {
       id: string;

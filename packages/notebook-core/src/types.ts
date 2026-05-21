@@ -9,6 +9,7 @@ import type {
   SolverMethod
 } from "@sfcr/core";
 
+import type { NotebookScenarioDefinition } from "./document/scenarioFormat";
 import type { UnitMeta } from "./unitMetaAliases";
 
 export interface EquationRow {
@@ -157,7 +158,7 @@ export interface RunCell extends NotebookCellBase {
   baselineRunCellId?: string;
   baselineStartPeriod?: number;
   mode: "baseline" | "scenario";
-  scenario?: ScenarioDefinition | null;
+  scenario?: ScenarioDefinition | NotebookScenarioDefinition | null;
   resultKey: string;
   periods: number;
 }

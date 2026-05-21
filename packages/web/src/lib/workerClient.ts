@@ -9,12 +9,11 @@ import type { WorkerRequest, WorkerResponse } from "@sfcr/core-worker";
 export interface SolverClient {
   runBaseline(model: ModelDefinition, options: SimulationOptions): Promise<SimulationResult>;
   runScenario(
-    model: ModelDefinition,
     baseline: SimulationResult,
     scenario: ScenarioDefinition,
     options: SimulationOptions
   ): Promise<SimulationResult>;
-  validateModel(model: ModelDefinition, options: SimulationOptions): Promise<void>;
+  validateRunnable(model: ModelDefinition, options: SimulationOptions): Promise<void>;
   dispose(): void;
 }
 
@@ -56,10 +55,6 @@ class BrowserWorkerClient implements SolverClient {
         return;
       }
 
-      if (response.type === "progress") {
-        return;
-      }
-
       this.pending.delete(response.id);
 
       if (response.type === "success" && pending.type === "success") {
@@ -69,7 +64,12 @@ class BrowserWorkerClient implements SolverClient {
 
       if (response.type === "validationSuccess" && pending.type === "validationSuccess") {
         pending.resolve();
+        return;
       }
+
+      pending.reject(
+        new Error(`Unexpected worker response type "${response.type}" for pending "${pending.type}" request.`)
+      );
     };
     worker.onerror = () => {
       this.rejectAll(new Error("Solver worker failed."));
@@ -92,20 +92,19 @@ class BrowserWorkerClient implements SolverClient {
   }
 
   async runScenario(
-    model: ModelDefinition,
     baseline: SimulationResult,
     scenario: ScenarioDefinition,
     options: SimulationOptions
   ): Promise<SimulationResult> {
     return this.request({
       type: "runScenario",
-      payload: { model, baseline, scenario, options }
+      payload: { baseline, scenario, options }
     });
   }
 
-  async validateModel(model: ModelDefinition, options: SimulationOptions): Promise<void> {
+  async validateRunnable(model: ModelDefinition, options: SimulationOptions): Promise<void> {
     return this.requestVoid({
-      type: "validateModel",
+      type: "validateRunnable",
       payload: { model, options }
     });
   }
@@ -134,7 +133,7 @@ class BrowserWorkerClient implements SolverClient {
   }
 
   private requestVoid(
-    message: Omit<Extract<WorkerRequest, { type: "validateModel" }>, "id">
+    message: Omit<Extract<WorkerRequest, { type: "validateRunnable" }>, "id">
   ): Promise<void> {
     const id = crypto.randomUUID();
     return new Promise<void>((resolve, reject) => {

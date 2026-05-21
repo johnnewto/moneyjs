@@ -16,7 +16,7 @@ import sequenceHelp from "./help/sequence.md?raw";
 import solverHelp from "./help/solver.md?raw";
 import tableHelp from "./help/table.md?raw";
 import transactionFlowMatrixHelp from "./help/transaction-flow-matrix.md?raw";
-import { serializeNotebookCell } from "./document";
+import { normalizeScenarioFromNotebook, serializeNotebookCell } from "./document";
 import type {
   ChartCell,
   EquationsCell,
@@ -643,19 +643,7 @@ function normalizeCellSource(cell: NotebookCell): NotebookCell {
 
       return {
         ...cell,
-        scenario: {
-          ...cell.scenario,
-          shocks: cell.scenario.shocks.map((shock) => {
-            const candidate = shock as typeof shock & { rangeInclusive?: [number, number] };
-            const start = candidate.rangeInclusive?.[0] ?? shock.startPeriodInclusive;
-            const end = candidate.rangeInclusive?.[1] ?? shock.endPeriodInclusive;
-            return {
-              ...shock,
-              startPeriodInclusive: start,
-              endPeriodInclusive: end
-            };
-          })
-        }
+        scenario: normalizeScenarioFromNotebook(cell.scenario)
       };
     default:
       return cell;

@@ -4,11 +4,46 @@ import { describe, expect, it } from "vitest";
 
 import { notebookFromJson, notebookFromYaml, notebookToCompactYaml, notebookToJson } from "../src/notebook/document";
 import { validateNotebookModels } from "../src/notebook/notebookSourceWorkflow";
+import { NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
 import { validateNotebookDocument } from "../src/notebook/validation";
 
 const templateRoot = path.resolve(__dirname, "../src/notebook/templates");
 const legacyJsonRoot = path.join(templateRoot, "legacy_json");
+const publicExamplesRoot = path.resolve(__dirname, "../public/notebook-examples");
 const PILOT_TEMPLATE_IDS = ["bmw", "sim", "werner_quantity_theory_credit", "werner_qtc_explainer"] as const;
+const PILOT_PUBLIC_EXAMPLE_IDS = ["bmw", "sim"] as const;
+
+describe("shipped notebook templates", () => {
+  for (const [templateId, template] of Object.entries(NOTEBOOK_TEMPLATES)) {
+    it(`validates ${templateId} document schema and models`, () => {
+      expect(validateNotebookDocument(template.document)).toEqual([]);
+      expect(validateNotebookModels(template.document).issueCount).toBe(0);
+    });
+  }
+});
+
+describe("pilot YAML constraints", () => {
+  for (const templateId of PILOT_TEMPLATE_IDS) {
+    it(`${templateId} does not use the legacy top-level equations string envelope`, () => {
+      const yamlSource = fs.readFileSync(path.join(templateRoot, `${templateId}.notebook.yaml`), "utf8");
+      expect(yamlSource).not.toMatch(/^equations:\s*(?:\||>)/m);
+    });
+  }
+
+  for (const exampleId of PILOT_PUBLIC_EXAMPLE_IDS) {
+    it(`keeps public ${exampleId} example JSON in sync with generated pilot JSON`, () => {
+      const generatedJson = fs.readFileSync(
+        path.join(templateRoot, "generated", `${exampleId}.notebook.json`),
+        "utf8"
+      );
+      const publicJson = fs.readFileSync(
+        path.join(publicExamplesRoot, `${exampleId}.example.notebook.json`),
+        "utf8"
+      );
+      expect(publicJson).toBe(generatedJson);
+    });
+  }
+});
 
 describe("canonical YAML notebook templates", () => {
   for (const templateId of PILOT_TEMPLATE_IDS) {

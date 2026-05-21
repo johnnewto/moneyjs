@@ -73,7 +73,9 @@ async function assertFileMatches(filePath, expected) {
   const actual = await fs.readFile(filePath, "utf8");
   if (actual !== expected) {
     throw new Error(
-      `${path.relative(webRoot, filePath)} is stale. Run pnpm --filter @sfcr/web compile:notebook-yaml -- --write.`
+      `${path.relative(webRoot, filePath)} is stale. Run pnpm --filter @sfcr/web compile:notebook-yaml -- --write` +
+        (filePath.includes("notebook-examples") ? " --write-public-examples" : "") +
+        "."
     );
   }
 }
