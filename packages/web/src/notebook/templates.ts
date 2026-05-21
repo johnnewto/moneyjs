@@ -12,6 +12,8 @@ import predatorPreyNotebookYaml from "./templates/predator-prey.notebook.yaml?ra
 import simpleEpidemicNotebookYaml from "./templates/simple-epidemic.notebook.yaml?raw";
 import simNotebookYaml from "./templates/sim.notebook.yaml?raw";
 import solverOverviewNotebookYaml from "./templates/solver-overview.notebook.yaml?raw";
+import wernerQuantityTheoryCreditNotebookYaml from "./templates/werner_quantity_theory_credit.notebook.yaml?raw";
+import wernerQtcExplainerNotebookYaml from "./templates/werner_qtc_explainer.notebook.yaml?raw";
 import { notebookFromYaml } from "./document";
 import type { NotebookDocument } from "./types";
 
@@ -29,7 +31,9 @@ export type NotebookTemplateId =
   | "predator-prey"
   | "simple-epidemic"
   | "sim"
-  | "solver-overview";
+  | "solver-overview"
+  | "werner-quantity-theory-credit"
+  | "werner-qtc-explainer";
 export const DEFAULT_NOTEBOOK_TEMPLATE_ID: NotebookTemplateId = "bmw";
 
 export interface NotebookTemplateDefinition {
@@ -134,6 +138,20 @@ export const NOTEBOOK_TEMPLATES: Record<NotebookTemplateId, NotebookTemplateDefi
     description:
       "Runnable version of the solver overview block-ordering example with one acyclic chain, one cyclic block, and one scenario.",
     document: notebookFromYaml(solverOverviewNotebookYaml)
+  },
+  "werner-quantity-theory-credit": {
+    id: "werner-quantity-theory-credit",
+    label: "Werner QTC",
+    description:
+      "Credit-allocation notebook contrasting productive credit, asset credit, asset-price inflation, and leverage dynamics.",
+    document: notebookFromYaml(wernerQuantityTheoryCreditNotebookYaml)
+  },
+  "werner-qtc-explainer": {
+    id: "werner-qtc-explainer",
+    label: "Werner QTC explainer",
+    description:
+      "Explanatory QTC notebook with the two credit-circulation equations, growth-form interpretation, and allocation scenarios.",
+    document: notebookFromYaml(wernerQtcExplainerNotebookYaml)
   }
 };
 

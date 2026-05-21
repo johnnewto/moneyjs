@@ -8,7 +8,7 @@ import { validateNotebookDocument } from "../src/notebook/validation";
 
 const templateRoot = path.resolve(__dirname, "../src/notebook/templates");
 const legacyJsonRoot = path.join(templateRoot, "legacy_json");
-const PILOT_TEMPLATE_IDS = ["bmw", "sim"] as const;
+const PILOT_TEMPLATE_IDS = ["bmw", "sim", "werner_quantity_theory_credit", "werner_qtc_explainer"] as const;
 
 describe("canonical YAML notebook templates", () => {
   for (const templateId of PILOT_TEMPLATE_IDS) {
@@ -18,16 +18,20 @@ describe("canonical YAML notebook templates", () => {
         path.join(templateRoot, "generated", `${templateId}.notebook.json`),
         "utf8"
       );
-      const legacyJsonSource = fs.readFileSync(path.join(legacyJsonRoot, `${templateId}.notebook.json`), "utf8");
+      const legacyJsonPath = path.join(legacyJsonRoot, `${templateId}.notebook.json`);
 
       const compiledDocument = notebookFromYaml(yamlSource);
       const generatedDocument = notebookFromJson(generatedJsonSource);
-      const legacyDocument = notebookFromJson(legacyJsonSource);
 
       expect(validateNotebookDocument(compiledDocument)).toEqual([]);
       expect(validateNotebookModels(compiledDocument).issueCount).toBe(0);
       expect(notebookToJson(compiledDocument)).toBe(notebookToJson(generatedDocument));
-      expect(notebookToJson(compiledDocument)).toBe(notebookToJson(legacyDocument));
+
+      if (fs.existsSync(legacyJsonPath)) {
+        const legacyJsonSource = fs.readFileSync(legacyJsonPath, "utf8");
+        const legacyDocument = notebookFromJson(legacyJsonSource);
+        expect(notebookToJson(compiledDocument)).toBe(notebookToJson(legacyDocument));
+      }
     });
   }
 
