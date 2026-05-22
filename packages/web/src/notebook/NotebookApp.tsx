@@ -134,6 +134,19 @@ import {
 type NotebookRailTab = "editor" | "inspect" | "contents" | "assistant" | "help" | "preview";
 
 const BUILD_DATE_LABEL = formatBuildDate(__SFCR_BUILD_DATE__);
+const NOTEBOOK_HISTORY_LIMIT = 50;
+
+interface NotebookHistoryEntry {
+  document: NotebookDocument;
+  label: string;
+  messageId?: string;
+}
+
+interface NotebookJournalState {
+  future: NotebookHistoryEntry[];
+  past: NotebookHistoryEntry[];
+  present: NotebookDocument;
+}
 
 const NOTEBOOK_ASSISTANT_LOCAL_LIVE_TESTS: Array<{
   label: string;
@@ -224,6 +237,20 @@ function getNextNotebookSourceFormat(format: NotebookSourceFormat): NotebookSour
 
 function formatNotebookSourceFormatOptions(): string {
   return NOTEBOOK_SOURCE_FORMATS.map(formatNotebookSourceLabel).join(" / ");
+}
+
+function limitNotebookHistory(entries: NotebookHistoryEntry[]): NotebookHistoryEntry[] {
+  return entries.length > NOTEBOOK_HISTORY_LIMIT
+    ? entries.slice(entries.length - NOTEBOOK_HISTORY_LIMIT)
+    : entries;
+}
+
+function isNotebookHistoryShortcutEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  return target.closest("input, textarea, select, [contenteditable='true'], .cm-editor") != null;
 }
 
 function resolveInitialNotebookDocument(hash: string): NotebookDocument {
@@ -524,9 +551,12 @@ function formatBuildDate(buildDate: string): string {
 export function NotebookApp() {
   const mainColumnRef = useRef<HTMLDivElement | null>(null);
   const [mainColumnElement, setMainColumnElement] = useState<HTMLDivElement | null>(null);
-  const [notebookDocument, setNotebookDocument] = useState(() =>
-    resolveInitialNotebookDocument(window.location.hash)
-  );
+  const [notebookJournal, setNotebookJournal] = useState<NotebookJournalState>(() => ({
+    future: [],
+    past: [],
+    present: resolveInitialNotebookDocument(window.location.hash)
+  }));
+  const notebookDocument = notebookJournal.present;
   const [storedCustomNotebook, setStoredCustomNotebook] = useState(loadStoredCustomNotebook);
   const [uiMessage, setUiMessage] = useState<string | null>(null);
   const [sourceFormat, setSourceFormat] = useState<NotebookSourceFormat>("yaml");
@@ -559,10 +589,6 @@ export function NotebookApp() {
   const [isAssistantAsking, setIsAssistantAsking] = useState(false);
   const [assistantPatchText, setAssistantPatchText] = useState("");
   const [assistantPatchPreview, setAssistantPatchPreview] = useState<NotebookPatchResult | null>(null);
-  const [assistantPatchUndoStack, setAssistantPatchUndoStack] = useState<Array<{
-    document: NotebookDocument;
-    messageId?: string;
-  }>>([]);
   const [selectedImportFileName, setSelectedImportFileName] = useState("No file chosen");
   const [assistantModel, setAssistantModel] = useState(() => {
     if (typeof window === "undefined") {
@@ -657,6 +683,119 @@ export function NotebookApp() {
     () => resolveCurrentTemplateId(notebookDocument),
     [notebookDocument]
   );
+  const nextUndoEntry = notebookJournal.past.at(-1);
+  const nextUndoLabel = nextUndoEntry?.label;
+  const nextRedoLabel = notebookJournal.future[0]?.label;
+
+  const commitNotebookDocument = useCallback(
+    (
+      label: string,
+      updater: NotebookDocument | ((current: NotebookDocument) => NotebookDocument),
+      options: { messageId?: string } = {}
+    ) => {
+      setNotebookJournal((current) => {
+        const nextDocument =
+          typeof updater === "function" ? updater(current.present) : updater;
+        if (nextDocument === current.present) {
+          return current;
+        }
+
+        return {
+          future: [],
+          past: limitNotebookHistory([
+            ...current.past,
+            {
+              document: current.present,
+              label,
+              messageId: options.messageId
+            }
+          ]),
+          present: nextDocument
+        };
+      });
+    },
+    []
+  );
+
+  const handleUndoNotebookEdit = useCallback(
+    (fallbackMessageId?: string) => {
+      setNotebookJournal((current) => {
+        const previousEntry = current.past.at(-1);
+        if (!previousEntry) {
+          return current;
+        }
+
+        const messageId = previousEntry.messageId ?? fallbackMessageId;
+        if (messageId) {
+          setAssistantMessages((messages) =>
+            rearmNotebookAssistantMessagePatchAfterUndo(
+              messages,
+              previousEntry.document,
+              messageId
+            )
+          );
+        }
+        setSelectedPeriodIndex(0);
+        setAutoRunRevision((revision) => revision + 1);
+        setUiMessage(`Undid ${previousEntry.label}.`);
+
+        return {
+          future: [
+            {
+              document: current.present,
+              label: previousEntry.label,
+              messageId: previousEntry.messageId
+            },
+            ...current.future
+          ],
+          past: current.past.slice(0, -1),
+          present: previousEntry.document
+        };
+      });
+    },
+    []
+  );
+
+  const handleRedoNotebookEdit = useCallback(() => {
+    setNotebookJournal((current) => {
+      const nextEntry = current.future[0];
+      if (!nextEntry) {
+        return current;
+      }
+
+      if (nextEntry.messageId) {
+        setAssistantMessages((messages) =>
+          messages.map((message) =>
+            message.id === nextEntry.messageId && message.patch
+              ? {
+                  ...message,
+                  patch: {
+                    ...message.patch,
+                    status: "applied"
+                  }
+                }
+              : message
+          )
+        );
+      }
+      setSelectedPeriodIndex(0);
+      setAutoRunRevision((revision) => revision + 1);
+      setUiMessage(`Redid ${nextEntry.label}.`);
+
+      return {
+        future: current.future.slice(1),
+        past: limitNotebookHistory([
+          ...current.past,
+          {
+            document: current.present,
+            label: nextEntry.label,
+            messageId: nextEntry.messageId
+          }
+        ]),
+        present: nextEntry.document
+      };
+    });
+  }, []);
 
   useEffect(() => {
     if (currentTemplateId) {
@@ -688,6 +827,28 @@ export function NotebookApp() {
 
     return () => window.clearTimeout(timeoutId);
   }, [uiMessage]);
+
+  useEffect(() => {
+    function handleNotebookHistoryShortcut(event: KeyboardEvent): void {
+      const key = event.key.toLowerCase();
+      if (!(event.metaKey || event.ctrlKey) || event.altKey || (key !== "z" && key !== "y")) {
+        return;
+      }
+      if (isNotebookHistoryShortcutEditableTarget(event.target)) {
+        return;
+      }
+
+      event.preventDefault();
+      if (event.shiftKey || key === "y") {
+        handleRedoNotebookEdit();
+        return;
+      }
+      handleUndoNotebookEdit();
+    }
+
+    window.addEventListener("keydown", handleNotebookHistoryShortcut);
+    return () => window.removeEventListener("keydown", handleNotebookHistoryShortcut);
+  }, [handleRedoNotebookEdit, handleUndoNotebookEdit]);
 
   useEffect(() => {
     const historyUpdates = runner.historyUpdates;
@@ -750,14 +911,14 @@ export function NotebookApp() {
   }, [activeRailTab, importPreview]);
 
   function updateCell(cellId: string, updater: (cell: NotebookCell) => NotebookCell): void {
-    setNotebookDocument((current) => ({
+    commitNotebookDocument("cell edit", (current) => ({
       ...current,
       cells: current.cells.map((cell) => (cell.id === cellId ? updater(cell) : cell))
     }));
   }
 
   function replaceCells(nextCells: NotebookCell[]): void {
-    setNotebookDocument((current) => ({
+    commitNotebookDocument("cell reorder", (current) => ({
       ...current,
       cells: nextCells
     }));
@@ -772,7 +933,7 @@ export function NotebookApp() {
     const nextCells = notebookDocument.cells.filter((cell) => cell.id !== cellId);
     const fallbackCell = nextCells[Math.min(cellIndex, nextCells.length - 1)] ?? null;
 
-    setNotebookDocument((current) => ({
+    commitNotebookDocument("cell delete", (current) => ({
       ...current,
       cells: current.cells.filter((cell) => cell.id !== cellId)
     }));
@@ -785,7 +946,7 @@ export function NotebookApp() {
   }
 
   function moveCell(cellId: string, direction: -1 | 1): void {
-    setNotebookDocument((current) => {
+    commitNotebookDocument("cell move", (current) => {
       const cellIndex = current.cells.findIndex((cell) => cell.id === cellId);
       const nextIndex = cellIndex + direction;
       if (cellIndex < 0 || nextIndex < 0 || nextIndex >= current.cells.length) {
@@ -821,7 +982,7 @@ export function NotebookApp() {
     }
 
     const insertIndex = placement === "above" ? anchorIndex : anchorIndex + 1;
-    setNotebookDocument((current) => ({
+    commitNotebookDocument("cell insert", (current) => ({
       ...current,
       cells: [
         ...current.cells.slice(0, insertIndex),
@@ -878,7 +1039,7 @@ export function NotebookApp() {
     );
 
     if (context.modelSource) {
-      setNotebookDocument((current) =>
+      commitNotebookDocument("inspector equation edit", (current) =>
         applyInspectorDefiningEquationExpression(
           current,
           context.modelSource!,
@@ -926,8 +1087,12 @@ export function NotebookApp() {
     setUiMessage(null);
   }
 
-  function replaceNotebookDocument(nextDocument: NotebookDocument): void {
-    setNotebookDocument(nextDocument);
+  function replaceNotebookDocument(
+    nextDocument: NotebookDocument,
+    label = "notebook change",
+    messageId?: string
+  ): void {
+    commitNotebookDocument(label, nextDocument, { messageId });
     setSelectedPeriodIndex(0);
     setAutoRunRevision((current) => current + 1);
   }
@@ -989,8 +1154,7 @@ export function NotebookApp() {
       return;
     }
 
-    setAssistantPatchUndoStack((current) => [...current, { document: notebookDocument }]);
-    replaceNotebookDocument(result.document);
+    replaceNotebookDocument(result.document, "assistant patch");
     setAssistantPatchText("");
     setAssistantPatchPreview(null);
     setUiMessage("Applied assistant notebook patch.");
@@ -1003,23 +1167,14 @@ export function NotebookApp() {
   }
 
   function handleUndoAssistantPatch(messageId?: string): void {
-    setAssistantPatchUndoStack((current) => {
-      const previousEntry = current.at(-1);
-      if (!previousEntry) {
-        return current;
-      }
-
-      replaceNotebookDocument(previousEntry.document);
-      setAssistantMessages((messages) =>
-        rearmNotebookAssistantMessagePatchAfterUndo(
-          messages,
-          previousEntry.document,
-          previousEntry.messageId ?? messageId
-        )
-      );
-      setUiMessage("Undid assistant notebook patch.");
-      return current.slice(0, -1);
-    });
+    if (
+      nextUndoEntry?.label !== "assistant patch" ||
+      (messageId && nextUndoEntry.messageId !== messageId)
+    ) {
+      setUiMessage("No applied assistant patch is next in the undo history.");
+      return;
+    }
+    handleUndoNotebookEdit(messageId);
   }
 
   function updateInlineAssistantPatch(
@@ -1115,13 +1270,12 @@ export function NotebookApp() {
       return;
     }
 
-    setAssistantPatchUndoStack((current) => [...current, { document: notebookDocument, messageId }]);
-    replaceNotebookDocument(result.document);
+    replaceNotebookDocument(result.document, "assistant patch", messageId);
     setUiMessage("Applied inline assistant patch.");
   }
 
   function replaceNotebookDocumentFromTemplate(templateId: NotebookTemplateId): void {
-    replaceNotebookDocument(createNotebookFromTemplate(templateId));
+    replaceNotebookDocument(createNotebookFromTemplate(templateId), "template load");
   }
 
   useEffect(() => {
@@ -1135,7 +1289,7 @@ export function NotebookApp() {
         if (!currentTemplateId && notebookDocument.id === customNotebook.id) {
           return;
         }
-        replaceNotebookDocument(customNotebook);
+        replaceNotebookDocument(customNotebook, "custom notebook load");
         setStoredCustomNotebook(customNotebook);
         setImportPreview(null);
         setUiMessage(`Loaded custom notebook ${customNotebook.title}.`);
@@ -1218,7 +1372,7 @@ export function NotebookApp() {
 
     try {
       const parsed = parseNotebookSource(importText);
-      replaceNotebookDocument(parsed.document);
+      replaceNotebookDocument(parsed.document, "source import");
       writeNotebookHash();
       setCommittedImportText(importText);
       setImportPreview(null);
@@ -1260,7 +1414,7 @@ export function NotebookApp() {
     if (!importPreview) {
       return;
     }
-    replaceNotebookDocument(importPreview.document);
+    replaceNotebookDocument(importPreview.document, "source import");
     if (!isNotebookTemplateId(importPreview.document.metadata.template ?? "")) {
       writeNotebookHash();
     }
@@ -1290,7 +1444,7 @@ export function NotebookApp() {
         return;
       }
 
-      replaceNotebookDocument(customNotebook);
+      replaceNotebookDocument(customNotebook, "custom notebook load");
       setStoredCustomNotebook(customNotebook);
       writeCustomNotebookHash();
       setImportPreview(null);
@@ -2252,6 +2406,26 @@ export function NotebookApp() {
               </div>
 
               <div className="notebook-app-bar-actions">
+                <button
+                  type="button"
+                  className="notebook-run-button"
+                  title={nextUndoLabel ? `Undo: ${nextUndoLabel}` : "Nothing to undo"}
+                  aria-label={nextUndoLabel ? `Undo: ${nextUndoLabel}` : "Undo"}
+                  onClick={() => handleUndoNotebookEdit()}
+                  disabled={!nextUndoLabel}
+                >
+                  Undo
+                </button>
+                <button
+                  type="button"
+                  className="notebook-run-button"
+                  title={nextRedoLabel ? `Redo: ${nextRedoLabel}` : "Nothing to redo"}
+                  aria-label={nextRedoLabel ? `Redo: ${nextRedoLabel}` : "Redo"}
+                  onClick={handleRedoNotebookEdit}
+                  disabled={!nextRedoLabel}
+                >
+                  Redo
+                </button>
                 <button type="button" className="notebook-run-button" onClick={() => void handleRunAll()}>
                   Run all
                 </button>
@@ -2783,7 +2957,7 @@ export function NotebookApp() {
                     type="button"
                     className="secondary-button"
                     onClick={() => handleUndoAssistantPatch()}
-                    disabled={assistantPatchUndoStack.length === 0}
+                    disabled={nextUndoEntry?.label !== "assistant patch"}
                   >
                     Undo patch
                   </button>
@@ -2865,7 +3039,12 @@ export function NotebookApp() {
                           onToggleJson={handleToggleInlineAssistantPatchJson}
                           onUndo={handleUndoAssistantPatch}
                           onUpdateJson={handleUpdateInlineAssistantPatchJson}
-                          undoStackLength={assistantPatchUndoStack.length}
+                          undoStackLength={
+                            nextUndoEntry?.label === "assistant patch" &&
+                            nextUndoEntry.messageId === message.id
+                              ? 1
+                              : 0
+                          }
                         />
                       </>
                     ) : (

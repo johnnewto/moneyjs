@@ -52,6 +52,41 @@ describe("App per-cell source editors", () => {
     expect(within(overviewArticle).getByText(/updated notebook overview\./i)).toBeInTheDocument();
   }, 15000);
 
+  it("undoes and redoes applied notebook edits from the app bar", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    expect(screen.getByRole("button", { name: /^undo$/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^redo$/i })).toBeDisabled();
+
+    const overviewHeading = screen.getByRole("heading", { name: /overview/i });
+    const overviewArticle = overviewHeading.closest("article");
+    expect(overviewArticle).not.toBeNull();
+    if (!overviewArticle) {
+      throw new Error("Expected overview cell article.");
+    }
+
+    await user.click(within(overviewArticle).getByRole("button", { name: /^edit$/i }));
+
+    const titleEditor = screen.getByRole("textbox", {
+      name: /title editor for overview/i
+    }) as HTMLInputElement;
+
+    fireEvent.change(titleEditor, { target: { value: "Journal overview" } });
+    await user.click(screen.getByRole("button", { name: /^apply$/i }));
+
+    expect(screen.getByRole("heading", { name: /journal overview/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /undo: cell edit/i }));
+    expect(screen.getByRole("heading", { name: /^overview$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /redo: cell edit/i })).toBeEnabled();
+
+    await user.click(screen.getByRole("button", { name: /redo: cell edit/i }));
+    expect(screen.getByRole("heading", { name: /journal overview/i })).toBeInTheDocument();
+  }, 15000);
+
   it("edits a run cell title through the per-cell source editor", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";
