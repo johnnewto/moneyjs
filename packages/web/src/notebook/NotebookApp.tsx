@@ -117,6 +117,7 @@ import { formatAssistantTokenUsage, mergeAssistantTokenUsage, type AssistantToke
 import { VariableInspector } from "../components/VariableInspector";
 import { VariableMathLabel } from "../components/VariableMathLabel";
 import { useDragScroll } from "../hooks/useDragScroll";
+import { useInspectorVariableHistory } from "../hooks/useInspectorVariableHistory";
 import { usePanelSplitter } from "../hooks/usePanelSplitter";
 import { buildVariableInspectorData } from "../lib/variableInspector";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
@@ -125,6 +126,7 @@ import { buildVariableUnitMetadata } from "../lib/units";
 import {
   applyInspectorDefiningEquationExpression,
   isInspectorModelEditable,
+  isSameInspectorContext,
   updateEditorDefiningEquationExpression,
   type VariableInspectRequest
 } from "../lib/variableInspect";
@@ -580,6 +582,7 @@ export function NotebookApp() {
     return resolveNotebookAssistantMode(window.localStorage.getItem(NOTEBOOK_ASSISTANT_MODE_STORAGE_KEY));
   });
   const [inspectorContext, setInspectorContext] = useState<VariableInspectRequest | null>(null);
+  const inspectorVariableHistory = useInspectorVariableHistory();
   const [importPreview, setImportPreview] = useState<{
     document: NotebookDocument;
     source: NotebookSourceFormat;
@@ -823,8 +826,35 @@ export function NotebookApp() {
   }
 
   function handleVariableInspectRequest(args: VariableInspectRequest): void {
+    if (isSameInspectorContext(inspectorContext, args)) {
+      inspectorVariableHistory.push(args.selectedVariable);
+    } else {
+      inspectorVariableHistory.reset(args.selectedVariable);
+    }
     setInspectorContext(args);
     setActiveRailTab("inspect");
+  }
+
+  function handleInspectorGoBack(): void {
+    const variableName = inspectorVariableHistory.goBack();
+    if (!variableName) {
+      return;
+    }
+
+    setInspectorContext((current) =>
+      current ? { ...current, selectedVariable: variableName } : current
+    );
+  }
+
+  function handleInspectorGoForward(): void {
+    const variableName = inspectorVariableHistory.goForward();
+    if (!variableName) {
+      return;
+    }
+
+    setInspectorContext((current) =>
+      current ? { ...current, selectedVariable: variableName } : current
+    );
   }
 
   function handleInspectorDefiningExpressionApply(expression: string): void {
@@ -2524,12 +2554,17 @@ export function NotebookApp() {
                 isInspectorModelEditable(notebookDocument.cells, inspectorContext.modelSource) &&
                 selectedVariableData?.definingEquation != null
               }
+              canGoBack={inspectorVariableHistory.canGoBack}
+              canGoForward={inspectorVariableHistory.canGoForward}
               commitStyle="draft"
               currentValues={inspectorContext?.currentValues}
               data={selectedVariableData}
               onApplyDefiningExpression={handleInspectorDefiningExpressionApply}
+              onGoBack={handleInspectorGoBack}
+              onGoForward={handleInspectorGoForward}
               onSelectVariable={(variableName) => {
                 setActiveRailTab("inspect");
+                inspectorVariableHistory.push(variableName);
                 setInspectorContext((current) =>
                   current ? { ...current, selectedVariable: variableName } : current
                 );

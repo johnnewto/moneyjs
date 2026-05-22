@@ -9,11 +9,15 @@ import { VariableLabel } from "./VariableLabel";
 
 interface VariableInspectorProps {
   canEditDefiningEquation?: boolean;
+  canGoBack?: boolean;
+  canGoForward?: boolean;
   commitStyle?: "draft" | "immediate";
   currentValues?: Record<string, number | undefined>;
   data: VariableInspectorData | null;
   onApplyDefiningExpression?: (expression: string) => void;
   onEditingChange?: (isEditing: boolean) => void;
+  onGoBack?: () => void;
+  onGoForward?: () => void;
   onSelectVariable(variableName: string): void;
   parameterNames?: string[];
   variableDescriptions?: VariableDescriptions;
@@ -22,11 +26,15 @@ interface VariableInspectorProps {
 
 export function VariableInspector({
   canEditDefiningEquation = false,
+  canGoBack = false,
+  canGoForward = false,
   commitStyle = "draft",
   currentValues,
   data,
   onApplyDefiningExpression,
   onEditingChange,
+  onGoBack,
+  onGoForward,
   onSelectVariable,
   parameterNames = [],
   variableDescriptions,
@@ -37,8 +45,34 @@ export function VariableInspector({
       {data ? (
         <div className="variable-inspector-body">
           <div className="variable-inspector-hero">
-            <div>
-              <div className="eyebrow">Selected variable</div>
+            <div className="variable-inspector-hero-title">
+              <div className="variable-inspector-eyebrow-row">
+                <div className="eyebrow">Selected variable</div>
+                {onGoBack || onGoForward ? (
+                  <div className="variable-inspector-nav">
+                    <button
+                      type="button"
+                      className="variable-inspector-nav-button"
+                      aria-label="Go back"
+                      title="Go back"
+                      disabled={!canGoBack}
+                      onClick={onGoBack}
+                    >
+                      <span aria-hidden="true">↩</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="variable-inspector-nav-button"
+                      aria-label="Go forward"
+                      title="Go forward"
+                      disabled={!canGoForward}
+                      onClick={onGoForward}
+                    >
+                      <span aria-hidden="true">↪</span>
+                    </button>
+                  </div>
+                ) : null}
+              </div>
               <h3>
                 <VariableLabel
                   currentValues={currentValues}

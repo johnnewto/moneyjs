@@ -597,6 +597,74 @@ describe("App notebook navigation and inspection", () => {
     expect(inspectorTooltip).toHaveTextContent("Bank deposits held by households : $0");
   });
 
+  it("navigates notebook variable inspector history with go back and go forward", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    setSuccessfulNotebookRunner();
+
+    render(<App />);
+
+    const matrixHeading = screen.getByRole("heading", { name: /bmw transactions-flow matrix/i });
+    const matrixCell = matrixHeading.closest("article");
+    expect(matrixCell).not.toBeNull();
+    if (!matrixCell) {
+      throw new Error("Expected BMW transactions-flow matrix article.");
+    }
+
+    const rmToken = within(matrixCell)
+      .getAllByText("rm")
+      .find((node) => node.className.includes("formula-token"));
+    expect(rmToken).toBeDefined();
+    if (!rmToken) {
+      throw new Error("Expected matrix token for rm.");
+    }
+
+    await user.click(rmToken);
+
+    const inspector = screen.getByText(/^Selected variable$/i).closest(".variable-inspector-panel");
+    expect(inspector).not.toBeNull();
+    if (!(inspector instanceof HTMLElement)) {
+      throw new Error("Expected variable inspector container.");
+    }
+
+    const backButton = within(inspector).getByRole("button", { name: /^Go back$/i });
+    const forwardButton = within(inspector).getByRole("button", { name: /^Go forward$/i });
+    expect(backButton).toHaveAttribute("title", "Go back");
+    expect(forwardButton).toHaveAttribute("title", "Go forward");
+    expect(backButton).toBeDisabled();
+    expect(forwardButton).toBeDisabled();
+
+    const affectedEquationsHeading = within(inspector).getByText(/^Affected equations$/i);
+    const affectedEquationsSection = affectedEquationsHeading.closest(".inspector-section");
+    expect(affectedEquationsSection).not.toBeNull();
+    if (!(affectedEquationsSection instanceof HTMLElement)) {
+      throw new Error("Expected affected equations section.");
+    }
+
+    const ydEquation = within(affectedEquationsSection)
+      .getAllByRole("code")
+      .find((node) => node.textContent?.includes("YD"));
+    expect(ydEquation).toBeDefined();
+    if (!ydEquation) {
+      throw new Error("Expected affected equation code block for YD.");
+    }
+
+    await user.click(within(ydEquation).getByRole("button", { name: /^Inspect variable YD$/i }));
+    expect(screen.getByRole("heading", { name: /^YD\b/i })).toBeInTheDocument();
+    expect(backButton).not.toBeDisabled();
+    expect(forwardButton).toBeDisabled();
+
+    await user.click(backButton);
+    expect(screen.getByRole("heading", { name: /^rm\b/i })).toBeInTheDocument();
+    expect(backButton).toBeDisabled();
+    expect(forwardButton).not.toBeDisabled();
+
+    await user.click(forwardButton);
+    expect(screen.getByRole("heading", { name: /^YD\b/i })).toBeInTheDocument();
+    expect(backButton).not.toBeDisabled();
+    expect(forwardButton).toBeDisabled();
+  });
+
   it("opens the notebook variable inspector from dependency graph nodes", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";

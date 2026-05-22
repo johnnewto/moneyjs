@@ -1324,6 +1324,78 @@ body.panel-splitter-body-lock {
   justify-content: space-between;
 }
 
+.variable-inspector-hero-title {
+  display: grid;
+  flex: 1;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.variable-inspector-eyebrow-row {
+  align-items: center;
+  display: flex;
+  min-height: 1.45rem;
+  position: relative;
+}
+
+.variable-inspector-nav {
+  display: flex;
+  flex-shrink: 0;
+  gap: 5mm;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.variable-inspector-nav-button {
+  align-items: center;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 999px;
+  box-shadow: none;
+  color: #64748b;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  height: 1.45rem;
+  justify-content: center;
+  min-width: 1.45rem;
+  padding: 0;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+  width: 1.45rem;
+}
+
+.variable-inspector-nav-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(100, 116, 139, 0.34);
+  color: #334155;
+}
+
+.variable-inspector-nav-button:focus-visible {
+  outline: 2px solid rgba(245, 158, 11, 0.45);
+  outline-offset: 1px;
+}
+
+.variable-inspector-nav-button:disabled {
+  background: transparent;
+  border-color: rgba(148, 163, 184, 0.14);
+  color: rgba(148, 163, 184, 0.55);
+  cursor: default;
+}
+
+.variable-inspector-nav-button span {
+  display: block;
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
+  -webkit-text-stroke: 0.4px currentColor;
+}
+
 .variable-inspector-hero h3,
 .inspector-section h3 {
   margin: 0;

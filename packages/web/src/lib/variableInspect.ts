@@ -16,6 +16,32 @@ export interface VariableInspectRequest extends VariableInspectContext {
   selectedVariable: string;
 }
 
+export function isSameInspectorModelSource(
+  left: InspectorModelSource | null,
+  right: InspectorModelSource | null
+): boolean {
+  if (left == null || right == null) {
+    return left === right;
+  }
+
+  if ("sourceModelId" in left) {
+    return "sourceModelId" in right && left.sourceModelId === right.sourceModelId;
+  }
+
+  return "sourceModelCellId" in right && left.sourceModelCellId === right.sourceModelCellId;
+}
+
+export function isSameInspectorContext(
+  left: VariableInspectContext | null,
+  right: VariableInspectContext | null
+): boolean {
+  if (left == null || right == null) {
+    return left === right;
+  }
+
+  return isSameInspectorModelSource(left.modelSource, right.modelSource);
+}
+
 export function resolveInspectorModelSource(
   source: { modelId?: string; sourceModelId?: string; sourceModelCellId?: string } | null | undefined
 ): InspectorModelSource | null {
