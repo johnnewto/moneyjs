@@ -37,6 +37,20 @@ function getFormulaTokensByText(container: HTMLElement, text: string): HTMLEleme
 }
 
 describe("EquationGridEditor", () => {
+  it("renders a resizable variable column separator", () => {
+    render(
+      <EquationGridEditor
+        equations={[{ id: "eq-y", name: "Y", expression: "C + I" }]}
+        issues={{}}
+        onChange={vi.fn()}
+      />
+    );
+
+    expect(
+      screen.getByRole("separator", { name: /resize variable column/i })
+    ).toBeInTheDocument();
+  });
+
   it("highlights dependent rows on hover and pins output traces on shift-click", () => {
     render(
       <EquationGridEditor

@@ -19,6 +19,7 @@ import {
   type PinnedTrace,
   type TraceTokenRole
 } from "./EquationTrace";
+import { useEquationGridColumnResize } from "../hooks/useEquationGridColumnResize";
 import { InstantTooltip } from "./InstantTooltip";
 import { renderVariableMathLabel } from "./VariableMathLabel";
 
@@ -71,6 +72,7 @@ export function EquationGridEditor({
   const [openPopover, setOpenPopover] = useState<{ kind: "unit" | "role"; rowId: string } | null>(
     null
   );
+  const columnResize = useEquationGridColumnResize({ isEmbedded });
 
   const activeTrace = pinnedTrace
     ? buildActiveTrace(traceModel, pinnedTrace.rowId, pinnedTrace.mode)
@@ -118,15 +120,19 @@ export function EquationGridEditor({
 
       {buildError ? <div className="error-text equation-grid-banner">{buildError}</div> : null}
 
-      <div className="equation-grid-shell">
+      <div
+        ref={columnResize.shellRef}
+        className={`equation-grid-shell${columnResize.shellClassName ? ` ${columnResize.shellClassName}` : ""}`.trim()}
+      >
         <div className="equation-grid-header" role="row">
           <span>#</span>
-          <span>Variable</span>
+          <span ref={columnResize.variableHeaderRef}>Variable</span>
           <span>Expression</span>
           <span>Role</span>
           <span>Description</span>
           <span>Status</span>
           <span />
+          <div {...columnResize.resizeHandleProps} />
         </div>
 
         <div className="equation-grid-body">
