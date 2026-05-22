@@ -54,6 +54,7 @@ import {
 import type { UnitMeta } from "../lib/unitMeta";
 import { buildVariableDescriptions, getVariableDescription } from "../lib/variableDescriptions";
 import { buildVariableInspectorData } from "../lib/variableInspector";
+import { updateEditorDefiningEquationExpression } from "../lib/variableInspect";
 import { buildVariableUnitMetadata } from "../lib/units";
 
 import "../styles/app.css";
@@ -495,8 +496,21 @@ export function WorkspaceApp() {
           onMouseDown={workspaceSidebarDragScroll.dragScrollProps.onMouseDown}
         >
           <VariableInspector
+            canEditDefiningEquation={selectedVariableData?.definingEquation != null}
+            commitStyle="immediate"
             currentValues={currentValueMap}
             data={selectedVariableData}
+            onApplyDefiningExpression={(expression) => {
+              const definingEquation = selectedVariableData?.definingEquation;
+              if (!definingEquation) {
+                return;
+              }
+
+              setEditor((current) =>
+                updateEditorDefiningEquationExpression(current, definingEquation.id, expression)
+              );
+            }}
+            parameterNames={editor.externals.map((external) => external.name)}
             onSelectVariable={setSelectedVariable}
             variableDescriptions={variableDescriptions}
             variableUnitMetadata={variableUnitMetadata}

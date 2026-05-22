@@ -8,6 +8,7 @@ import type { EditorState } from "../../lib/editorModel";
 import { buildVariableDescriptions, type VariableDescriptions } from "../../lib/variableDescriptions";
 import { buildVariableUnitMetadata } from "../../lib/units";
 import { useDragScroll } from "../../hooks/useDragScroll";
+import type { VariableInspectRequest } from "../../lib/variableInspect";
 import { countModelSectionIssues } from "../modelSections";
 import type { ExternalsCell, InitialValuesCell, SolverCell } from "../types";
 import {
@@ -215,17 +216,12 @@ export function ExternalsCellView({
   issueMap: Record<string, string | undefined>;
   onEditingChange?(isEditing: boolean): void;
   onHelpRequest?: (() => void) | null;
-  onVariableInspectRequest(args: {
-    currentValues: Record<string, number | undefined>;
-    editor: EditorState;
-    selectedVariable: string;
-    variableDescriptions: VariableDescriptions;
-    variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
-  }): void;
+  onVariableInspectRequest(args: VariableInspectRequest): void;
   title: string;
   onChange(externals: EditorState["externals"]): void;
   onToggleCollapsed(): void;
 }) {
+  const modelSource = { sourceModelId: cell.modelId };
   const externalsViewDragScroll = useDragScroll<HTMLElement>();
   const issuePaths = Object.keys(issueMap);
   const seriesExternalCount = cell.externals.filter((external) => external.kind === "series").length;
@@ -357,6 +353,7 @@ export function ExternalsCellView({
                           onVariableInspectRequest({
                             currentValues,
                             editor,
+                            modelSource,
                             selectedVariable: external.name.trim(),
                             variableDescriptions,
                             variableUnitMetadata
@@ -418,19 +415,14 @@ export function InitialValuesCellView({
   issueMap: Record<string, string | undefined>;
   onEditingChange?(isEditing: boolean): void;
   onHelpRequest?: (() => void) | null;
-  onVariableInspectRequest(args: {
-    currentValues: Record<string, number | undefined>;
-    editor: EditorState;
-    selectedVariable: string;
-    variableDescriptions: VariableDescriptions;
-    variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
-  }): void;
+  onVariableInspectRequest(args: VariableInspectRequest): void;
   title: string;
   variableDescriptions: VariableDescriptions;
   variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
   onChange(initialValues: EditorState["initialValues"]): void;
   onToggleCollapsed(): void;
 }) {
+  const modelSource = { sourceModelId: cell.modelId };
   const initialValuesViewDragScroll = useDragScroll<HTMLElement>();
   const issuePaths = Object.keys(issueMap);
   const [isEditingInitialValues, setIsEditingInitialValues] = useState(false);
@@ -516,6 +508,7 @@ export function InitialValuesCellView({
               onVariableInspectRequest({
                 currentValues,
                 editor: { ...editor, initialValues: draftInitialValues },
+                modelSource,
                 selectedVariable,
                 variableDescriptions,
                 variableUnitMetadata
@@ -571,6 +564,7 @@ export function InitialValuesCellView({
                           onVariableInspectRequest({
                             currentValues,
                             editor,
+                            modelSource,
                             selectedVariable: initialValue.name.trim(),
                             variableDescriptions,
                             variableUnitMetadata

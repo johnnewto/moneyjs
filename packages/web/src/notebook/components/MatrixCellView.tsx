@@ -10,6 +10,7 @@ import { buildVariableUnitMetadata, inferUnits } from "../../lib/units";
 import type { VariableDescriptions } from "../../lib/variableDescriptions";
 import { useDragScroll } from "../../hooks/useDragScroll";
 import { classifyMatrixStockRole, inferMatrixTableKind } from "../matrixSemantics";
+import { resolveInspectorModelSource, type VariableInspectRequest } from "../../lib/variableInspect";
 import { buildEditorStateForNotebookModel } from "../modelSections";
 import { NotebookRenderProfiler } from "../notebookProfiler";
 import type { MatrixCell, NotebookCell, RunCell } from "../types";
@@ -37,13 +38,7 @@ export function MatrixCellView({
   selectedPeriodIndex: number;
   variableDescriptions: VariableDescriptions;
   variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
-  onVariableInspectRequest(args: {
-    currentValues: Record<string, number | undefined>;
-    editor: EditorState;
-    selectedVariable: string;
-    variableDescriptions: VariableDescriptions;
-    variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
-  }): void;
+  onVariableInspectRequest(args: VariableInspectRequest): void;
 }) {
   const matrixDragScroll = useDragScroll<HTMLDivElement>();
   const matrixHeaderScrollRef = useRef<HTMLDivElement | null>(null);
@@ -67,9 +62,14 @@ export function MatrixCellView({
   const isVirtualizedMatrix =
     cell.id === "transaction-flow" &&
     evaluatedMatrix.rows.length > MATRIX_VIRTUALIZATION_ROW_THRESHOLD;
+  const sourceRunCell = cell.sourceRunCellId
+    ? cells.find((entry): entry is RunCell => entry.type === "run" && entry.id === cell.sourceRunCellId)
+    : null;
+  const modelSource = sourceRunCell ? resolveInspectorModelSource(sourceRunCell) : null;
   const inspectContextRef = useRef({
     currentValues,
     editor,
+    modelSource,
     variableDescriptions,
     variableUnitMetadata
   });
@@ -78,10 +78,11 @@ export function MatrixCellView({
     inspectContextRef.current = {
       currentValues,
       editor,
+      modelSource,
       variableDescriptions,
       variableUnitMetadata
     };
-  }, [currentValues, editor, variableDescriptions, variableUnitMetadata]);
+  }, [currentValues, editor, modelSource, variableDescriptions, variableUnitMetadata]);
 
   const handleInspectVariable = useCallback(
     (selectedVariable: string) => {
@@ -93,6 +94,7 @@ export function MatrixCellView({
       onVariableInspectRequest({
         currentValues: context.currentValues,
         editor: context.editor,
+        modelSource: context.modelSource,
         selectedVariable,
         variableDescriptions: context.variableDescriptions,
         variableUnitMetadata: context.variableUnitMetadata

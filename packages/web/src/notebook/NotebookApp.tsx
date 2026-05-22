@@ -120,7 +120,14 @@ import { useDragScroll } from "../hooks/useDragScroll";
 import { usePanelSplitter } from "../hooks/usePanelSplitter";
 import { buildVariableInspectorData } from "../lib/variableInspector";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
+import { buildVariableDescriptions } from "../lib/variableDescriptions";
 import { buildVariableUnitMetadata } from "../lib/units";
+import {
+  applyInspectorDefiningEquationExpression,
+  isInspectorModelEditable,
+  updateEditorDefiningEquationExpression,
+  type VariableInspectRequest
+} from "../lib/variableInspect";
 
 type NotebookRailTab = "editor" | "inspect" | "contents" | "assistant" | "help" | "preview";
 
@@ -572,13 +579,7 @@ export function NotebookApp() {
 
     return resolveNotebookAssistantMode(window.localStorage.getItem(NOTEBOOK_ASSISTANT_MODE_STORAGE_KEY));
   });
-  const [inspectorContext, setInspectorContext] = useState<{
-    currentValues: Record<string, number | undefined>;
-    editor: EditorState;
-    selectedVariable: string;
-    variableDescriptions: VariableDescriptions;
-    variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
-  } | null>(null);
+  const [inspectorContext, setInspectorContext] = useState<VariableInspectRequest | null>(null);
   const [importPreview, setImportPreview] = useState<{
     document: NotebookDocument;
     source: NotebookSourceFormat;
@@ -821,15 +822,48 @@ export function NotebookApp() {
     setSelectedCellId(nextCell.id);
   }
 
-  function handleVariableInspectRequest(args: {
-    currentValues: Record<string, number | undefined>;
-    editor: EditorState;
-    selectedVariable: string;
-    variableDescriptions: VariableDescriptions;
-    variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
-  }): void {
+  function handleVariableInspectRequest(args: VariableInspectRequest): void {
     setInspectorContext(args);
     setActiveRailTab("inspect");
+  }
+
+  function handleInspectorDefiningExpressionApply(expression: string): void {
+    const context = inspectorContext;
+    const definingEquation = selectedVariableData?.definingEquation;
+    if (!context || !definingEquation) {
+      return;
+    }
+
+    const nextEditor = updateEditorDefiningEquationExpression(
+      context.editor,
+      definingEquation.id,
+      expression
+    );
+
+    if (context.modelSource) {
+      setNotebookDocument((current) =>
+        applyInspectorDefiningEquationExpression(
+          current,
+          context.modelSource!,
+          definingEquation.id,
+          expression
+        )
+      );
+      setAutoRunRevision((current) => current + 1);
+    }
+
+    setInspectorContext({
+      ...context,
+      editor: nextEditor,
+      variableDescriptions: buildVariableDescriptions({
+        equations: nextEditor.equations,
+        externals: nextEditor.externals
+      }),
+      variableUnitMetadata: buildVariableUnitMetadata({
+        equations: nextEditor.equations,
+        externals: nextEditor.externals
+      })
+    });
   }
 
   function handleCellHelpRequest(args: {
@@ -2485,14 +2519,22 @@ export function NotebookApp() {
 
           {activeRailTab === "inspect" ? (
             <VariableInspector
+              canEditDefiningEquation={
+                inspectorContext?.modelSource != null &&
+                isInspectorModelEditable(notebookDocument.cells, inspectorContext.modelSource) &&
+                selectedVariableData?.definingEquation != null
+              }
+              commitStyle="draft"
               currentValues={inspectorContext?.currentValues}
               data={selectedVariableData}
+              onApplyDefiningExpression={handleInspectorDefiningExpressionApply}
               onSelectVariable={(variableName) => {
                 setActiveRailTab("inspect");
                 setInspectorContext((current) =>
                   current ? { ...current, selectedVariable: variableName } : current
                 );
               }}
+              parameterNames={inspectorContext?.editor.externals.map((external) => external.name) ?? []}
               variableDescriptions={inspectorContext?.variableDescriptions}
               variableUnitMetadata={inspectorContext?.variableUnitMetadata}
             />

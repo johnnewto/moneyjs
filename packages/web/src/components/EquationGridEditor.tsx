@@ -297,7 +297,7 @@ const EQUATION_ROLE_OPTIONS: Array<{ value: EquationRole; label: string }> = [
   { value: "behavioral", label: "Behavioral" }
 ];
 
-interface HighlightedFormulaInputProps {
+export interface HighlightedFormulaInputProps {
   ariaLabel: string;
   className?: string;
   currentValues?: Record<string, number | undefined>;
@@ -305,6 +305,7 @@ interface HighlightedFormulaInputProps {
   footer?: ReactNode;
   highlightedTokens?: Map<string, TraceTokenRole>;
   inputRef(node: HTMLTextAreaElement | null): void;
+  onBlur?(): void;
   onChange(value: string): void;
   onEnter(): void;
   onSelectVariable?(variableName: string): void;
@@ -494,7 +495,7 @@ function EquationRolePopover({
   );
 }
 
-function HighlightedFormulaInput({
+export function HighlightedFormulaInput({
   ariaLabel,
   className = "",
   currentValues,
@@ -502,6 +503,7 @@ function HighlightedFormulaInput({
   footer,
   highlightedTokens,
   inputRef,
+  onBlur,
   onChange,
   onEnter,
   onSelectVariable,
@@ -533,6 +535,7 @@ function HighlightedFormulaInput({
       <textarea
         aria-label={ariaLabel}
         className="highlighted-formula-control"
+        onBlur={() => onBlur?.()}
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === "Enter" && !event.shiftKey) {

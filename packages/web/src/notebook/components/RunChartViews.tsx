@@ -3,6 +3,7 @@ import { InstantTooltip } from "../../components/InstantTooltip";
 import { ResultChart } from "../../components/ResultChart";
 import { VariableLabel } from "../../components/VariableLabel";
 import type { EditorState } from "../../lib/editorModel";
+import { resolveInspectorModelSource, type VariableInspectRequest } from "../../lib/variableInspect";
 import type { buildVariableUnitMetadata } from "../../lib/units";
 import { getVariableDescription, type VariableDescriptions } from "../../lib/variableDescriptions";
 import type { ChartCell, NotebookCell, RunCell } from "../types";
@@ -22,17 +23,12 @@ export function RunCellView({
   cells: NotebookCell[];
   currentValues: Record<string, number | undefined>;
   editor: EditorState | null;
-  onVariableInspectRequest(args: {
-    currentValues: Record<string, number | undefined>;
-    editor: EditorState;
-    selectedVariable: string;
-    variableDescriptions: VariableDescriptions;
-    variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
-  }): void;
+  onVariableInspectRequest(args: VariableInspectRequest): void;
   runner: ReturnType<typeof useNotebookRunner>;
   variableDescriptions: VariableDescriptions;
   variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
 }) {
+  const modelSource = resolveInspectorModelSource(cell);
   const baselineStartPeriod = resolveEffectiveScenarioStartPeriod(cells, cell);
   const result = runner.getResult(cell.id);
   const warnings = result?.warnings ?? [];
@@ -43,6 +39,7 @@ export function RunCellView({
           onVariableInspectRequest({
             currentValues,
             editor,
+            modelSource,
             selectedVariable,
             variableDescriptions,
             variableUnitMetadata

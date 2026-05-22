@@ -7,6 +7,7 @@ import {
   type VariableDescriptions
 } from "../lib/variableDescriptions";
 import { buildVariableUnitMetadata } from "../lib/units";
+import { resolveInspectorModelSource, type VariableInspectRequest } from "../lib/variableInspect";
 import {
   buildEditorStateForNotebookModel,
   findEquationsCell,
@@ -154,13 +155,7 @@ export interface NotebookCellViewProps {
     cellType: NotebookCell["type"];
     title: string;
   }): void;
-  onVariableInspectRequest(args: {
-    currentValues: Record<string, number | undefined>;
-    editor: EditorState;
-    selectedVariable: string;
-    variableDescriptions: VariableDescriptions;
-    variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
-  }): void;
+  onVariableInspectRequest(args: VariableInspectRequest): void;
   runner: ReturnType<typeof useNotebookRunner>;
   selectedCellId: string | null;
   selectedPeriodIndex: number;
@@ -694,11 +689,8 @@ function NotebookCellViewComponent({
                       ? undefined
                       : (selectedVariable) =>
                           onVariableInspectRequest({
-                            currentValues: noteInspectionContext.currentValues,
-                            editor: noteInspectionContext.editor,
-                            selectedVariable,
-                            variableDescriptions: noteInspectionContext.variableDescriptions,
-                            variableUnitMetadata: noteInspectionContext.variableUnitMetadata
+                            ...noteInspectionContext,
+                            selectedVariable
                           })
                   }
                   text={cellDescription}
@@ -864,11 +856,8 @@ function NotebookCellViewComponent({
                 ? undefined
                 : (selectedVariable) =>
                     onVariableInspectRequest({
-                      currentValues: markdownInspectionContext.currentValues,
-                      editor: markdownInspectionContext.editor,
-                      selectedVariable,
-                      variableDescriptions: markdownInspectionContext.variableDescriptions,
-                      variableUnitMetadata: markdownInspectionContext.variableUnitMetadata
+                      ...markdownInspectionContext,
+                      selectedVariable
                     })
             }
             text={cell.source}
@@ -1091,11 +1080,8 @@ function NotebookCellViewComponent({
                   ? undefined
                   : (selectedVariable) =>
                       onVariableInspectRequest({
-                        currentValues: noteInspectionContext.currentValues,
-                        editor: noteInspectionContext.editor,
-                        selectedVariable,
-                        variableDescriptions: noteInspectionContext.variableDescriptions,
-                        variableUnitMetadata: noteInspectionContext.variableUnitMetadata
+                        ...noteInspectionContext,
+                        selectedVariable
                       })
               }
               text={cellNote}
@@ -1688,12 +1674,7 @@ function resolveNotebookInspectionContext({
   }): Record<string, number | undefined>;
   runner: ReturnType<typeof useNotebookRunner>;
   selectedPeriodIndex: number;
-}): {
-  currentValues: Record<string, number | undefined>;
-  editor: EditorState;
-  variableDescriptions: VariableDescriptions;
-  variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
-} | null {
+}): import("../lib/variableInspect").VariableInspectContext | null {
   if (cell.type === "markdown") {
     const contextCell = resolveNearestNotebookContextCell(cells, cell);
     return contextCell
@@ -1711,6 +1692,7 @@ function resolveNotebookInspectionContext({
     return {
       currentValues: getModelCurrentValues({ sourceModelCellId: cell.id }),
       editor: cell.editor,
+      modelSource: { sourceModelCellId: cell.id },
       variableDescriptions: buildVariableDescriptions({
         equations: cell.editor.equations,
         externals: cell.editor.externals
@@ -1731,6 +1713,7 @@ function resolveNotebookInspectionContext({
     return {
       currentValues: getModelCurrentValues({ modelId: cell.modelId }),
       editor: buildEditorStateForStandaloneModelSections(cells, cell.modelId),
+      modelSource: { sourceModelId: cell.modelId },
       variableDescriptions: resolveModelVariableDescriptionsForModelId(cells, cell.modelId),
       variableUnitMetadata: resolveModelVariableUnitMetadataForModelId(cells, cell.modelId)
     };
@@ -1763,6 +1746,7 @@ function resolveNotebookInspectionContext({
     return {
       currentValues,
       editor,
+      modelSource: resolveInspectorModelSource(cell),
       variableDescriptions: resolveModelVariableDescriptionsForRunCell(cells, cell),
       variableUnitMetadata: resolveModelVariableUnitMetadataForRunCell(cells, cell)
     };

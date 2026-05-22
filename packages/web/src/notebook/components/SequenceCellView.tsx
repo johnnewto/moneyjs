@@ -12,6 +12,7 @@ import { buildVariableDescriptions, type VariableDescriptions } from "../../lib/
 import { buildDependencyGraph } from "../dependencyGraph";
 import { buildDependencyProxyDisplayOccurrences, buildDependencyRowTopology } from "../dependencyRows";
 import { buildDependencySectorDisplayOccurrences, buildDependencySectorTopology, resolveStripMappingSources } from "../dependencySectors";
+import { resolveInspectorModelSource, type VariableInspectRequest } from "../../lib/variableInspect";
 import { buildEditorStateForNotebookModel } from "../modelSections";
 import { NotebookRenderProfiler } from "../notebookProfiler";
 import { resolveSequenceDiagram } from "../sequence";
@@ -58,13 +59,7 @@ export function SequenceCellView({
       | ((current: MatrixSequenceViewState | null) => MatrixSequenceViewState | null)
   ): void;
   onSelectedPeriodIndexChange(nextIndex: number): void;
-  onVariableInspectRequest(args: {
-    currentValues: Record<string, number | undefined>;
-    editor: EditorState;
-    selectedVariable: string;
-    variableDescriptions: VariableDescriptions;
-    variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
-  }): void;
+  onVariableInspectRequest(args: VariableInspectRequest): void;
   runner: ReturnType<typeof useNotebookRunner>;
   selectedPeriodIndex: number;
   variableDescriptions: VariableDescriptions;
@@ -122,13 +117,7 @@ function DependencySequenceCellView({
     sourceModelCellId?: string;
   }): Record<string, number | undefined>;
   onCellChange(cellId: string, updater: (cell: NotebookCell) => NotebookCell): void;
-  onVariableInspectRequest(args: {
-    currentValues: Record<string, number | undefined>;
-    editor: EditorState;
-    selectedVariable: string;
-    variableDescriptions: VariableDescriptions;
-    variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
-  }): void;
+  onVariableInspectRequest(args: VariableInspectRequest): void;
   variableDescriptions: VariableDescriptions;
 }) {
   const showAccountingStrips = cell.source.showAccountingStrips ?? true;
@@ -329,6 +318,7 @@ function DependencySequenceCellView({
     onVariableInspectRequest({
       currentValues: getModelCurrentValues(cell.source),
       editor: dependencyEditor,
+      modelSource: resolveInspectorModelSource(cell.source),
       selectedVariable: node.canonicalName ?? node.name,
       variableDescriptions: dependencyVariableDescriptions,
       variableUnitMetadata: dependencyVariableUnitMetadata

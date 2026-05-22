@@ -10,6 +10,7 @@ import { buildVariableDescriptions, type VariableDescriptions } from "../../lib/
 import { buildVariableUnitMetadata } from "../../lib/units";
 import { useDragScroll } from "../../hooks/useDragScroll";
 import { buildEditorStateFromSections, countModelSectionIssues, findEquationsCell, findExternalsCell, findInitialValuesCell, findSolverCell } from "../modelSections";
+import type { VariableInspectRequest } from "../../lib/variableInspect";
 import type { EquationsCell, ExternalsCell, ModelCell, NotebookCell, SolverCell } from "../types";
 import { NotebookLinkedEditorActions, NotebookLinkedEditorHeader } from "./NotebookCellHeader";
 import { formatNotebookCurrentValue } from "./NotebookCurrentValue";
@@ -30,15 +31,10 @@ export function ModelCellView({
   onHelpRequest?: (() => void) | null;
   onChange(editor: EditorState): void;
   onToggleCollapsed(): void;
-  onVariableInspectRequest(args: {
-    currentValues: Record<string, number | undefined>;
-    editor: EditorState;
-    selectedVariable: string;
-    variableDescriptions: VariableDescriptions;
-    variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
-  }): void;
+  onVariableInspectRequest(args: VariableInspectRequest): void;
   title: string;
 }) {
+  const modelSource = { sourceModelCellId: cell.id };
   const modelViewDragScroll = useDragScroll<HTMLElement>();
   const [draftEditor, setDraftEditor] = useState(cell.editor);
   const issues = validateEditorState(draftEditor);
@@ -164,6 +160,7 @@ export function ModelCellView({
               onVariableInspectRequest({
                 currentValues,
                 editor: draftEditor,
+                modelSource,
                 selectedVariable,
                 variableDescriptions,
                 variableUnitMetadata
@@ -227,6 +224,7 @@ export function ModelCellView({
                           onVariableInspectRequest({
                             currentValues,
                             editor: cell.editor,
+                            modelSource,
                             selectedVariable: equation.name.trim(),
                             variableDescriptions,
                             variableUnitMetadata
@@ -263,6 +261,7 @@ export function ModelCellView({
                             onVariableInspectRequest({
                               currentValues,
                               editor: cell.editor,
+                              modelSource,
                               selectedVariable,
                               variableDescriptions,
                               variableUnitMetadata
@@ -313,19 +312,14 @@ export function EquationsCellView({
   initialValuesCount: number;
   onEditingChange?(isEditing: boolean): void;
   onHelpRequest?: (() => void) | null;
-  onVariableInspectRequest(args: {
-    currentValues: Record<string, number | undefined>;
-    editor: EditorState;
-    selectedVariable: string;
-    variableDescriptions: VariableDescriptions;
-    variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
-  }): void;
+  onVariableInspectRequest(args: VariableInspectRequest): void;
   selectedPeriodIndex: number;
   solverCell: SolverCell | null;
   title: string;
   onChange(equations: EquationsCell["equations"]): void;
   onToggleCollapsed(): void;
 }) {
+  const modelSource = { sourceModelId: cell.modelId };
   const equationsViewDragScroll = useDragScroll<HTMLElement>();
   const [draftEquations, setDraftEquations] = useState(cell.equations);
   const editor = buildEditorStateFromSections({
@@ -481,6 +475,7 @@ export function EquationsCellView({
               onVariableInspectRequest({
                 currentValues,
                 editor,
+                modelSource,
                 selectedVariable,
                 variableDescriptions,
                 variableUnitMetadata
@@ -544,6 +539,7 @@ export function EquationsCellView({
                           onVariableInspectRequest({
                             currentValues,
                             editor,
+                            modelSource,
                             selectedVariable: equation.name.trim(),
                             variableDescriptions,
                             variableUnitMetadata
@@ -580,11 +576,12 @@ export function EquationsCellView({
                             onVariableInspectRequest({
                               currentValues,
                               editor,
+                              modelSource,
                               selectedVariable,
                               variableDescriptions,
                               variableUnitMetadata
                             }),
-                          showExternalValues ? externalDisplayValues : undefined,
+                            showExternalValues ? externalDisplayValues : undefined,
                           currentValues
                         )
                       : " "}

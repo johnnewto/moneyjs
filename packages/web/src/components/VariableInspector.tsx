@@ -1,23 +1,34 @@
-import type { ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
+import type { EquationRow } from "../lib/editorModel";
 import type { VariableInspectorData } from "../lib/variableInspector";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
 import type { VariableUnitMetadata } from "../lib/unitMeta";
-import { highlightFormula } from "./EquationGridEditor";
+import { HighlightedFormulaInput, highlightFormula } from "./EquationGridEditor";
 import { VariableLabel } from "./VariableLabel";
 
 interface VariableInspectorProps {
+  canEditDefiningEquation?: boolean;
+  commitStyle?: "draft" | "immediate";
   currentValues?: Record<string, number | undefined>;
   data: VariableInspectorData | null;
+  onApplyDefiningExpression?: (expression: string) => void;
+  onEditingChange?: (isEditing: boolean) => void;
   onSelectVariable(variableName: string): void;
+  parameterNames?: string[];
   variableDescriptions?: VariableDescriptions;
   variableUnitMetadata?: VariableUnitMetadata;
 }
 
 export function VariableInspector({
+  canEditDefiningEquation = false,
+  commitStyle = "draft",
   currentValues,
   data,
+  onApplyDefiningExpression,
+  onEditingChange,
   onSelectVariable,
+  parameterNames = [],
   variableDescriptions,
   variableUnitMetadata
 }: VariableInspectorProps) {
@@ -48,33 +59,18 @@ export function VariableInspector({
 
           <InspectorSection title={data.description?.trim() || "Equation"}>
             {data.definingEquation ? (
-              <>
-                <code className="inspector-equation">
-                  <VariableLabel
-                    currentValues={currentValues}
-                    name={data.definingEquation.name}
-                    variableDescriptions={variableDescriptions}
-                    variableUnitMetadata={variableUnitMetadata}
-                  />
-                  {" = "}
-                  {highlightFormula(
-                    data.definingEquation.expression,
-                    new Set<string>(),
-                    undefined,
-                    variableDescriptions,
-                    variableUnitMetadata,
-                    undefined,
-                    undefined,
-                    currentValues
-                  )}
-                </code>
-                {data.generatedEquationExplanation ? (
-                  <div className="inspector-generated-explanation">
-                    <div className="inspector-chip-label">Generated explanation</div>
-                    <p>{data.generatedEquationExplanation}</p>
-                  </div>
-                ) : null}
-              </>
+              <InspectorDefiningEquation
+                canEdit={canEditDefiningEquation}
+                commitStyle={commitStyle}
+                currentValues={currentValues}
+                definingEquation={data.definingEquation}
+                generatedEquationExplanation={data.generatedEquationExplanation}
+                onApplyExpression={onApplyDefiningExpression}
+                onEditingChange={onEditingChange}
+                parameterNames={parameterNames}
+                variableDescriptions={variableDescriptions}
+                variableUnitMetadata={variableUnitMetadata}
+              />
             ) : data.externalDefinition ? (
               <p>
                 Defined externally as a <strong>{data.externalDefinition.kind}</strong> input.
@@ -213,6 +209,192 @@ export function VariableInspector({
         </div>
       )}
     </section>
+  );
+}
+
+function InspectorDefiningEquation({
+  canEdit,
+  commitStyle,
+  currentValues,
+  definingEquation,
+  generatedEquationExplanation,
+  onApplyExpression,
+  onEditingChange,
+  parameterNames,
+  variableDescriptions,
+  variableUnitMetadata
+}: {
+  canEdit: boolean;
+  commitStyle: "draft" | "immediate";
+  currentValues?: Record<string, number | undefined>;
+  definingEquation: EquationRow;
+  generatedEquationExplanation: string | null;
+  onApplyExpression?: (expression: string) => void;
+  onEditingChange?: (isEditing: boolean) => void;
+  parameterNames: string[];
+  variableDescriptions?: VariableDescriptions;
+  variableUnitMetadata?: VariableUnitMetadata;
+}) {
+  const expressionInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftExpression, setDraftExpression] = useState(definingEquation.expression);
+  const parameterNameSet = useMemo(() => new Set(parameterNames), [parameterNames]);
+  const hasDraftChanges = draftExpression !== definingEquation.expression;
+
+  useEffect(() => {
+    setIsEditing(false);
+    setDraftExpression(definingEquation.expression);
+  }, [definingEquation.id, definingEquation.expression]);
+
+  useEffect(() => {
+    onEditingChange?.(isEditing);
+  }, [isEditing, onEditingChange]);
+
+  useEffect(() => {
+    if (!isEditing) {
+      return;
+    }
+
+    expressionInputRef.current?.focus();
+  }, [isEditing]);
+
+  function beginEditing(): void {
+    if (!canEdit) {
+      return;
+    }
+
+    setDraftExpression(definingEquation.expression);
+    setIsEditing(true);
+  }
+
+  function cancelEditing(): void {
+    setDraftExpression(definingEquation.expression);
+    setIsEditing(false);
+  }
+
+  function commitExpression(): void {
+    const trimmed = draftExpression.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    onApplyExpression?.(trimmed);
+    if (commitStyle === "draft") {
+      setIsEditing(false);
+    }
+  }
+
+  const editControls = canEdit ? (
+    <div className="inspector-equation-edit-controls">
+      <label className="inspector-equation-edit-toggle">
+        <input
+          checked={isEditing}
+          onChange={(event) => {
+            if (event.target.checked) {
+              beginEditing();
+            } else {
+              cancelEditing();
+            }
+          }}
+          type="checkbox"
+        />
+        <span>Edit expression</span>
+      </label>
+    </div>
+  ) : null;
+
+  return (
+    <>
+      {editControls}
+      {isEditing ? (
+        <div className="inspector-equation-editor">
+          <div className="inspector-equation-editor-lhs">
+            <VariableLabel
+              currentValues={currentValues}
+              name={definingEquation.name}
+              variableDescriptions={variableDescriptions}
+              variableUnitMetadata={variableUnitMetadata}
+            />
+            <span aria-hidden="true"> =</span>
+          </div>
+          <HighlightedFormulaInput
+            ariaLabel={`Expression for ${definingEquation.name.trim()}`}
+            className="inspector-equation-formula-input"
+            currentValues={currentValues}
+            inputRef={(node) => {
+              expressionInputRef.current = node;
+            }}
+            onChange={setDraftExpression}
+            onBlur={() => {
+              if (commitStyle === "immediate" && hasDraftChanges) {
+                commitExpression();
+              }
+            }}
+            onEnter={() => {
+              if (commitStyle === "immediate") {
+                commitExpression();
+              }
+            }}
+            parameterNames={parameterNameSet}
+            placeholder="Expression"
+            value={draftExpression}
+            variableDescriptions={variableDescriptions}
+            variableUnitMetadata={variableUnitMetadata}
+          />
+          {commitStyle === "draft" ? (
+            <div className="inspector-equation-editor-actions">
+              <button
+                disabled={!hasDraftChanges || !draftExpression.trim()}
+                onClick={commitExpression}
+                type="button"
+              >
+                Apply
+              </button>
+              <button className="secondary-button" onClick={cancelEditing} type="button">
+                Cancel
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <>
+          <code
+            className={`inspector-equation inspector-equation-display${canEdit ? " is-editable" : ""}`.trim()}
+            onDoubleClick={beginEditing}
+            title={canEdit ? "Double-click expression to edit" : undefined}
+          >
+            <VariableLabel
+              currentValues={currentValues}
+              name={definingEquation.name}
+              variableDescriptions={variableDescriptions}
+              variableUnitMetadata={variableUnitMetadata}
+            />
+            {" = "}
+            {highlightFormula(
+              definingEquation.expression,
+              parameterNameSet,
+              undefined,
+              variableDescriptions,
+              variableUnitMetadata,
+              undefined,
+              undefined,
+              currentValues
+            )}
+          </code>
+          {canEdit ? (
+            <p className="inspector-helper">
+              Double-click the expression to edit, or check Edit expression.
+            </p>
+          ) : null}
+        </>
+      )}
+      {generatedEquationExplanation ? (
+        <div className="inspector-generated-explanation">
+          <div className="inspector-chip-label">Generated explanation</div>
+          <p>{generatedEquationExplanation}</p>
+        </div>
+      ) : null}
+    </>
   );
 }
 

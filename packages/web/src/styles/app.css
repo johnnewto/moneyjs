@@ -1395,6 +1395,44 @@ body.panel-splitter-body-lock {
   white-space: break-spaces;
 }
 
+.inspector-equation.is-editable {
+  cursor: pointer;
+}
+
+.inspector-equation-edit-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.inspector-equation-edit-toggle {
+  align-items: center;
+  color: #475569;
+  display: inline-flex;
+  font-size: 0.78rem;
+  gap: 0.35rem;
+}
+
+.inspector-equation-editor {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.inspector-equation-editor-lhs {
+  color: #0f172a;
+  font: 0.84rem/1.35 "IBM Plex Mono", "SFMono-Regular", monospace;
+}
+
+.inspector-equation-formula-input {
+  width: 100%;
+}
+
+.inspector-equation-editor-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
 .inspector-helper {
   color: #64748b;
   font-size: 0.88rem;

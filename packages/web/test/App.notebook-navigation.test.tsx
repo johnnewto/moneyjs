@@ -452,6 +452,44 @@ describe("App notebook navigation and inspection", () => {
     expect(within(inspector).getByText(/^Declared$/i)).toBeInTheDocument();
   });
 
+  it("edits the defining equation expression from the inspect panel", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    setSuccessfulNotebookRunner();
+
+    render(<App />);
+
+    const modelHeading = screen.getAllByRole("heading", { name: /bmw model/i })[0];
+    const modelCell = modelHeading.closest("article");
+    expect(modelCell).not.toBeNull();
+    if (!modelCell) {
+      throw new Error("Expected BMW model article.");
+    }
+
+    await user.click(within(modelCell).getByRole("button", { name: /^show$/i }));
+    await user.click(within(modelCell).getByRole("button", { name: /^Y\b/i }));
+
+    const inspector = screen.getByText(/^Selected variable$/i).closest(".variable-inspector-panel");
+    expect(inspector).not.toBeNull();
+    if (!(inspector instanceof HTMLElement)) {
+      throw new Error("Expected variable inspector container.");
+    }
+
+    await user.click(within(inspector).getByRole("checkbox", { name: /^Edit expression$/i }));
+    const expressionField = within(inspector).getByRole("textbox", { name: /^Expression for Y$/i });
+    await user.clear(expressionField);
+    await user.type(expressionField, "Cs + Is + G");
+    await user.click(within(inspector).getByRole("button", { name: /^Apply$/i }));
+
+    const inspectorEquation = inspector.querySelector(".inspector-equation-display");
+    expect(inspectorEquation?.textContent).toMatch(/Cs/);
+    expect(inspectorEquation?.textContent).toMatch(/Is/);
+    expect(inspectorEquation?.textContent).toMatch(/G/);
+
+    const yRowAfterEdit = within(modelCell).getByRole("button", { name: /^Y\b/i }).closest('[role="row"]');
+    expect(yRowAfterEdit?.textContent).toMatch(/G/);
+  });
+
   it("shows variable descriptions for lowercase rate tokens in the BMW transaction-flow matrix", () => {
     window.location.hash = "#/notebook";
     setSuccessfulNotebookRunner();

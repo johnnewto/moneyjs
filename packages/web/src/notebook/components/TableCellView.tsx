@@ -2,6 +2,7 @@ import { ResultTable } from "../../components/ResultTable";
 import type { EditorState } from "../../lib/editorModel";
 import type { buildVariableUnitMetadata } from "../../lib/units";
 import { getVariableDescription, type VariableDescriptions } from "../../lib/variableDescriptions";
+import { resolveInspectorModelSource, type VariableInspectRequest } from "../../lib/variableInspect";
 import { buildEditorStateForNotebookModel } from "../modelSections";
 import type { NotebookCell, RunCell, TableCell } from "../types";
 import type { useNotebookRunner } from "../useNotebookRunner";
@@ -21,19 +22,17 @@ export function TableCellView({
   selectedPeriodIndex: number;
   variableDescriptions: VariableDescriptions;
   variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
-  onVariableInspectRequest(args: {
-    currentValues: Record<string, number | undefined>;
-    editor: EditorState;
-    selectedVariable: string;
-    variableDescriptions: VariableDescriptions;
-    variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
-  }): void;
+  onVariableInspectRequest(args: VariableInspectRequest): void;
 }) {
   const result = runner.getResult(cell.sourceRunCellId);
   if (!result) {
     return <div className="status-hint">Run the source cell to populate this summary table.</div>;
   }
+  const sourceRunCell = cells.find(
+    (entry): entry is RunCell => entry.type === "run" && entry.id === cell.sourceRunCellId
+  );
   const editor = resolveEditorStateForRunCellId(cells, cell.sourceRunCellId);
+  const modelSource = sourceRunCell ? resolveInspectorModelSource(sourceRunCell) : null;
   const currentValues = Object.fromEntries(
     Object.entries(result.series).map(([name, values]) => [
       name,
@@ -64,6 +63,7 @@ export function TableCellView({
         onVariableInspectRequest({
           currentValues,
           editor,
+          modelSource,
           selectedVariable,
           variableDescriptions,
           variableUnitMetadata
