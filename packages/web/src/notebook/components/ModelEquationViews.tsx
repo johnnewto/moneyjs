@@ -20,6 +20,7 @@ import type { VariableInspectRequest } from "../../lib/variableInspect";
 import type { EquationsCell, ExternalsCell, ModelCell, NotebookCell, SolverCell } from "../types";
 import { NotebookLinkedEditorActions, NotebookLinkedEditorHeader } from "./NotebookCellHeader";
 import { formatNotebookCurrentValue } from "./NotebookCurrentValue";
+import { NotebookEquationViewTable } from "./NotebookEquationViewTable";
 
 export function ModelCellView({
   cell,
@@ -201,13 +202,7 @@ export function ModelCellView({
           onClickCapture={modelViewDragScroll.dragScrollProps.onClickCapture}
           onMouseDown={modelViewDragScroll.dragScrollProps.onMouseDown}
         >
-          <div className="notebook-model-view-table" role="table" aria-label="Model equations">
-            <div className="notebook-model-view-row notebook-model-view-row-header" role="row">
-              <span role="columnheader">Variable</span>
-              <span role="columnheader">Expression</span>
-              <span role="columnheader">Current</span>
-              <span role="columnheader">Role</span>
-            </div>
+          <NotebookEquationViewTable ariaLabel="Model equations">
             {cell.editor.equations.map((equation, index) => {
               const issue =
                 issueMap[`equations.${index}.name`] ?? issueMap[`equations.${index}.expression`];
@@ -270,7 +265,7 @@ export function ModelCellView({
                 />
               );
             })}
-          </div>
+          </NotebookEquationViewTable>
         </section>
       )}
       <VariableRenameDialog
@@ -505,13 +500,7 @@ export function EquationsCellView({
           onClickCapture={equationsViewDragScroll.dragScrollProps.onClickCapture}
           onMouseDown={equationsViewDragScroll.dragScrollProps.onMouseDown}
         >
-          <div className="notebook-model-view-table" role="table" aria-label="Model equations">
-            <div className="notebook-model-view-row notebook-model-view-row-header" role="row">
-              <span role="columnheader">Variable</span>
-              <span role="columnheader">Expression</span>
-              <span role="columnheader">Current</span>
-              <span role="columnheader">Role</span>
-            </div>
+          <NotebookEquationViewTable ariaLabel="Model equations">
             {cell.equations.map((equation, index) => {
               const issue =
                 issueMap[`equations.${index}.name`] ?? issueMap[`equations.${index}.expression`];
@@ -575,7 +564,7 @@ export function EquationsCellView({
                 />
               );
             })}
-          </div>
+          </NotebookEquationViewTable>
         </section>
       )}
       <VariableRenameDialog

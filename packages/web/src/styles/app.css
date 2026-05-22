@@ -1051,7 +1051,10 @@ body.panel-splitter-body-lock {
   user-select: none;
 }
 
-.equation-grid-is-resizing-columns .equation-grid-row {
+.equation-grid-is-resizing-columns .equation-grid-row,
+.equation-grid-is-resizing-columns
+  .notebook-model-view-table-resizable
+  .notebook-model-view-row:not(.notebook-model-view-row-header) {
   pointer-events: none;
 }
 
@@ -3533,6 +3536,22 @@ body.panel-splitter-body-lock {
 
 .notebook-model-view-table {
   display: grid;
+}
+
+.notebook-model-view-table-resizable {
+  --eq-col-variable-width: 160px;
+}
+
+.notebook-model-view-table-resizable .notebook-model-view-row {
+  grid-template-columns:
+    var(--eq-col-variable-width, 160px)
+    minmax(0, 1fr)
+    minmax(92px, 120px)
+    minmax(96px, 128px);
+}
+
+.notebook-model-view-table-resizable .notebook-model-view-row-header {
+  position: relative;
 }
 
 .notebook-model-view-row {

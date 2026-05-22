@@ -32,8 +32,11 @@ const MIN_EXPRESSION_WIDTH_PX = 160;
 const KEYBOARD_STEP_PX = 8;
 const RESIZE_HANDLE_HALF_WIDTH_PX = 6;
 
+type EquationColumnResizeLayout = "equation-grid" | "equation-view";
+
 interface UseEquationGridColumnResizeOptions {
   isEmbedded?: boolean;
+  layout?: EquationColumnResizeLayout;
 }
 
 function getStoredVariableWidthPx(storageKey: string, fallback: number) {
@@ -62,16 +65,12 @@ function clampVariableWidthPx(nextWidth: number, minWidthPx: number, maxWidthPx:
   return Math.min(Math.max(nextWidth, minWidthPx), maxWidthPx);
 }
 
-function getMaxVariableWidthPx(
-  shellWidth: number,
-  minWidthPx: number,
-  staticMaxWidthPx: number
-) {
-  if (shellWidth < 320) {
-    return staticMaxWidthPx;
+function getReservedWidthPx(layout: EquationColumnResizeLayout) {
+  if (layout === "equation-view") {
+    return 92 + 96 + 0.6 * 3 * 16 + 0.75 * 2 * 16 + MIN_EXPRESSION_WIDTH_PX;
   }
 
-  const reservedWidthPx =
+  return (
     18 +
     72 +
     120 +
@@ -79,13 +78,26 @@ function getMaxVariableWidthPx(
     28 +
     0.32 * 6 * 16 +
     0.24 * 2 * 16 +
-    MIN_EXPRESSION_WIDTH_PX;
+    MIN_EXPRESSION_WIDTH_PX
+  );
+}
 
-  return Math.max(minWidthPx, shellWidth - reservedWidthPx);
+function getMaxVariableWidthPx(
+  shellWidth: number,
+  minWidthPx: number,
+  staticMaxWidthPx: number,
+  layout: EquationColumnResizeLayout
+) {
+  if (shellWidth < 320) {
+    return staticMaxWidthPx;
+  }
+
+  return Math.max(minWidthPx, shellWidth - getReservedWidthPx(layout));
 }
 
 export function useEquationGridColumnResize({
-  isEmbedded = false
+  isEmbedded = false,
+  layout = "equation-grid"
 }: UseEquationGridColumnResizeOptions = {}) {
   const storageKey = isEmbedded
     ? EQUATION_GRID_VARIABLE_WIDTH_STORAGE_KEY.embedded
@@ -132,10 +144,10 @@ export function useEquationGridColumnResize({
     setMaxWidthPx(
       Math.min(
         staticMaxWidthPx,
-        getMaxVariableWidthPx(shellWidth, minWidthPx, staticMaxWidthPx)
+        getMaxVariableWidthPx(shellWidth, minWidthPx, staticMaxWidthPx, layout)
       )
     );
-  }, [minWidthPx, staticMaxWidthPx]);
+  }, [layout, minWidthPx, staticMaxWidthPx]);
 
   useEffect(() => {
     return () => {
