@@ -562,8 +562,21 @@ describe("App notebook navigation and inspection", () => {
       throw new Error("Expected affected equations section.");
     }
     expect(
-      within(affectedEquationsSection).getByRole("button", { name: /^Inspect variable YD$/i })
-    ).toBeInTheDocument();
+      within(affectedEquationsSection).getAllByRole("button", { name: /^Inspect variable YD$/i }).length
+    ).toBeGreaterThanOrEqual(2);
+
+    const ydEquation = within(affectedEquationsSection)
+      .getAllByRole("code")
+      .find((node) => node.textContent?.includes("YD"));
+    expect(ydEquation).toBeDefined();
+    if (!ydEquation) {
+      throw new Error("Expected affected equation code block for YD.");
+    }
+    await user.click(within(ydEquation).getByRole("button", { name: /^Inspect variable YD$/i }));
+    expect(screen.getByRole("heading", { name: /^YD\b/i })).toBeInTheDocument();
+
+    await user.click(rmToken);
+    expect(screen.getByRole("heading", { name: /^rm\b/i })).toBeInTheDocument();
     expect(inspector.querySelector(".inspector-related-equation.trace-output")).not.toBeNull();
 
     const mhToken = within(affectedEquationsSection)
@@ -617,8 +630,8 @@ describe("App notebook navigation and inspection", () => {
       throw new Error("Expected affected equations section.");
     }
     expect(
-      within(affectedEquationsSection).getByRole("button", { name: /^Inspect variable YD$/i })
-    ).toBeInTheDocument();
+      within(affectedEquationsSection).getAllByRole("button", { name: /^Inspect variable YD$/i }).length
+    ).toBeGreaterThanOrEqual(2);
   });
 
   it("loads a notebook template from the hash path", () => {

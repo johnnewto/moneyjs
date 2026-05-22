@@ -236,7 +236,11 @@ function buildRelatedEquations(args: {
       ...args.equationInputs.lagDependencies
     ]).forEach((dependency) => {
       (rowsByOutput.get(dependency) ?? []).forEach((equation) => {
-        addEntry(equation, "input", [[dependency, "input"]]);
+        const output = equation.name.trim();
+        addEntry(equation, "input", [
+          [dependency, "input"],
+          ...(output ? ([[output, "input"]] as Array<[string, InspectorTraceRole]>) : [])
+        ]);
       });
     });
   }

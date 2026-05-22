@@ -1395,6 +1395,11 @@ body.panel-splitter-body-lock {
   white-space: break-spaces;
 }
 
+.inspector-equation .inspector-equation-lhs {
+  display: inline;
+  vertical-align: baseline;
+}
+
 .inspector-equation.is-editable {
   cursor: pointer;
 }

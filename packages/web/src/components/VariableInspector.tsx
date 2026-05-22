@@ -160,9 +160,12 @@ export function VariableInspector({
                       </button>
                     </div>
                     <code className="inspector-equation">
-                      <VariableLabel
+                      <InspectorRelatedEquationLhs
                         currentValues={currentValues}
                         name={entry.equation.name}
+                        onSelectVariable={onSelectVariable}
+                        parameterNames={data.parameterNames}
+                        traceRole={entry.tokenRoles.get(entry.equation.name.trim())}
                         variableDescriptions={variableDescriptions}
                         variableUnitMetadata={variableUnitMetadata}
                       />
@@ -398,7 +401,63 @@ function InspectorDefiningEquation({
   );
 }
 
-function formatRelatedEquationRole(role: "root" | "input" | "output" | "both"): string {
+type InspectorTraceRole = "root" | "input" | "output" | "both";
+
+function InspectorRelatedEquationLhs({
+  currentValues,
+  name,
+  onSelectVariable,
+  parameterNames,
+  traceRole,
+  variableDescriptions,
+  variableUnitMetadata
+}: {
+  currentValues?: Record<string, number | undefined>;
+  name: string;
+  onSelectVariable(variableName: string): void;
+  parameterNames: string[];
+  traceRole?: InspectorTraceRole;
+  variableDescriptions?: VariableDescriptions;
+  variableUnitMetadata?: VariableUnitMetadata;
+}) {
+  const normalizedName = name.trim();
+  const parameterNameSet = new Set(parameterNames);
+  const tokenClass = parameterNameSet.has(normalizedName)
+    ? "formula-parameter"
+    : /^[A-Z]/.test(normalizedName)
+      ? "formula-uppercase"
+      : /^[a-z]/.test(normalizedName)
+        ? "formula-lowercase"
+        : "formula-default";
+  const className = [
+    "result-variable-button",
+    "inspector-equation-lhs",
+    "formula-token",
+    tokenClass,
+    traceRole ? `trace-token-${traceRole}` : "",
+    "is-clickable"
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <button
+      type="button"
+      aria-label={`Inspect variable ${normalizedName}`}
+      className={className}
+      onClick={() => onSelectVariable(normalizedName)}
+    >
+      <VariableLabel
+        currentValues={currentValues}
+        name={name}
+        variableDescriptions={variableDescriptions}
+        variableUnitMetadata={variableUnitMetadata}
+      />
+    </button>
+  );
+}
+
+function formatRelatedEquationRole(role: InspectorTraceRole): string {
   switch (role) {
     case "root":
       return "Defining";
