@@ -80,6 +80,7 @@ Common commands:
 - `pnpm test`
 - `pnpm web:test:fast`
 - `pnpm web:test:integration`
+- `pnpm web:test:templates`
 - `pnpm --filter @sfcr/core test`
 - `pnpm --filter @sfcr/web test`
 - `pnpm --filter @sfcr/web exec vitest run test/<file>.test.tsx`
@@ -88,15 +89,22 @@ Common commands:
 - `pnpm --filter @sfcr/notebook-core run check:boundaries`
 
 ## Validation
-- After code changes, run the most relevant checks for the affected package.
-- For changes that cross package boundaries, run workspace `typecheck` and `test`.
-- If a task affects browser behavior, prefer validating through the web app path rather than only the references.
-- For most `packages/web` changes, prefer `pnpm web:test:fast` during iteration. It covers the broad non-notebook-integration suite quickly.
-- Run `pnpm web:test:integration` when changes affect notebook source import/export, linked cell editor behavior, or notebook navigation/inspection flows.
-- For narrow `packages/web` validation, prefer direct Vitest execution such as `pnpm --filter @sfcr/web exec vitest run test/AssistantMarkdown.test.tsx` instead of routing through the package `test` script.
-- For focused `packages/web` Vitest runs that are DOM-heavy or likely to emit large failure output, prefer `--reporter=dot` on the first run to improve terminal output reliability.
-- For CSS-only or small component-only changes in `packages/web`, run the smallest related test file first, then widen only if the change touches shared UI infrastructure.
-- `packages/core-worker` has compile-only tests in-package; worker protocol behavior is tested from `packages/web/test/workerHandler.test.ts`.
+
+Use the smallest `pnpm` command that proves the change.
+
+1. **One file** — `pnpm --filter @sfcr/web exec vitest run test/<file>.test.ts(x)` (add `--reporter=dot` for DOM-heavy output).
+2. **Most `packages/web` work** — `pnpm web:test:fast` (skips four `App.notebook-*` integration tests and five template smoke/regression suites).
+3. **Notebook UI flows** — `pnpm web:test:integration` when touching source import/export, cell editors, navigation, or assistant UI.
+4. **Templates / model smoke** — `pnpm web:test:templates` when changing notebook templates, fixtures, or broad solver-over-template behavior.
+5. **Cross-package or pre-handoff** — `pnpm typecheck` then `pnpm test` (Turbo across packages).
+
+Package-specific: `pnpm --filter @sfcr/core test`, `pnpm --filter @sfcr/chat-api test`. `@sfcr/core-worker` and `@sfcr/notebook-core` use compile-only `test`; run `check:boundaries` after notebook-core edits. Worker protocol is covered from `packages/web/test/workerHandler.test.ts`.
+
+`pnpm --filter @sfcr/web test` is not the same as `web:test:fast` — prefer root shortcuts for iteration.
+
+After pilot notebook YAML edits: `pnpm --filter @sfcr/web compile:notebook-yaml -- --write`.
+
+If a task affects browser behavior, prefer validating through the web app path rather than only the references.
 
 ## Reference Code
 Use `references/java/` and `references/r-sfcr/` for:
@@ -107,7 +115,7 @@ Use `references/java/` and `references/r-sfcr/` for:
 Do not treat reference implementations as the default runtime target unless the task explicitly asks for that.
 
 ## Cursor Rules
-File-scoped agent rules live in `.cursor/rules/` (`.mdc` files). They complement this document with package-specific guidance when matching files are open.
+File-scoped agent rules live in `.cursor/rules/` (`.mdc` files). They complement this document with package-specific guidance when matching files are open. `sfcr-validation.mdc` is always applied (testing ladder); `sfcr-web-testing.mdc` applies under `packages/web/**`.
 
 ## Notes For Agents
 - Favor edits in the active TypeScript packages over reference implementations.

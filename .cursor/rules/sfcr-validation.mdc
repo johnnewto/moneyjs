@@ -1,0 +1,20 @@
+---
+description: Testing and validation ladder — smallest pnpm proof first
+alwaysApply: true
+---
+
+# Validation ladder
+
+Use the smallest command that proves the change.
+
+1. One file → `pnpm --filter @sfcr/web exec vitest run test/<file>.test.ts(x) [--reporter=dot]`
+2. Most `packages/web` → `pnpm web:test:fast`
+3. Notebook source/navigation/editors/assistant → `pnpm web:test:integration`
+4. Templates / model smoke → `pnpm web:test:templates`
+5. Cross-package or pre-handoff → `pnpm typecheck` then `pnpm test`
+
+Package tests: `@sfcr/core` and `@sfcr/chat-api` (Vitest); `@sfcr/core-worker` and `@sfcr/notebook-core` (compile-only — also `check:boundaries` for notebook-core). Worker protocol: `packages/web/test/workerHandler.test.ts`.
+
+After schema/core changes: `pnpm typecheck`. After pilot notebook YAML: `pnpm --filter @sfcr/web compile:notebook-yaml -- --write`.
+
+`pnpm --filter @sfcr/web test` is not the same as `web:test:fast` — prefer root shortcuts for iteration.

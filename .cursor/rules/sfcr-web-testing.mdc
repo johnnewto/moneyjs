@@ -6,13 +6,20 @@ alwaysApply: false
 
 # @sfcr/web testing
 
-- Tests live in `packages/web/test/`, not colocated with `src/`.
-- Default iteration: `pnpm web:test:fast` (excludes four `App.notebook-*.test.tsx`).
-- Notebook source/navigation/assistant/cell editors: `pnpm web:test:integration`.
-- Focused run: `pnpm --filter @sfcr/web exec vitest run test/Foo.test.tsx --reporter=dot`
-- DOM tests: `// @vitest-environment jsdom` at top of file.
+Tests live in `packages/web/test/`, not colocated with `src/`. DOM tests: `// @vitest-environment jsdom` at top.
 
-Worker testing:
+## Ladder (smallest proof first)
+
+1. **Focused:** `pnpm --filter @sfcr/web exec vitest run test/Foo.test.tsx [--reporter=dot]`
+2. **Default iteration:** `pnpm web:test:fast` — excludes four `App.notebook-*.test.tsx` and five template suites (`templateSmoke`, `notebookTemplateRegression.extended`, `simTemplate`, `simpleEpidemicTemplate`, `solverOverviewTemplate`).
+3. **Notebook UI:** `pnpm web:test:integration` — source import/export, cell editors, navigation, assistant.
+4. **Templates / model smoke:** `pnpm web:test:templates`
+5. **Pre-handoff:** `pnpm typecheck` then `pnpm test`
+
+`pnpm --filter @sfcr/web test` excludes templates and integration but is broader than `test:fast`; prefer `pnpm web:test:fast` at repo root.
+
+## Worker testing
+
 - Prefer `handleWorkerRequest` directly (`workerHandler.test.ts`).
 - For `Worker` global: `vi.stubGlobal("Worker", MockWorker)` (`workerClient.test.ts`, `useSolver.test.tsx`).
 - App integration: reuse `appTestUtils.tsx` mocks.
