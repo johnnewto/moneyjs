@@ -13,8 +13,10 @@ import { classifyMatrixStockRole, inferMatrixTableKind } from "../matrixSemantic
 import { resolveInspectorModelSource, type VariableInspectRequest } from "../../lib/variableInspect";
 import { buildEditorStateForNotebookModel } from "../modelSections";
 import { NotebookRenderProfiler } from "../notebookProfiler";
+import { useMatrixEntryEdit, type MatrixEditingTarget } from "../useMatrixEntryEdit";
 import type { MatrixCell, NotebookCell, RunCell } from "../types";
 import type { useNotebookRunner } from "../useNotebookRunner";
+import { VariableRenameDialog } from "./EquationRowInlineEditor";
 
 const EMPTY_PARAMETER_NAMES = new Set<string>();
 const MATRIX_VIRTUALIZATION_ROW_THRESHOLD = 20;
@@ -24,11 +26,6 @@ const MATRIX_VIRTUALIZATION_VIEWPORT_HEIGHT_PX = 480;
 const MATRIX_VIRTUALIZATION_OVERSCAN_ROWS = 4;
 const MATRIX_VARIABLE_INSPECT_DELAY_MS = 400;
 
-type MatrixEditingTarget = {
-  columnIndex: number;
-  rowIndex: number;
-};
-
 export function MatrixCellView({
   cell,
   cells,
@@ -37,6 +34,7 @@ export function MatrixCellView({
   variableDescriptions,
   variableUnitMetadata,
   onCellChange,
+  onReplaceCells,
   onVariableInspectRequest
 }: {
   cell: MatrixCell;
@@ -46,14 +44,13 @@ export function MatrixCellView({
   variableDescriptions: VariableDescriptions;
   variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
   onCellChange(cellId: string, updater: (cell: NotebookCell) => NotebookCell): void;
+  onReplaceCells(nextCells: NotebookCell[]): void;
   onVariableInspectRequest(args: VariableInspectRequest): void;
 }) {
   const matrixDragScroll = useDragScroll<HTMLDivElement>();
   const matrixHeaderScrollRef = useRef<HTMLDivElement | null>(null);
   const variableInspectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [matrixScrollTop, setMatrixScrollTop] = useState(0);
-  const [editingTarget, setEditingTarget] = useState<MatrixEditingTarget | null>(null);
-  const [draftSource, setDraftSource] = useState("");
   const result = cell.sourceRunCellId ? runner.getResult(cell.sourceRunCellId) : null;
   const editor = cell.sourceRunCellId ? resolveEditorStateForRunCellId(cells, cell.sourceRunCellId) : null;
   const currentValues = result
@@ -144,11 +141,18 @@ export function MatrixCellView({
 
   const sourceSelectVariable = editor ? scheduleInspectVariable : undefined;
 
+  const matrixEntryEdit = useMatrixEntryEdit({
+    cell,
+    cells,
+    modelSource,
+    onCellChange,
+    onReplaceCells
+  });
+
   const cancelMatrixEntryEdit = useCallback(() => {
     clearDeferredVariableInspect();
-    setEditingTarget(null);
-    setDraftSource("");
-  }, [clearDeferredVariableInspect]);
+    matrixEntryEdit.cancelEntryEdit();
+  }, [clearDeferredVariableInspect, matrixEntryEdit]);
 
   const beginMatrixEntryEdit = useCallback(
     (rowIndex: number, columnIndex: number, source: string) => {
@@ -157,66 +161,21 @@ export function MatrixCellView({
       }
 
       clearDeferredVariableInspect();
-      setEditingTarget({ rowIndex, columnIndex });
-      setDraftSource(source);
+      matrixEntryEdit.beginEntryEdit(rowIndex, columnIndex, source);
     },
-    [clearDeferredVariableInspect, sumColumnIndex, sumRowIndex]
+    [clearDeferredVariableInspect, matrixEntryEdit, sumColumnIndex, sumRowIndex]
   );
 
-  const applyMatrixEntryEdit = useCallback(() => {
-    if (!editingTarget) {
-      return;
-    }
-
-    const trimmedDraft = draftSource.trim();
-    const { rowIndex, columnIndex } = editingTarget;
-    const currentSource = cell.rows[rowIndex]?.values[columnIndex] ?? "";
-    if (trimmedDraft === currentSource.trim()) {
-      cancelMatrixEntryEdit();
-      return;
-    }
-
-    onCellChange(cell.id, (current) => {
-      if (current.type !== "matrix") {
-        return current;
-      }
-
-      return {
-        ...current,
-        rows: current.rows.map((row, currentRowIndex) => {
-          if (currentRowIndex !== rowIndex) {
-            return row;
-          }
-
-          const nextValues = row.values.slice();
-          nextValues[columnIndex] = trimmedDraft;
-          return {
-            ...row,
-            values: nextValues
-          };
-        })
-      };
-    });
-    cancelMatrixEntryEdit();
-  }, [
-    cancelMatrixEntryEdit,
-    cell.id,
-    cell.rows,
-    draftSource,
-    editingTarget,
-    onCellChange
-  ]);
-
   useEffect(() => {
-    if (!editingTarget) {
+    if (!matrixEntryEdit.editingTarget) {
       return;
     }
 
-    const row = cell.rows[editingTarget.rowIndex];
+    const row = cell.rows[matrixEntryEdit.editingTarget.rowIndex];
     if (!row) {
       cancelMatrixEntryEdit();
     }
-  }, [cancelMatrixEntryEdit, cell.rows, editingTarget]);
+  }, [cancelMatrixEntryEdit, cell.rows, matrixEntryEdit.editingTarget]);
   const virtualizedMatrixWindow = useMemo(() => {
     if (!isVirtualizedMatrix) {
       return {
@@ -384,8 +343,8 @@ export function MatrixCellView({
                         <MatrixEntrySource
                           columnIndex={index}
                           currentValues={currentValues}
-                          draftSource={draftSource}
-                          editingTarget={editingTarget}
+                          draftSource={matrixEntryEdit.draftSource}
+                          editingTarget={matrixEntryEdit.editingTarget}
                           isSumCell={entry.isSumCell}
                           parameterNames={parameterNames}
                           rowIndex={rowIndex}
@@ -393,10 +352,10 @@ export function MatrixCellView({
                           sourceSelectVariable={sourceSelectVariable}
                           variableDescriptions={variableDescriptions}
                           variableUnitMetadata={variableUnitMetadata}
-                          onApply={applyMatrixEntryEdit}
+                          onApply={matrixEntryEdit.applyEntryEdit}
                           onBeginEdit={beginMatrixEntryEdit}
                           onCancel={cancelMatrixEntryEdit}
-                          onDraftChange={setDraftSource}
+                          onDraftChange={matrixEntryEdit.setDraftSource}
                         />
                       </NotebookRenderProfiler>
                       {entry.resolved ? (
@@ -552,6 +511,16 @@ export function MatrixCellView({
           </div>
         </NotebookRenderProfiler>
       </div>
+      <VariableRenameDialog
+        cellCount={matrixEntryEdit.renameReferenceCount.cellCount}
+        isOpen={matrixEntryEdit.renameDialog != null}
+        newName={matrixEntryEdit.renameDialog?.newName ?? ""}
+        oldName={matrixEntryEdit.renameDialog?.oldName ?? ""}
+        referenceCount={matrixEntryEdit.renameReferenceCount.referenceCount}
+        onCancel={matrixEntryEdit.cancelEntryEdit}
+        onConfirmNo={matrixEntryEdit.confirmRenameNo}
+        onConfirmYes={matrixEntryEdit.confirmRenameYes}
+      />
     </NotebookRenderProfiler>
   );
 }

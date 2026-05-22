@@ -1056,6 +1056,7 @@ function NotebookCellViewComponent({
                 variableDescriptions={variableDescriptions}
                 variableUnitMetadata={variableUnitMetadata}
                 onCellChange={onCellChange}
+                onReplaceCells={onReplaceCells}
                 onVariableInspectRequest={onVariableInspectRequest}
               />
             ) : null}

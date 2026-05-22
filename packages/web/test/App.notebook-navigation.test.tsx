@@ -557,6 +557,8 @@ describe("App notebook navigation and inspection", () => {
 
     fireEvent.change(entryInput, { target: { value: "+CdEdited" } });
     await user.click(within(matrixCell).getByRole("button", { name: /^apply$/i }));
+    expect(screen.getByRole("dialog", { name: /rename variable across notebook/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /^no$/i }));
 
     const updatedEntry = within(consumptionRow)
       .getAllByTitle("Double-click to edit")
@@ -706,6 +708,230 @@ describe("App notebook navigation and inspection", () => {
     const matrixHeading = screen.getByRole("heading", { name: /bmw transactions-flow matrix/i });
     const matrixCell = matrixHeading.closest("article");
     expect(matrixCell?.textContent).toMatch(/Mh2/);
+  });
+
+  it("renames a simple matrix reference only in that cell when rename dialog answer is No", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    setSuccessfulNotebookRunner();
+
+    render(<App />);
+
+    const matrixHeading = screen.getByRole("heading", { name: /bmw transactions-flow matrix/i });
+    const matrixCell = matrixHeading.closest("article");
+    expect(matrixCell).not.toBeNull();
+    if (!matrixCell) {
+      throw new Error("Expected BMW transactions-flow matrix article.");
+    }
+
+    const consumptionRow = within(matrixCell).getByText("Consumption").closest("tr");
+    expect(consumptionRow).not.toBeNull();
+    if (!consumptionRow) {
+      throw new Error("Expected consumption row.");
+    }
+
+    const csEntry = within(consumptionRow)
+      .getAllByTitle("Double-click to edit")
+      .find((node) => node.textContent?.includes("-Cs"));
+    expect(csEntry).toBeDefined();
+    if (!csEntry) {
+      throw new Error("Expected -Cs matrix entry.");
+    }
+
+    fireEvent.doubleClick(csEntry);
+
+    const entryInput = within(matrixCell).getByRole("textbox", {
+      name: /matrix entry for row/i
+    });
+    fireEvent.change(entryInput, { target: { value: "-CsOnly" } });
+    await user.click(within(matrixCell).getByRole("button", { name: /^apply$/i }));
+
+    expect(screen.getByRole("dialog", { name: /rename variable across notebook/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /^no$/i }));
+
+    expect(consumptionRow.textContent).toContain("-CsOnly");
+    expect(consumptionRow.textContent).not.toContain("-Cs2");
+
+    const equationsCell = document.getElementById("equations-newton");
+    expect(equationsCell).not.toBeNull();
+    if (equationsCell) {
+      await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+      expect(within(equationsCell).getByRole("button", { name: /^Cs\b/i })).toBeInTheDocument();
+    }
+  });
+
+  it("renames a simple matrix reference across the model when rename dialog answer is Yes", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    setSuccessfulNotebookRunner();
+
+    render(<App />);
+
+    const matrixHeading = screen.getByRole("heading", { name: /bmw transactions-flow matrix/i });
+    const matrixCell = matrixHeading.closest("article");
+    expect(matrixCell).not.toBeNull();
+    if (!matrixCell) {
+      throw new Error("Expected BMW transactions-flow matrix article.");
+    }
+
+    const consumptionRow = within(matrixCell).getByText("Consumption").closest("tr");
+    expect(consumptionRow).not.toBeNull();
+    if (!consumptionRow) {
+      throw new Error("Expected consumption row.");
+    }
+
+    const csEntry = within(consumptionRow)
+      .getAllByTitle("Double-click to edit")
+      .find((node) => node.textContent?.includes("-Cs"));
+    expect(csEntry).toBeDefined();
+    if (!csEntry) {
+      throw new Error("Expected -Cs matrix entry.");
+    }
+
+    fireEvent.doubleClick(csEntry);
+
+    const entryInput = within(matrixCell).getByRole("textbox", {
+      name: /matrix entry for row/i
+    });
+    fireEvent.change(entryInput, { target: { value: "-Cs2" } });
+    await user.click(within(matrixCell).getByRole("button", { name: /^apply$/i }));
+
+    expect(screen.getByRole("dialog", { name: /rename variable across notebook/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /^yes$/i }));
+
+    expect(consumptionRow.textContent).toContain("-Cs2");
+
+    const equationsCell = document.getElementById("equations-newton");
+    expect(equationsCell).not.toBeNull();
+    if (equationsCell) {
+      await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+      expect(within(equationsCell).getByRole("button", { name: /^Cs2\b/i })).toBeInTheDocument();
+    }
+  });
+
+  it("edits a plain matrix reference to a diff without opening the rename dialog", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    setSuccessfulNotebookRunner();
+
+    render(<App />);
+
+    const matrixHeading = screen.getByRole("heading", { name: /bmw transactions-flow matrix/i });
+    const matrixCell = matrixHeading.closest("article");
+    expect(matrixCell).not.toBeNull();
+    if (!matrixCell) {
+      throw new Error("Expected BMW transactions-flow matrix article.");
+    }
+
+    const consumptionRow = within(matrixCell).getByText("Consumption").closest("tr");
+    expect(consumptionRow).not.toBeNull();
+    if (!consumptionRow) {
+      throw new Error("Expected consumption row.");
+    }
+
+    const cdEntry = within(consumptionRow)
+      .getAllByTitle("Double-click to edit")
+      .find((node) => node.textContent?.includes("+Cd"));
+    expect(cdEntry).toBeDefined();
+    if (!cdEntry) {
+      throw new Error("Expected +Cd matrix entry.");
+    }
+
+    fireEvent.doubleClick(cdEntry);
+
+    const entryInput = within(matrixCell).getByRole("textbox", {
+      name: /matrix entry for row/i
+    });
+    fireEvent.change(entryInput, { target: { value: "d(Cd)" } });
+    await user.click(within(matrixCell).getByRole("button", { name: /^apply$/i }));
+
+    expect(screen.queryByRole("dialog", { name: /rename variable across notebook/i })).not.toBeInTheDocument();
+    expect(consumptionRow.textContent).toContain("d(Cd)");
+  });
+
+  it("offers rename dialog when a diff matrix reference changes only the variable name", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    setSuccessfulNotebookRunner();
+
+    render(<App />);
+
+    const matrixHeading = screen.getByRole("heading", { name: /bmw transactions-flow matrix/i });
+    const matrixCell = matrixHeading.closest("article");
+    expect(matrixCell).not.toBeNull();
+    if (!matrixCell) {
+      throw new Error("Expected BMW transactions-flow matrix article.");
+    }
+
+    const changeDepositsRow = within(matrixCell).getByText("Ch. deposits").closest("tr");
+    expect(changeDepositsRow).not.toBeNull();
+    if (!changeDepositsRow) {
+      throw new Error("Expected change deposits row.");
+    }
+
+    const mhDiffEntry = within(changeDepositsRow)
+      .getAllByTitle("Double-click to edit")
+      .find((node) => node.textContent?.includes("-d(Mh)"));
+    expect(mhDiffEntry).toBeDefined();
+    if (!mhDiffEntry) {
+      throw new Error("Expected -d(Mh) matrix entry.");
+    }
+
+    fireEvent.doubleClick(mhDiffEntry);
+
+    const entryInput = within(matrixCell).getByRole("textbox", {
+      name: /matrix entry for row/i
+    });
+    fireEvent.change(entryInput, { target: { value: "-d(Mh2)" } });
+    await user.click(within(matrixCell).getByRole("button", { name: /^apply$/i }));
+
+    expect(screen.getByRole("dialog", { name: /rename variable across notebook/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /^no$/i }));
+
+    expect(changeDepositsRow.textContent).toContain("-d(Mh2)");
+  });
+
+  it("edits a matrix expression cell without opening the rename dialog", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    setSuccessfulNotebookRunner();
+
+    render(<App />);
+
+    const matrixHeading = screen.getByRole("heading", { name: /bmw transactions-flow matrix/i });
+    const matrixCell = matrixHeading.closest("article");
+    expect(matrixCell).not.toBeNull();
+    if (!matrixCell) {
+      throw new Error("Expected BMW transactions-flow matrix article.");
+    }
+
+    const interestDepositsRow = within(matrixCell).getByText("Interest on deposits").closest("tr");
+    expect(interestDepositsRow).not.toBeNull();
+    if (!interestDepositsRow) {
+      throw new Error("Expected interest on deposits row.");
+    }
+
+    const expressionEntry = within(interestDepositsRow)
+      .getAllByTitle("Double-click to edit")
+      .find((node) => node.textContent?.includes("Mh[-1]"));
+    expect(expressionEntry).toBeDefined();
+    if (!expressionEntry) {
+      throw new Error("Expected interest on deposits expression entry.");
+    }
+
+    fireEvent.doubleClick(expressionEntry);
+
+    const entryInput = within(matrixCell).getByRole("textbox", {
+      name: /matrix entry for row/i
+    });
+    fireEvent.change(entryInput, {
+      target: { value: "-rm[-1] * Mh2[-1]" }
+    });
+    await user.click(within(matrixCell).getByRole("button", { name: /^apply$/i }));
+
+    expect(screen.queryByRole("dialog", { name: /rename variable across notebook/i })).not.toBeInTheDocument();
+    expect(interestDepositsRow.textContent).toContain("Mh2[-1]");
+    expect(interestDepositsRow.textContent).not.toContain("Mh[-1]");
   });
 
   it("opens the notebook variable inspector from matrix table variables", async () => {
