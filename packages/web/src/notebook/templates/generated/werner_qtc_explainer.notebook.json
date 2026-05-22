@@ -82,7 +82,7 @@
         { "id": "eq-bank-net-worth", "name": "BankNetWorth", "desc": "Illustrative bank net worth from loans minus deposits.", "expression": "Loans - M", "role": "definition" }
       ]
     },
-    { "id": "qtc-explainer-solver", "type": "solver", "title": "Solver", "modelId": "qtc-explainer-model", "options": { "periods": 60, "solverMethod": "GAUSS_SEIDEL", "toleranceText": "1e-8", "maxIterations": 200, "defaultInitialValueText": "1e-15", "hiddenLeftVariable": "", "hiddenRightVariable": "", "hiddenToleranceText": "1e-5", "relativeHiddenTolerance": false } },
+    { "id": "qtc-explainer-solver", "type": "solver", "title": "Solver", "modelId": "qtc-explainer-model", "options": { "solverMethod": "GAUSS_SEIDEL", "toleranceText": "1e-8", "maxIterations": 200, "defaultInitialValueText": "1e-15", "hiddenLeftVariable": "", "hiddenRightVariable": "", "hiddenToleranceText": "1e-5", "relativeHiddenTolerance": false } },
     {
       "id": "qtc-explainer-externals",
       "type": "externals",
@@ -135,7 +135,7 @@
       "mode": "scenario",
       "scenario": {
         "shocks": [
-          { "rangeInclusive": [1, 60], "variables": { "RealCreditShare_s": { "kind": "constant", "value": 0.35 }, "gCredit_s": { "kind": "constant", "value": 0.06 } }, "startPeriodInclusive": 1, "endPeriodInclusive": 60 }
+          { "variables": { "RealCreditShare_s": { "kind": "constant", "value": 0.35 }, "gCredit_s": { "kind": "constant", "value": 0.06 } }, "startPeriodInclusive": 1, "endPeriodInclusive": 60 }
         ]
       },
       "baselineRunCellId": "baseline-run",
@@ -153,7 +153,7 @@
       "mode": "scenario",
       "scenario": {
         "shocks": [
-          { "rangeInclusive": [1, 60], "variables": { "RealCreditShare_s": { "kind": "constant", "value": 0.8 }, "gCredit_s": { "kind": "constant", "value": 0.06 } }, "startPeriodInclusive": 1, "endPeriodInclusive": 60 }
+          { "variables": { "RealCreditShare_s": { "kind": "constant", "value": 0.8 }, "gCredit_s": { "kind": "constant", "value": 0.06 } }, "startPeriodInclusive": 1, "endPeriodInclusive": 60 }
         ]
       },
       "baselineRunCellId": "baseline-run",

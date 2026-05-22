@@ -168,7 +168,9 @@ describe("App notebook assistant", () => {
 
     await user.click(screen.getByRole("tab", { name: /^assistant$/i }));
     await user.click(screen.getByRole("button", { name: /edit mode/i }));
-    await user.type(screen.getByLabelText(/question/i), "add a govt sector to the matricies");
+    fireEvent.change(screen.getByLabelText(/question/i), {
+      target: { value: "add a govt sector to the matricies" }
+    });
     await user.click(screen.getByRole("button", { name: /prepare edit/i }));
 
     await waitFor(() => {

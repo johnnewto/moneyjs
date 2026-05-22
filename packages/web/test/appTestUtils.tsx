@@ -2,7 +2,7 @@
 
 import "@testing-library/jest-dom/vitest";
 
-import { cleanup, fireEvent as testingFireEvent, screen as testingScreen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent as testingFireEvent, screen as testingScreen, waitFor } from "@testing-library/react";
 import userEventLib from "@testing-library/user-event";
 import { EditorView } from "@codemirror/view";
 import { runBaseline as runCoreBaseline } from "@sfcr/core";
@@ -173,6 +173,24 @@ export async function setNotebookSourceFormat(
   }
 
   await screen.findByTestId("notebook-source-text");
+}
+
+export async function expectVariableInspectorOpen(timeout = 3500): Promise<void> {
+  await testingScreen.findByText("Selected variable", undefined, { timeout });
+}
+
+/** Clicks a variable token that schedules inspect after ~400ms (matrix / equation expression). */
+export async function clickForDeferredVariableInspect(target: Element): Promise<void> {
+  vi.useFakeTimers();
+  try {
+    testingFireEvent.click(target);
+    await act(async () => {
+      vi.advanceTimersByTime(450);
+    });
+  } finally {
+    vi.useRealTimers();
+  }
+  await expectVariableInspectorOpen();
 }
 
 function resolveNotebookSourceFormatFromText(text: string): "json" | "markdown" | "yaml" {

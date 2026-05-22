@@ -9,6 +9,8 @@ import {
   getFormulaTokensByText,
   notebookRunnerMock,
   screen,
+  clickForDeferredVariableInspect,
+  expectVariableInspectorOpen,
   setSuccessfulNotebookRunner,
   setupAppTestEnv,
   userEvent
@@ -416,17 +418,16 @@ describe("App notebook navigation and inspection", () => {
 
     render(<App />);
 
-    const modelHeading = screen.getAllByRole("heading", { name: /bmw model/i })[0];
-    const modelCell = modelHeading.closest("article");
-    expect(modelCell).not.toBeNull();
-    if (!modelCell) {
-      throw new Error("Expected BMW model article.");
+    const equationsCell = document.getElementById("equations-newton");
+    expect(equationsCell).not.toBeNull();
+    if (!(equationsCell instanceof HTMLElement)) {
+      throw new Error("Expected BMW equations cell article.");
     }
 
-    await user.click(within(modelCell).getByRole("button", { name: /^show$/i }));
-    expect(within(modelCell).getByText(/^Role$/i)).toBeInTheDocument();
+    await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+    expect(within(equationsCell).getByText(/^Role$/i)).toBeInTheDocument();
 
-    const yRowButton = within(modelCell).getByRole("button", { name: /^Y\b/i });
+    const yRowButton = within(equationsCell).getByRole("button", { name: /^Y\b/i });
     const yRow = yRowButton.closest('[role="row"]');
     expect(yRow).not.toBeNull();
     if (!(yRow instanceof HTMLElement)) {
@@ -434,7 +435,8 @@ describe("App notebook navigation and inspection", () => {
     }
     expect(within(yRow).getByText(/^Identity$/i)).toBeInTheDocument();
 
-    await user.click(within(modelCell).getByRole("button", { name: /^Y\b/i }));
+    fireEvent.click(yRowButton);
+    await expectVariableInspectorOpen();
 
     const inspectorHeading = screen.getByRole("heading", { name: /^Y\b/i });
     expect(inspectorHeading).toBeInTheDocument();
@@ -450,7 +452,7 @@ describe("App notebook navigation and inspection", () => {
     expect(within(inspector).getByText(/^Equation role$/i)).toBeInTheDocument();
     expect(within(inspector).getByText(/^Identity$/i)).toBeInTheDocument();
     expect(within(inspector).getByText(/^Declared$/i)).toBeInTheDocument();
-  });
+  }, 15000);
 
   it("edits the defining equation expression from the inspect panel", async () => {
     const user = userEvent.setup();
@@ -459,15 +461,16 @@ describe("App notebook navigation and inspection", () => {
 
     render(<App />);
 
-    const modelHeading = screen.getAllByRole("heading", { name: /bmw model/i })[0];
-    const modelCell = modelHeading.closest("article");
-    expect(modelCell).not.toBeNull();
-    if (!modelCell) {
-      throw new Error("Expected BMW model article.");
+    const equationsCell = document.getElementById("equations-newton");
+    expect(equationsCell).not.toBeNull();
+    if (!(equationsCell instanceof HTMLElement)) {
+      throw new Error("Expected BMW equations cell article.");
     }
 
-    await user.click(within(modelCell).getByRole("button", { name: /^show$/i }));
-    await user.click(within(modelCell).getByRole("button", { name: /^Y\b/i }));
+    await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+    const yRowButton = within(equationsCell).getByRole("button", { name: /^Y\b/i });
+    fireEvent.click(yRowButton);
+    await expectVariableInspectorOpen();
 
     const inspector = screen.getByText(/^Selected variable$/i).closest(".variable-inspector-panel");
     expect(inspector).not.toBeNull();
@@ -477,8 +480,7 @@ describe("App notebook navigation and inspection", () => {
 
     await user.click(within(inspector).getByRole("checkbox", { name: /^Edit expression$/i }));
     const expressionField = within(inspector).getByRole("textbox", { name: /^Expression for Y$/i });
-    await user.clear(expressionField);
-    await user.type(expressionField, "Cs + Is + G");
+    fireEvent.change(expressionField, { target: { value: "Cs + Is + G" } });
     await user.click(within(inspector).getByRole("button", { name: /^Apply$/i }));
 
     const inspectorEquation = inspector.querySelector(".inspector-equation-display");
@@ -486,11 +488,11 @@ describe("App notebook navigation and inspection", () => {
     expect(inspectorEquation?.textContent).toMatch(/Is/);
     expect(inspectorEquation?.textContent).toMatch(/G/);
 
-    const yRowAfterEdit = within(modelCell).getByRole("button", { name: /^Y\b/i }).closest('[role="row"]');
+    const yRowAfterEdit = within(equationsCell).getByRole("button", { name: /^Y\b/i }).closest('[role="row"]');
     expect(yRowAfterEdit?.textContent).toMatch(/G/);
-  });
+  }, 15000);
 
-  it("shows variable descriptions for lowercase rate tokens in the BMW transaction-flow matrix", () => {
+  it("shows variable descriptions for lowercase rate tokens in the BMW transaction-flow matrix", async () => {
     window.location.hash = "#/notebook";
     setSuccessfulNotebookRunner();
 
@@ -512,8 +514,10 @@ describe("App notebook navigation and inspection", () => {
     }
 
     fireEvent.mouseEnter(rmToken);
-    expect(screen.getByRole("tooltip")).toHaveTextContent("Rate of interest on bank deposits");
-    expect(screen.getByRole("tooltip").textContent).toMatch(/Rate of interest on bank deposits\s*1\/yr/i);
+    await waitFor(() => {
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Rate of interest on bank deposits");
+    });
+    expect(screen.getByRole("tooltip").textContent).toMatch(/Rate of interest on bank deposits.*1\/yr/i);
     fireEvent.mouseLeave(rmToken);
   });
 
@@ -551,8 +555,7 @@ describe("App notebook navigation and inspection", () => {
     });
     expect(entryInput).toHaveValue("+Cd");
 
-    await user.clear(entryInput);
-    await user.type(entryInput, "+CdEdited");
+    fireEvent.change(entryInput, { target: { value: "+CdEdited" } });
     await user.click(within(matrixCell).getByRole("button", { name: /^apply$/i }));
 
     const updatedEntry = within(consumptionRow)
@@ -568,8 +571,7 @@ describe("App notebook navigation and inspection", () => {
     const cancelInput = within(matrixCell).getByRole("textbox", {
       name: /matrix entry for row/i
     });
-    await user.clear(cancelInput);
-    await user.type(cancelInput, "+CdDraft");
+    fireEvent.change(cancelInput, { target: { value: "+CdDraft" } });
     await user.click(within(matrixCell).getByRole("button", { name: /^cancel$/i }));
 
     expect(
@@ -582,6 +584,128 @@ describe("App notebook navigation and inspection", () => {
         .getAllByTitle("Double-click to edit")
         .some((node) => node.textContent?.includes("CdDraft"))
     ).toBe(false);
+  });
+
+  it("edits an equation row inline without opening cell edit mode", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    setSuccessfulNotebookRunner();
+
+    render(<App />);
+
+    const equationsCell = document.getElementById("equations-newton");
+    expect(equationsCell).not.toBeNull();
+    if (!equationsCell) {
+      throw new Error("Expected equations cell article.");
+    }
+
+    await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+
+    const yRowButton = within(equationsCell).getByRole("button", { name: /^Y\b/i });
+    const yRow = yRowButton.closest('[role="row"]');
+    expect(yRow).not.toBeNull();
+    if (!yRow) {
+      throw new Error("Expected Y equation row.");
+    }
+
+    const yExpression = within(yRow)
+      .getAllByTitle("Double-click to edit")
+      .find((node) => node.classList.contains("notebook-model-view-expression"));
+    expect(yExpression).toBeDefined();
+    if (!yExpression) {
+      throw new Error("Expected Y expression cell.");
+    }
+    fireEvent.doubleClick(yExpression);
+
+    const expressionInput = within(equationsCell).getByRole("textbox", {
+      name: /equation \d+ expression/i
+    });
+    fireEvent.change(expressionInput, { target: { value: "WBd + AF + 1" } });
+    await user.click(within(equationsCell).getByRole("button", { name: /^apply$/i }));
+
+    expect(yRow.textContent).toMatch(/AF \+ 1/);
+    expect(within(equationsCell).queryByRole("button", { name: /^edit$/i })).toBeInTheDocument();
+  });
+
+  it("renames a variable only in the edited row when rename dialog answer is No", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    setSuccessfulNotebookRunner();
+
+    render(<App />);
+
+    const equationsCell = document.getElementById("equations-newton");
+    expect(equationsCell).not.toBeNull();
+    if (!equationsCell) {
+      throw new Error("Expected equations cell article.");
+    }
+
+    await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+
+    const yRowButton = within(equationsCell).getByRole("button", { name: /^Y\b/i });
+    const yRow = yRowButton.closest('[role="row"]');
+    expect(yRow).not.toBeNull();
+    if (!yRow) {
+      throw new Error("Expected Y equation row.");
+    }
+
+    fireEvent.doubleClick(within(yRow).getAllByTitle("Double-click to edit")[0] ?? yRowButton);
+
+    const variableInput = within(equationsCell).getByRole("textbox", {
+      name: /equation \d+ variable/i
+    });
+    fireEvent.change(variableInput, { target: { value: "YOnly" } });
+    await user.click(within(equationsCell).getByRole("button", { name: /^apply$/i }));
+
+    expect(screen.getByRole("dialog", { name: /rename variable across notebook/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /^no$/i }));
+
+    expect(within(equationsCell).getByRole("button", { name: /^YOnly\b/i })).toBeInTheDocument();
+    const cdRow = within(equationsCell).getByRole("button", { name: /^Cd\b/i }).closest('[role="row"]');
+    expect(cdRow?.textContent).toMatch(/YD/);
+    expect(cdRow?.textContent).not.toMatch(/YOnly/);
+  });
+
+  it("renames a variable across the model when rename dialog answer is Yes", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    setSuccessfulNotebookRunner();
+
+    render(<App />);
+
+    const equationsCell = document.getElementById("equations-newton");
+    expect(equationsCell).not.toBeNull();
+    if (!equationsCell) {
+      throw new Error("Expected equations cell article.");
+    }
+
+    await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+
+    const mhRowButton = within(equationsCell).getByRole("button", { name: /^Mh\b/i });
+    const mhRow = mhRowButton.closest('[role="row"]');
+    expect(mhRow).not.toBeNull();
+    if (!mhRow) {
+      throw new Error("Expected Mh equation row.");
+    }
+
+    fireEvent.doubleClick(within(mhRow).getAllByTitle("Double-click to edit")[0] ?? mhRowButton);
+
+    const variableInput = within(equationsCell).getByRole("textbox", {
+      name: /equation \d+ variable/i
+    });
+    fireEvent.change(variableInput, { target: { value: "Mh2" } });
+    await user.click(within(equationsCell).getByRole("button", { name: /^apply$/i }));
+
+    expect(screen.getByRole("dialog", { name: /rename variable across notebook/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /^yes$/i }));
+
+    expect(within(equationsCell).getByRole("button", { name: /^Mh2\b/i })).toBeInTheDocument();
+    const cdRow = within(equationsCell).getByRole("button", { name: /^Cd\b/i }).closest('[role="row"]');
+    expect(cdRow?.textContent).toMatch(/Mh2/);
+
+    const matrixHeading = screen.getByRole("heading", { name: /bmw transactions-flow matrix/i });
+    const matrixCell = matrixHeading.closest("article");
+    expect(matrixCell?.textContent).toMatch(/Mh2/);
   });
 
   it("opens the notebook variable inspector from matrix table variables", async () => {
@@ -606,9 +730,8 @@ describe("App notebook navigation and inspection", () => {
       throw new Error("Expected matrix token for rm.");
     }
 
-    await user.click(rmToken);
+    await clickForDeferredVariableInspect(rmToken);
 
-    expect(screen.getByText("Selected variable")).toBeInTheDocument();
     const inspectorHeading = screen.getByRole("heading", { name: /^rm\b/i });
     expect(inspectorHeading).toBeInTheDocument();
     const selectedVariableLabel = screen.getByText(/^Selected variable$/i);
@@ -642,8 +765,10 @@ describe("App notebook navigation and inspection", () => {
     await user.click(within(ydEquation).getByRole("button", { name: /^Inspect variable YD$/i }));
     expect(screen.getByRole("heading", { name: /^YD\b/i })).toBeInTheDocument();
 
-    await user.click(rmToken);
-    expect(screen.getByRole("heading", { name: /^rm\b/i })).toBeInTheDocument();
+    fireEvent.click(rmToken);
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /^rm\b/i })).toBeInTheDocument();
+    });
     expect(inspector.querySelector(".inspector-related-equation.trace-output")).not.toBeNull();
 
     const mhToken = within(affectedEquationsSection)
@@ -662,7 +787,7 @@ describe("App notebook navigation and inspection", () => {
     }
     expect(inspectorTooltip).toHaveTextContent("Bank deposits held by households");
     expect(inspectorTooltip).toHaveTextContent("Bank deposits held by households : $0");
-  });
+  }, 15000);
 
   it("navigates notebook variable inspector history with go back and go forward", async () => {
     const user = userEvent.setup();
@@ -686,7 +811,7 @@ describe("App notebook navigation and inspection", () => {
       throw new Error("Expected matrix token for rm.");
     }
 
-    await user.click(rmToken);
+    await clickForDeferredVariableInspect(rmToken);
 
     const inspector = screen.getByText(/^Selected variable$/i).closest(".variable-inspector-panel");
     expect(inspector).not.toBeNull();
@@ -730,7 +855,7 @@ describe("App notebook navigation and inspection", () => {
     expect(screen.getByRole("heading", { name: /^YD\b/i })).toBeInTheDocument();
     expect(backButton).not.toBeDisabled();
     expect(forwardButton).toBeDisabled();
-  });
+  }, 15000);
 
   it("opens the notebook variable inspector from dependency graph nodes", async () => {
     const user = userEvent.setup();

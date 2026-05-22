@@ -3,8 +3,14 @@ import { useEffect, useMemo, useState } from "react";
 import { analyzeParsedEquation, parseEquation, type EquationRole } from "@sfcr/core";
 
 import { EquationGridEditor } from "../../components/EquationGridEditor";
-import { buildActiveTrace, buildTraceModel, highlightFormula, togglePinnedTrace, type PinnedTrace } from "../../components/EquationGridEditor";
-import { VariableLabel } from "../../components/VariableLabel";
+import { buildActiveTrace, buildTraceModel, type PinnedTrace } from "../../components/EquationGridEditor";
+import { useInlineEquationRowEdit } from "../useInlineEquationRowEdit";
+import {
+  NotebookEquationReadRow,
+  schedulePinnedTraceToggle,
+  useDeferredAction,
+  VariableRenameDialog
+} from "./EquationRowInlineEditor";
 import { buildRuntimeConfig, diagnoseBuildRuntime, validateEditorState, type EditorState } from "../../lib/editorModel";
 import { buildVariableDescriptions, type VariableDescriptions } from "../../lib/variableDescriptions";
 import { buildVariableUnitMetadata } from "../../lib/units";
@@ -17,19 +23,23 @@ import { formatNotebookCurrentValue } from "./NotebookCurrentValue";
 
 export function ModelCellView({
   cell,
+  cells,
   currentValues,
   onEditingChange,
   onHelpRequest,
   onChange,
+  onReplaceCells,
   onToggleCollapsed,
   onVariableInspectRequest,
   title
 }: {
   cell: ModelCell;
+  cells: NotebookCell[];
   currentValues: Record<string, number | undefined>;
   onEditingChange?(isEditing: boolean): void;
   onHelpRequest?: (() => void) | null;
   onChange(editor: EditorState): void;
+  onReplaceCells(nextCells: NotebookCell[]): void;
   onToggleCollapsed(): void;
   onVariableInspectRequest(args: VariableInspectRequest): void;
   title: string;
@@ -102,6 +112,15 @@ export function ModelCellView({
     setDraftEditor(cell.editor);
     setIsEditingEquations(false);
   }
+
+  const inlineEdit = useInlineEquationRowEdit({
+    cells,
+    equations: cell.editor.equations,
+    onChangeEquations: (equations) => onChange({ ...cell.editor, equations }),
+    onReplaceCells,
+    scope: { kind: "legacyModelCell", cellId: cell.id }
+  });
+  const { scheduleDeferredAction } = useDeferredAction();
 
   return (
     <div className="notebook-model-stack">
@@ -192,114 +211,92 @@ export function ModelCellView({
             {cell.editor.equations.map((equation, index) => {
               const issue =
                 issueMap[`equations.${index}.name`] ?? issueMap[`equations.${index}.expression`];
-              const traceRole = activeTrace?.rowStates.get(equation.id) ?? null;
 
               return (
-                <div
+                <NotebookEquationReadRow
                   key={equation.id}
-                  className={[
-                    "notebook-model-view-row",
-                    issue ? "has-issue" : "",
-                    hoveredRowId === equation.id ? "is-hovered" : "",
-                    traceRole ? `trace-${traceRole}` : ""
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  onClick={(event) =>
-                    setPinnedTrace((current) => togglePinnedTrace(current, equation.id, event))
-                  }
-                  onMouseEnter={() => setHoveredRowId(equation.id)}
-                  onMouseLeave={() =>
-                    setHoveredRowId((current) => (current === equation.id ? null : current))
-                  }
-                  role="row"
-                >
-                  <span className="notebook-model-view-name" role="cell">
-                    {equation.name ? (
-                      <button
-                        type="button"
-                        className="result-variable-button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onVariableInspectRequest({
-                            currentValues,
-                            editor: cell.editor,
-                            modelSource,
-                            selectedVariable: equation.name.trim(),
-                            variableDescriptions,
-                            variableUnitMetadata
-                          });
-                        }}
-                      >
-                        <VariableLabel
-                          className={
-                            traceRole && equation.name.trim()
-                              ? `formula-token trace-token-${
-                                  activeTrace?.tokenStates.get(equation.name.trim()) ?? "root"
-                                }`
-                              : undefined
-                          }
-                          currentValues={currentValues}
-                          name={equation.name}
-                          variableDescriptions={variableDescriptions}
-                          variableUnitMetadata={variableUnitMetadata}
-                        />
-                      </button>
-                    ) : (
-                      "?"
-                    )}
-                  </span>
-                  <span className="notebook-model-view-expression" role="cell">
-                    {equation.expression
-                      ? highlightFormula(
-                          equation.expression,
-                          parameterNameSet,
-                          traceRole ? activeTrace?.tokenStates : undefined,
-                          variableDescriptions,
-                          undefined,
-                          (selectedVariable) =>
-                            onVariableInspectRequest({
-                              currentValues,
-                              editor: cell.editor,
-                              modelSource,
-                              selectedVariable,
-                              variableDescriptions,
-                              variableUnitMetadata
-                            }),
-                          undefined,
-                          currentValues
-                        )
-                      : " "}
-                  </span>
-                  <span className="notebook-model-view-current" role="cell">
-                    {formatNotebookCurrentValue(
-                      equation.name,
-                      currentValues[equation.name.trim()],
+                  activeTraceTokenStates={activeTrace?.tokenStates}
+                  currentValues={currentValues}
+                  equation={equation}
+                  equationIndex={index}
+                  formatRoleLabel={formatEquationRoleLabel}
+                  hoveredRowId={hoveredRowId}
+                  isEditing={inlineEdit.editingEquationId === equation.id}
+                  issueMessage={issue}
+                  parameterNames={parameterNameSet}
+                  rowDraft={{
+                    expression: inlineEdit.draftExpression,
+                    name: inlineEdit.draftName
+                  }}
+                  rowEditFocus={inlineEdit.editFocus}
+                  rowValidationError={inlineEdit.validationError}
+                  traceRole={activeTrace?.rowStates.get(equation.id) ?? null}
+                  variableDescriptions={variableDescriptions}
+                  variableUnitMetadata={variableUnitMetadata}
+                  onApplyRow={inlineEdit.applyRowEdit}
+                  onBeginRowEdit={inlineEdit.beginRowEdit}
+                  onCancelRow={inlineEdit.cancelRowEdit}
+                  onDraftExpressionChange={inlineEdit.setDraftExpression}
+                  onDraftNameChange={inlineEdit.setDraftName}
+                  onInspectVariable={(selectedVariable) =>
+                    onVariableInspectRequest({
+                      currentValues,
+                      editor: cell.editor,
+                      modelSource,
+                      selectedVariable,
                       variableDescriptions,
                       variableUnitMetadata
-                    )}
-                  </span>
-                  <span className="notebook-model-view-kind" role="cell">
-                    {formatEquationRoleLabel(equation)}
-                  </span>
-                </div>
+                    })
+                  }
+                  onRowClick={(event) =>
+                    schedulePinnedTraceToggle(scheduleDeferredAction, setPinnedTrace, equation.id, event)
+                  }
+                  onRowMouseEnter={() => setHoveredRowId(equation.id)}
+                  onRowMouseLeave={() =>
+                    setHoveredRowId((current) => (current === equation.id ? null : current))
+                  }
+                  onSelectVariableInExpression={(selectedVariable) =>
+                    scheduleDeferredAction(() =>
+                      onVariableInspectRequest({
+                        currentValues,
+                        editor: cell.editor,
+                        modelSource,
+                        selectedVariable,
+                        variableDescriptions,
+                        variableUnitMetadata
+                      })
+                    )
+                  }
+                />
               );
             })}
           </div>
         </section>
       )}
+      <VariableRenameDialog
+        cellCount={inlineEdit.renameReferenceCount.cellCount}
+        isOpen={inlineEdit.renameDialog != null}
+        newName={inlineEdit.renameDialog?.name ?? ""}
+        oldName={inlineEdit.renameDialog?.oldName ?? ""}
+        referenceCount={inlineEdit.renameReferenceCount.referenceCount}
+        onCancel={inlineEdit.cancelRowEdit}
+        onConfirmNo={inlineEdit.confirmRenameNo}
+        onConfirmYes={inlineEdit.confirmRenameYes}
+      />
     </div>
   );
 }
 
 export function EquationsCellView({
   cell,
+  cells,
   currentValues,
   externals,
   initialValuesCount,
   onEditingChange,
   onHelpRequest,
   onVariableInspectRequest,
+  onReplaceCells,
   selectedPeriodIndex,
   solverCell,
   title,
@@ -307,12 +304,14 @@ export function EquationsCellView({
   onToggleCollapsed
 }: {
   cell: EquationsCell;
+  cells: NotebookCell[];
   currentValues: Record<string, number | undefined>;
   externals: ExternalsCell["externals"];
   initialValuesCount: number;
   onEditingChange?(isEditing: boolean): void;
   onHelpRequest?: (() => void) | null;
   onVariableInspectRequest(args: VariableInspectRequest): void;
+  onReplaceCells(nextCells: NotebookCell[]): void;
   selectedPeriodIndex: number;
   solverCell: SolverCell | null;
   title: string;
@@ -406,6 +405,15 @@ export function EquationsCellView({
     setDraftEquations(cell.equations);
     setIsEditingEquations(false);
   }
+
+  const inlineEdit = useInlineEquationRowEdit({
+    cells,
+    equations: cell.equations,
+    onChangeEquations: onChange,
+    onReplaceCells,
+    scope: { kind: "modelId", modelId: cell.modelId }
+  });
+  const { scheduleDeferredAction } = useDeferredAction();
 
   return (
     <div className="notebook-model-stack">
@@ -507,102 +515,79 @@ export function EquationsCellView({
             {cell.equations.map((equation, index) => {
               const issue =
                 issueMap[`equations.${index}.name`] ?? issueMap[`equations.${index}.expression`];
-              const traceRole = activeTrace?.rowStates.get(equation.id) ?? null;
 
               return (
-                <div
+                <NotebookEquationReadRow
                   key={equation.id}
-                  className={[
-                    "notebook-model-view-row",
-                    issue ? "has-issue" : "",
-                    hoveredRowId === equation.id ? "is-hovered" : "",
-                    traceRole ? `trace-${traceRole}` : ""
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  onClick={(event) =>
-                    setPinnedTrace((current) => togglePinnedTrace(current, equation.id, event))
-                  }
-                  onMouseEnter={() => setHoveredRowId(equation.id)}
-                  onMouseLeave={() =>
-                    setHoveredRowId((current) => (current === equation.id ? null : current))
-                  }
-                  role="row"
-                >
-                  <span className="notebook-model-view-name" role="cell">
-                    {equation.name ? (
-                      <button
-                        type="button"
-                        className="result-variable-button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onVariableInspectRequest({
-                            currentValues,
-                            editor,
-                            modelSource,
-                            selectedVariable: equation.name.trim(),
-                            variableDescriptions,
-                            variableUnitMetadata
-                          });
-                        }}
-                      >
-                        <VariableLabel
-                          currentValues={currentValues}
-                          className={
-                            traceRole && equation.name.trim()
-                              ? `formula-token trace-token-${
-                                  activeTrace?.tokenStates.get(equation.name.trim()) ?? "root"
-                                }`
-                              : undefined
-                          }
-                          name={equation.name}
-                          variableDescriptions={variableDescriptions}
-                          variableUnitMetadata={variableUnitMetadata}
-                        />
-                      </button>
-                    ) : (
-                      "?"
-                    )}
-                  </span>
-                  <span className="notebook-model-view-expression" role="cell">
-                    {equation.expression
-                      ? highlightFormula(
-                          equation.expression,
-                          parameterNameSet,
-                          traceRole ? activeTrace?.tokenStates : undefined,
-                          variableDescriptions,
-                          variableUnitMetadata,
-                          (selectedVariable) =>
-                            onVariableInspectRequest({
-                              currentValues,
-                              editor,
-                              modelSource,
-                              selectedVariable,
-                              variableDescriptions,
-                              variableUnitMetadata
-                            }),
-                            showExternalValues ? externalDisplayValues : undefined,
-                          currentValues
-                        )
-                      : " "}
-                  </span>
-                  <span className="notebook-model-view-current" role="cell">
-                    {formatNotebookCurrentValue(
-                      equation.name,
-                      currentValues[equation.name.trim()],
+                  activeTraceTokenStates={activeTrace?.tokenStates}
+                  currentValues={currentValues}
+                  displayTokens={showExternalValues ? externalDisplayValues : undefined}
+                  equation={equation}
+                  equationIndex={index}
+                  formatRoleLabel={formatEquationRoleLabel}
+                  hoveredRowId={hoveredRowId}
+                  isEditing={inlineEdit.editingEquationId === equation.id}
+                  issueMessage={issue}
+                  parameterNames={parameterNameSet}
+                  rowDraft={{
+                    expression: inlineEdit.draftExpression,
+                    name: inlineEdit.draftName
+                  }}
+                  rowEditFocus={inlineEdit.editFocus}
+                  rowValidationError={inlineEdit.validationError}
+                  traceRole={activeTrace?.rowStates.get(equation.id) ?? null}
+                  variableDescriptions={variableDescriptions}
+                  variableUnitMetadata={variableUnitMetadata}
+                  onApplyRow={inlineEdit.applyRowEdit}
+                  onBeginRowEdit={inlineEdit.beginRowEdit}
+                  onCancelRow={inlineEdit.cancelRowEdit}
+                  onDraftExpressionChange={inlineEdit.setDraftExpression}
+                  onDraftNameChange={inlineEdit.setDraftName}
+                  onInspectVariable={(selectedVariable) =>
+                    onVariableInspectRequest({
+                      currentValues,
+                      editor,
+                      modelSource,
+                      selectedVariable,
                       variableDescriptions,
                       variableUnitMetadata
-                    )}
-                  </span>
-                  <span className="notebook-model-view-kind" role="cell">
-                    {formatEquationRoleLabel(equation)}
-                  </span>
-                </div>
+                    })
+                  }
+                  onRowClick={(event) =>
+                    schedulePinnedTraceToggle(scheduleDeferredAction, setPinnedTrace, equation.id, event)
+                  }
+                  onRowMouseEnter={() => setHoveredRowId(equation.id)}
+                  onRowMouseLeave={() =>
+                    setHoveredRowId((current) => (current === equation.id ? null : current))
+                  }
+                  onSelectVariableInExpression={(selectedVariable) =>
+                    scheduleDeferredAction(() =>
+                      onVariableInspectRequest({
+                        currentValues,
+                        editor,
+                        modelSource,
+                        selectedVariable,
+                        variableDescriptions,
+                        variableUnitMetadata
+                      })
+                    )
+                  }
+                />
               );
             })}
           </div>
         </section>
       )}
+      <VariableRenameDialog
+        cellCount={inlineEdit.renameReferenceCount.cellCount}
+        isOpen={inlineEdit.renameDialog != null}
+        newName={inlineEdit.renameDialog?.name ?? ""}
+        oldName={inlineEdit.renameDialog?.oldName ?? ""}
+        referenceCount={inlineEdit.renameReferenceCount.referenceCount}
+        onCancel={inlineEdit.cancelRowEdit}
+        onConfirmNo={inlineEdit.confirmRenameNo}
+        onConfirmYes={inlineEdit.confirmRenameYes}
+      />
     </div>
   );
 }

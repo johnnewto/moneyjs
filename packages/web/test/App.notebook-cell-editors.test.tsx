@@ -181,8 +181,7 @@ describe("App per-cell source editors", () => {
     ).not.toBeInTheDocument();
 
     const shockValueInput = within(scenarioArticle).getByLabelText(/value for alpha0/i);
-    await user.clear(shockValueInput);
-    await user.type(shockValueInput, "25.75");
+    fireEvent.change(shockValueInput, { target: { value: "25.75" } });
     await user.click(within(scenarioArticle).getByRole("button", { name: /^apply$/i }));
 
     expect(

@@ -79,7 +79,7 @@
         { "id": "eq-bank-nw", "name": "BankNW", "desc": "Illustrative banking-sector net worth implied by loans minus deposits.", "expression": "L - M", "role": "definition" }
       ]
     },
-    { "id": "qtc-solver", "type": "solver", "title": "Solver", "modelId": "qtc-model", "options": { "periods": 80, "solverMethod": "GAUSS_SEIDEL", "toleranceText": "1e-8", "maxIterations": 200, "defaultInitialValueText": "1e-15", "hiddenLeftVariable": "", "hiddenRightVariable": "", "hiddenToleranceText": "1e-5", "relativeHiddenTolerance": false } },
+    { "id": "qtc-solver", "type": "solver", "title": "Solver", "modelId": "qtc-model", "options": { "solverMethod": "GAUSS_SEIDEL", "toleranceText": "1e-8", "maxIterations": 200, "defaultInitialValueText": "1e-15", "hiddenLeftVariable": "", "hiddenRightVariable": "", "hiddenToleranceText": "1e-5", "relativeHiddenTolerance": false } },
     {
       "id": "qtc-externals",
       "type": "externals",
@@ -128,7 +128,7 @@
       "mode": "scenario",
       "scenario": {
         "shocks": [
-          { "rangeInclusive": [1, 80], "variables": { "gp_s": { "kind": "constant", "value": 0.02 }, "ga_s": { "kind": "constant", "value": 0.08 } }, "startPeriodInclusive": 1, "endPeriodInclusive": 80 }
+          { "variables": { "gp_s": { "kind": "constant", "value": 0.02 }, "ga_s": { "kind": "constant", "value": 0.08 } }, "startPeriodInclusive": 1, "endPeriodInclusive": 80 }
         ]
       },
       "baselineRunCellId": "baseline-run",
@@ -147,7 +147,7 @@
       "mode": "scenario",
       "scenario": {
         "shocks": [
-          { "rangeInclusive": [1, 80], "variables": { "gp_s": { "kind": "constant", "value": 0.01 }, "ga_s": { "kind": "constant", "value": 0.005 } }, "startPeriodInclusive": 1, "endPeriodInclusive": 80 }
+          { "variables": { "gp_s": { "kind": "constant", "value": 0.01 }, "ga_s": { "kind": "constant", "value": 0.005 } }, "startPeriodInclusive": 1, "endPeriodInclusive": 80 }
         ]
       },
       "baselineRunCellId": "baseline-run",

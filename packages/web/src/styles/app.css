@@ -3473,6 +3473,45 @@ body.panel-splitter-body-lock {
   white-space: nowrap;
 }
 
+.notebook-model-view-name.is-editable,
+.notebook-model-view-expression.is-editable {
+  cursor: text;
+}
+
+.notebook-model-view-row-editing {
+  cursor: default;
+}
+
+.notebook-model-view-row-editor-cell {
+  display: grid;
+  gap: 0.35rem;
+  grid-column: 1 / -1;
+}
+
+.notebook-equation-row-editor {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.notebook-equation-row-name-input,
+.notebook-equation-row-expression-input {
+  width: 100%;
+}
+
+.notebook-equation-row-editor-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.notebook-confirm-dialog-summary {
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
+.notebook-confirm-dialog-actions {
+  justify-content: flex-end;
+}
+
 .notebook-model-view-kind {
   color: #64748b;
   font-family: "IBM Plex Mono", "SFMono-Regular", monospace;

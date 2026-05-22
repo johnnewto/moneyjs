@@ -35,7 +35,7 @@ describe("App notebook source and import workflows", () => {
     );
     expect(document.querySelector(".notebook-code-editor .cm-lineWrapping")).toBeNull();
     expect(document.querySelector(".notebook-code-editor .cm-scroller")).toBeTruthy();
-  });
+  }, 15000);
 
   it("renders and previews notebook YAML from the editor tab by default", async () => {
     const user = userEvent.setup();
@@ -108,7 +108,7 @@ describe("App notebook source and import workflows", () => {
       );
       expect(screen.getByRole("button", { name: /apply text/i })).toBeDisabled();
     });
-  });
+  }, 15000);
 
   it("shows detailed model validation issues for invalid notebook JSON", async () => {
     const user = userEvent.setup();

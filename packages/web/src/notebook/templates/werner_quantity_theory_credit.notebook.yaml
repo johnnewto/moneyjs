@@ -126,7 +126,6 @@ cells:
       id: qtc-solver
       title: Solver
       modelId: qtc-model
-      periods: 80
       method: gauss-seidel
       tolerance: "1e-8"
       maxIterations: 200

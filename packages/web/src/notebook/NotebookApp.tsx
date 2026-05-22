@@ -756,6 +756,13 @@ export function NotebookApp() {
     }));
   }
 
+  function replaceCells(nextCells: NotebookCell[]): void {
+    setNotebookDocument((current) => ({
+      ...current,
+      cells: nextCells
+    }));
+  }
+
   function deleteCell(cellId: string): void {
     const cellIndex = notebookDocument.cells.findIndex((cell) => cell.id === cellId);
     if (cellIndex < 0) {
@@ -2343,6 +2350,7 @@ export function NotebookApp() {
                   onMoveCell={moveCell}
                   onModelChange={updateModelCell}
                   onCellChange={updateCell}
+                  onReplaceCells={replaceCells}
                   onCellHelpRequest={handleCellHelpRequest}
                   onVariableInspectRequest={handleVariableInspectRequest}
                   selectedCellId={selectedCellId}

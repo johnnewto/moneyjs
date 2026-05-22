@@ -148,7 +148,6 @@ cells:
       id: qtc-explainer-solver
       title: Solver
       modelId: qtc-explainer-model
-      periods: 60
       method: gauss-seidel
       tolerance: "1e-8"
       maxIterations: 200

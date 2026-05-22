@@ -15,6 +15,7 @@ import {
   findInitialValuesCell,
   findSolverCell
 } from "./modelSections";
+import { resolveNearestNotebookContextCell } from "./notebookContext";
 import { MatrixSourceEditor } from "./MatrixSourceEditor";
 import { NotebookRenderProfiler } from "./notebookProfiler";
 import { RunSourceEditor } from "./RunSourceEditor";
@@ -150,6 +151,7 @@ export interface NotebookCellViewProps {
   onMoveCell(cellId: string, direction: -1 | 1): void;
   onModelChange(cellId: string, editor: EditorState): void;
   onCellChange(cellId: string, updater: (cell: NotebookCell) => NotebookCell): void;
+  onReplaceCells(nextCells: NotebookCell[]): void;
   onCellHelpRequest(args: {
     cellId: string;
     cellType: NotebookCell["type"];
@@ -179,6 +181,7 @@ function NotebookCellViewComponent({
   selectedPeriodIndex,
   onModelChange,
   onCellChange,
+  onReplaceCells,
   onCellHelpRequest,
   onVariableInspectRequest
 }: NotebookCellViewProps) {
@@ -868,6 +871,7 @@ function NotebookCellViewComponent({
         {isCollapsed ? null : cell.type === "equations" ? (
           <EquationsCellView
             cell={cell}
+            cells={cells}
             currentValues={getModelCurrentValues({ modelId: cell.modelId })}
             externals={findExternalsCell(cells, cell.modelId)?.externals ?? []}
             initialValuesCount={
@@ -876,6 +880,7 @@ function NotebookCellViewComponent({
             onEditingChange={setIsLinkedEditorEditing}
             onHelpRequest={requestCellHelp}
             onVariableInspectRequest={onVariableInspectRequest}
+            onReplaceCells={onReplaceCells}
             selectedPeriodIndex={selectedPeriodIndex}
             solverCell={findSolverCell(cells, cell.modelId)}
             title={cell.title}
@@ -896,10 +901,12 @@ function NotebookCellViewComponent({
         {isCollapsed ? null : cell.type === "model" ? (
           <ModelCellView
             cell={cell}
+            cells={cells}
             currentValues={getModelCurrentValues({ sourceModelCellId: cell.id })}
             onEditingChange={setIsLinkedEditorEditing}
             onHelpRequest={requestCellHelp}
             onChange={(editor) => onModelChange(cell.id, editor)}
+            onReplaceCells={onReplaceCells}
             onToggleCollapsed={() =>
               onCellChange(cell.id, (current) =>
                 current.type === "model" ? { ...current, collapsed: !current.collapsed } : current
@@ -1636,27 +1643,6 @@ function resolveModelVariableUnitMetadataForModelId(cells: NotebookCell[], model
     equations: findEquationsCell(cells, modelId)?.equations,
     externals: findExternalsCell(cells, modelId)?.externals
   });
-}
-
-function resolveNearestNotebookContextCell(cells: NotebookCell[], cell: NotebookCell): NotebookCell | null {
-  const currentIndex = cells.findIndex((candidate) => candidate.id === cell.id);
-  if (currentIndex < 0) {
-    return null;
-  }
-
-  for (let offset = 1; offset < cells.length; offset += 1) {
-    const forwardCandidate = cells[currentIndex + offset];
-    if (forwardCandidate && forwardCandidate.type !== "markdown") {
-      return forwardCandidate;
-    }
-
-    const backwardCandidate = cells[currentIndex - offset];
-    if (backwardCandidate && backwardCandidate.type !== "markdown") {
-      return backwardCandidate;
-    }
-  }
-
-  return null;
 }
 
 function resolveNotebookInspectionContext({
