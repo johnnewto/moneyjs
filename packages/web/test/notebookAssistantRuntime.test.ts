@@ -1,11 +1,13 @@
+// @vitest-environment jsdom
 // cspell:ignore sfcr
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   buildNotebookAssistantContext,
   buildNotebookAssistantLocalToolResultAnswer,
   buildNotebookAssistantToolResultContext,
   rearmNotebookAssistantMessagePatchAfterUndo,
+  requestNotebookAssistantAnswer,
   type NotebookAssistantMessage
 } from "../src/notebook/notebookAssistantRuntime";
 import { createNotebookFromTemplate } from "../src/notebook/templates";
@@ -246,6 +248,7 @@ describe("notebook assistant runtime", () => {
     const compactContext = extractToolResultContext(context);
 
     expect(context).toContain("Tool result follow-up context JSON:");
+    expect(context).toContain("createUpdateMatrixPatch { matrixId, columns, rows, sectors? }");
     expect(context).not.toContain("Compact notebook context JSON:");
     expect(context).not.toContain("Notebook JSON:");
     expect(compactContext).toEqual(
@@ -255,6 +258,102 @@ describe("notebook assistant runtime", () => {
         nb: ["bmw-notebook", "BMW Browser Notebook"],
         resultCount: 3,
         toolResults: [["createUpdateParameterPatch", true, "Update parameter 'alpha1' to 0.6.", 1]]
+      })
+    );
+  });
+
+  it("reads notebook assistant text from response.completed SSE events", async () => {
+    const fetchMock = vi.fn(async () => new Response(
+      [
+        `data: ${JSON.stringify({
+          type: "response.completed",
+          response: {
+            output_text: "```json\n{ \"notebookAssistantToolRequests\": [{ \"name\": \"getMatrix\", \"args\": {} }] }\n```"
+          }
+        })}\n\n`,
+        "data: [DONE]\n\n"
+      ].join(""),
+      {
+        headers: {
+          "Content-Type": "text/event-stream"
+        }
+      }
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      requestNotebookAssistantAnswer({
+        betaPassword: "",
+        context: "context",
+        messages: [],
+        model: "gpt-5.4-mini",
+        question: "question"
+      })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        text: expect.stringContaining('"name": "getMatrix"')
+      })
+    );
+  });
+
+  it("falls back to SSE parsing when the response content type is wrong", async () => {
+    const fetchMock = vi.fn(async () => new Response(
+      [
+        "event: response.completed\n",
+        `data: ${JSON.stringify({
+          type: "response.completed",
+          response: {
+            output_text: "```json\n{ \"notebookAssistantToolRequests\": [{ \"name\": \"createUpdateMatrixPatch\", \"args\": { \"matrixId\": \"balance-sheet\", \"columns\": [\"Households\", \"Sum\"], \"rows\": [{ \"label\": \"Sum\", \"values\": [\"0\", \"0\"] }] } }] }\n```"
+          }
+        })}\n\n`,
+        "event: done\n",
+        "data: [DONE]\n\n"
+      ].join(""),
+      {
+        headers: {
+          "Content-Type": "text/plain"
+        }
+      }
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      requestNotebookAssistantAnswer({
+        betaPassword: "",
+        context: "context",
+        messages: [],
+        model: "gpt-5.5",
+        question: "question"
+      })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        text: expect.stringContaining("createUpdateMatrixPatch")
+      })
+    );
+  });
+
+  it("reads notebook assistant JSON responses without stream body reuse errors", async () => {
+    const fetchMock = vi.fn(async () => new Response(
+      JSON.stringify({ output_text: "fallback text" }),
+      {
+        headers: {
+          "Content-Type": "application/json"
+        }
+      }
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      requestNotebookAssistantAnswer({
+        betaPassword: "",
+        context: "context",
+        messages: [],
+        model: "gpt-5.4-mini",
+        question: "question"
+      })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        text: "fallback text"
       })
     );
   });

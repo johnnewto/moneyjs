@@ -127,6 +127,17 @@ describe("notebook assistant tools", () => {
       })
     );
 
+    expect(getMatrix(snapshot)).toEqual(
+      expect.objectContaining({
+        matrices: expect.arrayContaining([
+          expect.objectContaining({
+            id: "transaction-flow",
+            title: "BMW transactions-flow matrix"
+          })
+        ])
+      })
+    );
+
     expect(getVariableMetadata(snapshot, "rm")).toEqual(
       expect.objectContaining({
         variable: "rm",
@@ -169,6 +180,21 @@ describe("notebook assistant tools", () => {
       expect.objectContaining({
         ok: true,
         name: "getSeriesWindow"
+      })
+    );
+
+    expect(
+      dispatchNotebookAssistantTool(snapshot, {
+        name: "getMatrix",
+        args: {}
+      })
+    ).toEqual(
+      expect.objectContaining({
+        ok: true,
+        name: "getMatrix",
+        data: expect.objectContaining({
+          matrices: expect.any(Array)
+        })
       })
     );
 
@@ -1160,6 +1186,50 @@ describe("notebook assistant tools", () => {
                 })
               })
             ]
+          })
+        })
+      })
+    );
+
+    expect(
+      dispatchNotebookAssistantTool(snapshot, {
+        name: "createUpdateMatrixPatch",
+        args: {
+          matrixId: "balance-sheet",
+          columns: ["Households", "Production firms", "Banks", "Government", "Sum"],
+          sectors: ["Households", "Firms", "Banks", "Government", ""],
+          rows: [
+            { band: "Deposits", label: "Money deposits", values: ["+Mh", "", "-Ms", "", "0"] },
+            { band: "Loans", label: "Loans", values: ["", "-Ld", "+Ls", "", "0"] },
+            { band: "Government bills", label: "Government bills", values: ["+Bh", "", "+Bb", "-Bs", "0"] },
+            { band: "Investment", label: "Fixed capital", values: ["", "+K", "", "", "+K"] },
+            { band: "Balance", label: "Balance (net worth)", values: ["-Vh", "-V", "0", "+Vg", "0"] },
+            { band: "Sum", label: "Sum", values: ["0", "0", "0", "0", "0"] }
+          ]
+        }
+      })
+    ).toEqual(
+      expect.objectContaining({
+        ok: true,
+        data: expect.objectContaining({
+          patch: expect.objectContaining({
+            operations: expect.arrayContaining([
+              expect.objectContaining({
+                op: "replace",
+                path: "/cells/by-id/balance-sheet/columns",
+                value: ["Households", "Production firms", "Banks", "Government", "Sum"]
+              }),
+              expect.objectContaining({
+                op: "replace",
+                path: "/cells/by-id/balance-sheet/rows",
+                value: expect.arrayContaining([
+                  expect.objectContaining({
+                    label: "Government bills",
+                    values: ["+Bh", "", "+Bb", "-Bs", "0"]
+                  })
+                ])
+              })
+            ])
           })
         })
       })

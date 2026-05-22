@@ -4,7 +4,8 @@ import {
   extractAssistantTokenUsage,
   formatAssistantTokenUsage,
   mergeAssistantTokenUsage,
-  parseAssistantSseChunk
+  parseAssistantSseChunk,
+  readAssistantSseResponse
 } from "../src/assistant/sse";
 
 describe("assistant SSE parsing", () => {
@@ -79,6 +80,57 @@ describe("assistant SSE parsing", () => {
       reasoningTokens: 128,
       totalTokens: 19254
     });
+  });
+
+  it("does not duplicate final full-text frames after deltas", async () => {
+    const response = new Response(
+      [
+        'data: {"type":"response.output_text.delta","delta":"Hel"}',
+        "",
+        'data: {"type":"response.output_text.done","text":"Hello"}',
+        "",
+        'data: {"type":"response.completed","response":{"output_text":"Hello"}}',
+        "",
+        "data: [DONE]",
+        ""
+      ].join("\n"),
+      {
+        headers: {
+          "Content-Type": "text/event-stream"
+        }
+      }
+    );
+    const deltas: string[] = [];
+
+    await expect(
+      readAssistantSseResponse(
+        response,
+        (event) => {
+          if (!event || typeof event !== "object" || !("type" in event)) {
+            return "";
+          }
+          if (event.type === "response.output_text.delta" && "delta" in event && typeof event.delta === "string") {
+            return event.delta;
+          }
+          if (event.type === "response.output_text.done" && "text" in event && typeof event.text === "string") {
+            return event.text;
+          }
+          if (
+            event.type === "response.completed" &&
+            "response" in event &&
+            event.response &&
+            typeof event.response === "object" &&
+            "output_text" in event.response &&
+            typeof event.response.output_text === "string"
+          ) {
+            return event.response.output_text;
+          }
+          return "";
+        },
+        (delta) => deltas.push(delta)
+      )
+    ).resolves.toEqual({ text: "Hello" });
+    expect(deltas).toEqual(["Hel", "lo"]);
   });
 
   it("formats token usage for notebook toasts", () => {

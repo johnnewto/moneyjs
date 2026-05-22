@@ -247,6 +247,8 @@ export function buildNotebookAssistantToolFollowupQuestion(args: {
     "Use these notebook assistant tool results to answer the original question.",
     "Do not ask for the same tool calls again unless the results are insufficient.",
     "If a result contains a patch proposal, summarize the proposed change and say it is ready for user preview/apply.",
+    "If the original question asks for an edit and read-tool results contain enough information to prepare it, request the appropriate patch helper tool instead of answering only in prose.",
+    "For structural matrix column/sector edits, request createUpdateMatrixPatch with full updated columns, optional sectors, and rows.",
     "Do not quote raw patch JSON, JSON Pointer paths, or internal cell ids from tool results.",
     `Original question: ${args.originalQuestion}`,
     "Tool results JSON:",
@@ -340,6 +342,23 @@ export function filterNotebookAssistantToolRequestsForMode(
     },
     { allowed: [], blocked: [] }
   );
+}
+
+export function preferMatrixLookupForMatrixEditQuestion(
+  mode: NotebookAssistantMode,
+  question: string,
+  requests: NotebookAssistantToolRequest[]
+): NotebookAssistantToolRequest[] {
+  if (
+    mode !== "edit" ||
+    requests.length !== 1 ||
+    requests[0]?.name !== "getNotebookSummary" ||
+    !/\bmatri(?:x|ces|cies)\b/i.test(question)
+  ) {
+    return requests;
+  }
+
+  return [{ name: "getMatrix", args: {} }];
 }
 
 export function formatNotebookAssistantMode(mode: NotebookAssistantMode): string {
@@ -534,7 +553,10 @@ function normalizeNotebookAssistantToolRequestArgs(
   }
 
   if (
-    (name === "createAddMatrixRowPatch" || name === "createUpdateMatrixRowPatch" || name === "createRemoveMatrixRowPatch") &&
+    (name === "createAddMatrixRowPatch" ||
+      name === "createUpdateMatrixRowPatch" ||
+      name === "createUpdateMatrixPatch" ||
+      name === "createRemoveMatrixRowPatch") &&
     typeof args.matrixId !== "string"
   ) {
     const matrixId = resolveStringAlias(args, ["matrixId", "matrixCellId", "cellId", "id", "matrix"]);

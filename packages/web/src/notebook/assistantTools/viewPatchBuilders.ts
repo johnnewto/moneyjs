@@ -1,5 +1,5 @@
 import type { NotebookPatch, NotebookPatchOperation } from "../notebookPatch";
-import type { RunCell } from "../types";
+import type { MatrixCell, RunCell } from "../types";
 import type { NotebookAssistantSnapshot } from "./types";
 import { createSetCellPropertyOperation, createUniqueCellId, escapeJsonPointerSegment, normalizeRequiredName, resolveChartCell, resolveMatrixCell, resolveMatrixRow, resolveRunCell, resolveTableCell, resolveInsertAfterLabelIndex, slugifyCellId, summarizeNotebookPatchProposal, validateMatrixRowValues, validateVariablesInRunResult } from "./shared";
 
@@ -178,6 +178,36 @@ export function createUpdateMatrixRowPatch(
   return summarizeNotebookPatchProposal(snapshot, patch);
 }
 
+export function createUpdateMatrixPatch(
+  snapshot: NotebookAssistantSnapshot,
+  args: {
+    columns: string[];
+    matrixId: string;
+    rows: MatrixCell["rows"];
+    sectors?: string[];
+  }
+) {
+  const matrix = resolveMatrixCell(snapshot, args.matrixId, "matrixId");
+  if (args.columns.length === 0) {
+    throw new Error("Matrix columns must not be empty.");
+  }
+  if (args.sectors && args.sectors.length !== args.columns.length) {
+    throw new Error(`Matrix '${matrix.id}' expects ${args.columns.length} sectors, received ${args.sectors.length}.`);
+  }
+  args.rows.forEach((row) => validateMatrixRowValues({ ...matrix, columns: args.columns }, row.values));
+
+  const patch: NotebookPatch = {
+    description: `Update matrix '${matrix.title}'.`,
+    operations: [
+      createSetCellPropertyOperation(matrix, "columns", args.columns),
+      ...(args.sectors ? [createSetCellPropertyOperation(matrix, "sectors", args.sectors)] : []),
+      createSetCellPropertyOperation(matrix, "rows", args.rows)
+    ]
+  };
+
+  return summarizeNotebookPatchProposal(snapshot, patch);
+}
+
 export function createRemoveMatrixRowPatch(
   snapshot: NotebookAssistantSnapshot,
   args: { label: string; matrixId: string }
@@ -245,5 +275,4 @@ export function createUpdateChartOptionsPatch(
 
   return summarizeNotebookPatchProposal(snapshot, patch);
 }
-
 

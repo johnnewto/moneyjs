@@ -46,6 +46,7 @@ import {
   formatNotebookAssistantMode,
   getNotebookAssistantModeContract,
   getPatchFromNotebookAssistantToolResults,
+  preferMatrixLookupForMatrixEditQuestion,
   resolveNotebookAssistantMode,
   summarizeNotebookAssistantToolResults,
   type NotebookAssistantMode
@@ -1541,10 +1542,24 @@ export function NotebookApp() {
         return;
       }
 
-      const modeFilteredRequests = filterNotebookAssistantToolRequestsForMode(
+      const preferredToolRequests = preferMatrixLookupForMatrixEditQuestion(
         activeAssistantMode,
+        question,
         toolRequestExtraction.requests
       );
+      if (preferredToolRequests !== toolRequestExtraction.requests) {
+        appendAssistantDebugEvent({
+          detail: {
+            from: toolRequestExtraction.requests,
+            to: preferredToolRequests
+          },
+          label: "Rewrote matrix edit lookup to getMatrix",
+          turnId,
+          type: "tool:extracted"
+        });
+      }
+
+      const modeFilteredRequests = filterNotebookAssistantToolRequestsForMode(activeAssistantMode, preferredToolRequests);
       if (modeFilteredRequests.blocked.length > 0) {
         appendAssistantDebugEvent({
           detail: { blocked: modeFilteredRequests.blocked, mode: activeAssistantMode },
@@ -1700,8 +1715,214 @@ export function NotebookApp() {
         turnId,
         type: "response:received"
       });
+      const followupMessages: NotebookAssistantMessage[] = [
+        ...assistantMessages.slice(-6),
+        userMessage,
+        {
+          id: assistantMessageId,
+          role: "assistant",
+          text: firstAnswer
+        }
+      ];
+      let resolvedFinalAnswer = finalAnswer;
+      let resolvedToolSummary = toolSummary;
+
+      for (let followupRound = 0; followupRound < 2; followupRound += 1) {
+        const followupToolRequestExtraction = extractNotebookAssistantToolRequests(resolvedFinalAnswer);
+        appendAssistantDebugEvent({
+          detail: followupToolRequestExtraction,
+          label: followupToolRequestExtraction.error
+            ? "Tool request extraction failed"
+            : `Extracted ${followupToolRequestExtraction.requests.length} tool request${followupToolRequestExtraction.requests.length === 1 ? "" : "s"}`,
+          turnId,
+          type: "tool:extracted"
+        });
+        if (followupToolRequestExtraction.error) {
+          setAssistantMessages((current) =>
+            current.map((message) =>
+              message.id === assistantMessageId
+                ? {
+                    ...message,
+                    text: followupToolRequestExtraction.error ?? "Assistant requested notebook tools, but the request could not be parsed."
+                  }
+                : message
+            )
+          );
+          return;
+        }
+
+        if (followupToolRequestExtraction.requests.length === 0) {
+          break;
+        }
+
+        const followupModeFilteredRequests = filterNotebookAssistantToolRequestsForMode(
+          activeAssistantMode,
+          followupToolRequestExtraction.requests
+        );
+        if (followupModeFilteredRequests.blocked.length > 0) {
+          appendAssistantDebugEvent({
+            detail: { blocked: followupModeFilteredRequests.blocked, mode: activeAssistantMode },
+            label: `Blocked ${followupModeFilteredRequests.blocked.length} tool request${followupModeFilteredRequests.blocked.length === 1 ? "" : "s"}`,
+            turnId,
+            type: "tool:blocked"
+          });
+        }
+        if (followupModeFilteredRequests.allowed.length === 0 && followupModeFilteredRequests.blocked.length > 0) {
+          setAssistantMessages((current) =>
+            current.map((message) =>
+              message.id === assistantMessageId
+                ? {
+                    ...message,
+                    text: "Ask mode can inspect notebook state with read tools, but it will not create patch proposals. Switch to Edit mode to prepare notebook changes for preview."
+                  }
+                : message
+            )
+          );
+          return;
+        }
+
+        const followupToolRequests = followupModeFilteredRequests.allowed.slice(0, NOTEBOOK_ASSISTANT_MAX_TOOL_REQUESTS_PER_ROUND);
+        const followupToolDispatch = dispatchNotebookAssistantToolRequests(buildNotebookAssistantSnapshot(), followupToolRequests);
+        const followupToolResults = followupToolDispatch.toolResults;
+        const followupProposedPatch = followupToolDispatch.proposedPatch ?? getPatchFromNotebookAssistantToolResults(followupToolResults, followupToolRequests);
+        appendAssistantDebugEvent({
+          detail: { requests: followupToolRequests, results: followupToolResults },
+          label: `Ran ${followupToolResults.length} assistant tool${followupToolResults.length === 1 ? "" : "s"}`,
+          turnId,
+          type: "tool:result"
+        });
+        if (followupProposedPatch) {
+          appendAssistantDebugEvent({
+            detail: followupProposedPatch,
+            label: `Prepared patch with ${followupProposedPatch.operations.length} operation${followupProposedPatch.operations.length === 1 ? "" : "s"}`,
+            turnId,
+            type: "patch:proposed"
+          });
+          setNotebookAssistantMessagePatch(setAssistantMessages, assistantMessageId, followupProposedPatch, notebookDocument);
+        }
+
+        const localFollowupToolResultAnswer = activeAssistantMode === "edit"
+          ? buildNotebookAssistantLocalToolResultAnswer({ proposedPatch: followupProposedPatch, toolResults: followupToolResults })
+          : null;
+        if (localFollowupToolResultAnswer) {
+          appendAssistantDebugEvent({
+            detail: { reason: "successful follow-up edit tool patch", toolResultCount: followupToolResults.length },
+            label: "Skipped follow-up assistant request",
+            phase: "followup",
+            turnId,
+            type: "request:skipped"
+          });
+          setNotebookAssistantMessageText(setAssistantMessages, assistantMessageId, localFollowupToolResultAnswer);
+          return;
+        }
+
+        if (followupRound === 1) {
+          setNotebookAssistantMessageText(
+            setAssistantMessages,
+            assistantMessageId,
+            "The notebook assistant needed more notebook tool lookups than this turn allows. Try again with the specific matrix, chart, run, or variable name included."
+          );
+          return;
+        }
+
+        resolvedToolSummary = summarizeNotebookAssistantToolResults(followupToolResults);
+        followupMessages.push({
+          id: `${assistantMessageId}-followup-${followupRound + 1}`,
+          role: "assistant",
+          text: resolvedFinalAnswer
+        });
+        setAssistantMessages((current) =>
+          current.map((message) =>
+            message.id === assistantMessageId
+              ? {
+                  ...message,
+                  text: `${resolvedToolSummary} Preparing answer...`
+                }
+              : message
+          )
+        );
+
+        streamedText = "";
+        let nestedFollowupStreamDeltaLogged = false;
+        const nestedFollowupContext = buildNotebookAssistantToolResultContext({
+          assistantMode: activeAssistantMode,
+          document: notebookDocument,
+          resultCount,
+          selectedPeriodIndex,
+          selectedVariable: inspectorContext?.selectedVariable,
+          toolResults: followupToolResults,
+          uiMessage
+        });
+        appendAssistantDebugEvent({
+          detail: {
+            contextChars: nestedFollowupContext.length,
+            resultCount,
+            selectedPeriodIndex,
+            selectedVariable: inspectorContext?.selectedVariable ?? null,
+            toolResultCount: followupToolResults.length
+          },
+          label: `Built follow-up context (${nestedFollowupContext.length} chars)`,
+          phase: "followup",
+          turnId,
+          type: "context:built"
+        });
+        appendAssistantDebugEvent({
+          detail: {
+            messageCount: followupMessages.length,
+            model: assistantModel,
+            toolResultCount: followupToolResults.length
+          },
+          label: "Sent follow-up assistant request",
+          phase: "followup",
+          turnId,
+          type: "request:start"
+        });
+        const nestedFollowupAnswerResult = await requestNotebookAssistantAnswer({
+          betaPassword: assistantBetaPassword,
+          context: nestedFollowupContext,
+          messages: followupMessages,
+          model: assistantModel,
+          onTextDelta: (delta) => {
+            streamedText += delta;
+            if (!nestedFollowupStreamDeltaLogged) {
+              nestedFollowupStreamDeltaLogged = true;
+              appendAssistantDebugEvent({
+                detail: { deltaChars: delta.length, totalChars: streamedText.length },
+                label: "Received follow-up stream text",
+                phase: "followup",
+                turnId,
+                type: "stream:delta"
+              });
+            }
+            setAssistantMessages((current) =>
+              current.map((message) =>
+                message.id === assistantMessageId ? { ...message, text: `${resolvedToolSummary}\n\n${streamedText}` } : message
+              )
+            );
+          },
+          question: buildNotebookAssistantToolFollowupQuestion({
+            originalQuestion: question,
+            toolResults: followupToolResults
+          })
+        });
+        if (nestedFollowupAnswerResult.usage) {
+          turnUsage = mergeAssistantTokenUsage(turnUsage, nestedFollowupAnswerResult.usage);
+          if (turnUsage) {
+            setUiMessage(formatAssistantTokenUsage(turnUsage, assistantModel));
+          }
+        }
+        resolvedFinalAnswer = nestedFollowupAnswerResult.text;
+        appendAssistantDebugEvent({
+          detail: { chars: resolvedFinalAnswer.length, text: resolvedFinalAnswer },
+          label: `Received follow-up assistant response (${resolvedFinalAnswer.length} chars)`,
+          phase: "followup",
+          turnId,
+          type: "response:received"
+        });
+      }
+
       const directPatch = activeAssistantMode === "edit"
-        ? extractNotebookPatchProposal({ document: notebookDocument, question, text: finalAnswer })
+        ? extractNotebookPatchProposal({ document: notebookDocument, question, text: resolvedFinalAnswer })
         : null;
       if (directPatch) {
         const policy = evaluateNotebookAssistantDirectPatchPolicy(notebookDocument, directPatch);
@@ -1751,7 +1972,7 @@ export function NotebookApp() {
       }
 
       const textProposalRequest = activeAssistantMode === "edit"
-        ? extractTextChartVariablesToolRequest(notebookDocument, `${question}\n${finalAnswer}`)
+        ? extractTextChartVariablesToolRequest(notebookDocument, `${question}\n${resolvedFinalAnswer}`)
         : null;
       if (textProposalRequest) {
         const result = dispatchNotebookAssistantTool(buildNotebookAssistantSnapshot(), textProposalRequest);
@@ -2661,4 +2882,3 @@ export function NotebookApp() {
     </NotebookRenderProfiler>
   );
 }
-

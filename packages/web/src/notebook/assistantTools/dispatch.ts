@@ -1,6 +1,6 @@
 import { previewNotebookPatch as previewPatch, validateNotebookPatch as validatePatch, type NotebookPatch } from "../notebookPatch";
 import { requireAddEquationArgs, requireInteger, requirePatch, requireRunId, requireScenarioDefinition, requireString, requireStringArray, requireStringArrayAllowEmpty, requireStringOrNumber, requireUpdateEquationArgs, optionalBoolean, optionalChartAxisMode, optionalEquationRole, optionalExternalKind, optionalInteger, optionalIntegerPair, optionalPlainObject, optionalReferenceTrace, optionalScenarioDefinition, optionalSolverMethod, optionalStockFlow, optionalString, optionalStringArrayAllowEmpty, optionalStringOrNumber, optionalUnitMeta } from "./args";
-import { createAddChartPatch, createAddMatrixRowPatch, createAddTablePatch, createRemoveMatrixRowPatch, createUpdateChartOptionsPatch, createUpdateChartVariablesPatch, createUpdateMatrixRowPatch, createUpdateTableVariablesPatch } from "./viewPatchBuilders";
+import { createAddChartPatch, createAddMatrixRowPatch, createAddTablePatch, createRemoveMatrixRowPatch, createUpdateChartOptionsPatch, createUpdateChartVariablesPatch, createUpdateMatrixPatch, createUpdateMatrixRowPatch, createUpdateTableVariablesPatch } from "./viewPatchBuilders";
 import { createAddEquationPatch, createAddExternalPatch, createAddInitialValuePatch, createRemoveEquationPatch, createUpdateEquationPatch, createUpdateExternalPatch, createUpdateInitialValuePatch, createUpdateParameterPatch, createUpdateVariableDescriptionPatch, createUpdateVariableUnitMetaPatch } from "./modelPatchBuilders";
 import { createAddMarkdownCellPatch, createAddScenarioRunPatch, createUpdateMarkdownCellPatch, createUpdateNotebookTitlePatch, createUpdateRunOptionsPatch } from "./notebookPatchBuilders";
 import { explainNotebookPatch } from "./patchTools";
@@ -51,7 +51,7 @@ export function dispatchNotebookAssistantTool(
           })
         );
       case "getMatrix":
-        return success(request.name, getMatrix(snapshot, requireString(request.args, "matrixId")));
+        return success(request.name, getMatrix(snapshot, optionalString(request.args, "matrixId") ?? undefined));
       case "getVariableMetadata":
         return success(
           request.name,
@@ -250,6 +250,16 @@ export function dispatchNotebookAssistantTool(
             values: optionalStringArrayAllowEmpty(request.args, "values")
           })
         );
+      case "createUpdateMatrixPatch":
+        return success(
+          request.name,
+          createUpdateMatrixPatch(snapshot, {
+            columns: requireStringArray(request.args, "columns"),
+            matrixId: requireString(request.args, "matrixId"),
+            rows: requireMatrixRows(request.args),
+            sectors: optionalStringArrayAllowEmpty(request.args, "sectors")
+          })
+        );
       case "createRemoveMatrixRowPatch":
         return success(
           request.name,
@@ -417,4 +427,35 @@ function combineNotebookPatches(patches: NotebookPatch[]): NotebookPatch | null 
 
 function success(name: NotebookAssistantToolName, data: unknown): NotebookAssistantToolResult {
   return { ok: true, name, data };
+}
+
+function requireMatrixRows(args: Record<string, unknown> | undefined) {
+  const value = args?.rows;
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error("Tool argument 'rows' must be a non-empty matrix row array.");
+  }
+
+  return value.map((entry, index) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      throw new Error(`Tool argument 'rows' item ${index + 1} must be an object.`);
+    }
+    const row = entry as Record<string, unknown>;
+    if (typeof row.label !== "string" || row.label.trim() === "") {
+      throw new Error(`Tool argument 'rows' item ${index + 1} must include a non-empty label.`);
+    }
+    if (!Array.isArray(row.values)) {
+      throw new Error(`Tool argument 'rows' item ${index + 1} must include values.`);
+    }
+
+    return {
+      ...(typeof row.band === "string" && row.band.trim() ? { band: row.band.trim() } : {}),
+      label: row.label.trim(),
+      values: row.values.map((cell, cellIndex) => {
+        if (typeof cell !== "string") {
+          throw new Error(`Tool argument 'rows' item ${index + 1} value ${cellIndex + 1} must be a string.`);
+        }
+        return cell;
+      })
+    };
+  });
 }

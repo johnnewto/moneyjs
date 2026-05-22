@@ -106,16 +106,9 @@ export function getSeriesWindow(
   };
 }
 
-export function getMatrix(snapshot: NotebookAssistantSnapshot, matrixId: string) {
-  const normalizedMatrixId = normalizeRequiredName(matrixId, "matrixId");
-  const matrix = snapshot.document.cells.find(
-    (cell): cell is MatrixCell => cell.type === "matrix" && cell.id === normalizedMatrixId
-  );
-  if (!matrix) {
-    throw new Error(`Unknown matrix: ${normalizedMatrixId}`);
-  }
-
-  return {
+export function getMatrix(snapshot: NotebookAssistantSnapshot, matrixId?: string) {
+  const matrices = snapshot.document.cells.filter((cell): cell is MatrixCell => cell.type === "matrix");
+  const serializeMatrix = (matrix: MatrixCell) => ({
     id: matrix.id,
     title: matrix.title,
     sourceRunCellId: matrix.sourceRunCellId ?? null,
@@ -128,7 +121,21 @@ export function getMatrix(snapshot: NotebookAssistantSnapshot, matrixId: string)
       label: row.label,
       values: row.values
     }))
-  };
+  });
+
+  if (typeof matrixId !== "string" || !matrixId.trim()) {
+    return {
+      matrices: matrices.map(serializeMatrix)
+    };
+  }
+
+  const normalizedMatrixId = normalizeRequiredName(matrixId, "matrixId");
+  const matrix = matrices.find((cell) => cell.id === normalizedMatrixId);
+  if (!matrix) {
+    throw new Error(`Unknown matrix: ${normalizedMatrixId}`);
+  }
+
+  return serializeMatrix(matrix);
 }
 
 export function getVariableMetadata(snapshot: NotebookAssistantSnapshot, variable: string) {

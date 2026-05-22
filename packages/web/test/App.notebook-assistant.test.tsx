@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { render, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   App,
@@ -96,4 +96,106 @@ describe("App notebook assistant", () => {
     });
   }, 15000);
 
+  it("continues through response.completed SSE follow-up tool rounds before preparing a patch", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    const responses = [
+      {
+        output_text: `\`\`\`json
+{
+  "notebookAssistantToolRequests": [
+    {
+      "name": "getMatrix",
+      "args": {
+        "cellId": "matrix"
+      }
+    }
+  ]
+}
+\`\`\``
+      },
+      {
+        output_text: `\`\`\`json
+{
+  "notebookAssistantToolRequests": [
+    {
+      "name": "getMatrix",
+      "args": {}
+    }
+  ]
+}
+\`\`\``
+      },
+      {
+        output_text: `\`\`\`json
+{
+  "notebookAssistantToolRequests": [
+    {
+      "name": "createUpdateMatrixPatch",
+      "args": {
+        "matrixId": "balance-sheet",
+        "columns": ["Households", "Production firms", "Banks", "Government", "Sum"],
+        "sectors": ["Households", "Firms", "Banks", "Government", ""],
+        "rows": [
+          { "band": "Deposits", "label": "Money deposits", "values": ["+Mh", "", "-Ms", "", "0"] },
+          { "band": "Loans", "label": "Loans", "values": ["", "-Ld", "+Ls", "", "0"] },
+          { "band": "Government bills", "label": "Government bills", "values": ["+Bh", "", "+Bb", "-Bs", "0"] },
+          { "band": "Investment", "label": "Fixed capital", "values": ["", "+K", "", "", "+K"] },
+          { "band": "Balance", "label": "Balance (net worth)", "values": ["-Vh", "-V", "0", "+Vg", "0"] },
+          { "band": "Sum", "label": "Sum", "values": ["0", "0", "0", "0", "0"] }
+        ]
+      }
+    }
+  ]
+}
+\`\`\``
+      }
+    ];
+    const fetchMock = vi.fn(async (input: string) => {
+      if (input !== "http://localhost:8787/v1/notebook-assistant/ask") {
+        throw new Error(`Unexpected fetch call: ${input}`);
+      }
+      const next = responses.shift();
+      if (!next) {
+        throw new Error("Unexpected extra assistant request.");
+      }
+      return completedSseResponse(next.output_text);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await user.click(screen.getByRole("tab", { name: /^assistant$/i }));
+    await user.click(screen.getByRole("button", { name: /edit mode/i }));
+    await user.type(screen.getByLabelText(/question/i), "add a govt sector to the matricies");
+    await user.click(screen.getByRole("button", { name: /prepare edit/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    });
+
+    expect(screen.getByText(/proposed change prepared/i)).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /apply patch/i }).length).toBeGreaterThan(0);
+  }, 15000);
+
 });
+
+function completedSseResponse(outputText: string): Response {
+  return new Response(
+    [
+      `data: ${JSON.stringify({
+        type: "response.completed",
+        response: {
+          output_text: outputText
+        }
+      })}\n\n`,
+      "data: [DONE]\n\n"
+    ].join(""),
+    {
+      headers: {
+        "Content-Type": "text/event-stream"
+      }
+    }
+  );
+}

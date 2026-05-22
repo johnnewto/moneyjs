@@ -34,7 +34,7 @@ export const NOTEBOOK_ASSISTANT_TOOL_REGISTRY = [
     args: "{ runId: string, variable: string, start: integer, end: integer }",
     notes: ["Use start/end, not startIndex/endIndex.", "Use one variable per request; send multiple requests to compare variables."]
   },
-  { name: "getMatrix", kind: "read", args: "{ matrixId: string }" },
+  { name: "getMatrix", kind: "read", args: "{ matrixId?: string }", notes: ["Omit matrixId to list all matrix cells with their ids and contents."] },
   { name: "getVariableMetadata", kind: "read", args: "{ variable: string }" },
   { name: "getDependencyGraph", kind: "read", args: "{ variable?: string }" },
   { name: "listRuns", kind: "read", args: "{}" },
@@ -74,6 +74,12 @@ export const NOTEBOOK_ASSISTANT_TOOL_REGISTRY = [
   { name: "createUpdateTableVariablesPatch", kind: "patch", args: "{ tableId: string, variables: string[] }", notes: ["Use tableId for the table cell."] },
   { name: "createAddMatrixRowPatch", kind: "patch", args: "{ matrixId: string, label: string, values: string[], band?: string, insertAfterLabel?: string }" },
   { name: "createUpdateMatrixRowPatch", kind: "patch", args: "{ matrixId: string, label: string, values?: string[], newLabel?: string, band?: string }" },
+  {
+    name: "createUpdateMatrixPatch",
+    kind: "patch",
+    args: "{ matrixId: string, columns: string[], rows: Array<{ label: string, values: string[], band?: string }>, sectors?: string[] }",
+    notes: ["Use row helpers for single-row edits; use this for structural column/sector updates."]
+  },
   { name: "createRemoveMatrixRowPatch", kind: "patch", args: "{ matrixId: string, label: string }" },
   { name: "createAddMarkdownCellPatch", kind: "patch", args: "{ title: string, source: string, cellId?: string, insertAfterCellId?: string, insertAfterCellTitle?: string }" },
   { name: "createUpdateMarkdownCellPatch", kind: "patch", args: "{ cellId?: string, cellTitle?: string, title?: string, source?: string }" },

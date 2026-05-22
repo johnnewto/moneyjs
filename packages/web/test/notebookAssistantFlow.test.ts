@@ -9,6 +9,7 @@ import {
   extractTextChartVariablesToolRequest,
   filterNotebookAssistantToolRequestsForMode,
   getPatchFromNotebookAssistantToolResults,
+  preferMatrixLookupForMatrixEditQuestion,
   summarizeNotebookAssistantToolResults
 } from "../src/notebook/notebookAssistantFlow";
 import {
@@ -369,6 +370,27 @@ describe("notebook assistant flow", () => {
     });
   });
 
+  it("keeps getMatrix requests when args are omitted", () => {
+    expect(
+      extractNotebookAssistantToolRequests('```json\n{"notebookAssistantToolRequests":[{"name":"getMatrix","args":{}}]}\n```')
+    ).toEqual({
+      requests: [{ name: "getMatrix", args: {} }]
+    });
+  });
+
+  it("prefers matrix lookup over summary for matrix edit requests", () => {
+    expect(
+      preferMatrixLookupForMatrixEditQuestion("edit", "add a govt sector to the matricies", [
+        { name: "getNotebookSummary", args: {} }
+      ])
+    ).toEqual([{ name: "getMatrix", args: {} }]);
+    expect(
+      preferMatrixLookupForMatrixEditQuestion("ask", "add a govt sector to the matrices", [
+        { name: "getNotebookSummary", args: {} }
+      ])
+    ).toEqual([{ name: "getNotebookSummary", args: {} }]);
+  });
+
   it("extracts semantic notebook patch proposals as helper requests", () => {
     expect(
       extractNotebookAssistantToolRequests(`Here is the helper-generated patch proposal:
@@ -606,6 +628,12 @@ describe("notebook assistant flow", () => {
         toolResults
       })
     ).toContain("Tool results JSON");
+    expect(
+      buildNotebookAssistantToolFollowupQuestion({
+        originalQuestion: "add a govt sector to the matrices",
+        toolResults
+      })
+    ).toContain("request the appropriate patch helper tool instead of answering only in prose");
   });
 
   it("adds expected syntax to failed tool results in follow-up questions", () => {

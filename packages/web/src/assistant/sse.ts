@@ -44,8 +44,11 @@ export async function readAssistantSseResponse(
     for (const chunk of chunks) {
       const eventText = parseAssistantSseChunk(chunk, parseDelta, collectEvent);
       if (eventText) {
-        text += eventText;
-        onTextDelta?.(eventText);
+        const textDelta = appendAssistantSseText(text, eventText);
+        text = textDelta.text;
+        if (textDelta.delta) {
+          onTextDelta?.(textDelta.delta);
+        }
       }
     }
   }
@@ -53,11 +56,28 @@ export async function readAssistantSseResponse(
   buffer += decoder.decode();
   const remainingText = parseAssistantSseChunk(buffer, parseDelta, collectEvent);
   if (remainingText) {
-    text += remainingText;
-    onTextDelta?.(remainingText);
+    const textDelta = appendAssistantSseText(text, remainingText);
+    text = textDelta.text;
+    if (textDelta.delta) {
+      onTextDelta?.(textDelta.delta);
+    }
   }
 
   return { text, usage };
+}
+
+function appendAssistantSseText(currentText: string, eventText: string): { delta: string; text: string } {
+  if (!currentText || !eventText.startsWith(currentText)) {
+    return {
+      delta: eventText,
+      text: currentText + eventText
+    };
+  }
+
+  return {
+    delta: eventText.slice(currentText.length),
+    text: eventText
+  };
 }
 
 export function parseAssistantSseChunk(

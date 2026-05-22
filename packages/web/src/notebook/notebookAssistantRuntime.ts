@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import { createNotebookDiagnostic } from "@sfcr/notebook-core";
 
-import { extractOpenAiTextResponse, extractOpenAiUsageResponse, postAssistantJson } from "../assistant/client";
+import { extractOpenAiTextResponse, extractOpenAiUsageResponse, postAssistantJson, type OpenAiTextResponse } from "../assistant/client";
 import { readAssistantSseResponse, type AssistantTokenUsage } from "../assistant/sse";
 import type { NotebookPatch, NotebookPatchResult } from "./notebookPatch";
 import { previewNotebookPatch } from "./notebookPatch";
@@ -70,13 +70,14 @@ export async function requestNotebookAssistantAnswer(args: {
   onTextDelta?: (delta: string) => void;
   question: string;
 }): Promise<NotebookAssistantAnswer> {
-  if (!NOTEBOOK_ASSISTANT_API_URL) {
+  const assistantApiUrl = NOTEBOOK_ASSISTANT_API_URL || resolveNotebookAssistantApiUrl();
+  if (!assistantApiUrl) {
     throw new Error("Notebook assistant API endpoint is not configured.");
   }
 
   const response = await postAssistantJson({
     fallbackErrorMessage: "Failed to ask notebook assistant.",
-    url: NOTEBOOK_ASSISTANT_API_URL,
+    url: assistantApiUrl,
     body: {
       ...(args.betaPassword.trim() ? { betaPassword: args.betaPassword.trim() } : {}),
       context: args.context,
@@ -90,6 +91,8 @@ export async function requestNotebookAssistantAnswer(args: {
   });
 
   const contentType = response.headers.get("Content-Type") ?? "";
+  const jsonFallbackResponse = response.body ? response.clone() : response;
+  const sseFallbackResponse = response.body ? response.clone() : null;
   if (response.body && contentType.includes("text/event-stream")) {
     const streamedResult = await readNotebookAssistantSseResponse(response, args.onTextDelta);
     if (streamedResult.text.trim()) {
@@ -100,7 +103,21 @@ export async function requestNotebookAssistantAnswer(args: {
     }
   }
 
-  const result = await response.json();
+  let result: OpenAiTextResponse;
+  try {
+    result = await jsonFallbackResponse.json() as OpenAiTextResponse;
+  } catch (error) {
+    if (sseFallbackResponse) {
+      const streamedResult = await readNotebookAssistantSseResponse(sseFallbackResponse, args.onTextDelta);
+      if (streamedResult.text.trim()) {
+        return {
+          text: streamedResult.text.trim(),
+          usage: streamedResult.usage
+        };
+      }
+    }
+    throw error;
+  }
   const text = extractOpenAiTextResponse(result);
 
   if (!text) {
@@ -243,6 +260,7 @@ export function buildNotebookAssistantToolResultContext(args: {
       `Notebook id: ${args.document.id}`,
       `Assistant mode: ${formatNotebookAssistantMode(args.assistantMode)}`,
       `Assistant mode contract: ${getNotebookAssistantModeContract(args.assistantMode)}`,
+      args.assistantMode === "edit" ? `Patch helper syntax:\n${summarizeEditFollowupPatchHelperSyntax()}` : null,
       "Tool result follow-up context JSON:",
       JSON.stringify(
         compactObject({
@@ -642,6 +660,16 @@ function summarizeEditNotebookAssistantToolSyntax(): string {
   ].join("\n");
 }
 
+function summarizeEditFollowupPatchHelperSyntax(): string {
+  return [
+    "Request patch helpers only as JSON: { \"notebookAssistantToolRequests\": [{ \"name\": \"toolName\", \"args\": { ... } }] }",
+    "Use canonical long arg names, never compact context keys.",
+    "- createAddMatrixRowPatch { matrixId, label, values, band?, insertAfterLabel? }",
+    "- createUpdateMatrixRowPatch { matrixId, label, values?, newLabel?, band? }",
+    "- createUpdateMatrixPatch { matrixId, columns, rows, sectors? } for structural matrix column/sector updates."
+  ].join("\n");
+}
+
 function compactObject<T extends Record<string, unknown>>(value: T): T {
   return Object.fromEntries(
     Object.entries(value).filter(([, entry]) => {
@@ -684,7 +712,11 @@ function resolveNotebookAssistantApiUrl(): string {
 
   if (
     typeof window !== "undefined" &&
-    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+    (
+      window.location.hostname === "" ||
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1"
+    )
   ) {
     return "http://localhost:8787/v1/notebook-assistant/ask";
   }
@@ -709,6 +741,27 @@ function parseNotebookAssistantSseEvent(event: unknown): string {
     typeof event.delta === "string"
   ) {
     return event.delta;
+  }
+
+  if (
+    event &&
+    typeof event === "object" &&
+    "type" in event &&
+    "text" in event &&
+    event.type === "response.output_text.done" &&
+    typeof event.text === "string"
+  ) {
+    return event.text;
+  }
+
+  if (
+    event &&
+    typeof event === "object" &&
+    "type" in event &&
+    "response" in event &&
+    event.type === "response.completed"
+  ) {
+    return extractOpenAiTextResponse(event.response as Parameters<typeof extractOpenAiTextResponse>[0]) ?? "";
   }
 
   return "";
