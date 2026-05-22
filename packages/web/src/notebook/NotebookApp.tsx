@@ -567,6 +567,8 @@ export function NotebookApp() {
     serializeNotebookSource(notebookDocument, sourceFormat)
   );
   const [selectedPeriodIndex, setSelectedPeriodIndex] = useState(0);
+  const [isNotebookCommandTrayOpen, setIsNotebookCommandTrayOpen] = useState(false);
+  const [isNotebookCommandTrayDismissed, setIsNotebookCommandTrayDismissed] = useState(false);
   const [autoRunRevision, setAutoRunRevision] = useState(0);
   const [activeEditorCellId, setActiveEditorCellId] = useState<string | null>(null);
   const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
@@ -615,6 +617,8 @@ export function NotebookApp() {
   } | null>(null);
   const runner = useNotebookRunner(notebookDocument);
   const latestHistoryUpdateRef = useRef(0);
+  const notebookCommandTrayRef = useRef<HTMLElement | null>(null);
+  const notebookCommandTrayToggleRef = useRef<HTMLButtonElement | null>(null);
   const assistantVariableDescriptions = useMemo(
     () => buildNotebookVariableDescriptions(notebookDocument.cells),
     [notebookDocument.cells]
@@ -811,6 +815,36 @@ export function NotebookApp() {
   useEffect(() => {
     setSelectedPeriodIndex((current) => Math.min(current, maxResultPeriodIndex));
   }, [maxResultPeriodIndex]);
+
+  useEffect(() => {
+    if (!isNotebookCommandTrayOpen) {
+      return;
+    }
+
+    function handleCommandTrayOutsidePointerDown(event: PointerEvent): void {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      if (notebookCommandTrayRef.current?.contains(target)) {
+        return;
+      }
+
+      if (notebookCommandTrayToggleRef.current?.contains(target)) {
+        return;
+      }
+
+      setIsNotebookCommandTrayOpen(false);
+      setIsNotebookCommandTrayDismissed(true);
+    }
+
+    document.addEventListener("pointerdown", handleCommandTrayOutsidePointerDown, true);
+
+    return () => {
+      document.removeEventListener("pointerdown", handleCommandTrayOutsidePointerDown, true);
+    };
+  }, [isNotebookCommandTrayOpen]);
 
   useEffect(() => {
     void runner.runAll();
@@ -2383,114 +2417,141 @@ export function NotebookApp() {
           onClickCapture={notebookMainDragScroll.dragScrollProps.onClickCapture}
           onMouseDown={notebookMainDragScroll.dragScrollProps.onMouseDown}
         >
-          {maxResultPeriodIndex > 0 ? (
-            <div className="notebook-scrubber-slot">
-              <PeriodScrubber
-                maxIndex={maxResultPeriodIndex}
-                onChange={setSelectedPeriodIndex}
-                selectedIndex={selectedPeriodIndex}
-              />
-            </div>
-          ) : null}
-
-          <section className="control-panel notebook-app-bar">
-            <div className="notebook-app-bar-main">
-              <div className="notebook-app-bar-brand">
-                <div className="notebook-app-bar-meta">
-                  <span className="eyebrow">Notebook commands</span>
-                  <span className="notebook-build-badge" title={__SFCR_BUILD_DATE__}>
-                    {BUILD_DATE_LABEL}
-                  </span>
-                </div>
-                <strong>{notebookDocument.title}</strong>
-              </div>
-
-              <div className="notebook-app-bar-actions">
+          <div
+            className={`notebook-top-tray${
+              isNotebookCommandTrayOpen ? " is-command-tray-open" : ""
+            }${isNotebookCommandTrayDismissed ? " is-command-tray-dismissed" : ""
+            }${maxResultPeriodIndex > 0 ? " has-period-scrubber" : ""}`}
+            onMouseLeave={() => setIsNotebookCommandTrayDismissed(false)}
+          >
+            {maxResultPeriodIndex > 0 ? (
+              <div className="notebook-scrubber-slot">
+                <PeriodScrubber
+                  maxIndex={maxResultPeriodIndex}
+                  onChange={setSelectedPeriodIndex}
+                  selectedIndex={selectedPeriodIndex}
+                />
                 <button
+                  ref={notebookCommandTrayToggleRef}
                   type="button"
-                  className="notebook-run-button"
-                  title={nextUndoLabel ? `Undo: ${nextUndoLabel}` : "Nothing to undo"}
-                  aria-label={nextUndoLabel ? `Undo: ${nextUndoLabel}` : "Undo"}
-                  onClick={() => handleUndoNotebookEdit()}
-                  disabled={!nextUndoLabel}
-                >
-                  Undo
-                </button>
-                <button
-                  type="button"
-                  className="notebook-run-button"
-                  title={nextRedoLabel ? `Redo: ${nextRedoLabel}` : "Nothing to redo"}
-                  aria-label={nextRedoLabel ? `Redo: ${nextRedoLabel}` : "Redo"}
-                  onClick={handleRedoNotebookEdit}
-                  disabled={!nextRedoLabel}
-                >
-                  Redo
-                </button>
-                <button type="button" className="notebook-run-button" onClick={() => void handleRunAll()}>
-                  Run all
-                </button>
-                <button
-                  type="button"
-                  className="notebook-run-button notebook-action-desktop"
-                  onClick={handleValidateNotebook}
-                >
-                  Validate
-                </button>
-                <button
-                  type="button"
-                  className="notebook-run-button notebook-action-desktop"
-                  onClick={handleExportJson}
-                >
-                  Export
-                </button>
-                <button
-                  type="button"
-                  className="notebook-run-button notebook-action-desktop"
+                  className="notebook-command-tray-toggle"
+                  aria-controls="notebook-command-tray"
+                  aria-expanded={isNotebookCommandTrayOpen}
+                  aria-pressed={isNotebookCommandTrayOpen}
                   onClick={() => {
-                    setActiveRailTab("editor");
+                    const nextIsOpen = !isNotebookCommandTrayOpen;
+                    setIsNotebookCommandTrayOpen(nextIsOpen);
+                    setIsNotebookCommandTrayDismissed(!nextIsOpen);
                   }}
                 >
-                  Import
+                  Commands
                 </button>
-                <button
-                  type="button"
-                  className="notebook-run-button"
-                  {...{ "aria-pressed": activeRailTab === "contents" }}
-                  onClick={() => setActiveRailTab("contents")}
-                >
-                  Contents
-                </button>
-                <a
-                  className="notebook-toolbar-link notebook-run-button notebook-action-desktop"
-                  href={NOTEBOOK_AI_LANDING_URL}
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  AI resources
-                </a>
-                <a
-                  className="notebook-toolbar-link notebook-run-button notebook-action-desktop"
-                  href={NOTEBOOK_AI_GUIDE_URL}
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  AI guide
-                </a>
-                <a
-                  className="notebook-toolbar-link notebook-run-button notebook-action-desktop"
-                  href="#/workspace"
-                >
-                  Workspace
-                </a>
-                <a
-                  className="notebook-toolbar-link notebook-run-button notebook-action-desktop"
-                  href="#/chat-builder"
-                >
-                  Chat builder
-                </a>
               </div>
-            </div>
-          </section>
+            ) : null}
+
+            <section
+              ref={notebookCommandTrayRef}
+              id="notebook-command-tray"
+              className="control-panel notebook-app-bar notebook-command-tray"
+            >
+              <div className="notebook-app-bar-main">
+                <div className="notebook-app-bar-brand">
+                  <div className="notebook-app-bar-meta">
+                    <span className="eyebrow">Notebook commands</span>
+                    <span className="notebook-build-badge" title={__SFCR_BUILD_DATE__}>
+                      {BUILD_DATE_LABEL}
+                    </span>
+                  </div>
+                  <strong>{notebookDocument.title}</strong>
+                </div>
+
+                <div className="notebook-app-bar-actions">
+                  <button
+                    type="button"
+                    className="notebook-run-button"
+                    title={nextUndoLabel ? `Undo: ${nextUndoLabel}` : "Nothing to undo"}
+                    aria-label={nextUndoLabel ? `Undo: ${nextUndoLabel}` : "Undo"}
+                    onClick={() => handleUndoNotebookEdit()}
+                    disabled={!nextUndoLabel}
+                  >
+                    Undo
+                  </button>
+                  <button
+                    type="button"
+                    className="notebook-run-button"
+                    title={nextRedoLabel ? `Redo: ${nextRedoLabel}` : "Nothing to redo"}
+                    aria-label={nextRedoLabel ? `Redo: ${nextRedoLabel}` : "Redo"}
+                    onClick={handleRedoNotebookEdit}
+                    disabled={!nextRedoLabel}
+                  >
+                    Redo
+                  </button>
+                  <button type="button" className="notebook-run-button" onClick={() => void handleRunAll()}>
+                    Run all
+                  </button>
+                  <button
+                    type="button"
+                    className="notebook-run-button notebook-action-desktop"
+                    onClick={handleValidateNotebook}
+                  >
+                    Validate
+                  </button>
+                  <button
+                    type="button"
+                    className="notebook-run-button notebook-action-desktop"
+                    onClick={handleExportJson}
+                  >
+                    Export
+                  </button>
+                  <button
+                    type="button"
+                    className="notebook-run-button notebook-action-desktop"
+                    onClick={() => {
+                      setActiveRailTab("editor");
+                    }}
+                  >
+                    Import
+                  </button>
+                  <button
+                    type="button"
+                    className="notebook-run-button"
+                    {...{ "aria-pressed": activeRailTab === "contents" }}
+                    onClick={() => setActiveRailTab("contents")}
+                  >
+                    Contents
+                  </button>
+                  <a
+                    className="notebook-toolbar-link notebook-run-button notebook-action-desktop"
+                    href={NOTEBOOK_AI_LANDING_URL}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    AI resources
+                  </a>
+                  <a
+                    className="notebook-toolbar-link notebook-run-button notebook-action-desktop"
+                    href={NOTEBOOK_AI_GUIDE_URL}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    AI guide
+                  </a>
+                  <a
+                    className="notebook-toolbar-link notebook-run-button notebook-action-desktop"
+                    href="#/workspace"
+                  >
+                    Workspace
+                  </a>
+                  <a
+                    className="notebook-toolbar-link notebook-run-button notebook-action-desktop"
+                    href="#/chat-builder"
+                  >
+                    Chat builder
+                  </a>
+                </div>
+              </div>
+            </section>
+          </div>
 
           <NotebookRenderProfiler
             id="NotebookCanvas"

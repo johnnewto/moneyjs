@@ -12,6 +12,63 @@ afterEach(() => {
 });
 
 describe("SequenceDiagramCanvas", () => {
+  it("uses a narrower minimum width for small diagrams", () => {
+    render(
+      <SequenceDiagramCanvas
+        diagram={{
+          participants: [
+            { id: "Households", label: "Households", order: 0 },
+            { id: "Firms", label: "Firms", order: 1 }
+          ],
+          steps: [
+            {
+              type: "message",
+              senderId: "Households",
+              receiverId: "Firms",
+              label: "Consumption",
+              lineStyle: "solid"
+            }
+          ],
+          errors: []
+        }}
+        visibleStepCount={1}
+        highlightedStepIndex={null}
+      />
+    );
+
+    expect(screen.getByRole("img", { name: "Sequence diagram" })).toHaveAttribute("width", "360");
+  });
+
+  it("keeps wider diagrams scrollable when participant spacing needs it", () => {
+    render(
+      <SequenceDiagramCanvas
+        diagram={{
+          participants: [
+            { id: "Households", label: "Households", order: 0 },
+            { id: "Firms", label: "Firms", order: 1 },
+            { id: "Banks", label: "Banks", order: 2 },
+            { id: "Government", label: "Government", order: 3 },
+            { id: "RestOfWorld", label: "Rest of world", order: 4 }
+          ],
+          steps: [
+            {
+              type: "message",
+              senderId: "Households",
+              receiverId: "Firms",
+              label: "Consumption",
+              lineStyle: "solid"
+            }
+          ],
+          errors: []
+        }}
+        visibleStepCount={1}
+        highlightedStepIndex={null}
+      />
+    );
+
+    expect(screen.getByRole("img", { name: "Sequence diagram" })).toHaveAttribute("width", "650");
+  });
+
   it("renders negative message labels in red", () => {
     render(
       <SequenceDiagramCanvas

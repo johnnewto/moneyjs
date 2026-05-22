@@ -36,18 +36,20 @@ interface SequenceLayout {
   bottomBoxTop: number;
 }
 
-const MIN_CANVAS_WIDTH = 620;
-const SIDE_PADDING = 26;
+const BASE_MIN_CANVAS_WIDTH = 360;
+const PARTICIPANT_MIN_WIDTH = 130;
+const SIDE_PADDING = 0;
+const SCROLL_FIT_GUARD = 0;
 const PARTICIPANT_BOX_HEIGHT = 40;
 const HEADER_TOP = 6;
-const LIFELINE_TOP_GAP = 20;
+const LIFELINE_TOP_GAP = 10;
 const STEP_GAP = 40;
-const FOOTER_GAP = 72;
+const FOOTER_GAP = 36;
 const HORIZONTAL_COMPACTNESS = 0.82;
 const BOTTOM_BOX_TOP_GAP = -12;
 const NEGATIVE_MESSAGE_LABEL_COLOR = "#b42318";
 
-function readHorizontalPadding(element: HTMLElement | null): number {
+function readHorizontalInsets(element: HTMLElement | null): number {
   if (!element) {
     return 0;
   }
@@ -55,8 +57,15 @@ function readHorizontalPadding(element: HTMLElement | null): number {
   const styles = window.getComputedStyle(element);
   const left = Number.parseFloat(styles.paddingLeft);
   const right = Number.parseFloat(styles.paddingRight);
+  const borderLeft = Number.parseFloat(styles.borderLeftWidth);
+  const borderRight = Number.parseFloat(styles.borderRightWidth);
 
-  return (Number.isFinite(left) ? left : 0) + (Number.isFinite(right) ? right : 0);
+  return (
+    (Number.isFinite(left) ? left : 0) +
+    (Number.isFinite(right) ? right : 0) +
+    (Number.isFinite(borderLeft) ? borderLeft : 0) +
+    (Number.isFinite(borderRight) ? borderRight : 0)
+  );
 }
 
 export function SequenceDiagramCanvas({
@@ -67,15 +76,17 @@ export function SequenceDiagramCanvas({
 }: SequenceDiagramCanvasProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const canvasDragScroll = useDragScroll<HTMLDivElement>();
-  const [width, setWidth] = useState(MIN_CANVAS_WIDTH);
+  const minimumWidth = useMemo(() => computeMinimumCanvasWidth(diagram), [diagram]);
+  const [width, setWidth] = useState(minimumWidth);
   const [highlightAnimationSeed, setHighlightAnimationSeed] = useState(0);
   const previousHighlightRef = useRef<number | null>(null);
+  const effectiveWidth = Math.max(width, minimumWidth);
 
   const steps = useMemo(
     () => diagram.steps.slice(0, Math.max(0, Math.min(visibleStepCount, diagram.steps.length))),
     [diagram.steps, visibleStepCount]
   );
-  const layout = useMemo(() => buildSequenceLayout(diagram, width), [diagram, width]);
+  const layout = useMemo(() => buildSequenceLayout(diagram, effectiveWidth), [diagram, effectiveWidth]);
   const maxMagnitude = useMemo(
     () =>
       steps.reduce((currentMax, step) => {
@@ -90,10 +101,11 @@ export function SequenceDiagramCanvas({
   useEffect(() => {
     function updateWidth(): void {
       const wrapper = wrapperRef.current;
-      const horizontalPadding = readHorizontalPadding(wrapper);
+      const measuredWidth = wrapper?.getBoundingClientRect().width ?? minimumWidth;
+      const horizontalInsets = readHorizontalInsets(wrapper);
       const nextWidth = Math.max(
-        MIN_CANVAS_WIDTH,
-        Math.round((wrapper?.clientWidth ?? MIN_CANVAS_WIDTH) - horizontalPadding)
+        minimumWidth,
+        Math.floor(measuredWidth - horizontalInsets - SCROLL_FIT_GUARD)
       );
       setWidth((current) => (current === nextWidth ? current : nextWidth));
     }
@@ -108,7 +120,7 @@ export function SequenceDiagramCanvas({
 
     window.addEventListener("resize", updateWidth);
     return () => window.removeEventListener("resize", updateWidth);
-  }, []);
+  }, [minimumWidth]);
 
   useEffect(() => {
     if (
@@ -200,6 +212,11 @@ export function SequenceDiagramCanvas({
       </svg>
     </div>
   );
+}
+
+function computeMinimumCanvasWidth(diagram: ParsedDiagram): number {
+  const participantCount = Math.max(diagram.participants.length, 1);
+  return Math.max(BASE_MIN_CANVAS_WIDTH, participantCount * PARTICIPANT_MIN_WIDTH + SIDE_PADDING * 2);
 }
 
 function ParticipantBoxes({
