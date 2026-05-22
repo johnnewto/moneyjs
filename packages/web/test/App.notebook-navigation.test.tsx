@@ -517,6 +517,73 @@ describe("App notebook navigation and inspection", () => {
     fireEvent.mouseLeave(rmToken);
   });
 
+  it("edits a matrix entry inline in the run view with per-cell apply and cancel", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    setSuccessfulNotebookRunner();
+
+    render(<App />);
+
+    const matrixHeading = screen.getByRole("heading", { name: /bmw transactions-flow matrix/i });
+    const matrixCell = matrixHeading.closest("article");
+    expect(matrixCell).not.toBeNull();
+    if (!matrixCell) {
+      throw new Error("Expected BMW transactions-flow matrix article.");
+    }
+
+    const consumptionRow = within(matrixCell).getByText("Consumption").closest("tr");
+    expect(consumptionRow).not.toBeNull();
+    if (!consumptionRow) {
+      throw new Error("Expected consumption row in BMW transaction-flow matrix.");
+    }
+
+    const firmsDemandEntry = within(consumptionRow)
+      .getAllByTitle("Double-click to edit")
+      .find((node) => node.textContent?.includes("Cd"));
+    expect(firmsDemandEntry).toBeDefined();
+    if (!firmsDemandEntry) {
+      throw new Error("Expected editable +Cd matrix entry.");
+    }
+    fireEvent.doubleClick(firmsDemandEntry);
+
+    const entryInput = within(matrixCell).getByRole("textbox", {
+      name: /matrix entry for row/i
+    });
+    expect(entryInput).toHaveValue("+Cd");
+
+    await user.clear(entryInput);
+    await user.type(entryInput, "+CdEdited");
+    await user.click(within(matrixCell).getByRole("button", { name: /^apply$/i }));
+
+    const updatedEntry = within(consumptionRow)
+      .getAllByTitle("Double-click to edit")
+      .find((node) => node.textContent?.includes("CdEdited"));
+    expect(updatedEntry).toBeDefined();
+    expect(within(matrixCell).queryByRole("button", { name: /^apply$/i })).not.toBeInTheDocument();
+
+    if (!updatedEntry) {
+      throw new Error("Expected editable +CdEdited matrix entry for cancel test.");
+    }
+    fireEvent.doubleClick(updatedEntry);
+    const cancelInput = within(matrixCell).getByRole("textbox", {
+      name: /matrix entry for row/i
+    });
+    await user.clear(cancelInput);
+    await user.type(cancelInput, "+CdDraft");
+    await user.click(within(matrixCell).getByRole("button", { name: /^cancel$/i }));
+
+    expect(
+      within(consumptionRow)
+        .getAllByTitle("Double-click to edit")
+        .some((node) => node.textContent?.includes("CdEdited"))
+    ).toBe(true);
+    expect(
+      within(consumptionRow)
+        .getAllByTitle("Double-click to edit")
+        .some((node) => node.textContent?.includes("CdDraft"))
+    ).toBe(false);
+  });
+
   it("opens the notebook variable inspector from matrix table variables", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";

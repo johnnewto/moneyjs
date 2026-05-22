@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "rea
 
 import { evaluateExpression, parseExpression, type SimulationResult } from "@sfcr/core";
 
-import { highlightFormula } from "../../components/EquationGridEditor";
+import { HighlightedFormulaInput, highlightFormula } from "../../components/EquationGridEditor";
 import { NumericValueText } from "../../components/NumericValueText";
 import { VariableLabel } from "../../components/VariableLabel";
 import type { EditorState } from "../../lib/editorModel";
@@ -22,6 +22,12 @@ const MATRIX_VIRTUALIZATION_ROW_HEIGHT_PX = 44;
 const MATRIX_VIRTUALIZATION_HEADER_HEIGHT_PX = 44;
 const MATRIX_VIRTUALIZATION_VIEWPORT_HEIGHT_PX = 480;
 const MATRIX_VIRTUALIZATION_OVERSCAN_ROWS = 4;
+const MATRIX_VARIABLE_INSPECT_DELAY_MS = 400;
+
+type MatrixEditingTarget = {
+  columnIndex: number;
+  rowIndex: number;
+};
 
 export function MatrixCellView({
   cell,
@@ -30,6 +36,7 @@ export function MatrixCellView({
   selectedPeriodIndex,
   variableDescriptions,
   variableUnitMetadata,
+  onCellChange,
   onVariableInspectRequest
 }: {
   cell: MatrixCell;
@@ -38,11 +45,15 @@ export function MatrixCellView({
   selectedPeriodIndex: number;
   variableDescriptions: VariableDescriptions;
   variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
+  onCellChange(cellId: string, updater: (cell: NotebookCell) => NotebookCell): void;
   onVariableInspectRequest(args: VariableInspectRequest): void;
 }) {
   const matrixDragScroll = useDragScroll<HTMLDivElement>();
   const matrixHeaderScrollRef = useRef<HTMLDivElement | null>(null);
+  const variableInspectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [matrixScrollTop, setMatrixScrollTop] = useState(0);
+  const [editingTarget, setEditingTarget] = useState<MatrixEditingTarget | null>(null);
+  const [draftSource, setDraftSource] = useState("");
   const result = cell.sourceRunCellId ? runner.getResult(cell.sourceRunCellId) : null;
   const editor = cell.sourceRunCellId ? resolveEditorStateForRunCellId(cells, cell.sourceRunCellId) : null;
   const currentValues = result
@@ -58,7 +69,15 @@ export function MatrixCellView({
     [cell, result, selectedPeriodIndex]
   );
   const matrixKind = useMemo(() => inferMatrixTableKind(cell), [cell]);
+  const sumRowIndex = cell.rows.findIndex((row) => row.label.trim().toLowerCase() === "sum");
   const sumColumnIndex = cell.columns.findIndex((column) => column.trim().toLowerCase() === "sum");
+  const parameterNames = useMemo(() => {
+    if (!editor) {
+      return EMPTY_PARAMETER_NAMES;
+    }
+
+    return new Set(editor.externals.map((external) => external.name.trim()).filter(Boolean));
+  }, [editor]);
   const isVirtualizedMatrix =
     cell.id === "transaction-flow" &&
     evaluatedMatrix.rows.length > MATRIX_VIRTUALIZATION_ROW_THRESHOLD;
@@ -84,6 +103,15 @@ export function MatrixCellView({
     };
   }, [currentValues, editor, modelSource, variableDescriptions, variableUnitMetadata]);
 
+  const clearDeferredVariableInspect = useCallback(() => {
+    if (variableInspectTimeoutRef.current != null) {
+      clearTimeout(variableInspectTimeoutRef.current);
+      variableInspectTimeoutRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => clearDeferredVariableInspect(), [clearDeferredVariableInspect]);
+
   const handleInspectVariable = useCallback(
     (selectedVariable: string) => {
       const context = inspectContextRef.current;
@@ -102,42 +130,93 @@ export function MatrixCellView({
     },
     [onVariableInspectRequest]
   );
-  const sourceSelectVariable = editor ? handleInspectVariable : undefined;
-  const matrixSourceNodes = useMemo(
-    () =>
-      cell.rows.map((row) =>
-        row.values.map((source, index) => (
-          <NotebookRenderProfiler
-            key={`${row.label}-${cell.columns[index] ?? index}-source`}
-            id="MatrixEntrySource"
-            metadata={{
-              cellId: cell.id,
-              columnLabel: cell.columns[index] ?? String(index),
-              rowLabel: row.label
-            }}
-          >
-            <span className="matrix-entry-source">
-              {highlightFormula(
-                source,
-                EMPTY_PARAMETER_NAMES,
-                undefined,
-                variableDescriptions,
-                variableUnitMetadata,
-                sourceSelectVariable
-              )}
-            </span>
-          </NotebookRenderProfiler>
-        ))
-      ),
-    [
-      cell.columns,
-      cell.id,
-      cell.rows,
-      sourceSelectVariable,
-      variableDescriptions,
-      variableUnitMetadata
-    ]
+
+  const scheduleInspectVariable = useCallback(
+    (selectedVariable: string) => {
+      clearDeferredVariableInspect();
+      variableInspectTimeoutRef.current = setTimeout(() => {
+        variableInspectTimeoutRef.current = null;
+        handleInspectVariable(selectedVariable);
+      }, MATRIX_VARIABLE_INSPECT_DELAY_MS);
+    },
+    [clearDeferredVariableInspect, handleInspectVariable]
   );
+
+  const sourceSelectVariable = editor ? scheduleInspectVariable : undefined;
+
+  const cancelMatrixEntryEdit = useCallback(() => {
+    clearDeferredVariableInspect();
+    setEditingTarget(null);
+    setDraftSource("");
+  }, [clearDeferredVariableInspect]);
+
+  const beginMatrixEntryEdit = useCallback(
+    (rowIndex: number, columnIndex: number, source: string) => {
+      if (rowIndex === sumRowIndex || columnIndex === sumColumnIndex) {
+        return;
+      }
+
+      clearDeferredVariableInspect();
+      setEditingTarget({ rowIndex, columnIndex });
+      setDraftSource(source);
+    },
+    [clearDeferredVariableInspect, sumColumnIndex, sumRowIndex]
+  );
+
+  const applyMatrixEntryEdit = useCallback(() => {
+    if (!editingTarget) {
+      return;
+    }
+
+    const trimmedDraft = draftSource.trim();
+    const { rowIndex, columnIndex } = editingTarget;
+    const currentSource = cell.rows[rowIndex]?.values[columnIndex] ?? "";
+    if (trimmedDraft === currentSource.trim()) {
+      cancelMatrixEntryEdit();
+      return;
+    }
+
+    onCellChange(cell.id, (current) => {
+      if (current.type !== "matrix") {
+        return current;
+      }
+
+      return {
+        ...current,
+        rows: current.rows.map((row, currentRowIndex) => {
+          if (currentRowIndex !== rowIndex) {
+            return row;
+          }
+
+          const nextValues = row.values.slice();
+          nextValues[columnIndex] = trimmedDraft;
+          return {
+            ...row,
+            values: nextValues
+          };
+        })
+      };
+    });
+    cancelMatrixEntryEdit();
+  }, [
+    cancelMatrixEntryEdit,
+    cell.id,
+    cell.rows,
+    draftSource,
+    editingTarget,
+    onCellChange
+  ]);
+
+  useEffect(() => {
+    if (!editingTarget) {
+      return;
+    }
+
+    const row = cell.rows[editingTarget.rowIndex];
+    if (!row) {
+      cancelMatrixEntryEdit();
+    }
+  }, [cancelMatrixEntryEdit, cell.rows, editingTarget]);
   const virtualizedMatrixWindow = useMemo(() => {
     if (!isVirtualizedMatrix) {
       return {
@@ -294,7 +373,32 @@ export function MatrixCellView({
                           {formatStockRoleLabel(stockRole)}
                         </span>
                       ) : null}
-                      {matrixSourceNodes[rowIndex]?.[index] ?? null}
+                      <NotebookRenderProfiler
+                        id="MatrixEntrySource"
+                        metadata={{
+                          cellId: cell.id,
+                          columnLabel: cell.columns[index] ?? String(index),
+                          rowLabel: row.label
+                        }}
+                      >
+                        <MatrixEntrySource
+                          columnIndex={index}
+                          currentValues={currentValues}
+                          draftSource={draftSource}
+                          editingTarget={editingTarget}
+                          isSumCell={entry.isSumCell}
+                          parameterNames={parameterNames}
+                          rowIndex={rowIndex}
+                          source={entry.source}
+                          sourceSelectVariable={sourceSelectVariable}
+                          variableDescriptions={variableDescriptions}
+                          variableUnitMetadata={variableUnitMetadata}
+                          onApply={applyMatrixEntryEdit}
+                          onBeginEdit={beginMatrixEntryEdit}
+                          onCancel={cancelMatrixEntryEdit}
+                          onDraftChange={setDraftSource}
+                        />
+                      </NotebookRenderProfiler>
                       {entry.resolved ? (
                         <NotebookRenderProfiler
                           id="MatrixEntryResolved"
@@ -696,4 +800,133 @@ function inferMatrixExpressionUnitMeta(
 function inferPrimaryVariableName(source: string): string | null {
   const match = source.match(/[A-Za-z_][A-Za-z0-9_.^{}]*/);
   return match ? match[0] : null;
+}
+
+function MatrixEntrySource({
+  columnIndex,
+  currentValues,
+  draftSource,
+  editingTarget,
+  isSumCell,
+  parameterNames,
+  rowIndex,
+  source,
+  sourceSelectVariable,
+  variableDescriptions,
+  variableUnitMetadata,
+  onApply,
+  onBeginEdit,
+  onCancel,
+  onDraftChange
+}: {
+  columnIndex: number;
+  currentValues: Record<string, number | undefined>;
+  draftSource: string;
+  editingTarget: MatrixEditingTarget | null;
+  isSumCell: boolean;
+  parameterNames: Set<string>;
+  rowIndex: number;
+  source: string;
+  sourceSelectVariable?: (variableName: string) => void;
+  variableDescriptions: VariableDescriptions;
+  variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
+  onApply(): void;
+  onBeginEdit(rowIndex: number, columnIndex: number, source: string): void;
+  onCancel(): void;
+  onDraftChange(value: string): void;
+}) {
+  const expressionInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const isEditing =
+    editingTarget?.rowIndex === rowIndex && editingTarget?.columnIndex === columnIndex;
+  const hasDraftChanges = draftSource.trim() !== source.trim();
+
+  useEffect(() => {
+    if (!isEditing) {
+      return;
+    }
+
+    expressionInputRef.current?.focus();
+    expressionInputRef.current?.select();
+  }, [isEditing]);
+
+  if (isEditing) {
+    return (
+      <div
+        className="matrix-entry-editor"
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            onCancel();
+          }
+        }}
+      >
+        <HighlightedFormulaInput
+          ariaLabel={`Matrix entry for row ${rowIndex + 1}, column ${columnIndex + 1}`}
+          className="matrix-entry-formula-input"
+          currentValues={currentValues}
+          inputRef={(node) => {
+            expressionInputRef.current = node;
+          }}
+          onChange={onDraftChange}
+          onEnter={onApply}
+          onSelectVariable={sourceSelectVariable}
+          parameterNames={parameterNames}
+          placeholder="Expression"
+          value={draftSource}
+          variableDescriptions={variableDescriptions}
+          variableUnitMetadata={variableUnitMetadata}
+        />
+        <div className="matrix-entry-editor-actions">
+          <button disabled={!hasDraftChanges} onClick={onApply} type="button">
+            Apply
+          </button>
+          <button className="secondary-button" onClick={onCancel} type="button">
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isSumCell) {
+    return (
+      <span className="matrix-entry-source">
+        {highlightFormula(
+          source,
+          parameterNames,
+          undefined,
+          variableDescriptions,
+          variableUnitMetadata,
+          sourceSelectVariable,
+          undefined,
+          currentValues,
+          true
+        )}
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className="matrix-entry-source is-editable"
+      onDoubleClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onBeginEdit(rowIndex, columnIndex, source);
+      }}
+      title="Double-click to edit"
+    >
+      {highlightFormula(
+        source,
+        parameterNames,
+        undefined,
+        variableDescriptions,
+        variableUnitMetadata,
+        sourceSelectVariable,
+        undefined,
+        currentValues,
+        true
+      )}
+    </span>
+  );
 }

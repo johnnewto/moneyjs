@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 
 import type { EquationRole } from "@sfcr/core";
 import type { EquationRow, ValidationIssue } from "../lib/editorModel";
@@ -623,7 +623,8 @@ export function highlightFormula(
   variableUnitMetadata?: VariableUnitMetadata,
   onSelectVariable?: (variableName: string) => void,
   displayTokens?: Map<string, string>,
-  currentValues?: Record<string, number | undefined>
+  currentValues?: Record<string, number | undefined>,
+  variableSelectOnClick = false
 ): ReactNode[] {
   const parts: ReactNode[] = [];
   const tokenPattern =
@@ -688,18 +689,36 @@ export function highlightFormula(
       >
         <span
           className={tokenClassName}
-          onMouseDown={(event) => {
-            if (
-              !onSelectVariable ||
-              tokenClass === "formula-function" ||
-              tokenClass === "formula-number" ||
-              tokenClass === "formula-default"
-            ) {
-              return;
-            }
-            event.preventDefault();
-            onSelectVariable(normalizedToken);
-          }}
+          {...(variableSelectOnClick
+            ? {
+                onClick: (event: MouseEvent<HTMLSpanElement>) => {
+                  if (
+                    !onSelectVariable ||
+                    tokenClass === "formula-function" ||
+                    tokenClass === "formula-number" ||
+                    tokenClass === "formula-default"
+                  ) {
+                    return;
+                  }
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onSelectVariable(normalizedToken);
+                }
+              }
+            : {
+                onMouseDown: (event: MouseEvent<HTMLSpanElement>) => {
+                  if (
+                    !onSelectVariable ||
+                    tokenClass === "formula-function" ||
+                    tokenClass === "formula-number" ||
+                    tokenClass === "formula-default"
+                  ) {
+                    return;
+                  }
+                  event.preventDefault();
+                  onSelectVariable(normalizedToken);
+                }
+              })}
         >
           {renderedTokenNode}
         </span>

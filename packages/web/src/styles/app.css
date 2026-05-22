@@ -4637,6 +4637,25 @@ body.panel-splitter-body-lock {
   font-size: 0.86rem;
 }
 
+.matrix-entry-source.is-editable {
+  cursor: text;
+}
+
+.matrix-entry-editor {
+  display: grid;
+  gap: 0.35rem;
+  min-width: min(18rem, 100%);
+}
+
+.matrix-entry-formula-input {
+  width: 100%;
+}
+
+.matrix-entry-editor-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
 .matrix-entry-current {
   color: #475569;
   font-family: "IBM Plex Mono", "SFMono-Regular", monospace;

@@ -1048,6 +1048,7 @@ function NotebookCellViewComponent({
                 selectedPeriodIndex={selectedPeriodIndex}
                 variableDescriptions={variableDescriptions}
                 variableUnitMetadata={variableUnitMetadata}
+                onCellChange={onCellChange}
                 onVariableInspectRequest={onVariableInspectRequest}
               />
             ) : null}
