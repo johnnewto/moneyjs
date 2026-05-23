@@ -21,7 +21,7 @@ import {
   type UnitPickerOperand,
   type UnitPickerShape
 } from "../lib/unitPicker";
-import { getVariableUnitLabel } from "../lib/units";
+import { getVariableUnitLabel, suggestEquationUnitMeta } from "../lib/units";
 import {
   buildActiveTrace,
   buildTraceModel,
@@ -184,6 +184,7 @@ export function EquationGridEditor({
                     className={issues[`equations.${index}.name`] ? "input-error" : ""}
                     footer={
                       <EquationUnitsPopover
+                        expression={equation.expression}
                         isOpen={openPopover?.kind === "unit" && openPopover.rowId === equation.id}
                         onChange={(unitMeta) => updateRow(equations, index, { unitMeta }, onChange)}
                         onToggle={() =>
@@ -195,6 +196,7 @@ export function EquationGridEditor({
                         }
                         unitMeta={equation.unitMeta ?? variableUnitMetadata?.get(equation.name.trim())}
                         variableName={equation.name}
+                        variableUnitMetadata={variableUnitMetadata}
                       />
                     }
                     highlightedTokens={traceRole ? activeTrace?.tokenStates : undefined}
@@ -333,23 +335,37 @@ export interface HighlightedFormulaInputProps {
 }
 
 function EquationUnitsPopover({
+  expression,
   isOpen,
   onChange,
   onToggle,
   unitMeta,
-  variableName
+  variableName,
+  variableUnitMetadata
 }: {
+  expression: string;
   isOpen: boolean;
   onChange: (unitMeta: UnitMeta | undefined) => void;
   onToggle: () => void;
   unitMeta?: UnitMeta;
   variableName: string;
+  variableUnitMetadata?: VariableUnitMetadata;
 }) {
   const normalized = unitMeta ? { ...unitMeta, signature: normalizeSignature(unitMeta.signature) } : undefined;
   const unitLabel = formatUnitText(normalized) ?? "Set units";
   const [draft, setDraft] = useState(() => createUnitDialogDraft(normalized));
   const draftSignatureKey = JSON.stringify(normalized?.signature ?? null);
   const draftStockFlow = normalized?.stockFlow ?? null;
+  const suggestion = useMemo(
+    () =>
+      suggestEquationUnitMeta({
+        variableName,
+        expression,
+        variableUnitMetadata: variableUnitMetadata ?? new Map()
+      }),
+    [variableName, expression, variableUnitMetadata]
+  );
+  const canSuggest = suggestion != null;
 
   useEffect(() => {
     if (isOpen) {
@@ -380,6 +396,17 @@ function EquationUnitsPopover({
     }));
   };
 
+  const handleSuggest = () => {
+    if (!suggestion) {
+      return;
+    }
+
+    setDraft((current) => ({
+      stockFlow: suggestion.stockFlow ?? current.stockFlow,
+      pickerForm: normalizeUnitPickerForm(signatureToUnitPickerForm(suggestion.signature))
+    }));
+  };
+
   return (
     <span className={`input-badge-popover input-unit-badge${isOpen ? " is-open" : ""}`.trim()}>
       <button
@@ -400,6 +427,17 @@ function EquationUnitsPopover({
           className="equation-badge-popover-panel equation-unit-picker-panel"
           onClick={(event) => event.stopPropagation()}
         >
+          <div className="equation-unit-picker-header">
+            <button
+              aria-label="Suggest units from expression"
+              className="equation-unit-picker-action secondary-button"
+              disabled={!canSuggest}
+              onClick={handleSuggest}
+              type="button"
+            >
+              Suggest
+            </button>
+          </div>
           <label className="equation-badge-popover-field">
             <span>Kind</span>
             <select

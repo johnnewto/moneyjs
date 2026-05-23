@@ -501,6 +501,71 @@ describe("EquationGridEditor", () => {
     ]);
   });
 
+  it("disables Suggest when the equation expression is empty", () => {
+    render(
+      <EquationGridEditor
+        equations={[{ id: "eq-y", name: "Y", expression: "" }]}
+        issues={{}}
+        onChange={vi.fn()}
+        parameterNames={[]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /edit units for y/i }));
+
+    expect(screen.getByRole("button", { name: /suggest units from expression/i })).toBeDisabled();
+  });
+
+  it("suggests units from the expression RHS into the unit picker draft", () => {
+    const onChange = vi.fn();
+    const variableUnitMetadata = new Map([
+      ["C", { stockFlow: "flow" as const, signature: { money: 1, time: -1 } }],
+      ["I", { stockFlow: "flow" as const, signature: { money: 1, time: -1 } }]
+    ]);
+
+    render(
+      <EquationGridEditor
+        equations={[{ id: "eq-y", name: "Y", expression: "C + I" }]}
+        issues={{}}
+        onChange={onChange}
+        parameterNames={[]}
+        variableUnitMetadata={variableUnitMetadata}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /edit units for y/i }));
+    const suggestButton = screen.getByRole("button", { name: /suggest units from expression/i });
+    expect(suggestButton).toBeEnabled();
+
+    fireEvent.click(suggestButton);
+    expect(screen.getByLabelText(/unit structure/i)).toHaveValue("divide");
+    fireEvent.click(screen.getByRole("button", { name: /^apply$/i }));
+
+    expect(onChange).toHaveBeenLastCalledWith([
+      {
+        id: "eq-y",
+        name: "Y",
+        expression: "C + I",
+        unitMeta: { signature: { money: 1, time: -1 } }
+      }
+    ]);
+  });
+
+  it("disables Suggest when the expression RHS cannot infer units", () => {
+    render(
+      <EquationGridEditor
+        equations={[{ id: "eq-y", name: "Y", expression: "unknownVar" }]}
+        issues={{}}
+        onChange={vi.fn()}
+        parameterNames={[]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /edit units for y/i }));
+
+    expect(screen.getByRole("button", { name: /suggest units from expression/i })).toBeDisabled();
+  });
+
   it("closes the unit popover when clicking outside", () => {
     render(
       <EquationGridEditor

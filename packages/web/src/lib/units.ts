@@ -1,4 +1,4 @@
-import type { Expr } from "@sfcr/core";
+import { isAccumulationEquation, parseEquation, type Expr } from "@sfcr/core";
 
 import type { EquationRow, ExternalRow } from "./editorModel";
 import {
@@ -9,6 +9,7 @@ import {
   multiplySignatures,
   normalizeSignature,
   signaturesEqual,
+  type StockFlowKind,
   type UnitMeta,
   type UnitSignature,
   type VariableUnitMetadata
@@ -64,6 +65,38 @@ export function getVariableUnitText(
   variableName: string
 ): string | null {
   return formatUnitText(getVariableUnitMeta(metadata, variableName));
+}
+
+export interface SuggestedEquationUnitMeta {
+  signature: UnitSignature;
+  stockFlow?: StockFlowKind;
+}
+
+export function suggestEquationUnitMeta(args: {
+  variableName: string;
+  expression: string;
+  variableUnitMetadata: VariableUnitMetadata;
+}): SuggestedEquationUnitMeta | null {
+  const expression = args.expression.trim();
+  if (!expression) {
+    return null;
+  }
+
+  try {
+    const parsed = parseEquation(args.variableName, expression);
+    const inferred = inferUnits(parsed.sourceExpression, args.variableUnitMetadata);
+    const signature = inferred.signature ? normalizeSignature(inferred.signature) : null;
+    if (!signature || Object.keys(signature).length === 0) {
+      return null;
+    }
+
+    return {
+      signature,
+      ...(isAccumulationEquation(parsed) ? { stockFlow: "stock" as const } : {})
+    };
+  } catch {
+    return null;
+  }
 }
 
 export function diagnoseEquationUnits(

@@ -1244,6 +1244,11 @@ body.panel-splitter-body-lock {
   min-width: 14rem;
 }
 
+.equation-unit-picker-header {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .equation-unit-picker-operands {
   align-items: end;
   display: grid;
