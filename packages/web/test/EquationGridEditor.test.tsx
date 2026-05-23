@@ -416,17 +416,87 @@ describe("EquationGridEditor", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /edit units for mh/i }));
-    fireEvent.change(screen.getByLabelText(/time unit exponent/i), {
-      target: { value: "-1" }
+    fireEvent.change(screen.getByLabelText(/unit structure/i), {
+      target: { value: "divide" }
     });
+    fireEvent.click(screen.getByRole("button", { name: /^apply$/i }));
 
-    expect(onChange).toHaveBeenCalledWith([
+    expect(onChange).toHaveBeenLastCalledWith([
       {
         id: "eq-mh",
         name: "Mh",
         desc: "Bank deposits held by households",
         expression: "lag(Mh) + YD - C",
         unitMeta: { stockFlow: "stock", signature: { money: 1, time: -1 } }
+      }
+    ]);
+  });
+
+  it("auto-fills money flow units when kind is flow and units are unset", () => {
+    const onChange = vi.fn();
+
+    render(
+      <EquationGridEditor
+        equations={[
+          {
+            id: "eq-y",
+            name: "Y",
+            expression: "C + I"
+          }
+        ]}
+        issues={{}}
+        onChange={onChange}
+        parameterNames={[]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /edit units for y/i }));
+    fireEvent.change(screen.getByLabelText(/unit stock-flow kind/i), {
+      target: { value: "flow" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^apply$/i }));
+
+    expect(onChange).toHaveBeenLastCalledWith([
+      {
+        id: "eq-y",
+        name: "Y",
+        expression: "C + I",
+        unitMeta: { stockFlow: "flow", signature: { money: 1, time: -1 } }
+      }
+    ]);
+  });
+
+  it("does not overwrite explicit units when kind changes", () => {
+    const onChange = vi.fn();
+
+    render(
+      <EquationGridEditor
+        equations={[
+          {
+            id: "eq-nd",
+            name: "Nd",
+            expression: "1",
+            unitMeta: { stockFlow: "flow", signature: { items: 1, time: -1 } }
+          }
+        ]}
+        issues={{}}
+        onChange={onChange}
+        parameterNames={[]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /edit units for nd/i }));
+    fireEvent.change(screen.getByLabelText(/unit stock-flow kind/i), {
+      target: { value: "stock" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^apply$/i }));
+
+    expect(onChange).toHaveBeenLastCalledWith([
+      {
+        id: "eq-nd",
+        name: "Nd",
+        expression: "1",
+        unitMeta: { stockFlow: "stock", signature: { items: 1, time: -1 } }
       }
     ]);
   });

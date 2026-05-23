@@ -11,6 +11,16 @@ import {
   type UnitMeta,
   type VariableUnitMetadata
 } from "../lib/unitMeta";
+import {
+  BASE_DIMENSION_OPTIONS,
+  applyStockFlowToUnitDraft,
+  normalizeUnitPickerForm,
+  signatureToUnitPickerForm,
+  unitPickerFormToSignature,
+  type UnitPickerForm,
+  type UnitPickerOperand,
+  type UnitPickerShape
+} from "../lib/unitPicker";
 import { getVariableUnitLabel } from "../lib/units";
 import {
   buildActiveTrace,
@@ -336,8 +346,39 @@ function EquationUnitsPopover({
   variableName: string;
 }) {
   const normalized = unitMeta ? { ...unitMeta, signature: normalizeSignature(unitMeta.signature) } : undefined;
-  const signature = normalized?.signature ?? {};
   const unitLabel = formatUnitText(normalized) ?? "Set units";
+  const [draft, setDraft] = useState(() => createUnitDialogDraft(normalized));
+  const draftSignatureKey = JSON.stringify(normalized?.signature ?? null);
+  const draftStockFlow = normalized?.stockFlow ?? null;
+
+  useEffect(() => {
+    if (isOpen) {
+      setDraft(createUnitDialogDraft(normalized));
+    }
+  }, [isOpen, draftSignatureKey, draftStockFlow]);
+
+  const applyPickerChange = (nextForm: UnitPickerForm) => {
+    setDraft((current) => ({
+      ...current,
+      pickerForm: normalizeUnitPickerForm(nextForm)
+    }));
+  };
+
+  const handleApply = () => {
+    onChange(buildUnitMetaFromPicker(undefined, draft.pickerForm, draft.stockFlow));
+    onToggle();
+  };
+
+  const handleCancel = () => {
+    onToggle();
+  };
+
+  const handleClearUnit = () => {
+    setDraft((current) => ({
+      ...current,
+      pickerForm: { ...current.pickerForm, shape: "none" }
+    }));
+  };
 
   return (
     <span className={`input-badge-popover input-unit-badge${isOpen ? " is-open" : ""}`.trim()}>
@@ -356,21 +397,25 @@ function EquationUnitsPopover({
       </button>
       {isOpen ? (
         <div
-          className="equation-badge-popover-panel"
+          className="equation-badge-popover-panel equation-unit-picker-panel"
           onClick={(event) => event.stopPropagation()}
         >
           <label className="equation-badge-popover-field">
             <span>Kind</span>
             <select
               aria-label="Unit stock-flow kind"
-              onChange={(event) =>
-                onChange(
-                  buildUpdatedUnitMeta(normalized, {
-                    stockFlow: normalizeStockFlowKind(event.target.value)
+              onChange={(event) => {
+                const stockFlow = normalizeStockFlowKind(event.target.value);
+                setDraft((current) => ({
+                  ...current,
+                  stockFlow,
+                  pickerForm: applyStockFlowToUnitDraft({
+                    currentPickerForm: current.pickerForm,
+                    stockFlow
                   })
-                )
-              }
-              value={normalized?.stockFlow ?? ""}
+                }));
+              }}
+              value={draft.stockFlow ?? ""}
             >
               <option value="">None</option>
               <option value="stock">Stock</option>
@@ -378,67 +423,111 @@ function EquationUnitsPopover({
               <option value="aux">Aux</option>
             </select>
           </label>
-          <div className="equation-badge-popover-grid">
+          <label className="equation-badge-popover-field">
+            <span>Unit</span>
+            <select
+              aria-label="Unit structure"
+              onChange={(event) =>
+                applyPickerChange({
+                  ...draft.pickerForm,
+                  shape: event.target.value as UnitPickerShape
+                })
+              }
+              value={draft.pickerForm.shape}
+            >
+              <option value="none">None</option>
+              <option value="single">Single</option>
+              <option value="multiply">Multiply</option>
+              <option value="divide">Divide</option>
+            </select>
+          </label>
+          {draft.pickerForm.shape === "single" ? (
             <label className="equation-badge-popover-field">
-              <span>$</span>
-              <input
-                aria-label="Money unit exponent"
-                inputMode="decimal"
+              <span>Dimension</span>
+              <select
+                aria-label="Single unit dimension"
                 onChange={(event) =>
-                  onChange(
-                    buildUpdatedUnitMeta(normalized, {
-                      money: parseUnitExponent(event.target.value)
-                    })
-                  )
+                  applyPickerChange({
+                    ...draft.pickerForm,
+                    singleDimension: event.target.value as UnitPickerForm["singleDimension"]
+                  })
                 }
-                type="text"
-                value={formatUnitExponent(signature.money)}
-              />
+                value={draft.pickerForm.singleDimension}
+              >
+                {BASE_DIMENSION_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </label>
-            <label className="equation-badge-popover-field">
-              <span>items</span>
-              <input
-                aria-label="Items unit exponent"
-                inputMode="decimal"
-                onChange={(event) =>
-                  onChange(
-                    buildUpdatedUnitMeta(normalized, {
-                      items: parseUnitExponent(event.target.value)
+          ) : null}
+          {draft.pickerForm.shape === "multiply" || draft.pickerForm.shape === "divide" ? (
+            <div className="equation-unit-picker-operands">
+              <label className="equation-badge-popover-field">
+                <span>{draft.pickerForm.shape === "divide" ? "Numerator" : "Left"}</span>
+                <select
+                  aria-label={draft.pickerForm.shape === "divide" ? "Unit numerator" : "Unit left operand"}
+                  onChange={(event) =>
+                    applyPickerChange({
+                      ...draft.pickerForm,
+                      leftOperand: event.target.value as UnitPickerOperand
                     })
-                  )
-                }
-                type="text"
-                value={formatUnitExponent(signature.items)}
-              />
-            </label>
-            <label className="equation-badge-popover-field">
-              <span>yr</span>
-              <input
-                aria-label="Time unit exponent"
-                inputMode="decimal"
-                onChange={(event) =>
-                  onChange(
-                    buildUpdatedUnitMeta(normalized, {
-                      time: parseUnitExponent(event.target.value)
+                  }
+                  value={draft.pickerForm.leftOperand}
+                >
+                  {draft.pickerForm.shape === "divide" ? <option value="none">1</option> : null}
+                  {BASE_DIMENSION_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <span aria-hidden="true" className="equation-unit-picker-operator">
+                {draft.pickerForm.shape === "multiply" ? "×" : "÷"}
+              </span>
+              <label className="equation-badge-popover-field">
+                <span>{draft.pickerForm.shape === "divide" ? "Denominator" : "Right"}</span>
+                <select
+                  aria-label={draft.pickerForm.shape === "divide" ? "Unit denominator" : "Unit right operand"}
+                  onChange={(event) =>
+                    applyPickerChange({
+                      ...draft.pickerForm,
+                      rightOperand: event.target.value as UnitPickerForm["rightOperand"]
                     })
-                  )
-                }
-                type="text"
-                value={formatUnitExponent(signature.time)}
-              />
-            </label>
+                  }
+                  value={draft.pickerForm.rightOperand}
+                >
+                  {(draft.pickerForm.shape === "multiply"
+                    ? BASE_DIMENSION_OPTIONS.filter((option) => option.value !== draft.pickerForm.leftOperand)
+                    : draft.pickerForm.leftOperand === "none"
+                      ? BASE_DIMENSION_OPTIONS
+                      : BASE_DIMENSION_OPTIONS.filter((option) => option.value !== draft.pickerForm.leftOperand)
+                  ).map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          ) : null}
+          <div className="equation-unit-picker-actions">
+            <button className="equation-unit-picker-action" onClick={handleApply} type="button">
+              Apply
+            </button>
+            <button className="equation-unit-picker-action secondary-button" onClick={handleCancel} type="button">
+              Cancel
+            </button>
+            <button
+              className="equation-unit-picker-action equation-unit-picker-clear"
+              onClick={handleClearUnit}
+              type="button"
+            >
+              Clear unit
+            </button>
           </div>
-          <button
-            className="equation-badge-popover-reset"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              onChange(undefined);
-            }}
-            type="button"
-          >
-            Clear units
-          </button>
         </div>
       ) : null}
     </span>
@@ -565,22 +654,24 @@ export function HighlightedFormulaInput({
   );
 }
 
-function buildUpdatedUnitMeta(
+function createUnitDialogDraft(unitMeta?: UnitMeta): {
+  pickerForm: UnitPickerForm;
+  stockFlow: StockFlowKind | undefined;
+} {
+  const normalized = unitMeta ? { ...unitMeta, signature: normalizeSignature(unitMeta.signature) } : undefined;
+  return {
+    pickerForm: signatureToUnitPickerForm(normalized?.signature),
+    stockFlow: normalized?.stockFlow
+  };
+}
+
+function buildUnitMetaFromPicker(
   unitMeta: UnitMeta | undefined,
-  patch: {
-    items?: number | undefined;
-    money?: number | undefined;
-    stockFlow?: StockFlowKind | undefined;
-    time?: number | undefined;
-  }
+  pickerForm: UnitPickerForm,
+  stockFlow?: StockFlowKind | undefined
 ): UnitMeta | undefined {
-  const currentSignature = normalizeSignature(unitMeta?.signature);
-  const nextSignature = normalizeSignature({
-    money: patch.money !== undefined ? patch.money : currentSignature.money,
-    items: patch.items !== undefined ? patch.items : currentSignature.items,
-    time: patch.time !== undefined ? patch.time : currentSignature.time
-  });
-  const nextStockFlow = patch.stockFlow !== undefined ? patch.stockFlow : unitMeta?.stockFlow;
+  const nextSignature = normalizeSignature(unitPickerFormToSignature(pickerForm));
+  const nextStockFlow = stockFlow !== undefined ? stockFlow : unitMeta?.stockFlow;
 
   if (Object.keys(nextSignature).length === 0 && nextStockFlow == null) {
     return undefined;
@@ -590,20 +681,6 @@ function buildUpdatedUnitMeta(
     ...(nextStockFlow ? { stockFlow: nextStockFlow } : {}),
     ...(Object.keys(nextSignature).length > 0 ? { signature: nextSignature } : {})
   };
-}
-
-function formatUnitExponent(value: number | undefined): string {
-  return value == null ? "" : String(value);
-}
-
-function parseUnitExponent(value: string): number | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return undefined;
-  }
-
-  const parsed = Number(trimmed);
-  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 function normalizeStockFlowKind(value: string): StockFlowKind | undefined {
