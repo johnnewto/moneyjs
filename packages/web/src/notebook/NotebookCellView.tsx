@@ -16,7 +16,17 @@ import {
   findSolverCell
 } from "./modelSections";
 import { resolveNearestNotebookContextCell } from "./notebookContext";
+import { MatrixUnitMetaDialog } from "./components/MatrixUnitMetaDialog";
 import { MatrixSourceEditor } from "./MatrixSourceEditor";
+import {
+  applyMatrixUnitMetaUpdates,
+  collectProposedMatrixUnitUpdates,
+  defaultSelectedMatrixUnitVariables,
+  resolveModelIdFromSourceRunCell,
+  buildVariableUnitMetadataForModel
+} from "./matrixUnitMetadataSync";
+import { formatMatrixCellUnitValidationMessage } from "./matrixUnitValidation";
+import { inferAccountingMatrixKind } from "./validation";
 import { NotebookRenderProfiler } from "./notebookProfiler";
 import { RunSourceEditor } from "./RunSourceEditor";
 import {
@@ -199,6 +209,8 @@ function NotebookCellViewComponent({
   const [cellContextMenu, setCellContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [isCellInsertMenuOpen, setIsCellInsertMenuOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isMatrixUnitMetaDialogOpen, setIsMatrixUnitMetaDialogOpen] = useState(false);
+  const [matrixUnitMetaSelection, setMatrixUnitMetaSelection] = useState<Set<string>>(new Set());
   const insertMenuRef = useRef<HTMLDivElement | null>(null);
   const cellContextMenuRef = useRef<HTMLDivElement | null>(null);
   const sourceTextareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -223,6 +235,36 @@ function NotebookCellViewComponent({
     () => resolveCellVariableUnitMetadata(cells, cell),
     [cells, cell]
   );
+  const draftMatrixUnitMetaContext = useMemo(() => {
+    if (!isEditingSource || cell.type !== "matrix" || sourceLayoutMode !== "grid") {
+      return null;
+    }
+
+    try {
+      const parsed = parseCellSource(cell, sourceDraft) as MatrixCell;
+      const accountingKind = inferAccountingMatrixKind(parsed);
+      const modelId = resolveModelIdFromSourceRunCell(cells, parsed.sourceRunCellId);
+      if (!accountingKind || !modelId) {
+        return null;
+      }
+
+      const modelUnitMetadata = buildVariableUnitMetadataForModel(cells, modelId);
+      const proposals = collectProposedMatrixUnitUpdates({
+        cells,
+        matrix: parsed,
+        modelId,
+        variableUnitMetadata: modelUnitMetadata
+      });
+
+      return {
+        matrixTitle: parsed.title,
+        modelId,
+        proposals
+      };
+    } catch {
+      return null;
+    }
+  }, [cell, cells, isEditingSource, sourceDraft, sourceLayoutMode]);
   const markdownInspectionContext = useMemo(
     () =>
       cell.type === "markdown"
@@ -308,6 +350,8 @@ function NotebookCellViewComponent({
     setSourceValidationError(null);
     setIsEditingSource(false);
     setIsLinkedEditorEditing(false);
+    setIsMatrixUnitMetaDialogOpen(false);
+    setMatrixUnitMetaSelection(new Set());
     setMatrixSequenceViewState(null);
   }, [cell]);
 
@@ -333,14 +377,25 @@ function NotebookCellViewComponent({
     }
 
     try {
-      parseCellSource(cell, sourceDraft, cell.type === "markdown" ? titleDraft : undefined);
+      const nextCell = parseCellSource(
+        cell,
+        sourceDraft,
+        cell.type === "markdown" ? titleDraft : undefined
+      );
+      if (nextCell.type === "matrix") {
+        setSourceValidationError(
+          formatMatrixCellUnitValidationMessage(nextCell, variableUnitMetadata)
+        );
+        return;
+      }
+
       setSourceValidationError(null);
     } catch (validationError) {
       setSourceValidationError(
         validationError instanceof Error ? validationError.message : "Invalid cell source"
       );
     }
-  }, [cell, isEditingSource, sourceDraft, titleDraft]);
+  }, [cell, isEditingSource, sourceDraft, titleDraft, variableUnitMetadata]);
 
   useEffect(() => {
     if (!isEditingSource || openSourceMenu == null) {
@@ -459,6 +514,31 @@ function NotebookCellViewComponent({
     }
   }
 
+  function handleOpenMatrixUnitMetaDialog(): void {
+    if (!draftMatrixUnitMetaContext) {
+      return;
+    }
+
+    setMatrixUnitMetaSelection(defaultSelectedMatrixUnitVariables(draftMatrixUnitMetaContext.proposals));
+    setIsMatrixUnitMetaDialogOpen(true);
+  }
+
+  function handleApplyMatrixUnitMetaUpdates(): void {
+    if (!draftMatrixUnitMetaContext) {
+      return;
+    }
+
+    const selectedUpdates = draftMatrixUnitMetaContext.proposals.filter((proposal) =>
+      matrixUnitMetaSelection.has(proposal.variable)
+    );
+    if (selectedUpdates.length === 0) {
+      return;
+    }
+
+    onReplaceCells(applyMatrixUnitMetaUpdates(cells, selectedUpdates));
+    setIsMatrixUnitMetaDialogOpen(false);
+  }
+
   function handleCancelSource(): void {
     setTitleDraft(cell.title);
     setSourceDraft(serializeCellBody(cell));
@@ -466,6 +546,8 @@ function NotebookCellViewComponent({
     setOpenSourceMenu(null);
     setSourceError(null);
     setSourceValidationError(null);
+    setIsMatrixUnitMetaDialogOpen(false);
+    setMatrixUnitMetaSelection(new Set());
     setIsEditingSource(false);
   }
 
@@ -838,15 +920,27 @@ function NotebookCellViewComponent({
                 </div>
               </div>
             )}
-            {sourceValidationError ? (
-              <div className="notebook-source-validation" aria-live="polite">
-                Live validation: {sourceValidationError}
-              </div>
-            ) : (
-              <div className="notebook-source-validation is-valid" aria-live="polite">
-                Live validation: ready to apply
-              </div>
-            )}
+            <div className="notebook-source-validation-footer">
+              {sourceValidationError ? (
+                <div className="notebook-source-validation" aria-live="polite">
+                  Live validation: {sourceValidationError}
+                </div>
+              ) : (
+                <div className="notebook-source-validation is-valid" aria-live="polite">
+                  Live validation: ready to apply
+                </div>
+              )}
+              {draftMatrixUnitMetaContext ? (
+                <button
+                  className="secondary-button notebook-matrix-unit-meta-button"
+                  disabled={draftMatrixUnitMetaContext.proposals.length === 0}
+                  onClick={handleOpenMatrixUnitMetaDialog}
+                  type="button"
+                >
+                  Set variable units from matrix…
+                </button>
+              ) : null}
+            </div>
           </div>
         ) : null}
 
@@ -1191,6 +1285,15 @@ function NotebookCellViewComponent({
             </button>
           </div>
         ) : null}
+        <MatrixUnitMetaDialog
+          isOpen={isMatrixUnitMetaDialogOpen}
+          matrixTitle={draftMatrixUnitMetaContext?.matrixTitle ?? cell.title}
+          proposals={draftMatrixUnitMetaContext?.proposals ?? []}
+          selectedVariables={matrixUnitMetaSelection}
+          onApply={handleApplyMatrixUnitMetaUpdates}
+          onCancel={() => setIsMatrixUnitMetaDialogOpen(false)}
+          onSelectionChange={setMatrixUnitMetaSelection}
+        />
         {isDeleteDialogOpen ? (
           <div
             className="notebook-cell-delete-dialog-backdrop"

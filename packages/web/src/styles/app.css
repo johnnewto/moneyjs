@@ -4383,6 +4383,106 @@ body.panel-splitter-body-lock {
   color: #166534;
 }
 
+.notebook-source-validation-footer {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  justify-content: space-between;
+}
+
+.notebook-source-validation-footer .notebook-source-validation {
+  flex: 1 1 16rem;
+  margin: 0;
+}
+
+.notebook-matrix-unit-meta-button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.matrix-unit-meta-dialog {
+  max-width: min(64rem, calc(100vw - 2rem));
+  width: min(64rem, calc(100vw - 2rem));
+}
+
+.matrix-unit-meta-dialog-explainer {
+  margin: 0 0 0.75rem;
+}
+
+.matrix-unit-meta-dialog-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.matrix-unit-meta-dialog-empty {
+  color: #64748b;
+  margin: 0 0 0.75rem;
+}
+
+.matrix-unit-meta-dialog-list {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 0.85rem;
+  max-height: min(20rem, 50vh);
+  overflow: auto;
+}
+
+.matrix-unit-meta-dialog-list-header,
+.matrix-unit-meta-dialog-row {
+  align-items: start;
+  column-gap: 0.75rem;
+  display: grid;
+  grid-template-columns: auto minmax(10rem, 14rem) minmax(6rem, 8.5rem) minmax(6rem, 8.5rem) minmax(16rem, 2.5fr);
+  padding: 0.45rem 0.65rem;
+}
+
+.matrix-unit-meta-dialog-list-header {
+  background: rgba(248, 250, 252, 0.95);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.matrix-unit-meta-dialog-row {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.05);
+  cursor: pointer;
+  font-size: 0.86rem;
+}
+
+.matrix-unit-meta-dialog-row:last-child {
+  border-bottom: none;
+}
+
+.matrix-unit-meta-dialog-row:hover {
+  background: rgba(248, 250, 252, 0.7);
+}
+
+.matrix-unit-meta-dialog-variable {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding-right: 0.25rem;
+}
+
+.matrix-unit-meta-dialog-sources {
+  color: #64748b;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .notebook-source-exit-hint {
   background: rgba(248, 250, 252, 0.88);
   border: 1px dashed rgba(148, 163, 184, 0.34);

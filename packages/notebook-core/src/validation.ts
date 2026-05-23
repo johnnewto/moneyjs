@@ -331,7 +331,9 @@ function validateMatrixBalanceChecks(cell: MatrixCell, issues: NotebookValidatio
   }
 }
 
-function inferAccountingMatrixKind(cell: MatrixCell): "transaction-flow" | "balance-sheet" | null {
+export type AccountingMatrixKind = "transaction-flow" | "balance-sheet";
+
+export function inferAccountingMatrixKind(cell: MatrixCell): AccountingMatrixKind | null {
   const title = normalizeAccountingLabel(cell.title);
   const id = normalizeAccountingLabel(cell.id);
 
