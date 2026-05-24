@@ -1,4 +1,13 @@
-import { analyzeParsedEquation, parseEquation, type EquationRole } from "@sfcr/core";
+import {
+  analyzeParsedEquation,
+  derivativeBalanceStockName,
+  equationDefinesVariable,
+  equationOutputVariable,
+  isDerivativeBalanceTarget,
+  parseEquation,
+  parseExpression,
+  type EquationRole
+} from "@sfcr/core";
 
 import type {
   EditorState,
@@ -12,7 +21,10 @@ import {
 } from "../notebook/dependencyRows";
 import type { VariableDescriptions } from "./variableDescriptions";
 import type { VariableUnitMetadata } from "./unitMeta";
-import { explainEquationExpression } from "./equationExplanation";
+import {
+  explainDerivativeBalanceEquation,
+  explainEquationExpression
+} from "./equationExplanation";
 import { getVariableUnitText } from "./units";
 
 export interface VariableInspectorData {
@@ -68,12 +80,14 @@ export function buildVariableInspectorData(args: {
 
   const equationAnalysis = buildEquationAnalysis(args.editor.equations);
   const definingEquation =
-    args.editor.equations.find((equation) => equation.name.trim() === selectedVariable) ?? null;
+    args.editor.equations.find((equation) =>
+      equationDefinesVariable(equation.name, selectedVariable)
+    ) ?? null;
   const externalDefinition =
     args.editor.externals.find((external) => external.name.trim() === selectedVariable) ?? null;
   const initialValue = findInitialValue(args.editor.initialValues, selectedVariable);
   const appearsInEquations = args.editor.equations.filter((equation) => {
-    if (equation.name.trim() === selectedVariable) {
+    if (equationDefinesVariable(equation.name, selectedVariable)) {
       return false;
     }
     const analysis = equationAnalysis.get(equation.id);
@@ -174,7 +188,7 @@ function buildRelatedEquations(args: {
 }): VariableInspectorData["relatedEquations"] {
   const rowsByOutput = new Map<string, EquationRow[]>();
   args.editor.equations.forEach((equation) => {
-    const output = equation.name.trim();
+    const output = equationOutputVariable(equation.name);
     if (!output) {
       return;
     }
@@ -221,8 +235,13 @@ function buildRelatedEquations(args: {
 
   if (args.definingEquation) {
     const definingAnalysis = args.equationAnalysis.get(args.definingEquation.id);
+    const definingName = args.definingEquation.name.trim();
+    const rootTokens: Array<[string, InspectorTraceRole]> = [[args.selectedVariable, "root"]];
+    if (definingName && definingName !== args.selectedVariable) {
+      rootTokens.push([definingName, "root"]);
+    }
     addEntry(args.definingEquation, "root", [
-      [args.selectedVariable, "root"],
+      ...rootTokens,
       ...((definingAnalysis?.currentDependencies ?? []).map(
         (token): [string, InspectorTraceRole] => [token, "input"]
       )),
@@ -236,7 +255,7 @@ function buildRelatedEquations(args: {
       ...args.equationInputs.lagDependencies
     ]).forEach((dependency) => {
       (rowsByOutput.get(dependency) ?? []).forEach((equation) => {
-        const output = equation.name.trim();
+        const output = equationOutputVariable(equation.name);
         addEntry(equation, "input", [
           [dependency, "input"],
           ...(output ? ([[output, "input"]] as Array<[string, InspectorTraceRole]>) : [])
@@ -268,6 +287,15 @@ function buildGeneratedEquationExplanation(
   }
 
   try {
+    if (isDerivativeBalanceTarget(name)) {
+      const stockName = derivativeBalanceStockName(name);
+      if (!stockName) {
+        return null;
+      }
+      const rhsExpression = parseExpression(expression);
+      return explainDerivativeBalanceEquation(stockName, rhsExpression, variableDescriptions);
+    }
+
     const parsed = parseEquation(name, expression);
     return explainEquationExpression(name, parsed.sourceExpression, variableDescriptions);
   } catch {

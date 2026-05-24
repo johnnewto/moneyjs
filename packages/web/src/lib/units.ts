@@ -1,4 +1,9 @@
-import { isAccumulationEquation, parseEquation, type Expr } from "@sfcr/core";
+import {
+  derivativeBalanceStockName,
+  isAccumulationEquation,
+  parseEquation,
+  type Expr
+} from "@sfcr/core";
 
 import type { EquationRow, ExternalRow } from "./editorModel";
 import {
@@ -37,6 +42,10 @@ export function buildVariableUnitMetadata(args: {
 
   for (const equation of args.equations ?? []) {
     setVariableUnitMeta(metadata, equation.name, equation.unitMeta);
+    const stockName = derivativeBalanceStockName(equation.name);
+    if (stockName && stockName !== equation.name.trim()) {
+      setVariableUnitMeta(metadata, stockName, equation.unitMeta);
+    }
   }
 
   for (const external of args.externals ?? []) {

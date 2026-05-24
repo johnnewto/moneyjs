@@ -99,4 +99,25 @@ describe("renameVariable", () => {
     expect(equations?.equations[0]?.name).toBe("Y2");
     expect(farMarkdown?.source).toBe("Unrelated mention of Y.");
   });
+
+  it("renames derivative-balance equation targets when the underlying stock is renamed", () => {
+    const cells: NotebookCell[] = [
+      {
+        id: "equations",
+        type: "equations",
+        title: "Equations",
+        modelId: "model-a",
+        equations: [
+          { id: "eq-ls", name: "d(Ls)", expression: "d(Ld)" },
+          { id: "eq-ld", name: "Ld", expression: "2" }
+        ]
+      }
+    ] satisfies NotebookCell[];
+
+    const next = renameVariableInNotebook(cells, { kind: "modelId", modelId: "model-a" }, "Ls", "Loans");
+    const equations = next.find((cell): cell is EquationsCell => cell.type === "equations");
+
+    expect(equations?.equations.find((row) => row.id === "eq-ls")?.name).toBe("d(Loans)");
+    expect(equations?.equations.find((row) => row.id === "eq-ls")?.expression).toBe("d(Ld)");
+  });
 });

@@ -17,6 +17,7 @@ const NOTEBOOK_EQUATION_EXPRESSION_SYNTAX = [
   "Use RHS expressions in equation/expression fields, e.g. YD - C.",
   "Supported operators: +, -, *, /, comparisons > >= < <= == !=, logical && ||.",
   "Supported functions: lag(variable), diff(variable), I(expression), min(a, b), max(a, b), pow(base, exponent), sqrt(x), exp(x), log(x), abs(x).",
+  "Derivative-balance stocks: use equation name d(stock) with RHS flowExpr, equivalent to stock = I(flowExpr). Simulation results use the stock name.",
   "Conditional form: if (condition) { expression } else { expression }.",
   "Use pow(base, exponent), not ^. The ^ character is reserved for variable notation.",
   "Use lag(K), not K[-1].",

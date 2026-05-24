@@ -15,7 +15,12 @@ import {
   mergeSectorTopologies
 } from "../src/graph/sectors";
 import { analyzeParsedEquation } from "../src/parser/analyze";
-import { parseEquation, parseExpression } from "../src/parser/parse";
+import {
+  isDerivativeBalanceTarget,
+  normalizeDerivativeBalanceTarget,
+  parseEquation,
+  parseExpression
+} from "../src/parser/parse";
 import { runBaseline } from "../src/engine/runBaseline";
 import { runScenario } from "../src/engine/runScenario";
 import { validateRunnable, VALIDATION_MAX_PERIODS } from "../src/engine/validateRunnable";
@@ -104,6 +109,35 @@ describe("parser", () => {
   it("rejects nested I(...) usage", () => {
     expect(() => parseEquation("Bs", "lag(Bs) + I(G - TX)")).toThrow(
       "I(...) is only supported as the outermost RHS form"
+    );
+  });
+
+  it("parses derivative-balance targets as stock integrator equations", () => {
+    const derivativeBalance = parseEquation("d(Ls)", "d(Ld)");
+    const canonical = parseEquation("Ls", "I(d(Ld))");
+
+    expect(derivativeBalance.name).toBe("Ls");
+    expect(derivativeBalance.expression).toEqual(canonical.expression);
+    expect(derivativeBalance.sourceExpression).toEqual(canonical.sourceExpression);
+    expect(new Set(derivativeBalance.currentDependencies)).toEqual(
+      new Set(canonical.currentDependencies)
+    );
+    expect(new Set(derivativeBalance.lagDependencies)).toEqual(
+      new Set(canonical.lagDependencies)
+    );
+    expect(analyzeParsedEquation(derivativeBalance).role).toBe("accumulation");
+    expect(isDerivativeBalanceTarget("d(Ls)")).toBe(true);
+    expect(normalizeDerivativeBalanceTarget("d(Ls)", "d(Ld)")).toEqual({
+      name: "Ls",
+      source: "I(d(Ld))",
+      isDerivativeBalance: true
+    });
+  });
+
+  it("rejects invalid derivative-balance targets", () => {
+    expect(() => parseEquation("d(dt)", "1")).toThrow("d(dt) is not a valid");
+    expect(() => parseEquation("d(Ls)", "I(d(Ld))")).toThrow(
+      "cannot combine d(stock) on the lhs with I(...) on the rhs"
     );
   });
 
@@ -312,6 +346,45 @@ describe("simulation", () => {
     expectClose(result.series.Bs[1] ?? NaN, 12, 1e-12);
     expectClose(result.series.Bs[2] ?? NaN, 14, 1e-12);
     expectClose(result.series.Bs[3] ?? NaN, 16, 1e-12);
+  });
+
+  it("evaluates derivative-balance form d(stock) = flow like I(flow)", () => {
+    const derivativeBalance = runBaseline(
+      {
+        equations: [
+          { name: "Ld", expression: "2" },
+          { name: "d(Ls)", expression: "d(Ld)" }
+        ],
+        externals: {},
+        initialValues: { Ls: 10 }
+      },
+      {
+        periods: 4,
+        solverMethod: "GAUSS_SEIDEL",
+        tolerance: 1e-9,
+        maxIterations: 20
+      }
+    );
+    const canonical = runBaseline(
+      {
+        equations: [
+          { name: "Ld", expression: "2" },
+          { name: "Ls", expression: "I(d(Ld))" }
+        ],
+        externals: {},
+        initialValues: { Ls: 10 }
+      },
+      {
+        periods: 4,
+        solverMethod: "GAUSS_SEIDEL",
+        tolerance: 1e-9,
+        maxIterations: 20
+      }
+    );
+
+    for (let period = 0; period < 4; period += 1) {
+      expectClose(derivativeBalance.series.Ls[period] ?? NaN, canonical.series.Ls[period] ?? NaN, 1e-12);
+    }
   });
 
   it("applies a multi-period series shock", () => {

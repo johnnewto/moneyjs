@@ -12,6 +12,16 @@ export function explainEquationExpression(
   return `${left} equals ${right}.`;
 }
 
+export function explainDerivativeBalanceEquation(
+  stockName: string,
+  rhsExpression: Expr,
+  variableDescriptions: VariableDescriptions
+): string {
+  const left = `The change in ${describeVariable(stockName, variableDescriptions)}`;
+  const right = explainExpr(rhsExpression, variableDescriptions);
+  return `${left} equals ${right}.`;
+}
+
 function explainExpr(expr: Expr, variableDescriptions: VariableDescriptions): string {
   switch (expr.type) {
     case "Number":

@@ -283,4 +283,76 @@ describe("editor model validation", () => {
       )
     ).toBe(true);
   });
+
+  it("normalizes derivative-balance targets in runtime config while preserving editor rows", () => {
+    const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
+    editor.equations[0] = {
+      id: "eq-ls",
+      name: "d(Ls)",
+      expression: "d(Ld)",
+      unitMeta: { stockFlow: "stock", signature: { money: 1 } }
+    };
+    editor.equations[1] = {
+      id: "eq-ld",
+      name: "Ld",
+      expression: "2",
+      unitMeta: { stockFlow: "stock", signature: { money: 1 } }
+    };
+
+    const runtime = buildRuntimeConfig(editor);
+
+    expect(editor.equations[0]?.name).toBe("d(Ls)");
+    expect(editor.equations[0]?.expression).toBe("d(Ld)");
+    expect(runtime.model.equations[0]).toMatchObject({
+      name: "Ls",
+      expression: "I(d(Ld))"
+    });
+  });
+
+  it("rejects duplicate stock definitions across canonical and derivative-balance names", () => {
+    const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
+    editor.equations[0] = {
+      id: "eq-ls",
+      name: "Ls",
+      expression: "1"
+    };
+    editor.equations[1] = {
+      id: "eq-d-ls",
+      name: "d(Ls)",
+      expression: "d(Ld)"
+    };
+
+    const issues = validateEditorState(editor);
+
+    expect(
+      issues.some(
+        (issue) =>
+          issue.path === "equations.1.name" &&
+          issue.message.includes("Stock 'Ls' is already defined")
+      )
+    ).toBe(true);
+  });
+
+  it("accepts derivative-balance stock equations in runtime diagnostics", () => {
+    const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
+    editor.equations = [
+      {
+        id: "eq-ls",
+        name: "d(Ls)",
+        expression: "d(Ld)",
+        unitMeta: { stockFlow: "stock", signature: { money: 1 } }
+      },
+      {
+        id: "eq-ld",
+        name: "Ld",
+        expression: "2"
+      }
+    ];
+    editor.initialValues = [{ id: "init-ls", name: "Ls", valueText: "10" }];
+
+    const diagnostics = diagnoseBuildRuntime(editor);
+
+    expect(diagnostics.modelError).toBeNull();
+    expect(diagnostics.issues.filter((issue) => issue.path === "equations.0.expression")).toHaveLength(0);
+  });
 });

@@ -1,5 +1,15 @@
 import type { Expr } from "./ast";
+import { normalizeDerivativeBalanceTarget } from "./equationTarget";
 import { collectCurrentDependencies, collectLagDependencies } from "./dependencies";
+
+export {
+  derivativeBalanceStockName,
+  equationDefinesVariable,
+  equationOutputVariable,
+  isDerivativeBalanceTarget,
+  normalizeDerivativeBalanceTarget,
+  type NormalizedEquationTarget
+} from "./equationTarget";
 
 export interface ParsedEquation {
   name: string;
@@ -381,10 +391,14 @@ export function parseExpression(source: string): Expr {
 }
 
 export function parseEquation(name: string, source: string): ParsedEquation {
-  const sourceExpression = parseExpression(source);
-  const expression = lowerIntegrals(name, sourceExpression);
-  return {
+  const { name: equationName, source: equationSource } = normalizeDerivativeBalanceTarget(
     name,
+    source
+  );
+  const sourceExpression = parseExpression(equationSource);
+  const expression = lowerIntegrals(equationName, sourceExpression);
+  return {
+    name: equationName,
     expression,
     sourceExpression,
     currentDependencies: Array.from(collectCurrentDependencies(expression)),

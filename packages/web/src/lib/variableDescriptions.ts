@@ -1,3 +1,5 @@
+import { derivativeBalanceStockName } from "@sfcr/core";
+
 import type { EquationRow, ExternalRow } from "./editorModel";
 
 export type VariableDescriptions = Map<string, string>;
@@ -10,6 +12,10 @@ export function buildVariableDescriptions(args: {
 
   for (const equation of args.equations ?? []) {
     setVariableDescription(descriptions, equation.name, equation.desc);
+    const stockName = derivativeBalanceStockName(equation.name);
+    if (stockName && stockName !== equation.name.trim()) {
+      setVariableDescription(descriptions, stockName, equation.desc);
+    }
   }
 
   for (const external of args.externals ?? []) {

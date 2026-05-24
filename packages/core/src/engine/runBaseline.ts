@@ -18,7 +18,7 @@ export function runBaseline(
   const parsed = model.equations.map((equation) => parseEquation(equation.name, equation.expression));
   const ordered = buildOrderedBlocks(parsed);
   const equationsByName = new Map(parsed.map((equation) => [equation.name, equation]));
-  const endogenousNames = model.equations.map((equation) => equation.name);
+  const endogenousNames = parsed.map((equation) => equation.name);
   const externalNames = Object.keys(model.externals);
   const series = SeriesStore.createForModel(endogenousNames, externalNames, options);
 

@@ -1,4 +1,6 @@
 import {
+  derivativeBalanceStockName,
+  normalizeDerivativeBalanceTarget,
   parseEquation,
   type EquationRole,
   type ExternalDef,
@@ -151,11 +153,17 @@ export function buildRuntimeConfig(editor: EditorState): {
 } {
   const equations = editor.equations
     .filter((equation) => equation.name.trim() !== "" && equation.expression.trim() !== "")
-    .map((equation) => ({
-      name: equation.name.trim(),
-      expression: equation.expression.trim(),
-      ...(equation.role ? { role: equation.role } : {})
-    }));
+    .map((equation) => {
+      const { name, source } = normalizeDerivativeBalanceTarget(
+        equation.name.trim(),
+        equation.expression.trim()
+      );
+      return {
+        name,
+        expression: source,
+        ...(equation.role ? { role: equation.role } : {})
+      };
+    });
 
   const externals = Object.fromEntries(
     editor.externals
@@ -253,6 +261,7 @@ export function editorStateFromJson(source: string): EditorState {
 export function validateEditorState(editor: EditorState): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const equationNames = new Set<string>();
+  const effectiveStockByRow = new Map<string, number>();
   const externalNames = new Set<string>();
   const initialNames = new Set<string>();
 
@@ -265,6 +274,16 @@ export function validateEditorState(editor: EditorState): ValidationIssue[] {
       issues.push({ path: `equations.${index}.name`, message: "Equation name must be unique." });
     } else {
       equationNames.add(name);
+      const effectiveName = derivativeBalanceStockName(name) ?? name;
+      const prior = effectiveStockByRow.get(effectiveName);
+      if (prior !== undefined) {
+        issues.push({
+          path: `equations.${index}.name`,
+          message: `Stock '${effectiveName}' is already defined by another equation (row ${prior + 1}).`
+        });
+      } else {
+        effectiveStockByRow.set(effectiveName, index);
+      }
     }
 
     if (!expression) {
@@ -299,22 +318,6 @@ export function validateEditorState(editor: EditorState): ValidationIssue[] {
   });
 
   editor.initialValues.forEach((initial, index) => {
-function classifyValidationIssues(
-  issues: ValidationIssue[],
-  domain: "model" | "runtime"
-): ValidationIssue[] {
-  return issues.map((issue) => ({
-    ...issue,
-    ...createNotebookDiagnostic(
-      {
-        message: issue.message,
-        path: issue.path,
-        severity: issue.severity
-      },
-      { domain }
-    )
-  }));
-}
     const name = initial.name.trim();
     if (!name) {
       issues.push({ path: `initialValues.${index}.name`, message: "Initial variable is required." });
@@ -445,7 +448,12 @@ export function diagnoseBuildRuntime(editor: EditorState): BuildDiagnosticResult
 
     try {
       const parsed = parseEquation(name, expression);
-      for (const diagnostic of diagnoseEquationUnits(name, parsed.sourceExpression, variableUnits)) {
+      const unitCheckName = derivativeBalanceStockName(name) ?? name;
+      for (const diagnostic of diagnoseEquationUnits(
+        unitCheckName,
+        parsed.sourceExpression,
+        variableUnits
+      )) {
         issues.push({
           path: `equations.${index}.expression`,
           message: diagnostic.message,

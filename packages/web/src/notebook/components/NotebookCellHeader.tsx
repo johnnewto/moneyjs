@@ -301,6 +301,7 @@ function EquationSyntaxHelpContent() {
           <li>`lag(X)` or `X[-1]` for the previous-period value.</li>
           <li>`d(X)` for a per-year stock-change term.</li>
           <li>`I(flowExpr)` for stock accumulation, equivalent to `lag(X) + flowExpr * dt` on the equation lhs.</li>
+          <li>`d(stock) = flowExpr` for derivative-balance stock updates, equivalent to `stock = I(flowExpr)`.</li>
           <li>`dt` for the time step. It is currently `1` year unless changed in the runtime later.</li>
         </ul>
       </section>
@@ -323,7 +324,7 @@ function EquationSyntaxHelpContent() {
       <section>
         <h4>Stock-Flow Guidance</h4>
         <ul className="notebook-help-list">
-          <li>Stocks should usually be written as `lag(stock) + increment * dt` or `I(flowExpr)`.</li>
+          <li>Stocks should usually be written as `lag(stock) + increment * dt`, `I(flowExpr)`, or `d(stock) = flowExpr`.</li>
           <li>Use explicit `* dt` when combining a lagged stock with flow terms.</li>
           <li>Use declared units to catch `$ + $/yr` mistakes.</li>
         </ul>

@@ -1,4 +1,4 @@
-import type { ShockVariableDef } from "@sfcr/core";
+import { derivativeBalanceStockName, type ShockVariableDef } from "@sfcr/core";
 
 import type { EquationRow } from "../lib/editorModel";
 import { resolveNearestNotebookContextCell } from "./notebookContext";
@@ -56,7 +56,7 @@ export function isModelVariableNameAvailable(
       if (
         cell.equations.some(
           (equation) =>
-            equation.name.trim() === normalizedVariable &&
+            equationNameDefinesVariable(equation.name, normalizedVariable) &&
             equation.id !== options?.excludeEquationId
         )
       ) {
@@ -74,7 +74,7 @@ export function isModelVariableNameAvailable(
       if (
         cell.editor.equations.some(
           (equation) =>
-            equation.name.trim() === normalizedVariable &&
+            equationNameDefinesVariable(equation.name, normalizedVariable) &&
             equation.id !== options?.excludeEquationId
         )
       ) {
@@ -189,7 +189,7 @@ function renameVariableInCell(
         ...cell,
         equations: cell.equations.map((equation) => ({
           ...equation,
-          name: equation.name.trim() === oldName ? newName : equation.name,
+          name: renameEquationTargetName(equation.name, oldName, newName),
           expression: replaceIdentifierInSource(equation.expression, oldName, newName)
         }))
       };
@@ -231,7 +231,7 @@ function renameVariableInCell(
           ...cell.editor,
           equations: cell.editor.equations.map((equation) => ({
             ...equation,
-            name: equation.name.trim() === oldName ? newName : equation.name,
+            name: renameEquationTargetName(equation.name, oldName, newName),
             expression: replaceIdentifierInSource(equation.expression, oldName, newName)
           })),
           externals: cell.editor.externals.map((external) => ({
@@ -430,8 +430,24 @@ function countReferencesInCell(
   }
 }
 
+function equationNameDefinesVariable(equationName: string, variable: string): boolean {
+  const trimmed = equationName.trim();
+  if (trimmed === variable) {
+    return true;
+  }
+  return derivativeBalanceStockName(trimmed) === variable;
+}
+
+function renameEquationTargetName(equationName: string, oldName: string, newName: string): string {
+  const stockName = derivativeBalanceStockName(equationName);
+  if (stockName !== null && stockName === oldName) {
+    return `d(${newName})`;
+  }
+  return equationName.trim() === oldName ? newName : equationName;
+}
+
 function countNameMatch(name: string, variable: string): number {
-  return name.trim() === variable ? 1 : 0;
+  return equationNameDefinesVariable(name, variable) ? 1 : 0;
 }
 
 function countIdentifierOccurrences(source: string, variable: string): number {
