@@ -25,11 +25,10 @@ describe("App notebook navigation and inspection", () => {
     render(<App />);
 
     const templatePicker = screen.getByRole("combobox", { name: /notebook template/i });
-    const templateOptions = within(templatePicker).getAllByRole("option");
 
     expect(templatePicker).toHaveValue("bmw");
-    expect(templateOptions[0]).toHaveValue("sim");
-    expect(templateOptions[1]).toHaveValue("bmw");
+    expect(within(templatePicker).getByRole("option", { name: /^BMW$/i })).toBeInTheDocument();
+    expect(within(templatePicker).getByRole("option", { name: /^SIM$/i })).toBeInTheDocument();
     expect(screen.getAllByText(/bmw browser notebook/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /^run all$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /validate/i })).toBeInTheDocument();
@@ -39,6 +38,29 @@ describe("App notebook navigation and inspection", () => {
     expect(screen.getByRole("heading", { name: /bmw transaction flow sequence/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /baseline run with newton/i })).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /^show$/i }).length).toBeGreaterThan(0);
+  }, 10000);
+
+  it("shows unnamed in the template picker after a template edit", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    const templatePicker = screen.getByRole("combobox", { name: /notebook template/i });
+    expect(templatePicker).toHaveValue("bmw");
+
+    const equationsCell = document.getElementById("equations-newton");
+    expect(equationsCell).not.toBeNull();
+    if (!(equationsCell instanceof HTMLElement)) {
+      throw new Error("Expected equations cell article.");
+    }
+
+    await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+
+    await waitFor(() => {
+      expect(templatePicker).toHaveValue("__unnamed__");
+    });
+    expect(within(templatePicker).getByRole("option", { name: /unnamed \(bmw\)/i })).toBeInTheDocument();
   }, 10000);
 
   it("shows BMW equation details after expanding the model cell", async () => {

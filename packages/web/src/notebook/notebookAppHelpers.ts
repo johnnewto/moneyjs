@@ -82,13 +82,31 @@ export function resolveNotebookTemplateIdFromHash(hash: string): NotebookTemplat
 }
 
 export function parseNotebookTemplateIdFromHash(hash: string): NotebookTemplateId | null {
+  const variantMatch = hash.match(/^#\/notebook\/variant\/([^/?#]+)/);
+  if (variantMatch?.[1]) {
+    return null;
+  }
+
   const match = hash.match(/^#\/notebook\/([^/?#]+)/);
   const candidate = match?.[1]?.trim();
   return candidate && isNotebookTemplateId(candidate) ? candidate : null;
 }
 
+export function parseNotebookVariantIdFromHash(hash: string): string | null {
+  const match = hash.match(/^#\/notebook\/variant\/([^/?#]+)/);
+  const candidate = match?.[1]?.trim();
+  return candidate || null;
+}
+
 export function writeNotebookHash(templateId?: NotebookTemplateId): void {
   const nextHash = templateId ? `#/notebook/${templateId}` : "#/notebook";
+  if (window.location.hash !== nextHash) {
+    window.location.hash = nextHash;
+  }
+}
+
+export function writeNotebookVariantHash(variantId: string): void {
+  const nextHash = `#/notebook/variant/${variantId}`;
   if (window.location.hash !== nextHash) {
     window.location.hash = nextHash;
   }

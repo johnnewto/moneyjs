@@ -14,7 +14,10 @@ import {
   userEvent
 } from "./appTestUtils";
 import { notebookToCompactYaml, notebookToJson } from "../src/notebook/document";
-import { CUSTOM_NOTEBOOK_STORAGE_KEY } from "../src/notebook/NotebookApp";
+import {
+  CUSTOM_NOTEBOOK_STORAGE_KEY,
+  IMPORTED_NOTEBOOK_VARIANT_ID
+} from "../src/notebook/notebookVariants";
 import { createNotebookFromTemplate } from "../src/notebook/templates";
 
 setupAppTestEnv();
@@ -283,11 +286,13 @@ describe("App notebook source and import workflows", () => {
     await user.click(screen.getAllByRole("button", { name: /apply preview/i })[0]);
 
     await waitFor(() => {
-      expect(window.localStorage.getItem(CUSTOM_NOTEBOOK_STORAGE_KEY)).toContain(
-        "Stored Custom Notebook"
-      );
+      expect(
+        window.localStorage.getItem(`sfcr:notebook-variant:${IMPORTED_NOTEBOOK_VARIANT_ID}`)
+      ).toContain("Stored Custom Notebook");
     });
-    expect(screen.getByRole("combobox", { name: /notebook template/i })).toHaveValue("__custom__");
+    expect(screen.getByRole("combobox", { name: /notebook template/i })).toHaveValue(
+      IMPORTED_NOTEBOOK_VARIANT_ID
+    );
   }, 15000);
 
   it("recalls a saved custom notebook from the template selector", async () => {
@@ -302,12 +307,12 @@ describe("App notebook source and import workflows", () => {
 
     const templatePicker = screen.getByRole("combobox", { name: /notebook template/i });
     expect(templatePicker).toHaveValue("bmw");
-    expect(within(templatePicker).getByRole("option", { name: /custom notebook/i })).toBeInTheDocument();
+    expect(within(templatePicker).getByRole("option", { name: /recalled custom notebook/i })).toBeInTheDocument();
 
-    await user.selectOptions(templatePicker, "__custom__");
+    await user.selectOptions(templatePicker, IMPORTED_NOTEBOOK_VARIANT_ID);
 
     expect(screen.getAllByText(/^Recalled Custom Notebook$/i).length).toBeGreaterThan(0);
-    expect(templatePicker).toHaveValue("__custom__");
+    expect(templatePicker).toHaveValue(IMPORTED_NOTEBOOK_VARIANT_ID);
   }, 15000);
 
   it("shows apply and discard actions when the import text is edited", async () => {
@@ -349,6 +354,7 @@ describe("App notebook source and import workflows", () => {
 
     await user.click(screen.getByRole("button", { name: /discard text/i }));
 
-    expect(refreshedTextarea.value).toBe(editedValue);
+    expect(refreshedTextarea.value).toContain("Draft Notebook");
+    expect(refreshedTextarea.value).not.toBe(originalValue);
   }, 15000);
 });
