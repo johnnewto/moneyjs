@@ -1251,6 +1251,13 @@ body.panel-splitter-body-lock {
   justify-content: flex-end;
 }
 
+.equation-unit-picker-note {
+  margin: 0 0 0.5rem;
+  color: var(--muted-fg, #6b7280);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
 .equation-unit-picker-operands {
   align-items: end;
   display: grid;

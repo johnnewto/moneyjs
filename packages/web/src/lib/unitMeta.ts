@@ -1,3 +1,5 @@
+import { isDerivativeBalanceTarget } from "@sfcr/core";
+
 import type { VariableDescriptions } from "./variableDescriptions";
 
 export type BaseDimension = "money" | "items" | "time";
@@ -216,6 +218,28 @@ export function formatUnitLabel(unitMeta?: UnitMeta): string | null {
   return formatUnitText(unitMeta);
 }
 
+const TIME_STEP_SIGNATURE: UnitSignature = { time: 1 };
+
+export function formatUnitTextForVariableName(
+  variableName: string,
+  unitMeta?: UnitMeta
+): string | null {
+  const normalized = coerceUnitMeta(unitMeta);
+  if (!normalized?.signature) {
+    return formatUnitText(normalized);
+  }
+
+  if (isDerivativeBalanceTarget(variableName)) {
+    return formatUnitText({
+      ...normalized,
+      stockFlow: "flow",
+      signature: divideSignatures(normalized.signature, TIME_STEP_SIGNATURE)
+    });
+  }
+
+  return formatUnitText(normalized);
+}
+
 export function formatUnitText(unitMeta?: UnitMeta): string | null {
   const normalizedMeta = coerceUnitMeta(unitMeta);
   if (normalizedMeta?.displayUnit) {
@@ -254,10 +278,13 @@ export function formatUnitText(unitMeta?: UnitMeta): string | null {
 
 export function formatVariableTooltip(
   description?: string,
-  unitMeta?: UnitMeta
+  unitMeta?: UnitMeta,
+  variableName?: string
 ): string | undefined {
   const normalizedDescription = description?.trim();
-  const unitLabel = formatUnitText(unitMeta);
+  const unitLabel = variableName?.trim()
+    ? formatUnitTextForVariableName(variableName, unitMeta)
+    : formatUnitText(unitMeta);
 
   if (normalizedDescription && unitLabel) {
     return `${normalizedDescription}\n${unitLabel}`;
@@ -289,7 +316,7 @@ export function resolveVariableTooltip(args: {
     return normalizedName ? `${normalizedName} = ${formattedValue}` : formattedValue;
   }
 
-  return formatVariableTooltip(resolvedDescription, unitMeta);
+  return formatVariableTooltip(resolvedDescription, unitMeta, normalizedName);
 }
 
 export function formatValueWithUnits(

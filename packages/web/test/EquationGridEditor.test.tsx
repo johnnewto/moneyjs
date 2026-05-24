@@ -658,6 +658,26 @@ describe("EquationGridEditor", () => {
     expect(message).toHaveClass("equation-grid-warning-row", "is-warning");
   });
 
+  it("shows flow units on derivative-balance equation badges", () => {
+    render(
+      <EquationGridEditor
+        equations={[
+          {
+            id: "eq-ls",
+            name: "d(Ls)",
+            expression: "d(Ld)",
+            unitMeta: { stockFlow: "stock", signature: { money: 1 } }
+          }
+        ]}
+        issues={{}}
+        onChange={vi.fn()}
+        parameterNames={[]}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: /edit units for d\(ls\)/i })).toHaveTextContent("$/yr");
+  });
+
   it("renders d(name) stock warnings that recommend explicit dt", () => {
     render(
       <EquationGridEditor

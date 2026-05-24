@@ -448,9 +448,8 @@ export function diagnoseBuildRuntime(editor: EditorState): BuildDiagnosticResult
 
     try {
       const parsed = parseEquation(name, expression);
-      const unitCheckName = derivativeBalanceStockName(name) ?? name;
       for (const diagnostic of diagnoseEquationUnits(
-        unitCheckName,
+        name,
         parsed.sourceExpression,
         variableUnits
       )) {

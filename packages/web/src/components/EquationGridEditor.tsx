@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 
-import type { EquationRole } from "@sfcr/core";
+import {
+  derivativeBalanceStockName,
+  isDerivativeBalanceTarget,
+  type EquationRole
+} from "@sfcr/core";
 import type { EquationRow, ValidationIssue } from "../lib/editorModel";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
 import {
-  formatUnitText,
   normalizeSignature,
   resolveVariableTooltip,
   type StockFlowKind,
@@ -21,7 +24,7 @@ import {
   type UnitPickerOperand,
   type UnitPickerShape
 } from "../lib/unitPicker";
-import { getVariableUnitLabel, suggestEquationUnitMeta } from "../lib/units";
+import { getEquationRowUnitLabel, getVariableUnitLabel, suggestEquationUnitMeta } from "../lib/units";
 import {
   buildActiveTrace,
   buildTraceModel,
@@ -353,7 +356,8 @@ function EquationUnitsPopover({
   variableUnitMetadata?: VariableUnitMetadata;
 }) {
   const normalized = unitMeta ? { ...unitMeta, signature: normalizeSignature(unitMeta.signature) } : undefined;
-  const unitLabel = formatUnitText(normalized) ?? "Set units";
+  const unitLabel = getEquationRowUnitLabel(variableName, normalized) ?? "Set units";
+  const derivativeBalanceStock = derivativeBalanceStockName(variableName);
   const [draft, setDraft] = useState(() => createUnitDialogDraft(normalized));
   const draftSignatureKey = JSON.stringify(normalized?.signature ?? null);
   const draftStockFlow = normalized?.stockFlow ?? null;
@@ -439,6 +443,13 @@ function EquationUnitsPopover({
               Suggest
             </button>
           </div>
+          {isDerivativeBalanceTarget(variableName) && derivativeBalanceStock && normalized?.signature ? (
+            <p className="equation-unit-picker-note">
+              Defines stock {derivativeBalanceStock} (
+              {getEquationRowUnitLabel(derivativeBalanceStock, normalized) ?? "units"}). The badge
+              shows the per-year change.
+            </p>
+          ) : null}
           <label className="equation-badge-popover-field">
             <span>Kind</span>
             <select

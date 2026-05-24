@@ -1,7 +1,9 @@
 import {
   derivativeBalanceStockName,
   isAccumulationEquation,
+  isDerivativeBalanceTarget,
   parseEquation,
+  parseExpression,
   type Expr
 } from "@sfcr/core";
 
@@ -11,6 +13,7 @@ import {
   divideSignatures,
   formatSignature,
   formatUnitText,
+  formatUnitTextForVariableName,
   multiplySignatures,
   normalizeSignature,
   signaturesEqual,
@@ -62,18 +65,33 @@ export function getVariableUnitMeta(
   return metadata.get(variableName.trim());
 }
 
+export { formatUnitTextForVariableName } from "./unitMeta";
+
 export function getVariableUnitLabel(
   metadata: VariableUnitMetadata,
   variableName: string
 ): string | null {
-  return formatUnitText(getVariableUnitMeta(metadata, variableName));
+  return formatUnitTextForVariableName(
+    variableName,
+    getVariableUnitMeta(metadata, variableName)
+  );
 }
 
 export function getVariableUnitText(
   metadata: VariableUnitMetadata,
   variableName: string
 ): string | null {
-  return formatUnitText(getVariableUnitMeta(metadata, variableName));
+  return formatUnitTextForVariableName(
+    variableName,
+    getVariableUnitMeta(metadata, variableName)
+  );
+}
+
+export function getEquationRowUnitLabel(
+  equationName: string,
+  unitMeta?: UnitMeta
+): string | null {
+  return formatUnitTextForVariableName(equationName, unitMeta);
 }
 
 export interface SuggestedEquationUnitMeta {
@@ -93,6 +111,30 @@ export function suggestEquationUnitMeta(args: {
 
   try {
     const parsed = parseEquation(args.variableName, expression);
+    if (isDerivativeBalanceTarget(args.variableName)) {
+      const stockName = derivativeBalanceStockName(args.variableName);
+      const stockMeta = stockName
+        ? coerceUnitMeta(args.variableUnitMetadata.get(stockName))
+        : undefined;
+      if (stockMeta?.signature) {
+        return {
+          signature: normalizeSignature(stockMeta.signature),
+          stockFlow: "stock"
+        };
+      }
+
+      const inferred = inferUnits(parseExpression(expression), args.variableUnitMetadata);
+      const flowSignature = inferred.signature ? normalizeSignature(inferred.signature) : null;
+      if (!flowSignature || Object.keys(flowSignature).length === 0) {
+        return null;
+      }
+
+      return {
+        signature: multiplySignatures(flowSignature, TIME_STEP),
+        stockFlow: "stock"
+      };
+    }
+
     const inferred = inferUnits(parsed.sourceExpression, args.variableUnitMetadata);
     const signature = inferred.signature ? normalizeSignature(inferred.signature) : null;
     if (!signature || Object.keys(signature).length === 0) {
@@ -113,6 +155,18 @@ export function diagnoseEquationUnits(
   expression: Expr,
   variableUnits: VariableUnitMetadata
 ): UnitDiagnostic[] {
+  if (isDerivativeBalanceTarget(equationName)) {
+    const stockName = derivativeBalanceStockName(equationName);
+    if (stockName) {
+      return diagnoseDerivativeBalanceEquation(
+        equationName,
+        stockName,
+        expression,
+        variableUnits
+      );
+    }
+  }
+
   const leftMeta = coerceUnitMeta(variableUnits.get(equationName.trim()));
   const integralDiagnostics = leftMeta
     ? diagnoseIntegralEquation(equationName, expression, leftMeta, variableUnits)
@@ -407,6 +461,57 @@ function diagnoseStockAccumulation(
       message: `Stock '${equationName}' assumes an implicit dt = 1 when adding increment terms.`
     });
   }
+  return diagnostics;
+}
+
+function diagnoseDerivativeBalanceEquation(
+  equationName: string,
+  stockName: string,
+  expression: Expr,
+  variableUnits: VariableUnitMetadata
+): UnitDiagnostic[] {
+  const leftMeta = coerceUnitMeta(
+    variableUnits.get(stockName) ?? variableUnits.get(equationName.trim())
+  );
+  if (!leftMeta) {
+    const rhs = inferUnits(expression, variableUnits);
+    return [...rhs.diagnostics];
+  }
+
+  // parseEquation rewrites d(stock) = flowExpr to stock = I(flowExpr) in sourceExpression.
+  if (expression.type === "Integral") {
+    return diagnoseIntegralEquation(stockName, expression, leftMeta, variableUnits) ?? [];
+  }
+
+  const diagnostics: UnitDiagnostic[] = [];
+
+  if (!leftMeta.signature) {
+    const rhs = inferUnits(expression, variableUnits);
+    return [...rhs.diagnostics];
+  }
+
+  if (leftMeta.stockFlow !== "stock") {
+    diagnostics.push({
+      severity: "error",
+      message: `Derivative-balance equation '${equationName}' should define a stock, but '${stockName}' is not marked as a stock.`
+    });
+    return diagnostics;
+  }
+
+  const inner = inferUnits(expression, variableUnits);
+  diagnostics.push(...inner.diagnostics);
+  if (inner.signature == null) {
+    return diagnostics;
+  }
+
+  const expectedInner = divideSignatures(leftMeta.signature, TIME_STEP);
+  if (!signaturesEqual(inner.signature, expectedInner)) {
+    diagnostics.push({
+      severity: "error",
+      message: `Derivative-balance equation '${equationName}' expects a flow with units ${formatSignature(expectedInner)}, but got ${formatSignature(inner.signature)}.`
+    });
+  }
+
   return diagnostics;
 }
 

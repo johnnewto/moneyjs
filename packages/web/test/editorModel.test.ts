@@ -355,4 +355,58 @@ describe("editor model validation", () => {
     expect(diagnostics.modelError).toBeNull();
     expect(diagnostics.issues.filter((issue) => issue.path === "equations.0.expression")).toHaveLength(0);
   });
+
+  it("accepts derivative-balance equations when both stocks have unit metadata", () => {
+    const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
+    editor.equations = [
+      {
+        id: "eq-ls",
+        name: "d(Ls)",
+        expression: "d(Ld)",
+        unitMeta: { stockFlow: "stock", signature: { money: 1 } }
+      },
+      {
+        id: "eq-ld",
+        name: "Ld",
+        expression: "2",
+        unitMeta: { stockFlow: "stock", signature: { money: 1 } }
+      }
+    ];
+    editor.initialValues = [{ id: "init-ls", name: "Ls", valueText: "10" }];
+
+    const diagnostics = diagnoseBuildRuntime(editor);
+
+    expect(
+      diagnostics.issues.filter((issue) => issue.path === "equations.0.expression")
+    ).toHaveLength(0);
+  });
+
+  it("flags derivative-balance equations whose RHS is not flow-sized", () => {
+    const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
+    editor.equations = [
+      {
+        id: "eq-ls",
+        name: "d(Ls)",
+        expression: "Ld",
+        unitMeta: { stockFlow: "stock", signature: { money: 1 } }
+      },
+      {
+        id: "eq-ld",
+        name: "Ld",
+        expression: "2",
+        unitMeta: { stockFlow: "stock", signature: { money: 1 } }
+      }
+    ];
+
+    const diagnostics = diagnoseBuildRuntime(editor);
+
+    expect(
+      diagnostics.issues.filter((issue) => issue.path === "equations.0.expression")
+    ).toEqual([
+      expect.objectContaining({
+        severity: "error",
+        message: expect.stringContaining("I(...) for stock 'Ls' expects a flow")
+      })
+    ]);
+  });
 });
