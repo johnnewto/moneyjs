@@ -1,4 +1,6 @@
 import { buildVariableDescriptions, type VariableDescriptions } from "../lib/variableDescriptions";
+import { buildVariableUnitMetadata } from "../lib/units";
+import type { VariableUnitMetadata } from "../lib/unitMeta";
 import {
   DEFAULT_NOTEBOOK_TEMPLATE_ID,
   isNotebookTemplateId,
@@ -39,6 +41,32 @@ export function buildNotebookVariableDescriptions(cells: NotebookCell[]): Variab
   }
 
   return descriptions;
+}
+
+export function buildNotebookVariableUnitMetadata(cells: NotebookCell[]): VariableUnitMetadata {
+  const metadata: VariableUnitMetadata = new Map();
+
+  for (const cell of cells) {
+    const nextMetadata =
+      cell.type === "model"
+        ? buildVariableUnitMetadata({
+            equations: cell.editor.equations,
+            externals: cell.editor.externals
+          })
+        : cell.type === "equations"
+          ? buildVariableUnitMetadata({ equations: cell.equations })
+          : cell.type === "externals"
+            ? buildVariableUnitMetadata({ externals: cell.externals })
+            : null;
+
+    for (const [name, unitMeta] of nextMetadata ?? []) {
+      if (!metadata.has(name)) {
+        metadata.set(name, unitMeta);
+      }
+    }
+  }
+
+  return metadata;
 }
 
 export function formatElapsedTime(durationMs: number): string {

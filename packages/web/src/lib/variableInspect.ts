@@ -1,6 +1,10 @@
 import type { EditorState } from "./editorModel";
 import type { NotebookCell, NotebookDocument } from "../notebook/types";
 import { findEquationsCell, findExternalsCell, findInitialValuesCell, findLegacyModelCell, findSolverCell } from "../notebook/modelSections";
+import { buildVariableDescriptions } from "./variableDescriptions";
+import { buildVariableUnitMetadata } from "./units";
+import type { VariableCatalogRow } from "./variableCatalog";
+import { listCatalogModelContexts } from "./variableCatalog";
 
 export type InspectorModelSource = { sourceModelId: string } | { sourceModelCellId: string };
 
@@ -146,6 +150,38 @@ export function applyInspectorDefiningEquationExpression(
           equation.id === equationId ? { ...equation, expression } : equation
         )
       };
+    })
+  };
+}
+
+export function buildVariableInspectRequestFromCatalogRow(args: {
+  currentValues: Record<string, number | undefined>;
+  document: NotebookDocument;
+  row: VariableCatalogRow;
+}): VariableInspectRequest | null {
+  const editor =
+    (args.row.modelSource
+      ? buildEditorStateForInspectorModelSource(args.document, args.row.modelSource)
+      : null) ??
+  listCatalogModelContexts(args.document).find((context) => context.modelId === args.row.modelId)?.editor ??
+    null;
+
+  if (!editor) {
+    return null;
+  }
+
+  return {
+    currentValues: args.currentValues,
+    editor,
+    modelSource: args.row.modelSource,
+    selectedVariable: args.row.name,
+    variableDescriptions: buildVariableDescriptions({
+      equations: editor.equations,
+      externals: editor.externals
+    }),
+    variableUnitMetadata: buildVariableUnitMetadata({
+      equations: editor.equations,
+      externals: editor.externals
     })
   };
 }

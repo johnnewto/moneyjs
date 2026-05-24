@@ -335,6 +335,32 @@ describe("App notebook navigation and inspection", () => {
     expect(changeDepositsRow?.textContent).toMatch(/= \$[0-9.,]+\/yr/);
   });
 
+  it("opens the notebook variable inspector from the variables catalog tab", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    setSuccessfulNotebookRunner();
+
+    render(<App />);
+
+    await user.click(screen.getByRole("tab", { name: /^variables$/i }));
+
+    expect(screen.getByRole("heading", { name: /^variables$/i })).toBeInTheDocument();
+    const catalogTable = document.querySelector(".variable-catalog-table");
+    expect(catalogTable).not.toBeNull();
+
+    const yRow = within(catalogTable as HTMLElement).getByText(/^Y\b/i).closest("tr");
+    expect(yRow).not.toBeNull();
+    if (!yRow) {
+      throw new Error("Expected Y row in variable catalog.");
+    }
+
+    await user.click(yRow);
+
+    expect(screen.getByText("Selected variable")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Y\b/i })).toBeInTheDocument();
+    expect(document.querySelector("code.inspector-equation")).toHaveTextContent(/Y.*=\s*Cs\s*\+\s*Is/);
+  });
+
   it("opens the notebook variable inspector from the baseline variable summary table", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";

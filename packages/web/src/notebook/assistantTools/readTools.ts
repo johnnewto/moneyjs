@@ -1,5 +1,11 @@
 import { getVariableUnitText, buildVariableUnitMetadata } from "../../lib/units";
 import { buildVariableDescriptions } from "../../lib/variableDescriptions";
+import {
+  buildCurrentValuesByModelFromSnapshot,
+  buildVariableCatalogRows,
+  catalogRowToAssistantEntry,
+  listCatalogModelContexts
+} from "../../lib/variableCatalog";
 import { buildDependencyGraph } from "../dependencyGraph";
 import type { ChartCell, MatrixCell, RunCell } from "../types";
 import { NOTEBOOK_ASSISTANT_TOOL_NAMES, type NotebookAssistantSnapshot } from "./types";
@@ -237,17 +243,25 @@ export function listRuns(snapshot: NotebookAssistantSnapshot) {
 }
 
 export function listVariables(snapshot: NotebookAssistantSnapshot) {
-  const variables = new Map<string, ReturnType<typeof getVariableMetadata>>();
-  for (const model of listModelContexts(snapshot)) {
-    const graph = buildDependencyGraph(model.editor);
-    for (const node of graph.nodes) {
-      if (!variables.has(node.name)) {
-        variables.set(node.name, getVariableMetadata(snapshot, node.name));
-      }
-    }
-  }
+  const unitMetadataByModel = new Map(
+    listCatalogModelContexts(snapshot.document).map((context) => [
+      context.modelId,
+      buildVariableUnitMetadata({
+        equations: context.editor.equations,
+        externals: context.editor.externals
+      })
+    ])
+  );
 
-  return Array.from(variables.values()).sort((left, right) => left.variable.localeCompare(right.variable));
+  return buildVariableCatalogRows({
+    document: snapshot.document,
+    currentValuesByModel: buildCurrentValuesByModelFromSnapshot(snapshot)
+  }).map((row) =>
+    catalogRowToAssistantEntry(row, unitMetadataByModel.get(row.modelId)?.get(row.name))
+  ).map((entry) => ({
+    ...entry,
+    unitMeta: serializeUnitMeta(entry.unitMeta)
+  }));
 }
 
 export function listCharts(snapshot: NotebookAssistantSnapshot) {

@@ -95,6 +95,7 @@ import {
 } from "./templates";
 import {
   buildNotebookVariableDescriptions,
+  buildNotebookVariableUnitMetadata,
   formatElapsedTime,
   NOTEBOOK_AI_GUIDE_URL,
   NOTEBOOK_AI_LANDING_URL,
@@ -115,6 +116,7 @@ import { PeriodScrubber } from "../components/PeriodScrubber";
 import { AssistantMarkdown } from "../components/AssistantMarkdown";
 import { formatAssistantTokenUsage, mergeAssistantTokenUsage, type AssistantTokenUsage } from "../assistant/sse";
 import { VariableInspector } from "../components/VariableInspector";
+import { VariableCatalogPanel } from "../components/VariableCatalogPanel";
 import { VariableMathLabel } from "../components/VariableMathLabel";
 import { useDragScroll } from "../hooks/useDragScroll";
 import { useInspectorVariableHistory } from "../hooks/useInspectorVariableHistory";
@@ -125,13 +127,20 @@ import { buildVariableDescriptions } from "../lib/variableDescriptions";
 import { buildVariableUnitMetadata } from "../lib/units";
 import {
   applyInspectorDefiningEquationExpression,
+  buildVariableInspectRequestFromCatalogRow,
   isInspectorModelEditable,
   isSameInspectorContext,
   updateEditorDefiningEquationExpression,
   type VariableInspectRequest
 } from "../lib/variableInspect";
+import {
+  buildCurrentValuesByModel,
+  buildVariableCatalogRows,
+  listCatalogModelContexts,
+  type VariableCatalogRow
+} from "../lib/variableCatalog";
 
-type NotebookRailTab = "editor" | "inspect" | "contents" | "assistant" | "help" | "preview";
+type NotebookRailTab = "editor" | "variables" | "inspect" | "contents" | "assistant" | "help" | "preview";
 
 const BUILD_DATE_LABEL = formatBuildDate(__SFCR_BUILD_DATE__);
 const NOTEBOOK_HISTORY_LIMIT = 50;
@@ -623,6 +632,33 @@ export function NotebookApp() {
     () => buildNotebookVariableDescriptions(notebookDocument.cells),
     [notebookDocument.cells]
   );
+  const catalogVariableUnitMetadata = useMemo(
+    () => buildNotebookVariableUnitMetadata(notebookDocument.cells),
+    [notebookDocument.cells]
+  );
+  const catalogModelContexts = useMemo(
+    () => listCatalogModelContexts(notebookDocument),
+    [notebookDocument]
+  );
+  const catalogCurrentValuesByModel = useMemo(
+    () =>
+      buildCurrentValuesByModel({
+        document: notebookDocument,
+        getResult: (runCellId) => runner.getResult(runCellId),
+        selectedPeriodIndex
+      }),
+    [notebookDocument, runner.outputs, selectedPeriodIndex]
+  );
+  const catalogRows = useMemo(() => {
+    if (activeRailTab !== "variables") {
+      return [];
+    }
+
+    return buildVariableCatalogRows({
+      document: notebookDocument,
+      currentValuesByModel: catalogCurrentValuesByModel
+    });
+  }, [activeRailTab, notebookDocument, catalogCurrentValuesByModel]);
   const maxResultPeriodIndex = useMemo(() => {
     const configuredMaxPeriodIndex = Math.max(
       0,
@@ -1035,6 +1071,28 @@ export function NotebookApp() {
     }
     setInspectorContext(args);
     setActiveRailTab("inspect");
+  }
+
+  function handleCatalogRowSelect(row: VariableCatalogRow): void {
+    const currentValues =
+      buildCurrentValuesByModel({
+        document: notebookDocument,
+        getResult: (runCellId) => runner.getResult(runCellId),
+        selectedPeriodIndex
+      }).get(row.modelId) ?? getCurrentValueMapForModelRef({
+        sourceModelId: row.modelId
+      });
+
+    const request = buildVariableInspectRequestFromCatalogRow({
+      currentValues,
+      document: notebookDocument,
+      row
+    });
+    if (!request) {
+      return;
+    }
+
+    handleVariableInspectRequest(request);
   }
 
   function handleInspectorGoBack(): void {
@@ -2642,6 +2700,15 @@ export function NotebookApp() {
               <button
                 type="button"
                 role="tab"
+                {...{ "aria-selected": activeRailTab === "variables" }}
+                className={`notebook-rail-tab${activeRailTab === "variables" ? " is-active" : ""}`}
+                onClick={() => setActiveRailTab("variables")}
+              >
+                Variables
+              </button>
+              <button
+                type="button"
+                role="tab"
                 {...{ "aria-selected": activeRailTab === "inspect" }}
                 className={`notebook-rail-tab${activeRailTab === "inspect" ? " is-active" : ""}`}
                 onClick={() => setActiveRailTab("inspect")}
@@ -2788,6 +2855,16 @@ export function NotebookApp() {
                 </div>
               ) : null}
             </section>
+          ) : null}
+
+          {activeRailTab === "variables" ? (
+            <VariableCatalogPanel
+              onSelectRow={handleCatalogRowSelect}
+              rows={catalogRows}
+              selectedVariable={inspectorContext?.selectedVariable}
+              showModelColumn={catalogModelContexts.length > 1}
+              variableUnitMetadata={catalogVariableUnitMetadata}
+            />
           ) : null}
 
           {activeRailTab === "inspect" ? (
