@@ -1491,12 +1491,28 @@ body.panel-splitter-body-lock {
 }
 
 .variable-catalog-toolbar {
+  align-items: center;
   display: grid;
-  gap: 0.55rem;
+  gap: 0.3rem 0.55rem;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+}
+
+.variable-catalog-toolbar-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.1;
 }
 
 .variable-catalog-toolbar .field {
+  display: block;
   margin: 0;
+}
+
+.variable-catalog-toolbar .field input,
+.variable-catalog-toolbar .field select {
+  padding: 0.45rem 0.65rem;
+  width: 100%;
 }
 
 .variable-catalog-search input {
@@ -1505,6 +1521,12 @@ body.panel-splitter-body-lock {
 
 .variable-catalog-columns-menu {
   position: relative;
+  width: 100%;
+}
+
+.variable-catalog-columns-menu .secondary-button {
+  padding: 0.45rem 0.75rem;
+  width: 100%;
 }
 
 .variable-catalog-columns-popover {

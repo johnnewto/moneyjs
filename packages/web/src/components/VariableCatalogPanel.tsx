@@ -43,7 +43,6 @@ interface VariableCatalogTableRow extends VariableCatalogRow {
 }
 
 interface VariableCatalogPanelProps {
-  isLoading?: boolean;
   onSelectRow(row: VariableCatalogRow): void;
   rows: VariableCatalogRow[];
   selectedVariable?: string | null;
@@ -142,7 +141,6 @@ function buildInitialColumnVisibility(
 }
 
 export function VariableCatalogPanel({
-  isLoading = false,
   onSelectRow,
   rows,
   selectedVariable = null,
@@ -379,8 +377,6 @@ export function VariableCatalogPanel({
 
   return (
     <section className="control-panel variable-catalog-panel notebook-sidebar-panel" role="tabpanel">
-      <VariableCatalogPanelHeader count={rows.length} isLoading={isLoading} />
-
       <VariableCatalogToolbar
         columnsMenuOpen={columnsMenuOpen}
         globalFilter={globalFilter}
@@ -409,22 +405,6 @@ export function VariableCatalogPanel({
   );
 }
 
-function VariableCatalogPanelHeader({ count, isLoading = false }: { count: number; isLoading?: boolean }) {
-  return (
-    <div className="panel-header">
-      <div>
-        <div className="eyebrow">Model catalog</div>
-        <h2>Variables</h2>
-        <p className="panel-subtitle">
-          {isLoading
-            ? "Loading variables..."
-            : `${count} variable${count === 1 ? "" : "s"} across linked models.`}
-        </p>
-      </div>
-    </div>
-  );
-}
-
 function VariableCatalogToolbar<T extends VariableCatalogTableRow>({
   columnsMenuOpen,
   globalFilter,
@@ -448,19 +428,26 @@ function VariableCatalogToolbar<T extends VariableCatalogTableRow>({
 }) {
   return (
     <div className="variable-catalog-toolbar">
+      <span className="variable-catalog-toolbar-label">Search</span>
+      <span className="variable-catalog-toolbar-label">Group by</span>
+      <span className="variable-catalog-toolbar-label">Columns</span>
+
       <label className="variable-catalog-search field">
-        <span>Search</span>
         <input
           type="search"
           value={globalFilter}
           placeholder="Filter by name or description"
+          aria-label="Search"
           onChange={(event) => onGlobalFilterChange(event.target.value)}
         />
       </label>
 
       <label className="variable-catalog-group-by field">
-        <span>Group by</span>
-        <select value={groupBy} onChange={(event) => onGroupByChange(event.target.value as VariableCatalogGroupBy)}>
+        <select
+          value={groupBy}
+          aria-label="Group by"
+          onChange={(event) => onGroupByChange(event.target.value as VariableCatalogGroupBy)}
+        >
           {groupByOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
