@@ -31,11 +31,13 @@ export function ModelCellView({
   onReplaceCells,
   onToggleCollapsed,
   onVariableInspectRequest,
+  highlightedVariable = null,
   title
 }: {
   cell: ModelCell;
   cells: NotebookCell[];
   currentValues: Record<string, number | undefined>;
+  highlightedVariable?: string | null;
   onEditingChange?(isEditing: boolean): void;
   onHelpRequest?: (() => void) | null;
   onChange(editor: EditorState): void;
@@ -185,6 +187,7 @@ export function ModelCellView({
                 variableUnitMetadata
               })
             }
+            documentHighlightedVariable={highlightedVariable}
             parameterNames={draftEditor.externals.map((external) => external.name)}
             showHeading={false}
             showTraceHelp={false}
@@ -214,6 +217,7 @@ export function ModelCellView({
                   equation={equation}
                   equationIndex={index}
                   formatRoleLabel={formatEquationRoleLabel}
+                  highlightedVariable={highlightedVariable}
                   hoveredRowId={hoveredRowId}
                   isEditing={inlineEdit.editingEquationId === equation.id}
                   issueMessage={issue}
@@ -290,6 +294,7 @@ export function EquationsCellView({
   onEditingChange,
   onHelpRequest,
   onVariableInspectRequest,
+  highlightedVariable = null,
   onReplaceCells,
   selectedPeriodIndex,
   solverCell,
@@ -304,6 +309,7 @@ export function EquationsCellView({
   initialValuesCount: number;
   onEditingChange?(isEditing: boolean): void;
   onHelpRequest?: (() => void) | null;
+  highlightedVariable?: string | null;
   onVariableInspectRequest(args: VariableInspectRequest): void;
   onReplaceCells(nextCells: NotebookCell[]): void;
   selectedPeriodIndex: number;
@@ -483,6 +489,7 @@ export function EquationsCellView({
                 variableUnitMetadata
               })
             }
+            documentHighlightedVariable={highlightedVariable}
             parameterNames={externals.map((external) => external.name)}
             showHeading={false}
             showTraceHelp={false}
@@ -513,6 +520,7 @@ export function EquationsCellView({
                   equation={equation}
                   equationIndex={index}
                   formatRoleLabel={formatEquationRoleLabel}
+                  highlightedVariable={highlightedVariable}
                   hoveredRowId={hoveredRowId}
                   isEditing={inlineEdit.editingEquationId === equation.id}
                   issueMessage={issue}

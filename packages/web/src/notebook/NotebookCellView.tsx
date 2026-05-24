@@ -168,6 +168,7 @@ export interface NotebookCellViewProps {
     title: string;
   }): void;
   onVariableInspectRequest(args: VariableInspectRequest): void;
+  highlightedVariable?: string | null;
   runner: ReturnType<typeof useNotebookRunner>;
   selectedCellId: string | null;
   selectedPeriodIndex: number;
@@ -193,7 +194,8 @@ function NotebookCellViewComponent({
   onCellChange,
   onReplaceCells,
   onCellHelpRequest,
-  onVariableInspectRequest
+  onVariableInspectRequest,
+  highlightedVariable = null
 }: NotebookCellViewProps) {
   const status = runner.status[cell.id] ?? "idle";
   const error = runner.errors[cell.id];
@@ -769,6 +771,7 @@ function NotebookCellViewComponent({
                 <AssistantMarkdown
                   className="notebook-cell-description-markdown"
                   currentValues={noteInspectionContext?.currentValues}
+                  highlightedVariable={highlightedVariable}
                   onSelectVariable={
                     noteInspectionContext == null
                       ? undefined
@@ -948,6 +951,7 @@ function NotebookCellViewComponent({
           <AssistantMarkdown
             className="notebook-markdown"
             currentValues={markdownInspectionContext?.currentValues}
+            highlightedVariable={highlightedVariable}
             onSelectVariable={
               markdownInspectionContext == null
                 ? undefined
@@ -974,6 +978,7 @@ function NotebookCellViewComponent({
             onEditingChange={setIsLinkedEditorEditing}
             onHelpRequest={requestCellHelp}
             onVariableInspectRequest={onVariableInspectRequest}
+            highlightedVariable={highlightedVariable}
             onReplaceCells={onReplaceCells}
             selectedPeriodIndex={selectedPeriodIndex}
             solverCell={findSolverCell(cells, cell.modelId)}
@@ -1008,6 +1013,7 @@ function NotebookCellViewComponent({
             }
             title={cell.title}
             onVariableInspectRequest={onVariableInspectRequest}
+            highlightedVariable={highlightedVariable}
           />
         ) : null}
         {isCollapsed ? null : cell.type === "solver" ? (
@@ -1038,6 +1044,7 @@ function NotebookCellViewComponent({
             onEditingChange={setIsLinkedEditorEditing}
             onHelpRequest={requestCellHelp}
             onVariableInspectRequest={onVariableInspectRequest}
+            highlightedVariable={highlightedVariable}
             title={cell.title}
             onChange={(externals) =>
               onCellChange(cell.id, (current) =>
@@ -1062,6 +1069,7 @@ function NotebookCellViewComponent({
             onEditingChange={setIsLinkedEditorEditing}
             onHelpRequest={requestCellHelp}
             onVariableInspectRequest={onVariableInspectRequest}
+            highlightedVariable={highlightedVariable}
             title={cell.title}
             variableDescriptions={variableDescriptions}
             variableUnitMetadata={variableUnitMetadata}
@@ -1086,6 +1094,7 @@ function NotebookCellViewComponent({
             currentValues={runInspectionContext?.currentValues ?? {}}
             editor={runInspectionContext?.editor ?? null}
             onVariableInspectRequest={onVariableInspectRequest}
+            highlightedVariable={highlightedVariable}
             runner={runner}
             variableDescriptions={variableDescriptions}
             variableUnitMetadata={variableUnitMetadata}
@@ -1126,6 +1135,7 @@ function NotebookCellViewComponent({
                 }
                 runner={runner}
                 selectedPeriodIndex={selectedPeriodIndex}
+                highlightedVariable={highlightedVariable}
                 variableDescriptions={variableDescriptions}
                 variableUnitMetadata={variableUnitMetadata}
               />
@@ -1139,6 +1149,7 @@ function NotebookCellViewComponent({
                 variableDescriptions={variableDescriptions}
                 variableUnitMetadata={variableUnitMetadata}
                 onVariableInspectRequest={onVariableInspectRequest}
+                highlightedVariable={highlightedVariable}
               />
             ) : null}
             {cell.type === "matrix" ? (
@@ -1152,6 +1163,7 @@ function NotebookCellViewComponent({
                 onCellChange={onCellChange}
                 onReplaceCells={onReplaceCells}
                 onVariableInspectRequest={onVariableInspectRequest}
+                highlightedVariable={highlightedVariable}
               />
             ) : null}
             {cell.type === "sequence" ? (
@@ -1165,6 +1177,7 @@ function NotebookCellViewComponent({
                 onMatrixSequenceViewStateChange={setMatrixSequenceViewState}
                 onSelectedPeriodIndexChange={onSelectedPeriodIndexChange}
                 onVariableInspectRequest={onVariableInspectRequest}
+                highlightedVariable={highlightedVariable}
                 runner={runner}
                 selectedPeriodIndex={selectedPeriodIndex}
                 variableDescriptions={variableDescriptions}
@@ -1178,6 +1191,7 @@ function NotebookCellViewComponent({
             <AssistantMarkdown
               className="notebook-cell-note-markdown"
               currentValues={noteInspectionContext?.currentValues}
+              highlightedVariable={highlightedVariable}
               onSelectVariable={
                 noteInspectionContext == null
                   ? undefined
@@ -1381,6 +1395,10 @@ function areNotebookCellViewPropsEqual(
   }
 
   if (usesMaxPeriodIndex(nextProps.cell) && previousProps.maxPeriodIndex !== nextProps.maxPeriodIndex) {
+    return false;
+  }
+
+  if (previousProps.highlightedVariable !== nextProps.highlightedVariable) {
     return false;
   }
 

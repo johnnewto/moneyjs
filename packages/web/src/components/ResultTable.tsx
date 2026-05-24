@@ -1,6 +1,7 @@
 import type { VariableDescriptions } from "../lib/variableDescriptions";
 import type { VariableUnitMetadata } from "../lib/unitMeta";
 import { NumericValueText } from "./NumericValueText";
+import { documentHighlightClassName } from "../lib/variableHighlight";
 import { VariableLabel } from "./VariableLabel";
 
 interface ResultRow {
@@ -12,6 +13,7 @@ interface ResultRow {
 }
 
 interface ResultTableProps {
+  highlightedVariable?: string | null;
   onSelectVariable?(variableName: string): void;
   selectedIndex?: number;
   title: string;
@@ -21,6 +23,7 @@ interface ResultTableProps {
 }
 
 export function ResultTable({
+  highlightedVariable = null,
   onSelectVariable,
   title,
   rows,
@@ -47,7 +50,7 @@ export function ResultTable({
                 {onSelectVariable ? (
                   <button
                     type="button"
-                    className="result-variable-button"
+                    className={documentHighlightClassName(row.name, highlightedVariable, "result-variable-button")}
                     onClick={() => onSelectVariable(row.name)}
                   >
                     <VariableLabel

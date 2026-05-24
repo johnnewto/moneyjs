@@ -4,6 +4,7 @@ import { ResultChart } from "../../components/ResultChart";
 import { VariableLabel } from "../../components/VariableLabel";
 import type { EditorState } from "../../lib/editorModel";
 import { resolveInspectorModelSource, type VariableInspectRequest } from "../../lib/variableInspect";
+import { documentHighlightClassName } from "../../lib/variableHighlight";
 import type { buildVariableUnitMetadata } from "../../lib/units";
 import { getVariableDescription, type VariableDescriptions } from "../../lib/variableDescriptions";
 import type { ChartCell, NotebookCell, RunCell } from "../types";
@@ -15,6 +16,7 @@ export function RunCellView({
   currentValues,
   editor,
   onVariableInspectRequest,
+  highlightedVariable = null,
   runner,
   variableDescriptions,
   variableUnitMetadata
@@ -23,6 +25,7 @@ export function RunCellView({
   cells: NotebookCell[];
   currentValues: Record<string, number | undefined>;
   editor: EditorState | null;
+  highlightedVariable?: string | null;
   onVariableInspectRequest(args: VariableInspectRequest): void;
   runner: ReturnType<typeof useNotebookRunner>;
   variableDescriptions: VariableDescriptions;
@@ -81,7 +84,7 @@ export function RunCellView({
                     {handleInspectVariable ? (
                       <button
                         type="button"
-                        className="result-variable-button"
+                        className={documentHighlightClassName(name, highlightedVariable, "result-variable-button")}
                         aria-label={`Inspect variable ${name}`}
                         onClick={() => handleInspectVariable(name)}
                       >
@@ -137,11 +140,13 @@ export function ChartCellView({
   onRemoveVariable,
   runner,
   selectedPeriodIndex,
+  highlightedVariable = null,
   variableDescriptions,
   variableUnitMetadata
 }: {
   cell: ChartCell;
   cells: NotebookCell[];
+  highlightedVariable?: string | null;
   onAddVariable?(variableName: string): void;
   onMoveVariable?(variableName: string, direction: "left" | "right"): void;
   onRemoveVariable?(variableName: string): void;
@@ -211,6 +216,7 @@ export function ChartCellView({
       sharedRange={cell.sharedRange}
       timeRangeDefaults={timeRangeDefaults}
       timeRangeInclusive={cell.timeRangeInclusive}
+      highlightedVariable={highlightedVariable}
       variableDescriptions={variableDescriptions}
       variableUnitMetadata={variableUnitMetadata}
       yAxisTickCount={cell.yAxisTickCount}

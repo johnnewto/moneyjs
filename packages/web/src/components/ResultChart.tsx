@@ -3,6 +3,7 @@ import type { MouseEvent as ReactMouseEvent } from "react";
 import { formatVariableTooltip, type VariableUnitMetadata } from "../lib/unitMeta";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
 import { getVariableUnitLabel } from "../lib/units";
+import { documentHighlightClassName } from "../lib/variableHighlight";
 import { InstantTooltip } from "./InstantTooltip";
 import {
   DEFAULT_AXIS_TICK_COUNT,
@@ -42,6 +43,7 @@ interface ResultChartProps {
   sharedRange?: ChartAxisRange;
   timeRangeDefaults?: { endPeriodInclusive: number; startPeriodInclusive: number };
   timeRangeInclusive?: [number, number];
+  highlightedVariable?: string | null;
   variableDescriptions?: VariableDescriptions;
   variableUnitMetadata?: VariableUnitMetadata;
   yAxisTickCount?: number;
@@ -65,6 +67,7 @@ export function ResultChart({
   sharedRange,
   timeRangeDefaults,
   timeRangeInclusive,
+  highlightedVariable = null,
   variableDescriptions,
   variableUnitMetadata,
   yAxisTickCount = DEFAULT_AXIS_TICK_COUNT,
@@ -343,15 +346,19 @@ export function ResultChart({
             const isHidden = hiddenSeriesNames.has(entry.name);
             const isHovered = hoveredDatum?.seriesName === entry.name;
             const isLegendMenuOpen = openLegendMenuSeriesName === entry.name;
-            const className = `legend-item${
-              isHidden
-                ? " is-hidden"
-                : hoveredDatum
-                  ? isHovered
-                    ? " is-active"
-                    : " is-dimmed"
-                  : ""
-            }`;
+            const className = documentHighlightClassName(
+              entry.name,
+              highlightedVariable,
+              `legend-item${
+                isHidden
+                  ? " is-hidden"
+                  : hoveredDatum
+                    ? isHovered
+                      ? " is-active"
+                      : " is-dimmed"
+                    : ""
+              }`
+            );
 
             return (
               <InstantTooltip

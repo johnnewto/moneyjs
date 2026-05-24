@@ -2,10 +2,12 @@ import type { InitialValueRow } from "../lib/editorModel";
 import type { VariableUnitMetadata } from "../lib/unitMeta";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
 import { NumericValueText } from "./NumericValueText";
+import { documentHighlightClassName } from "../lib/variableHighlight";
 import { VariableLabel } from "./VariableLabel";
 
 interface InitialValuesEditorProps {
   currentValues?: Record<string, number | undefined>;
+  highlightedVariable?: string | null;
   isEmbedded?: boolean;
   initialValues: InitialValueRow[];
   issues: Record<string, string | undefined>;
@@ -18,6 +20,7 @@ interface InitialValuesEditorProps {
 
 export function InitialValuesEditor({
   currentValues = {},
+  highlightedVariable = null,
   isEmbedded = false,
   initialValues,
   issues,
@@ -81,7 +84,8 @@ export function InitialValuesEditor({
                 currentValues[initialValue.name.trim()],
                 variableDescriptions,
                 variableUnitMetadata,
-                onSelectVariable
+                onSelectVariable,
+                highlightedVariable
               )}
             </span>
             <span
@@ -141,7 +145,8 @@ function renderCurrentValue(
   value: number | undefined,
   variableDescriptions?: VariableDescriptions,
   variableUnitMetadata?: VariableUnitMetadata,
-  onSelectVariable?: (variableName: string) => void
+  onSelectVariable?: (variableName: string) => void,
+  highlightedVariable: string | null = null
 ): React.JSX.Element | string {
   const trimmedName = name.trim();
   if (!trimmedName) {
@@ -163,7 +168,7 @@ function renderCurrentValue(
           {onSelectVariable ? (
             <button
               type="button"
-              className="result-variable-button"
+              className={documentHighlightClassName(trimmedName, highlightedVariable, "result-variable-button")}
               onClick={() => onSelectVariable(trimmedName)}
             >
               {label}

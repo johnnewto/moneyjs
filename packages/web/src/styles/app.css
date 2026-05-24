@@ -1156,6 +1156,33 @@ body.panel-splitter-body-lock {
   text-align: left;
 }
 
+.result-variable-button.is-document-highlighted,
+.formula-token.is-document-highlighted,
+.assistant-variable-button.is-document-highlighted,
+.chart-legend-item.is-document-highlighted {
+  background: rgba(253, 224, 71, 0.28);
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgba(217, 119, 6, 0.35);
+}
+
+.result-variable-button.is-document-highlighted {
+  padding: 0.05rem 0.2rem;
+}
+
+.formula-token.is-document-highlighted {
+  border-radius: 3px;
+  padding: 0 0.08rem;
+}
+
+.assistant-markdown .assistant-variable-button.is-document-highlighted {
+  padding: 0 0.12rem;
+}
+
+.chart-legend-item.is-document-highlighted,
+.legend-item.is-document-highlighted {
+  padding: 0.08rem 0.2rem;
+}
+
 .result-variable-button:hover .variable-label-inline {
   text-decoration: underline;
   text-decoration-color: rgba(37, 99, 235, 0.32);

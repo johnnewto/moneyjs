@@ -35,6 +35,7 @@ import {
 import { useEquationGridColumnResize } from "../hooks/useEquationGridColumnResize";
 import { InstantTooltip } from "./InstantTooltip";
 import { renderVariableMathLabel } from "./VariableMathLabel";
+import { documentHighlightClassName } from "../lib/variableHighlight";
 
 export {
   buildActiveTrace,
@@ -54,6 +55,7 @@ interface EquationGridEditorProps {
   isEmbedded?: boolean;
   onChange(next: EquationRow[]): void;
   onSelectVariable?(variableName: string): void;
+  documentHighlightedVariable?: string | null;
   parameterNames?: string[];
   showHeading?: boolean;
   showTraceHelp?: boolean;
@@ -69,6 +71,7 @@ export function EquationGridEditor({
   isEmbedded = false,
   onChange,
   onSelectVariable,
+  documentHighlightedVariable = null,
   parameterNames = [],
   showHeading = true,
   showTraceHelp = true,
@@ -216,6 +219,7 @@ export function EquationGridEditor({
                     value={equation.name}
                     currentValues={currentValues}
                     onSelectVariable={onSelectVariable}
+                    documentHighlightedVariable={documentHighlightedVariable}
                     variableDescriptions={variableDescriptions}
                     variableUnitMetadata={variableUnitMetadata}
                   />
@@ -235,6 +239,7 @@ export function EquationGridEditor({
                     value={equation.expression}
                     currentValues={currentValues}
                     onSelectVariable={onSelectVariable}
+                    documentHighlightedVariable={documentHighlightedVariable}
                     variableDescriptions={variableDescriptions}
                     variableUnitMetadata={variableUnitMetadata}
                   />
@@ -331,6 +336,7 @@ export interface HighlightedFormulaInputProps {
   onChange(value: string): void;
   onEnter(): void;
   onSelectVariable?(variableName: string): void;
+  documentHighlightedVariable?: string | null;
   parameterNames: Set<string>;
   placeholder: string;
   value: string;
@@ -652,6 +658,7 @@ export function HighlightedFormulaInput({
   onChange,
   onEnter,
   onSelectVariable,
+  documentHighlightedVariable = null,
   parameterNames,
   placeholder,
   value,
@@ -673,7 +680,8 @@ export function HighlightedFormulaInput({
               variableUnitMetadata,
               onSelectVariable,
               displayTokens,
-              currentValues
+              currentValues,
+              documentHighlightedVariable
             )
           : placeholder}
       </div>
@@ -757,6 +765,7 @@ export function highlightFormula(
   onSelectVariable?: (variableName: string) => void,
   displayTokens?: Map<string, string>,
   currentValues?: Record<string, number | undefined>,
+  documentHighlightedVariable?: string | null,
   variableSelectOnClick = false
 ): ReactNode[] {
   const parts: ReactNode[] = [];
@@ -806,14 +815,18 @@ export function highlightFormula(
             currentValues
           })
         : undefined;
-    const tokenClassName = `formula-token ${tokenClass}${traceClass ? ` trace-token-${traceClass}` : ""}${
-      onSelectVariable &&
-      tokenClass !== "formula-function" &&
-      tokenClass !== "formula-number" &&
-      tokenClass !== "formula-default"
-        ? " is-clickable"
-        : ""
-    }`;
+    const tokenClassName = documentHighlightClassName(
+      normalizedToken,
+      documentHighlightedVariable,
+      `formula-token ${tokenClass}${traceClass ? ` trace-token-${traceClass}` : ""}${
+        onSelectVariable &&
+        tokenClass !== "formula-function" &&
+        tokenClass !== "formula-number" &&
+        tokenClass !== "formula-default"
+          ? " is-clickable"
+          : ""
+      }`
+    );
     parts.push(
       <InstantTooltip
         key={`${token}-${index}`}

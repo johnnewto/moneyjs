@@ -7,6 +7,7 @@ import { VariableLabel } from "../../components/VariableLabel";
 import type { EditorState } from "../../lib/editorModel";
 import { buildVariableDescriptions, type VariableDescriptions } from "../../lib/variableDescriptions";
 import { buildVariableUnitMetadata } from "../../lib/units";
+import { documentHighlightClassName } from "../../lib/variableHighlight";
 import { useDragScroll } from "../../hooks/useDragScroll";
 import type { VariableInspectRequest } from "../../lib/variableInspect";
 import { countModelSectionIssues } from "../modelSections";
@@ -206,6 +207,7 @@ export function ExternalsCellView({
   onEditingChange,
   onHelpRequest,
   onVariableInspectRequest,
+  highlightedVariable = null,
   title,
   onChange,
   onToggleCollapsed
@@ -214,6 +216,7 @@ export function ExternalsCellView({
   currentValues: Record<string, number | undefined>;
   editor: EditorState;
   issueMap: Record<string, string | undefined>;
+  highlightedVariable?: string | null;
   onEditingChange?(isEditing: boolean): void;
   onHelpRequest?: (() => void) | null;
   onVariableInspectRequest(args: VariableInspectRequest): void;
@@ -348,7 +351,11 @@ export function ExternalsCellView({
                     {external.name.trim() ? (
                       <button
                         type="button"
-                        className="result-variable-button"
+                        className={documentHighlightClassName(
+                          external.name.trim(),
+                          highlightedVariable,
+                          "result-variable-button"
+                        )}
                         onClick={() =>
                           onVariableInspectRequest({
                             currentValues,
@@ -403,6 +410,7 @@ export function InitialValuesCellView({
   onEditingChange,
   onHelpRequest,
   onVariableInspectRequest,
+  highlightedVariable = null,
   title,
   variableDescriptions,
   variableUnitMetadata,
@@ -413,6 +421,7 @@ export function InitialValuesCellView({
   currentValues: Record<string, number | undefined>;
   editor: EditorState;
   issueMap: Record<string, string | undefined>;
+  highlightedVariable?: string | null;
   onEditingChange?(isEditing: boolean): void;
   onHelpRequest?: (() => void) | null;
   onVariableInspectRequest(args: VariableInspectRequest): void;
@@ -500,6 +509,7 @@ export function InitialValuesCellView({
         <div className="notebook-model-editor-body">
           <InitialValuesEditor
             currentValues={currentValues}
+            highlightedVariable={highlightedVariable}
             initialValues={draftInitialValues}
             isEmbedded
             issues={issueMap}
@@ -559,7 +569,11 @@ export function InitialValuesCellView({
                     {initialValue.name.trim() ? (
                       <button
                         type="button"
-                        className="result-variable-button"
+                        className={documentHighlightClassName(
+                          initialValue.name.trim(),
+                          highlightedVariable,
+                          "result-variable-button"
+                        )}
                         onClick={() =>
                           onVariableInspectRequest({
                             currentValues,

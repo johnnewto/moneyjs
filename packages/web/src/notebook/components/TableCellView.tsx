@@ -14,7 +14,8 @@ export function TableCellView({
   selectedPeriodIndex,
   variableDescriptions,
   variableUnitMetadata,
-  onVariableInspectRequest
+  onVariableInspectRequest,
+  highlightedVariable = null
 }: {
   cell: TableCell;
   cells: NotebookCell[];
@@ -22,6 +23,7 @@ export function TableCellView({
   selectedPeriodIndex: number;
   variableDescriptions: VariableDescriptions;
   variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
+  highlightedVariable?: string | null;
   onVariableInspectRequest(args: VariableInspectRequest): void;
 }) {
   const result = runner.getResult(cell.sourceRunCellId);
@@ -56,6 +58,7 @@ export function TableCellView({
       title={cell.title}
       rows={rows}
       selectedIndex={selectedPeriodIndex}
+      highlightedVariable={highlightedVariable}
       onSelectVariable={(selectedVariable) => {
         if (!editor) {
           return;

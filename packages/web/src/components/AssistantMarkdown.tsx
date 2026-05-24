@@ -5,12 +5,14 @@ import remarkGfm from "remark-gfm";
 
 import type { VariableDescriptions } from "../lib/variableDescriptions";
 import type { VariableUnitMetadata } from "../lib/unitMeta";
+import { documentHighlightClassName } from "../lib/variableHighlight";
 import { VariableLabel } from "./VariableLabel";
 import { renderVariableMathPlainText } from "./VariableMathLabel";
 
 interface AssistantMarkdownProps {
   className?: string;
   currentValues?: Record<string, number | undefined>;
+  highlightedVariable?: string | null;
   inline?: boolean;
   onSelectVariable?(variableName: string): void;
   text: string;
@@ -21,6 +23,7 @@ interface AssistantMarkdownProps {
 export function AssistantMarkdown({
   className,
   currentValues,
+  highlightedVariable = null,
   inline = false,
   onSelectVariable,
   text,
@@ -68,7 +71,8 @@ export function AssistantMarkdown({
                     onSelectVariable,
                     variableDescriptions,
                     variableUnitMetadata,
-                    currentValues
+                    currentValues,
+                    highlightedVariable
                   )}
                 </code>
               );
@@ -80,7 +84,8 @@ export function AssistantMarkdown({
                 onSelectVariable,
                 variableDescriptions,
                 variableUnitMetadata,
-                currentValues
+                currentValues,
+                highlightedVariable
               );
             }
             return <code className={className}>{children}</code>;
@@ -114,7 +119,8 @@ function renderAssistantEquationTextWithOptions(
   onSelectVariable?: (variableName: string) => void,
   variableDescriptions?: VariableDescriptions,
   variableUnitMetadata?: VariableUnitMetadata,
-  currentValues?: Record<string, number | undefined>
+  currentValues?: Record<string, number | undefined>,
+  highlightedVariable?: string | null
 ): ReactNode[] {
   return value.split(/(`[^`\n]+`)/g).map((part, index) => {
     if (part.startsWith("`") && part.endsWith("`")) {
@@ -126,7 +132,9 @@ function renderAssistantEquationTextWithOptions(
           variableDescriptions,
           variableUnitMetadata,
           currentValues,
-          `variable-${index}`
+          `variable-${index}`,
+          false,
+          highlightedVariable
         );
       }
     }
@@ -140,7 +148,8 @@ function renderAssistantVariableCode(
   onSelectVariable?: (variableName: string) => void,
   variableDescriptions?: VariableDescriptions,
   variableUnitMetadata?: VariableUnitMetadata,
-  currentValues?: Record<string, number | undefined>
+  currentValues?: Record<string, number | undefined>,
+  highlightedVariable?: string | null
 ): ReactNode {
   return renderAssistantVariableInline(
     variableName,
@@ -149,7 +158,8 @@ function renderAssistantVariableCode(
     variableUnitMetadata,
     currentValues,
     `code-${variableName}`,
-    true
+    true,
+    highlightedVariable
   );
 }
 
@@ -160,7 +170,8 @@ function renderAssistantVariableInline(
   variableUnitMetadata: VariableUnitMetadata | undefined,
   currentValues: Record<string, number | undefined> | undefined,
   key: string,
-  wrapInCode = false
+  wrapInCode = false,
+  highlightedVariable: string | null = null
 ): ReactNode {
   const label = (
     <VariableLabel
@@ -172,8 +183,13 @@ function renderAssistantVariableInline(
   );
 
   if (!onSelectVariable) {
+    const codeClassName = documentHighlightClassName(
+      variableName,
+      highlightedVariable,
+      "assistant-variable-code"
+    );
     return wrapInCode ? (
-      <code key={key} className="assistant-variable-code">
+      <code key={key} className={codeClassName}>
         {label}
       </code>
     ) : (
@@ -193,7 +209,7 @@ function renderAssistantVariableInline(
     <button
       key={key}
       type="button"
-      className="assistant-variable-button"
+      className={documentHighlightClassName(variableName, highlightedVariable, "assistant-variable-button")}
       aria-label={`Inspect variable ${variableName}`}
       onClick={() => onSelectVariable(variableName)}
     >

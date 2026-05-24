@@ -2646,6 +2646,7 @@ export function NotebookApp() {
                   onReplaceCells={replaceCells}
                   onCellHelpRequest={handleCellHelpRequest}
                   onVariableInspectRequest={handleVariableInspectRequest}
+                  highlightedVariable={inspectorContext?.selectedVariable ?? null}
                   selectedCellId={selectedCellId}
                   selectedPeriodIndex={selectedPeriodIndex}
                 />

@@ -13,6 +13,7 @@ import { VariableLabel } from "../../components/VariableLabel";
 import type { EquationRow } from "../../lib/editorModel";
 import type { VariableDescriptions } from "../../lib/variableDescriptions";
 import type { VariableUnitMetadata } from "../../lib/unitMeta";
+import { documentHighlightClassName } from "../../lib/variableHighlight";
 
 const DEFERRED_ACTION_DELAY_MS = 400;
 
@@ -207,6 +208,7 @@ export function NotebookEquationReadRow({
   equation,
   equationIndex,
   formatRoleLabel,
+  highlightedVariable = null,
   hoveredRowId,
   isEditing,
   issueMessage,
@@ -234,6 +236,7 @@ export function NotebookEquationReadRow({
   equation: EquationRow;
   equationIndex: number;
   formatRoleLabel(equation: EquationRow): string;
+  highlightedVariable?: string | null;
   hoveredRowId: string | null;
   isEditing: boolean;
   issueMessage?: string;
@@ -330,7 +333,11 @@ export function NotebookEquationReadRow({
         {equation.name ? (
           <button
             type="button"
-            className="result-variable-button"
+            className={documentHighlightClassName(
+              equation.name.trim(),
+              highlightedVariable,
+              "result-variable-button"
+            )}
             onClick={(event) => {
               event.stopPropagation();
               clearDeferredAction();
@@ -371,6 +378,7 @@ export function NotebookEquationReadRow({
               onSelectVariableInExpression,
               displayTokens,
               currentValues,
+              highlightedVariable,
               true
             )
           : " "}

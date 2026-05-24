@@ -342,6 +342,14 @@ describe("App notebook navigation and inspection", () => {
 
     render(<App />);
 
+    const equationsCell = document.getElementById("equations-newton");
+    expect(equationsCell).not.toBeNull();
+    if (!(equationsCell instanceof HTMLElement)) {
+      throw new Error("Expected equations cell article.");
+    }
+
+    await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+
     await user.click(screen.getByRole("tab", { name: /^variables$/i }));
 
     expect(screen.getByRole("heading", { name: /^variables$/i })).toBeInTheDocument();
@@ -359,6 +367,11 @@ describe("App notebook navigation and inspection", () => {
     expect(screen.getByText("Selected variable")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^Y\b/i })).toBeInTheDocument();
     expect(document.querySelector("code.inspector-equation")).toHaveTextContent(/Y.*=\s*Cs\s*\+\s*Is/);
+    await waitFor(() => {
+      expect(
+        equationsCell.querySelector(".notebook-model-view-name .is-document-highlighted")
+      ).not.toBeNull();
+    });
   });
 
   it("opens the notebook variable inspector from the baseline variable summary table", async () => {

@@ -38,6 +38,7 @@ export function SequenceCellView({
   onMatrixSequenceViewStateChange,
   onSelectedPeriodIndexChange,
   onVariableInspectRequest,
+  highlightedVariable: _highlightedVariable = null,
   runner,
   selectedPeriodIndex,
   variableDescriptions
@@ -49,6 +50,7 @@ export function SequenceCellView({
     sourceModelId?: string;
     sourceModelCellId?: string;
   }): Record<string, number | undefined>;
+  highlightedVariable?: string | null;
   matrixSequenceViewState: MatrixSequenceViewState | null;
   maxPeriodIndex: number;
   onCellChange(cellId: string, updater: (cell: NotebookCell) => NotebookCell): void;

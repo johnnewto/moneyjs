@@ -11,6 +11,7 @@ import type { VariableDescriptions } from "../../lib/variableDescriptions";
 import { useDragScroll } from "../../hooks/useDragScroll";
 import { classifyMatrixStockRole, inferMatrixTableKind } from "../matrixSemantics";
 import { resolveInspectorModelSource, type VariableInspectRequest } from "../../lib/variableInspect";
+import { documentHighlightClassName } from "../../lib/variableHighlight";
 import { buildEditorStateForNotebookModel } from "../modelSections";
 import { NotebookRenderProfiler } from "../notebookProfiler";
 import { useMatrixEntryEdit, type MatrixEditingTarget } from "../useMatrixEntryEdit";
@@ -35,7 +36,8 @@ export function MatrixCellView({
   variableUnitMetadata,
   onCellChange,
   onReplaceCells,
-  onVariableInspectRequest
+  onVariableInspectRequest,
+  highlightedVariable = null
 }: {
   cell: MatrixCell;
   cells: NotebookCell[];
@@ -43,6 +45,7 @@ export function MatrixCellView({
   selectedPeriodIndex: number;
   variableDescriptions: VariableDescriptions;
   variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
+  highlightedVariable?: string | null;
   onCellChange(cellId: string, updater: (cell: NotebookCell) => NotebookCell): void;
   onReplaceCells(nextCells: NotebookCell[]): void;
   onVariableInspectRequest(args: VariableInspectRequest): void;
@@ -247,7 +250,7 @@ export function MatrixCellView({
           {editor ? (
             <button
               type="button"
-              className="result-variable-button"
+              className={documentHighlightClassName(column, highlightedVariable, "result-variable-button")}
               onClick={() => handleInspectVariable(column)}
             >
               <VariableLabel
@@ -350,6 +353,7 @@ export function MatrixCellView({
                           rowIndex={rowIndex}
                           source={entry.source}
                           sourceSelectVariable={sourceSelectVariable}
+                          highlightedVariable={highlightedVariable}
                           variableDescriptions={variableDescriptions}
                           variableUnitMetadata={variableUnitMetadata}
                           onApply={matrixEntryEdit.applyEntryEdit}
@@ -781,6 +785,7 @@ function MatrixEntrySource({
   rowIndex,
   source,
   sourceSelectVariable,
+  highlightedVariable = null,
   variableDescriptions,
   variableUnitMetadata,
   onApply,
@@ -797,6 +802,7 @@ function MatrixEntrySource({
   rowIndex: number;
   source: string;
   sourceSelectVariable?: (variableName: string) => void;
+  highlightedVariable?: string | null;
   variableDescriptions: VariableDescriptions;
   variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
   onApply(): void;
@@ -839,6 +845,7 @@ function MatrixEntrySource({
           onChange={onDraftChange}
           onEnter={onApply}
           onSelectVariable={sourceSelectVariable}
+          documentHighlightedVariable={highlightedVariable}
           parameterNames={parameterNames}
           placeholder="Expression"
           value={draftSource}
@@ -869,6 +876,7 @@ function MatrixEntrySource({
           sourceSelectVariable,
           undefined,
           currentValues,
+          highlightedVariable,
           true
         )}
       </span>
@@ -894,6 +902,7 @@ function MatrixEntrySource({
         sourceSelectVariable,
         undefined,
         currentValues,
+        highlightedVariable,
         true
       )}
     </span>
