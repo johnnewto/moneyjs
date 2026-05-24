@@ -13,7 +13,6 @@ import { VariableLabel } from "../../components/VariableLabel";
 import type { EquationRow } from "../../lib/editorModel";
 import type { VariableDescriptions } from "../../lib/variableDescriptions";
 import type { VariableUnitMetadata } from "../../lib/unitMeta";
-import { formatNotebookCurrentValue } from "./NotebookCurrentValue";
 
 const DEFERRED_ACTION_DELAY_MS = 400;
 
@@ -376,13 +375,8 @@ export function NotebookEquationReadRow({
             )
           : " "}
       </span>
-      <span className="notebook-model-view-current" role="cell">
-        {formatNotebookCurrentValue(
-          equation.name,
-          currentValues[equation.name.trim()],
-          variableDescriptions,
-          variableUnitMetadata
-        )}
+      <span className="notebook-model-view-description" role="cell">
+        {equation.desc?.trim() || " "}
       </span>
       <span className="notebook-model-view-kind" role="cell">
         {formatRoleLabel(equation)}

@@ -6,6 +6,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  EQUATION_GRID_EXPRESSION_WIDTH_STORAGE_KEY,
   EQUATION_GRID_VARIABLE_WIDTH_STORAGE_KEY,
   useEquationGridColumnResize
 } from "../src/hooks/useEquationGridColumnResize";
@@ -28,12 +29,13 @@ function EquationGridResizeFixture({ isEmbedded = false }: { isEmbedded?: boolea
       <div className="equation-grid-header" role="row">
         <span>#</span>
         <span ref={columnResize.variableHeaderRef}>Variable</span>
-        <span>Expression</span>
+        <span ref={columnResize.expressionHeaderRef}>Expression</span>
         <span>Role</span>
         <span>Description</span>
         <span>Status</span>
         <span />
-        <div {...columnResize.resizeHandleProps} />
+        <div {...columnResize.variableResizeHandleProps} />
+        <div {...columnResize.expressionResizeHandleProps} />
       </div>
     </div>
   );
@@ -51,6 +53,7 @@ describe("useEquationGridColumnResize", () => {
     }
 
     expect(shell.style.getPropertyValue("--eq-col-variable-width")).toBe("140px");
+    expect(shell.style.getPropertyValue("--eq-col-expression-width")).toBe("320px");
 
     fireEvent.mouseDown(separator, { button: 0, clientX: 300 });
     fireEvent.mouseMove(document, { clientX: 360 });
@@ -65,6 +68,27 @@ describe("useEquationGridColumnResize", () => {
     expect(window.localStorage.getItem(EQUATION_GRID_VARIABLE_WIDTH_STORAGE_KEY.workspace)).toBe(
       "200"
     );
+  });
+
+  it("updates expression column width while dragging", () => {
+    const { container } = render(<EquationGridResizeFixture />);
+    const shell = container.querySelector(".equation-grid-shell");
+    const separator = screen.getByRole("separator", { name: /resize expression column/i });
+
+    expect(shell).toBeInstanceOf(HTMLDivElement);
+    if (!(shell instanceof HTMLDivElement)) {
+      throw new Error("Expected equation grid shell.");
+    }
+
+    fireEvent.mouseDown(separator, { button: 0, clientX: 500 });
+    fireEvent.mouseMove(document, { clientX: 560 });
+    fireEvent.mouseUp(document);
+
+    expect(shell.style.getPropertyValue("--eq-col-expression-width")).toBe("380px");
+    expect(separator).toHaveAttribute("aria-valuenow", "380");
+    expect(
+      window.localStorage.getItem(EQUATION_GRID_EXPRESSION_WIDTH_STORAGE_KEY.workspace)
+    ).toBe("380");
   });
 
   it("uses separate storage for embedded grids", () => {

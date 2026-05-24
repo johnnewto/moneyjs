@@ -22,8 +22,8 @@ describe("NotebookEquationViewTable", () => {
           <span className="notebook-model-view-expression" role="cell">
             C + I
           </span>
-          <span className="notebook-model-view-current" role="cell">
-            100
+          <span className="notebook-model-view-description" role="cell">
+            Income = GDP
           </span>
           <span className="notebook-model-view-kind" role="cell">
             Auto
@@ -38,6 +38,10 @@ describe("NotebookEquationViewTable", () => {
     expect(
       screen.getByRole("separator", { name: /resize variable column/i })
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("separator", { name: /resize expression column/i })
+    ).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: /variable/i })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /description/i })).toBeInTheDocument();
   });
 });

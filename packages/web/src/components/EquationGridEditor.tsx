@@ -137,12 +137,13 @@ export function EquationGridEditor({
         <div className="equation-grid-header" role="row">
           <span>#</span>
           <span ref={columnResize.variableHeaderRef}>Variable</span>
-          <span>Expression</span>
+          <span ref={columnResize.expressionHeaderRef}>Expression</span>
           <span>Role</span>
           <span>Description</span>
           <span>Status</span>
           <span />
-          <div {...columnResize.resizeHandleProps} />
+          <div {...columnResize.variableResizeHandleProps} />
+          <div {...columnResize.expressionResizeHandleProps} />
         </div>
 
         <div className="equation-grid-body">

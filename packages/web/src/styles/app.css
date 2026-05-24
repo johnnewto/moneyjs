@@ -859,6 +859,7 @@ body.panel-splitter-body-lock {
 }
 
 .equation-grid-shell {
+  --eq-col-expression-width: 320px;
   --eq-col-variable-width: 140px;
   border: 1px solid rgba(148, 163, 184, 0.36);
   border-radius: 12px;
@@ -965,9 +966,9 @@ body.panel-splitter-body-lock {
   grid-template-columns:
     18px
     var(--eq-col-variable-width, 160px)
-    minmax(0, 1fr)
+    var(--eq-col-expression-width, 280px)
     minmax(68px, 78px)
-    minmax(100px, 200px)
+    minmax(0, 1fr)
     minmax(34px, 42px)
     28px;
 }
@@ -978,6 +979,7 @@ body.panel-splitter-body-lock {
 
 .equation-grid-editor-embedded .equation-grid-shell,
 .grid-editor-embedded .equation-grid-shell {
+  --eq-col-expression-width: 280px;
   --eq-col-variable-width: 160px;
 }
 
@@ -989,9 +991,9 @@ body.panel-splitter-body-lock {
   grid-template-columns:
     18px
     var(--eq-col-variable-width, 140px)
-    minmax(0, 1fr)
+    var(--eq-col-expression-width, 320px)
     minmax(72px, 84px)
-    minmax(120px, 240px)
+    minmax(0, 1fr)
     minmax(34px, 42px)
     28px;
   padding: 0.12rem 0.24rem;
@@ -3603,15 +3605,18 @@ body.panel-splitter-body-lock {
 }
 
 .notebook-model-view-table-resizable {
+  --eq-col-expression-width: 280px;
+  --eq-col-role-width: 4.25rem;
   --eq-col-variable-width: 160px;
 }
 
 .notebook-model-view-table-resizable .notebook-model-view-row {
   grid-template-columns:
     var(--eq-col-variable-width, 160px)
+    var(--eq-col-expression-width, 280px)
     minmax(0, 1fr)
-    minmax(92px, 120px)
-    minmax(96px, 128px);
+    var(--eq-col-role-width, 4.25rem);
+  padding: 0.38rem 0.35rem 0.38rem 0.75rem;
 }
 
 .notebook-model-view-table-resizable .notebook-model-view-row-header {
@@ -3686,6 +3691,7 @@ body.panel-splitter-body-lock {
 
 .notebook-model-view-name,
 .notebook-model-view-expression,
+.notebook-model-view-description,
 .notebook-model-view-current {
   font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
   font-size: 0.82rem;
@@ -3698,6 +3704,11 @@ body.panel-splitter-body-lock {
 
 .notebook-model-view-expression {
   color: #334155;
+  overflow-wrap: anywhere;
+}
+
+.notebook-model-view-description {
+  color: #475569;
   overflow-wrap: anywhere;
 }
 
@@ -3753,6 +3764,15 @@ body.panel-splitter-body-lock {
   line-height: 1.35;
   text-align: right;
   white-space: nowrap;
+}
+
+.notebook-model-view-table-resizable .notebook-model-view-role,
+.notebook-model-view-table-resizable .notebook-model-view-row > .notebook-model-view-kind {
+  justify-self: end;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .notebook-run-summary p {

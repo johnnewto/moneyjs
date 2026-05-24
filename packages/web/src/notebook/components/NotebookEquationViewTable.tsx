@@ -25,10 +25,15 @@ export function NotebookEquationViewTable({
         <span ref={columnResize.variableHeaderRef} role="columnheader">
           Variable
         </span>
-        <span role="columnheader">Expression</span>
-        <span role="columnheader">Current</span>
-        <span role="columnheader">Role</span>
-        <div {...columnResize.resizeHandleProps} />
+        <span ref={columnResize.expressionHeaderRef} role="columnheader">
+          Expression
+        </span>
+        <span role="columnheader">Description</span>
+        <span className="notebook-model-view-role" role="columnheader">
+          Role
+        </span>
+        <div {...columnResize.variableResizeHandleProps} />
+        <div {...columnResize.expressionResizeHandleProps} />
       </div>
       {children}
     </div>

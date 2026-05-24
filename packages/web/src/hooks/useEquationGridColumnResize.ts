@@ -5,7 +5,7 @@ import {
   useState,
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
-  type MouseEvent as ReactMouseEvent,
+  type MouseEvent as ReactMouseEvent
 } from "react";
 
 export const EQUATION_GRID_VARIABLE_WIDTH_STORAGE_KEY = {
@@ -13,9 +13,19 @@ export const EQUATION_GRID_VARIABLE_WIDTH_STORAGE_KEY = {
   workspace: "sfcr.equation-grid.variable-column-px"
 } as const;
 
+export const EQUATION_GRID_EXPRESSION_WIDTH_STORAGE_KEY = {
+  embedded: "sfcr.equation-grid.expression-column-px.embedded",
+  workspace: "sfcr.equation-grid.expression-column-px"
+} as const;
+
 const DEFAULT_VARIABLE_WIDTH_PX = {
   embedded: 160,
   workspace: 140
+} as const;
+
+const DEFAULT_EXPRESSION_WIDTH_PX = {
+  embedded: 280,
+  workspace: 320
 } as const;
 
 const MIN_VARIABLE_WIDTH_PX = {
@@ -23,23 +33,35 @@ const MIN_VARIABLE_WIDTH_PX = {
   workspace: 110
 } as const;
 
+const MIN_EXPRESSION_WIDTH_PX = {
+  embedded: 160,
+  workspace: 160
+} as const;
+
 const MAX_VARIABLE_WIDTH_PX = {
   embedded: 280,
   workspace: 240
 } as const;
 
-const MIN_EXPRESSION_WIDTH_PX = 160;
+const MAX_EXPRESSION_WIDTH_PX = {
+  embedded: 560,
+  workspace: 640
+} as const;
+
+const MIN_TRAILING_WIDTH_PX = 160;
+const EQUATION_VIEW_ROLE_WIDTH_PX = 68;
 const KEYBOARD_STEP_PX = 8;
 const RESIZE_HANDLE_HALF_WIDTH_PX = 6;
 
 type EquationColumnResizeLayout = "equation-grid" | "equation-view";
+type ResizableEquationColumn = "variable" | "expression";
 
 interface UseEquationGridColumnResizeOptions {
   isEmbedded?: boolean;
   layout?: EquationColumnResizeLayout;
 }
 
-function getStoredVariableWidthPx(storageKey: string, fallback: number) {
+function getStoredWidthPx(storageKey: string, fallback: number) {
   if (typeof window === "undefined") {
     return fallback;
   }
@@ -61,93 +83,175 @@ function getStoredVariableWidthPx(storageKey: string, fallback: number) {
   }
 }
 
-function clampVariableWidthPx(nextWidth: number, minWidthPx: number, maxWidthPx: number) {
+function clampWidthPx(nextWidth: number, minWidthPx: number, maxWidthPx: number) {
   return Math.min(Math.max(nextWidth, minWidthPx), maxWidthPx);
 }
 
-function getReservedWidthPx(layout: EquationColumnResizeLayout) {
+function getTrailingReservedWidthPx(layout: EquationColumnResizeLayout) {
   if (layout === "equation-view") {
-    return 92 + 96 + 0.6 * 3 * 16 + 0.75 * 2 * 16 + MIN_EXPRESSION_WIDTH_PX;
+    return (
+      EQUATION_VIEW_ROLE_WIDTH_PX +
+      MIN_TRAILING_WIDTH_PX +
+      0.6 * 3 * 16 +
+      0.75 * 16 +
+      0.35 * 16
+    );
   }
 
   return (
-    18 +
     72 +
     120 +
     34 +
     28 +
+    18 +
     0.32 * 6 * 16 +
     0.24 * 2 * 16 +
-    MIN_EXPRESSION_WIDTH_PX
+    MIN_TRAILING_WIDTH_PX
   );
 }
 
-function getMaxVariableWidthPx(
+function getMaxColumnWidthPx(
   shellWidth: number,
   minWidthPx: number,
   staticMaxWidthPx: number,
+  otherColumnWidthPx: number,
   layout: EquationColumnResizeLayout
 ) {
   if (shellWidth < 320) {
     return staticMaxWidthPx;
   }
 
-  return Math.max(minWidthPx, shellWidth - getReservedWidthPx(layout));
+  return Math.max(
+    minWidthPx,
+    shellWidth - otherColumnWidthPx - getTrailingReservedWidthPx(layout)
+  );
+}
+
+function buildResizeHandleStyle(leftPx: number): CSSProperties {
+  return {
+    left: `${leftPx}px`
+  };
 }
 
 export function useEquationGridColumnResize({
   isEmbedded = false,
   layout = "equation-grid"
 }: UseEquationGridColumnResizeOptions = {}) {
-  const storageKey = isEmbedded
+  const variableStorageKey = isEmbedded
     ? EQUATION_GRID_VARIABLE_WIDTH_STORAGE_KEY.embedded
     : EQUATION_GRID_VARIABLE_WIDTH_STORAGE_KEY.workspace;
-  const defaultWidthPx = isEmbedded
+  const expressionStorageKey = isEmbedded
+    ? EQUATION_GRID_EXPRESSION_WIDTH_STORAGE_KEY.embedded
+    : EQUATION_GRID_EXPRESSION_WIDTH_STORAGE_KEY.workspace;
+  const defaultVariableWidthPx = isEmbedded
     ? DEFAULT_VARIABLE_WIDTH_PX.embedded
     : DEFAULT_VARIABLE_WIDTH_PX.workspace;
-  const minWidthPx = isEmbedded ? MIN_VARIABLE_WIDTH_PX.embedded : MIN_VARIABLE_WIDTH_PX.workspace;
-  const staticMaxWidthPx = isEmbedded
+  const defaultExpressionWidthPx = isEmbedded
+    ? DEFAULT_EXPRESSION_WIDTH_PX.embedded
+    : DEFAULT_EXPRESSION_WIDTH_PX.workspace;
+  const minVariableWidthPx = isEmbedded
+    ? MIN_VARIABLE_WIDTH_PX.embedded
+    : MIN_VARIABLE_WIDTH_PX.workspace;
+  const minExpressionWidthPx = isEmbedded
+    ? MIN_EXPRESSION_WIDTH_PX.embedded
+    : MIN_EXPRESSION_WIDTH_PX.workspace;
+  const staticMaxVariableWidthPx = isEmbedded
     ? MAX_VARIABLE_WIDTH_PX.embedded
     : MAX_VARIABLE_WIDTH_PX.workspace;
+  const staticMaxExpressionWidthPx = isEmbedded
+    ? MAX_EXPRESSION_WIDTH_PX.embedded
+    : MAX_EXPRESSION_WIDTH_PX.workspace;
 
   const shellRef = useRef<HTMLDivElement | null>(null);
   const variableHeaderRef = useRef<HTMLSpanElement | null>(null);
+  const expressionHeaderRef = useRef<HTMLSpanElement | null>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
-  const dragStateRef = useRef<{ startWidthPx: number; startClientX: number } | null>(null);
+  const dragStateRef = useRef<{
+    column: ResizableEquationColumn;
+    startClientX: number;
+    startWidthPx: number;
+  } | null>(null);
   const [variableWidthPx, setVariableWidthPx] = useState(() =>
-    getStoredVariableWidthPx(storageKey, defaultWidthPx)
+    getStoredWidthPx(variableStorageKey, defaultVariableWidthPx)
   );
-  const [handleLeftPx, setHandleLeftPx] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const [maxWidthPx, setMaxWidthPx] = useState(staticMaxWidthPx);
+  const [expressionWidthPx, setExpressionWidthPx] = useState(() =>
+    getStoredWidthPx(expressionStorageKey, defaultExpressionWidthPx)
+  );
+  const [variableHandleLeftPx, setVariableHandleLeftPx] = useState(0);
+  const [expressionHandleLeftPx, setExpressionHandleLeftPx] = useState(0);
+  const [draggingColumn, setDraggingColumn] = useState<ResizableEquationColumn | null>(null);
+  const [maxVariableWidthPx, setMaxVariableWidthPx] = useState(staticMaxVariableWidthPx);
+  const [maxExpressionWidthPx, setMaxExpressionWidthPx] = useState(staticMaxExpressionWidthPx);
 
-  const updateHandlePosition = useCallback(() => {
-    const headerCell = variableHeaderRef.current;
+  const updateHandlePositions = useCallback(() => {
     const shell = shellRef.current;
-    if (!headerCell || !shell) {
+    if (!shell) {
       return;
     }
 
-    const headerRect = headerCell.getBoundingClientRect();
     const shellRect = shell.getBoundingClientRect();
-    setHandleLeftPx(headerRect.right - shellRect.left - RESIZE_HANDLE_HALF_WIDTH_PX);
+    const variableHeader = variableHeaderRef.current;
+    const expressionHeader = expressionHeaderRef.current;
+
+    if (variableHeader) {
+      setVariableHandleLeftPx(
+        variableHeader.getBoundingClientRect().right -
+          shellRect.left -
+          RESIZE_HANDLE_HALF_WIDTH_PX
+      );
+    }
+
+    if (expressionHeader) {
+      setExpressionHandleLeftPx(
+        expressionHeader.getBoundingClientRect().right -
+          shellRect.left -
+          RESIZE_HANDLE_HALF_WIDTH_PX
+      );
+    }
   }, []);
 
-  const updateMaxWidth = useCallback(() => {
+  const updateMaxWidths = useCallback(() => {
     const shell = shellRef.current;
     if (!shell) {
-      setMaxWidthPx(staticMaxWidthPx);
+      setMaxVariableWidthPx(staticMaxVariableWidthPx);
+      setMaxExpressionWidthPx(staticMaxExpressionWidthPx);
       return;
     }
 
     const shellWidth = shell.getBoundingClientRect().width;
-    setMaxWidthPx(
+    setMaxVariableWidthPx(
       Math.min(
-        staticMaxWidthPx,
-        getMaxVariableWidthPx(shellWidth, minWidthPx, staticMaxWidthPx, layout)
+        staticMaxVariableWidthPx,
+        getMaxColumnWidthPx(
+          shellWidth,
+          minVariableWidthPx,
+          staticMaxVariableWidthPx,
+          expressionWidthPx,
+          layout
+        )
       )
     );
-  }, [layout, minWidthPx, staticMaxWidthPx]);
+    setMaxExpressionWidthPx(
+      Math.min(
+        staticMaxExpressionWidthPx,
+        getMaxColumnWidthPx(
+          shellWidth,
+          minExpressionWidthPx,
+          staticMaxExpressionWidthPx,
+          variableWidthPx,
+          layout
+        )
+      )
+    );
+  }, [
+    expressionWidthPx,
+    layout,
+    minExpressionWidthPx,
+    minVariableWidthPx,
+    staticMaxExpressionWidthPx,
+    staticMaxVariableWidthPx,
+    variableWidthPx
+  ]);
 
   useEffect(() => {
     return () => {
@@ -163,9 +267,15 @@ export function useEquationGridColumnResize({
     }
 
     shell.style.setProperty("--eq-col-variable-width", `${variableWidthPx}px`);
-    updateHandlePosition();
-    updateMaxWidth();
-  }, [updateHandlePosition, updateMaxWidth, variableWidthPx]);
+    shell.style.setProperty("--eq-col-expression-width", `${expressionWidthPx}px`);
+    updateHandlePositions();
+    updateMaxWidths();
+  }, [
+    expressionWidthPx,
+    updateHandlePositions,
+    updateMaxWidths,
+    variableWidthPx
+  ]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -173,11 +283,23 @@ export function useEquationGridColumnResize({
     }
 
     try {
-      window.localStorage.setItem(storageKey, String(variableWidthPx));
+      window.localStorage.setItem(variableStorageKey, String(variableWidthPx));
     } catch {
       // Ignore storage failures so resizing still works in restricted environments.
     }
-  }, [storageKey, variableWidthPx]);
+  }, [variableStorageKey, variableWidthPx]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(expressionStorageKey, String(expressionWidthPx));
+    } catch {
+      // Ignore storage failures so resizing still works in restricted environments.
+    }
+  }, [expressionStorageKey, expressionWidthPx]);
 
   useEffect(() => {
     const shell = shellRef.current;
@@ -186,37 +308,53 @@ export function useEquationGridColumnResize({
     }
 
     const observer = new ResizeObserver(() => {
-      updateHandlePosition();
-      updateMaxWidth();
+      updateHandlePositions();
+      updateMaxWidths();
     });
     observer.observe(shell);
     return () => observer.disconnect();
-  }, [updateHandlePosition, updateMaxWidth]);
+  }, [updateHandlePositions, updateMaxWidths]);
 
   useEffect(() => {
-    setVariableWidthPx((current) => clampVariableWidthPx(current, minWidthPx, maxWidthPx));
-  }, [maxWidthPx, minWidthPx]);
+    setVariableWidthPx((current) =>
+      clampWidthPx(current, minVariableWidthPx, maxVariableWidthPx)
+    );
+  }, [maxVariableWidthPx, minVariableWidthPx]);
 
-  const setClampedWidth = useCallback(
+  useEffect(() => {
+    setExpressionWidthPx((current) =>
+      clampWidthPx(current, minExpressionWidthPx, maxExpressionWidthPx)
+    );
+  }, [maxExpressionWidthPx, minExpressionWidthPx]);
+
+  const setClampedVariableWidth = useCallback(
     (nextWidth: number) => {
-      setVariableWidthPx(clampVariableWidthPx(nextWidth, minWidthPx, maxWidthPx));
+      setVariableWidthPx(clampWidthPx(nextWidth, minVariableWidthPx, maxVariableWidthPx));
     },
-    [maxWidthPx, minWidthPx]
+    [maxVariableWidthPx, minVariableWidthPx]
   );
 
-  const onMouseDown = useCallback(
-    (event: ReactMouseEvent<HTMLElement>) => {
+  const setClampedExpressionWidth = useCallback(
+    (nextWidth: number) => {
+      setExpressionWidthPx(clampWidthPx(nextWidth, minExpressionWidthPx, maxExpressionWidthPx));
+    },
+    [maxExpressionWidthPx, minExpressionWidthPx]
+  );
+
+  const createMouseDownHandler = useCallback(
+    (column: ResizableEquationColumn) => (event: ReactMouseEvent<HTMLElement>) => {
       if (event.button !== 0) {
         return;
       }
 
       event.preventDefault();
       event.stopPropagation();
-      setIsDragging(true);
+      setDraggingColumn(column);
       document.body.classList.add("panel-splitter-body-lock");
       dragStateRef.current = {
+        column,
         startClientX: event.clientX,
-        startWidthPx: variableWidthPx
+        startWidthPx: column === "variable" ? variableWidthPx : expressionWidthPx
       };
 
       const handleMouseMove = (moveEvent: MouseEvent) => {
@@ -226,9 +364,14 @@ export function useEquationGridColumnResize({
           return;
         }
 
-        setClampedWidth(
-          dragState.startWidthPx + (moveEvent.clientX - dragState.startClientX)
-        );
+        const nextWidth =
+          dragState.startWidthPx + (moveEvent.clientX - dragState.startClientX);
+        if (dragState.column === "variable") {
+          setClampedVariableWidth(nextWidth);
+          return;
+        }
+
+        setClampedExpressionWidth(nextWidth);
       };
 
       const finishDrag = () => {
@@ -237,64 +380,119 @@ export function useEquationGridColumnResize({
         document.body.classList.remove("panel-splitter-body-lock");
         cleanupRef.current = null;
         dragStateRef.current = null;
-        setIsDragging(false);
+        setDraggingColumn(null);
       };
 
       cleanupRef.current = finishDrag;
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", finishDrag);
     },
-    [setClampedWidth, variableWidthPx]
+    [expressionWidthPx, setClampedExpressionWidth, setClampedVariableWidth, variableWidthPx]
   );
 
-  const onKeyDown = useCallback(
-    (event: ReactKeyboardEvent<HTMLElement>) => {
-      if (event.key === "ArrowLeft") {
-        event.preventDefault();
-        setClampedWidth(variableWidthPx - KEYBOARD_STEP_PX);
-        return;
-      }
+  const createKeyDownHandler = useCallback(
+    (
+      column: ResizableEquationColumn,
+      widthPx: number,
+      minWidthPx: number,
+      maxWidthPx: number,
+      setClampedWidth: (nextWidth: number) => void
+    ) =>
+      (event: ReactKeyboardEvent<HTMLElement>) => {
+        if (event.key === "ArrowLeft") {
+          event.preventDefault();
+          setClampedWidth(widthPx - KEYBOARD_STEP_PX);
+          return;
+        }
 
-      if (event.key === "ArrowRight") {
-        event.preventDefault();
-        setClampedWidth(variableWidthPx + KEYBOARD_STEP_PX);
-        return;
-      }
+        if (event.key === "ArrowRight") {
+          event.preventDefault();
+          setClampedWidth(widthPx + KEYBOARD_STEP_PX);
+          return;
+        }
 
-      if (event.key === "Home") {
-        event.preventDefault();
-        setClampedWidth(minWidthPx);
-        return;
-      }
+        if (event.key === "Home") {
+          event.preventDefault();
+          setClampedWidth(minWidthPx);
+          return;
+        }
 
-      if (event.key === "End") {
-        event.preventDefault();
-        setClampedWidth(maxWidthPx);
-      }
-    },
-    [maxWidthPx, minWidthPx, setClampedWidth, variableWidthPx]
+        if (event.key === "End") {
+          event.preventDefault();
+          setClampedWidth(maxWidthPx);
+        }
+      },
+    []
   );
-
-  const resizeHandleStyle: CSSProperties = {
-    left: `${handleLeftPx}px`
-  };
 
   return {
     shellRef,
     variableHeaderRef,
+    expressionHeaderRef,
+    variableResizeHandleProps: {
+      "aria-label": "Resize variable column",
+      "aria-orientation": "vertical" as const,
+      "aria-valuemax": maxVariableWidthPx,
+      "aria-valuemin": minVariableWidthPx,
+      "aria-valuenow": Math.round(variableWidthPx),
+      className: `equation-grid-column-resize${
+        draggingColumn === "variable" ? " is-active" : ""
+      }`,
+      onKeyDown: createKeyDownHandler(
+        "variable",
+        variableWidthPx,
+        minVariableWidthPx,
+        maxVariableWidthPx,
+        setClampedVariableWidth
+      ),
+      onMouseDown: createMouseDownHandler("variable"),
+      role: "separator" as const,
+      style: buildResizeHandleStyle(variableHandleLeftPx),
+      tabIndex: 0
+    },
+    expressionResizeHandleProps: {
+      "aria-label": "Resize expression column",
+      "aria-orientation": "vertical" as const,
+      "aria-valuemax": maxExpressionWidthPx,
+      "aria-valuemin": minExpressionWidthPx,
+      "aria-valuenow": Math.round(expressionWidthPx),
+      className: `equation-grid-column-resize${
+        draggingColumn === "expression" ? " is-active" : ""
+      }`,
+      onKeyDown: createKeyDownHandler(
+        "expression",
+        expressionWidthPx,
+        minExpressionWidthPx,
+        maxExpressionWidthPx,
+        setClampedExpressionWidth
+      ),
+      onMouseDown: createMouseDownHandler("expression"),
+      role: "separator" as const,
+      style: buildResizeHandleStyle(expressionHandleLeftPx),
+      tabIndex: 0
+    },
+    // Backward-compatible alias for callers that only expose one handle.
     resizeHandleProps: {
       "aria-label": "Resize variable column",
       "aria-orientation": "vertical" as const,
-      "aria-valuemax": maxWidthPx,
-      "aria-valuemin": minWidthPx,
+      "aria-valuemax": maxVariableWidthPx,
+      "aria-valuemin": minVariableWidthPx,
       "aria-valuenow": Math.round(variableWidthPx),
-      className: `equation-grid-column-resize${isDragging ? " is-active" : ""}`,
-      onKeyDown,
-      onMouseDown,
+      className: `equation-grid-column-resize${
+        draggingColumn === "variable" ? " is-active" : ""
+      }`,
+      onKeyDown: createKeyDownHandler(
+        "variable",
+        variableWidthPx,
+        minVariableWidthPx,
+        maxVariableWidthPx,
+        setClampedVariableWidth
+      ),
+      onMouseDown: createMouseDownHandler("variable"),
       role: "separator" as const,
-      style: resizeHandleStyle,
+      style: buildResizeHandleStyle(variableHandleLeftPx),
       tabIndex: 0
     },
-    shellClassName: isDragging ? "equation-grid-is-resizing-columns" : ""
+    shellClassName: draggingColumn ? "equation-grid-is-resizing-columns" : ""
   };
 }

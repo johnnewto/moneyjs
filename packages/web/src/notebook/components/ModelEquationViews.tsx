@@ -19,7 +19,6 @@ import { buildEditorStateFromSections, countModelSectionIssues, findEquationsCel
 import type { VariableInspectRequest } from "../../lib/variableInspect";
 import type { EquationsCell, ExternalsCell, ModelCell, NotebookCell, SolverCell } from "../types";
 import { NotebookLinkedEditorActions, NotebookLinkedEditorHeader } from "./NotebookCellHeader";
-import { formatNotebookCurrentValue } from "./NotebookCurrentValue";
 import { NotebookEquationViewTable } from "./NotebookEquationViewTable";
 
 export function ModelCellView({
