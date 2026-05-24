@@ -53,5 +53,8 @@ export default defineConfig(({ command }) => ({
       "@sfcr/notebook-core": fileURLToPath(new URL("../notebook-core/src/index.ts", import.meta.url))
     }
   },
-  base: command === "serve" ? "/" : process.env.VITE_BASE_PATH ?? "/"
+  base: command === "serve" ? "/" : process.env.VITE_BASE_PATH ?? "/",
+  test: {
+    setupFiles: ["./test/setup.ts"]
+  }
 }));

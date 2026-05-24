@@ -67,6 +67,8 @@ Use this for hand-authored diagrams when the sequence is explanatory rather than
 
 A transaction-flow sequence is useful when a matrix is correct but hard to read at once. It breaks rows into visual steps.
 
+Matrix-backed sequences default to a **swimlane** view (columns as sectors, each matrix row as a horizontal flow band). Use **Lifelines** in the toolbar to switch to the classic vertical sequence layout. Ambiguous rows with multiple payers and multiple receivers show a warning note instead of inventing extra arrows.
+
 Use it to answer:
 
 - Which sector pays first?
@@ -78,16 +80,15 @@ The Reset and Next step controls are useful for teaching or debugging the accoun
 
 ## Dependency Sequences
 
-A dependency sequence is useful when a model has many simultaneous equations.
+A dependency sequence summarizes equation structure for a model: variables grouped by layer, link counts, and parse errors. The interactive graph view has been removed; use the variable list to open the inspector on a specific name.
 
 Use it to answer:
 
 - Which variables are exogenous inputs?
 - Which equations feed into a selected stock or flow?
-- Which accounting bands contain a variable?
-- Where feedback loops may exist.
+- Where feedback loops may exist (cyclic nodes are labeled in the list).
 
-For larger models, hide exogenous variables when you want a cleaner endogenous structure, and show them when debugging missing inputs.
+For larger models, hide exogenous variables when you want a cleaner endogenous list, and show them when debugging missing inputs.
 
 ## Selected Period
 

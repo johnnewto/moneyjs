@@ -372,9 +372,12 @@ describe("App notebook navigation and inspection", () => {
 
     await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
 
-    await user.click(screen.getByRole("tab", { name: /^variables$/i }));
+    const variablesTab = screen.getByRole("tab", { name: /^variables$/i });
+    await user.click(variablesTab);
 
-    expect(screen.getByRole("heading", { name: /^variables$/i })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(variablesTab).toHaveAttribute("aria-selected", "true");
+    });
     const catalogTable = document.querySelector(".variable-catalog-table");
     expect(catalogTable).not.toBeNull();
 
@@ -1144,7 +1147,7 @@ describe("App notebook navigation and inspection", () => {
     expect(forwardButton).toBeDisabled();
   }, 15000);
 
-  it("opens the notebook variable inspector from dependency graph nodes", async () => {
+  it("opens the notebook variable inspector from dependency summary inspect buttons", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";
     setSuccessfulNotebookRunner();
@@ -1160,7 +1163,7 @@ describe("App notebook navigation and inspection", () => {
 
     await user.click(within(dependencyCell).getByRole("button", { name: /^show$/i }));
 
-    await user.click(within(dependencyCell).getByText(/^rm$/i));
+    await user.click(within(dependencyCell).getByRole("button", { name: /^Inspect variable rm$/i }));
 
     expect(screen.getByText("Selected variable")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^rm\b/i })).toBeInTheDocument();
@@ -1227,7 +1230,43 @@ describe("App notebook navigation and inspection", () => {
     expect(screen.getAllByText(/opensi?mplest levy/i).length).toBeGreaterThan(0);
   });
 
-  it("enables the sectors strip-source button when active matrices provide sectors", async () => {
+  it("renders BMW transaction-flow sequence in swimlane mode with a lifelines toggle", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    setSuccessfulNotebookRunner();
+
+    render(<App />);
+
+    const sequenceHeading = screen.getByRole("heading", { name: /bmw transaction flow sequence/i });
+    const sequenceCell = sequenceHeading.closest("article");
+    expect(sequenceCell).not.toBeNull();
+    if (!(sequenceCell instanceof HTMLElement)) {
+      throw new Error("Expected BMW transaction flow sequence article.");
+    }
+
+    const showButton = within(sequenceCell).queryByRole("button", { name: /^show$/i });
+    if (showButton) {
+      await user.click(showButton);
+    }
+
+    expect(
+      within(sequenceCell).getByRole("region", { name: /transaction flow diagram/i })
+    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(within(sequenceCell).getByText("-Cs → +Cs")).toBeInTheDocument();
+    });
+    expect(within(sequenceCell).getByRole("button", { name: /^swimlane$/i })).toHaveClass("is-active");
+    expect(within(sequenceCell).queryByRole("img", { name: /sequence diagram/i })).not.toBeInTheDocument();
+
+    await user.click(within(sequenceCell).getByRole("button", { name: /^lifelines$/i }));
+
+    expect(within(sequenceCell).getByRole("img", { name: /sequence diagram/i })).toBeInTheDocument();
+    expect(
+      within(sequenceCell).queryByRole("region", { name: /transaction flow diagram/i })
+    ).not.toBeInTheDocument();
+  }, 15000);
+
+  it("shows dependency summary without a graph canvas for DIS equation dependencies", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";
 
@@ -1247,7 +1286,16 @@ describe("App notebook navigation and inspection", () => {
       await user.click(showButton);
     }
 
-    expect(within(sequenceCell).getByRole("button", { name: /^columns$/i })).toBeEnabled();
+    expect(
+      within(sequenceCell).getByRole("region", { name: /equation dependency summary/i })
+    ).toBeInTheDocument();
+    expect(within(sequenceCell).getByRole("button", { name: /show exogenous/i })).toBeInTheDocument();
+    expect(
+      within(sequenceCell).queryByRole("region", { name: /transaction flow diagram/i })
+    ).not.toBeInTheDocument();
+    expect(
+      within(sequenceCell).queryByRole("region", { name: /dependency graph/i })
+    ).not.toBeInTheDocument();
   });
 
   it("renders separate externals and initial-values cells for the growth notebook", async () => {

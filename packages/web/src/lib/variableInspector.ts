@@ -16,9 +16,7 @@ import type {
   InitialValueRow
 } from "./editorModel";
 import type { NotebookCell } from "../notebook/types";
-import {
-  buildDerivedAccountingTermsFromCells
-} from "../notebook/dependencyRows";
+import { buildDerivedAccountingTermsFromCells } from "../notebook/derivedAccountingTerms";
 import type { VariableDescriptions } from "./variableDescriptions";
 import type { VariableUnitMetadata } from "./unitMeta";
 import {

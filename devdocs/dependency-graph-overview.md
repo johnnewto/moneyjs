@@ -16,18 +16,14 @@ dependency graph is the equation-structure view:
 
 ## Current Implementation
 
-The dependency graph path is implemented in:
+The graph canvas and layout modules were removed. What remains:
 
-- [packages/web/src/notebook/dependencyGraph.ts](/home/john/repos/sfcr/packages/web/src/notebook/dependencyGraph.ts)
-- [packages/web/src/components/DependencyGraphCanvas.tsx](/home/john/repos/sfcr/packages/web/src/components/DependencyGraphCanvas.tsx)
-- [packages/web/src/components/dependencyGraphLayout.ts](/home/john/repos/sfcr/packages/web/src/components/dependencyGraphLayout.ts)
-- [packages/web/src/notebook/dependencySectors.ts](/home/john/repos/sfcr/packages/web/src/notebook/dependencySectors.ts)
-- [packages/web/src/notebook/dependencyRows.ts](/home/john/repos/sfcr/packages/web/src/notebook/dependencyRows.ts)
-- [packages/web/src/notebook/NotebookCellView.tsx](/home/john/repos/sfcr/packages/web/src/notebook/NotebookCellView.tsx)
+- [packages/web/src/notebook/dependencyGraph.ts](/home/john/repos/sfcr/packages/web/src/notebook/dependencyGraph.ts) — `buildDependencyGraph` for layering, edges, and variable metadata
+- [packages/web/src/notebook/components/DependencySequenceSummaryView.tsx](/home/john/repos/sfcr/packages/web/src/notebook/components/DependencySequenceSummaryView.tsx) — list/summary dependency sequence cells
+- [packages/web/src/notebook/derivedAccountingTerms.ts](/home/john/repos/sfcr/packages/web/src/notebook/derivedAccountingTerms.ts) — matrix-derived accounting labels for the variable inspector
+- Notebook assistant read tools (`getDependencyGraph`, equation validation)
 
-The graph is rendered from notebook model sources resolved through the
-sequence cell path. This keeps dependency viewing inside the normal notebook
-workflow rather than creating a separate tool surface.
+Dependency sequence cells still use the sequence cell path; the UI is a summary list with inspect actions, not a rendered graph.
 
 ## Layout Module Map
 

@@ -150,21 +150,14 @@ describe("App notebook source and import workflows", () => {
       await user.click(showButton);
     }
 
-    expect(within(sequenceCell).getByRole("button", { name: /accounting bands/i })).toHaveClass("is-active");
-    expect(within(sequenceCell).getByRole("button", { name: /^sectors$/i })).toHaveClass("is-active");
     expect(within(sequenceCell).getByRole("button", { name: /show exogenous/i })).toBeInTheDocument();
 
-    await user.click(within(sequenceCell).getByRole("button", { name: /^sectors$/i }));
-    expect(within(sequenceCell).getByRole("button", { name: /^columns$/i })).not.toHaveClass("is-active");
+    await user.click(within(sequenceCell).getByRole("button", { name: /show exogenous/i }));
 
     await setNotebookSourceFormat(user, "json");
 
     const exportArea = getNotebookSourceTextArea();
-    expect(exportArea.value).not.toContain('"viewMode": "strips"');
-    expect(exportArea.value).toContain('"stripSectorSource": "columns"');
-    expect(exportArea.value).toContain('"showAccountingStrips": true');
-    expect(exportArea.value).not.toContain('"accountingBandGrouping": "family"');
-    expect(exportArea.value).toContain('"showExogenous": false');
+    expect(exportArea.value).toContain('"showExogenous": true');
   }, 15000);
 
   it("renders notebook Markdown in the editor when Markdown is selected", async () => {

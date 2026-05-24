@@ -22,6 +22,9 @@ export interface SequenceMessageStep {
   lineStyle: "solid" | "dashed";
   color?: string;
   magnitude?: number;
+  rowIndex?: number;
+  sourceExpression?: string;
+  targetExpression?: string;
 }
 
 export interface SequenceNoteStep {
@@ -29,6 +32,7 @@ export interface SequenceNoteStep {
   position: "left" | "right" | "over";
   participantIds: string[];
   text: string;
+  rowIndex?: number;
 }
 
 export interface SequenceDividerStep {
@@ -219,7 +223,7 @@ export function buildSequenceDiagramFromMatrix(
     if (negatives.length === 1 && positives.length >= 1) {
       positives.forEach((positive, positiveIndex) => {
         const magnitude = resolveFlowMagnitude(positive, negatives[0]);
-        if (!includeZeroFlows && magnitude != null && Math.abs(magnitude) < 1e-9) {
+        if (shouldSkipInferredZeroFlow(includeZeroFlows, magnitude, negatives[0], positive)) {
           return;
         }
         steps.push({
@@ -229,7 +233,10 @@ export function buildSequenceDiagramFromMatrix(
           label: formatAutoFlowLabel(row.label, magnitude),
           lineStyle: "solid",
           color: AUTO_FLOW_COLORS[(rowIndex + positiveIndex) % AUTO_FLOW_COLORS.length],
-          magnitude: magnitude ?? undefined
+          magnitude: magnitude ?? undefined,
+          rowIndex,
+          sourceExpression: negatives[0].source,
+          targetExpression: positive.source
         });
       });
       return;
@@ -238,7 +245,7 @@ export function buildSequenceDiagramFromMatrix(
     if (positives.length === 1 && negatives.length >= 1) {
       negatives.forEach((negative, negativeIndex) => {
         const magnitude = resolveFlowMagnitude(positives[0], negative);
-        if (!includeZeroFlows && magnitude != null && Math.abs(magnitude) < 1e-9) {
+        if (shouldSkipInferredZeroFlow(includeZeroFlows, magnitude, negative, positives[0])) {
           return;
         }
         steps.push({
@@ -248,7 +255,10 @@ export function buildSequenceDiagramFromMatrix(
           label: formatAutoFlowLabel(row.label, magnitude),
           lineStyle: "solid",
           color: AUTO_FLOW_COLORS[(rowIndex + negativeIndex) % AUTO_FLOW_COLORS.length],
-          magnitude: magnitude ?? undefined
+          magnitude: magnitude ?? undefined,
+          rowIndex,
+          sourceExpression: negative.source,
+          targetExpression: positives[0].source
         });
       });
       return;
@@ -256,7 +266,7 @@ export function buildSequenceDiagramFromMatrix(
 
     if (negatives.length === 1 && positives.length === 1) {
       const magnitude = resolveFlowMagnitude(positives[0], negatives[0]);
-      if (!includeZeroFlows && magnitude != null && Math.abs(magnitude) < 1e-9) {
+      if (shouldSkipInferredZeroFlow(includeZeroFlows, magnitude, negatives[0], positives[0])) {
         return;
       }
       steps.push({
@@ -266,7 +276,10 @@ export function buildSequenceDiagramFromMatrix(
         label: formatAutoFlowLabel(row.label, magnitude),
         lineStyle: "solid",
         color: AUTO_FLOW_COLORS[rowIndex % AUTO_FLOW_COLORS.length],
-        magnitude: magnitude ?? undefined
+        magnitude: magnitude ?? undefined,
+        rowIndex,
+        sourceExpression: negatives[0].source,
+        targetExpression: positives[0].source
       });
       return;
     }
@@ -284,7 +297,8 @@ export function buildSequenceDiagramFromMatrix(
         type: "note",
         position: "over",
         participantIds: relatedParticipants.slice(0, 2),
-        text: noteParts
+        text: noteParts,
+        rowIndex
       });
     }
   });
@@ -294,6 +308,20 @@ export function buildSequenceDiagramFromMatrix(
     steps,
     errors: []
   };
+}
+
+function shouldSkipInferredZeroFlow(
+  includeZeroFlows: boolean,
+  magnitude: number | null,
+  ...entries: Array<{ direction: -1 | 0 | 1 | null }>
+): boolean {
+  if (includeZeroFlows || magnitude == null) {
+    return false;
+  }
+  if (Math.abs(magnitude) >= 1e-9) {
+    return false;
+  }
+  return !entries.some((entry) => entry.direction === -1 || entry.direction === 1);
 }
 
 function resolveFlowMagnitude(

@@ -135,6 +135,7 @@ function hasRunnableModelSource(cells: NotebookCell[]): boolean {
 
 interface MatrixSequenceViewState {
   highlightedStepIndex: number | null;
+  layoutMode: "swimlane" | "lifelines";
   pendingPeriodAdvance: boolean;
   pendingPeriodRetreat: boolean;
   previousCellId: string;

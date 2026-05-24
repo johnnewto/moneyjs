@@ -64,6 +64,9 @@ describe("sequence diagrams", () => {
       "Households->Firms:Consumption",
       "Firms->Banks:Interest"
     ]);
+    expect(diagram.steps.filter((step) => step.type === "message").map((step) => step.rowIndex)).toEqual([
+      0, 1
+    ]);
   });
 
   it("resolves a bound matrix cell with runtime values into labeled amounts", () => {
@@ -123,6 +126,69 @@ describe("sequence diagrams", () => {
     });
   });
 
+  it("emits a hub note instead of pairwise arrows for multi-payer multi-receiver rows", () => {
+    const matrixCell: MatrixCell = {
+      id: "flows",
+      type: "matrix",
+      title: "Flows",
+      columns: ["A", "B", "C", "D"],
+      rows: [
+        { label: "Split", values: ["-a", "-b", "+c", "+d"] },
+        { label: "Sum", values: ["0", "0", "0", "0"] }
+      ]
+    };
+
+    const diagram = buildSequenceDiagramFromMatrix(matrixCell, null, 0);
+
+    expect(diagram.errors).toEqual([]);
+    expect(diagram.steps).toEqual([
+      expect.objectContaining({
+        type: "note",
+        rowIndex: 0
+      })
+    ]);
+    expect(diagram.steps.filter((step) => step.type === "message")).toEqual([]);
+  });
+
+  it("keeps sign-directed flows when runtime evaluation is zero", () => {
+    const matrixCell: MatrixCell = {
+      id: "flows",
+      type: "matrix",
+      title: "Flows",
+      sourceRunCellId: "run-1",
+      columns: ["Households", "Firms", "Sum"],
+      rows: [
+        { label: "Consumption", values: ["-Cd", "+Cs", "0"] },
+        { label: "Sum", values: ["0", "0", "0"] }
+      ]
+    };
+    const result: SimulationResult = {
+      series: {
+        Cd: new Float64Array([0]),
+        Cs: new Float64Array([0])
+      },
+      blocks: [],
+      model: { equations: [], externals: {}, initialValues: {} },
+      options: {
+        periods: 1,
+        solverMethod: "NEWTON",
+        tolerance: 1e-6,
+        maxIterations: 40
+      }
+    };
+
+    const diagram = buildSequenceDiagramFromMatrix(matrixCell, result, 0);
+
+    expect(diagram.steps).toEqual([
+      expect.objectContaining({
+        type: "message",
+        senderId: "Households",
+        receiverId: "Firms",
+        label: "Consumption (0.00)"
+      })
+    ]);
+  });
+
   it("keeps explicit matrix flow direction when the runtime value is negative", () => {
     const matrixCell: MatrixCell = {
       id: "flows",
@@ -164,7 +230,10 @@ describe("sequence diagrams", () => {
         label: "Bank profits (-0.20)",
         lineStyle: "solid",
         color: "#65d3b1",
-        magnitude: -0.2
+        magnitude: -0.2,
+        rowIndex: 0,
+        sourceExpression: "-EFb",
+        targetExpression: "+EFb"
       }
     ]);
   });
