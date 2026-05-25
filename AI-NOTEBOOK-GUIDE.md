@@ -461,6 +461,7 @@ Generates sequence diagrams from matrices or dependency graphs.
       "Production firms": "Firms"
     }
   },
+  "participantColumnOrder": ["Households", "Production firms", "Banks"],
   "description": "Sequence view of transactions-flow matrix.",
   "note": "Use Reset and Next step to manually reveal flows."
 }

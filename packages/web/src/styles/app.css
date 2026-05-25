@@ -5526,15 +5526,65 @@ body.panel-splitter-body-lock {
   width: 190px;
 }
 
+.flow-graph-shell .react-flow__node.is-reorderable .matrix-multiport {
+  cursor: grab;
+}
+
+.flow-graph-shell .react-flow__node.is-reorderable .matrix-multiport__drag-handle {
+  cursor: grab;
+  touch-action: none;
+}
+
+.flow-graph-shell .react-flow__node.is-reorderable.dragging .matrix-multiport,
+.flow-graph-shell .react-flow__node.is-reorderable .matrix-multiport__drag-handle:active,
+.flow-graph-shell .react-flow__node.is-reorderable.dragging .matrix-multiport__drag-handle {
+  cursor: grabbing;
+}
+
 .matrix-multiport__header {
   align-items: center;
   border-bottom: 1px solid rgba(15, 23, 42, 0.1);
   border-radius: 15px 15px 0 0;
   display: grid;
   gap: 0.35rem;
+  grid-template-columns: 1.1rem 1fr;
   justify-items: center;
-  padding: 0.75rem 0.7rem 0.65rem;
+  padding: 0.75rem 0.55rem 0.65rem 0.45rem;
+  position: relative;
   text-align: center;
+}
+
+.matrix-multiport__drag-grip {
+  align-self: center;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(15, 23, 42, 0.42) 0,
+    rgba(15, 23, 42, 0.42) 2px,
+    transparent 2px,
+    transparent 5px
+  );
+  border-radius: 2px;
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  height: 1.35rem;
+  justify-self: center;
+  opacity: 0.72;
+  width: 0.5rem;
+}
+
+.flow-graph-shell .react-flow__node.is-reorderable .matrix-multiport__drag-handle:hover .matrix-multiport__drag-grip,
+.flow-graph-shell .react-flow__node.is-reorderable.dragging .matrix-multiport__drag-grip {
+  opacity: 1;
+}
+
+.matrix-multiport__header .matrix-multiport__icon {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.matrix-multiport__header .matrix-multiport__title {
+  grid-column: 2;
+  grid-row: 2;
 }
 
 .matrix-multiport__icon {

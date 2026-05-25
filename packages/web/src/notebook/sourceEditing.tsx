@@ -472,7 +472,10 @@ This cell owns the initial-values section for one notebook model. Hide/show only
 Source can be:
 - { "kind": "plantuml", "source": "..." }
 - { "kind": "matrix", "matrixCellId": "matrix-1" }
-- { "kind": "dependency", "modelId": "main" }`;
+- { "kind": "dependency", "modelId": "main" }
+
+Optional:
+- participantColumnOrder: string[] for the default multiport participant order`;
     case "model":
       return "";
   }
@@ -816,6 +819,12 @@ function validateCellSourceShape(
     case "sequence":
       if (!(parsed as SequenceCell).source || typeof (parsed as SequenceCell).source !== "object") {
         throw new Error("Sequence cells require a source object.");
+      }
+      if (
+        (parsed as SequenceCell).participantColumnOrder != null &&
+        !Array.isArray((parsed as SequenceCell).participantColumnOrder)
+      ) {
+        throw new Error("Sequence participantColumnOrder must be an array.");
       }
       const source = (parsed as SequenceCell).source;
       if (

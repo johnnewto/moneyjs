@@ -151,6 +151,8 @@ cells:
               Gd:
                 kind: constant
                 value: 30
+            startPeriodInclusive: 5
+            endPeriodInclusive: 60
       baselineRunCellId: baseline-run
       periods: 60
       resultKey: sim_scenario_gd_30

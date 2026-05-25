@@ -95,10 +95,13 @@ describe("TransactionFlowMultiportCanvas", () => {
     };
     const diagram = buildSequenceDiagramFromMatrix(matrixCell, null, 0);
 
+    const onParticipantColumnOrderChange = vi.fn();
+
     render(
       <TransactionFlowMultiportCanvas
         diagram={diagram}
         inspectContext={emptyMultiportInspectContext}
+        onParticipantColumnOrderChange={onParticipantColumnOrderChange}
         visibleStepCount={1}
         highlightedStepIndex={0}
       />
@@ -113,6 +116,12 @@ describe("TransactionFlowMultiportCanvas", () => {
     expect(document.querySelector(".matrix-multiport__port-formula .formula-token")).not.toBeNull();
     expect(screen.getByText("Cd", { hidden: true })).toBeInTheDocument();
     expect(screen.getByText("Cs", { hidden: true })).toBeInTheDocument();
+    const householdsNode = document.querySelector('[data-id="Households"]');
+    expect(householdsNode).not.toBeNull();
+    expect(householdsNode?.querySelector(".matrix-multiport__drag-grip")).not.toBeNull();
+    expect(document.querySelector(".react-flow__node.draggable.is-reorderable")).not.toBeNull();
+    expect(document.querySelector(".react-flow__pane.draggable")).not.toBeNull();
+
     expect(document.querySelector('[data-nodeid="Households"][data-handleid="right-0"]')).not.toBeNull();
     expect(document.querySelector('[data-nodeid="Firms"][data-handleid="left-0"]')).not.toBeNull();
     expect(document.querySelector(".react-flow__marker .react-flow__arrowhead")).not.toBeNull();

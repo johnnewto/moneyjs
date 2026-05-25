@@ -227,7 +227,7 @@ const CELL_TYPE_PROPERTY_KEYS: Record<string, string[]> = {
   ],
   table: ["sourceRunCellId", "variables"],
   matrix: ["sourceRunCellId", "columns", "sectors", "rows"],
-  sequence: ["source"]
+  sequence: ["source", "participantColumnOrder"]
 };
 
 const COMMON_CELL_PROPERTY_KEYS = ["id", "type", "title", "note", "description", "collapsed"];

@@ -48,6 +48,12 @@ cells:
       source:
         kind: matrix
         matrixCellId: transaction-flow
+      participantColumnOrder:
+        - Households
+        - Firms_current
+        - Firms_capital
+        - Banks_current
+        - Banks_capital
       description: Canvas-rendered sequence view generated from the transactions-flow matrix at the selected simulation period.
       note: Use Reset and Next step to manually reveal flows in order.
   - equations:
@@ -157,13 +163,15 @@ cells:
       mode: scenario
       scenario:
         shocks:
-          - variables:
+          - rangeInclusive:
+              - 5
+              - 50
+            variables:
               alpha0:
                 kind: constant
                 value: 30
-            rangeInclusive:
-              - 5
-              - 50
+            startPeriodInclusive: 5
+            endPeriodInclusive: 50
       baselineRunCellId: baseline-newton
       periods: 50
       resultKey: bmw_s1
@@ -190,13 +198,15 @@ cells:
       mode: scenario
       scenario:
         shocks:
-          - variables:
+          - rangeInclusive:
+              - 5
+              - 50
+            variables:
               alpha1:
                 kind: constant
                 value: 0.7
-            rangeInclusive:
-              - 5
-              - 50
+            startPeriodInclusive: 5
+            endPeriodInclusive: 50
       baselineRunCellId: baseline-newton
       periods: 50
       resultKey: bmw_s2

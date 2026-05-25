@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildTransactionFlowMultiportLayout } from "../src/components/transactionFlowMultiportLayout";
+import { applyParticipantColumnOrder } from "../src/components/transactionFlowMultiportOrder";
 import { buildSequenceDiagramFromMatrix } from "../src/notebook/sequence";
 import type { MatrixCell } from "../src/notebook/types";
 
@@ -51,6 +52,29 @@ describe("transactionFlowMultiportLayout", () => {
       sourceHandle: "left-0",
       targetHandle: "right-0",
       animated: true
+    });
+  });
+
+  it("flips handle sides when view-local column order reverses participants", () => {
+    const matrixCell: MatrixCell = {
+      id: "flows",
+      type: "matrix",
+      title: "Flows",
+      columns: ["A", "B", "Sum"],
+      rows: [
+        { label: "Payment", values: ["-a", "+b", "0"] },
+        { label: "Sum", values: ["0", "0", "0"] }
+      ]
+    };
+    const diagram = buildSequenceDiagramFromMatrix(matrixCell, null, 0);
+    const reordered = applyParticipantColumnOrder(diagram, ["B", "A"]);
+    const layout = buildTransactionFlowMultiportLayout(reordered, reordered.steps.length, null);
+
+    expect(layout.edges[0]).toMatchObject({
+      source: "A",
+      target: "B",
+      sourceHandle: "left-0",
+      targetHandle: "right-0"
     });
   });
 

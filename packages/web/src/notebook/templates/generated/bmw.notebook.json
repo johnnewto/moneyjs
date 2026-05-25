@@ -42,7 +42,7 @@
       "description": "Transactions-flow matrix for the BMW model, shown in the same accounting style as the sfcr article.",
       "note": "Signs and row structure follow the BMW transactions-flow matrix in the sfcr article."
     },
-    { "id": "transaction-flow-sequence", "type": "sequence", "title": "BMW transaction flow sequence", "source": { "kind": "matrix", "matrixCellId": "transaction-flow" }, "description": "Canvas-rendered sequence view generated from the transactions-flow matrix at the selected simulation period.", "note": "Use Reset and Next step to manually reveal flows in order." },
+    { "id": "transaction-flow-sequence", "type": "sequence", "title": "BMW transaction flow sequence", "source": { "kind": "matrix", "matrixCellId": "transaction-flow" }, "participantColumnOrder": ["Households", "Firms_current", "Firms_capital", "Banks_current", "Banks_capital"], "description": "Canvas-rendered sequence view generated from the transactions-flow matrix at the selected simulation period.", "note": "Use Reset and Next step to manually reveal flows in order." },
     {
       "id": "equations-newton",
       "type": "equations",
@@ -104,7 +104,7 @@
       "mode": "scenario",
       "scenario": {
         "shocks": [
-          { "variables": { "alpha0": { "kind": "constant", "value": 30 } }, "rangeInclusive": [5, 50], "startPeriodInclusive": 5, "endPeriodInclusive": 50 }
+          { "variables": { "alpha0": { "kind": "constant", "value": 30 } }, "startPeriodInclusive": 5, "endPeriodInclusive": 50 }
         ]
       },
       "baselineRunCellId": "baseline-newton",
@@ -122,7 +122,7 @@
       "mode": "scenario",
       "scenario": {
         "shocks": [
-          { "variables": { "alpha1": { "kind": "constant", "value": 0.7 } }, "rangeInclusive": [5, 50], "startPeriodInclusive": 5, "endPeriodInclusive": 50 }
+          { "variables": { "alpha1": { "kind": "constant", "value": 0.7 } }, "startPeriodInclusive": 5, "endPeriodInclusive": 50 }
         ]
       },
       "baselineRunCellId": "baseline-newton",

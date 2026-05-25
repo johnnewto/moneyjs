@@ -287,6 +287,10 @@
         "collapsed": { "type": "boolean" },
         "description": { "type": "string" },
         "note": { "type": "string" },
+        "participantColumnOrder": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
         "source": {
           "oneOf": [{ "type": "string" }, { "$ref": "#/$defs/sequenceSource" }]
         },

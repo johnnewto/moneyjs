@@ -198,6 +198,7 @@ export interface MatrixCell extends NotebookCellBase {
 export interface SequenceCell extends NotebookCellBase {
   type: "sequence";
   source: SequenceCellSource;
+  participantColumnOrder?: string[];
 }
 
 export type SequenceCellSource =

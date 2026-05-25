@@ -1193,6 +1193,22 @@ describe("App notebook navigation and inspection", () => {
     expect(screen.getByRole("heading", { name: /pc balance sheet/i })).toBeInTheDocument();
   });
 
+  it("loads a notebook cell section from the pathname", async () => {
+    history.replaceState(history.state, "", "/notebook/bmw/transaction-flow-sequence");
+
+    render(<App />);
+
+    await waitFor(() => {
+      const cell = document.getElementById("transaction-flow-sequence");
+      expect(cell).not.toBeNull();
+      expect(cell).toHaveClass("notebook-cell-is-selected");
+    });
+
+    expect(screen.getByRole("button", { name: /^Multiport$/i })).toHaveClass("is-active");
+    expect(window.location.pathname).toBe("/notebook/bmw/transaction-flow-sequence");
+    expect(window.location.hash).toBe("");
+  });
+
   it("switches notebook templates from the command bar", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";
@@ -1208,7 +1224,8 @@ describe("App notebook navigation and inspection", () => {
     expect(screen.getByRole("heading", { name: /dis transactions-flow matrix/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /dis equation dependency graph/i })).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { name: /^dis model$/i }).length).toBeGreaterThan(0);
-    expect(window.location.hash).toBe("#/notebook/gl6-dis");
+    expect(window.location.pathname).toBe("/notebook/gl6-dis");
+    expect(window.location.hash).toBe("");
   });
 
   it("renders notebook contents titles through the shared math label component", async () => {

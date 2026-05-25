@@ -32,7 +32,12 @@ export function MatrixMultiportNode({ data }: NodeProps) {
 
   return (
     <div className={`matrix-multiport ${palette}`}>
-      <div className="matrix-multiport__header">
+      <div
+        className="matrix-multiport__header matrix-multiport__drag-handle"
+        title="Drag header to reorder column"
+        aria-label={`${nodeData.label} column. Drag header to reorder.`}
+      >
+        <span className="matrix-multiport__drag-grip" aria-hidden="true" />
         <div className="matrix-multiport__icon" aria-hidden="true">
           {icon}
         </div>
@@ -87,7 +92,7 @@ function MatrixMultiportPortView({ port }: { port: MatrixMultiportPort }) {
         : null}
       {hasEntry ? (
         <div
-          className="matrix-multiport__port-card nodrag nopan"
+          className="matrix-multiport__port-card"
           title={inspect ? undefined : `${port.rowLabel}: ${port.entry}`}
           onMouseDown={(event) => {
             if ((event.target as HTMLElement).closest(".formula-token.is-clickable")) {

@@ -100,10 +100,13 @@ import {
   formatElapsedTime,
   NOTEBOOK_AI_GUIDE_URL,
   NOTEBOOK_AI_LANDING_URL,
+  migrateNotebookHashToPathname,
   parseNotebookTemplateIdFromHash,
   parseNotebookVariantIdFromHash,
-  resolveNotebookTemplateIdFromHash,
-  writeNotebookHash,
+  readNotebookRouteLocation,
+  resolveNotebookTemplateIdFromLocation,
+  type NotebookRouteLocation,
+  writeNotebookLocation,
   writeNotebookVariantHash
 } from "./notebookAppHelpers";
 import { NotebookVariantManagerDialog } from "./NotebookVariantManagerDialog";
@@ -234,14 +237,16 @@ function isNotebookHistoryShortcutEditableTarget(target: EventTarget | null): bo
   return target.closest("input, textarea, select, [contenteditable='true'], .cm-editor") != null;
 }
 
-function resolveInitialNotebookSession(hash: string): NotebookSessionState {
+function resolveInitialNotebookSession(
+  location: NotebookRouteLocation,
+  hash: string
+): NotebookSessionState {
   const variants = migrateLegacyStoredNotebooks();
 
-  const variantIdFromHash = parseNotebookVariantIdFromHash(hash);
-  if (variantIdFromHash) {
-    const variantDocument = loadNotebookVariantDocument(variantIdFromHash);
+  if (location.variantId) {
+    const variantDocument = loadNotebookVariantDocument(location.variantId);
     if (variantDocument) {
-      return { activeVariantId: variantIdFromHash, document: variantDocument };
+      return { activeVariantId: location.variantId, document: variantDocument };
     }
   }
 
@@ -255,7 +260,7 @@ function resolveInitialNotebookSession(hash: string): NotebookSessionState {
     }
   }
 
-  const templateId = resolveNotebookTemplateIdFromHash(hash);
+  const templateId = resolveNotebookTemplateIdFromLocation(location);
   return {
     activeVariantId: null,
     document: createNotebookFromTemplate(templateId)
@@ -566,10 +571,12 @@ function formatBuildDate(buildDate: string): string {
 
 export function NotebookApp() {
   const mainColumnRef = useRef<HTMLDivElement | null>(null);
+  const scrollToCellRef = useRef<(cellId: string) => void>(() => {});
   const [mainColumnElement, setMainColumnElement] = useState<HTMLDivElement | null>(null);
+  const initialNotebookRoute = useMemo(() => readNotebookRouteLocation(), []);
   const initialNotebookSession = useMemo(
-    () => resolveInitialNotebookSession(window.location.hash),
-    []
+    () => resolveInitialNotebookSession(initialNotebookRoute, window.location.hash),
+    [initialNotebookRoute]
   );
   const [notebookJournal, setNotebookJournal] = useState<NotebookJournalState>(() => ({
     future: [],
@@ -597,7 +604,9 @@ export function NotebookApp() {
   const [isNotebookCommandTrayDismissed, setIsNotebookCommandTrayDismissed] = useState(false);
   const [autoRunRevision, setAutoRunRevision] = useState(0);
   const [activeEditorCellId, setActiveEditorCellId] = useState<string | null>(null);
-  const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
+  const [selectedCellId, setSelectedCellId] = useState<string | null>(
+    () => initialNotebookRoute.cellId
+  );
   const [activeRailTab, setActiveRailTab] = useState<NotebookRailTab>("contents");
   const [helpContext, setHelpContext] = useState<{
     cellId: string;
@@ -739,6 +748,58 @@ export function NotebookApp() {
   const currentTemplateId = useMemo(
     () => resolveCurrentTemplateId(notebookDocument),
     [notebookDocument]
+  );
+  const syncNotebookLocation = useCallback(
+    (cellId?: string | null) => {
+      if (activeVariantId) {
+        writeNotebookVariantHash(activeVariantId, cellId ?? undefined);
+        return;
+      }
+
+      const templateId =
+        currentTemplateId || resolveNotebookTemplateIdFromLocation(readNotebookRouteLocation());
+      writeNotebookLocation({
+        templateId: templateId || undefined,
+        cellId: cellId ?? undefined
+      });
+    },
+    [activeVariantId, currentTemplateId]
+  );
+  const selectNotebookCell = useCallback(
+    (cellId: string | null, options?: { syncHash?: boolean }) => {
+      setSelectedCellId(cellId);
+      if (options?.syncHash !== false) {
+        syncNotebookLocation(cellId);
+      }
+    },
+    [syncNotebookLocation]
+  );
+  const applyNotebookCellFromRoute = useCallback(
+    (cellId: string) => {
+      if (!notebookDocument.cells.some((cell) => cell.id === cellId)) {
+        return;
+      }
+
+      setSelectedCellId(cellId);
+
+      let attempts = 0;
+      const tryScroll = () => {
+        scrollToCellRef.current(cellId);
+        const cell = document.getElementById(cellId);
+        if (!cell || attempts >= 12) {
+          return;
+        }
+
+        attempts += 1;
+        const hasSequenceView = cell.querySelector(".sequence-viewer") != null;
+        if (!hasSequenceView || cell.getBoundingClientRect().height < 40) {
+          requestAnimationFrame(tryScroll);
+        }
+      };
+
+      requestAnimationFrame(tryScroll);
+    },
+    [notebookDocument.cells]
   );
   const nextUndoEntry = notebookJournal.past.at(-1);
   const nextUndoLabel = nextUndoEntry?.label;
@@ -976,9 +1037,9 @@ export function NotebookApp() {
   useEffect(() => {
     if (activeEditorCellId) {
       setActiveRailTab("editor");
-      setSelectedCellId(activeEditorCellId);
+      selectNotebookCell(activeEditorCellId);
     }
-  }, [activeEditorCellId]);
+  }, [activeEditorCellId, selectNotebookCell]);
 
   useEffect(() => {
     if (importText !== committedImportText) {
@@ -1029,7 +1090,7 @@ export function NotebookApp() {
       cells: current.cells.filter((cell) => cell.id !== cellId)
     }));
     if (selectedCellId === cellId) {
-      setSelectedCellId(fallbackCell?.id ?? null);
+      selectNotebookCell(fallbackCell?.id ?? null);
     }
     if (activeEditorCellId === cellId) {
       setActiveEditorCellId(null);
@@ -1053,7 +1114,7 @@ export function NotebookApp() {
         cells: nextCells
       };
     });
-    setSelectedCellId(cellId);
+    selectNotebookCell(cellId, { syncHash: false });
   }
 
   function insertCell(
@@ -1081,7 +1142,7 @@ export function NotebookApp() {
         ...current.cells.slice(insertIndex)
       ]
     }));
-    setSelectedCellId(nextCell.id);
+    selectNotebookCell(nextCell.id);
   }
 
   function handleVariableInspectRequest(args: VariableInspectRequest): void {
@@ -1186,7 +1247,7 @@ export function NotebookApp() {
     setHelpContext(args);
     setSelectedHelpTopicId(cell ? getNotebookHelpTopicIdForCell(cell) : args.cellType);
     setIsHelpContentsVisible(false);
-    setSelectedCellId(args.cellId);
+    selectNotebookCell(args.cellId);
     setActiveRailTab("help");
   }
 
@@ -1479,9 +1540,10 @@ export function NotebookApp() {
     }
 
     setActiveVariantId(null);
-    const fallbackTemplateId = entry?.derivedFrom ?? resolveNotebookTemplateIdFromHash(window.location.hash);
+    const fallbackTemplateId =
+      entry?.derivedFrom ?? resolveNotebookTemplateIdFromLocation(readNotebookRouteLocation());
     replaceNotebookDocumentFromTemplate(fallbackTemplateId);
-    writeNotebookHash(fallbackTemplateId);
+    writeNotebookLocation({ templateId: fallbackTemplateId });
     setImportPreview(null);
     setUiMessage(
       entry
@@ -1504,26 +1566,39 @@ export function NotebookApp() {
   }
 
   useEffect(() => {
-    function handleHashChange(): void {
-      const variantId = parseNotebookVariantIdFromHash(window.location.hash);
+    migrateNotebookHashToPathname();
+  }, []);
+
+  useEffect(() => {
+    function handleNotebookRouteChange(): void {
+      const location = readNotebookRouteLocation();
+      const { cellId, templateId, variantId } = location;
+      const hash = window.location.hash;
+
       if (variantId) {
         if (variantId === activeVariantId && notebookDocument.id === variantId) {
+          if (cellId) {
+            applyNotebookCellFromRoute(cellId);
+          }
           return;
         }
-        if (loadNotebookVariant(variantId, "variant hash load")) {
+        if (loadNotebookVariant(variantId, "variant route load")) {
           const entry = listNotebookVariants().find((variant) => variant.id === variantId);
           setUiMessage(`Loaded variant ${entry?.title ?? variantId}.`);
         }
         return;
       }
 
-      if (window.location.hash === LEGACY_CUSTOM_NOTEBOOK_HASH) {
+      if (hash === LEGACY_CUSTOM_NOTEBOOK_HASH) {
         const imported = loadNotebookVariantDocument(IMPORTED_NOTEBOOK_VARIANT_ID);
         if (!imported) {
           setUiMessage("No imported notebook variant found.");
           return;
         }
         if (activeVariantId === IMPORTED_NOTEBOOK_VARIANT_ID && notebookDocument.id === imported.id) {
+          if (cellId) {
+            applyNotebookCellFromRoute(cellId);
+          }
           return;
         }
         loadNotebookVariant(IMPORTED_NOTEBOOK_VARIANT_ID, "imported notebook load");
@@ -1531,11 +1606,16 @@ export function NotebookApp() {
         return;
       }
 
-      const templateId = parseNotebookTemplateIdFromHash(window.location.hash);
       if (!templateId) {
+        if (cellId) {
+          applyNotebookCellFromRoute(cellId);
+        }
         return;
       }
       if (activeVariantId == null && notebookDocument.metadata.template === templateId && currentTemplateId) {
+        if (cellId) {
+          applyNotebookCellFromRoute(cellId);
+        }
         return;
       }
       setActiveVariantId(null);
@@ -1544,10 +1624,15 @@ export function NotebookApp() {
       setUiMessage(`Loaded template ${NOTEBOOK_TEMPLATES[templateId].label}.`);
     }
 
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
+    window.addEventListener("hashchange", handleNotebookRouteChange);
+    window.addEventListener("popstate", handleNotebookRouteChange);
+    return () => {
+      window.removeEventListener("hashchange", handleNotebookRouteChange);
+      window.removeEventListener("popstate", handleNotebookRouteChange);
+    };
   }, [
     activeVariantId,
+    applyNotebookCellFromRoute,
     currentTemplateId,
     notebookDocument.id,
     notebookDocument.metadata.template
@@ -1617,7 +1702,7 @@ export function NotebookApp() {
       const templateId = resolveCurrentTemplateId(parsed.document);
       if (templateId) {
         setActiveVariantId(null);
-        writeNotebookHash(templateId);
+        writeNotebookLocation({ templateId });
       } else {
         activateImportedNotebookVariant(parsed.document);
       }
@@ -1645,7 +1730,7 @@ export function NotebookApp() {
       setImportPreview({ document: parsed.document, source: parsed.format });
       setSourceFormat(parsed.format);
       if (!isNotebookTemplateId(parsed.document.metadata.template ?? "")) {
-        writeNotebookHash(undefined);
+        writeNotebookLocation({});
       }
       setActiveRailTab("editor");
       setUiMessage(
@@ -1665,7 +1750,7 @@ export function NotebookApp() {
     const templateId = resolveCurrentTemplateId(importPreview.document);
     if (templateId) {
       setActiveVariantId(null);
-      writeNotebookHash(templateId);
+      writeNotebookLocation({ templateId });
     } else {
       activateImportedNotebookVariant(importPreview.document);
     }
@@ -1695,7 +1780,7 @@ export function NotebookApp() {
     if (isNotebookTemplateId(value)) {
       setActiveVariantId(null);
       replaceNotebookDocumentFromTemplate(value);
-      writeNotebookHash(value);
+      writeNotebookLocation({ templateId: value });
       setImportPreview(null);
       setUiMessage(`Loaded template ${NOTEBOOK_TEMPLATES[value].label}.`);
       return;
@@ -2560,21 +2645,41 @@ export function NotebookApp() {
       const targetTop =
         mainColumn.scrollTop + cellRect.top - mainColumnRect.top - scrubberHeight - extraOffset;
 
-      mainColumn.scrollTo({
-        behavior: "smooth",
-        top: Math.max(targetTop, 0)
-      });
+      const nextTop = Math.max(targetTop, 0);
+      if (typeof mainColumn.scrollTo === "function") {
+        mainColumn.scrollTo({
+          behavior: "smooth",
+          top: nextTop
+        });
+      } else {
+        mainColumn.scrollTop = nextTop;
+      }
       return;
     }
 
     const targetTop =
       window.scrollY + cell.getBoundingClientRect().top - scrubberHeight - extraOffset;
+    const nextTop = Math.max(targetTop, 0);
 
-    window.scrollTo({
-      behavior: "smooth",
-      top: Math.max(targetTop, 0)
-    });
+    if (typeof window.scrollTo === "function") {
+      window.scrollTo({
+        behavior: "smooth",
+        top: nextTop
+      });
+    } else {
+      window.scrollY = nextTop;
+    }
   }
+  scrollToCellRef.current = scrollToCell;
+
+  useEffect(() => {
+    const cellId = readNotebookRouteLocation().cellId;
+    if (!cellId) {
+      return;
+    }
+
+    applyNotebookCellFromRoute(cellId);
+  }, [applyNotebookCellFromRoute, notebookDocument.id]);
 
   const currentDerivedFrom = resolveNotebookDerivedFrom(
     notebookDocument,
@@ -2814,7 +2919,7 @@ export function NotebookApp() {
                   getModelCurrentValues={getCurrentValueMapForModelRef}
                   maxPeriodIndex={maxResultPeriodIndex}
                   viewportRoot={mainColumnElement}
-                  onSelectedCellIdChange={setSelectedCellId}
+                  onSelectedCellIdChange={selectNotebookCell}
                   onSelectedPeriodIndexChange={setSelectedPeriodIndex}
                   runner={runner}
                   onActiveEditorCellIdChange={setActiveEditorCellId}
@@ -3127,7 +3232,7 @@ export function NotebookApp() {
                     <button
                       type="button"
                       onClick={() => {
-                        setSelectedCellId(cell.id);
+                        selectNotebookCell(cell.id);
                         scrollToCell(cell.id);
                       }}
                     >

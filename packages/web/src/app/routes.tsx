@@ -1,25 +1,44 @@
 import { useEffect, useState } from "react";
 
+import { isNotebookPathname } from "../notebook/notebookAppHelpers";
+
 export type AppRoute = "workspace" | "notebook" | "chat-builder";
 
-export function getRouteFromHash(hash: string): AppRoute {
+export function getAppRoute(pathname = window.location.pathname, hash = window.location.hash): AppRoute {
   if (hash.startsWith("#/chat-builder")) {
     return "chat-builder";
   }
 
-  return hash.startsWith("#/workspace") ? "workspace" : "notebook";
+  if (hash.startsWith("#/workspace")) {
+    return "workspace";
+  }
+
+  if (isNotebookPathname(pathname) || hash.startsWith("#/notebook")) {
+    return "notebook";
+  }
+
+  return "notebook";
+}
+
+/** @deprecated Use getAppRoute. */
+export function getRouteFromHash(hash: string): AppRoute {
+  return getAppRoute(window.location.pathname, hash);
 }
 
 export function useAppRoute(): AppRoute {
-  const [route, setRoute] = useState<AppRoute>(() => getRouteFromHash(window.location.hash));
+  const [route, setRoute] = useState<AppRoute>(() => getAppRoute());
 
   useEffect(() => {
-    function handleHashChange() {
-      setRoute(getRouteFromHash(window.location.hash));
+    function handleRouteChange() {
+      setRoute(getAppRoute());
     }
 
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
+    window.addEventListener("hashchange", handleRouteChange);
+    window.addEventListener("popstate", handleRouteChange);
+    return () => {
+      window.removeEventListener("hashchange", handleRouteChange);
+      window.removeEventListener("popstate", handleRouteChange);
+    };
   }, []);
 
   return route;

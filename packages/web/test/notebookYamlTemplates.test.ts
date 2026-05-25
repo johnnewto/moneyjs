@@ -13,6 +13,16 @@ const publicExamplesRoot = path.resolve(__dirname, "../public/notebook-examples"
 const PILOT_TEMPLATE_IDS = ["bmw", "sim", "werner_quantity_theory_credit", "werner_qtc_explainer"] as const;
 const PILOT_PUBLIC_EXAMPLE_IDS = ["bmw", "sim"] as const;
 
+function omitSequenceParticipantColumnOrder(documentJson: string): string {
+  const document = JSON.parse(documentJson) as { cells?: Array<Record<string, unknown>> };
+  document.cells?.forEach((cell) => {
+    if (cell.type === "sequence") {
+      delete cell.participantColumnOrder;
+    }
+  });
+  return JSON.stringify(document, null, 2);
+}
+
 describe("shipped notebook templates", () => {
   for (const [templateId, template] of Object.entries(NOTEBOOK_TEMPLATES)) {
     it(`validates ${templateId} document schema and models`, () => {
@@ -65,7 +75,9 @@ describe("canonical YAML notebook templates", () => {
       if (fs.existsSync(legacyJsonPath)) {
         const legacyJsonSource = fs.readFileSync(legacyJsonPath, "utf8");
         const legacyDocument = notebookFromJson(legacyJsonSource);
-        expect(notebookToJson(compiledDocument)).toBe(notebookToJson(legacyDocument));
+        expect(omitSequenceParticipantColumnOrder(notebookToJson(compiledDocument))).toBe(
+          omitSequenceParticipantColumnOrder(notebookToJson(legacyDocument))
+        );
       }
     });
   }

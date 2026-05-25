@@ -17,6 +17,12 @@ export const NOTEBOOK_AI_MANIFEST_URL = resolveAppHref(".well-known/sfcr-noteboo
 export const NOTEBOOK_AI_SCHEMA_URL = resolveAppHref("sfcr-notebook.schema.json");
 export const NOTEBOOK_AI_PROMPT_URL = resolveAppHref("ai-prompts/create-sfcr-notebook.md");
 
+export interface NotebookRouteLocation {
+  templateId: NotebookTemplateId | null;
+  variantId: string | null;
+  cellId: string | null;
+}
+
 export function buildNotebookVariableDescriptions(cells: NotebookCell[]): VariableDescriptions {
   const descriptions: VariableDescriptions = new Map();
 
@@ -77,8 +83,81 @@ export function formatElapsedTime(durationMs: number): string {
   return `${(durationMs / 1000).toFixed(durationMs >= 10_000 ? 1 : 2)} s`;
 }
 
+function stripAppBasePath(pathname: string): string {
+  const base = APP_BASE_URL.replace(/\/$/, "");
+  if (!base || base === "/") {
+    return pathname;
+  }
+
+  if (pathname.startsWith(base)) {
+    const rest = pathname.slice(base.length);
+    return rest.startsWith("/") ? rest : `/${rest}`;
+  }
+
+  return pathname;
+}
+
+export function parseNotebookPathname(pathname: string): NotebookRouteLocation | null {
+  const path = stripAppBasePath(pathname);
+  if (!path.startsWith("/notebook")) {
+    return null;
+  }
+
+  const variantMatch = path.match(/^\/notebook\/variant\/([^/]+)(?:\/([^/]+))?\/?$/);
+  if (variantMatch) {
+    return {
+      templateId: null,
+      variantId: variantMatch[1],
+      cellId: variantMatch[2] ?? null
+    };
+  }
+
+  if (path === "/notebook" || path === "/notebook/") {
+    return {
+      templateId: null,
+      variantId: null,
+      cellId: null
+    };
+  }
+
+  const templateMatch = path.match(/^\/notebook\/([^/]+)(?:\/([^/]+))?\/?$/);
+  if (!templateMatch) {
+    return null;
+  }
+
+  const candidate = templateMatch[1].trim();
+  if (!isNotebookTemplateId(candidate)) {
+    return null;
+  }
+
+  return {
+    templateId: candidate,
+    variantId: null,
+    cellId: templateMatch[2] ?? null
+  };
+}
+
+export function readNotebookRouteLocation(): NotebookRouteLocation {
+  const fromPath = parseNotebookPathname(window.location.pathname);
+  if (fromPath) {
+    return fromPath;
+  }
+
+  return {
+    templateId: parseNotebookTemplateIdFromHash(window.location.hash),
+    variantId: parseNotebookVariantIdFromHash(window.location.hash),
+    cellId: parseNotebookCellIdFromHash(window.location.hash)
+  };
+}
+
 export function resolveNotebookTemplateIdFromHash(hash: string): NotebookTemplateId {
   return parseNotebookTemplateIdFromHash(hash) ?? DEFAULT_NOTEBOOK_TEMPLATE_ID;
+}
+
+export function resolveNotebookTemplateIdFromLocation(
+  location: NotebookRouteLocation
+): NotebookTemplateId {
+  return location.templateId ?? DEFAULT_NOTEBOOK_TEMPLATE_ID;
 }
 
 export function parseNotebookTemplateIdFromHash(hash: string): NotebookTemplateId | null {
@@ -98,18 +177,93 @@ export function parseNotebookVariantIdFromHash(hash: string): string | null {
   return candidate || null;
 }
 
-export function writeNotebookHash(templateId?: NotebookTemplateId): void {
-  const nextHash = templateId ? `#/notebook/${templateId}` : "#/notebook";
-  if (window.location.hash !== nextHash) {
-    window.location.hash = nextHash;
+export function parseNotebookCellIdFromHash(hash: string): string | null {
+  const variantMatch = hash.match(/^#\/notebook\/variant\/[^/?#]+\/([^/?#]+)/);
+  if (variantMatch?.[1]) {
+    return variantMatch[1].trim() || null;
+  }
+
+  const templateMatch = hash.match(/^#\/notebook\/[^/?#]+\/([^/?#]+)/);
+  if (templateMatch?.[1] && !hash.startsWith("#/notebook/variant/")) {
+    return templateMatch[1].trim() || null;
+  }
+
+  // Legacy links used a second hash fragment: #/notebook/bmw#transaction-flow-sequence
+  const fragments = hash.split("#").map((fragment) => fragment.trim());
+  if (fragments.length < 3) {
+    return null;
+  }
+
+  const cellId = fragments.at(-1);
+  return cellId || null;
+}
+
+export function buildNotebookPathname(args: {
+  templateId?: NotebookTemplateId;
+  variantId?: string;
+  cellId?: string;
+}): string {
+  const base = APP_BASE_URL.replace(/\/$/, "");
+  const route = args.variantId
+    ? `/notebook/variant/${args.variantId}`
+    : args.templateId
+      ? `/notebook/${args.templateId}`
+      : "/notebook";
+  const path = args.cellId ? `${route}/${args.cellId}` : route;
+  return base ? `${base}${path}` : path;
+}
+
+/** @deprecated Prefer buildNotebookPathname. Kept for tests comparing legacy hash URLs. */
+export function buildNotebookHash(args: {
+  templateId?: NotebookTemplateId;
+  variantId?: string;
+  cellId?: string;
+}): string {
+  const base = args.variantId
+    ? `#/notebook/variant/${args.variantId}`
+    : args.templateId
+      ? `#/notebook/${args.templateId}`
+      : "#/notebook";
+  return args.cellId ? `${base}/${args.cellId}` : base;
+}
+
+export function writeNotebookLocation(args: {
+  templateId?: NotebookTemplateId;
+  variantId?: string;
+  cellId?: string;
+}): void {
+  const nextPathname = buildNotebookPathname(args);
+  const nextUrl = `${nextPathname}${window.location.search}`;
+  const currentUrl = `${window.location.pathname}${window.location.search}`;
+
+  if (currentUrl !== nextUrl || window.location.hash) {
+    history.replaceState(history.state, "", nextUrl);
   }
 }
 
-export function writeNotebookVariantHash(variantId: string): void {
-  const nextHash = `#/notebook/variant/${variantId}`;
-  if (window.location.hash !== nextHash) {
-    window.location.hash = nextHash;
+export function migrateNotebookHashToPathname(): void {
+  const hash = window.location.hash;
+  if (!hash.startsWith("#/notebook") || parseNotebookPathname(window.location.pathname)) {
+    return;
   }
+
+  writeNotebookLocation({
+    templateId: parseNotebookTemplateIdFromHash(hash) ?? undefined,
+    variantId: parseNotebookVariantIdFromHash(hash) ?? undefined,
+    cellId: parseNotebookCellIdFromHash(hash) ?? undefined
+  });
+}
+
+export function writeNotebookHash(templateId?: NotebookTemplateId, cellId?: string): void {
+  writeNotebookLocation({ templateId, cellId });
+}
+
+export function writeNotebookVariantHash(variantId: string, cellId?: string): void {
+  writeNotebookLocation({ variantId, cellId });
+}
+
+export function isNotebookPathname(pathname: string): boolean {
+  return stripAppBasePath(pathname).startsWith("/notebook");
 }
 
 function resolveAppHref(path: string): string {

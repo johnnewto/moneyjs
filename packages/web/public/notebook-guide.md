@@ -378,6 +378,7 @@ Sequence cells can visualize transaction flows or equation dependencies.
         kind: matrix
         matrixCellId: transaction-flow
         includeZeroFlows: false
+      participantColumnOrder: [Households, Firms, Banks]
       description: Sequence view generated from the transactions-flow matrix.
   - sequence:
       id: equation-dependency-graph

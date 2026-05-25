@@ -19,6 +19,7 @@ import { DependencySequenceSummaryView } from "./DependencySequenceSummaryView";
 interface MatrixSequenceViewState {
   highlightedStepIndex: number | null;
   layoutMode: MatrixSequenceLayoutMode;
+  participantColumnOrder?: string[];
   pendingPeriodAdvance: boolean;
   pendingPeriodRetreat: boolean;
   previousCellId: string;
@@ -93,6 +94,7 @@ export function SequenceCellView({
       highlightedVariable={highlightedVariable}
       matrixSequenceViewState={matrixSequenceViewState}
       maxPeriodIndex={maxPeriodIndex}
+      onCellChange={onCellChange}
       onMatrixSequenceViewStateChange={onMatrixSequenceViewStateChange}
       onSelectedPeriodIndexChange={onSelectedPeriodIndexChange}
       onVariableInspectRequest={onVariableInspectRequest}
@@ -110,6 +112,7 @@ function MatrixSequenceCellView({
   highlightedVariable,
   matrixSequenceViewState,
   maxPeriodIndex,
+  onCellChange,
   onMatrixSequenceViewStateChange,
   onSelectedPeriodIndexChange,
   onVariableInspectRequest,
@@ -122,6 +125,7 @@ function MatrixSequenceCellView({
   highlightedVariable: string | null;
   matrixSequenceViewState: MatrixSequenceViewState | null;
   maxPeriodIndex: number;
+  onCellChange(cellId: string, updater: (cell: NotebookCell) => NotebookCell): void;
   onMatrixSequenceViewStateChange(
     updater:
       | MatrixSequenceViewState
@@ -203,14 +207,15 @@ function MatrixSequenceCellView({
   const effectiveMatrixSequenceViewState =
     matrixSequenceViewState ?? {
       highlightedStepIndex: null,
-      layoutMode: "swimlane",
+      layoutMode: "multiport",
+      participantColumnOrder: cell.participantColumnOrder,
       pendingPeriodAdvance: false,
       pendingPeriodRetreat: false,
       previousCellId: cell.id,
       previousPeriodIndex: selectedPeriodIndex,
       visibleStepCount: diagram.steps.length > 0 ? 1 : 0
     };
-  const layoutMode = effectiveMatrixSequenceViewState.layoutMode ?? "swimlane";
+  const layoutMode = effectiveMatrixSequenceViewState.layoutMode ?? "multiport";
   const usesReactFlowLayout =
     isMatrixSource && (layoutMode === "swimlane" || layoutMode === "multiport");
   const [fitViewRequest, setFitViewRequest] = useState(0);
@@ -222,11 +227,46 @@ function MatrixSequenceCellView({
     }));
   }
 
+  const setParticipantColumnOrder = useCallback(
+    (participantColumnOrder: string[]) => {
+      onCellChange(cell.id, (current) =>
+        current.type === "sequence"
+          ? {
+              ...current,
+              participantColumnOrder
+            }
+          : current
+      );
+      onMatrixSequenceViewStateChange((current) => ({
+        ...(current ?? {
+          highlightedStepIndex: null,
+          layoutMode: "multiport" as const,
+          participantColumnOrder: cell.participantColumnOrder,
+          pendingPeriodAdvance: false,
+          pendingPeriodRetreat: false,
+          previousCellId: cell.id,
+          previousPeriodIndex: selectedPeriodIndex,
+          visibleStepCount: diagram.steps.length > 0 ? 1 : 0
+        }),
+        participantColumnOrder
+      }));
+    },
+    [
+      cell.id,
+      cell.participantColumnOrder,
+      diagram.steps.length,
+      onCellChange,
+      onMatrixSequenceViewStateChange,
+      selectedPeriodIndex
+    ]
+  );
+
   useEffect(() => {
     onMatrixSequenceViewStateChange((current) => {
       const state = current ?? {
         highlightedStepIndex: null,
-        layoutMode: "swimlane" as const,
+        layoutMode: "multiport" as const,
+        participantColumnOrder: cell.participantColumnOrder,
         pendingPeriodAdvance: false,
         pendingPeriodRetreat: false,
         previousCellId: cell.id,
@@ -237,7 +277,8 @@ function MatrixSequenceCellView({
       if (state.previousCellId !== cell.id) {
         return {
           highlightedStepIndex: null,
-          layoutMode: state.layoutMode ?? "swimlane",
+          layoutMode: state.layoutMode ?? "multiport",
+          participantColumnOrder: cell.participantColumnOrder,
           pendingPeriodAdvance: false,
           pendingPeriodRetreat: false,
           previousCellId: cell.id,
@@ -249,7 +290,7 @@ function MatrixSequenceCellView({
       if (state.pendingPeriodAdvance) {
         return {
           highlightedStepIndex: diagram.steps.length > 0 ? 0 : null,
-          layoutMode: state.layoutMode ?? "swimlane",
+          layoutMode: state.layoutMode ?? "multiport",
           pendingPeriodAdvance: false,
           pendingPeriodRetreat: false,
           previousCellId: cell.id,
@@ -261,7 +302,7 @@ function MatrixSequenceCellView({
       if (state.pendingPeriodRetreat) {
         return {
           highlightedStepIndex: diagram.steps.length > 0 ? diagram.steps.length - 1 : null,
-          layoutMode: state.layoutMode ?? "swimlane",
+          layoutMode: state.layoutMode ?? "multiport",
           pendingPeriodAdvance: false,
           pendingPeriodRetreat: false,
           previousCellId: cell.id,
@@ -273,7 +314,7 @@ function MatrixSequenceCellView({
       if (state.previousPeriodIndex !== selectedPeriodIndex) {
         return {
           highlightedStepIndex: null,
-          layoutMode: state.layoutMode ?? "swimlane",
+          layoutMode: state.layoutMode ?? "multiport",
           pendingPeriodAdvance: false,
           pendingPeriodRetreat: false,
           previousCellId: cell.id,
@@ -285,7 +326,7 @@ function MatrixSequenceCellView({
       if (state.visibleStepCount !== diagram.steps.length || state.highlightedStepIndex !== null) {
         return {
           ...state,
-          layoutMode: state.layoutMode ?? "swimlane",
+          layoutMode: state.layoutMode ?? "multiport",
           highlightedStepIndex: null,
           visibleStepCount: diagram.steps.length
         };
@@ -293,7 +334,7 @@ function MatrixSequenceCellView({
 
       return state;
     });
-  }, [diagram.steps.length, cell.id, onMatrixSequenceViewStateChange, selectedPeriodIndex]);
+  }, [diagram.steps.length, cell.id, cell.participantColumnOrder, onMatrixSequenceViewStateChange, selectedPeriodIndex]);
 
   function moveToStep(nextCount: number): void {
     const clamped = Math.max(0, Math.min(nextCount, diagram.steps.length));
@@ -467,6 +508,8 @@ function MatrixSequenceCellView({
               diagram={diagram}
               fitViewRequest={fitViewRequest}
               inspectContext={multiportInspectContext}
+              participantColumnOrder={effectiveMatrixSequenceViewState.participantColumnOrder ?? null}
+              onParticipantColumnOrderChange={setParticipantColumnOrder}
               visibleStepCount={visibleSteps}
               highlightedStepIndex={effectiveMatrixSequenceViewState.highlightedStepIndex}
             />

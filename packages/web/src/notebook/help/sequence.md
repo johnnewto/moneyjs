@@ -67,7 +67,7 @@ Use this for hand-authored diagrams when the sequence is explanatory rather than
 
 A transaction-flow sequence is useful when a matrix is correct but hard to read at once. It breaks rows into visual steps.
 
-Matrix-backed sequences default to a **swimlane** view (columns as sectors, each matrix row as a horizontal flow band). Use **Multiport** for animated horizontal React Flow edges with side-specific row handles, or **Lifelines** to switch to the classic vertical sequence layout. Ambiguous rows with multiple payers and multiple receivers show a warning note instead of inventing extra arrows.
+Matrix-backed sequences default to a **multiport** view (animated horizontal React Flow edges with side-specific row handles). Use **Swimlane** for column swimlanes with SVG row bands, or **Lifelines** for the classic vertical sequence layout. In **Multiport**, drag a participant column to reorder participants for this view only (matrix column order is unchanged), or drag the canvas background to pan. Deep-link a sequence cell with a notebook path such as `/notebook/bmw/transaction-flow-sequence` (legacy hash links `#/notebook/bmw/transaction-flow-sequence` still work and redirect to the path form). Ambiguous rows with multiple payers and multiple receivers show a warning note instead of inventing extra arrows.
 
 Use it to answer:
 

@@ -48,6 +48,7 @@ cells:
       source:
         kind: matrix
         matrixCellId: transaction-flow
+      participantColumnOrder: [Households, Firms_current, Firms_capital, Banks_current, Banks_capital]
       description: Canvas-rendered sequence view generated from the transactions-flow matrix at the selected simulation period.
       note: Use Reset and Next step to manually reveal flows in order.
   - equations:
