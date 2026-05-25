@@ -15,10 +15,18 @@ export function sanitizeParticipantColumnOrder(
   }
 
   const idSet = new Set(participantIds);
-  const next = storedOrder.filter((id) => idSet.has(id));
+  const seen = new Set<string>();
+  const next = storedOrder.filter((id) => {
+    if (!idSet.has(id) || seen.has(id)) {
+      return false;
+    }
+    seen.add(id);
+    return true;
+  });
   participantIds.forEach((id) => {
-    if (!next.includes(id)) {
+    if (!seen.has(id)) {
       next.push(id);
+      seen.add(id);
     }
   });
   return next;
@@ -57,6 +65,9 @@ export function reorderParticipantIds(
   draggedId: string,
   targetSlot: number
 ): string[] {
+  if (!order.includes(draggedId)) {
+    return [...order];
+  }
   const next = order.filter((id) => id !== draggedId);
   const clamped = Math.max(0, Math.min(targetSlot, next.length));
   next.splice(clamped, 0, draggedId);

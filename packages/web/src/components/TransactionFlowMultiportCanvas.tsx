@@ -27,7 +27,11 @@ import {
   slotFromMultiportX
 } from "./transactionFlowMultiportOrder";
 
-function withMultiportDrag(nodes: Node[], enabled: boolean): Node[] {
+function areSameColumnOrder(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((id, index) => id === right[index]);
+}
+
+function withMultiportReorderDrag(nodes: Node[], enabled: boolean): Node[] {
   if (!enabled) {
     return nodes;
   }
@@ -37,6 +41,7 @@ function withMultiportDrag(nodes: Node[], enabled: boolean): Node[] {
       ? {
           ...node,
           draggable: true,
+          dragHandle: ".matrix-multiport__drag-handle",
           className: "matrix-multiport-node is-reorderable"
         }
       : node
@@ -66,6 +71,31 @@ function buildLayout(
 ) {
   const orderedDiagram = applyParticipantColumnOrder(diagram, columnOrder);
   return buildTransactionFlowMultiportLayout(orderedDiagram, visibleStepCount, highlightedStepIndex);
+}
+
+function applyPreviewLayoutToNodes(currentNodes: Node[], previewNodes: Node[], canReorder: boolean): Node[] {
+  const previewById = new Map(previewNodes.map((node) => [node.id, node] as const));
+
+  return currentNodes.map((node) => {
+    const preview = previewById.get(node.id);
+    if (!preview) {
+      return node;
+    }
+
+    const [nextNode] = withMultiportReorderDrag(
+      [
+        {
+          ...node,
+          data: preview.data,
+          height: preview.height,
+          position: { x: preview.position.x, y: preview.position.y },
+          width: preview.width
+        }
+      ],
+      canReorder
+    );
+    return nextNode ?? node;
+  });
 }
 
 export function TransactionFlowMultiportCanvas({
@@ -102,7 +132,7 @@ export function TransactionFlowMultiportCanvas({
   );
   const canReorder = onParticipantColumnOrderChange != null && diagram.participants.length > 1;
   const layoutNodes = useMemo(
-    () => withMultiportDrag(baseLayout.nodes, canReorder),
+    () => withMultiportReorderDrag(baseLayout.nodes, canReorder),
     [baseLayout.nodes, canReorder]
   );
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutNodes);
@@ -118,7 +148,7 @@ export function TransactionFlowMultiportCanvas({
     if (isDraggingRef.current) {
       return;
     }
-    setNodes(withMultiportDrag(baseLayout.nodes, canReorder));
+    setNodes(withMultiportReorderDrag(baseLayout.nodes, canReorder));
     setEdges(baseLayout.edges);
   }, [baseLayout, canReorder, setNodes]);
 
@@ -130,25 +160,13 @@ export function TransactionFlowMultiportCanvas({
         visibleStepCount,
         highlightedStepIndex
       );
-      const positionById = new Map(
-        previewLayout.nodes.map((node) => [node.id, node.position] as const)
-      );
 
       setNodes((current) =>
-        current.map((node) => {
-          const nextPosition = positionById.get(node.id);
-          if (!nextPosition) {
-            return node;
-          }
-          return {
-            ...node,
-            position: { x: nextPosition.x, y: nextPosition.y }
-          };
-        })
+        applyPreviewLayoutToNodes(current, previewLayout.nodes, canReorder)
       );
       setEdges(previewLayout.edges);
     },
-    [diagram, highlightedStepIndex, setNodes, visibleStepCount]
+    [canReorder, diagram, highlightedStepIndex, setNodes, visibleStepCount]
   );
 
   const handleNodeDragStart = useCallback(() => {
@@ -178,7 +196,7 @@ export function TransactionFlowMultiportCanvas({
     (_event: MouseEvent, node: Node) => {
       isDraggingRef.current = false;
       if (!canReorder || node.type !== "matrixMultiport") {
-        setNodes(withMultiportDrag(baseLayout.nodes, canReorder));
+        setNodes(withMultiportReorderDrag(baseLayout.nodes, canReorder));
         setEdges(baseLayout.edges);
         return;
       }
@@ -186,9 +204,14 @@ export function TransactionFlowMultiportCanvas({
       const targetSlot = slotFromMultiportX(node.position.x, previewOrderRef.current.length);
       const nextOrder = reorderParticipantIds(previewOrderRef.current, node.id, targetSlot);
       previewOrderRef.current = nextOrder;
+      if (areSameColumnOrder(nextOrder, columnOrder)) {
+        setNodes(withMultiportReorderDrag(baseLayout.nodes, canReorder));
+        setEdges(baseLayout.edges);
+        return;
+      }
       onParticipantColumnOrderChange(nextOrder);
     },
-    [baseLayout, canReorder, onParticipantColumnOrderChange, setNodes]
+    [baseLayout, canReorder, columnOrder, onParticipantColumnOrderChange, setNodes]
   );
 
   return (

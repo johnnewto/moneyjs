@@ -190,7 +190,11 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["rangeInclusive", "variables"],
+            "required": ["variables"],
+            "anyOf": [
+              { "required": ["rangeInclusive"] },
+              { "required": ["startPeriodInclusive", "endPeriodInclusive"] }
+            ],
             "properties": {
               "rangeInclusive": {
                 "type": "array",

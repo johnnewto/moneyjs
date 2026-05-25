@@ -40,6 +40,7 @@ describe("transactionFlowMultiportOrder", () => {
   it("sanitizes stored order when participants change", () => {
     expect(sanitizeParticipantColumnOrder(["A", "B"], ["B", "A", "C"])).toEqual(["B", "A"]);
     expect(sanitizeParticipantColumnOrder(["A", "B", "C"], ["B", "A"])).toEqual(["B", "A", "C"]);
+    expect(sanitizeParticipantColumnOrder(["A", "B", "C"], ["B", "B", "A"])).toEqual(["B", "A", "C"]);
   });
 
   it("maps slots to the multiport grid", () => {
@@ -52,6 +53,7 @@ describe("transactionFlowMultiportOrder", () => {
   it("inserts dragged ids at the target slot", () => {
     expect(reorderParticipantIds(["A", "B", "C"], "C", 0)).toEqual(["C", "A", "B"]);
     expect(reorderParticipantIds(["A", "B", "C"], "A", 2)).toEqual(["B", "C", "A"]);
+    expect(reorderParticipantIds(["A", "B", "C"], "D", 1)).toEqual(["A", "B", "C"]);
   });
 
   it("defaults column order from diagram participants", () => {
