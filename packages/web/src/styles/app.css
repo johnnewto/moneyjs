@@ -5355,8 +5355,17 @@ body.panel-splitter-body-lock {
   max-width: none;
 }
 
+.flow-graph-shell.sequence-canvas-shell {
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow: hidden;
+  width: 100%;
+}
+
 .flow-graph-shell .flow-graph-viewport {
+  height: 100%;
   position: relative;
+  width: 100%;
 }
 
 .flow-graph-shell .react-flow {
@@ -5503,6 +5512,224 @@ body.panel-splitter-body-lock {
   font-size: 0.72rem;
   max-width: 320px;
   padding: 0.45rem 0.6rem;
+}
+
+.matrix-multiport {
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid rgba(15, 23, 42, 0.22);
+  border-radius: 18px;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
+  box-sizing: border-box;
+  height: 100%;
+  overflow: visible;
+  position: relative;
+  width: 190px;
+}
+
+.matrix-multiport__header {
+  align-items: center;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 15px 15px 0 0;
+  display: grid;
+  gap: 0.35rem;
+  justify-items: center;
+  padding: 0.75rem 0.7rem 0.65rem;
+  text-align: center;
+}
+
+.matrix-multiport__icon {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.76);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 999px;
+  display: flex;
+  font-size: 0.68rem;
+  font-weight: 800;
+  height: 2rem;
+  justify-content: center;
+  letter-spacing: 0.03em;
+  width: 2rem;
+}
+
+.matrix-multiport__title {
+  color: #0f172a;
+  font-size: 0.78rem;
+  font-weight: 750;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.matrix-multiport__ports {
+  inset: 0;
+  position: absolute;
+}
+
+.matrix-multiport__port {
+  box-sizing: border-box;
+  left: 0;
+  position: absolute;
+}
+
+.matrix-multiport__port-card {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+  box-sizing: border-box;
+  color: #334155;
+  display: grid;
+  gap: 0.1rem;
+  line-height: 1.22;
+  margin: 0 1.1rem;
+  min-height: 42px;
+  padding: 0.35rem 0.5rem;
+  pointer-events: auto;
+  width: calc(100% - 2.2rem);
+}
+
+.matrix-multiport__port-formula {
+  display: inline;
+}
+
+.matrix-multiport__port-formula .formula-token,
+.matrix-multiport__port-formula .formula-token.is-clickable {
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.matrix-multiport__port.is-source .matrix-multiport__port-card {
+  border-color: #fecaca;
+}
+
+.matrix-multiport__port.is-target .matrix-multiport__port-card {
+  border-color: #bbf7d0;
+}
+
+.matrix-multiport__port.is-highlighted .matrix-multiport__port-card {
+  border-color: #0f172a;
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.12);
+}
+
+.matrix-multiport__port-label {
+  color: #0f172a;
+  font-size: 0.64rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.matrix-multiport__port-entry {
+  font-size: 0.64rem;
+  overflow-wrap: anywhere;
+}
+
+.matrix-multiport__port.is-source .matrix-multiport__port-entry {
+  color: #b91c1c;
+}
+
+.matrix-multiport__port.is-target .matrix-multiport__port-entry {
+  color: #15803d;
+}
+
+.matrix-multiport__port .matrix-multiport__handle {
+  background: #0f172a;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.22);
+  height: 12px;
+  pointer-events: none;
+  top: 50%;
+  width: 12px;
+}
+
+.matrix-multiport__port .matrix-multiport__handle[data-handlepos="left"] {
+  left: 0;
+  transform: translate(-50%, -50%);
+}
+
+.matrix-multiport__port .matrix-multiport__handle[data-handlepos="right"] {
+  right: 0;
+  transform: translate(50%, -50%);
+}
+
+.matrix-multiport-note {
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  border-radius: 10px;
+  color: #9a3412;
+  font-size: 0.72rem;
+  max-width: 320px;
+  padding: 0.45rem 0.6rem;
+}
+
+.matrix-multiport--green {
+  background: #f0fdf4;
+  border-color: #16a34a;
+}
+
+.matrix-multiport--green .matrix-multiport__header {
+  background: #dcfce7;
+}
+
+.matrix-multiport--sky {
+  background: #f0f9ff;
+  border-color: #0284c7;
+}
+
+.matrix-multiport--sky .matrix-multiport__header {
+  background: #e0f2fe;
+}
+
+.matrix-multiport--amber {
+  background: #fffbeb;
+  border-color: #ca8a04;
+}
+
+.matrix-multiport--amber .matrix-multiport__header {
+  background: #fef3c7;
+}
+
+.matrix-multiport--purple {
+  background: #faf5ff;
+  border-color: #9333ea;
+}
+
+.matrix-multiport--purple .matrix-multiport__header {
+  background: #f3e8ff;
+}
+
+.matrix-multiport--orange {
+  background: #fff7ed;
+  border-color: #ea580c;
+}
+
+.matrix-multiport--orange .matrix-multiport__header {
+  background: #ffedd5;
+}
+
+.matrix-multiport--slate {
+  background: #f8fafc;
+  border-color: #64748b;
+}
+
+.matrix-multiport--slate .matrix-multiport__header {
+  background: #f1f5f9;
+}
+
+.multiport-flow-edge path {
+  stroke: #2563eb;
+}
+
+.multiport-flow-edge--financial path {
+  stroke: #7e22ce;
+}
+
+.multiport-flow-edge--capital path {
+  stroke: #b45309;
+}
+
+.multiport-flow-edge.is-highlighted path {
+  stroke: #0f172a;
 }
 
 .dependency-flow-measure {

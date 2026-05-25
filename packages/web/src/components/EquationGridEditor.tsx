@@ -815,56 +815,45 @@ export function highlightFormula(
             currentValues
           })
         : undefined;
+    const isInspectableVariable =
+      Boolean(onSelectVariable) &&
+      tokenClass !== "formula-function" &&
+      tokenClass !== "formula-number" &&
+      tokenClass !== "formula-default";
     const tokenClassName = documentHighlightClassName(
       normalizedToken,
       documentHighlightedVariable,
       `formula-token ${tokenClass}${traceClass ? ` trace-token-${traceClass}` : ""}${
-        onSelectVariable &&
-        tokenClass !== "formula-function" &&
-        tokenClass !== "formula-number" &&
-        tokenClass !== "formula-default"
-          ? " is-clickable"
-          : ""
+        isInspectableVariable ? " is-clickable" : ""
       }`
     );
+    const selectVariableOnClick = variableSelectOnClick
+      ? (event: MouseEvent<HTMLElement>) => {
+          if (!isInspectableVariable || !onSelectVariable) {
+            return;
+          }
+          event.preventDefault();
+          event.stopPropagation();
+          onSelectVariable(normalizedToken);
+        }
+      : undefined;
     parts.push(
       <InstantTooltip
         key={`${token}-${index}`}
         className={tokenClassName}
+        onClick={selectVariableOnClick}
         tooltip={tokenDescription}
       >
         <span
           className={tokenClassName}
-          {...(variableSelectOnClick
+          {...(!variableSelectOnClick && isInspectableVariable
             ? {
-                onClick: (event: MouseEvent<HTMLSpanElement>) => {
-                  if (
-                    !onSelectVariable ||
-                    tokenClass === "formula-function" ||
-                    tokenClass === "formula-number" ||
-                    tokenClass === "formula-default"
-                  ) {
-                    return;
-                  }
+                onMouseDown: (event: MouseEvent<HTMLSpanElement>) => {
                   event.preventDefault();
-                  event.stopPropagation();
-                  onSelectVariable(normalizedToken);
+                  onSelectVariable?.(normalizedToken);
                 }
               }
-            : {
-                onMouseDown: (event: MouseEvent<HTMLSpanElement>) => {
-                  if (
-                    !onSelectVariable ||
-                    tokenClass === "formula-function" ||
-                    tokenClass === "formula-number" ||
-                    tokenClass === "formula-default"
-                  ) {
-                    return;
-                  }
-                  event.preventDefault();
-                  onSelectVariable(normalizedToken);
-                }
-              })}
+            : {})}
         >
           {renderedTokenNode}
         </span>

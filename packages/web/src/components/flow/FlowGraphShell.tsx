@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Background,
   ReactFlow,
@@ -12,9 +12,10 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-import { useDragScroll } from "../../hooks/useDragScroll";
-
 const proOptions: ProOptions = { hideAttribution: true };
+
+const FIT_VIEW_OPTIONS = { padding: 0.12, duration: 0, maxZoom: 1, minZoom: 0.08 } as const;
+const MIN_VIEWPORT_SIZE = 280;
 
 function readHorizontalInsets(element: HTMLElement | null): number {
   if (!element) {
@@ -43,12 +44,15 @@ function FlowGraphViewport({
   edges,
   edgeTypes,
   fitViewKey,
-  minViewportWidth,
+  fitViewRequest = 0,
   nodes,
   nodeTypes,
   onNodeClick,
   onNodeMouseEnter,
-  onNodeMouseLeave
+  onNodeMouseLeave,
+  elementsSelectable = true,
+  viewportHeight,
+  viewportWidth
 }: {
   ariaLabel: string;
   canvasHeight: number;
@@ -56,30 +60,45 @@ function FlowGraphViewport({
   children?: ReactNode;
   edges: Edge[];
   edgeTypes?: EdgeTypes;
+  elementsSelectable?: boolean;
   fitViewKey: string;
-  minViewportWidth: number;
+  fitViewRequest?: number;
   nodes: Node[];
   nodeTypes?: NodeTypes;
   onNodeClick?: (event: React.MouseEvent, node: Node) => void;
   onNodeMouseEnter?: (event: React.MouseEvent, node: Node) => void;
   onNodeMouseLeave?: (event: React.MouseEvent, node: Node) => void;
+  viewportHeight: number;
+  viewportWidth: number;
 }) {
   const { fitView } = useReactFlow();
 
+  const runFitView = useCallback(() => {
+    fitView(FIT_VIEW_OPTIONS);
+  }, [fitView]);
+
   useEffect(() => {
-    fitView({ padding: 0.12, duration: 0, maxZoom: 1, minZoom: 0.35 });
-  }, [fitView, fitViewKey, canvasWidth, canvasHeight]);
+    runFitView();
+  }, [runFitView, fitViewKey, canvasWidth, canvasHeight, viewportWidth, viewportHeight]);
+
+  useEffect(() => {
+    if (fitViewRequest <= 0) {
+      return;
+    }
+
+    runFitView();
+  }, [fitViewRequest, runFitView]);
 
   return (
     <ReactFlow
       aria-label={ariaLabel}
       edges={edges}
       edgeTypes={edgeTypes}
-      elementsSelectable
+      elementsSelectable={elementsSelectable}
       fitView
       fitViewOptions={{ includeHiddenNodes: false, padding: 0.12 }}
       maxZoom={1.25}
-      minZoom={0.35}
+      minZoom={0.08}
       nodes={nodes}
       nodeTypes={nodeTypes}
       nodesConnectable={false}
@@ -90,11 +109,13 @@ function FlowGraphViewport({
       onNodeMouseLeave={onNodeMouseLeave}
       panOnDrag
       panOnScroll={false}
+      preventScrolling
       proOptions={proOptions}
-      style={{ width: Math.max(minViewportWidth, canvasWidth), height: canvasHeight }}
+      style={{ width: viewportWidth, height: viewportHeight }}
+      zoomActivationKeyCode={null}
       zoomOnDoubleClick={false}
-      zoomOnPinch={false}
-      zoomOnScroll={false}
+      zoomOnPinch
+      zoomOnScroll
     >
       <Background gap={18} size={1} color="rgba(148, 163, 184, 0.18)" />
       {children}
@@ -109,12 +130,14 @@ export interface FlowGraphShellProps {
   edges: Edge[];
   edgeTypes?: EdgeTypes;
   fitViewKey: string;
+  fitViewRequest?: number;
   minViewportWidth?: number;
   nodes: Node[];
   nodeTypes?: NodeTypes;
   onNodeClick?: (event: React.MouseEvent, node: Node) => void;
   onNodeMouseEnter?: (event: React.MouseEvent, node: Node) => void;
   onNodeMouseLeave?: (event: React.MouseEvent, node: Node) => void;
+  elementsSelectable?: boolean;
   children?: ReactNode;
 }
 
@@ -126,60 +149,61 @@ export function FlowGraphShell({
   edges,
   edgeTypes,
   fitViewKey,
+  fitViewRequest = 0,
   minViewportWidth = 360,
   nodes,
   nodeTypes,
   onNodeClick,
   onNodeMouseEnter,
-  onNodeMouseLeave
+  onNodeMouseLeave,
+  elementsSelectable = true
 }: FlowGraphShellProps) {
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
-  const canvasDragScroll = useDragScroll<HTMLDivElement>();
-  const [viewportWidth, setViewportWidth] = useState(Math.max(minViewportWidth, canvasWidth));
+  const shellRef = useRef<HTMLDivElement | null>(null);
+  const [viewportSize, setViewportSize] = useState({
+    width: Math.max(MIN_VIEWPORT_SIZE, minViewportWidth),
+    height: Math.max(MIN_VIEWPORT_SIZE, canvasHeight)
+  });
 
-  useEffect(() => {
-    function updateWidth(): void {
-      const wrapper = wrapperRef.current;
-      const measuredWidth = wrapper?.getBoundingClientRect().width ?? minViewportWidth;
-      const horizontalInsets = readHorizontalInsets(wrapper);
-      setViewportWidth(Math.max(minViewportWidth, canvasWidth, Math.floor(measuredWidth - horizontalInsets)));
+  const updateViewportSize = useCallback(() => {
+    const shell = shellRef.current;
+    if (!shell) {
+      return;
     }
 
-    updateWidth();
+    const rect = shell.getBoundingClientRect();
+    const horizontalInsets = readHorizontalInsets(shell);
+    setViewportSize({
+      width: Math.max(MIN_VIEWPORT_SIZE, Math.floor(rect.width - horizontalInsets)),
+      height: Math.max(MIN_VIEWPORT_SIZE, Math.floor(rect.height))
+    });
+  }, []);
 
-    if (typeof ResizeObserver !== "undefined" && wrapperRef.current) {
-      const observer = new ResizeObserver(() => updateWidth());
-      observer.observe(wrapperRef.current);
+  useEffect(() => {
+    updateViewportSize();
+
+    if (typeof ResizeObserver !== "undefined" && shellRef.current) {
+      const observer = new ResizeObserver(() => updateViewportSize());
+      observer.observe(shellRef.current);
       return () => observer.disconnect();
     }
 
-    window.addEventListener("resize", updateWidth);
-    return () => window.removeEventListener("resize", updateWidth);
-  }, [canvasWidth, minViewportWidth]);
-
-  const effectiveMinWidth = Math.max(viewportWidth, canvasWidth);
+    window.addEventListener("resize", updateViewportSize);
+    return () => window.removeEventListener("resize", updateViewportSize);
+  }, [canvasHeight, minViewportWidth, updateViewportSize]);
 
   return (
     <div
-      ref={(node) => {
-        wrapperRef.current = node;
-        canvasDragScroll.dragScrollRef.current = node;
-      }}
-      className={`sequence-canvas-shell flow-graph-shell notebook-oversize-scroll ${canvasDragScroll.dragScrollProps.className}`}
-      data-drag-scroll-ignore="true"
-      onClickCapture={canvasDragScroll.dragScrollProps.onClickCapture}
-      onMouseDown={canvasDragScroll.dragScrollProps.onMouseDown}
+      ref={shellRef}
+      className="sequence-canvas-shell flow-graph-shell"
       role="region"
       aria-label={ariaLabel}
+      style={{
+        height: canvasHeight,
+        maxHeight: "75vh",
+        width: "100%"
+      }}
     >
-      <div
-        className="flow-graph-viewport"
-        style={{
-          width: effectiveMinWidth,
-          height: canvasHeight,
-          minWidth: effectiveMinWidth
-        }}
-      >
+      <div className="flow-graph-viewport">
         <ReactFlowProvider>
           <FlowGraphViewport
             ariaLabel={ariaLabel}
@@ -188,12 +212,15 @@ export function FlowGraphShell({
             edges={edges}
             edgeTypes={edgeTypes}
             fitViewKey={fitViewKey}
-            minViewportWidth={effectiveMinWidth}
+            fitViewRequest={fitViewRequest}
             nodes={nodes}
             nodeTypes={nodeTypes}
             onNodeClick={onNodeClick}
             onNodeMouseEnter={onNodeMouseEnter}
             onNodeMouseLeave={onNodeMouseLeave}
+            elementsSelectable={elementsSelectable}
+            viewportHeight={viewportSize.height}
+            viewportWidth={viewportSize.width}
           >
             {children}
           </FlowGraphViewport>

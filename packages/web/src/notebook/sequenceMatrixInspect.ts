@@ -1,0 +1,114 @@
+import type { SimulationResult } from "@sfcr/core";
+
+import type { EditorState } from "../lib/editorModel";
+import { buildVariableUnitMetadata } from "../lib/units";
+import type { VariableUnitMetadata } from "../lib/unitMeta";
+import type { VariableDescriptions } from "../lib/variableDescriptions";
+import {
+  resolveInspectorModelSource,
+  type InspectorModelSource
+} from "../lib/variableInspect";
+import { buildEditorStateForNotebookModel } from "./modelSections";
+import type { MatrixCell, NotebookCell, RunCell, SequenceCell } from "./types";
+import type { useNotebookRunner } from "./useNotebookRunner";
+
+const EMPTY_PARAMETER_NAMES = new Set<string>();
+
+export interface SequenceMatrixInspectBundle {
+  currentValues: Record<string, number | undefined>;
+  editor: EditorState | null;
+  modelSource: InspectorModelSource | null;
+  parameterNames: Set<string>;
+  variableDescriptions: VariableDescriptions;
+  variableUnitMetadata: VariableUnitMetadata;
+}
+
+export function resolveSequenceMatrixRunCellId(
+  cell: SequenceCell,
+  cells: NotebookCell[]
+): string | null {
+  if (cell.source.kind !== "matrix") {
+    return null;
+  }
+
+  const source = cell.source;
+  const matrixCell = cells.find(
+    (candidate): candidate is MatrixCell =>
+      candidate.type === "matrix" && candidate.id === source.matrixCellId
+  );
+  return source.sourceRunCellId ?? matrixCell?.sourceRunCellId ?? null;
+}
+
+export function resolveSequenceMatrixInspectBundle(
+  cell: SequenceCell,
+  cells: NotebookCell[],
+  runner: ReturnType<typeof useNotebookRunner>,
+  selectedPeriodIndex: number,
+  variableDescriptions: VariableDescriptions
+): SequenceMatrixInspectBundle {
+  const sourceRunCellId = resolveSequenceMatrixRunCellId(cell, cells);
+  const sourceRunCell = sourceRunCellId
+    ? cells.find(
+        (candidate): candidate is RunCell =>
+          candidate.type === "run" && candidate.id === sourceRunCellId
+      ) ?? null
+    : null;
+  const editor = sourceRunCellId ? resolveEditorStateForRunCellId(cells, sourceRunCellId) : null;
+  const result = sourceRunCellId ? runner.getResult(sourceRunCellId) : null;
+  const currentValues = buildCurrentValues(result, selectedPeriodIndex);
+  const modelSource = sourceRunCell ? resolveInspectorModelSource(sourceRunCell) : null;
+  const parameterNames = editor
+    ? new Set(editor.externals.map((external) => external.name.trim()).filter(Boolean))
+    : EMPTY_PARAMETER_NAMES;
+  const variableUnitMetadata = editor
+    ? buildVariableUnitMetadata({
+        equations: editor.equations,
+        externals: editor.externals
+      })
+    : new Map();
+
+  return {
+    currentValues,
+    editor,
+    modelSource,
+    parameterNames,
+    variableDescriptions,
+    variableUnitMetadata
+  };
+}
+
+function resolveEditorStateForRunCellId(
+  cells: NotebookCell[],
+  sourceRunCellId: string
+): EditorState | null {
+  const sourceRunCell = cells.find((entry) => entry.id === sourceRunCellId);
+  if (!sourceRunCell || sourceRunCell.type !== "run") {
+    return null;
+  }
+
+  return buildEditorStateForNotebookModel(
+    {
+      id: "notebook",
+      title: "notebook",
+      metadata: { version: 1 },
+      cells
+    },
+    sourceRunCell
+  );
+}
+
+function buildCurrentValues(
+  result: SimulationResult | null,
+  selectedPeriodIndex: number
+): Record<string, number | undefined> {
+  if (!result) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(result.series).map(([name, values]) => [
+      name,
+      values[Math.min(selectedPeriodIndex, Math.max(values.length - 1, 0))]
+    ])
+  );
+}

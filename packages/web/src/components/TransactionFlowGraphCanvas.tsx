@@ -17,12 +17,14 @@ const nodeTypes: NodeTypes = {
 
 export interface TransactionFlowGraphCanvasProps {
   diagram: ParsedDiagram;
+  fitViewRequest?: number;
   visibleStepCount: number;
   highlightedStepIndex: number | null;
 }
 
 export function TransactionFlowGraphCanvas({
   diagram,
+  fitViewRequest = 0,
   visibleStepCount,
   highlightedStepIndex
 }: TransactionFlowGraphCanvasProps) {
@@ -38,7 +40,8 @@ export function TransactionFlowGraphCanvas({
       canvasWidth={layout.width}
       edges={[]}
       fitViewKey={`${layout.width}-${layout.height}-${visibleStepCount}-${highlightedStepIndex ?? "none"}`}
-      minViewportWidth={Math.max(360, layout.width)}
+      fitViewRequest={fitViewRequest}
+      minViewportWidth={360}
       nodes={layout.nodes}
       nodeTypes={nodeTypes}
     >

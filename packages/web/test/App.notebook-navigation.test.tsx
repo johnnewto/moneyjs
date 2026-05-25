@@ -1253,9 +1253,19 @@ describe("App notebook navigation and inspection", () => {
       within(sequenceCell).getByRole("region", { name: /transaction flow diagram/i })
     ).toBeInTheDocument();
     await waitFor(() => {
-      expect(within(sequenceCell).getByText("-Cs → +Cs")).toBeInTheDocument();
+      expect(sequenceCell.querySelector(".transaction-flow-edge__path")).not.toBeNull();
     });
     expect(within(sequenceCell).getByRole("button", { name: /^swimlane$/i })).toHaveClass("is-active");
+    expect(within(sequenceCell).queryByRole("img", { name: /sequence diagram/i })).not.toBeInTheDocument();
+
+    await user.click(within(sequenceCell).getByRole("button", { name: /^multiport$/i }));
+
+    expect(within(sequenceCell).getByRole("button", { name: /^multiport$/i })).toHaveClass("is-active");
+    expect(
+      within(sequenceCell).getByRole("region", {
+        name: /animated multiport transaction flow diagram/i
+      })
+    ).toBeInTheDocument();
     expect(within(sequenceCell).queryByRole("img", { name: /sequence diagram/i })).not.toBeInTheDocument();
 
     await user.click(within(sequenceCell).getByRole("button", { name: /^lifelines$/i }));

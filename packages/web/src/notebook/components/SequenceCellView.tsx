@@ -1,29 +1,32 @@
-import { useEffect, useMemo, useState, type JSX } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 
 import { parseExpression } from "@sfcr/core";
 
 import { NumericValueText } from "../../components/NumericValueText";
 import { SequenceDiagramCanvas } from "../../components/SequenceDiagramCanvas";
 import { TransactionFlowGraphCanvas } from "../../components/TransactionFlowGraphCanvas";
-import { VariableLabel } from "../../components/VariableLabel";
+import { TransactionFlowMultiportCanvas } from "../../components/TransactionFlowMultiportCanvas";
 import { buildVariableUnitMetadata, inferUnits } from "../../lib/units";
-import { buildVariableDescriptions, type VariableDescriptions } from "../../lib/variableDescriptions";
+import type { VariableDescriptions } from "../../lib/variableDescriptions";
 import type { VariableInspectRequest } from "../../lib/variableInspect";
 import { NotebookRenderProfiler } from "../notebookProfiler";
 import { resolveSequenceDiagram } from "../sequence";
+import { resolveSequenceMatrixInspectBundle } from "../sequenceMatrixInspect";
 import type { NotebookCell, SequenceCell } from "../types";
 import type { useNotebookRunner } from "../useNotebookRunner";
 import { DependencySequenceSummaryView } from "./DependencySequenceSummaryView";
 
 interface MatrixSequenceViewState {
   highlightedStepIndex: number | null;
-  layoutMode: "swimlane" | "lifelines";
+  layoutMode: MatrixSequenceLayoutMode;
   pendingPeriodAdvance: boolean;
   pendingPeriodRetreat: boolean;
   previousCellId: string;
   previousPeriodIndex: number;
   visibleStepCount: number;
 }
+
+type MatrixSequenceLayoutMode = "swimlane" | "multiport" | "lifelines";
 
 export function SequenceCellView({
   cell,
@@ -35,7 +38,7 @@ export function SequenceCellView({
   onMatrixSequenceViewStateChange,
   onSelectedPeriodIndexChange,
   onVariableInspectRequest,
-  highlightedVariable: _highlightedVariable = null,
+  highlightedVariable = null,
   runner,
   selectedPeriodIndex,
   variableDescriptions
@@ -87,10 +90,12 @@ export function SequenceCellView({
     <MatrixSequenceCellView
       cell={cell}
       cells={cells}
+      highlightedVariable={highlightedVariable}
       matrixSequenceViewState={matrixSequenceViewState}
       maxPeriodIndex={maxPeriodIndex}
       onMatrixSequenceViewStateChange={onMatrixSequenceViewStateChange}
       onSelectedPeriodIndexChange={onSelectedPeriodIndexChange}
+      onVariableInspectRequest={onVariableInspectRequest}
       runner={runner}
       selectedPeriodIndex={selectedPeriodIndex}
       variableDescriptions={variableDescriptions}
@@ -102,16 +107,19 @@ export function SequenceCellView({
 function MatrixSequenceCellView({
   cell,
   cells,
+  highlightedVariable,
   matrixSequenceViewState,
   maxPeriodIndex,
   onMatrixSequenceViewStateChange,
   onSelectedPeriodIndexChange,
+  onVariableInspectRequest,
   runner,
   selectedPeriodIndex,
   variableDescriptions
 }: {
   cell: SequenceCell;
   cells: NotebookCell[];
+  highlightedVariable: string | null;
   matrixSequenceViewState: MatrixSequenceViewState | null;
   maxPeriodIndex: number;
   onMatrixSequenceViewStateChange(
@@ -121,10 +129,63 @@ function MatrixSequenceCellView({
       | ((current: MatrixSequenceViewState | null) => MatrixSequenceViewState | null)
   ): void;
   onSelectedPeriodIndexChange(nextIndex: number): void;
+  onVariableInspectRequest(args: VariableInspectRequest): void;
   runner: ReturnType<typeof useNotebookRunner>;
   selectedPeriodIndex: number;
   variableDescriptions: VariableDescriptions;
 }) {
+  const inspectBundle = useMemo(
+    () =>
+      cell.source.kind === "matrix"
+        ? resolveSequenceMatrixInspectBundle(cell, cells, runner, selectedPeriodIndex, variableDescriptions)
+        : null,
+    [cell, cells, runner, selectedPeriodIndex, variableDescriptions]
+  );
+  const inspectContextRef = useRef(inspectBundle);
+
+  useEffect(() => {
+    inspectContextRef.current = inspectBundle;
+  }, [inspectBundle]);
+
+  const handleInspectVariable = useCallback(
+    (selectedVariable: string) => {
+      const bundle = inspectContextRef.current;
+      if (!bundle?.editor) {
+        return;
+      }
+
+      onVariableInspectRequest({
+        currentValues: bundle.currentValues,
+        editor: bundle.editor,
+        modelSource: bundle.modelSource,
+        selectedVariable,
+        variableDescriptions: bundle.variableDescriptions,
+        variableUnitMetadata: bundle.variableUnitMetadata
+      });
+    },
+    [onVariableInspectRequest]
+  );
+
+  const multiportInspectContext = useMemo(() => {
+    if (!inspectBundle) {
+      return {
+        currentValues: {},
+        highlightedVariable,
+        parameterNames: new Set<string>(),
+        variableDescriptions,
+        variableUnitMetadata: new Map()
+      };
+    }
+
+    return {
+      currentValues: inspectBundle.currentValues,
+      highlightedVariable,
+      onSelectVariable: inspectBundle.editor ? handleInspectVariable : undefined,
+      parameterNames: inspectBundle.parameterNames,
+      variableDescriptions: inspectBundle.variableDescriptions,
+      variableUnitMetadata: inspectBundle.variableUnitMetadata
+    };
+  }, [handleInspectVariable, highlightedVariable, inspectBundle, variableDescriptions]);
   const diagram = useMemo(
     () =>
       resolveSequenceDiagram(
@@ -150,8 +211,11 @@ function MatrixSequenceCellView({
       visibleStepCount: diagram.steps.length > 0 ? 1 : 0
     };
   const layoutMode = effectiveMatrixSequenceViewState.layoutMode ?? "swimlane";
+  const usesReactFlowLayout =
+    isMatrixSource && (layoutMode === "swimlane" || layoutMode === "multiport");
+  const [fitViewRequest, setFitViewRequest] = useState(0);
 
-  function setLayoutMode(nextMode: "swimlane" | "lifelines"): void {
+  function setLayoutMode(nextMode: MatrixSequenceLayoutMode): void {
     onMatrixSequenceViewStateChange((current) => ({
       ...(current ?? effectiveMatrixSequenceViewState),
       layoutMode: nextMode
@@ -336,6 +400,16 @@ function MatrixSequenceCellView({
           >
             Show all
           </button>
+          {usesReactFlowLayout ? (
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => setFitViewRequest((count) => count + 1)}
+              disabled={visibleSteps === 0}
+            >
+              Fit to window
+            </button>
+          ) : null}
           {isMatrixSource ? (
             <>
               <button
@@ -346,6 +420,15 @@ function MatrixSequenceCellView({
                 onClick={() => setLayoutMode("swimlane")}
               >
                 Swimlane
+              </button>
+              <button
+                type="button"
+                className={`notebook-run-button notebook-source-toggle${
+                  layoutMode === "multiport" ? " is-active" : ""
+                }`}
+                onClick={() => setLayoutMode("multiport")}
+              >
+                Multiport
               </button>
               <button
                 type="button"
@@ -375,6 +458,15 @@ function MatrixSequenceCellView({
           {isMatrixSource && layoutMode === "swimlane" ? (
             <TransactionFlowGraphCanvas
               diagram={diagram}
+              fitViewRequest={fitViewRequest}
+              visibleStepCount={visibleSteps}
+              highlightedStepIndex={effectiveMatrixSequenceViewState.highlightedStepIndex}
+            />
+          ) : isMatrixSource && layoutMode === "multiport" ? (
+            <TransactionFlowMultiportCanvas
+              diagram={diagram}
+              fitViewRequest={fitViewRequest}
+              inspectContext={multiportInspectContext}
               visibleStepCount={visibleSteps}
               highlightedStepIndex={effectiveMatrixSequenceViewState.highlightedStepIndex}
             />

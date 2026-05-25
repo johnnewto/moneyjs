@@ -67,7 +67,7 @@ Use this for hand-authored diagrams when the sequence is explanatory rather than
 
 A transaction-flow sequence is useful when a matrix is correct but hard to read at once. It breaks rows into visual steps.
 
-Matrix-backed sequences default to a **swimlane** view (columns as sectors, each matrix row as a horizontal flow band). Use **Lifelines** in the toolbar to switch to the classic vertical sequence layout. Ambiguous rows with multiple payers and multiple receivers show a warning note instead of inventing extra arrows.
+Matrix-backed sequences default to a **swimlane** view (columns as sectors, each matrix row as a horizontal flow band). Use **Multiport** for animated horizontal React Flow edges with side-specific row handles, or **Lifelines** to switch to the classic vertical sequence layout. Ambiguous rows with multiple payers and multiple receivers show a warning note instead of inventing extra arrows.
 
 Use it to answer:
 
@@ -76,7 +76,7 @@ Use it to answer:
 - Are payments and receipts paired correctly?
 - Which rows represent financial asset changes rather than current flows?
 
-The Reset and Next step controls are useful for teaching or debugging the accounting story.
+The Reset and Next step controls are useful for teaching or debugging the accounting story. **Swimlane** and **Multiport** layouts scale the diagram to the visible cell width on load; scroll the mouse wheel over the canvas to zoom, and use **Fit to window** after panning or zooming to reset the view.
 
 ## Dependency Sequences
 
