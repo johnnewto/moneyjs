@@ -51,11 +51,35 @@ export function inferMatrixTableKind(
   return stockScore > flowScore ? "stocks" : "flows";
 }
 
+export type MatrixStockRole = "asset" | "liability" | "netWorth";
+
+export function formatStockRoleLabel(role: MatrixStockRole): string {
+  switch (role) {
+    case "asset":
+      return "A";
+    case "liability":
+      return "L";
+    case "netWorth":
+      return "E";
+  }
+}
+
+export function formatStockRoleTitle(role: MatrixStockRole): string {
+  switch (role) {
+    case "asset":
+      return "Asset";
+    case "liability":
+      return "Liability";
+    case "netWorth":
+      return "Equity";
+  }
+}
+
 export function classifyMatrixStockRole(
   rowLabel: string,
   source: string,
   numericValue: number | null
-): "asset" | "liability" | "netWorth" | null {
+): MatrixStockRole | null {
   const normalizedLabel = rowLabel.trim().toLowerCase();
   if (
     normalizedLabel.includes("net worth") ||

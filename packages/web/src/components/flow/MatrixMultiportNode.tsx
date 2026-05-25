@@ -1,11 +1,16 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
+import type { CSSProperties } from "react";
 
+import { NumericValueText } from "../NumericValueText";
 import { highlightFormula } from "../EquationGridEditor";
+import { formatStockRoleLabel } from "../../notebook/matrixSemantics";
 import {
   MULTIPORT_NODE_WIDTH,
   MULTIPORT_ROW_GAP,
   MULTIPORT_ROW_HEIGHT,
   MULTIPORT_ROW_TOP,
+  MULTIPORT_STOCK_FOOTER_GAP,
+  MULTIPORT_STOCK_ROW_HEIGHT,
   handleId,
   type MatrixMultiportNodeData,
   type MatrixMultiportNoteNodeData,
@@ -29,9 +34,20 @@ export function MatrixMultiportNode({ data }: NodeProps) {
   const nodeData = data as unknown as MatrixMultiportNodeData;
   const palette = MULTIPORT_PALETTES[nodeData.order % MULTIPORT_PALETTES.length];
   const icon = ACCOUNT_ICONS[nodeData.order % ACCOUNT_ICONS.length];
+  const stocksFooterHeight =
+    nodeData.stocks.length > 0
+      ? MULTIPORT_STOCK_FOOTER_GAP + nodeData.stocks.length * MULTIPORT_STOCK_ROW_HEIGHT + 8
+      : 0;
 
   return (
-    <div className={`matrix-multiport ${palette}`}>
+    <div
+      className={`matrix-multiport ${palette}`}
+      style={
+        stocksFooterHeight > 0
+          ? ({ "--multiport-stocks-height": `${stocksFooterHeight}px` } as CSSProperties)
+          : undefined
+      }
+    >
       <div
         className="matrix-multiport__header matrix-multiport__drag-handle"
         title="Drag header to reorder column"
@@ -48,6 +64,56 @@ export function MatrixMultiportNode({ data }: NodeProps) {
           <MatrixMultiportPortView key={port.rowIndex} port={port} />
         ))}
       </div>
+      {nodeData.stocks.length > 0 ? (
+        <MatrixMultiportStocksFooter stocks={nodeData.stocks} />
+      ) : null}
+    </div>
+  );
+}
+
+function MatrixMultiportStocksFooter({
+  stocks
+}: {
+  stocks: MatrixMultiportNodeData["stocks"];
+}) {
+  const inspect = useMultiportVariableInspect();
+
+  return (
+    <div className="matrix-multiport__stocks" aria-label="Stock balances">
+      {stocks.map((stock) => (
+        <div key={stock.variableName} className="matrix-multiport__stock">
+          {stock.role ? (
+            <span
+              className={`notebook-godley-role notebook-godley-role-${stock.role} matrix-multiport__stock-role`}
+              aria-label={stock.role}
+            >
+              {formatStockRoleLabel(stock.role)}
+            </span>
+          ) : null}
+          {inspect?.onSelectVariable ? (
+            <button
+              type="button"
+              className="matrix-multiport__stock-name result-variable-button"
+              onClick={() => inspect.onSelectVariable?.(stock.variableName)}
+            >
+              {stock.displayName}
+            </button>
+          ) : (
+            <span className="matrix-multiport__stock-name">{stock.displayName}</span>
+          )}
+          <span className="matrix-multiport__stock-separator">:</span>
+          {Number.isFinite(stock.value ?? NaN) ? (
+            <NumericValueText
+              className="matrix-multiport__stock-value"
+              value={stock.value ?? 0}
+              unitMeta={stock.unitMeta ?? inspect?.variableUnitMetadata.get(stock.variableName)}
+              options={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }}
+            />
+          ) : (
+            <span className="matrix-multiport__stock-value">{stock.formattedValue}</span>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

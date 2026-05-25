@@ -5,6 +5,10 @@ import { parseExpression } from "@sfcr/core";
 import { NumericValueText } from "../../components/NumericValueText";
 import { SequenceDiagramCanvas } from "../../components/SequenceDiagramCanvas";
 import { TransactionFlowGraphCanvas } from "../../components/TransactionFlowGraphCanvas";
+import {
+  buildMultiportParticipantStocks,
+  findCompanionBalanceMatrixCell
+} from "../../components/multiportParticipantStocks";
 import { TransactionFlowMultiportCanvas } from "../../components/TransactionFlowMultiportCanvas";
 import { buildVariableUnitMetadata, inferUnits } from "../../lib/units";
 import type { VariableDescriptions } from "../../lib/variableDescriptions";
@@ -12,7 +16,7 @@ import type { VariableInspectRequest } from "../../lib/variableInspect";
 import { NotebookRenderProfiler } from "../notebookProfiler";
 import { resolveSequenceDiagram } from "../sequence";
 import { resolveSequenceMatrixInspectBundle } from "../sequenceMatrixInspect";
-import type { NotebookCell, SequenceCell } from "../types";
+import type { MatrixCell, NotebookCell, SequenceCell } from "../types";
 import type { useNotebookRunner } from "../useNotebookRunner";
 import { DependencySequenceSummaryView } from "./DependencySequenceSummaryView";
 
@@ -42,7 +46,8 @@ export function SequenceCellView({
   highlightedVariable = null,
   runner,
   selectedPeriodIndex,
-  variableDescriptions
+  variableDescriptions,
+  viewportRoot = null
 }: {
   cell: SequenceCell;
   cells: NotebookCell[];
@@ -66,6 +71,7 @@ export function SequenceCellView({
   runner: ReturnType<typeof useNotebookRunner>;
   selectedPeriodIndex: number;
   variableDescriptions: VariableDescriptions;
+  viewportRoot?: Element | null;
 }) {
   if (cell.source.kind === "dependency") {
     const dependencyCell: SequenceCell & {
@@ -101,6 +107,7 @@ export function SequenceCellView({
       runner={runner}
       selectedPeriodIndex={selectedPeriodIndex}
       variableDescriptions={variableDescriptions}
+      viewportRoot={viewportRoot}
     />
   );
 }
@@ -118,7 +125,8 @@ function MatrixSequenceCellView({
   onVariableInspectRequest,
   runner,
   selectedPeriodIndex,
-  variableDescriptions
+  variableDescriptions,
+  viewportRoot = null
 }: {
   cell: SequenceCell;
   cells: NotebookCell[];
@@ -137,7 +145,12 @@ function MatrixSequenceCellView({
   runner: ReturnType<typeof useNotebookRunner>;
   selectedPeriodIndex: number;
   variableDescriptions: VariableDescriptions;
+  viewportRoot?: Element | null;
 }) {
+  const [edgeAnimationEpoch, setEdgeAnimationEpoch] = useState(0);
+  const bumpMultiportEdgeAnimation = useCallback(() => {
+    setEdgeAnimationEpoch((epoch) => epoch + 1);
+  }, []);
   const inspectBundle = useMemo(
     () =>
       cell.source.kind === "matrix"
@@ -184,12 +197,23 @@ function MatrixSequenceCellView({
     return {
       currentValues: inspectBundle.currentValues,
       highlightedVariable,
-      onSelectVariable: inspectBundle.editor ? handleInspectVariable : undefined,
+      onSelectVariable: inspectBundle.editor
+        ? (selectedVariable: string) => {
+            bumpMultiportEdgeAnimation();
+            handleInspectVariable(selectedVariable);
+          }
+        : undefined,
       parameterNames: inspectBundle.parameterNames,
       variableDescriptions: inspectBundle.variableDescriptions,
       variableUnitMetadata: inspectBundle.variableUnitMetadata
     };
-  }, [handleInspectVariable, highlightedVariable, inspectBundle, variableDescriptions]);
+  }, [
+    bumpMultiportEdgeAnimation,
+    handleInspectVariable,
+    highlightedVariable,
+    inspectBundle,
+    variableDescriptions
+  ]);
   const diagram = useMemo(
     () =>
       resolveSequenceDiagram(
@@ -203,6 +227,33 @@ function MatrixSequenceCellView({
       ),
     [cell, cells, runner, selectedPeriodIndex]
   );
+  const participantStocks = useMemo(() => {
+    if (cell.source.kind !== "matrix") {
+      return new Map();
+    }
+
+    const matrixCellId = cell.source.matrixCellId;
+    const transactionMatrix = cells.find(
+      (entry): entry is MatrixCell => entry.type === "matrix" && entry.id === matrixCellId
+    );
+    if (!transactionMatrix) {
+      return new Map();
+    }
+
+    const balanceMatrix = findCompanionBalanceMatrixCell(cells, transactionMatrix);
+    const sourceRunCellId =
+      cell.source.sourceRunCellId ??
+      transactionMatrix.sourceRunCellId ??
+      null;
+    const result = sourceRunCellId ? runner.getResult(sourceRunCellId) : null;
+    return buildMultiportParticipantStocks(
+      transactionMatrix,
+      balanceMatrix,
+      result,
+      selectedPeriodIndex,
+      inspectBundle?.variableUnitMetadata ?? new Map()
+    );
+  }, [cell, cells, inspectBundle?.variableUnitMetadata, runner, selectedPeriodIndex]);
   const isMatrixSource = cell.source.kind === "matrix";
   const effectiveMatrixSequenceViewState =
     matrixSequenceViewState ?? {
@@ -221,6 +272,7 @@ function MatrixSequenceCellView({
   const [fitViewRequest, setFitViewRequest] = useState(0);
 
   function setLayoutMode(nextMode: MatrixSequenceLayoutMode): void {
+    bumpMultiportEdgeAnimation();
     onMatrixSequenceViewStateChange((current) => ({
       ...(current ?? effectiveMatrixSequenceViewState),
       layoutMode: nextMode
@@ -229,6 +281,7 @@ function MatrixSequenceCellView({
 
   const setParticipantColumnOrder = useCallback(
     (participantColumnOrder: string[]) => {
+      bumpMultiportEdgeAnimation();
       onCellChange(cell.id, (current) =>
         current.type === "sequence"
           ? {
@@ -256,10 +309,17 @@ function MatrixSequenceCellView({
       cell.participantColumnOrder,
       diagram.steps.length,
       onCellChange,
+      bumpMultiportEdgeAnimation,
       onMatrixSequenceViewStateChange,
       selectedPeriodIndex
     ]
   );
+
+  useEffect(() => {
+    if (layoutMode === "multiport") {
+      bumpMultiportEdgeAnimation();
+    }
+  }, [bumpMultiportEdgeAnimation, layoutMode, selectedPeriodIndex]);
 
   useEffect(() => {
     onMatrixSequenceViewStateChange((current) => {
@@ -337,6 +397,7 @@ function MatrixSequenceCellView({
   }, [diagram.steps.length, cell.id, cell.participantColumnOrder, onMatrixSequenceViewStateChange, selectedPeriodIndex]);
 
   function moveToStep(nextCount: number): void {
+    bumpMultiportEdgeAnimation();
     const clamped = Math.max(0, Math.min(nextCount, diagram.steps.length));
     onMatrixSequenceViewStateChange((current) => {
       const state = current ?? effectiveMatrixSequenceViewState;
@@ -353,6 +414,7 @@ function MatrixSequenceCellView({
   const canRetreatPeriod = selectedPeriodIndex > 0;
 
   function handleNextStep(): void {
+    bumpMultiportEdgeAnimation();
     if (visibleSteps < diagram.steps.length) {
       moveToStep(visibleSteps + 1);
       return;
@@ -369,6 +431,7 @@ function MatrixSequenceCellView({
   }
 
   function handlePreviousStep(): void {
+    bumpMultiportEdgeAnimation();
     if (visibleSteps > 0) {
       moveToStep(visibleSteps - 1);
       return;
@@ -445,7 +508,10 @@ function MatrixSequenceCellView({
             <button
               type="button"
               className="secondary-button"
-              onClick={() => setFitViewRequest((count) => count + 1)}
+              onClick={() => {
+                bumpMultiportEdgeAnimation();
+                setFitViewRequest((count) => count + 1);
+              }}
               disabled={visibleSteps === 0}
             >
               Fit to window
@@ -506,10 +572,13 @@ function MatrixSequenceCellView({
           ) : isMatrixSource && layoutMode === "multiport" ? (
             <TransactionFlowMultiportCanvas
               diagram={diagram}
+              edgeAnimationEpoch={edgeAnimationEpoch}
               fitViewRequest={fitViewRequest}
               inspectContext={multiportInspectContext}
               participantColumnOrder={effectiveMatrixSequenceViewState.participantColumnOrder ?? null}
+              participantStocks={participantStocks}
               onParticipantColumnOrderChange={setParticipantColumnOrder}
+              viewportRoot={viewportRoot}
               visibleStepCount={visibleSteps}
               highlightedStepIndex={effectiveMatrixSequenceViewState.highlightedStepIndex}
             />

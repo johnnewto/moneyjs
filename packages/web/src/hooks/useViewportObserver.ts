@@ -26,8 +26,6 @@ export function useViewportObserver<T extends Element>({
       return;
     }
 
-    setIsInViewport(false);
-
     const observer = new IntersectionObserver(
       ([entry]) => {
         setIsInViewport(entry?.isIntersecting ?? false);

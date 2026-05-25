@@ -6,6 +6,7 @@ import {
   useNodesState
 } from "@xyflow/react";
 
+import { useMultiportEdgeAnimation } from "../hooks/useMultiportEdgeAnimation";
 import type { ParsedDiagram } from "../notebook/sequence";
 import { FlowGraphShell } from "./flow/FlowGraphShell";
 import { MatrixMultiportNode, MatrixMultiportNoteNode } from "./flow/MatrixMultiportNode";
@@ -13,6 +14,8 @@ import {
   MultiportVariableInspectProvider,
   type MultiportVariableInspectContextValue
 } from "./flow/MultiportVariableInspectContext";
+import { withMultiportEdgeAnimation } from "./multiportEdgeAnimation";
+import type { MultiportParticipantStock } from "./multiportParticipantStocks";
 import {
   buildTransactionFlowMultiportLayout,
   MULTIPORT_NODE_WIDTH,
@@ -53,12 +56,17 @@ const nodeTypes: NodeTypes = {
   matrixMultiportNote: MatrixMultiportNoteNode
 };
 
+const EMPTY_PARTICIPANT_STOCKS = new Map<string, MultiportParticipantStock[]>();
+
 export interface TransactionFlowMultiportCanvasProps {
   diagram: ParsedDiagram;
+  edgeAnimationEpoch?: number;
   fitViewRequest?: number;
   inspectContext: MultiportVariableInspectContextValue;
   participantColumnOrder?: string[] | null;
+  participantStocks?: Map<string, MultiportParticipantStock[]>;
   onParticipantColumnOrderChange?: (order: string[]) => void;
+  viewportRoot?: Element | null;
   visibleStepCount: number;
   highlightedStepIndex: number | null;
 }
@@ -67,10 +75,18 @@ function buildLayout(
   diagram: ParsedDiagram,
   columnOrder: string[],
   visibleStepCount: number,
-  highlightedStepIndex: number | null
+  highlightedStepIndex: number | null,
+  animateEdges: boolean,
+  participantStocks: Map<string, MultiportParticipantStock[]>
 ) {
   const orderedDiagram = applyParticipantColumnOrder(diagram, columnOrder);
-  return buildTransactionFlowMultiportLayout(orderedDiagram, visibleStepCount, highlightedStepIndex);
+  return buildTransactionFlowMultiportLayout(
+    orderedDiagram,
+    visibleStepCount,
+    highlightedStepIndex,
+    animateEdges,
+    participantStocks
+  );
 }
 
 function applyPreviewLayoutToNodes(currentNodes: Node[], previewNodes: Node[], canReorder: boolean): Node[] {
@@ -100,13 +116,20 @@ function applyPreviewLayoutToNodes(currentNodes: Node[], previewNodes: Node[], c
 
 export function TransactionFlowMultiportCanvas({
   diagram,
+  edgeAnimationEpoch = 0,
   fitViewRequest = 0,
   inspectContext,
   participantColumnOrder = null,
+  participantStocks = EMPTY_PARTICIPANT_STOCKS,
   onParticipantColumnOrderChange,
+  viewportRoot = null,
   visibleStepCount,
   highlightedStepIndex
 }: TransactionFlowMultiportCanvasProps) {
+  const { bumpAnimation, shellRef, shouldAnimateEdges } = useMultiportEdgeAnimation({
+    interactionEpoch: edgeAnimationEpoch,
+    root: viewportRoot
+  });
   const participantIds = useMemo(
     () => diagram.participants.map((participant) => participant.id),
     [diagram.participants]
@@ -116,8 +139,20 @@ export function TransactionFlowMultiportCanvas({
     [participantColumnOrder, participantIds]
   );
   const baseLayout = useMemo(
-    () => buildLayout(diagram, columnOrder, visibleStepCount, highlightedStepIndex),
-    [columnOrder, diagram, highlightedStepIndex, visibleStepCount]
+    () =>
+      buildLayout(
+        diagram,
+        columnOrder,
+        visibleStepCount,
+        highlightedStepIndex,
+        false,
+        participantStocks
+      ),
+    [columnOrder, diagram, highlightedStepIndex, participantStocks, visibleStepCount]
+  );
+  const layoutEdges = useMemo(
+    () => withMultiportEdgeAnimation(baseLayout.edges, shouldAnimateEdges),
+    [baseLayout.edges, shouldAnimateEdges]
   );
   const nodeExtent = useMemo(
     () =>
@@ -136,7 +171,7 @@ export function TransactionFlowMultiportCanvas({
     [baseLayout.nodes, canReorder]
   );
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutNodes);
-  const [edges, setEdges] = useState<Edge[]>(baseLayout.edges);
+  const [edges, setEdges] = useState<Edge[]>(layoutEdges);
   const isDraggingRef = useRef(false);
   const previewOrderRef = useRef(columnOrder);
 
@@ -149,8 +184,16 @@ export function TransactionFlowMultiportCanvas({
       return;
     }
     setNodes(withMultiportReorderDrag(baseLayout.nodes, canReorder));
-    setEdges(baseLayout.edges);
-  }, [baseLayout, canReorder, setNodes]);
+    setEdges(layoutEdges);
+  }, [baseLayout.nodes, canReorder, layoutEdges, setNodes]);
+
+  useEffect(() => {
+    if (fitViewRequest <= 0) {
+      return;
+    }
+
+    bumpAnimation();
+  }, [bumpAnimation, fitViewRequest]);
 
   const applyPreviewOrder = useCallback(
     (previewOrder: string[]) => {
@@ -158,21 +201,32 @@ export function TransactionFlowMultiportCanvas({
         diagram,
         previewOrder,
         visibleStepCount,
-        highlightedStepIndex
+        highlightedStepIndex,
+        shouldAnimateEdges,
+        participantStocks
       );
 
       setNodes((current) =>
         applyPreviewLayoutToNodes(current, previewLayout.nodes, canReorder)
       );
-      setEdges(previewLayout.edges);
+      setEdges(withMultiportEdgeAnimation(previewLayout.edges, shouldAnimateEdges));
     },
-    [canReorder, diagram, highlightedStepIndex, setNodes, visibleStepCount]
+    [
+      canReorder,
+      diagram,
+      highlightedStepIndex,
+      participantStocks,
+      setNodes,
+      shouldAnimateEdges,
+      visibleStepCount
+    ]
   );
 
   const handleNodeDragStart = useCallback(() => {
     isDraggingRef.current = true;
     previewOrderRef.current = columnOrder;
-  }, [columnOrder]);
+    bumpAnimation();
+  }, [bumpAnimation, columnOrder]);
 
   const handleNodeDrag = useCallback(
     (_event: MouseEvent, node: Node) => {
@@ -195,9 +249,10 @@ export function TransactionFlowMultiportCanvas({
   const handleNodeDragStop = useCallback(
     (_event: MouseEvent, node: Node) => {
       isDraggingRef.current = false;
+      bumpAnimation();
       if (!canReorder || node.type !== "matrixMultiport") {
         setNodes(withMultiportReorderDrag(baseLayout.nodes, canReorder));
-        setEdges(baseLayout.edges);
+        setEdges(layoutEdges);
         return;
       }
 
@@ -206,36 +261,59 @@ export function TransactionFlowMultiportCanvas({
       previewOrderRef.current = nextOrder;
       if (areSameColumnOrder(nextOrder, columnOrder)) {
         setNodes(withMultiportReorderDrag(baseLayout.nodes, canReorder));
-        setEdges(baseLayout.edges);
+        setEdges(layoutEdges);
         return;
       }
-      onParticipantColumnOrderChange(nextOrder);
+      onParticipantColumnOrderChange?.(nextOrder);
     },
-    [baseLayout, canReorder, columnOrder, onParticipantColumnOrderChange, setNodes]
+    [
+      baseLayout,
+      bumpAnimation,
+      canReorder,
+      columnOrder,
+      layoutEdges,
+      onParticipantColumnOrderChange,
+      setNodes
+    ]
   );
+
+  const handleMoveEnd = useCallback(() => {
+    bumpAnimation();
+  }, [bumpAnimation]);
+
+  const handleShellPointerDown = useCallback(() => {
+    bumpAnimation();
+  }, [bumpAnimation]);
 
   return (
     <MultiportVariableInspectProvider value={inspectContext}>
-      <FlowGraphShell
-        ariaLabel="Animated multiport transaction flow diagram"
-        canvasHeight={baseLayout.height}
-        canvasWidth={baseLayout.width}
-        edges={edges}
-        fitViewKey={`multiport-${baseLayout.width}-${baseLayout.height}-${visibleStepCount}-${highlightedStepIndex ?? "none"}-${columnOrder.join(",")}`}
-        fitViewRequest={fitViewRequest}
-        minViewportWidth={360}
-        nodeExtent={canReorder ? nodeExtent : undefined}
-        nodes={nodes}
-        nodeTypes={nodeTypes}
-        nodesDraggable={canReorder}
-        onNodesChange={onNodesChange}
-        panActivationKeyCode={null}
-        panOnDrag
-        onNodeDrag={canReorder ? handleNodeDrag : undefined}
-        onNodeDragStart={canReorder ? handleNodeDragStart : undefined}
-        onNodeDragStop={canReorder ? handleNodeDragStop : undefined}
-        elementsSelectable={false}
-      />
+      <div
+        ref={shellRef}
+        className="multiport-flow-animation-shell"
+        onPointerDown={handleShellPointerDown}
+      >
+        <FlowGraphShell
+          ariaLabel="Animated multiport transaction flow diagram"
+          canvasHeight={baseLayout.height}
+          canvasWidth={baseLayout.width}
+          edges={edges}
+          fitViewKey={`multiport-${baseLayout.width}-${baseLayout.height}-${visibleStepCount}-${highlightedStepIndex ?? "none"}-${columnOrder.join(",")}`}
+          fitViewRequest={fitViewRequest}
+          minViewportWidth={360}
+          nodeExtent={canReorder ? nodeExtent : undefined}
+          nodes={nodes}
+          nodeTypes={nodeTypes}
+          nodesDraggable={canReorder}
+          onMoveEnd={handleMoveEnd}
+          onNodesChange={onNodesChange}
+          panActivationKeyCode={null}
+          panOnDrag
+          onNodeDrag={canReorder ? handleNodeDrag : undefined}
+          onNodeDragStart={canReorder ? handleNodeDragStart : undefined}
+          onNodeDragStop={canReorder ? handleNodeDragStop : undefined}
+          elementsSelectable={false}
+        />
+      </div>
     </MultiportVariableInspectProvider>
   );
 }

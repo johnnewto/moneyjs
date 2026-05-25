@@ -56,6 +56,7 @@ function FlowGraphViewport({
   onNodeMouseEnter,
   onNodeMouseLeave,
   nodeExtent,
+  onMoveEnd,
   onNodesChange,
   nodesDraggable = false,
   panActivationKeyCode = null,
@@ -82,6 +83,7 @@ function FlowGraphViewport({
   onNodeMouseEnter?: (event: React.MouseEvent, node: Node) => void;
   onNodeMouseLeave?: (event: React.MouseEvent, node: Node) => void;
   nodeExtent?: CoordinateExtent;
+  onMoveEnd?: () => void;
   onNodesChange?: OnNodesChange<Node>;
   nodesDraggable?: boolean;
   panActivationKeyCode?: string | null;
@@ -130,6 +132,7 @@ function FlowGraphViewport({
       onNodeDragStop={onNodeDragStop}
       onNodeMouseEnter={onNodeMouseEnter}
       onNodeMouseLeave={onNodeMouseLeave}
+      onMoveEnd={onMoveEnd}
       onNodesChange={onNodesChange}
       panOnDrag={panOnDrag}
       panOnScroll={false}
@@ -165,6 +168,7 @@ export interface FlowGraphShellProps {
   onNodeMouseEnter?: (event: React.MouseEvent, node: Node) => void;
   onNodeMouseLeave?: (event: React.MouseEvent, node: Node) => void;
   nodeExtent?: CoordinateExtent;
+  onMoveEnd?: () => void;
   onNodesChange?: OnNodesChange<Node>;
   nodesDraggable?: boolean;
   panActivationKeyCode?: string | null;
@@ -192,6 +196,7 @@ export function FlowGraphShell({
   onNodeMouseEnter,
   onNodeMouseLeave,
   nodeExtent,
+  onMoveEnd,
   onNodesChange,
   nodesDraggable = false,
   panActivationKeyCode = null,
@@ -262,6 +267,7 @@ export function FlowGraphShell({
             onNodeMouseEnter={onNodeMouseEnter}
             onNodeMouseLeave={onNodeMouseLeave}
             nodeExtent={nodeExtent}
+            onMoveEnd={onMoveEnd}
             onNodesChange={onNodesChange}
             nodesDraggable={nodesDraggable}
             panActivationKeyCode={panActivationKeyCode}

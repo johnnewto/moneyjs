@@ -1183,6 +1183,7 @@ function NotebookCellViewComponent({
                 runner={runner}
                 selectedPeriodIndex={selectedPeriodIndex}
                 variableDescriptions={variableDescriptions}
+                viewportRoot={viewportRoot}
               />
             ) : null}
           </div>

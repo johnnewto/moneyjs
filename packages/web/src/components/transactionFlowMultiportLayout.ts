@@ -1,5 +1,6 @@
 import { MarkerType, type Edge, type Node } from "@xyflow/react";
 
+import type { MultiportParticipantStock } from "./multiportParticipantStocks";
 import type {
   ParsedDiagram,
   SequenceMessageStep,
@@ -7,14 +8,16 @@ import type {
   SequenceStep
 } from "../notebook/sequence";
 
-export const MULTIPORT_NODE_WIDTH = 190;
+export const MULTIPORT_NODE_WIDTH = 210;
 export const MULTIPORT_NODE_MIN_HEIGHT = 420;
 export const MULTIPORT_X_GAP = 255;
 export const MULTIPORT_START_X = 56;
 export const MULTIPORT_START_Y = 36;
 export const MULTIPORT_ROW_TOP = 92;
-export const MULTIPORT_ROW_GAP = 62;
-export const MULTIPORT_ROW_HEIGHT = 48;
+export const MULTIPORT_ROW_GAP = 68;
+export const MULTIPORT_ROW_HEIGHT = 54;
+export const MULTIPORT_STOCK_ROW_HEIGHT = 26;
+export const MULTIPORT_STOCK_FOOTER_GAP = 10;
 export type MultiportSide = "left" | "right";
 export type MultiportFlowClass = "real" | "capital" | "financial";
 
@@ -32,6 +35,7 @@ export interface MatrixMultiportNodeData {
   label: string;
   order: number;
   ports: MatrixMultiportPort[];
+  stocks: MultiportParticipantStock[];
 }
 
 export interface MatrixMultiportNoteNodeData {
@@ -70,7 +74,9 @@ interface MultiportTransaction {
 export function buildTransactionFlowMultiportLayout(
   diagram: ParsedDiagram,
   visibleStepCount: number,
-  highlightedStepIndex: number | null
+  highlightedStepIndex: number | null,
+  animateEdges = false,
+  participantStocks: Map<string, MultiportParticipantStock[]> = new Map()
 ): TransactionFlowMultiportLayout {
   const visibleSteps = diagram.steps.slice(
     0,
@@ -78,9 +84,19 @@ export function buildTransactionFlowMultiportLayout(
   );
   const rowIndices = collectRowIndices(visibleSteps.length > 0 ? visibleSteps : diagram.steps);
   const maxRowIndex = rowIndices.length > 0 ? Math.max(...rowIndices) : 0;
+  const maxStockCount = Math.max(
+    0,
+    ...diagram.participants.map(
+      (participant) => participantStocks.get(participant.id)?.length ?? 0
+    )
+  );
+  const stockFooterHeight =
+    maxStockCount > 0
+      ? MULTIPORT_STOCK_FOOTER_GAP + maxStockCount * MULTIPORT_STOCK_ROW_HEIGHT + 8
+      : 0;
   const nodeHeight = Math.max(
     MULTIPORT_NODE_MIN_HEIGHT,
-    MULTIPORT_ROW_TOP + (maxRowIndex + 1) * MULTIPORT_ROW_GAP + 28
+    MULTIPORT_ROW_TOP + (maxRowIndex + 1) * MULTIPORT_ROW_GAP + stockFooterHeight + 28
   );
   const participantOrderById = new Map(
     diagram.participants.map((participant) => [participant.id, participant.order])
@@ -133,6 +149,7 @@ export function buildTransactionFlowMultiportLayout(
     data: {
       label: participant.label,
       order: participant.order,
+      stocks: participantStocks.get(participant.id) ?? [],
       ports: rowIndices.map((rowIndex) => {
         const participantTransactions =
           transactionsByParticipantAndRow.get(participantRowKey(participant.id, rowIndex)) ?? [];
@@ -196,7 +213,7 @@ export function buildTransactionFlowMultiportLayout(
     sourceHandle: transaction.sourceHandle,
     targetHandle: transaction.targetHandle,
     type: "smoothstep",
-    animated: true,
+    animated: animateEdges,
     markerEnd: {
       type: MarkerType.ArrowClosed,
       width: transaction.highlighted ? 20 : 16,

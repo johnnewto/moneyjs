@@ -202,7 +202,7 @@ export function buildSequenceDiagramFromMatrix(
       .filter(({ columnIndex }) => columnIndex !== sumColumnIndex)
       .map(({ value, columnIndex }) => ({
         participantId: cell.columns[columnIndex] ?? `column-${columnIndex}`,
-        value: evaluateMatrixEntryNumber(value, result, selectedPeriodIndex),
+        value: evaluateMatrixEntryAtPeriod(value, result, selectedPeriodIndex),
         source: value,
         direction: inferMatrixDirection(value)
       }))
@@ -453,7 +453,7 @@ function inferMatrixDirection(source: string): -1 | 0 | 1 | null {
   return null;
 }
 
-function evaluateMatrixEntryNumber(
+export function evaluateMatrixEntryAtPeriod(
   source: string,
   result: SimulationResult | null,
   selectedPeriodIndex: number

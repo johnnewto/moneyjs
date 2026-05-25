@@ -9,7 +9,12 @@ import type { EditorState } from "../../lib/editorModel";
 import { buildVariableUnitMetadata, inferUnits } from "../../lib/units";
 import type { VariableDescriptions } from "../../lib/variableDescriptions";
 import { useDragScroll } from "../../hooks/useDragScroll";
-import { classifyMatrixStockRole, inferMatrixTableKind } from "../matrixSemantics";
+import {
+  classifyMatrixStockRole,
+  formatStockRoleLabel,
+  formatStockRoleTitle,
+  inferMatrixTableKind
+} from "../matrixSemantics";
 import { resolveInspectorModelSource, type VariableInspectRequest } from "../../lib/variableInspect";
 import { documentHighlightClassName } from "../../lib/variableHighlight";
 import { buildEditorStateForNotebookModel } from "../modelSections";
@@ -703,28 +708,6 @@ function formatMatrixNumber(value: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   });
-}
-
-function formatStockRoleLabel(role: "asset" | "liability" | "netWorth"): string {
-  switch (role) {
-    case "asset":
-      return "A";
-    case "liability":
-      return "L";
-    case "netWorth":
-      return "E";
-  }
-}
-
-function formatStockRoleTitle(role: "asset" | "liability" | "netWorth"): string {
-  switch (role) {
-    case "asset":
-      return "Asset";
-    case "liability":
-      return "Liability";
-    case "netWorth":
-      return "Equity";
-  }
 }
 
 function formatResolvedMatrixValue(
