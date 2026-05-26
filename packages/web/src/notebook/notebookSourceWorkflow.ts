@@ -1,6 +1,7 @@
 import {
   analyzeNotebookSource,
   createNotebookSourceDiagnostic,
+  isBlockingNotebookDiagnostic,
   notebookToJson,
   notebookToCompactYaml,
   notebookToMarkdown,
@@ -26,7 +27,9 @@ export interface NotebookSourceValidation {
   document: NotebookDocument | null;
   issues: string[];
   modelIssueCount: number;
+  modelWarningCount: number;
   notebookIssueCount: number;
+  notebookWarningCount: number;
   parse: ValidationStep;
   schema: ValidationStep;
 }
@@ -123,7 +126,9 @@ export function buildNotebookSourceValidation(
       document: null,
       issues: ["Source is empty."],
       modelIssueCount: 0,
+      modelWarningCount: 0,
       notebookIssueCount: 0,
+      notebookWarningCount: 0,
       parse: { status: "invalid", message: "empty" },
       schema: { status: "invalid", message: "not checked" }
     };
@@ -137,7 +142,9 @@ export function buildNotebookSourceValidation(
       document: null,
       issues: analysis.parseDiagnostics.map((issue) => issue.message),
       modelIssueCount: 0,
+      modelWarningCount: 0,
       notebookIssueCount: 0,
+      notebookWarningCount: 0,
       parse: { status: "invalid", message: "invalid" },
       schema: { status: "invalid", message: "not checked" }
     };
@@ -150,7 +157,9 @@ export function buildNotebookSourceValidation(
       document: null,
       issues: analysis.schemaDiagnostics.map((issue) => issue.message),
       modelIssueCount: 0,
+      modelWarningCount: 0,
       notebookIssueCount: 0,
+      notebookWarningCount: 0,
       parse: { status: "valid", message: "valid" },
       schema: { status: "invalid", message: "invalid" }
     };
@@ -172,7 +181,9 @@ export function buildNotebookSourceValidation(
       document: null,
       issues: ["Unable to parse source."],
       modelIssueCount: 0,
+      modelWarningCount: 0,
       notebookIssueCount: 0,
+      notebookWarningCount: 0,
       parse: { status: "invalid", message: "invalid" },
       schema: { status: "invalid", message: "not checked" }
     };
@@ -185,19 +196,24 @@ export function buildNotebookSourceValidation(
       domain: issue.domain,
       message: issue.message,
       path: issue.path,
-      phase: "schema"
+      phase: "schema",
+      severity: issue.severity
     })),
     ...modelValidation.issues
   ];
   const issues = diagnostics.map((issue) => issue.message);
+  const notebookIssueCount = notebookIssues.filter(isBlockingNotebookDiagnostic).length;
+  const notebookWarningCount = notebookIssues.length - notebookIssueCount;
 
   return {
-    canApply: issues.length === 0,
+    canApply: diagnostics.every((issue) => !isBlockingNotebookDiagnostic(issue)),
     diagnostics,
     document: analysis.document,
     issues,
     modelIssueCount: modelValidation.issueCount,
-    notebookIssueCount: notebookIssues.length,
+    modelWarningCount: modelValidation.warningCount,
+    notebookIssueCount,
+    notebookWarningCount,
     parse: { status: "valid", message: "valid" },
     schema: { status: "valid", message: "valid" }
   };
@@ -207,6 +223,7 @@ export function validateNotebookModels(document: NotebookDocument): {
   issueCount: number;
   issues: NotebookSourceDiagnostic[];
   modelCount: number;
+  warningCount: number;
 } {
   const legacyEditors = document.cells
     .filter((cell): cell is ModelCell => cell.type === "model")
@@ -243,7 +260,8 @@ export function validateNotebookModels(document: NotebookDocument): {
         domain: "model",
         message: formatModelValidationIssue(label, issue.path, issue.message),
         path: issue.path,
-        phase: "schema"
+        phase: "schema",
+        severity: issue.severity
       }),
       message: formatModelValidationIssue(label, issue.path, issue.message),
       path: issue.path,
@@ -254,7 +272,8 @@ export function validateNotebookModels(document: NotebookDocument): {
         domain: "runtime",
         message: formatModelValidationIssue(label, issue.path, issue.message),
         path: issue.path,
-        phase: "schema"
+        phase: "schema",
+        severity: issue.severity
       }),
       message: formatModelValidationIssue(label, issue.path, issue.message),
       path: issue.path,
@@ -264,7 +283,10 @@ export function validateNotebookModels(document: NotebookDocument): {
     return [...editorIssues, ...runtimeIssues];
   });
 
-  return { issueCount: issues.length, issues, modelCount: editors.length };
+  const issueCount = issues.filter(isBlockingNotebookDiagnostic).length;
+  const warningCount = issues.length - issueCount;
+
+  return { issueCount, issues, modelCount: editors.length, warningCount };
 }
 
 function formatModelValidationIssue(modelLabel: string, path: string, message: string): string {

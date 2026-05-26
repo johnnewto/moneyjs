@@ -1,19 +1,27 @@
 import type { NotebookSourceValidation, ValidationStep } from "./notebookSourceWorkflow";
 
 export function SourceValidationPanel({ validation }: { validation: NotebookSourceValidation }) {
-  const notebookChecksValid = validation.notebookIssueCount + validation.modelIssueCount === 0;
+  const blockingIssueCount = validation.notebookIssueCount + validation.modelIssueCount;
+  const warningCount = validation.notebookWarningCount + validation.modelWarningCount;
+  const notebookChecksValid = blockingIssueCount === 0;
 
   return (
     <section className="notebook-source-validation-panel" aria-label="Notebook source validation">
       <div className="notebook-source-validation-grid">
         <ValidationStepBadge label="Parse" step={validation.parse} />
         <ValidationStepBadge label="Schema" step={validation.schema} />
-        <div className={`notebook-source-validation-step${notebookChecksValid ? " is-valid" : " is-invalid"}`}>
+        <div
+          className={`notebook-source-validation-step${
+            notebookChecksValid ? (warningCount > 0 ? " is-warning" : " is-valid") : " is-invalid"
+          }`}
+        >
           <span>Notebook checks</span>
           <strong>
-            {notebookChecksValid
-              ? "valid"
-              : `${validation.notebookIssueCount + validation.modelIssueCount} issue${validation.notebookIssueCount + validation.modelIssueCount === 1 ? "" : "s"}`}
+            {!notebookChecksValid
+              ? `${blockingIssueCount} issue${blockingIssueCount === 1 ? "" : "s"}`
+              : warningCount > 0
+                ? `${warningCount} warning${warningCount === 1 ? "" : "s"}`
+                : "valid"}
           </strong>
         </div>
       </div>
@@ -24,9 +32,14 @@ export function SourceValidationPanel({ validation }: { validation: NotebookSour
             <li key={issue}>{issue}</li>
           ))}
         </ul>
-      ) : (
-        <div className="status-hint">Source is ready to apply.</div>
-      )}
+      ) : null}
+      {validation.canApply ? (
+        <div className="status-hint">
+          {warningCount > 0
+            ? "Source can be applied; unit and other warnings are advisory."
+            : "Source is ready to apply."}
+        </div>
+      ) : null}
     </section>
   );
 }

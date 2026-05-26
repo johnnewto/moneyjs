@@ -1,4 +1,9 @@
-import { createNotebookDiagnostic, type NotebookDiagnostic, type NotebookDiagnosticDomain } from "../diagnostics";
+import {
+  createNotebookDiagnostic,
+  type NotebookDiagnostic,
+  type NotebookDiagnosticDomain,
+  type NotebookDiagnosticSeverity
+} from "../diagnostics";
 
 export type NotebookSourceFormat = "json" | "markdown" | "yaml";
 
@@ -124,6 +129,7 @@ export function createNotebookSourceDiagnostic(input: {
   offset?: number;
   path?: string;
   phase: "parse" | "schema";
+  severity?: NotebookDiagnosticSeverity;
 }): NotebookSourceDiagnostic {
   const location = {
     column: input.column,
@@ -136,7 +142,8 @@ export function createNotebookSourceDiagnostic(input: {
       location,
       message: input.message,
       path: input.path,
-      phase: input.phase
+      phase: input.phase,
+      severity: input.severity
     },
     { domain: input.domain ?? (input.phase === "parse" ? "source" : "schema") }
   );

@@ -246,7 +246,7 @@ describe("editor model validation", () => {
 
     expect(diagnostics.issues.filter((issue) => issue.path === "equations.0.expression")).toEqual([
       expect.objectContaining({
-        severity: "error",
+        severity: "warning",
         message: expect.stringContaining("expects a flow with units $/yr")
       })
     ]);
@@ -404,7 +404,7 @@ describe("editor model validation", () => {
       diagnostics.issues.filter((issue) => issue.path === "equations.0.expression")
     ).toEqual([
       expect.objectContaining({
-        severity: "error",
+        severity: "warning",
         message: expect.stringContaining("I(...) for stock 'Ls' expects a flow")
       })
     ]);

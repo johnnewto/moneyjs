@@ -7,6 +7,7 @@ import {
   validateNotebookDocument
 } from "../src/notebook/document";
 import { diagnoseBuildRuntime, validateEditorState, type EditorState } from "../src/editor-model";
+import { buildNotebookSourceValidation } from "../src/notebook/notebookSourceWorkflow";
 import { validateNotebookPatch } from "../src/notebook/notebookPatch";
 import type { NotebookDocument } from "../src/notebook/types";
 
@@ -141,6 +142,87 @@ describe("notebook diagnostics", () => {
     };
 
     expect(validateNotebookDocument(document)).toEqual([]);
+  });
+
+  it("allows apply when notebook checks only report unit warnings", () => {
+    const document: NotebookDocument = {
+      id: "unit-warning",
+      title: "Unit warning",
+      metadata: { version: 1 },
+      cells: [
+        {
+          id: "eqs",
+          type: "equations",
+          title: "Equations",
+          modelId: "m1",
+          equations: [
+            {
+              id: "eq-y",
+              name: "Y",
+              expression: "K + C",
+              unitMeta: { stockFlow: "flow", signature: { money: 1, time: -1 } }
+            },
+            {
+              id: "eq-k",
+              name: "K",
+              expression: "1",
+              unitMeta: { stockFlow: "stock", signature: { money: 1 } }
+            },
+            {
+              id: "eq-c",
+              name: "C",
+              expression: "1",
+              unitMeta: { stockFlow: "stock", signature: { money: 1 } }
+            }
+          ]
+        },
+        {
+          id: "ext",
+          type: "externals",
+          title: "Externals",
+          modelId: "m1",
+          externals: []
+        },
+        {
+          id: "init",
+          type: "initial-values",
+          title: "Initial values",
+          modelId: "m1",
+          initialValues: [
+            { id: "init-k", name: "K", valueText: "1" },
+            { id: "init-c", name: "C", valueText: "1" }
+          ]
+        },
+        {
+          id: "solver",
+          type: "solver",
+          title: "Solver",
+          modelId: "m1",
+          options: {
+            periods: 40,
+            solverMethod: "GAUSS_SEIDEL",
+            toleranceText: "1e-7",
+            maxIterations: 200,
+            defaultInitialValueText: "0",
+            hiddenLeftVariable: "",
+            hiddenRightVariable: "",
+            hiddenToleranceText: "1e-7",
+            relativeHiddenTolerance: false
+          }
+        }
+      ]
+    };
+
+    const validation = buildNotebookSourceValidation(JSON.stringify(document), "json");
+
+    expect(validation.canApply).toBe(true);
+    expect(validation.modelWarningCount).toBeGreaterThan(0);
+    expect(validation.modelIssueCount).toBe(0);
+    expect(
+      validation.issues.some(
+        (issue) => issue.includes("Cannot combine") || issue.includes("but its RHS infers")
+      )
+    ).toBe(true);
   });
 
   it("classifies model and runtime editor diagnostics", () => {

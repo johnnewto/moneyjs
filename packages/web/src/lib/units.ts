@@ -28,6 +28,9 @@ export interface UnitDiagnostic {
   severity: "error" | "warning";
 }
 
+/** Unit consistency checks are advisory; they must not block notebook apply. */
+const UNIT_CHECK_SEVERITY: UnitDiagnostic["severity"] = "warning";
+
 export interface InferredUnit {
   diagnostics: UnitDiagnostic[];
   signature: UnitSignature | null;
@@ -191,7 +194,7 @@ export function diagnoseEquationUnits(
 
   if (rhs.signature != null && !signaturesEqual(leftMeta.signature, rhs.signature)) {
     diagnostics.push({
-      severity: "error",
+      severity: UNIT_CHECK_SEVERITY,
       message: `Equation '${equationName}' has units ${formatSignature(leftMeta.signature)} but its RHS infers ${formatSignature(rhs.signature)}.`
     });
   }
@@ -259,7 +262,7 @@ function inferIfUnits(
   }
   if (!signaturesEqual(whenTrue.signature, whenFalse.signature)) {
     diagnostics.push({
-      severity: "error",
+      severity: UNIT_CHECK_SEVERITY,
       message: `Conditional branches must use matching units, got ${formatSignature(whenTrue.signature)} and ${formatSignature(whenFalse.signature)}.`
     });
     return { signature: null, diagnostics };
@@ -284,7 +287,7 @@ function inferFunctionUnits(
       }
       if (!signaturesEqual(left.signature, right.signature)) {
         diagnostics.push({
-          severity: "error",
+          severity: UNIT_CHECK_SEVERITY,
           message: `${expr.name}() arguments must use matching units, got ${formatSignature(left.signature)} and ${formatSignature(right.signature)}.`
         });
         return { signature: null, diagnostics };
@@ -303,7 +306,7 @@ function inferFunctionUnits(
 
       if (argument.signature != null && !signaturesEqual(argument.signature, DIMENSIONLESS)) {
         diagnostics.push({
-          severity: "error",
+          severity: UNIT_CHECK_SEVERITY,
           message: `${expr.name}() requires a dimensionless argument.`
         });
       }
@@ -333,7 +336,7 @@ function inferFunctionUnits(
 
       if (exponent.signature != null && !signaturesEqual(exponent.signature, DIMENSIONLESS)) {
         diagnostics.push({
-          severity: "error",
+          severity: UNIT_CHECK_SEVERITY,
           message: "pow() exponent must be dimensionless."
         });
       }
@@ -370,7 +373,7 @@ function inferBinaryUnits(
       }
       if (!signaturesEqual(left.signature, right.signature)) {
         diagnostics.push({
-          severity: "error",
+          severity: UNIT_CHECK_SEVERITY,
           message: `Cannot combine ${formatSignature(left.signature)} with ${formatSignature(right.signature)} using '${expr.op}'.`
         });
         return { signature: null, diagnostics };
@@ -398,7 +401,7 @@ function inferBinaryUnits(
         !signaturesEqual(left.signature, right.signature)
       ) {
         diagnostics.push({
-          severity: "error",
+          severity: UNIT_CHECK_SEVERITY,
           message: `Comparison requires matching units, got ${formatSignature(left.signature)} and ${formatSignature(right.signature)}.`
         });
       }
@@ -437,7 +440,7 @@ function diagnoseStockAccumulation(
 
   if (!signaturesEqual(inferred.signature, incrementSignature)) {
     diagnostics.push({
-      severity: "error",
+      severity: UNIT_CHECK_SEVERITY,
       message: `Stock '${equationName}' can only combine lag(${equationName}) with increments of ${formatSignature(incrementSignature)}.`
     });
     return diagnostics;
@@ -507,7 +510,7 @@ function diagnoseDerivativeBalanceEquation(
   const expectedInner = divideSignatures(leftMeta.signature, TIME_STEP);
   if (!signaturesEqual(inner.signature, expectedInner)) {
     diagnostics.push({
-      severity: "error",
+      severity: UNIT_CHECK_SEVERITY,
       message: `Derivative-balance equation '${equationName}' expects a flow with units ${formatSignature(expectedInner)}, but got ${formatSignature(inner.signature)}.`
     });
   }
@@ -544,7 +547,7 @@ function diagnoseIntegralEquation(
   const expectedInner = divideSignatures(leftMeta.signature, TIME_STEP);
   if (!signaturesEqual(inner.signature, expectedInner)) {
     diagnostics.push({
-      severity: "error",
+      severity: UNIT_CHECK_SEVERITY,
       message: `I(...) for stock '${equationName}' expects a flow with units ${formatSignature(expectedInner)}, but got ${formatSignature(inner.signature)}.`
     });
   }
