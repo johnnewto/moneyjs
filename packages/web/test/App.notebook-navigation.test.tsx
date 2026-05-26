@@ -652,6 +652,94 @@ describe("App notebook navigation and inspection", () => {
     ).toBe(false);
   });
 
+  it("edits an external row inline without opening cell edit mode", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+    setSuccessfulNotebookRunner();
+
+    render(<App />);
+
+    const externalsCell = document.getElementById("externals-equations-newton");
+    expect(externalsCell).not.toBeNull();
+    if (!externalsCell) {
+      throw new Error("Expected externals cell article.");
+    }
+
+    await user.click(within(externalsCell).getByRole("button", { name: /^show$/i }));
+
+    const alpha0Button = within(externalsCell).getByRole("button", { name: /α\s*0/i });
+    const alpha0Row = alpha0Button.closest('[role="row"]');
+    expect(alpha0Row).not.toBeNull();
+    if (!alpha0Row) {
+      throw new Error("Expected alpha0 external row.");
+    }
+
+    const alpha0Value = within(alpha0Row)
+      .getAllByTitle("Double-click to edit")
+      .find((node) => node.classList.contains("notebook-model-view-expression"));
+    expect(alpha0Value).toBeDefined();
+    if (!alpha0Value) {
+      throw new Error("Expected alpha0 value cell.");
+    }
+    fireEvent.doubleClick(alpha0Value);
+
+    const valueInput = within(externalsCell).getByRole("textbox", {
+      name: /external \d+ value/i
+    });
+    fireEvent.change(valueInput, { target: { value: "22" } });
+    await user.click(within(externalsCell).getByRole("button", { name: /^apply$/i }));
+
+    expect(alpha0Row.textContent).toContain("22");
+    expect(within(externalsCell).queryByRole("button", { name: /^edit$/i })).toBeInTheDocument();
+  });
+
+  it(
+    "edits an initial value row inline without opening cell edit mode",
+    async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    await user.selectOptions(screen.getByLabelText(/notebook template/i), "gl8-growth");
+    await screen.findByText(/gl8 growth notebook/i);
+
+    const initialValuesCell = document.getElementById("initial-values");
+    expect(initialValuesCell).not.toBeNull();
+    if (!initialValuesCell) {
+      throw new Error("Expected initial values cell article.");
+    }
+
+    await user.click(within(initialValuesCell).getByRole("button", { name: /^show$/i }));
+
+    const sigmaseButton = await within(initialValuesCell).findByRole("button", { name: /σ\s*se/i });
+    const sigmaseRow = sigmaseButton.closest('[role="row"]');
+    expect(sigmaseRow).not.toBeNull();
+    if (!sigmaseRow) {
+      throw new Error("Expected sigmase initial value row.");
+    }
+
+    const sigmaseValue = within(sigmaseRow)
+      .getAllByTitle("Double-click to edit")
+      .find((node) => node.classList.contains("notebook-model-view-expression"));
+    expect(sigmaseValue).toBeDefined();
+    if (!sigmaseValue) {
+      throw new Error("Expected sigmase value cell.");
+    }
+    fireEvent.doubleClick(sigmaseValue);
+
+    const valueInput = within(initialValuesCell).getByRole("textbox", {
+      name: /initial \d+ value/i
+    });
+    fireEvent.change(valueInput, { target: { value: "0.2" } });
+    await user.click(within(initialValuesCell).getByRole("button", { name: /^apply$/i }));
+
+    expect(sigmaseRow.textContent).toContain("0.2");
+    expect(within(initialValuesCell).queryByRole("button", { name: /^edit$/i })).toBeInTheDocument();
+    },
+    20000
+  );
+
   it("edits an equation row inline without opening cell edit mode", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";

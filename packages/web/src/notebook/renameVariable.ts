@@ -1,6 +1,6 @@
 import { derivativeBalanceStockName, type ShockVariableDef } from "@sfcr/core";
 
-import type { EquationRow } from "../lib/editorModel";
+import type { EquationRow, ExternalRow } from "../lib/editorModel";
 import { resolveNearestNotebookContextCell } from "./notebookContext";
 import { resolveRunCellModelKey } from "./modelSections";
 import type {
@@ -40,7 +40,7 @@ export function isModelVariableNameAvailable(
   cells: NotebookCell[],
   scope: ModelRenameScope,
   variable: string,
-  options?: { excludeEquationId?: string }
+  options?: { excludeEquationId?: string; excludeExternalId?: string }
 ): boolean {
   const normalizedVariable = variable.trim();
   if (!normalizedVariable) {
@@ -65,7 +65,12 @@ export function isModelVariableNameAvailable(
     }
 
     if (cell.type === "externals") {
-      if (cell.externals.some((external) => external.name.trim() === normalizedVariable)) {
+      if (
+        cell.externals.some(
+          (external) =>
+            external.name.trim() === normalizedVariable && external.id !== options?.excludeExternalId
+        )
+      ) {
         return false;
       }
     }
@@ -80,7 +85,12 @@ export function isModelVariableNameAvailable(
       ) {
         return false;
       }
-      if (cell.editor.externals.some((external) => external.name.trim() === normalizedVariable)) {
+      if (
+        cell.editor.externals.some(
+          (external) =>
+            external.name.trim() === normalizedVariable && external.id !== options?.excludeExternalId
+        )
+      ) {
         return false;
       }
     }
@@ -163,6 +173,50 @@ export function patchEquationInNotebook(
                   expression: patch.expression
                 }
               : equation
+          )
+        }
+      };
+    }
+
+    return cell;
+  });
+}
+
+export function patchExternalInNotebook(
+  cells: NotebookCell[],
+  scope: ModelRenameScope,
+  externalId: string,
+  patch: Pick<ExternalRow, "name" | "valueText">
+): NotebookCell[] {
+  return cells.map((cell) => {
+    if (cell.type === "externals" && cellMatchesScope(cell, cells, scope)) {
+      return {
+        ...cell,
+        externals: cell.externals.map((external) =>
+          external.id === externalId
+            ? {
+                ...external,
+                name: patch.name,
+                valueText: patch.valueText
+              }
+            : external
+        )
+      };
+    }
+
+    if (cell.type === "model" && scope.kind === "legacyModelCell" && cell.id === scope.cellId) {
+      return {
+        ...cell,
+        editor: {
+          ...cell.editor,
+          externals: cell.editor.externals.map((external) =>
+            external.id === externalId
+              ? {
+                  ...external,
+                  name: patch.name,
+                  valueText: patch.valueText
+                }
+              : external
           )
         }
       };

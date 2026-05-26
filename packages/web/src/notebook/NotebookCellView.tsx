@@ -1040,11 +1040,13 @@ function NotebookCellViewComponent({
         {isCollapsed ? null : cell.type === "externals" ? (
           <ExternalsCellView
             cell={cell}
+            cells={cells}
             currentValues={getModelCurrentValues({ modelId: cell.modelId })}
             editor={buildEditorStateForStandaloneModelSections(cells, cell.modelId)}
             issueMap={buildIssueMapForStandaloneModelSections(cells, cell.modelId)}
             onEditingChange={setIsLinkedEditorEditing}
             onHelpRequest={requestCellHelp}
+            onReplaceCells={onReplaceCells}
             onVariableInspectRequest={onVariableInspectRequest}
             highlightedVariable={highlightedVariable}
             title={cell.title}

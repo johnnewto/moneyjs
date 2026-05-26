@@ -3,20 +3,22 @@ import { useEffect, useMemo, useState } from "react";
 import { ExternalEditor } from "../../components/ExternalEditor";
 import { InitialValuesEditor } from "../../components/InitialValuesEditor";
 import { SolverPanel } from "../../components/SolverPanel";
-import { VariableLabel } from "../../components/VariableLabel";
 import type { EditorState } from "../../lib/editorModel";
 import { buildVariableDescriptions, type VariableDescriptions } from "../../lib/variableDescriptions";
 import { buildVariableUnitMetadata } from "../../lib/units";
-import { documentHighlightClassName } from "../../lib/variableHighlight";
 import { useDragScroll } from "../../hooks/useDragScroll";
 import type { VariableInspectRequest } from "../../lib/variableInspect";
 import { countModelSectionIssues } from "../modelSections";
-import type { ExternalsCell, InitialValuesCell, SolverCell } from "../types";
+import { useInlineExternalRowEdit } from "../useInlineExternalRowEdit";
+import { useInlineInitialValueRowEdit } from "../useInlineInitialValueRowEdit";
+import type { ExternalsCell, InitialValuesCell, NotebookCell, SolverCell } from "../types";
 import {
   NotebookLinkedEditorActions,
   NotebookLinkedEditorHeader
 } from "./NotebookCellHeader";
-import { formatNotebookCurrentValue } from "./NotebookCurrentValue";
+import { VariableRenameDialog } from "./EquationRowInlineEditor";
+import { NotebookExternalReadRow } from "./ExternalRowInlineEditor";
+import { NotebookInitialValueReadRow } from "./InitialValueRowInlineEditor";
 
 export function SolverCellView({
   cell,
@@ -201,11 +203,13 @@ export function SolverCellView({
 
 export function ExternalsCellView({
   cell,
+  cells,
   currentValues,
   editor,
   issueMap,
   onEditingChange,
   onHelpRequest,
+  onReplaceCells,
   onVariableInspectRequest,
   highlightedVariable = null,
   title,
@@ -213,12 +217,14 @@ export function ExternalsCellView({
   onToggleCollapsed
 }: {
   cell: ExternalsCell;
+  cells: NotebookCell[];
   currentValues: Record<string, number | undefined>;
   editor: EditorState;
   issueMap: Record<string, string | undefined>;
   highlightedVariable?: string | null;
   onEditingChange?(isEditing: boolean): void;
   onHelpRequest?: (() => void) | null;
+  onReplaceCells(nextCells: NotebookCell[]): void;
   onVariableInspectRequest(args: VariableInspectRequest): void;
   title: string;
   onChange(externals: EditorState["externals"]): void;
@@ -264,6 +270,14 @@ export function ExternalsCellView({
     setDraftExternals(cell.externals);
     setIsEditingExternals(false);
   }
+
+  const inlineEdit = useInlineExternalRowEdit({
+    cells,
+    externals: cell.externals,
+    onChangeExternals: onChange,
+    onReplaceCells,
+    scope: { kind: "modelId", modelId: cell.modelId }
+  });
 
   return (
     <div className="notebook-model-stack notebook-linked-editor-cell">
@@ -336,68 +350,53 @@ export function ExternalsCellView({
                 issueMap[`externals.${index}.kind`];
 
               return (
-                <div
+                <NotebookExternalReadRow
                   key={external.id}
-                  className={[
-                    "notebook-model-view-row",
-                    "notebook-model-view-row-external",
-                    issue ? "has-issue" : ""
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  role="row"
-                >
-                  <span className="notebook-model-view-name" role="cell">
-                    {external.name.trim() ? (
-                      <button
-                        type="button"
-                        className={documentHighlightClassName(
-                          external.name.trim(),
-                          highlightedVariable,
-                          "result-variable-button"
-                        )}
-                        onClick={() =>
-                          onVariableInspectRequest({
-                            currentValues,
-                            editor,
-                            modelSource,
-                            selectedVariable: external.name.trim(),
-                            variableDescriptions,
-                            variableUnitMetadata
-                          })
-                        }
-                      >
-                        <VariableLabel
-                          currentValues={currentValues}
-                          name={external.name}
-                          variableDescriptions={variableDescriptions}
-                          variableUnitMetadata={variableUnitMetadata}
-                        />
-                      </button>
-                    ) : (
-                      "?"
-                    )}
-                  </span>
-                  <span className="notebook-model-view-expression" role="cell">
-                    {external.valueText || " "}
-                  </span>
-                  <span className="notebook-model-view-current" role="cell">
-                    {formatNotebookCurrentValue(
-                      external.name,
-                      currentValues[external.name.trim()],
+                  currentValues={currentValues}
+                  external={external}
+                  externalIndex={index}
+                  highlightedVariable={highlightedVariable}
+                  isEditing={inlineEdit.editingExternalId === external.id}
+                  issueMessage={issue}
+                  rowDraft={{
+                    name: inlineEdit.draftName,
+                    valueText: inlineEdit.draftValueText
+                  }}
+                  rowEditFocus={inlineEdit.editFocus}
+                  rowValidationError={inlineEdit.validationError}
+                  variableDescriptions={variableDescriptions}
+                  variableUnitMetadata={variableUnitMetadata}
+                  onApplyRow={inlineEdit.applyRowEdit}
+                  onBeginRowEdit={inlineEdit.beginRowEdit}
+                  onCancelRow={inlineEdit.cancelRowEdit}
+                  onDraftNameChange={inlineEdit.setDraftName}
+                  onDraftValueTextChange={inlineEdit.setDraftValueText}
+                  onInspectVariable={(selectedVariable) =>
+                    onVariableInspectRequest({
+                      currentValues,
+                      editor,
+                      modelSource,
+                      selectedVariable,
                       variableDescriptions,
                       variableUnitMetadata
-                    )}
-                  </span>
-                  <span className="notebook-model-view-kind" role="cell">
-                    {external.kind}
-                  </span>
-                </div>
+                    })
+                  }
+                />
               );
             })}
           </div>
         </section>
       )}
+      <VariableRenameDialog
+        cellCount={inlineEdit.renameReferenceCount.cellCount}
+        isOpen={inlineEdit.renameDialog != null}
+        newName={inlineEdit.renameDialog?.name ?? ""}
+        oldName={inlineEdit.renameDialog?.oldName ?? ""}
+        referenceCount={inlineEdit.renameReferenceCount.referenceCount}
+        onCancel={inlineEdit.cancelRowEdit}
+        onConfirmNo={inlineEdit.confirmRenameNo}
+        onConfirmYes={inlineEdit.confirmRenameYes}
+      />
     </div>
   );
 }
@@ -463,6 +462,11 @@ export function InitialValuesCellView({
     setDraftInitialValues(cell.initialValues);
     setIsEditingInitialValues(false);
   }
+
+  const inlineEdit = useInlineInitialValueRowEdit({
+    initialValues: cell.initialValues,
+    onChangeInitialValues: onChange
+  });
 
   return (
     <div className="notebook-model-stack notebook-linked-editor-cell">
@@ -554,63 +558,38 @@ export function InitialValuesCellView({
                 issueMap[`initialValues.${index}.valueText`];
 
               return (
-                <div
+                <NotebookInitialValueReadRow
                   key={initialValue.id}
-                  className={[
-                    "notebook-model-view-row",
-                    "notebook-model-view-row-initial",
-                    issue ? "has-issue" : ""
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  role="row"
-                >
-                  <span className="notebook-model-view-name" role="cell">
-                    {initialValue.name.trim() ? (
-                      <button
-                        type="button"
-                        className={documentHighlightClassName(
-                          initialValue.name.trim(),
-                          highlightedVariable,
-                          "result-variable-button"
-                        )}
-                        onClick={() =>
-                          onVariableInspectRequest({
-                            currentValues,
-                            editor,
-                            modelSource,
-                            selectedVariable: initialValue.name.trim(),
-                            variableDescriptions,
-                            variableUnitMetadata
-                          })
-                        }
-                      >
-                        <VariableLabel
-                          currentValues={currentValues}
-                          name={initialValue.name}
-                          variableDescriptions={variableDescriptions}
-                          variableUnitMetadata={variableUnitMetadata}
-                        />
-                      </button>
-                    ) : (
-                      "?"
-                    )}
-                  </span>
-                  <span className="notebook-model-view-expression" role="cell">
-                    {initialValue.valueText || " "}
-                  </span>
-                  <span className="notebook-model-view-current" role="cell">
-                    {formatNotebookCurrentValue(
-                      initialValue.name,
-                      currentValues[initialValue.name.trim()],
+                  currentValues={currentValues}
+                  highlightedVariable={highlightedVariable}
+                  initialValue={initialValue}
+                  initialValueIndex={index}
+                  isEditing={inlineEdit.editingInitialValueId === initialValue.id}
+                  issueMessage={issue}
+                  rowDraft={{
+                    name: inlineEdit.draftName,
+                    valueText: inlineEdit.draftValueText
+                  }}
+                  rowEditFocus={inlineEdit.editFocus}
+                  rowValidationError={inlineEdit.validationError}
+                  variableDescriptions={variableDescriptions}
+                  variableUnitMetadata={variableUnitMetadata}
+                  onApplyRow={inlineEdit.applyRowEdit}
+                  onBeginRowEdit={inlineEdit.beginRowEdit}
+                  onCancelRow={inlineEdit.cancelRowEdit}
+                  onDraftNameChange={inlineEdit.setDraftName}
+                  onDraftValueTextChange={inlineEdit.setDraftValueText}
+                  onInspectVariable={(selectedVariable) =>
+                    onVariableInspectRequest({
+                      currentValues,
+                      editor: { ...editor, initialValues: cell.initialValues },
+                      modelSource,
+                      selectedVariable,
                       variableDescriptions,
                       variableUnitMetadata
-                    )}
-                  </span>
-                  <span className="notebook-model-view-kind" role="cell">
-                    {issue ?? "OK"}
-                  </span>
-                </div>
+                    })
+                  }
+                />
               );
             })}
           </div>
