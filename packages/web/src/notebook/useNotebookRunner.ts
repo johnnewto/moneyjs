@@ -2,6 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { SimulationOptions, SimulationResult } from "@sfcr/core";
 
+import {
+  applyConstantExternalOverrides,
+  resolveModelOverrides,
+  type ConstantExternalOverrides
+} from "../lib/externalParameterControls";
 import { buildRuntimeConfig } from "../lib/editorModel";
 import { createWorkerClient } from "../lib/workerClient";
 import { normalizeScenarioFromNotebook } from "./document";
@@ -91,6 +96,14 @@ export function resolveRunCellOptions(options: SimulationOptions, cell: RunCell)
   };
 }
 
+export function resolveModelIdFromRunCellKey(modelKey: string | null): string | null {
+  if (!modelKey) {
+    return null;
+  }
+
+  return modelKey.replace(/^model:/, "").replace(/^cell:/, "") || null;
+}
+
 export function buildRunHistorySignatures(document: NotebookDocument): Record<string, string> {
   return Object.fromEntries(
     document.cells
@@ -111,13 +124,22 @@ export function buildRunHistorySignatures(document: NotebookDocument): Record<st
   );
 }
 
-export function useNotebookRunner(document: NotebookDocument): NotebookRunnerApi {
+export interface UseNotebookRunnerOptions {
+  constantExternalOverrides?: ConstantExternalOverrides;
+}
+
+export function useNotebookRunner(
+  document: NotebookDocument,
+  options: UseNotebookRunnerOptions = {}
+): NotebookRunnerApi {
   const [client] = useState(() => createWorkerClient());
   const [state, setState] = useState<NotebookRuntimeState>({ outputs: {}, status: {}, errors: {} });
   const stateRef = useRef(state);
   const lastSuccessfulResultsRef = useRef<Record<string, SimulationResult | undefined>>({});
   const historyCapturePendingRef = useRef<Record<string, boolean | undefined>>({});
   const historyUpdateSequenceRef = useRef(0);
+  const constantExternalOverridesRef = useRef<ConstantExternalOverrides>({});
+  constantExternalOverridesRef.current = options.constantExternalOverrides ?? {};
   const resetKey = useMemo(() => buildNotebookRunnerResetKey(document), [document]);
   const runHistorySignatures = useMemo(() => buildRunHistorySignatures(document), [document]);
   const previousRunHistorySignaturesRef = useRef<Record<string, string> | null>(null);
@@ -148,8 +170,22 @@ export function useNotebookRunner(document: NotebookDocument): NotebookRunnerApi
     [document.cells]
   );
 
-  function buildRunOptions(cell: RunCell): ReturnType<typeof buildRuntimeConfig>["options"] | null {
+  function buildEditorForRunCell(cell: RunCell) {
     const editor = buildEditorStateForNotebookModel(document, cell);
+    const modelKey = resolveRunCellModelKey(document.cells, cell);
+    const modelId = resolveModelIdFromRunCellKey(modelKey);
+    if (!editor || !modelId) {
+      return null;
+    }
+
+    return applyConstantExternalOverrides(
+      editor,
+      resolveModelOverrides(constantExternalOverridesRef.current, modelId)
+    );
+  }
+
+  function buildRunOptions(cell: RunCell): ReturnType<typeof buildRuntimeConfig>["options"] | null {
+    const editor = buildEditorForRunCell(cell);
     if (!editor) {
       return null;
     }
@@ -224,7 +260,7 @@ export function useNotebookRunner(document: NotebookDocument): NotebookRunnerApi
       return;
     }
 
-    const editor = buildEditorStateForNotebookModel(document, cell);
+    const editor = buildEditorForRunCell(cell);
     const modelOutputKey = resolveRunCellModelKey(document.cells, cell);
     if (!editor || !modelOutputKey) {
       setState((current) => {

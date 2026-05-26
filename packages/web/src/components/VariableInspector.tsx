@@ -1,10 +1,17 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
-import type { EquationRow } from "../lib/editorModel";
+import type { EquationRow, ExternalRow } from "../lib/editorModel";
+import {
+  parseConstantBaselineValue,
+  resolveEffectiveConstantValue,
+  resolveModelOverrides,
+  type ConstantExternalOverrides
+} from "../lib/externalParameterControls";
 import type { VariableInspectorData } from "../lib/variableInspector";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
 import type { VariableUnitMetadata } from "../lib/unitMeta";
 import { HighlightedFormulaInput, highlightFormula } from "./EquationGridEditor";
+import { ParameterSliderControl } from "./ParameterSliderControl";
 import { VariableLabel } from "./VariableLabel";
 
 interface VariableInspectorProps {
@@ -18,8 +25,13 @@ interface VariableInspectorProps {
   onEditingChange?: (isEditing: boolean) => void;
   onGoBack?: () => void;
   onGoForward?: () => void;
+  hasPendingParameterOverrides?: boolean;
+  inspectorModelId?: string | null;
+  onParameterOverrideChange?(modelId: string, name: string, value: number): void;
+  onParameterOverrideRelease?(): void;
   onSelectVariable(variableName: string): void;
   parameterNames?: string[];
+  parameterOverrides?: ConstantExternalOverrides;
   variableDescriptions?: VariableDescriptions;
   variableUnitMetadata?: VariableUnitMetadata;
 }
@@ -34,9 +46,14 @@ export function VariableInspector({
   onApplyDefiningExpression,
   onEditingChange,
   onGoBack,
+  hasPendingParameterOverrides = false,
+  inspectorModelId = null,
   onGoForward,
+  onParameterOverrideChange,
+  onParameterOverrideRelease,
   onSelectVariable,
   parameterNames = [],
+  parameterOverrides = {},
   variableDescriptions,
   variableUnitMetadata
 }: VariableInspectorProps) {
@@ -113,6 +130,22 @@ export function VariableInspector({
               <p>No defining equation is available for this variable.</p>
             )}
           </InspectorSection>
+
+          {data.kind === "external" &&
+          data.externalDefinition?.kind === "constant" &&
+          inspectorModelId &&
+          onParameterOverrideChange &&
+          onParameterOverrideRelease ? (
+            <InspectorExternalConstantControl
+              externalDefinition={data.externalDefinition}
+              hasPendingParameterOverrides={hasPendingParameterOverrides}
+              inspectorModelId={inspectorModelId}
+              name={data.name}
+              onParameterOverrideChange={onParameterOverrideChange}
+              onParameterOverrideRelease={onParameterOverrideRelease}
+              parameterOverrides={parameterOverrides}
+            />
+          ) : null}
 
           <InspectorSection title="Flows Affecting It">
             <div className="inspector-chip-grid">
@@ -246,6 +279,55 @@ export function VariableInspector({
         </div>
       )}
     </section>
+  );
+}
+
+function InspectorExternalConstantControl({
+  externalDefinition,
+  hasPendingParameterOverrides,
+  inspectorModelId,
+  name,
+  onParameterOverrideChange,
+  onParameterOverrideRelease,
+  parameterOverrides
+}: {
+  externalDefinition: ExternalRow;
+  hasPendingParameterOverrides: boolean;
+  inspectorModelId: string;
+  name: string;
+  onParameterOverrideChange(modelId: string, variableName: string, value: number): void;
+  onParameterOverrideRelease(): void;
+  parameterOverrides: ConstantExternalOverrides;
+}) {
+  const baselineValue = parseConstantBaselineValue(externalDefinition.valueText);
+  if (baselineValue == null) {
+    return null;
+  }
+
+  const modelOverrides = resolveModelOverrides(parameterOverrides, inspectorModelId);
+  const effectiveValue = resolveEffectiveConstantValue(
+    baselineValue,
+    modelOverrides[name.trim()]
+  );
+
+  return (
+    <InspectorSection title="Parameter value">
+      <div className="inspector-parameter-controls">
+        <ParameterSliderControl
+          ariaLabel={`${name} parameter value`}
+          baselineValue={baselineValue}
+          value={effectiveValue}
+          onChange={(value) => onParameterOverrideChange(inspectorModelId, name.trim(), value)}
+          onRelease={onParameterOverrideRelease}
+        />
+        <span className="inspector-parameter-value">{effectiveValue}</span>
+      </div>
+      {hasPendingParameterOverrides ? (
+        <p className="status-hint">
+          Pending parameter changes — Apply or Discard in Variables → Parameters.
+        </p>
+      ) : null}
+    </InspectorSection>
   );
 }
 

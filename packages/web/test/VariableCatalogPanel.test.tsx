@@ -34,6 +34,13 @@ describe("VariableCatalogPanel", () => {
       renderCount += 1;
       return (
         <VariableCatalogPanel
+          catalogModelContexts={[]}
+          hasPendingParameterOverrides={false}
+          onApplyParameterOverrides={() => undefined}
+          onDiscardParameterOverrides={() => undefined}
+          onParameterOverrideChange={() => undefined}
+          onParameterOverrideRelease={() => undefined}
+          parameterOverrides={{}}
           rows={mockRows}
           selectedVariable="V5"
           onSelectRow={() => undefined}

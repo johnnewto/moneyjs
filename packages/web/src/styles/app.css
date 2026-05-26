@@ -1490,6 +1490,132 @@ body.panel-splitter-body-lock {
   min-height: 0;
 }
 
+.variable-catalog-view-toggle {
+  display: grid;
+  gap: 0;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid rgba(141, 91, 22, 0.18);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.variable-catalog-view-toggle-button {
+  background: #f8fafc;
+  border: 0;
+  border-radius: 0;
+  color: #334155;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.45rem 0.65rem;
+}
+
+.variable-catalog-view-toggle-button.is-active {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.variable-catalog-view-toggle-button + .variable-catalog-view-toggle-button {
+  border-left: 1px solid rgba(141, 91, 22, 0.18);
+}
+
+.variable-parameters-panel {
+  display: grid;
+  gap: 0.65rem;
+  min-height: 0;
+}
+
+.variable-parameters-list {
+  display: grid;
+  gap: 0.75rem;
+  max-height: min(58vh, 640px);
+  overflow: auto;
+  padding-right: 0.15rem;
+}
+
+.variable-parameters-model-group {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.variable-parameters-model-title {
+  font-size: 0.88rem;
+  margin: 0;
+}
+
+.parameter-slider-row {
+  border: 1px solid rgba(141, 91, 22, 0.12);
+  border-radius: 12px;
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.55rem 0.65rem;
+}
+
+.parameter-slider-row.has-override {
+  border-color: rgba(154, 52, 18, 0.35);
+  background: rgba(255, 247, 237, 0.65);
+}
+
+.parameter-slider-row-header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.55rem;
+}
+
+.parameter-slider-description {
+  color: #64748b;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.parameter-slider-controls {
+  align-items: center;
+  display: grid;
+  gap: 0.35rem 0.55rem;
+  grid-template-columns: minmax(0, 1fr) 4.5rem auto;
+}
+
+.parameter-slider-input {
+  width: 100%;
+}
+
+.parameter-slider-numeric-input {
+  font-size: 0.88rem;
+  padding: 0.35rem 0.45rem;
+  width: 100%;
+}
+
+.parameter-slider-baseline {
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.variable-parameters-footer {
+  border-top: 1px solid rgba(141, 91, 22, 0.12);
+  display: grid;
+  gap: 0.45rem;
+  padding-top: 0.55rem;
+}
+
+.variable-parameters-series-note,
+.variable-parameters-empty,
+.variable-parameters-pending {
+  margin: 0;
+}
+
+.inspector-parameter-controls {
+  align-items: center;
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.inspector-parameter-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
 .variable-catalog-toolbar {
   align-items: center;
   display: grid;

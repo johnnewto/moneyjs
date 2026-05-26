@@ -22,15 +22,21 @@ import {
   type RefObject
 } from "react";
 
-import { useVariableCatalogTablePrefs } from "../hooks/useVariableCatalogTablePrefs";
+import {
+  useVariableCatalogTablePrefs,
+  type VariableCatalogViewMode
+} from "../hooks/useVariableCatalogTablePrefs";
+import type { ConstantExternalOverrides } from "../lib/externalParameterControls";
 import {
   catalogRowGroupKey,
+  type CatalogModelContext,
   type VariableCatalogGroupBy,
   type VariableCatalogRow
 } from "../lib/variableCatalog";
 import type { VariableUnitMetadata } from "../lib/unitMeta";
 import { NumericValueText } from "./NumericValueText";
 import { VariableMathLabel } from "./VariableMathLabel";
+import { VariableParametersPanel } from "./VariableParametersPanel";
 
 const CORE_ROW_MODEL = getCoreRowModel();
 const EXPANDED_ROW_MODEL = getExpandedRowModel();
@@ -43,7 +49,14 @@ interface VariableCatalogTableRow extends VariableCatalogRow {
 }
 
 interface VariableCatalogPanelProps {
+  catalogModelContexts: CatalogModelContext[];
+  hasPendingParameterOverrides: boolean;
+  onApplyParameterOverrides(): void;
+  onDiscardParameterOverrides(): void;
+  onParameterOverrideChange(modelId: string, name: string, value: number): void;
+  onParameterOverrideRelease(): void;
   onSelectRow(row: VariableCatalogRow): void;
+  parameterOverrides: ConstantExternalOverrides;
   rows: VariableCatalogRow[];
   selectedVariable?: string | null;
   showModelColumn?: boolean;
@@ -141,7 +154,14 @@ function buildInitialColumnVisibility(
 }
 
 export function VariableCatalogPanel({
+  catalogModelContexts,
+  hasPendingParameterOverrides,
+  onApplyParameterOverrides,
+  onDiscardParameterOverrides,
+  onParameterOverrideChange,
+  onParameterOverrideRelease,
   onSelectRow,
+  parameterOverrides,
   rows,
   selectedVariable = null,
   showModelColumn = false,
@@ -153,8 +173,10 @@ export function VariableCatalogPanel({
     setColumnSizing,
     setColumnVisibility,
     setGroupBy,
-    setSorting
+    setSorting,
+    setViewMode
   } = useVariableCatalogTablePrefs();
+  const viewMode = prefs.viewMode;
   const [globalFilter, setGlobalFilter] = useState("");
   const [focusedRowIndex, setFocusedRowIndex] = useState(0);
   const [draggingColumnId, setDraggingColumnId] = useState<string | null>(null);
@@ -375,33 +397,96 @@ export function VariableCatalogPanel({
     ? GROUP_BY_OPTIONS
     : GROUP_BY_OPTIONS.filter((option) => option.value !== "model");
 
+  const handleInspectParameter = useCallback(
+    (variableName: string) => {
+      const row = rows.find((entry) => entry.name === variableName);
+      if (row) {
+        onSelectRow(row);
+      }
+    },
+    [onSelectRow, rows]
+  );
+
   return (
     <section className="control-panel variable-catalog-panel notebook-sidebar-panel" role="tabpanel">
-      <VariableCatalogToolbar
-        columnsMenuOpen={columnsMenuOpen}
-        globalFilter={globalFilter}
-        groupBy={prefs.groupBy}
-        groupByOptions={groupByOptions}
-        onColumnsMenuOpenChange={setColumnsMenuOpen}
-        onGlobalFilterChange={setGlobalFilter}
-        onGroupByChange={setGroupBy}
-        onOptionalColumnToggle={handleOptionalColumnToggle}
-        table={table}
-      />
+      <VariableCatalogViewToggle viewMode={viewMode} onViewModeChange={setViewMode} />
 
-      <VariableCatalogTableShell
-        focusedRowIndex={focusedRowIndex}
-        handleColumnDragStart={handleColumnDragStart}
-        handleColumnDrop={handleColumnDrop}
-        handleColumnResizeEnd={handleColumnResizeEnd}
-        handleColumnSort={handleColumnSort}
-        handleRowActivate={handleRowActivate}
-        handleTableKeyDown={handleTableKeyDown}
-        selectedVariable={selectedVariable}
-        table={table}
-        tableShellRef={tableShellRef}
-      />
+      {viewMode === "parameters" ? (
+        <VariableParametersPanel
+          catalogModelContexts={catalogModelContexts}
+          hasPendingParameterOverrides={hasPendingParameterOverrides}
+          onApply={onApplyParameterOverrides}
+          onDiscard={onDiscardParameterOverrides}
+          onOverrideChange={onParameterOverrideChange}
+          onOverrideRelease={onParameterOverrideRelease}
+          onSelectVariable={handleInspectParameter}
+          parameterOverrides={parameterOverrides}
+          variableUnitMetadata={variableUnitMetadata}
+        />
+      ) : (
+        <>
+          <VariableCatalogToolbar
+            columnsMenuOpen={columnsMenuOpen}
+            globalFilter={globalFilter}
+            groupBy={prefs.groupBy}
+            groupByOptions={groupByOptions}
+            onColumnsMenuOpenChange={setColumnsMenuOpen}
+            onGlobalFilterChange={setGlobalFilter}
+            onGroupByChange={setGroupBy}
+            onOptionalColumnToggle={handleOptionalColumnToggle}
+            table={table}
+          />
+
+          <VariableCatalogTableShell
+            focusedRowIndex={focusedRowIndex}
+            handleColumnDragStart={handleColumnDragStart}
+            handleColumnDrop={handleColumnDrop}
+            handleColumnResizeEnd={handleColumnResizeEnd}
+            handleColumnSort={handleColumnSort}
+            handleRowActivate={handleRowActivate}
+            handleTableKeyDown={handleTableKeyDown}
+            selectedVariable={selectedVariable}
+            table={table}
+            tableShellRef={tableShellRef}
+          />
+        </>
+      )}
     </section>
+  );
+}
+
+function VariableCatalogViewToggle({
+  onViewModeChange,
+  viewMode
+}: {
+  onViewModeChange(mode: VariableCatalogViewMode): void;
+  viewMode: VariableCatalogViewMode;
+}) {
+  return (
+    <div
+      className="variable-catalog-view-toggle"
+      role="tablist"
+      aria-label="Variables panel view"
+    >
+      <button
+        type="button"
+        role="tab"
+        aria-selected={viewMode === "table"}
+        className={`variable-catalog-view-toggle-button${viewMode === "table" ? " is-active" : ""}`}
+        onClick={() => onViewModeChange("table")}
+      >
+        Table
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={viewMode === "parameters"}
+        className={`variable-catalog-view-toggle-button${viewMode === "parameters" ? " is-active" : ""}`}
+        onClick={() => onViewModeChange("parameters")}
+      >
+        Parameters
+      </button>
+    </div>
   );
 }
 

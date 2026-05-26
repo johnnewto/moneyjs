@@ -10,12 +10,15 @@ import type {
 
 export const VARIABLE_CATALOG_TABLE_PREFS_STORAGE_KEY = "sfcr.variable-catalog.table-prefs";
 
+export type VariableCatalogViewMode = "table" | "parameters";
+
 export interface VariableCatalogTablePrefs {
   columnOrder: ColumnOrderState;
   columnSizing: ColumnSizingState;
   columnVisibility: VisibilityState;
   groupBy: VariableCatalogGroupBy;
   sorting: SortingState;
+  viewMode: VariableCatalogViewMode;
 }
 
 const DEFAULT_COLUMN_ORDER: ColumnOrderState = [
@@ -51,7 +54,8 @@ const DEFAULT_PREFS: VariableCatalogTablePrefs = {
   },
   columnVisibility: DEFAULT_COLUMN_VISIBILITY,
   groupBy: "none",
-  sorting: [{ id: "name", desc: false }]
+  sorting: [{ id: "name", desc: false }],
+  viewMode: "table"
 };
 
 function readStoredPrefs(): VariableCatalogTablePrefs {
@@ -77,7 +81,8 @@ function readStoredPrefs(): VariableCatalogTablePrefs {
           ? { ...DEFAULT_COLUMN_VISIBILITY, ...parsed.columnVisibility }
           : DEFAULT_PREFS.columnVisibility,
       groupBy: parsed.groupBy ?? DEFAULT_PREFS.groupBy,
-      sorting: Array.isArray(parsed.sorting) ? parsed.sorting : DEFAULT_PREFS.sorting
+      sorting: Array.isArray(parsed.sorting) ? parsed.sorting : DEFAULT_PREFS.sorting,
+      viewMode: parsed.viewMode === "parameters" ? "parameters" : "table"
     };
   } catch {
     return DEFAULT_PREFS;
@@ -119,12 +124,17 @@ export function useVariableCatalogTablePrefs() {
     setPrefs((current) => ({ ...current, sorting }));
   }, []);
 
+  const setViewMode = useCallback((viewMode: VariableCatalogViewMode) => {
+    setPrefs((current) => ({ ...current, viewMode }));
+  }, []);
+
   return {
     prefs,
     setColumnOrder,
     setColumnSizing,
     setColumnVisibility,
     setGroupBy,
-    setSorting
+    setSorting,
+    setViewMode
   };
 }

@@ -153,6 +153,7 @@ import {
   buildVariableInspectRequestFromCatalogRow,
   isInspectorModelEditable,
   isSameInspectorContext,
+  resolveInspectorModelSource,
   updateEditorDefiningEquationExpression,
   type VariableInspectRequest
 } from "../lib/variableInspect";
@@ -162,6 +163,10 @@ import {
   listCatalogModelContexts,
   type VariableCatalogRow
 } from "../lib/variableCatalog";
+import {
+  hasParameterOverrides,
+  type ConstantExternalOverrides
+} from "../lib/externalParameterControls";
 
 type NotebookRailTab = "editor" | "variables" | "inspect" | "contents" | "assistant" | "help" | "preview";
 
@@ -646,11 +651,17 @@ export function NotebookApp() {
   });
   const [inspectorContext, setInspectorContext] = useState<VariableInspectRequest | null>(null);
   const inspectorVariableHistory = useInspectorVariableHistory();
+  const [parameterOverrides, setParameterOverrides] = useState<ConstantExternalOverrides>({});
+  const parameterRunTimeoutRef = useRef<number | null>(null);
   const [importPreview, setImportPreview] = useState<{
     document: NotebookDocument;
     source: NotebookSourceFormat;
   } | null>(null);
-  const runner = useNotebookRunner(notebookDocument);
+  const runner = useNotebookRunner(notebookDocument, { constantExternalOverrides: parameterOverrides });
+  const hasPendingParameterOverrides = useMemo(
+    () => hasParameterOverrides(parameterOverrides),
+    [parameterOverrides]
+  );
   const latestHistoryUpdateRef = useRef(0);
   const notebookCommandTrayRef = useRef<HTMLElement | null>(null);
   const notebookCommandTrayToggleRef = useRef<HTMLButtonElement | null>(null);
@@ -685,6 +696,60 @@ export function NotebookApp() {
       currentValuesByModel: catalogCurrentValuesByModel
     });
   }, [activeRailTab, notebookDocument, catalogCurrentValuesByModel]);
+
+  const scheduleParameterRun = useCallback(() => {
+    if (parameterRunTimeoutRef.current != null) {
+      window.clearTimeout(parameterRunTimeoutRef.current);
+    }
+
+    parameterRunTimeoutRef.current = window.setTimeout(() => {
+      parameterRunTimeoutRef.current = null;
+      void runner.runAll();
+    }, 300);
+  }, [runner]);
+
+  useEffect(
+    () => () => {
+      if (parameterRunTimeoutRef.current != null) {
+        window.clearTimeout(parameterRunTimeoutRef.current);
+      }
+    },
+    []
+  );
+
+  const handleParameterOverrideChange = useCallback((modelId: string, name: string, value: number) => {
+    setParameterOverrides((current) => ({
+      ...current,
+      [modelId]: {
+        ...(current[modelId] ?? {}),
+        [name]: value
+      }
+    }));
+  }, []);
+
+  const handleParameterOverrideRelease = useCallback(() => {
+    scheduleParameterRun();
+  }, [scheduleParameterRun]);
+
+  const discardParameterOverrides = useCallback(() => {
+    setParameterOverrides({});
+    scheduleParameterRun();
+  }, [scheduleParameterRun]);
+
+  const inspectorModelId = useMemo(() => {
+    const source = inspectorContext?.modelSource ?? null;
+    const resolved = resolveInspectorModelSource(source ?? undefined);
+    return resolved && "sourceModelId" in resolved ? resolved.sourceModelId : null;
+  }, [inspectorContext?.modelSource]);
+
+  const inspectorHasPendingParameterOverrides = useMemo(() => {
+    if (!inspectorModelId) {
+      return false;
+    }
+
+    const modelOverrides = parameterOverrides[inspectorModelId];
+    return modelOverrides != null && Object.keys(modelOverrides).length > 0;
+  }, [inspectorModelId, parameterOverrides]);
   const maxResultPeriodIndex = useMemo(() => {
     const configuredMaxPeriodIndex = Math.max(
       0,
@@ -834,6 +899,43 @@ export function NotebookApp() {
     },
     []
   );
+
+  const applyParameterOverrides = useCallback(() => {
+    if (!hasParameterOverrides(parameterOverrides)) {
+      return;
+    }
+
+    commitNotebookDocument("parameter apply", (current) => ({
+      ...current,
+      cells: current.cells.map((cell) => {
+        if (cell.type !== "externals") {
+          return cell;
+        }
+
+        const modelOverrides = parameterOverrides[cell.modelId];
+        if (!modelOverrides || Object.keys(modelOverrides).length === 0) {
+          return cell;
+        }
+
+        return {
+          ...cell,
+          externals: cell.externals.map((external) => {
+            const name = external.name.trim();
+            if (external.kind !== "constant" || !(name in modelOverrides)) {
+              return external;
+            }
+
+            return {
+              ...external,
+              valueText: String(modelOverrides[name])
+            };
+          })
+        };
+      })
+    }));
+    setParameterOverrides({});
+    setAutoRunRevision((revision) => revision + 1);
+  }, [commitNotebookDocument, parameterOverrides]);
 
   const handleUndoNotebookEdit = useCallback(
     (fallbackMessageId?: string) => {
@@ -1063,10 +1165,24 @@ export function NotebookApp() {
   }, [activeRailTab, importPreview]);
 
   function updateCell(cellId: string, updater: (cell: NotebookCell) => NotebookCell): void {
+    const previousCell = notebookDocument.cells.find((cell) => cell.id === cellId);
+    const nextCell = previousCell ? updater(previousCell) : null;
+
     commitNotebookDocument("cell edit", (current) => ({
       ...current,
       cells: current.cells.map((cell) => (cell.id === cellId ? updater(cell) : cell))
     }));
+
+    if (nextCell?.type === "externals") {
+      setParameterOverrides((current) => {
+        if (!(nextCell.modelId in current)) {
+          return current;
+        }
+
+        const { [nextCell.modelId]: _removed, ...rest } = current;
+        return rest;
+      });
+    }
   }
 
   function replaceCells(nextCells: NotebookCell[]): void {
@@ -3183,7 +3299,14 @@ export function NotebookApp() {
 
           {activeRailTab === "variables" ? (
             <VariableCatalogPanel
+              catalogModelContexts={catalogModelContexts}
+              hasPendingParameterOverrides={hasPendingParameterOverrides}
+              onApplyParameterOverrides={applyParameterOverrides}
+              onDiscardParameterOverrides={discardParameterOverrides}
+              onParameterOverrideChange={handleParameterOverrideChange}
+              onParameterOverrideRelease={handleParameterOverrideRelease}
               onSelectRow={handleCatalogRowSelect}
+              parameterOverrides={parameterOverrides}
               rows={catalogRows}
               selectedVariable={inspectorContext?.selectedVariable}
               showModelColumn={catalogModelContexts.length > 1}
@@ -3213,7 +3336,12 @@ export function NotebookApp() {
                   current ? { ...current, selectedVariable: variableName } : current
                 );
               }}
+              hasPendingParameterOverrides={inspectorHasPendingParameterOverrides}
+              inspectorModelId={inspectorModelId}
+              onParameterOverrideChange={handleParameterOverrideChange}
+              onParameterOverrideRelease={handleParameterOverrideRelease}
               parameterNames={inspectorContext?.editor.externals.map((external) => external.name) ?? []}
+              parameterOverrides={parameterOverrides}
               variableDescriptions={inspectorContext?.variableDescriptions}
               variableUnitMetadata={inspectorContext?.variableUnitMetadata}
             />
