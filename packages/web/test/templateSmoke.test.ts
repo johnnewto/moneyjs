@@ -7,6 +7,7 @@ import { buildEditorStateForNotebookModel } from "../src/notebook/modelSections"
 import { NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
 
 type TemplateId =
+  | "endogenous-money"
   | "gl6-dis-rentier"
   | "gl6-dis-rentier-v2"
   | "interbank-liquidity-risk"
@@ -27,6 +28,34 @@ interface TemplateSmokeCase {
 }
 
 const TEMPLATE_CASES: TemplateSmokeCase[] = [
+  {
+    templateId: "endogenous-money",
+    baselineRunCellId: "baseline-run",
+    scenarioRunCellId: "higher-deficit-run",
+    baselineExpectations(result) {
+      expect(result.options.periods).toBe(80);
+      expect(result.series.GDP.length).toBe(80);
+      expect(result.series.Govt_Debt_GDP.length).toBe(80);
+      expect(result.series.Private_Debt_GDP.length).toBe(80);
+      expect(result.series.Money.length).toBe(80);
+      expect(Number.isFinite(result.series.GDP.at(-1) ?? NaN)).toBe(true);
+      expect(Number.isFinite(result.series.Govt_Debt_GDP.at(-1) ?? NaN)).toBe(true);
+      expect(Number.isFinite(result.series.Private_Debt_GDP.at(-1) ?? NaN)).toBe(true);
+      expect(Number.isFinite(result.series.BankAssets.at(-1) ?? NaN)).toBe(true);
+      expect(result.series.GDP.at(-1) ?? NaN).toBeGreaterThan(0);
+    },
+    scenarioExpectations(result, baselineResult) {
+      expect(result.options.periods).toBe(80);
+      expect(result.series.GDP.length).toBe(80);
+      expect(result.series.Govt_Debt_GDP.length).toBe(80);
+      expect(Number.isFinite(result.series.GDP.at(-1) ?? NaN)).toBe(true);
+      expect(Number.isFinite(result.series.Govt_Debt_GDP.at(-1) ?? NaN)).toBe(true);
+      expect(Number.isFinite(result.series.BankAssets.at(-1) ?? NaN)).toBe(true);
+      expect(result.series.BankAssets.at(-1) ?? NaN).toBeGreaterThan(
+        baselineResult.series.BankAssets.at(-1) ?? NaN
+      );
+    }
+  },
   {
     templateId: "werner-qtc-explainer",
     baselineRunCellId: "baseline-run",

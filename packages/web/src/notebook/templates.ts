@@ -1,4 +1,5 @@
 import bmwNotebookYaml from "./templates/bmw.notebook.yaml?raw";
+import endogenousMoneyNotebookYaml from "./templates/endogenous-money.notebook.yaml?raw";
 import gl2PcNotebookYaml from "./templates/gl2-pc.notebook.yaml?raw";
 import gl6DisNotebookYaml from "./templates/gl6-dis.notebook.yaml?raw";
 import gl6DisRentierNotebookYaml from "./templates/gl6-dis-rentier.notebook.yaml?raw";
@@ -19,6 +20,7 @@ import type { NotebookDocument } from "./types";
 
 export type NotebookTemplateId =
   | "bmw"
+  | "endogenous-money"
   | "gl2-pc"
   | "gl6-dis"
   | "gl6-dis-rentier"
@@ -56,6 +58,13 @@ export const NOTEBOOK_TEMPLATES: Record<NotebookTemplateId, NotebookTemplateDefi
     label: "BMW",
     description: "BMW browser notebook with a baseline run, two scenarios, and accounting views.",
     document: notebookFromYaml(bmwNotebookYaml)
+  },
+  "endogenous-money": {
+    id: "endogenous-money",
+    label: "Endogenous Money",
+    description:
+      "Runnable BOMD notebook based on the Money From First Principles endogenous-money section.",
+    document: notebookFromYaml(endogenousMoneyNotebookYaml)
   },
   "gl2-pc": {
     id: "gl2-pc",

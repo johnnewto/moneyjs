@@ -1,0 +1,233 @@
+format: sfcr-notebook-yaml
+formatVersion: 1
+id: endogenous-money
+title: "Endogenous Money: Bank-Originated Money and Debt"
+metadata:
+  version: 1
+  template: endogenous-money
+cells:
+  - markdown:
+      id: intro
+      title: Overview
+      source: |-
+        # Endogenous Money
+
+        This notebook turns section 4, "Endogenous Money", from Money From First Principles into a runnable stylized SFC model.
+
+        The model follows the Bank-Originated Money and Debt view: banks are not loanable-funds intermediaries. Bank lending creates deposits, firm debt and government debt sit on private-bank balance sheets as assets, and a government deficit can support private-sector money balances without forcing an automatic debt crisis.
+  - markdown:
+      id: institutional-story
+      title: Institutional story
+      source: |-
+        ## What changes relative to Loanable Funds
+
+        - Private banks originate loans and create matching deposits.
+        - `Debt` and `Gov_Bonds` are assets of private banks.
+        - `Money` is the sum of worker, firm, and bank accounts.
+        - GDP is driven by money turnover: `GDP = Money * Velocity`.
+        - Government debt to GDP and private debt to GDP are shown as chart variables.
+  - matrix:
+      id: balance-sheet
+      title: Endogenous money balance sheet
+      description: BOMD balance sheet.
+      note: Loans and government bonds are private-bank assets.
+      sourceRunCellId: baseline-run
+      columns: [Firms, Workers, Government, Private_banks, Sum]
+      sectors: [Firms, Households, Government, Banks, ""]
+      rows:
+        - [Deposits, Firm deposits, +Firms_eq, "", "", -Firms_eq, "0"]
+        - [Deposits, Worker deposits, "", +Workers_eq, "", -Workers_eq, "0"]
+        - [Deposits, Bank account, "", "", "", +Banks_eq, +Banks_eq]
+        - [Loans, Private debt, -Debt, "", "", +Debt, "0"]
+        - [Bonds, Government bonds, "", "", -Gov_Bonds, +Gov_Bonds, "0"]
+        - [Sum, Sum, "0", "0", "0", "0", "0"]
+  - matrix:
+      id: transaction-flow
+      title: Endogenous money transaction-flow matrix
+      description: BOMD transaction flows.
+      note: Compact accounting display of the executable model.
+      sourceRunCellId: baseline-run
+      columns: [Firms, Workers, Government, Private_banks, Sum]
+      sectors: [Firms, Households, Government, Banks, ""]
+      rows:
+        - [Loans, New loans, -Loans, "", "", +Loans, ""]
+        - [Consumption, Worker consumption, +Con_W, -Con_W, "", "", "0"]
+        - [Wages, Wages, -Wages, +Wages, "", "", "0"]
+        - [Taxes, Taxes, "", -Tax, +Tax, "", "0"]
+        - [Government, Government spending, +Spend_Govt, "", -Spend_Govt, "", "0"]
+        - [Bonds, Government bonds, "", "", +Bonds, -Bonds, "0"]
+        - [Interest, Private debt interest, -Interest, "", "", +Interest, "0"]
+        - [Fees, Bank fees, -Fee, "", "", +Fee, "0"]
+        - [Interest, Bond interest, "", "", -Int_Bonds, +Int_Bonds, "0"]
+        - [Bank spending, Bank spending, +Spend_banks, "", "", -Spend_banks, "0"]
+        - [Sum, Sum, "0", "0", "0", "0", "0"]
+  - sequence:
+      id: transaction-sequence
+      title: Endogenous money transaction sequence
+      description: Transaction sequence.
+      note: Step through loans, spending, tax, bond, interest, and fee flows.
+      source:
+        kind: matrix
+        matrixCellId: transaction-flow
+      participantColumnOrder:
+        - Firms
+        - Workers
+        - Government
+        - Private_banks
+      collapsed: true
+  - equations:
+      id: endogenous-money-equations
+      title: Endogenous money model
+      modelId: endogenous-money-model
+      rows:
+        - [Int_Bonds, Gov_Bonds * Interest_rate, "Bond interest.", $/year, flow, definition]
+        - [Deficit, Spend_Govt - Tax, "Deficit.", $/year, flow, identity]
+        - [Spend_Govt, GDP * Spend_frac, "", "", "", "", eq-437d2cc1-8540-4574-90f5-71b53de8b2d5]
+        - [Bonds, Int_Bonds + Deficit, "Bonds.", $/year, flow, identity, eq-2-Bonds]
+        - [Gov_Bonds, lag(Gov_Bonds) + Bonds, "Government bonds.", $, stock, accumulation, eq-3-Gov_Bonds]
+        - [Money, Workers_eq + Firms_eq + Banks_eq, "Money.", $, stock, identity, eq-4-Money]
+        - [GDP, Money * Velocity, "GDP.", $/year, flow, identity, eq-5-GDP]
+        - [Lend, GDP * lend_rate, "Lend.", $/year, flow, behavioral, eq-6-Lend]
+        - [Loans, Lend, "Loans.", $/year, flow, definition, eq-7-Loans]
+        - [Debt, lag(Debt) + Loans, "Private debt.", $, stock, accumulation, eq-8-Debt]
+        - [Interest, Debt * Interest_rate, "Interest.", $/year, flow, definition, eq-9-Interest]
+        - [Fee, Interest * Fee_rate, "Fee.", $/year, flow, definition, eq-10-Fee]
+        - [Spend_banks, Banks_eq * Spend_rate, "Bank spending.", $/year, flow, behavioral, eq-11-Spend_banks]
+        - [Con_W, Workers_eq * Workers_spendrate, "Worker consumption.", $/year, flow, behavioral, eq-12-Con_W]
+        - [Wages, GDP * Wage_rate, "Wages.", $/year, flow, definition, eq-13-Wages]
+        - [Tax, GDP * Tax_frac, "Taxes.", $/year, flow, policy, eq-14-Tax]
+        - [Workers_eq, lag(Workers_eq) + Wages - Con_W - Tax, "Workers account.", $, stock, accumulation, eq-15-Workers_eq]
+        - [Firms_eq, lag(Firms_eq) + Con_W + Loans + Spend_Govt + Spend_banks - Wages - Interest - Fee, "Firms account.", $, stock, accumulation, eq-16-Firms_eq]
+        - [Banks_eq, lag(Banks_eq) + Interest + Fee + Int_Bonds - Spend_banks, "Banks account.", $, stock, accumulation, eq-17-Banks_eq]
+        - [Govt_Debt_GDP, Gov_Bonds / GDP, "Government debt to GDP.", "", aux, definition, eq-18-Govt_Debt_GDP]
+        - [Private_Debt_GDP, Debt / GDP, "Private debt to GDP.", "", aux, definition, eq-19-Private_Debt_GDP]
+        - [BankAssets, Gov_Bonds + Debt, "Bank assets.", $, stock, identity, eq-20-BankAssets]
+        - [NominalGrowth, (GDP - lag(GDP)) / lag(GDP), "GDP growth.", "", aux, definition, eq-21-NominalGrowth]
+  - solver:
+      id: endogenous-money-solver
+      title: Solver
+      modelId: endogenous-money-model
+      collapsed: true
+      method: gauss-seidel
+      tolerance: "1e-8"
+      maxIterations: 200
+      defaultInitialValue: "1e-15"
+      hiddenLeftVariable: ""
+      hiddenRightVariable: ""
+      hiddenTolerance: "1e-5"
+      relativeHiddenTolerance: false
+  - externals:
+      id: endogenous-money-externals
+      title: Externals
+      modelId: endogenous-money-model
+      rows:
+        - [Spend_frac, 0.31, "Government spending.", $/year, aux, ext-0-Spend_Govt]
+        - [Velocity, 2, "Velocity.", 1/year, aux]
+        - [lend_rate, 0.05, "Lend rate.", "", aux]
+        - [Interest_rate, 0.05, "Debt interest rate.", 1/year, aux, ext-4-Interest_Rate]
+        - [Fee_rate, 0.5, "Fee rate.", "", aux, ext-5-Fee_rate]
+        - [Spend_rate, 0.1, "Bank spend rate.", 1/year, aux, ext-6-Spend_rate]
+        - [Workers_spendrate, 0.08, "Worker spend rate.", 1/year, aux, ext-7-Workers_spendrate]
+        - [Wage_rate, 0.65, "Wage rate.", "", aux, ext-8-Wage_rate]
+        - [Tax_frac, 0.3, "Tax rate.", "", aux, ext-9-Tax_rate]
+  - initial-values:
+      id: endogenous-money-initial-values
+      title: Initial values
+      modelId: endogenous-money-model
+      rows:
+        - [Workers_eq, 80, init-3-Workers_eq]
+        - [Firms_eq, 10, init-4-Firms_eq]
+        - [Banks_eq, 10, init-5-Banks_eq]
+  - run:
+      id: baseline-run
+      title: Baseline run
+      description: Baseline endogenous-money run.
+      sourceModelId: endogenous-money-model
+      mode: baseline
+      periods: 80
+      resultKey: endogenous_money_baseline
+  - chart:
+      id: baseline-money-chart
+      title: Money, loans, and GDP
+      variables:
+        - GDP
+        - Money
+        - Loans
+        - BankAssets
+      axisMode: separate
+      axisSnapTolarance: 0.1
+      niceScale: true
+      sourceRunCellId: baseline-run
+  - chart:
+      id: baseline-debt-chart
+      title: Debt ratios
+      variables:
+        - Govt_Debt_GDP
+        - Private_Debt_GDP
+        - Gov_Bonds
+        - Debt
+      axisMode: separate
+      axisSnapTolarance: 0.1
+      niceScale: true
+      sourceRunCellId: baseline-run
+  - table:
+      id: baseline-sector-table
+      title: Sector account summary
+      variables:
+        - Workers_eq
+        - Firms_eq
+        - Banks_eq
+        - Money
+        - GDP
+        - Govt_Debt_GDP
+        - Private_Debt_GDP
+      sourceRunCellId: baseline-run
+  - markdown:
+      id: higher-spending-note
+      title: Scenario
+      source: |-
+        ## Scenario: higher government spending
+
+        This scenario raises `Spend_Govt` from 35 to 45 from period 10 onward. The debt-ratio charts show the response of government and private debt relative to GDP.
+  - run:
+      id: higher-deficit-run
+      title: "Scenario: higher government spending"
+      description: Raise government spending.
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 10
+              - 80
+            variables:
+              Spend_Govt:
+                kind: constant
+                value: 45
+            startPeriodInclusive: 10
+            endPeriodInclusive: 80
+      baselineRunCellId: baseline-run
+      periods: 80
+      resultKey: endogenous_money_higher_spending
+      sourceModelId: endogenous-money-model
+  - chart:
+      id: higher-deficit-chart
+      title: Higher spending results
+      variables:
+        - GDP
+        - Govt_Debt_GDP
+        - Private_Debt_GDP
+        - Money
+      axisMode: separate
+      axisSnapTolarance: 0.1
+      niceScale: true
+      sourceRunCellId: higher-deficit-run
+  - sequence:
+      id: equation-dependency-graph
+      title: Endogenous money dependency graph
+      description: Model dependency view.
+      source:
+        kind: dependency
+        modelId: endogenous-money-model
+        showAccountingStrips: true
+        showExogenous: false
+      collapsed: true
