@@ -2,9 +2,12 @@
 
 import "@testing-library/jest-dom/vitest";
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { ExternalRow } from "../src/lib/editorModel";
 import { ExternalEditor } from "../src/components/ExternalEditor";
 
 afterEach(() => {
@@ -74,5 +77,45 @@ describe("ExternalEditor", () => {
 
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange.mock.calls[0]?.[0]).toHaveLength(1);
+  });
+
+  it("supports right-click external actions for adding, moving, and deleting rows", async () => {
+    const user = userEvent.setup();
+    const initialExternals: ExternalRow[] = [
+      { id: "ext-g", name: "G", kind: "constant", valueText: "20" },
+      { id: "ext-alpha1", name: "alpha1", kind: "constant", valueText: "0.6" }
+    ];
+
+    function StatefulExternalEditor() {
+      const [externals, setExternals] = useState(initialExternals);
+      return <ExternalEditor externals={externals} issues={{}} onChange={setExternals} />;
+    }
+
+    render(<StatefulExternalEditor />);
+
+    const getDataRows = () => screen.getAllByRole("row").slice(1);
+    const gRow = () => getDataRows()[0]!;
+
+    fireEvent.contextMenu(gRow());
+    await user.click(
+      within(screen.getByRole("menu", { name: /external actions for row 1/i })).getByRole("menuitem", {
+        name: /^add external$/i
+      })
+    );
+    expect(getDataRows()).toHaveLength(3);
+    expect(within(getDataRows()[0]!).getByDisplayValue("G")).toBeInTheDocument();
+    expect(within(getDataRows()[1]!).getByLabelText(/external 2 name/i)).toHaveValue("");
+
+    fireEvent.contextMenu(gRow());
+    await user.click(
+      within(screen.getByRole("menu", { name: /external actions for row 1/i })).getByRole("menuitem", {
+        name: /delete/i
+      })
+    );
+    await user.click(within(screen.getByRole("dialog", { name: /delete g/i })).getByRole("button", {
+      name: /^delete$/i
+    }));
+    expect(getDataRows()).toHaveLength(2);
+    expect(screen.queryByDisplayValue("G")).not.toBeInTheDocument();
   });
 });

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type MouseEvent as ReactMouseEvent } from "react";
 
 import { evaluateExpression, parseExpression, type SimulationResult } from "@sfcr/core";
 
@@ -86,6 +86,16 @@ export function MatrixCellView({
   const isVirtualizedMatrix =
     cell.id === "transaction-flow" &&
     evaluatedMatrix.rows.length > MATRIX_VIRTUALIZATION_ROW_THRESHOLD;
+  const [rowContextMenu, setRowContextMenu] = useState<{ rowIndex: number; x: number; y: number } | null>(
+    null
+  );
+  const [columnContextMenu, setColumnContextMenu] = useState<{ columnIndex: number; x: number; y: number } | null>(
+    null
+  );
+  const [pendingDeleteRowIndex, setPendingDeleteRowIndex] = useState<number | null>(null);
+  const [pendingDeleteColumnIndex, setPendingDeleteColumnIndex] = useState<number | null>(null);
+  const rowContextMenuRef = useRef<HTMLDivElement | null>(null);
+  const columnContextMenuRef = useRef<HTMLDivElement | null>(null);
   const sourceRunCell = cell.sourceRunCellId
     ? cells.find((entry): entry is RunCell => entry.type === "run" && entry.id === cell.sourceRunCellId)
     : null;
@@ -107,6 +117,95 @@ export function MatrixCellView({
       variableUnitMetadata
     };
   }, [currentValues, editor, modelSource, variableDescriptions, variableUnitMetadata]);
+
+  const closeContextMenus = useCallback(() => {
+    setRowContextMenu(null);
+    setColumnContextMenu(null);
+  }, []);
+
+  useEffect(() => {
+    if (rowContextMenu && rowContextMenuRef.current) {
+      rowContextMenuRef.current.style.left = `${rowContextMenu.x}px`;
+      rowContextMenuRef.current.style.top = `${rowContextMenu.y}px`;
+    }
+    if (columnContextMenu && columnContextMenuRef.current) {
+      columnContextMenuRef.current.style.left = `${columnContextMenu.x}px`;
+      columnContextMenuRef.current.style.top = `${columnContextMenu.y}px`;
+    }
+
+    if (rowContextMenu == null && columnContextMenu == null) {
+      return;
+    }
+
+    function handlePointerDown(): void {
+      closeContextMenus();
+    }
+
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (event.key === "Escape") {
+        closeContextMenus();
+      }
+    }
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [closeContextMenus, columnContextMenu, rowContextMenu]);
+
+  const applyMatrixUpdate = useCallback(
+    (updater: (current: MatrixCell) => MatrixCell) => {
+      onCellChange(cell.id, (current) => (current.type === "matrix" ? updater(current) : current));
+    },
+    [cell.id, onCellChange]
+  );
+
+  const handleMatrixRowContextMenu = useCallback(
+    (event: ReactMouseEvent<HTMLElement>, rowIndex: number) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setColumnContextMenu(null);
+      setRowContextMenu({ rowIndex, x: event.clientX, y: event.clientY });
+    },
+    []
+  );
+
+  const handleMatrixColumnContextMenu = useCallback(
+    (event: ReactMouseEvent<HTMLElement>, columnIndex: number) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setRowContextMenu(null);
+      setColumnContextMenu({ columnIndex, x: event.clientX, y: event.clientY });
+    },
+    []
+  );
+
+  const sumRowIndexInCell = cell.rows.findIndex((row) => row.label.trim().toLowerCase() === "sum");
+  const sumColumnIndexInCell = cell.columns.findIndex((column) => column.trim().toLowerCase() === "sum");
+
+  const canMoveMatrixRowUp = (rowIndex: number) =>
+    rowIndex > 0 && rowIndex < cell.rows.length && rowIndex !== sumRowIndexInCell;
+  const canMoveMatrixRowDown = (rowIndex: number) =>
+    rowIndex >= 0 &&
+    rowIndex < cell.rows.length - 1 &&
+    rowIndex !== sumRowIndexInCell;
+  const canDeleteMatrixRow = (rowIndex: number) =>
+    cell.rows.length > 1 && rowIndex >= 0 && rowIndex < cell.rows.length && rowIndex !== sumRowIndexInCell;
+
+  const canMoveMatrixColumnLeft = (columnIndex: number) =>
+    columnIndex > 0 && columnIndex < cell.columns.length && columnIndex !== sumColumnIndexInCell;
+  const canMoveMatrixColumnRight = (columnIndex: number) =>
+    columnIndex >= 0 &&
+    columnIndex < cell.columns.length - 1 &&
+    columnIndex !== sumColumnIndexInCell;
+  const canDeleteMatrixColumn = (columnIndex: number) =>
+    cell.columns.length > 1 &&
+    columnIndex >= 0 &&
+    columnIndex < cell.columns.length &&
+    columnIndex !== sumColumnIndexInCell;
 
   const clearDeferredVariableInspect = useCallback(() => {
     if (variableInspectTimeoutRef.current != null) {
@@ -251,6 +350,7 @@ export function MatrixCellView({
           key={column}
           scope="col"
           className={columnIndex === sumColumnIndex ? "notebook-matrix-sum-column" : undefined}
+          onContextMenu={(event) => handleMatrixColumnContextMenu(event, columnIndex)}
         >
           {editor ? (
             <button
@@ -295,7 +395,7 @@ export function MatrixCellView({
             key={row.label}
             className={row.isSumRow && !row.isBalanced ? "matrix-balance-error" : undefined}
           >
-            <th scope="row">
+            <th scope="row" onContextMenu={(event) => handleMatrixRowContextMenu(event, rowIndex)}>
               <NotebookRenderProfiler
                 id="MatrixTableRowLabel"
                 metadata={{
@@ -520,6 +620,217 @@ export function MatrixCellView({
           </div>
         </NotebookRenderProfiler>
       </div>
+      {rowContextMenu ? (
+        <div
+          ref={rowContextMenuRef}
+          className="notebook-cell-context-menu"
+          role="menu"
+          aria-label={`Matrix row actions for row ${rowContextMenu.rowIndex + 1}`}
+          onClick={(event) => event.stopPropagation()}
+          onContextMenu={(event) => event.preventDefault()}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              applyMatrixUpdate((current) => ({
+                ...current,
+                rows: insertMatrixRowBelow(current.rows, rowContextMenu.rowIndex, current.columns.length)
+              }));
+              closeContextMenus();
+            }}
+          >
+            Add row
+          </button>
+          <div className="notebook-cell-context-menu-separator" role="separator" />
+          <button
+            type="button"
+            role="menuitem"
+            disabled={!canMoveMatrixRowUp(rowContextMenu.rowIndex)}
+            onClick={() => {
+              applyMatrixUpdate((current) => ({
+                ...current,
+                rows: moveMatrixRow(current.rows, rowContextMenu.rowIndex, -1)
+              }));
+              closeContextMenus();
+            }}
+          >
+            Move up
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={!canMoveMatrixRowDown(rowContextMenu.rowIndex)}
+            onClick={() => {
+              applyMatrixUpdate((current) => ({
+                ...current,
+                rows: moveMatrixRow(current.rows, rowContextMenu.rowIndex, 1)
+              }));
+              closeContextMenus();
+            }}
+          >
+            Move down
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="is-danger"
+            disabled={!canDeleteMatrixRow(rowContextMenu.rowIndex)}
+            onClick={() => {
+              setPendingDeleteRowIndex(rowContextMenu.rowIndex);
+              closeContextMenus();
+            }}
+          >
+            Delete
+          </button>
+        </div>
+      ) : null}
+      {columnContextMenu ? (
+        <div
+          ref={columnContextMenuRef}
+          className="notebook-cell-context-menu"
+          role="menu"
+          aria-label={`Matrix column actions for column ${columnContextMenu.columnIndex + 1}`}
+          onClick={(event) => event.stopPropagation()}
+          onContextMenu={(event) => event.preventDefault()}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              applyMatrixUpdate((current) =>
+                insertMatrixColumnRight(current, columnContextMenu.columnIndex)
+              );
+              closeContextMenus();
+            }}
+          >
+            Add column
+          </button>
+          <div className="notebook-cell-context-menu-separator" role="separator" />
+          <button
+            type="button"
+            role="menuitem"
+            disabled={!canMoveMatrixColumnLeft(columnContextMenu.columnIndex)}
+            onClick={() => {
+              applyMatrixUpdate((current) =>
+                moveMatrixColumn(current, columnContextMenu.columnIndex, -1)
+              );
+              closeContextMenus();
+            }}
+          >
+            Move left
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={!canMoveMatrixColumnRight(columnContextMenu.columnIndex)}
+            onClick={() => {
+              applyMatrixUpdate((current) =>
+                moveMatrixColumn(current, columnContextMenu.columnIndex, 1)
+              );
+              closeContextMenus();
+            }}
+          >
+            Move right
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="is-danger"
+            disabled={!canDeleteMatrixColumn(columnContextMenu.columnIndex)}
+            onClick={() => {
+              setPendingDeleteColumnIndex(columnContextMenu.columnIndex);
+              closeContextMenus();
+            }}
+          >
+            Delete
+          </button>
+        </div>
+      ) : null}
+      {pendingDeleteRowIndex != null ? (
+        <div className="notebook-cell-delete-dialog-backdrop" onClick={() => setPendingDeleteRowIndex(null)}>
+          <div
+            className="notebook-cell-delete-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Delete matrix row ${cell.rows[pendingDeleteRowIndex]?.label.trim() || pendingDeleteRowIndex + 1}`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3>Delete matrix row?</h3>
+            <p>
+              Delete{" "}
+              <strong>
+                {cell.rows[pendingDeleteRowIndex]?.label.trim() || `Row ${pendingDeleteRowIndex + 1}`}
+              </strong>{" "}
+              from this matrix?
+            </p>
+            <div className="notebook-cell-delete-dialog-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setPendingDeleteRowIndex(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="is-danger"
+                onClick={() => {
+                  applyMatrixUpdate((current) => ({
+                    ...current,
+                    rows: removeMatrixRow(current.rows, pendingDeleteRowIndex)
+                  }));
+                  setPendingDeleteRowIndex(null);
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {pendingDeleteColumnIndex != null ? (
+        <div className="notebook-cell-delete-dialog-backdrop" onClick={() => setPendingDeleteColumnIndex(null)}>
+          <div
+            className="notebook-cell-delete-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Delete matrix column ${cell.columns[pendingDeleteColumnIndex]?.trim() || pendingDeleteColumnIndex + 1}`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3>Delete matrix column?</h3>
+            <p>
+              Delete{" "}
+              <strong>
+                {cell.columns[pendingDeleteColumnIndex]?.trim() ||
+                  `Column ${pendingDeleteColumnIndex + 1}`}
+              </strong>{" "}
+              from this matrix?
+            </p>
+            <div className="notebook-cell-delete-dialog-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setPendingDeleteColumnIndex(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="is-danger"
+                onClick={() => {
+                  applyMatrixUpdate((current) => removeMatrixColumn(current, pendingDeleteColumnIndex));
+                  setPendingDeleteColumnIndex(null);
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <VariableRenameDialog
         cellCount={matrixEntryEdit.renameReferenceCount.cellCount}
         isOpen={matrixEntryEdit.renameDialog != null}
@@ -549,6 +860,90 @@ function resolveEditorStateForRunCellId(cells: NotebookCell[], sourceRunCellId: 
     },
     sourceRunCell
   );
+}
+
+function insertMatrixRowBelow(
+  rows: MatrixCell["rows"],
+  rowIndex: number,
+  columnCount: number
+): MatrixCell["rows"] {
+  const next = rows.slice();
+  next.splice(rowIndex + 1, 0, {
+    label: "",
+    values: Array.from({ length: columnCount }, () => "")
+  });
+  return next;
+}
+
+function moveMatrixRow(rows: MatrixCell["rows"], rowIndex: number, direction: -1 | 1): MatrixCell["rows"] {
+  const targetIndex = rowIndex + direction;
+  if (targetIndex < 0 || targetIndex >= rows.length) {
+    return rows;
+  }
+  const next = rows.slice();
+  const [moved] = next.splice(rowIndex, 1);
+  next.splice(targetIndex, 0, moved);
+  return next;
+}
+
+function removeMatrixRow(rows: MatrixCell["rows"], rowIndex: number): MatrixCell["rows"] {
+  return rows.filter((_, index) => index !== rowIndex);
+}
+
+function insertMatrixColumnRight(cell: MatrixCell, columnIndex: number): MatrixCell {
+  const nextColumns = cell.columns.slice();
+  nextColumns.splice(columnIndex + 1, 0, "");
+  return {
+    ...cell,
+    columns: nextColumns,
+    rows: cell.rows.map((row) => ({
+      ...row,
+      values: insertMatrixValue(row.values, columnIndex + 1)
+    }))
+  };
+}
+
+function moveMatrixColumn(cell: MatrixCell, columnIndex: number, direction: -1 | 1): MatrixCell {
+  const targetIndex = columnIndex + direction;
+  if (targetIndex < 0 || targetIndex >= cell.columns.length) {
+    return cell;
+  }
+
+  const nextColumns = cell.columns.slice();
+  const [movedColumn] = nextColumns.splice(columnIndex, 1);
+  nextColumns.splice(targetIndex, 0, movedColumn);
+
+  return {
+    ...cell,
+    columns: nextColumns,
+    rows: cell.rows.map((row) => ({ ...row, values: moveMatrixValue(row.values, columnIndex, direction) }))
+  };
+}
+
+function removeMatrixColumn(cell: MatrixCell, columnIndex: number): MatrixCell {
+  const nextColumns = cell.columns.filter((_, index) => index !== columnIndex);
+  return {
+    ...cell,
+    columns: nextColumns,
+    rows: cell.rows.map((row) => ({ ...row, values: row.values.filter((_, index) => index !== columnIndex) }))
+  };
+}
+
+function insertMatrixValue(values: string[], insertIndex: number): string[] {
+  const next = values.slice();
+  next.splice(insertIndex, 0, "");
+  return next;
+}
+
+function moveMatrixValue(values: string[], index: number, direction: -1 | 1): string[] {
+  const targetIndex = index + direction;
+  if (targetIndex < 0 || targetIndex >= values.length) {
+    return values;
+  }
+  const next = values.slice();
+  const [moved] = next.splice(index, 1);
+  next.splice(targetIndex, 0, moved);
+  return next;
 }
 
 function buildEvaluatedMatrix(

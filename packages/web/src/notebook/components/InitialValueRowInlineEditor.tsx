@@ -101,6 +101,7 @@ export function NotebookInitialValueReadRow({
   initialValueIndex,
   isEditing,
   issueMessage,
+  onContextMenu,
   rowDraft,
   rowEditFocus,
   rowValidationError,
@@ -119,6 +120,7 @@ export function NotebookInitialValueReadRow({
   initialValueIndex: number;
   isEditing: boolean;
   issueMessage?: string;
+  onContextMenu?(event: React.MouseEvent<HTMLDivElement>): void;
   rowDraft: { name: string; valueText: string };
   rowEditFocus: InitialValueRowEditFocus;
   rowValidationError: string | null;
@@ -182,6 +184,7 @@ export function NotebookInitialValueReadRow({
         .filter(Boolean)
         .join(" ")}
       onDoubleClick={(event) => handleBeginEdit("value", event)}
+      onContextMenu={onContextMenu}
       role="row"
     >
       <span

@@ -69,8 +69,16 @@ export function setupAppTestEnv(): void {
   });
 
   beforeEach(() => {
-    window.location.hash = "#/workspace";
+    window.history.replaceState(null, "", "/#/workspace");
     window.localStorage.clear();
+    Object.defineProperty(window, "scrollTo", {
+      configurable: true,
+      value: vi.fn()
+    });
+    Object.defineProperty(HTMLElement.prototype, "scrollTo", {
+      configurable: true,
+      value: vi.fn()
+    });
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
       value: {

@@ -1,5 +1,13 @@
 import type { ExternalRow } from "../lib/editorModel";
 import { formatUnitLabel } from "../lib/unitMeta";
+import {
+  canMoveRowDown,
+  canMoveRowUp,
+  GridRowContextMenu,
+  GridRowDeleteDialog,
+  removeRow,
+  useGridRowContextMenu
+} from "./GridRowContextMenu";
 
 interface ExternalEditorProps {
   currentValues?: Record<string, number | undefined>;
@@ -18,6 +26,12 @@ export function ExternalEditor({
   onChange,
   showHeading = true
 }: ExternalEditorProps) {
+  const rowContextMenu = useGridRowContextMenu({
+    ignoredSelector: "button, select",
+    onChangeRows: onChange,
+    rows: externals
+  });
+
   return (
     <section className={isEmbedded ? "grid-editor-embedded" : "editor-panel"}>
       {showHeading ? (
@@ -52,6 +66,7 @@ export function ExternalEditor({
                 : ""
             }`}
             key={external.id}
+            onContextMenu={(event) => rowContextMenu.handleRowContextMenu(event, index)}
             role="row"
           >
             <span className="external-grid-index">{index + 1}</span>
@@ -129,6 +144,35 @@ export function ExternalEditor({
           Add external
         </button>
       </div>
+
+      {rowContextMenu.rowContextMenu ? (
+        <GridRowContextMenu
+          addItemLabel="Add external"
+          canMoveDown={canMoveRowDown(externals, rowContextMenu.rowContextMenu.rowIndex)}
+          canMoveUp={canMoveRowUp(externals, rowContextMenu.rowContextMenu.rowIndex)}
+          menuRef={rowContextMenu.rowContextMenuRef}
+          menuTypeLabel="External"
+          onAdd={() =>
+            rowContextMenu.insertRowBelow(rowContextMenu.rowContextMenu!.rowIndex, newExternalRow())
+          }
+          onDelete={() => rowContextMenu.requestDelete(rowContextMenu.rowContextMenu!.rowIndex)}
+          onMoveDown={() => rowContextMenu.moveRowAt(rowContextMenu.rowContextMenu!.rowIndex, 1)}
+          onMoveUp={() => rowContextMenu.moveRowAt(rowContextMenu.rowContextMenu!.rowIndex, -1)}
+          rowIndex={rowContextMenu.rowContextMenu.rowIndex}
+        />
+      ) : null}
+
+      {rowContextMenu.deleteDialogRowIndex != null ? (
+        <GridRowDeleteDialog
+          deleteTitle="Delete external?"
+          itemLabel={formatExternalDeleteLabel(
+            externals[rowContextMenu.deleteDialogRowIndex],
+            rowContextMenu.deleteDialogRowIndex
+          )}
+          onCancel={rowContextMenu.cancelDelete}
+          onConfirm={rowContextMenu.confirmDelete}
+        />
+      ) : null}
     </section>
   );
 }
@@ -152,6 +196,7 @@ function updateRow(
   onChange(rows.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)));
 }
 
-function removeRow<T>(rows: T[], index: number): T[] {
-  return rows.filter((_, rowIndex) => rowIndex !== index);
+function formatExternalDeleteLabel(external: ExternalRow | undefined, rowIndex: number): string {
+  const name = external?.name.trim();
+  return name ? name : `External ${rowIndex + 1}`;
 }

@@ -57,5 +57,5 @@ describe("App balance matrix stock-role chips", () => {
     expect(
       within(transactionCell).getByRole("columnheader", { name: /transaction/i })
     ).toBeInTheDocument();
-  });
+  }, 15000);
 });

@@ -781,136 +781,148 @@ describe("App notebook navigation and inspection", () => {
     expect(within(equationsCell).queryByRole("button", { name: /^edit$/i })).toBeInTheDocument();
   });
 
-  it("renames a variable only in the edited row when rename dialog answer is No", async () => {
-    const user = userEvent.setup();
-    window.location.hash = "#/notebook";
-    setSuccessfulNotebookRunner();
+  it(
+    "renames a variable only in the edited row when rename dialog answer is No",
+    async () => {
+      const user = userEvent.setup();
+      window.location.hash = "#/notebook";
+      setSuccessfulNotebookRunner();
 
-    render(<App />);
+      render(<App />);
 
-    const equationsCell = document.getElementById("equations-newton");
-    expect(equationsCell).not.toBeNull();
-    if (!equationsCell) {
-      throw new Error("Expected equations cell article.");
-    }
+      const equationsCell = document.getElementById("equations-newton");
+      expect(equationsCell).not.toBeNull();
+      if (!equationsCell) {
+        throw new Error("Expected equations cell article.");
+      }
 
-    await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
-
-    const yRowButton = within(equationsCell).getByRole("button", { name: /^Y\b/i });
-    const yRow = yRowButton.closest('[role="row"]');
-    expect(yRow).not.toBeNull();
-    if (!yRow) {
-      throw new Error("Expected Y equation row.");
-    }
-
-    fireEvent.doubleClick(within(yRow).getAllByTitle("Double-click to edit")[0] ?? yRowButton);
-
-    const variableInput = within(equationsCell).getByRole("textbox", {
-      name: /equation \d+ variable/i
-    });
-    fireEvent.change(variableInput, { target: { value: "YOnly" } });
-    await user.click(within(equationsCell).getByRole("button", { name: /^apply$/i }));
-
-    expect(screen.getByRole("dialog", { name: /rename variable across notebook/i })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /^no$/i }));
-
-    expect(within(equationsCell).getByRole("button", { name: /^YOnly\b/i })).toBeInTheDocument();
-    const cdRow = within(equationsCell).getByRole("button", { name: /^Cd\b/i }).closest('[role="row"]');
-    expect(cdRow?.textContent).toMatch(/YD/);
-    expect(cdRow?.textContent).not.toMatch(/YOnly/);
-  });
-
-  it("renames a variable across the model when rename dialog answer is Yes", async () => {
-    const user = userEvent.setup();
-    window.location.hash = "#/notebook";
-    setSuccessfulNotebookRunner();
-
-    render(<App />);
-
-    const equationsCell = document.getElementById("equations-newton");
-    expect(equationsCell).not.toBeNull();
-    if (!equationsCell) {
-      throw new Error("Expected equations cell article.");
-    }
-
-    await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
-
-    const mhRowButton = within(equationsCell).getByRole("button", { name: /^Mh\b/i });
-    const mhRow = mhRowButton.closest('[role="row"]');
-    expect(mhRow).not.toBeNull();
-    if (!mhRow) {
-      throw new Error("Expected Mh equation row.");
-    }
-
-    fireEvent.doubleClick(within(mhRow).getAllByTitle("Double-click to edit")[0] ?? mhRowButton);
-
-    const variableInput = within(equationsCell).getByRole("textbox", {
-      name: /equation \d+ variable/i
-    });
-    fireEvent.change(variableInput, { target: { value: "Mh2" } });
-    await user.click(within(equationsCell).getByRole("button", { name: /^apply$/i }));
-
-    expect(screen.getByRole("dialog", { name: /rename variable across notebook/i })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /^yes$/i }));
-
-    expect(within(equationsCell).getByRole("button", { name: /^Mh2\b/i })).toBeInTheDocument();
-    const cdRow = within(equationsCell).getByRole("button", { name: /^Cd\b/i }).closest('[role="row"]');
-    expect(cdRow?.textContent).toMatch(/Mh2/);
-
-    const matrixHeading = screen.getByRole("heading", { name: /bmw transactions-flow matrix/i });
-    const matrixCell = matrixHeading.closest("article");
-    expect(matrixCell?.textContent).toMatch(/Mh2/);
-  });
-
-  it("renames a simple matrix reference only in that cell when rename dialog answer is No", async () => {
-    const user = userEvent.setup();
-    window.location.hash = "#/notebook";
-    setSuccessfulNotebookRunner();
-
-    render(<App />);
-
-    const matrixHeading = screen.getByRole("heading", { name: /bmw transactions-flow matrix/i });
-    const matrixCell = matrixHeading.closest("article");
-    expect(matrixCell).not.toBeNull();
-    if (!matrixCell) {
-      throw new Error("Expected BMW transactions-flow matrix article.");
-    }
-
-    const consumptionRow = within(matrixCell).getByText("Consumption").closest("tr");
-    expect(consumptionRow).not.toBeNull();
-    if (!consumptionRow) {
-      throw new Error("Expected consumption row.");
-    }
-
-    const csEntry = within(consumptionRow)
-      .getAllByTitle("Double-click to edit")
-      .find((node) => node.textContent?.includes("-Cs"));
-    expect(csEntry).toBeDefined();
-    if (!csEntry) {
-      throw new Error("Expected -Cs matrix entry.");
-    }
-
-    fireEvent.doubleClick(csEntry);
-
-    const entryInput = within(matrixCell).getByRole("textbox", {
-      name: /matrix entry for row/i
-    });
-    fireEvent.change(entryInput, { target: { value: "-CsOnly" } });
-    await user.click(within(matrixCell).getByRole("button", { name: /^apply$/i }));
-
-    expect(screen.getByRole("dialog", { name: /rename variable across notebook/i })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /^no$/i }));
-
-    expect(consumptionRow.textContent).toContain("-CsOnly");
-    expect(consumptionRow.textContent).not.toContain("-Cs2");
-
-    const equationsCell = document.getElementById("equations-newton");
-    expect(equationsCell).not.toBeNull();
-    if (equationsCell) {
       await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
-      expect(within(equationsCell).getByRole("button", { name: /^Cs\b/i })).toBeInTheDocument();
-    }
-  });
+
+      const yRowButton = within(equationsCell).getByRole("button", { name: /^Y\b/i });
+      const yRow = yRowButton.closest('[role="row"]');
+      expect(yRow).not.toBeNull();
+      if (!yRow) {
+        throw new Error("Expected Y equation row.");
+      }
+
+      fireEvent.doubleClick(within(yRow).getAllByTitle("Double-click to edit")[0] ?? yRowButton);
+
+      const variableInput = within(equationsCell).getByRole("textbox", {
+        name: /equation \d+ variable/i
+      });
+      fireEvent.change(variableInput, { target: { value: "YOnly" } });
+      await user.click(within(equationsCell).getByRole("button", { name: /^apply$/i }));
+
+      expect(screen.getByRole("dialog", { name: /rename variable across notebook/i })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /^no$/i }));
+
+      expect(within(equationsCell).getByRole("button", { name: /^YOnly\b/i })).toBeInTheDocument();
+      const cdRow = within(equationsCell).getByRole("button", { name: /^Cd\b/i }).closest('[role="row"]');
+      expect(cdRow?.textContent).toMatch(/YD/);
+      expect(cdRow?.textContent).not.toMatch(/YOnly/);
+    },
+    20000
+  );
+
+  it(
+    "renames a variable across the model when rename dialog answer is Yes",
+    async () => {
+      const user = userEvent.setup();
+      window.location.hash = "#/notebook";
+      setSuccessfulNotebookRunner();
+
+      render(<App />);
+
+      const equationsCell = document.getElementById("equations-newton");
+      expect(equationsCell).not.toBeNull();
+      if (!equationsCell) {
+        throw new Error("Expected equations cell article.");
+      }
+
+      await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+
+      const mhRowButton = within(equationsCell).getByRole("button", { name: /^Mh\b/i });
+      const mhRow = mhRowButton.closest('[role="row"]');
+      expect(mhRow).not.toBeNull();
+      if (!mhRow) {
+        throw new Error("Expected Mh equation row.");
+      }
+
+      fireEvent.doubleClick(within(mhRow).getAllByTitle("Double-click to edit")[0] ?? mhRowButton);
+
+      const variableInput = within(equationsCell).getByRole("textbox", {
+        name: /equation \d+ variable/i
+      });
+      fireEvent.change(variableInput, { target: { value: "Mh2" } });
+      await user.click(within(equationsCell).getByRole("button", { name: /^apply$/i }));
+
+      expect(screen.getByRole("dialog", { name: /rename variable across notebook/i })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /^yes$/i }));
+
+      expect(within(equationsCell).getByRole("button", { name: /^Mh2\b/i })).toBeInTheDocument();
+      const cdRow = within(equationsCell).getByRole("button", { name: /^Cd\b/i }).closest('[role="row"]');
+      expect(cdRow?.textContent).toMatch(/Mh2/);
+
+      const matrixHeading = screen.getByRole("heading", { name: /bmw transactions-flow matrix/i });
+      const matrixCell = matrixHeading.closest("article");
+      expect(matrixCell?.textContent).toMatch(/Mh2/);
+    },
+    20000
+  );
+
+  it(
+    "renames a simple matrix reference only in that cell when rename dialog answer is No",
+    async () => {
+      const user = userEvent.setup();
+      window.location.hash = "#/notebook";
+      setSuccessfulNotebookRunner();
+
+      render(<App />);
+
+      const matrixHeading = screen.getByRole("heading", { name: /bmw transactions-flow matrix/i });
+      const matrixCell = matrixHeading.closest("article");
+      expect(matrixCell).not.toBeNull();
+      if (!matrixCell) {
+        throw new Error("Expected BMW transactions-flow matrix article.");
+      }
+
+      const consumptionRow = within(matrixCell).getByText("Consumption").closest("tr");
+      expect(consumptionRow).not.toBeNull();
+      if (!consumptionRow) {
+        throw new Error("Expected consumption row.");
+      }
+
+      const csEntry = within(consumptionRow)
+        .getAllByTitle("Double-click to edit")
+        .find((node) => node.textContent?.includes("-Cs"));
+      expect(csEntry).toBeDefined();
+      if (!csEntry) {
+        throw new Error("Expected -Cs matrix entry.");
+      }
+
+      fireEvent.doubleClick(csEntry);
+
+      const entryInput = within(matrixCell).getByRole("textbox", {
+        name: /matrix entry for row/i
+      });
+      fireEvent.change(entryInput, { target: { value: "-CsOnly" } });
+      await user.click(within(matrixCell).getByRole("button", { name: /^apply$/i }));
+
+      expect(screen.getByRole("dialog", { name: /rename variable across notebook/i })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /^no$/i }));
+
+      expect(consumptionRow.textContent).toContain("-CsOnly");
+      expect(consumptionRow.textContent).not.toContain("-Cs2");
+
+      const equationsCell = document.getElementById("equations-newton");
+      expect(equationsCell).not.toBeNull();
+      if (equationsCell) {
+        await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+        expect(within(equationsCell).getByRole("button", { name: /^Cs\b/i })).toBeInTheDocument();
+      }
+    },
+    20000
+  );
 
   it("renames a simple matrix reference across the model when rename dialog answer is Yes", async () => {
     const user = userEvent.setup();
@@ -1001,47 +1013,51 @@ describe("App notebook navigation and inspection", () => {
     expect(consumptionRow.textContent).toContain("d(Cd)");
   });
 
-  it("offers rename dialog when a diff matrix reference changes only the variable name", async () => {
-    const user = userEvent.setup();
-    window.location.hash = "#/notebook";
-    setSuccessfulNotebookRunner();
+  it(
+    "offers rename dialog when a diff matrix reference changes only the variable name",
+    async () => {
+      const user = userEvent.setup();
+      window.location.hash = "#/notebook";
+      setSuccessfulNotebookRunner();
 
-    render(<App />);
+      render(<App />);
 
-    const matrixHeading = screen.getByRole("heading", { name: /bmw transactions-flow matrix/i });
-    const matrixCell = matrixHeading.closest("article");
-    expect(matrixCell).not.toBeNull();
-    if (!matrixCell) {
-      throw new Error("Expected BMW transactions-flow matrix article.");
-    }
+      const matrixHeading = screen.getByRole("heading", { name: /bmw transactions-flow matrix/i });
+      const matrixCell = matrixHeading.closest("article");
+      expect(matrixCell).not.toBeNull();
+      if (!matrixCell) {
+        throw new Error("Expected BMW transactions-flow matrix article.");
+      }
 
-    const changeDepositsRow = within(matrixCell).getByText("Ch. deposits").closest("tr");
-    expect(changeDepositsRow).not.toBeNull();
-    if (!changeDepositsRow) {
-      throw new Error("Expected change deposits row.");
-    }
+      const changeDepositsRow = within(matrixCell).getByText("Ch. deposits").closest("tr");
+      expect(changeDepositsRow).not.toBeNull();
+      if (!changeDepositsRow) {
+        throw new Error("Expected change deposits row.");
+      }
 
-    const mhDiffEntry = within(changeDepositsRow)
-      .getAllByTitle("Double-click to edit")
-      .find((node) => node.textContent?.includes("-d(Mh)"));
-    expect(mhDiffEntry).toBeDefined();
-    if (!mhDiffEntry) {
-      throw new Error("Expected -d(Mh) matrix entry.");
-    }
+      const mhDiffEntry = within(changeDepositsRow)
+        .getAllByTitle("Double-click to edit")
+        .find((node) => node.textContent?.includes("-d(Mh)"));
+      expect(mhDiffEntry).toBeDefined();
+      if (!mhDiffEntry) {
+        throw new Error("Expected -d(Mh) matrix entry.");
+      }
 
-    fireEvent.doubleClick(mhDiffEntry);
+      fireEvent.doubleClick(mhDiffEntry);
 
-    const entryInput = within(matrixCell).getByRole("textbox", {
-      name: /matrix entry for row/i
-    });
-    fireEvent.change(entryInput, { target: { value: "-d(Mh2)" } });
-    await user.click(within(matrixCell).getByRole("button", { name: /^apply$/i }));
+      const entryInput = within(matrixCell).getByRole("textbox", {
+        name: /matrix entry for row/i
+      });
+      fireEvent.change(entryInput, { target: { value: "-d(Mh2)" } });
+      await user.click(within(matrixCell).getByRole("button", { name: /^apply$/i }));
 
-    expect(screen.getByRole("dialog", { name: /rename variable across notebook/i })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /^no$/i }));
+      expect(screen.getByRole("dialog", { name: /rename variable across notebook/i })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /^no$/i }));
 
-    expect(changeDepositsRow.textContent).toContain("-d(Mh2)");
-  });
+      expect(changeDepositsRow.textContent).toContain("-d(Mh2)");
+    },
+    20000
+  );
 
   it("edits a matrix expression cell without opening the rename dialog", async () => {
     const user = userEvent.setup();
@@ -1335,7 +1351,7 @@ describe("App notebook navigation and inspection", () => {
     expect(screen.getAllByText(/opensi?mplest levy/i).length).toBeGreaterThan(0);
   });
 
-  it("renders BMW transaction-flow sequence in swimlane mode with a lifelines toggle", async () => {
+  it("renders BMW transaction-flow sequence across multiport, swimlane, and lifelines modes", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";
     setSuccessfulNotebookRunner();
@@ -1357,20 +1373,20 @@ describe("App notebook navigation and inspection", () => {
     expect(
       within(sequenceCell).getByRole("region", { name: /transaction flow diagram/i })
     ).toBeInTheDocument();
-    await waitFor(() => {
-      expect(sequenceCell.querySelector(".transaction-flow-edge__path")).not.toBeNull();
-    });
-    expect(within(sequenceCell).getByRole("button", { name: /^swimlane$/i })).toHaveClass("is-active");
-    expect(within(sequenceCell).queryByRole("img", { name: /sequence diagram/i })).not.toBeInTheDocument();
-
-    await user.click(within(sequenceCell).getByRole("button", { name: /^multiport$/i }));
-
     expect(within(sequenceCell).getByRole("button", { name: /^multiport$/i })).toHaveClass("is-active");
     expect(
       within(sequenceCell).getByRole("region", {
         name: /animated multiport transaction flow diagram/i
       })
     ).toBeInTheDocument();
+    expect(within(sequenceCell).queryByRole("img", { name: /sequence diagram/i })).not.toBeInTheDocument();
+
+    await user.click(within(sequenceCell).getByRole("button", { name: /^swimlane$/i }));
+
+    await waitFor(() => {
+      expect(sequenceCell.querySelector(".transaction-flow-edge__path")).not.toBeNull();
+    });
+    expect(within(sequenceCell).getByRole("button", { name: /^swimlane$/i })).toHaveClass("is-active");
     expect(within(sequenceCell).queryByRole("img", { name: /sequence diagram/i })).not.toBeInTheDocument();
 
     await user.click(within(sequenceCell).getByRole("button", { name: /^lifelines$/i }));

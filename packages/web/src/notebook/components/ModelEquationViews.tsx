@@ -6,6 +6,13 @@ import { EquationGridEditor } from "../../components/EquationGridEditor";
 import { buildActiveTrace, buildTraceModel, type PinnedTrace } from "../../components/EquationGridEditor";
 import { useInlineEquationRowEdit } from "../useInlineEquationRowEdit";
 import {
+  canMoveRowDown,
+  canMoveRowUp,
+  GridRowContextMenu,
+  GridRowDeleteDialog,
+  useGridRowContextMenu
+} from "../../components/GridRowContextMenu";
+import {
   NotebookEquationReadRow,
   schedulePinnedTraceToggle,
   useDeferredAction,
@@ -122,6 +129,14 @@ export function ModelCellView({
     onReplaceCells,
     scope: { kind: "legacyModelCell", cellId: cell.id }
   });
+  const equationRowMenu = useGridRowContextMenu({
+    ignoredSelector: "select",
+    onChangeRows: (equations) => {
+      inlineEdit.cancelRowEdit();
+      onChange({ ...cell.editor, equations });
+    },
+    rows: cell.editor.equations
+  });
   const { scheduleDeferredAction } = useDeferredAction();
 
   return (
@@ -221,6 +236,12 @@ export function ModelCellView({
                   hoveredRowId={hoveredRowId}
                   isEditing={inlineEdit.editingEquationId === equation.id}
                   issueMessage={issue}
+                  onContextMenu={(event) => {
+                    if (inlineEdit.editingEquationId === equation.id) {
+                      return;
+                    }
+                    equationRowMenu.handleRowContextMenu(event, index);
+                  }}
                   parameterNames={parameterNameSet}
                   rowDraft={{
                     expression: inlineEdit.draftExpression,
@@ -269,6 +290,33 @@ export function ModelCellView({
               );
             })}
           </NotebookEquationViewTable>
+          {equationRowMenu.rowContextMenu ? (
+            <GridRowContextMenu
+              addItemLabel="Add equation"
+              canMoveDown={canMoveRowDown(cell.editor.equations, equationRowMenu.rowContextMenu.rowIndex)}
+              canMoveUp={canMoveRowUp(cell.editor.equations, equationRowMenu.rowContextMenu.rowIndex)}
+              menuRef={equationRowMenu.rowContextMenuRef}
+              menuTypeLabel="Equation"
+              onAdd={() =>
+                equationRowMenu.insertRowBelow(equationRowMenu.rowContextMenu!.rowIndex, newEquationRow())
+              }
+              onDelete={() => equationRowMenu.requestDelete(equationRowMenu.rowContextMenu!.rowIndex)}
+              onMoveDown={() => equationRowMenu.moveRowAt(equationRowMenu.rowContextMenu!.rowIndex, 1)}
+              onMoveUp={() => equationRowMenu.moveRowAt(equationRowMenu.rowContextMenu!.rowIndex, -1)}
+              rowIndex={equationRowMenu.rowContextMenu.rowIndex}
+            />
+          ) : null}
+          {equationRowMenu.deleteDialogRowIndex != null ? (
+            <GridRowDeleteDialog
+              deleteTitle="Delete equation?"
+              itemLabel={formatEquationDeleteLabel(
+                cell.editor.equations[equationRowMenu.deleteDialogRowIndex],
+                equationRowMenu.deleteDialogRowIndex
+              )}
+              onCancel={equationRowMenu.cancelDelete}
+              onConfirm={equationRowMenu.confirmDelete}
+            />
+          ) : null}
         </section>
       )}
       <VariableRenameDialog
@@ -413,6 +461,14 @@ export function EquationsCellView({
     onReplaceCells,
     scope: { kind: "modelId", modelId: cell.modelId }
   });
+  const equationRowMenu = useGridRowContextMenu({
+    ignoredSelector: "select",
+    onChangeRows: (equations) => {
+      inlineEdit.cancelRowEdit();
+      onChange(equations);
+    },
+    rows: cell.equations
+  });
   const { scheduleDeferredAction } = useDeferredAction();
 
   return (
@@ -524,6 +580,12 @@ export function EquationsCellView({
                   hoveredRowId={hoveredRowId}
                   isEditing={inlineEdit.editingEquationId === equation.id}
                   issueMessage={issue}
+                  onContextMenu={(event) => {
+                    if (inlineEdit.editingEquationId === equation.id) {
+                      return;
+                    }
+                    equationRowMenu.handleRowContextMenu(event, index);
+                  }}
                   parameterNames={parameterNameSet}
                   rowDraft={{
                     expression: inlineEdit.draftExpression,
@@ -572,6 +634,33 @@ export function EquationsCellView({
               );
             })}
           </NotebookEquationViewTable>
+          {equationRowMenu.rowContextMenu ? (
+            <GridRowContextMenu
+              addItemLabel="Add equation"
+              canMoveDown={canMoveRowDown(cell.equations, equationRowMenu.rowContextMenu.rowIndex)}
+              canMoveUp={canMoveRowUp(cell.equations, equationRowMenu.rowContextMenu.rowIndex)}
+              menuRef={equationRowMenu.rowContextMenuRef}
+              menuTypeLabel="Equation"
+              onAdd={() =>
+                equationRowMenu.insertRowBelow(equationRowMenu.rowContextMenu!.rowIndex, newEquationRow())
+              }
+              onDelete={() => equationRowMenu.requestDelete(equationRowMenu.rowContextMenu!.rowIndex)}
+              onMoveDown={() => equationRowMenu.moveRowAt(equationRowMenu.rowContextMenu!.rowIndex, 1)}
+              onMoveUp={() => equationRowMenu.moveRowAt(equationRowMenu.rowContextMenu!.rowIndex, -1)}
+              rowIndex={equationRowMenu.rowContextMenu.rowIndex}
+            />
+          ) : null}
+          {equationRowMenu.deleteDialogRowIndex != null ? (
+            <GridRowDeleteDialog
+              deleteTitle="Delete equation?"
+              itemLabel={formatEquationDeleteLabel(
+                cell.equations[equationRowMenu.deleteDialogRowIndex],
+                equationRowMenu.deleteDialogRowIndex
+              )}
+              onCancel={equationRowMenu.cancelDelete}
+              onConfirm={equationRowMenu.confirmDelete}
+            />
+          ) : null}
         </section>
       )}
       <VariableRenameDialog
@@ -678,6 +767,23 @@ function defaultNotebookEditorOptions(): EditorState["options"] {
     hiddenToleranceText: "0.00001",
     relativeHiddenTolerance: false
   };
+}
+
+function newEquationRow() {
+  return {
+    id: `eq-${crypto.randomUUID()}`,
+    name: "",
+    desc: "",
+    expression: ""
+  };
+}
+
+function formatEquationDeleteLabel(
+  equation: { name: string } | undefined,
+  rowIndex: number
+): string {
+  const name = equation?.name.trim();
+  return name ? name : `Equation ${rowIndex + 1}`;
 }
 
 export function buildEditorStateForStandaloneModelSections(cells: NotebookCell[], modelId: string): EditorState {

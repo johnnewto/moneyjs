@@ -13,6 +13,13 @@ import { useInlineExternalRowEdit } from "../useInlineExternalRowEdit";
 import { useInlineInitialValueRowEdit } from "../useInlineInitialValueRowEdit";
 import type { ExternalsCell, InitialValuesCell, NotebookCell, SolverCell } from "../types";
 import {
+  canMoveRowDown,
+  canMoveRowUp,
+  GridRowContextMenu,
+  GridRowDeleteDialog,
+  useGridRowContextMenu
+} from "../../components/GridRowContextMenu";
+import {
   NotebookLinkedEditorActions,
   NotebookLinkedEditorHeader
 } from "./NotebookCellHeader";
@@ -278,6 +285,14 @@ export function ExternalsCellView({
     onReplaceCells,
     scope: { kind: "modelId", modelId: cell.modelId }
   });
+  const externalRowMenu = useGridRowContextMenu({
+    ignoredSelector: "select",
+    onChangeRows: (externals) => {
+      inlineEdit.cancelRowEdit();
+      onChange(externals);
+    },
+    rows: cell.externals
+  });
 
   return (
     <div className="notebook-model-stack notebook-linked-editor-cell">
@@ -358,6 +373,12 @@ export function ExternalsCellView({
                   highlightedVariable={highlightedVariable}
                   isEditing={inlineEdit.editingExternalId === external.id}
                   issueMessage={issue}
+                  onContextMenu={(event) => {
+                    if (inlineEdit.editingExternalId === external.id) {
+                      return;
+                    }
+                    externalRowMenu.handleRowContextMenu(event, index);
+                  }}
                   rowDraft={{
                     name: inlineEdit.draftName,
                     valueText: inlineEdit.draftValueText
@@ -385,6 +406,36 @@ export function ExternalsCellView({
               );
             })}
           </div>
+          {externalRowMenu.rowContextMenu ? (
+            <GridRowContextMenu
+              addItemLabel="Add external"
+              canMoveDown={canMoveRowDown(cell.externals, externalRowMenu.rowContextMenu.rowIndex)}
+              canMoveUp={canMoveRowUp(cell.externals, externalRowMenu.rowContextMenu.rowIndex)}
+              menuRef={externalRowMenu.rowContextMenuRef}
+              menuTypeLabel="External"
+              onAdd={() =>
+                externalRowMenu.insertRowBelow(
+                  externalRowMenu.rowContextMenu!.rowIndex,
+                  newExternalRow()
+                )
+              }
+              onDelete={() => externalRowMenu.requestDelete(externalRowMenu.rowContextMenu!.rowIndex)}
+              onMoveDown={() => externalRowMenu.moveRowAt(externalRowMenu.rowContextMenu!.rowIndex, 1)}
+              onMoveUp={() => externalRowMenu.moveRowAt(externalRowMenu.rowContextMenu!.rowIndex, -1)}
+              rowIndex={externalRowMenu.rowContextMenu.rowIndex}
+            />
+          ) : null}
+          {externalRowMenu.deleteDialogRowIndex != null ? (
+            <GridRowDeleteDialog
+              deleteTitle="Delete external?"
+              itemLabel={formatExternalDeleteLabel(
+                cell.externals[externalRowMenu.deleteDialogRowIndex],
+                externalRowMenu.deleteDialogRowIndex
+              )}
+              onCancel={externalRowMenu.cancelDelete}
+              onConfirm={externalRowMenu.confirmDelete}
+            />
+          ) : null}
         </section>
       )}
       <VariableRenameDialog
@@ -466,6 +517,14 @@ export function InitialValuesCellView({
   const inlineEdit = useInlineInitialValueRowEdit({
     initialValues: cell.initialValues,
     onChangeInitialValues: onChange
+  });
+  const initialValueRowMenu = useGridRowContextMenu({
+    ignoredSelector: "select",
+    onChangeRows: (initialValues) => {
+      inlineEdit.cancelRowEdit();
+      onChange(initialValues);
+    },
+    rows: cell.initialValues
   });
 
   return (
@@ -566,6 +625,12 @@ export function InitialValuesCellView({
                   initialValueIndex={index}
                   isEditing={inlineEdit.editingInitialValueId === initialValue.id}
                   issueMessage={issue}
+                  onContextMenu={(event) => {
+                    if (inlineEdit.editingInitialValueId === initialValue.id) {
+                      return;
+                    }
+                    initialValueRowMenu.handleRowContextMenu(event, index);
+                  }}
                   rowDraft={{
                     name: inlineEdit.draftName,
                     valueText: inlineEdit.draftValueText
@@ -593,8 +658,78 @@ export function InitialValuesCellView({
               );
             })}
           </div>
+          {initialValueRowMenu.rowContextMenu ? (
+            <GridRowContextMenu
+              addItemLabel="Add initial value"
+              canMoveDown={canMoveRowDown(cell.initialValues, initialValueRowMenu.rowContextMenu.rowIndex)}
+              canMoveUp={canMoveRowUp(cell.initialValues, initialValueRowMenu.rowContextMenu.rowIndex)}
+              menuRef={initialValueRowMenu.rowContextMenuRef}
+              menuTypeLabel="Initial value"
+              onAdd={() =>
+                initialValueRowMenu.insertRowBelow(
+                  initialValueRowMenu.rowContextMenu!.rowIndex,
+                  newInitialValueRow()
+                )
+              }
+              onDelete={() =>
+                initialValueRowMenu.requestDelete(initialValueRowMenu.rowContextMenu!.rowIndex)
+              }
+              onMoveDown={() =>
+                initialValueRowMenu.moveRowAt(initialValueRowMenu.rowContextMenu!.rowIndex, 1)
+              }
+              onMoveUp={() =>
+                initialValueRowMenu.moveRowAt(initialValueRowMenu.rowContextMenu!.rowIndex, -1)
+              }
+              rowIndex={initialValueRowMenu.rowContextMenu.rowIndex}
+            />
+          ) : null}
+          {initialValueRowMenu.deleteDialogRowIndex != null ? (
+            <GridRowDeleteDialog
+              deleteTitle="Delete initial value?"
+              itemLabel={formatInitialValueDeleteLabel(
+                cell.initialValues[initialValueRowMenu.deleteDialogRowIndex],
+                initialValueRowMenu.deleteDialogRowIndex
+              )}
+              onCancel={initialValueRowMenu.cancelDelete}
+              onConfirm={initialValueRowMenu.confirmDelete}
+            />
+          ) : null}
         </section>
       )}
     </div>
   );
+}
+
+function newExternalRow() {
+  return {
+    id: `ext-${crypto.randomUUID()}`,
+    name: "",
+    desc: "",
+    kind: "constant" as const,
+    valueText: ""
+  };
+}
+
+function formatExternalDeleteLabel(
+  external: { name: string } | undefined,
+  rowIndex: number
+): string {
+  const name = external?.name.trim();
+  return name ? name : `External ${rowIndex + 1}`;
+}
+
+function newInitialValueRow() {
+  return {
+    id: `init-${crypto.randomUUID()}`,
+    name: "",
+    valueText: ""
+  };
+}
+
+function formatInitialValueDeleteLabel(
+  initialValue: { name: string } | undefined,
+  rowIndex: number
+): string {
+  const name = initialValue?.name.trim();
+  return name ? name : `Initial value ${rowIndex + 1}`;
 }

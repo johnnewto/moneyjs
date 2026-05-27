@@ -384,6 +384,34 @@ describe("App per-cell source editors", () => {
     expect(getNotebookSourceTextArea().value).toContain(`"name": "${draftValue}"`);
   }, 15000);
 
+  it("supports right-click equation grid actions while editing equations", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    const equationsCell = document.getElementById("equations-newton");
+    expect(equationsCell).not.toBeNull();
+    if (!(equationsCell instanceof HTMLElement)) {
+      throw new Error("Expected equations cell article.");
+    }
+
+    await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+    await user.click(within(equationsCell).getByRole("button", { name: /^edit$/i }));
+
+    fireEvent.contextMenu(
+      within(equationsCell).getByRole("textbox", { name: /equation 1 variable/i })
+    );
+
+    const menu = within(equationsCell).getByRole("menu", { name: /equation actions for row 1/i });
+    await user.click(within(menu).getByRole("menuitem", { name: /^add equation$/i }));
+
+    expect(
+      within(equationsCell).getByRole("textbox", { name: /equation 2 variable/i })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("menu", { name: /cell actions for/i })).not.toBeInTheDocument();
+  }, 15000);
+
   it("shows source helpers and live validation for chart cells", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";

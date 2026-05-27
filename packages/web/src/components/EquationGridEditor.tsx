@@ -34,6 +34,14 @@ import {
 } from "./EquationTrace";
 import { useEquationGridColumnResize } from "../hooks/useEquationGridColumnResize";
 import { InstantTooltip } from "./InstantTooltip";
+import {
+  canMoveRowDown,
+  canMoveRowUp,
+  GridRowContextMenu,
+  GridRowDeleteDialog,
+  removeRow,
+  useGridRowContextMenu
+} from "./GridRowContextMenu";
 import { renderVariableMathLabel } from "./VariableMathLabel";
 import { documentHighlightClassName } from "../lib/variableHighlight";
 
@@ -88,6 +96,12 @@ export function EquationGridEditor({
   const [openPopover, setOpenPopover] = useState<{ kind: "unit" | "role"; rowId: string } | null>(
     null
   );
+  const rowContextMenu = useGridRowContextMenu({
+    ignoredSelector:
+      "button, select, .input-badge-popover, .equation-grid-role-cell, .equation-badge-popover-panel",
+    onChangeRows: onChange,
+    rows: equations
+  });
   const columnResize = useEquationGridColumnResize({ isEmbedded });
 
   const activeTrace = pinnedTrace
@@ -118,6 +132,11 @@ export function EquationGridEditor({
     document.addEventListener("pointerdown", handlePointerDown);
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [openPopover]);
+
+  function handleRowContextMenu(event: MouseEvent<HTMLDivElement>, rowIndex: number): void {
+    setOpenPopover(null);
+    rowContextMenu.handleRowContextMenu(event, rowIndex);
+  }
 
   return (
     <section className={isEmbedded ? "equation-grid-editor-embedded" : "editor-panel"}>
@@ -170,6 +189,7 @@ export function EquationGridEditor({
               <div key={equation.id} className="equation-grid-row-group">
                 <div
                   className={rowClassName}
+                  onContextMenu={(event) => handleRowContextMenu(event, index)}
                   onClick={(event) => {
                     if (
                       event.target instanceof HTMLElement &&
@@ -312,6 +332,35 @@ export function EquationGridEditor({
           Add equation
         </button>
       </div>
+
+      {rowContextMenu.rowContextMenu ? (
+        <GridRowContextMenu
+          addItemLabel="Add equation"
+          canMoveDown={canMoveRowDown(equations, rowContextMenu.rowContextMenu.rowIndex)}
+          canMoveUp={canMoveRowUp(equations, rowContextMenu.rowContextMenu.rowIndex)}
+          menuRef={rowContextMenu.rowContextMenuRef}
+          menuTypeLabel="Equation"
+          onAdd={() =>
+            rowContextMenu.insertRowBelow(rowContextMenu.rowContextMenu!.rowIndex, newEquationRow())
+          }
+          onDelete={() => rowContextMenu.requestDelete(rowContextMenu.rowContextMenu!.rowIndex)}
+          onMoveDown={() => rowContextMenu.moveRowAt(rowContextMenu.rowContextMenu!.rowIndex, 1)}
+          onMoveUp={() => rowContextMenu.moveRowAt(rowContextMenu.rowContextMenu!.rowIndex, -1)}
+          rowIndex={rowContextMenu.rowContextMenu.rowIndex}
+        />
+      ) : null}
+
+      {rowContextMenu.deleteDialogRowIndex != null ? (
+        <GridRowDeleteDialog
+          deleteTitle="Delete equation?"
+          itemLabel={formatEquationDeleteLabel(
+            equations[rowContextMenu.deleteDialogRowIndex],
+            rowContextMenu.deleteDialogRowIndex
+          )}
+          onCancel={rowContextMenu.cancelDelete}
+          onConfirm={rowContextMenu.confirmDelete}
+        />
+      ) : null}
     </section>
   );
 }
@@ -947,8 +996,9 @@ function updateRow(
   onChange(rows.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)));
 }
 
-function removeRow<T>(rows: T[], index: number): T[] {
-  return rows.filter((_, rowIndex) => rowIndex !== index);
+function formatEquationDeleteLabel(equation: EquationRow | undefined, rowIndex: number): string {
+  const name = equation?.name.trim();
+  return name ? name : `Equation ${rowIndex + 1}`;
 }
 
 function normalizeEquationRole(value: string): EquationRole | undefined {

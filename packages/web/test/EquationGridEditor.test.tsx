@@ -3,8 +3,11 @@
 import "@testing-library/jest-dom/vitest";
 
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { EquationRow } from "../src/lib/editorModel";
 import { EquationGridEditor } from "../src/components/EquationGridEditor";
 
 afterEach(() => {
@@ -698,5 +701,96 @@ describe("EquationGridEditor", () => {
     const message = screen.getByRole("note");
     expect(message).toHaveTextContent("Prefer adding '* dt' explicitly");
     expect(message).toHaveClass("equation-grid-warning-row", "is-warning");
+  });
+
+  it("supports right-click equation actions for adding, moving, and deleting rows", async () => {
+    const user = userEvent.setup();
+    const initialEquations: EquationRow[] = [
+      { id: "eq-y", name: "Y", expression: "C + I" },
+      { id: "eq-c", name: "C", expression: "alpha1 * YD" },
+      { id: "eq-i", name: "I", expression: "gamma * Y" }
+    ];
+
+    function StatefulGridEditor() {
+      const [equations, setEquations] = useState(initialEquations);
+      return (
+        <EquationGridEditor equations={equations} issues={{}} onChange={setEquations} parameterNames={[]} />
+      );
+    }
+
+    render(<StatefulGridEditor />);
+
+    const getDataRows = () => screen.getAllByRole("row").slice(1);
+    const yRow = () => getDataRows()[0]!;
+    const cRow = () => getDataRows()[1]!;
+
+    fireEvent.contextMenu(yRow());
+    const initialMenu = screen.getByRole("menu", { name: /equation actions for row 1/i });
+    expect(within(initialMenu).getByRole("menuitem", { name: /move up/i })).toBeDisabled();
+
+    await user.click(within(initialMenu).getByRole("menuitem", { name: /move down/i }));
+    expect(within(getDataRows()[0]!).getByDisplayValue("C")).toBeInTheDocument();
+    expect(within(getDataRows()[1]!).getByDisplayValue("Y")).toBeInTheDocument();
+
+    fireEvent.contextMenu(getDataRows()[1]!);
+    await user.click(
+      within(screen.getByRole("menu", { name: /equation actions for row 2/i })).getByRole("menuitem", {
+        name: /move up/i
+      })
+    );
+    expect(within(getDataRows()[0]!).getByDisplayValue("Y")).toBeInTheDocument();
+    expect(within(getDataRows()[1]!).getByDisplayValue("C")).toBeInTheDocument();
+
+    fireEvent.contextMenu(yRow());
+    await user.click(
+      within(screen.getByRole("menu", { name: /equation actions for row 1/i })).getByRole("menuitem", {
+        name: /^add equation$/i
+      })
+    );
+    expect(getDataRows()).toHaveLength(4);
+    expect(within(getDataRows()[0]!).getByDisplayValue("Y")).toBeInTheDocument();
+    expect(within(getDataRows()[1]!).getByLabelText(/equation 2 variable/i)).toHaveValue("");
+    expect(within(getDataRows()[2]!).getByDisplayValue("C")).toBeInTheDocument();
+
+    fireEvent.contextMenu(yRow());
+    await user.click(
+      within(screen.getByRole("menu", { name: /equation actions for row 1/i })).getByRole("menuitem", {
+        name: /delete/i
+      })
+    );
+    const deleteDialog = screen.getByRole("dialog", { name: /delete y/i });
+    expect(deleteDialog).toHaveTextContent(/delete y from this model/i);
+
+    await user.click(within(deleteDialog).getByRole("button", { name: /cancel/i }));
+    expect(within(getDataRows()[0]!).getByDisplayValue("Y")).toBeInTheDocument();
+
+    fireEvent.contextMenu(yRow());
+    await user.click(
+      within(screen.getByRole("menu", { name: /equation actions for row 1/i })).getByRole("menuitem", {
+        name: /delete/i
+      })
+    );
+    await user.click(within(screen.getByRole("dialog", { name: /delete y/i })).getByRole("button", {
+      name: /^delete$/i
+    }));
+    expect(getDataRows()).toHaveLength(3);
+    expect(within(getDataRows()[0]!).getByLabelText(/equation 1 variable/i)).toHaveValue("");
+    expect(within(getDataRows()[1]!).getByDisplayValue("C")).toBeInTheDocument();
+  });
+
+  it("opens the row context menu when right-clicking equation inputs", () => {
+    render(
+      <EquationGridEditor
+        equations={[{ id: "eq-y", name: "Y", expression: "C + I" }]}
+        issues={{}}
+        onChange={vi.fn()}
+        parameterNames={[]}
+      />
+    );
+
+    fireEvent.contextMenu(screen.getByRole("textbox", { name: /equation 1 variable/i }));
+
+    expect(screen.getByRole("menu", { name: /equation actions for row 1/i })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: /^add equation$/i })).toBeInTheDocument();
   });
 });

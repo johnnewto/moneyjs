@@ -4,6 +4,14 @@ import type { VariableDescriptions } from "../lib/variableDescriptions";
 import { NumericValueText } from "./NumericValueText";
 import { documentHighlightClassName } from "../lib/variableHighlight";
 import { VariableLabel } from "./VariableLabel";
+import {
+  canMoveRowDown,
+  canMoveRowUp,
+  GridRowContextMenu,
+  GridRowDeleteDialog,
+  removeRow,
+  useGridRowContextMenu
+} from "./GridRowContextMenu";
 
 interface InitialValuesEditorProps {
   currentValues?: Record<string, number | undefined>;
@@ -30,6 +38,12 @@ export function InitialValuesEditor({
   variableDescriptions,
   variableUnitMetadata
 }: InitialValuesEditorProps) {
+  const rowContextMenu = useGridRowContextMenu({
+    ignoredSelector: "button, select",
+    onChangeRows: onChange,
+    rows: initialValues
+  });
+
   return (
     <section className={isEmbedded ? "grid-editor-embedded" : "editor-panel"}>
       {showHeading ? (
@@ -57,6 +71,7 @@ export function InitialValuesEditor({
                 : ""
             }`}
             key={initialValue.id}
+            onContextMenu={(event) => rowContextMenu.handleRowContextMenu(event, index)}
             role="row"
           >
             <span className="initial-grid-index">{index + 1}</span>
@@ -115,6 +130,38 @@ export function InitialValuesEditor({
           Add initial
         </button>
       </div>
+
+      {rowContextMenu.rowContextMenu ? (
+        <GridRowContextMenu
+          addItemLabel="Add initial value"
+          canMoveDown={canMoveRowDown(initialValues, rowContextMenu.rowContextMenu.rowIndex)}
+          canMoveUp={canMoveRowUp(initialValues, rowContextMenu.rowContextMenu.rowIndex)}
+          menuRef={rowContextMenu.rowContextMenuRef}
+          menuTypeLabel="Initial value"
+          onAdd={() =>
+            rowContextMenu.insertRowBelow(
+              rowContextMenu.rowContextMenu!.rowIndex,
+              newInitialValueRow()
+            )
+          }
+          onDelete={() => rowContextMenu.requestDelete(rowContextMenu.rowContextMenu!.rowIndex)}
+          onMoveDown={() => rowContextMenu.moveRowAt(rowContextMenu.rowContextMenu!.rowIndex, 1)}
+          onMoveUp={() => rowContextMenu.moveRowAt(rowContextMenu.rowContextMenu!.rowIndex, -1)}
+          rowIndex={rowContextMenu.rowContextMenu.rowIndex}
+        />
+      ) : null}
+
+      {rowContextMenu.deleteDialogRowIndex != null ? (
+        <GridRowDeleteDialog
+          deleteTitle="Delete initial value?"
+          itemLabel={formatInitialValueDeleteLabel(
+            initialValues[rowContextMenu.deleteDialogRowIndex],
+            rowContextMenu.deleteDialogRowIndex
+          )}
+          onCancel={rowContextMenu.cancelDelete}
+          onConfirm={rowContextMenu.confirmDelete}
+        />
+      ) : null}
     </section>
   );
 }
@@ -136,8 +183,12 @@ function updateRow(
   onChange(rows.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)));
 }
 
-function removeRow<T>(rows: T[], index: number): T[] {
-  return rows.filter((_, rowIndex) => rowIndex !== index);
+function formatInitialValueDeleteLabel(
+  initialValue: InitialValueRow | undefined,
+  rowIndex: number
+): string {
+  const name = initialValue?.name.trim();
+  return name ? name : `Initial value ${rowIndex + 1}`;
 }
 
 function renderCurrentValue(

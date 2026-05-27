@@ -595,6 +595,10 @@ function NotebookCellViewComponent({
   }
 
   function handleCellContextMenu(event: React.MouseEvent<HTMLElement>): void {
+    if (isActivelyEditing) {
+      return;
+    }
+
     const target = event.target;
     if (
       target instanceof Element &&
@@ -612,6 +616,12 @@ function NotebookCellViewComponent({
     setCellContextMenu(null);
     setIsCellInsertMenuOpen(false);
   }
+
+  useEffect(() => {
+    if (isActivelyEditing && cellContextMenu != null) {
+      closeCellContextMenu();
+    }
+  }, [cellContextMenu, isActivelyEditing]);
 
   useEffect(() => {
     if (cellContextMenu && cellContextMenuRef.current) {

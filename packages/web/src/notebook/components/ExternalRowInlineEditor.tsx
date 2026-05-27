@@ -101,6 +101,7 @@ export function NotebookExternalReadRow({
   highlightedVariable = null,
   isEditing,
   issueMessage,
+  onContextMenu,
   rowDraft,
   rowEditFocus,
   rowValidationError,
@@ -119,6 +120,7 @@ export function NotebookExternalReadRow({
   highlightedVariable?: string | null;
   isEditing: boolean;
   issueMessage?: string;
+  onContextMenu?(event: React.MouseEvent<HTMLDivElement>): void;
   rowDraft: { name: string; valueText: string };
   rowEditFocus: ExternalRowEditFocus;
   rowValidationError: string | null;
@@ -182,6 +184,7 @@ export function NotebookExternalReadRow({
         .filter(Boolean)
         .join(" ")}
       onDoubleClick={(event) => handleBeginEdit("value", event)}
+      onContextMenu={onContextMenu}
       role="row"
     >
       <span

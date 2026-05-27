@@ -212,6 +212,7 @@ export function NotebookEquationReadRow({
   hoveredRowId,
   isEditing,
   issueMessage,
+  onContextMenu,
   rowDraft,
   rowEditFocus,
   rowValidationError,
@@ -240,6 +241,7 @@ export function NotebookEquationReadRow({
   hoveredRowId: string | null;
   isEditing: boolean;
   issueMessage?: string;
+  onContextMenu?(event: React.MouseEvent<HTMLDivElement>): void;
   rowDraft: { expression: string; name: string };
   rowEditFocus: EquationRowEditFocus;
   rowValidationError: string | null;
@@ -320,6 +322,7 @@ export function NotebookEquationReadRow({
         onRowClick(event);
       }}
       onDoubleClick={(event) => handleBeginEdit("expression", event)}
+      onContextMenu={onContextMenu}
       onMouseEnter={onRowMouseEnter}
       onMouseLeave={onRowMouseLeave}
       role="row"

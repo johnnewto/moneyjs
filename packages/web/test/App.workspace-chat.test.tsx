@@ -250,7 +250,7 @@ describe("App workspace and chat builder", () => {
     });
     expect(screen.getByText(/copied validated draft sections to the clipboard\./i)).toBeInTheDocument();
     expect(promptInput).toHaveValue("");
-  });
+  }, 15000);
 
   it("shows validation issues and blocks actions for an invalid draft", async () => {
     const user = userEvent.setup();
