@@ -1313,6 +1313,43 @@ describe("App notebook navigation and inspection", () => {
     expect(window.location.hash).toBe("");
   });
 
+  it("updates the pathname only from the cell context menu URL action", async () => {
+    const user = userEvent.setup();
+    history.replaceState(history.state, "", "/notebook/bmw");
+
+    render(<App />);
+
+    const sequenceCell = document.getElementById("transaction-flow-sequence");
+    expect(sequenceCell).toBeInstanceOf(HTMLElement);
+    if (!(sequenceCell instanceof HTMLElement)) {
+      throw new Error("Expected transaction-flow-sequence notebook cell article.");
+    }
+
+    await user.click(sequenceCell);
+    expect(window.location.pathname).toBe("/notebook/bmw");
+
+    const outlinePanel = document.getElementById("notebook-outline-panel");
+    expect(outlinePanel).toBeInstanceOf(HTMLElement);
+    if (!(outlinePanel instanceof HTMLElement)) {
+      throw new Error("Expected notebook outline panel.");
+    }
+    await user.click(
+      within(outlinePanel).getByRole("button", { name: /transaction flow sequence/i })
+    );
+    expect(window.location.pathname).toBe("/notebook/bmw");
+
+    fireEvent.contextMenu(sequenceCell);
+    await user.click(
+      within(screen.getByRole("menu", { name: /cell actions for bmw transaction flow sequence/i })).getByRole(
+        "menuitem",
+        { name: /^url$/i }
+      )
+    );
+
+    expect(window.location.pathname).toBe("/notebook/bmw/transaction-flow-sequence");
+    expect(screen.getByText(/updated url for bmw transaction flow sequence/i)).toBeInTheDocument();
+  });
+
   it("switches notebook templates from the command bar", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";

@@ -830,14 +830,16 @@ export function NotebookApp() {
     },
     [activeVariantId, currentTemplateId]
   );
-  const selectNotebookCell = useCallback(
-    (cellId: string | null, options?: { syncHash?: boolean }) => {
-      setSelectedCellId(cellId);
-      if (options?.syncHash !== false) {
-        syncNotebookLocation(cellId);
-      }
+  const selectNotebookCell = useCallback((cellId: string | null) => {
+    setSelectedCellId(cellId);
+  }, []);
+  const setNotebookCellUrl = useCallback(
+    (cellId: string) => {
+      syncNotebookLocation(cellId);
+      const cell = notebookDocument.cells.find((candidate) => candidate.id === cellId);
+      setUiMessage(cell ? `Updated URL for ${cell.title}.` : "Updated section URL.");
     },
-    [syncNotebookLocation]
+    [notebookDocument.cells, syncNotebookLocation]
   );
   const applyNotebookCellFromRoute = useCallback(
     (cellId: string) => {
@@ -1230,7 +1232,7 @@ export function NotebookApp() {
         cells: nextCells
       };
     });
-    selectNotebookCell(cellId, { syncHash: false });
+    selectNotebookCell(cellId);
   }
 
   function insertCell(
@@ -3036,6 +3038,7 @@ export function NotebookApp() {
                   maxPeriodIndex={maxResultPeriodIndex}
                   viewportRoot={mainColumnElement}
                   onSelectedCellIdChange={selectNotebookCell}
+                  onSetCellUrl={setNotebookCellUrl}
                   onSelectedPeriodIndexChange={setSelectedPeriodIndex}
                   runner={runner}
                   onActiveEditorCellIdChange={setActiveEditorCellId}

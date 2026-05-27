@@ -157,6 +157,7 @@ export interface NotebookCellViewProps {
   viewportRoot: Element | null;
   onActiveEditorCellIdChange(cellId: string | null): void;
   onSelectedCellIdChange(cellId: string): void;
+  onSetCellUrl(cellId: string): void;
   onSelectedPeriodIndexChange(nextIndex: number): void;
   onDeleteCell(cellId: string): void;
   onInsertCell(cellId: string, placement: "above" | "below", type: NotebookCellInsertType): void;
@@ -185,6 +186,7 @@ function NotebookCellViewComponent({
   viewportRoot,
   onActiveEditorCellIdChange,
   onSelectedCellIdChange,
+  onSetCellUrl,
   onSelectedPeriodIndexChange,
   onDeleteCell,
   onInsertCell,
@@ -1311,6 +1313,16 @@ function NotebookCellViewComponent({
               }}
             >
               Delete
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                onSetCellUrl(cell.id);
+                closeCellContextMenu();
+              }}
+            >
+              URL
             </button>
           </div>
         ) : null}
