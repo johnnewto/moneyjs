@@ -1,3 +1,4 @@
+import { normalizeAccountingMatrixKindInput, normalizeMatrixCellAccountingKind } from "../accountingMatrixKind";
 import type { NotebookCell, NotebookDocument } from "../types";
 import { NOTEBOOK_CELL_TYPES } from "./documentTypes";
 import { isRecord, numberValue, slugifyIdentifier, stringArray, stringValue } from "./documentUtils";
@@ -543,16 +544,19 @@ export function buildCompactMatrixCell(
       })
     : [];
 
-  return {
+  const accountingKind = normalizeAccountingMatrixKindInput(input.accountingKind);
+
+  return normalizeMatrixCellAccountingKind({
     id: typeof input.id === "string" ? input.id : options.id,
     type: "matrix",
     title: typeof input.title === "string" ? input.title : options.title,
     ...(options.sourceRunCellId ? { sourceRunCellId: options.sourceRunCellId } : {}),
+    ...(accountingKind ? { accountingKind } : {}),
     columns,
     ...(sectors ? { sectors } : {}),
     rows,
     ...compactCellFlags(input)
-  };
+  });
 }
 
 export function buildCompactSolverOptions(input: unknown): Extract<NotebookCell, { type: "solver" }>["options"] {

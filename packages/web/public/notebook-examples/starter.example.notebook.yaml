@@ -12,6 +12,7 @@ cells:
       source: Use this starter notebook as the minimum valid scaffold for new SFCR models. Replace placeholder equations, externals, and initial values with your model-specific content.
   - matrix:
       id: balance-sheet
+      accountingKind: balance-sheet
       title: Starter balance sheet
       description: Minimal balance-sheet style matrix for the starter notebook. Replace sector labels and row formulas with your model structure.
       sourceRunCellId: baseline-run
@@ -22,6 +23,7 @@ cells:
         - [Sum, Sum, "0", "0", "0"]
   - matrix:
       id: transaction-flow
+      accountingKind: transaction-flow
       title: Starter transactions-flow matrix
       description: Minimal transactions-flow matrix for the starter notebook. Expand this into the accounting layout your model requires.
       sourceRunCellId: baseline-run

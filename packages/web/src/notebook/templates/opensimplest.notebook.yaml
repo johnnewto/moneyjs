@@ -12,6 +12,7 @@ cells:
       source: "A compact one-country open-economy stock-flow consistent model with four sectors: private, government, central bank, and rest of world. The notebook includes a balance sheet, a transactions-flow matrix, a sequence outline, behavioral and accounting equations, a baseline calibration, and a simple export-shock scenario."
   - matrix:
       id: balance-sheet
+      accountingKind: balance-sheet
       title: Balance sheet matrix
       description: Compact balance-sheet view for the OPENSIMPLEST open-economy model.
       sourceRunCellId: baseline-run
@@ -25,6 +26,7 @@ cells:
         - [Sum, Sum, "0", "0", "0", "0", "0"]
   - matrix:
       id: transactions-flow
+      accountingKind: transaction-flow
       title: Transactions-flow matrix
       description: Transactions-flow matrix for the OPENSIMPLEST open-economy model.
       sourceRunCellId: baseline-run

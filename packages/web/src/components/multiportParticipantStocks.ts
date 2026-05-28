@@ -3,7 +3,7 @@ import type { SimulationResult } from "@sfcr/core";
 import { formatValueWithUnits, type UnitMeta, type VariableUnitMetadata } from "../lib/unitMeta";
 import {
   classifyMatrixStockRole,
-  inferMatrixTableKind,
+  resolveMatrixTableKind,
   type MatrixStockRole
 } from "../notebook/matrixSemantics";
 import { evaluateMatrixEntryAtPeriod } from "../notebook/sequence";
@@ -55,7 +55,7 @@ function isLikelyBalanceSheetMatrix(cell: MatrixCell): boolean {
     return true;
   }
 
-  return inferMatrixTableKind(cell) === "stocks";
+  return resolveMatrixTableKind(cell) === "stocks";
 }
 
 export function buildMultiportParticipantStocks(

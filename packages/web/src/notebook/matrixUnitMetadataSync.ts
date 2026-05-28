@@ -13,7 +13,7 @@ import {
   classifyMatrixEntrySource,
   type MatrixSimpleVariableReference
 } from "./matrixVariableReference";
-import { inferAccountingMatrixKind, type AccountingMatrixKind } from "./validation";
+import { resolveAccountingMatrixKind, type AccountingMatrixKind } from "./validation";
 import type { EquationsCell, ExternalsCell, MatrixCell, NotebookCell, RunCell } from "./types";
 
 export interface ProposedMatrixUnitUpdate {
@@ -201,7 +201,7 @@ export function collectProposedMatrixUnitUpdates(args: {
   modelId: string;
   variableUnitMetadata: VariableUnitMetadata;
 }): ProposedMatrixUnitUpdate[] {
-  const kind = inferAccountingMatrixKind(args.matrix);
+  const kind = resolveAccountingMatrixKind(args.matrix);
   if (!kind) {
     return [];
   }

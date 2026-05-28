@@ -12,6 +12,7 @@ cells:
       source: This notebook presents a rentier-split extension of the Godley and Lavoie DIS model. It preserves the original inventory, pricing, bank credit, and wealth dynamics, while splitting households into workers and rentiers so that wages, profits, deposit interest, consumption, and wealth accumulation can be tracked separately.
   - matrix:
       id: balance-sheet
+      accountingKind: balance-sheet
       title: DIS rentier balance sheet
       description: Balance-sheet matrix for the rentier-split DIS model, separating worker and rentier deposit holdings while keeping firms, inventories, and banks explicit.
       note: "This makes wealth distribution visible: workers and rentiers hold distinct money stocks, while bank liabilities and firm borrowing remain stock-flow consistent."
@@ -31,6 +32,7 @@ cells:
         - [Balance, Balance, -Mhw, -Mhr, "", "", -Mh]
   - matrix:
       id: transaction-flow
+      accountingKind: transaction-flow
       title: DIS rentier transactions-flow matrix
       description: Transactions-flow matrix for the rentier-split DIS model, separating wages, profits, deposit interest, consumption, and wealth accumulation between workers and rentiers.
       note: Use this to show that wages primarily fund worker consumption while profits, bank profits, and deposit interest accrue to rentiers, making distributional feedbacks visible in the accounting.

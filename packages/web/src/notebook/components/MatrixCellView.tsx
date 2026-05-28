@@ -13,7 +13,7 @@ import {
   classifyMatrixStockRole,
   formatStockRoleLabel,
   formatStockRoleTitle,
-  inferMatrixTableKind
+  resolveMatrixTableKind
 } from "../matrixSemantics";
 import { resolveInspectorModelSource, type VariableInspectRequest } from "../../lib/variableInspect";
 import { documentHighlightClassName } from "../../lib/variableHighlight";
@@ -73,7 +73,7 @@ export function MatrixCellView({
     () => buildEvaluatedMatrix(cell, result, selectedPeriodIndex),
     [cell, result, selectedPeriodIndex]
   );
-  const matrixKind = useMemo(() => inferMatrixTableKind(cell), [cell]);
+  const matrixKind = useMemo(() => resolveMatrixTableKind(cell), [cell]);
   const sumRowIndex = cell.rows.findIndex((row) => row.label.trim().toLowerCase() === "sum");
   const sumColumnIndex = cell.columns.findIndex((column) => column.trim().toLowerCase() === "sum");
   const parameterNames = useMemo(() => {

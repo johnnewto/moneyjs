@@ -12,6 +12,7 @@ cells:
       source: A Levy WP 1105 aligned OPENSIMPLEST notebook using superscripted paper-style variable names directly in the runnable model, including `H^P`, `H^S`, `B^P`, `B^S`, `B^{CB}`, `B^W`, `BF^P`, `yd^R`, and `yd^{HS}`. Exponentiation is written with `pow(base, exponent)`, leaving `^` available for paper notation in variable names.
   - matrix:
       id: balance-sheet
+      accountingKind: balance-sheet
       title: Balance sheet matrix
       description: Compact balance-sheet view for the OPENSIMPLEST open-economy model.
       sourceRunCellId: baseline-run
@@ -25,6 +26,7 @@ cells:
         - [Sum, Sum, "0", "0", "0", "0", "0"]
   - matrix:
       id: transactions-flow
+      accountingKind: transaction-flow
       title: Transactions-flow matrix
       description: Transactions-flow matrix for the OPENSIMPLEST open-economy model.
       sourceRunCellId: baseline-run

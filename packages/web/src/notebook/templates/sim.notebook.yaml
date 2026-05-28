@@ -12,6 +12,7 @@ cells:
       source: This notebook implements the SIM model from Godley and Lavoie chapter 3. It includes the baseline model, a government-spending shock scenario, accounting matrices, and result views for the main income, consumption, and stock variables.
   - matrix:
       id: balance-sheet
+      accountingKind: balance-sheet
       title: SIM balance sheet
       description: Compact balance sheet for the SIM model. Household money holdings mirror government money liabilities.
       sourceRunCellId: baseline-run
@@ -23,6 +24,7 @@ cells:
         - [Sum, Sum, "0", "0", "0"]
   - matrix:
       id: transaction-flow
+      accountingKind: transaction-flow
       title: SIM transactions-flow matrix
       description: Transactions-flow matrix for the SIM model, arranged around households, production, and government.
       sourceRunCellId: baseline-run

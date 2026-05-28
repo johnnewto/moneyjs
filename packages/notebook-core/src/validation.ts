@@ -1,6 +1,7 @@
 import Ajv2020, { type ErrorObject } from "ajv/dist/2020";
 import notebookSchema from "./sfcr-notebook.schema.json" with { type: "json" };
 import { createNotebookDiagnostic, type NotebookDiagnostic } from "./diagnostics";
+import { resolveAccountingMatrixKind } from "./accountingMatrixKind";
 import type {
   MatrixCell,
   NotebookCell,
@@ -8,6 +9,14 @@ import type {
   RunCell,
   SequenceCell
 } from "./types";
+
+export type { AccountingMatrixKind } from "./accountingMatrixKind";
+export {
+  inferAccountingMatrixKind,
+  normalizeAccountingMatrixKindInput,
+  normalizeMatrixCellAccountingKind,
+  resolveAccountingMatrixKind
+} from "./accountingMatrixKind";
 
 const ajv = new Ajv2020({ allErrors: true, strict: false });
 const validateNotebookSchema = ajv.compile(notebookSchema);
@@ -302,7 +311,7 @@ function validateMatrixCell(cell: MatrixCell, issues: NotebookValidationIssue[])
 }
 
 function validateMatrixBalanceChecks(cell: MatrixCell, issues: NotebookValidationIssue[]): void {
-  const matrixKind = inferAccountingMatrixKind(cell);
+  const matrixKind = resolveAccountingMatrixKind(cell);
   if (!matrixKind) {
     return;
   }
@@ -331,29 +340,8 @@ function validateMatrixBalanceChecks(cell: MatrixCell, issues: NotebookValidatio
   }
 }
 
-export type AccountingMatrixKind = "transaction-flow" | "balance-sheet";
-
-export function inferAccountingMatrixKind(cell: MatrixCell): AccountingMatrixKind | null {
-  const title = normalizeAccountingLabel(cell.title);
-  const id = normalizeAccountingLabel(cell.id);
-
-  if (title.includes("transaction") || id.includes("transaction")) {
-    return "transaction-flow";
-  }
-
-  if (title.includes("balance sheet") || id.includes("balance sheet")) {
-    return "balance-sheet";
-  }
-
-  return null;
-}
-
 function isSumLabel(value: string): boolean {
-  return normalizeAccountingLabel(value) === "sum";
-}
-
-function normalizeAccountingLabel(value: string): string {
-  return value.trim().toLowerCase().replace(/[\s_-]+/g, " ");
+  return value.trim().toLowerCase().replace(/[\s_-]+/g, " ") === "sum";
 }
 
 function validateModelSectionNames(

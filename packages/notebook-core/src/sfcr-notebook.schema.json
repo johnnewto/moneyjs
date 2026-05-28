@@ -381,6 +381,10 @@
           "minItems": 2,
           "maxItems": 2
         },
+        "accountingKind": {
+          "type": "string",
+          "enum": ["balance-sheet", "transaction-flow"]
+        },
         "columns": {
           "type": "array",
           "items": { "type": "string" }

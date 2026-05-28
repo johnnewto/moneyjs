@@ -26,7 +26,7 @@ import {
   buildVariableUnitMetadataForModel
 } from "./matrixUnitMetadataSync";
 import { formatMatrixCellUnitValidationMessage } from "./matrixUnitValidation";
-import { inferAccountingMatrixKind } from "./validation";
+import { resolveAccountingMatrixKind } from "./validation";
 import { NotebookRenderProfiler } from "./notebookProfiler";
 import { RunSourceEditor } from "./RunSourceEditor";
 import {
@@ -248,7 +248,7 @@ function NotebookCellViewComponent({
 
     try {
       const parsed = parseCellSource(cell, sourceDraft) as MatrixCell;
-      const accountingKind = inferAccountingMatrixKind(parsed);
+      const accountingKind = resolveAccountingMatrixKind(parsed);
       const modelId = resolveModelIdFromSourceRunCell(cells, parsed.sourceRunCellId);
       if (!accountingKind || !modelId) {
         return null;

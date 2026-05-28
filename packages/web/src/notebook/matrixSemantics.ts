@@ -1,3 +1,4 @@
+import { resolveAccountingMatrixKind } from "./validation";
 import type { MatrixCell } from "./types";
 
 export type MatrixTableKind = "flows" | "stocks";
@@ -27,6 +28,25 @@ const STOCK_HINTS = [
   "net wealth",
   "net worth"
 ];
+
+export function resolveMatrixTableKind(
+  cell: MatrixCell,
+  mode: "auto" | MatrixTableKind = "auto"
+): MatrixTableKind {
+  if (mode !== "auto") {
+    return mode;
+  }
+
+  const accountingKind = resolveAccountingMatrixKind(cell);
+  if (accountingKind === "balance-sheet") {
+    return "stocks";
+  }
+  if (accountingKind === "transaction-flow") {
+    return "flows";
+  }
+
+  return inferMatrixTableKind(cell, "auto");
+}
 
 export function inferMatrixTableKind(
   cell: MatrixCell,

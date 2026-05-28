@@ -12,6 +12,7 @@ cells:
       source: "This notebook adapts the `gl8-growth.Rmd` article into executable browser cells. It includes the full GROWTH baseline, the balance-sheet and transactions-flow matrices, and three representative policy experiments from the article: a higher target real wage, a one-period fiscal-growth shock, and a rise in non-performing loans."
   - matrix:
       id: balance-sheet
+      accountingKind: balance-sheet
       title: GROWTH balance sheet
       description: Balance-sheet matrix for model GROWTH following the gl8 article.
       note: Validated against the baseline simulation in the R vignette fixture.
@@ -32,6 +33,7 @@ cells:
         - [Sum, Sum, "0", "0", "0", "0", "0", "0"]
   - matrix:
       id: transaction-flow
+      accountingKind: transaction-flow
       title: GROWTH transactions-flow matrix
       description: Transactions-flow matrix for model GROWTH following the gl8 article.
       note: Validated against the baseline simulation in the R vignette fixture.

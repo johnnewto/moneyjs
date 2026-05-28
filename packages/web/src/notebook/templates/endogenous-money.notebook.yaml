@@ -28,6 +28,7 @@ cells:
         - Government debt to GDP and private debt to GDP are shown as chart variables.
   - matrix:
       id: balance-sheet
+      accountingKind: balance-sheet
       title: Endogenous money balance sheet
       description: BOMD balance sheet.
       note: Loans and government bonds are private-bank assets.
@@ -43,6 +44,7 @@ cells:
         - [Sum, Sum, "0", "0", "0", "0", "0"]
   - matrix:
       id: transaction-flow
+      accountingKind: transaction-flow
       title: Endogenous money transaction-flow matrix
       description: BOMD transaction flows.
       note: Compact accounting display of the executable model.

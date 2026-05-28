@@ -74,6 +74,7 @@ cells:
         **Quantitative easing.** In Werner's framing, monetary stimulus is not defined by reserves alone. It works when it increases credit creation for GDP transactions.
   - matrix:
       id: balance-sheet
+      accountingKind: balance-sheet
       title: Balance sheet
       description: Stylized balance-sheet view of loan-created deposits and existing asset values.
       sourceRunCellId: baseline-run
@@ -88,6 +89,7 @@ cells:
         - [Sum, Sum, "0", "0", "0", "0"]
   - matrix:
       id: transaction-matrix
+      accountingKind: transaction-flow
       title: Credit allocation transaction matrix
       description: Transactions-flow view separating GDP credit from financial-transaction credit.
       sourceRunCellId: baseline-run

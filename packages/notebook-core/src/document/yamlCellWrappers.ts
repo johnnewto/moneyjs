@@ -1,4 +1,5 @@
-import type { NotebookCell } from "../types";
+import { normalizeMatrixCellAccountingKind } from "../accountingMatrixKind";
+import type { MatrixCell, NotebookCell } from "../types";
 import type { NotebookYamlEnvelope } from "./documentTypes";
 import { isRecord, stringValue } from "./documentUtils";
 import {
@@ -38,6 +39,9 @@ export function normalizeYamlCellEntry(cell: unknown): NotebookCell {
     return cell as unknown as NotebookCell;
   }
   if (typeof cell.type === "string") {
+    if (cell.type === "matrix") {
+      return normalizeMatrixCellAccountingKind(cell as unknown as MatrixCell);
+    }
     return cell as unknown as NotebookCell;
   }
 
@@ -141,9 +145,10 @@ export function buildYamlWrappedCell(type: NotebookCell["type"], body: Record<st
 
 export function normalizeRawYamlWrappedCell(type: NotebookCell["type"], body: Record<string, unknown>): NotebookCell {
   const { id, type: _ignoredType, ...rest } = body;
-  return {
+  const cell = {
     ...(typeof id === "string" ? { id } : {}),
     type,
     ...rest
   } as NotebookCell;
+  return type === "matrix" ? normalizeMatrixCellAccountingKind(cell as MatrixCell) : cell;
 }

@@ -9,7 +9,7 @@ import {
   type UnitSignature,
   type VariableUnitMetadata
 } from "../lib/unitMeta";
-import { inferAccountingMatrixKind, type AccountingMatrixKind } from "./validation";
+import { resolveAccountingMatrixKind, type AccountingMatrixKind } from "./validation";
 import type { MatrixCell } from "./types";
 
 const BALANCE_SHEET_SIGNATURES: UnitSignature[] = [{ money: 1 }, { items: 1 }];
@@ -108,7 +108,7 @@ export function validateMatrixCellUnits(
   cell: MatrixCell,
   variableUnitMetadata: VariableUnitMetadata
 ): UnitDiagnostic[] {
-  const kind = inferAccountingMatrixKind(cell);
+  const kind = resolveAccountingMatrixKind(cell);
   if (!kind) {
     return [];
   }

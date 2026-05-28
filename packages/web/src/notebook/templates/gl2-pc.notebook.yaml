@@ -12,6 +12,7 @@ cells:
       source: This notebook adapts `gl2-pc.Rmd` into executable browser cells. It includes the PC balance-sheet and transactions-flow matrices, the baseline portfolio-choice model, the interest-rate scenario from the article, a deterministic `PCEX1` random-shock section with a stored `Ra` sequence, the `PCEX2` adaptive-expectations variant, and the `PCEX3` interest-sensitive propensity-to-consume extension.
   - matrix:
       id: balance-sheet
+      accountingKind: balance-sheet
       title: PC balance sheet
       description: Balance-sheet matrix for model PC following the article structure.
       note: Validated against the baseline simulation from the source vignette.
@@ -25,6 +26,7 @@ cells:
         - [Sum, Sum, "0", "0", "0", "0", "0"]
   - matrix:
       id: transaction-flow
+      accountingKind: transaction-flow
       title: PC transactions-flow matrix
       description: Transactions-flow matrix for model PC following the article structure.
       note: Validated against the baseline simulation from the source vignette.

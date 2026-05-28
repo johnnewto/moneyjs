@@ -12,6 +12,7 @@ cells:
       source: "This notebook adapts the `gl7-insout.Rmd` article into executable browser cells. It includes the INSOUT balance-sheet and transactions-flow matrices, the full baseline model, and three representative simulations from the article: higher targeted inventories, higher government expenditure, and the combined inflation-plus-interest-rate experiment."
   - matrix:
       id: balance-sheet
+      accountingKind: balance-sheet
       title: INSOUT balance sheet
       description: Balance-sheet matrix for model INSOUT following the gl7 article.
       note: Validated against the baseline simulation in the R vignette fixture.
@@ -93,6 +94,7 @@ cells:
         - [Sum, Sum, "0", "0", "0", "0", "0", "0"]
   - matrix:
       id: transaction-flow
+      accountingKind: transaction-flow
       title: INSOUT transactions-flow matrix
       description: Transactions-flow matrix for model INSOUT following the gl7 article.
       note: Validated against the baseline simulation in the R vignette fixture.

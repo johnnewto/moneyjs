@@ -12,6 +12,7 @@ cells:
       source: This browser notebook adapts the BMW vignette into executable model, run, and chart cells. It focuses on a Newton baseline and two scenario comparisons.
   - matrix:
       id: balance-sheet
+      accountingKind: balance-sheet
       title: BMW balance sheet
       description: Balance-sheet matrix for the BMW model, following the sfcr article presentation.
       note: Source structure adapted from the sfcr BMW article balance-sheet display.
@@ -26,6 +27,7 @@ cells:
         - [Sum, Sum, "0", "0", "0", "0"]
   - matrix:
       id: transaction-flow
+      accountingKind: transaction-flow
       title: BMW transactions-flow matrix
       description: Transactions-flow matrix for the BMW model, shown in the same accounting style as the sfcr article.
       note: Signs and row structure follow the BMW transactions-flow matrix in the sfcr article.

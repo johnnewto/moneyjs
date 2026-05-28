@@ -54,6 +54,7 @@ cells:
         | `DebtRatio` | total loans relative to GDP | ratio |
   - matrix:
       id: balance-sheet
+      accountingKind: balance-sheet
       title: "Balance sheet: loan-created deposits"
       description: Balance-sheet view showing how bank-created credit maps into deposits, loans, and asset holdings.
       sourceRunCellId: baseline-run
@@ -68,6 +69,7 @@ cells:
         - [Sum, Sum, "0", "0", "0", "0"]
   - matrix:
       id: transaction-matrix
+      accountingKind: transaction-flow
       title: "Transaction matrix: productive vs asset credit"
       description: Transaction-flow view separating credit directed to current production from credit directed to existing assets.
       sourceRunCellId: baseline-run

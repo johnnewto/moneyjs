@@ -12,6 +12,7 @@ cells:
       source: This notebook presents the Godley and Lavoie DIS model as an executable browser notebook. It focuses on how expected sales, inventory adjustment, bank credit, and household wealth accumulation interact through a stock-flow consistent structure, and includes the baseline model, accounting matrices, and two scenario experiments from the chapter.
   - matrix:
       id: balance-sheet
+      accountingKind: balance-sheet
       title: DIS balance sheet
       description: Balance-sheet matrix for the DIS model, showing how household deposits, firm inventories, and bank liabilities align across sectors.
       note: Use this view to track how inventory finance and household wealth accumulation are mirrored by the banking system in the baseline simulation.
@@ -31,6 +32,7 @@ cells:
         - [Sum, Sum, "0", "0", "0", "0"]
   - matrix:
       id: transaction-flow
+      accountingKind: transaction-flow
       title: DIS transactions-flow matrix
       description: Transactions-flow matrix for the DIS model, tracing consumption, wages, interest, profits, and financing flows across households, firms, and banks.
       note: This view makes the model's stock-flow consistency explicit by pairing each income, credit, and wealth flow with its offsetting entry.

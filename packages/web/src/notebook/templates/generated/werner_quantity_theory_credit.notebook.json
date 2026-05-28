@@ -11,6 +11,7 @@
       "type": "matrix",
       "title": "Balance sheet: loan-created deposits",
       "sourceRunCellId": "baseline-run",
+      "accountingKind": "balance-sheet",
       "columns": ["Households", "Production firms", "Banks", "Sum"],
       "sectors": ["Households", "Firms", "Banks", ""],
       "rows": [
@@ -28,6 +29,7 @@
       "type": "matrix",
       "title": "Transaction matrix: productive vs asset credit",
       "sourceRunCellId": "baseline-run",
+      "accountingKind": "transaction-flow",
       "columns": ["Households", "Production firms", "Banks", "Sum"],
       "sectors": ["Households", "Firms", "Banks", ""],
       "rows": [

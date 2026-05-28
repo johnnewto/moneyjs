@@ -29,7 +29,7 @@ for (const filePath of targetFiles) {
   let fileUpdateCount = 0;
 
   for (const cell of document.cells ?? []) {
-    const matrixKind = inferAccountingMatrixKind(cell);
+    const matrixKind = resolveAccountingMatrixKind(cell);
     if (!matrixKind || !kinds.has(matrixKind)) {
       continue;
     }
@@ -164,11 +164,19 @@ async function collectNotebookFilesFromDirectory(directoryPath, files) {
   }
 }
 
-function inferAccountingMatrixKind(cell) {
+function resolveAccountingMatrixKind(cell) {
   if (!cell || cell.type !== "matrix") {
     return null;
   }
 
+  if (cell.accountingKind === "balance-sheet" || cell.accountingKind === "transaction-flow") {
+    return cell.accountingKind;
+  }
+
+  return inferAccountingMatrixKind(cell);
+}
+
+function inferAccountingMatrixKind(cell) {
   const searchableText = normalizeAccountingLabel(`${cell.id ?? ""} ${cell.title ?? ""}`);
   if (searchableText.includes("transaction")) {
     return "transaction-flow";

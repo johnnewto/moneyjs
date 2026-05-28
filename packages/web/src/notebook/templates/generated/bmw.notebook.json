@@ -9,6 +9,7 @@
       "type": "matrix",
       "title": "BMW balance sheet",
       "sourceRunCellId": "baseline-newton",
+      "accountingKind": "balance-sheet",
       "columns": ["Households", "Production firms", "Banks", "Sum"],
       "sectors": ["Households", "Firms", "Banks", ""],
       "rows": [
@@ -26,6 +27,7 @@
       "type": "matrix",
       "title": "BMW transactions-flow matrix",
       "sourceRunCellId": "baseline-newton",
+      "accountingKind": "transaction-flow",
       "columns": ["Households", "Firms_current", "Firms_capital", "Banks_current", "Banks_capital", "Sum"],
       "sectors": ["Households", "Firms", "Firms", "Banks", "Banks", ""],
       "rows": [

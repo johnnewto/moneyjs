@@ -12,6 +12,7 @@ cells:
       source: This notebook adds a distributive DIS variant with two household classes. Workers receive wages and maintain a high propensity to consume, while rentiers receive firms' profits and bond interest, save more heavily, and allocate wealth between money and government bonds. Government spending supports demand, taxes withdraw income from both classes, and deficits accumulate as money and bonds held by the private sector.
   - matrix:
       id: balance-sheet
+      accountingKind: balance-sheet
       title: DIS rentier balance sheet
       description: Stylized balance-sheet matrix for the distributive DIS model with workers, rentiers, and the government.
       note: Workers hold their saving as money, while rentiers split wealth between money and government bonds.
@@ -25,6 +26,7 @@ cells:
         - [Sum, Sum, "0", "0", "0", "0"]
   - matrix:
       id: transaction-flow
+      accountingKind: transaction-flow
       title: DIS rentier transactions-flow matrix
       description: Transactions-flow matrix for the rentier extension, showing class-based income distribution and government-liability financing.
       note: The money-versus-bonds split appears only on the rentier side, reflecting class-based portfolio behavior.

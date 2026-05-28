@@ -16,6 +16,7 @@ cells:
       source: "The original paper develops a much larger calibrated system. This template is a starter model rather than a full replication. It preserves the core mechanisms we usually want to extend first in the editor: reserve requirements, deposit splitting across two banks, a borrowing bank's maturity choice between overnight and term funding, a lending bank's overnight-versus-term preference, and a central-bank backstop through a refinancing facility."
   - matrix:
       id: balance-sheet
+      accountingKind: balance-sheet
       title: "Table 4: Balance Sheet Matrix"
       description: Article-style balance-sheet matrix adapted from Table 4 of the paper.
       note: This accounting table preserves the paper's full institutional structure. Some symbols shown here go beyond the reduced-form starter equations and are included as a modeling scaffold.
@@ -41,6 +42,7 @@ cells:
         - [Sum, Sum, "0", "0", "0", "0", "0", "0", "0"]
   - matrix:
       id: transaction-flow
+      accountingKind: transaction-flow
       title: "Table 5: Transaction Flow Matrix"
       description: Article-style transaction-flow matrix adapted from Table 5 of the paper.
       note: This matrix follows the paper's accounting layout and keeps article notation where helpful. It is meant as a structural modeling template, not a strict one-for-one rendering of the reduced-form executable equations above.

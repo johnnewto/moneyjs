@@ -54,7 +54,10 @@ export function compileYamlNotebookSource(source: NotebookYamlEnvelope): Partial
     title: "Balance sheet"
   });
   if (balanceCell) {
-    cells.push(balanceCell);
+    cells.push({
+      ...balanceCell,
+      accountingKind: balanceCell.accountingKind ?? "balance-sheet"
+    });
   }
 
   const transactionsCell = buildCompactMatrixCell(source.transactions, {
@@ -64,7 +67,10 @@ export function compileYamlNotebookSource(source: NotebookYamlEnvelope): Partial
     title: "Transactions-flow matrix"
   });
   if (transactionsCell) {
-    cells.push(transactionsCell);
+    cells.push({
+      ...transactionsCell,
+      accountingKind: transactionsCell.accountingKind ?? "transaction-flow"
+    });
   }
 
   cells.push({

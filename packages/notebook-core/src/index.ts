@@ -1,3 +1,4 @@
+export * from "./accountingMatrixKind";
 export * from "./document/index";
 export * from "./diagnostics";
 export * from "./types";

@@ -185,6 +185,7 @@ export interface TableCell extends NotebookCellBase {
 
 export interface MatrixCell extends NotebookCellBase {
   type: "matrix";
+  accountingKind?: "transaction-flow" | "balance-sheet";
   columns: string[];
   sectors?: string[];
   sourceRunCellId?: string;
