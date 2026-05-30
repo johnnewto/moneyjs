@@ -1,9 +1,12 @@
 export type MatrixAccountBadgeRole = "asset" | "liability" | "equity";
 
+export const MATRIX_ACCOUNT_SUM_COLUMN_LABEL = "A-L-E";
+
 export interface MatrixColumnHeaderCell {
   nodeId: string;
   label: string;
   fullLabel?: string;
+  variableSymbol?: string;
   colSpan: number;
   rowSpan: number;
   columnIndex?: number;
@@ -13,6 +16,13 @@ export interface MatrixColumnHeaderCell {
   isLeafHidden?: boolean;
   stockRole?: MatrixAccountBadgeRole;
   inspectVariable?: string;
+  isSectorStart?: boolean;
+}
+
+export interface MatrixAccountColumnLeafDisplay {
+  accountName: string;
+  variableSymbol?: string;
+  fullLabel: string;
 }
 
 export type MatrixColumnDisplaySlot =
@@ -80,17 +90,92 @@ export function normalizeMatrixAccountBadgeRole(input: unknown): MatrixAccountBa
   }
 }
 
-export function formatMatrixColumnLeafHeaderLabel(label: string): string {
-  const trimmed = label.trim();
-  const dotIndex = trimmed.indexOf(".");
-  if (dotIndex < 0) {
-    return trimmed;
+export function parseMatrixAccountColumnLeafDisplay(label: string): MatrixAccountColumnLeafDisplay {
+  const fullLabel = label.trim();
+  const variableSymbol = parseVariableFromColumnLabel(fullLabel);
+  let withoutVariable = fullLabel;
+  if (variableSymbol) {
+    withoutVariable = fullLabel.replace(/\s*\([^)]+\)\s*$/, "").trim();
   }
-  return trimmed.slice(dotIndex);
+  const dotIndex = withoutVariable.indexOf(".");
+  const accountName = dotIndex >= 0 ? withoutVariable.slice(dotIndex + 1) : withoutVariable;
+  return {
+    accountName,
+    ...(variableSymbol ? { variableSymbol } : {}),
+    fullLabel
+  };
+}
+
+export function formatMatrixColumnLeafHeaderLabel(label: string): string {
+  return parseMatrixAccountColumnLeafDisplay(label).accountName;
+}
+
+export function formatMatrixAccountRowBalanceBreakdown(
+  row: Array<number | null>,
+  columnBadges: string[],
+  sumColumnIndex: number,
+  formatValue: (value: number) => string = String
+): string {
+  const terms: string[] = [];
+  let total = 0;
+
+  for (let columnIndex = 0; columnIndex < row.length; columnIndex += 1) {
+    if (columnIndex === sumColumnIndex) {
+      continue;
+    }
+    const value = row[columnIndex];
+    if (value == null || !Number.isFinite(value) || value === 0) {
+      continue;
+    }
+    const role = normalizeMatrixAccountBadgeRole(columnBadges[columnIndex]);
+    const signed = signedMatrixAccountColumnContribution(value, role);
+    if (signed === 0) {
+      continue;
+    }
+    total += signed;
+    const magnitude = formatValue(Math.abs(signed));
+    terms.push(signed > 0 ? `+${magnitude}` : `−${magnitude}`);
+  }
+
+  const totalLabel = formatValue(total);
+  if (terms.length === 0) {
+    return `= ${totalLabel}`;
+  }
+  return `${terms.join(" ")} = ${totalLabel}`;
 }
 
 export function usesMatrixAccountColumnLayout(columnBadges: string[] | undefined): boolean {
   return Array.isArray(columnBadges) && columnBadges.length > 0;
+}
+
+export function isMatrixAccountSectorStartColumn(
+  columns: string[],
+  sectors: string[] | undefined,
+  columnIndex: number
+): boolean {
+  const columnLabel = columns[columnIndex]?.trim() ?? "";
+  if (isSumColumnLabel(columnLabel)) {
+    return false;
+  }
+
+  const sectorLabel = sectors?.[columnIndex]?.trim() ?? "";
+  if (!sectorLabel) {
+    return false;
+  }
+
+  let index = columnIndex;
+  while (index > 0) {
+    const previousLabel = columns[index - 1]?.trim() ?? "";
+    if (isSumColumnLabel(previousLabel)) {
+      break;
+    }
+    if ((sectors?.[index - 1]?.trim() ?? "") !== sectorLabel) {
+      break;
+    }
+    index -= 1;
+  }
+
+  return index === columnIndex;
 }
 
 /** Row total for account-transaction matrices: asset +, liability and equity −. */
@@ -249,7 +334,8 @@ export function buildMatrixAccountColumnHeaderRows(
           rowSpan: MATRIX_ACCOUNT_HEADER_ROW_COUNT,
           isLeaf: false,
           isExpandable: true,
-          isCollapsedStub: true
+          isCollapsedStub: true,
+          isSectorStart: true
         });
         index = groupEnd;
         continue;
@@ -261,25 +347,29 @@ export function buildMatrixAccountColumnHeaderRows(
         colSpan: groupEnd - index,
         rowSpan: 1,
         isLeaf: false,
-        isExpandable: true
+        isExpandable: true,
+        isSectorStart: true
       });
     }
 
     for (let columnIndex = index; columnIndex < groupEnd; columnIndex += 1) {
       const label = columns[columnIndex]?.trim() ?? "";
+      const leafDisplay = parseMatrixAccountColumnLeafDisplay(label);
       const badgeRole = normalizeMatrixAccountBadgeRole(columnBadges[columnIndex]);
       const collapseKey = columnCollapseKey(columnIndex);
       const isHidden = collapsedNodeIds.has(collapseKey);
       rows[1]?.push({
         nodeId: collapseKey,
-        label: formatMatrixColumnLeafHeaderLabel(label),
-        fullLabel: label,
+        label: leafDisplay.accountName,
+        fullLabel: leafDisplay.fullLabel,
+        ...(leafDisplay.variableSymbol ? { variableSymbol: leafDisplay.variableSymbol } : {}),
         colSpan: 1,
         rowSpan: 1,
         columnIndex,
         isLeaf: true,
         isExpandable: false,
         isLeafHidden: isHidden,
+        isSectorStart: columnIndex === index,
         inspectVariable: resolveMatrixColumnInspectVariable(columns, columnIndex, variables),
         ...(badgeRole ? { stockRole: badgeRole } : {})
       });

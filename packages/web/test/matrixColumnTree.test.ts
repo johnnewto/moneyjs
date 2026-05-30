@@ -67,10 +67,8 @@ describe("matrixColumnTree", () => {
     const expanded = buildMatrixColumnHeaderRows(sampleTree, columns, new Set());
     expect(expanded).toHaveLength(2);
     expect(expanded[0]?.[0]).toMatchObject({ label: "Households", colSpan: 2, isExpandable: true });
-    expect(expanded[1]?.map((cell) => cell.label)).toEqual([
-      ".Deposits (Mh)",
-      ".Net_Worth (Vh)"
-    ]);
+    expect(expanded[1]?.map((cell) => cell.label)).toEqual(["Deposits", "Net_Worth"]);
+    expect(expanded[1]?.map((cell) => cell.variableSymbol)).toEqual(["Mh", "Vh"]);
     expect(expanded[1]?.map((cell) => cell.stockRole)).toEqual(["asset", "equity"]);
 
     const hiddenLeafSlots = buildMatrixColumnDisplaySlots(sampleTree, columns, new Set(["Mh"]));
@@ -117,12 +115,12 @@ describe("classifyMatrixColumnTreeCategoryRole", () => {
 });
 
 describe("formatMatrixColumnLeafHeaderLabel", () => {
-  it("shows only the account suffix from the first dot", () => {
-    expect(formatMatrixColumnLeafHeaderLabel("Households.Deposits (Mh)")).toBe(".Deposits (Mh)");
-    expect(formatMatrixColumnLeafHeaderLabel("Firms.Loans (Ld)")).toBe(".Loans (Ld)");
-    expect(formatMatrixColumnLeafHeaderLabel("Bank.Firm.Loans (Ls)")).toBe(".Firm.Loans (Ls)");
-    expect(formatMatrixColumnLeafHeaderLabel("Banks.HH.Deposits (MhL)")).toBe(".HH.Deposits (MhL)");
-    expect(formatMatrixColumnLeafHeaderLabel("Banks.Firm.Deposits (MfL)")).toBe(".Firm.Deposits (MfL)");
+  it("shows the account name without sector prefix or variable parentheses", () => {
+    expect(formatMatrixColumnLeafHeaderLabel("Households.Deposits (Mh)")).toBe("Deposits");
+    expect(formatMatrixColumnLeafHeaderLabel("Firms.Loans (Ld)")).toBe("Loans");
+    expect(formatMatrixColumnLeafHeaderLabel("Bank.Firm.Loans (Ls)")).toBe("Firm.Loans");
+    expect(formatMatrixColumnLeafHeaderLabel("Banks.HH.Deposits (MhL)")).toBe("HH.Deposits");
+    expect(formatMatrixColumnLeafHeaderLabel("Banks.Firm.Deposits (MfL)")).toBe("Firm.Deposits");
     expect(formatMatrixColumnLeafHeaderLabel("Sum")).toBe("Sum");
   });
 });

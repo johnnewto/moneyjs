@@ -3,6 +3,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type Mouse
 import { evaluateExpression, parseExpression, type SimulationResult } from "@sfcr/core";
 import {
   computeMatrixAccountRowTotal,
+  formatMatrixAccountRowBalanceBreakdown,
+  MATRIX_ACCOUNT_SUM_COLUMN_LABEL,
+  isMatrixAccountSectorStartColumn,
+  normalizeMatrixAccountBadgeRole,
   type MatrixColumnDisplaySlot,
   usesMatrixAccountColumnLayout
 } from "@sfcr/notebook-core";
@@ -45,6 +49,17 @@ const MATRIX_VIRTUALIZATION_VIEWPORT_HEIGHT_PX = 480;
 const MATRIX_VIRTUALIZATION_OVERSCAN_ROWS = 4;
 const MATRIX_VARIABLE_INSPECT_DELAY_MS = 400;
 
+const MATRIX_CELL_DOUBLE_CLICK_IGNORE_SELECTOR =
+  "button, .result-variable-button, .formula-token.is-clickable, .notebook-matrix-tree-badge-toggle";
+
+function matrixCellDoubleClickShouldOpenEdit(event: ReactMouseEvent<HTMLElement>): boolean {
+  const target = event.target;
+  if (!(target instanceof Element)) {
+    return true;
+  }
+  return target.closest(MATRIX_CELL_DOUBLE_CLICK_IGNORE_SELECTOR) == null;
+}
+
 export function MatrixCellView({
   cell,
   cells,
@@ -78,6 +93,7 @@ export function MatrixCellView({
   const columnLayout = useMatrixColumnLayout(cell, collapsedColumnTreeNodeIds);
   const displaySlots = columnLayout.displaySlots;
   const usesColumnTree = columnLayout.usesColumnTree;
+  const accountColumnLayout = usesMatrixAccountColumnLayout(cell.columnBadges);
   const result = cell.sourceRunCellId ? runner.getResult(cell.sourceRunCellId) : null;
   const editor = cell.sourceRunCellId ? resolveEditorStateForRunCellId(cells, cell.sourceRunCellId) : null;
   const currentValues = result
@@ -381,11 +397,13 @@ export function MatrixCellView({
                   : `${cell.columns[slot.columnIndex] ?? slot.columnIndex}-${slot.columnIndex}`
             }
             className={
-              slot.kind === "collapsed" || slot.kind === "hiddenLeaf"
-                ? "notebook-matrix-value-col notebook-matrix-collapsed-stub-col"
-                : slot.kind === "leaf" && slot.columnIndex === sumColumnIndex
-                  ? "notebook-matrix-value-col notebook-matrix-value-col-sum"
-                  : "notebook-matrix-value-col"
+              slot.kind === "collapsed"
+                ? "notebook-matrix-collapsed-stub-col"
+                : slot.kind === "hiddenLeaf"
+                  ? "notebook-matrix-hidden-leaf-col"
+                  : slot.kind === "leaf" && slot.columnIndex === sumColumnIndex
+                    ? "notebook-matrix-value-col notebook-matrix-value-col-sum"
+                    : "notebook-matrix-value-col"
             }
           />
         ))}
@@ -403,17 +421,20 @@ export function MatrixCellView({
       sumColumnIndex={sumColumnIndex}
       collapsedNodeIds={collapsedColumnTreeNodeIds}
       editorLinked={editor != null}
+      accountColumnLayout={accountColumnLayout}
       onToggleNode={toggleColumnTreeNode}
       onInspectVariable={editor ? handleInspectVariable : undefined}
     />
   ) : (
     <tr>
       <th scope="col">
-        {matrixKind === "stocks"
-          ? "Asset / Liability"
-          : matrixKind === "flows"
-            ? "Transaction"
-            : null}
+        {accountColumnLayout
+          ? "Flow / account"
+          : matrixKind === "stocks"
+            ? "Asset / Liability"
+            : matrixKind === "flows"
+              ? "Transaction"
+              : null}
       </th>
       {cell.columns.map((column, columnIndex) => (
         <th
@@ -422,7 +443,9 @@ export function MatrixCellView({
           className={columnIndex === sumColumnIndex ? "notebook-matrix-sum-column" : undefined}
           onContextMenu={(event) => handleMatrixColumnContextMenu(event, columnIndex)}
         >
-          {editor ? (
+          {columnIndex === sumColumnIndex && accountColumnLayout ? (
+            MATRIX_ACCOUNT_SUM_COLUMN_LABEL
+          ) : editor ? (
             <button
               type="button"
               className={documentHighlightClassName(column, highlightedVariable, "result-variable-button")}
@@ -482,6 +505,7 @@ export function MatrixCellView({
               </NotebookRenderProfiler>
             </th>
             {renderMatrixRowDataCells({
+              accountColumnLayout,
               cell,
               displaySlots,
               entryDisplayMode,
@@ -496,6 +520,7 @@ export function MatrixCellView({
               selectedPeriodIndex,
               sourceSelectVariable,
               sumColumnIndex,
+              sumRowIndex,
               usesColumnTree,
               variableDescriptions,
               variableUnitMetadata,
@@ -571,7 +596,15 @@ export function MatrixCellView({
                   className="notebook-oversize-scroll notebook-matrix-wrap notebook-matrix-wrap-virtualized-header"
                   data-drag-scroll-ignore="true"
                 >
-                  <table className="notebook-matrix-table notebook-matrix-table-virtualized">
+                  <table
+                    className={[
+                      "notebook-matrix-table",
+                      "notebook-matrix-table-virtualized",
+                      accountColumnLayout ? "notebook-matrix-table-account-columns" : undefined
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
                     {matrixColumnGroup}
                     <thead>{matrixHeaderRow}</thead>
                   </table>
@@ -605,7 +638,8 @@ export function MatrixCellView({
               <table
                 className={[
                   "notebook-matrix-table",
-                  isVirtualizedMatrix ? "notebook-matrix-table-virtualized" : undefined
+                  isVirtualizedMatrix ? "notebook-matrix-table-virtualized" : undefined,
+                  accountColumnLayout ? "notebook-matrix-table-account-columns" : undefined
                 ]
                   .filter(Boolean)
                   .join(" ")}
@@ -866,7 +900,34 @@ export function MatrixCellView({
   );
 }
 
+function resolveMatrixAccountColumnCellClasses(
+  accountColumnLayout: boolean,
+  cell: Pick<MatrixCell, "columns" | "sectors" | "columnBadges">,
+  columnIndex: number,
+  sumColumnIndex: number
+): string[] {
+  if (!accountColumnLayout) {
+    return [];
+  }
+
+  const classes: string[] = [];
+  if (isMatrixAccountSectorStartColumn(cell.columns, cell.sectors, columnIndex)) {
+    classes.push("notebook-matrix-sector-start");
+  }
+  if (columnIndex === sumColumnIndex) {
+    classes.push("notebook-matrix-ale-column");
+    return classes;
+  }
+
+  const role = normalizeMatrixAccountBadgeRole(cell.columnBadges?.[columnIndex]);
+  if (role) {
+    classes.push(`notebook-matrix-cell-${role}`);
+  }
+  return classes;
+}
+
 function renderMatrixRowDataCells({
+  accountColumnLayout,
   cell,
   currentValues,
   displaySlots,
@@ -882,11 +943,13 @@ function renderMatrixRowDataCells({
   selectedPeriodIndex,
   sourceSelectVariable,
   sumColumnIndex,
+  sumRowIndex,
   usesColumnTree,
   variableDescriptions,
   variableUnitMetadata,
   onColumnContextMenu
 }: {
+  accountColumnLayout: boolean;
   cell: MatrixCell;
   currentValues: Record<string, number | undefined>;
   displaySlots: MatrixColumnDisplaySlot[];
@@ -899,6 +962,7 @@ function renderMatrixRowDataCells({
   parameterNames: Set<string>;
   row: {
     entries: Array<{
+      balanceBreakdown?: string;
       isBalanced: boolean;
       isSumCell: boolean;
       numericValue: number | null;
@@ -911,6 +975,7 @@ function renderMatrixRowDataCells({
   selectedPeriodIndex: number;
   sourceSelectVariable?: (variableName: string) => void;
   sumColumnIndex: number;
+  sumRowIndex: number;
   usesColumnTree: boolean;
   variableDescriptions: VariableDescriptions;
   variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
@@ -923,7 +988,11 @@ function renderMatrixRowDataCells({
       cells.push(
         <td
           key={`${row.label}-collapsed-${slot.nodeId}`}
-          className="notebook-matrix-tree-collapsed-stub"
+          className={
+            accountColumnLayout
+              ? "notebook-matrix-tree-collapsed-stub notebook-matrix-sector-start"
+              : "notebook-matrix-tree-collapsed-stub"
+          }
           aria-label={`${slot.label} collapsed`}
           title={`Expand ${slot.label}`}
         >
@@ -948,6 +1017,7 @@ function renderMatrixRowDataCells({
 
     cells.push(
       renderMatrixLeafDataCell({
+        accountColumnLayout,
         cell,
         columnIndex: slot.columnIndex,
         currentValues,
@@ -963,6 +1033,7 @@ function renderMatrixRowDataCells({
         selectedPeriodIndex,
         sourceSelectVariable,
         sumColumnIndex,
+        sumRowIndex,
         usesColumnTree,
         variableDescriptions,
         variableUnitMetadata,
@@ -974,6 +1045,7 @@ function renderMatrixRowDataCells({
   if (usesColumnTree && sumColumnIndex >= 0) {
     cells.push(
       renderMatrixLeafDataCell({
+        accountColumnLayout,
         cell,
         columnIndex: sumColumnIndex,
         currentValues,
@@ -989,6 +1061,7 @@ function renderMatrixRowDataCells({
         selectedPeriodIndex,
         sourceSelectVariable,
         sumColumnIndex,
+        sumRowIndex,
         usesColumnTree,
         variableDescriptions,
         variableUnitMetadata,
@@ -1001,6 +1074,7 @@ function renderMatrixRowDataCells({
 }
 
 function renderMatrixLeafDataCell({
+  accountColumnLayout,
   cell,
   columnIndex,
   currentValues,
@@ -1016,11 +1090,13 @@ function renderMatrixLeafDataCell({
   selectedPeriodIndex,
   sourceSelectVariable,
   sumColumnIndex,
+  sumRowIndex,
   usesColumnTree,
   variableDescriptions,
   variableUnitMetadata,
   onColumnContextMenu
 }: {
+  accountColumnLayout: boolean;
   cell: MatrixCell;
   columnIndex: number;
   currentValues: Record<string, number | undefined>;
@@ -1033,6 +1109,7 @@ function renderMatrixLeafDataCell({
   parameterNames: Set<string>;
   row: {
     entries: Array<{
+      balanceBreakdown?: string;
       isBalanced: boolean;
       isSumCell: boolean;
       numericValue: number | null;
@@ -1045,6 +1122,7 @@ function renderMatrixLeafDataCell({
   selectedPeriodIndex: number;
   sourceSelectVariable?: (variableName: string) => void;
   sumColumnIndex: number;
+  sumRowIndex: number;
   usesColumnTree: boolean;
   variableDescriptions: VariableDescriptions;
   variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
@@ -1055,16 +1133,37 @@ function renderMatrixLeafDataCell({
     return <td key={`${row.label}-${columnIndex}-missing`} />;
   }
 
+  const isEditingEntry =
+    matrixEntryEdit.editingTarget?.rowIndex === rowIndex &&
+    matrixEntryEdit.editingTarget?.columnIndex === columnIndex;
+  const isEditableDataCell =
+    !entry.isSumCell && rowIndex !== sumRowIndex && columnIndex !== sumColumnIndex;
+
   return (
     <td
       key={`${row.label}-${cell.columns[columnIndex] ?? columnIndex}`}
       className={
         [
+          ...resolveMatrixAccountColumnCellClasses(accountColumnLayout, cell, columnIndex, sumColumnIndex),
           columnIndex === sumColumnIndex ? "notebook-matrix-sum-column" : undefined,
-          entry.isSumCell && !entry.isBalanced ? "matrix-balance-error" : undefined
+          entry.isSumCell && !entry.isBalanced ? "matrix-balance-error" : undefined,
+          isEditableDataCell && !isEditingEntry ? "notebook-matrix-cell-editable" : undefined
         ]
           .filter(Boolean)
           .join(" ") || undefined
+      }
+      title={entry.balanceBreakdown ?? (isEditableDataCell ? "Double-click to edit" : undefined)}
+      onDoubleClickCapture={
+        isEditableDataCell && !isEditingEntry
+          ? (event) => {
+              if (!matrixCellDoubleClickShouldOpenEdit(event)) {
+                return;
+              }
+              event.preventDefault();
+              event.stopPropagation();
+              onBeginEdit(rowIndex, columnIndex, entry.source);
+            }
+          : undefined
       }
       onContextMenu={usesColumnTree ? undefined : (event) => onColumnContextMenu(event, columnIndex)}
     >
@@ -1074,9 +1173,6 @@ function renderMatrixLeafDataCell({
             ? classifyMatrixStockRole(row.label, entry.source, entry.numericValue)
             : null;
 
-        const isEditingEntry =
-          matrixEntryEdit.editingTarget?.rowIndex === rowIndex &&
-          matrixEntryEdit.editingTarget?.columnIndex === columnIndex;
         const showEquation =
           isEditingEntry || entryDisplayMode === "equation" || entryDisplayMode === "both";
         const showValue =
@@ -1135,11 +1231,6 @@ function renderMatrixLeafDataCell({
                   selectedPeriodIndex
                 }}
               >
-                {entryDisplayMode === "both" && showEquation ? (
-                  <span aria-hidden="true" className="matrix-entry-equals">
-                    =
-                  </span>
-                ) : null}
                 <MatrixEntryResolvedValue
                   columnIndex={columnIndex}
                   entryDisplayMode={entryDisplayMode}
@@ -1293,6 +1384,21 @@ function buildEvaluatedMatrix(
           )
         : numericValues[rowIndex]?.[columnIndex] ?? null;
 
+      const isBalanced = isSumCell ? Math.abs(computedValue ?? 0) < 1e-6 : true;
+      const balanceBreakdown =
+        useAccountRowSumRule &&
+        isSumCell &&
+        columnIndex === sumColumnIndex &&
+        !isBalanced &&
+        cell.columnBadges
+          ? formatMatrixAccountRowBalanceBreakdown(
+              numericValues[rowIndex] ?? [],
+              cell.columnBadges,
+              sumColumnIndex,
+              formatMatrixNumber
+            )
+          : undefined;
+
       return {
         numericValue: computedValue,
         source: value,
@@ -1300,8 +1406,9 @@ function buildEvaluatedMatrix(
           computedValue != null && Number.isFinite(computedValue)
             ? `= ${formatMatrixNumber(computedValue)}`
             : resolveMatrixEntryValue(value, result, selectedPeriodIndex),
-        isBalanced: isSumCell ? Math.abs(computedValue ?? 0) < 1e-6 : true,
-        isSumCell
+        isBalanced,
+        isSumCell,
+        balanceBreakdown
       };
     });
 
@@ -1462,9 +1569,8 @@ function MatrixEntryResolvedValue({
   variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
   onBeginEdit(rowIndex: number, columnIndex: number, source: string): void;
 }) {
-  const valuePrefix = entryDisplayMode === "both" ? "" : "= ";
   const content = resolved
-    ? formatResolvedMatrixValue(source, resolved, variableUnitMetadata, valuePrefix)
+    ? formatResolvedMatrixValue(source, resolved, variableUnitMetadata)
     : "—";
   const className =
     entryDisplayMode === "value" && !isSumCell
@@ -1493,19 +1599,18 @@ function MatrixEntryResolvedValue({
 function formatResolvedMatrixValue(
   source: string,
   resolved: string,
-  variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>,
-  valuePrefix = "= "
+  variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>
 ): JSX.Element | string {
   const valueText = resolved.replace(/^=\s*/, "");
   const numericValue = Number(valueText.replace(/,/g, ""));
   if (!Number.isFinite(numericValue)) {
-    return valuePrefix ? `${valuePrefix}${valueText}` : valueText;
+    return valueText;
   }
 
   const unitMeta = inferMatrixExpressionUnitMeta(source, variableUnitMetadata);
   return (
     <NumericValueText
-      prefix={valuePrefix}
+      prefix=""
       unitMeta={unitMeta}
       value={numericValue}
       options={{
@@ -1647,16 +1752,14 @@ function MatrixEntrySource({
     );
   }
 
+  const beginEdit = (event: ReactMouseEvent<HTMLElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onBeginEdit(rowIndex, columnIndex, source);
+  };
+
   return (
-    <span
-      className="matrix-entry-source is-editable"
-      onDoubleClick={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        onBeginEdit(rowIndex, columnIndex, source);
-      }}
-      title="Double-click to edit"
-    >
+    <span className="matrix-entry-source is-editable" onDoubleClick={beginEdit} title="Double-click to edit">
       {highlightFormula(
         source,
         parameterNames,

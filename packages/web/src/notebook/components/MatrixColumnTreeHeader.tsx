@@ -6,6 +6,7 @@ import {
   buildMatrixColumnDisplaySlots,
   buildMatrixColumnHeaderRows,
   collectMatrixAccountSectorCollapseKeys,
+  MATRIX_ACCOUNT_SUM_COLUMN_LABEL,
   type MatrixColumnDisplaySlot,
   type MatrixColumnHeaderCell,
   usesMatrixAccountColumnLayout
@@ -70,6 +71,7 @@ export function MatrixColumnTreeHeader({
   sumColumnIndex,
   collapsedNodeIds,
   editorLinked,
+  accountColumnLayout = false,
   onToggleNode,
   onInspectVariable
 }: {
@@ -78,10 +80,17 @@ export function MatrixColumnTreeHeader({
   sumColumnIndex: number;
   collapsedNodeIds: ReadonlySet<string>;
   editorLinked: boolean;
+  accountColumnLayout?: boolean;
   onToggleNode(nodeId: string): void;
   onInspectVariable?(variableName: string): void;
 }): JSX.Element {
   const cornerRowSpan = Math.max(headerRows.length, 1);
+  const cornerLabel = accountColumnLayout ? "Flow / account" : "Transaction";
+  const sumColumnHeaderLabel = accountColumnLayout
+    ? MATRIX_ACCOUNT_SUM_COLUMN_LABEL
+    : sumColumnIndex >= 0
+      ? columns[sumColumnIndex]
+      : "";
 
   return (
     <>
@@ -89,7 +98,7 @@ export function MatrixColumnTreeHeader({
         <tr key={`matrix-column-tree-header-${rowIndex}`}>
           {rowIndex === 0 ? (
             <th rowSpan={cornerRowSpan} scope="col">
-              Transaction
+              {cornerLabel}
             </th>
           ) : null}
           {row.map((cell) => (
@@ -101,6 +110,7 @@ export function MatrixColumnTreeHeader({
               className={[
                 cell.isCollapsedStub ? "notebook-matrix-tree-collapsed-stub-header" : undefined,
                 cell.isLeafHidden ? "notebook-matrix-tree-hidden-leaf-header" : undefined,
+                cell.isSectorStart ? "notebook-matrix-sector-start" : undefined,
                 cell.isLeaf && cell.columnIndex === sumColumnIndex ? "notebook-matrix-sum-column" : undefined
               ]
                 .filter(Boolean)
@@ -117,8 +127,16 @@ export function MatrixColumnTreeHeader({
             </th>
           ))}
           {rowIndex === 0 && sumColumnIndex >= 0 ? (
-            <th rowSpan={cornerRowSpan} scope="col" className="notebook-matrix-sum-column">
-              {columns[sumColumnIndex]}
+            <th
+              rowSpan={cornerRowSpan}
+              scope="col"
+              className={
+                accountColumnLayout
+                  ? "notebook-matrix-sum-column notebook-matrix-ale-column"
+                  : "notebook-matrix-sum-column"
+              }
+            >
+              {sumColumnHeaderLabel}
             </th>
           ) : null}
         </tr>
@@ -168,6 +186,7 @@ function renderHeaderCell({
     const inspectName = cell.inspectVariable?.trim() || (cell.columnIndex != null ? columns[cell.columnIndex] ?? cell.label : cell.label).trim();
     const displayLabel = cell.label;
     const titleLabel = cell.fullLabel ?? cell.label;
+    const variableSymbol = cell.variableSymbol?.trim();
     const isHidden = cell.isLeafHidden === true;
     const badgeButton = cell.stockRole ? (
       <button
@@ -186,6 +205,15 @@ function renderHeaderCell({
       return <span className="notebook-matrix-tree-leaf-header notebook-matrix-tree-leaf-header-hidden">{badgeButton}</span>;
     }
 
+    const stackedLabel = (
+      <span className="notebook-matrix-tree-leaf-label-stack">
+        <span className="notebook-matrix-tree-leaf-label">{displayLabel}</span>
+        {variableSymbol ? (
+          <span className="notebook-matrix-tree-leaf-variable">{variableSymbol}</span>
+        ) : null}
+      </span>
+    );
+
     const labelContent = (
       <>
         {badgeButton}
@@ -196,16 +224,16 @@ function renderHeaderCell({
             title={titleLabel}
             onClick={() => onInspectVariable(inspectName)}
           >
-            {displayLabel}
+            {stackedLabel}
           </button>
         ) : (
-          <span className="notebook-matrix-tree-leaf-label">{displayLabel}</span>
+          stackedLabel
         )}
       </>
     );
 
     return (
-      <span className="notebook-matrix-tree-leaf-header" title={titleLabel}>
+      <span className="notebook-matrix-tree-leaf-header notebook-matrix-tree-leaf-header-stacked" title={titleLabel}>
         {labelContent}
       </span>
     );

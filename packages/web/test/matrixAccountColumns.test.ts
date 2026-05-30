@@ -5,7 +5,10 @@ import {
   buildMatrixAccountColumnHeaderRows,
   collectMatrixAccountSectorCollapseKeys,
   computeMatrixAccountRowTotal,
+  formatMatrixAccountRowBalanceBreakdown,
+  isMatrixAccountSectorStartColumn,
   normalizeMatrixAccountBadgeRole,
+  parseMatrixAccountColumnLeafDisplay,
   signedMatrixAccountColumnContribution,
   validateMatrixAccountColumnsLayout
 } from "@sfcr/notebook-core";
@@ -42,14 +45,43 @@ describe("matrixAccountColumns", () => {
     ).toMatch(/columnBadges has 2 entries/);
   });
 
+  it("parses leaf display names and variable symbols", () => {
+    expect(parseMatrixAccountColumnLeafDisplay("Households.Deposits (Mh)")).toEqual({
+      accountName: "Deposits",
+      variableSymbol: "Mh",
+      fullLabel: "Households.Deposits (Mh)"
+    });
+    expect(parseMatrixAccountColumnLeafDisplay("Bank.Firm.Loans (Ls)")).toEqual({
+      accountName: "Firm.Loans",
+      variableSymbol: "Ls",
+      fullLabel: "Bank.Firm.Loans (Ls)"
+    });
+  });
+
+  it("formats A-L-E imbalance breakdown tooltips", () => {
+    const columnBadges = ["asset", "liability", "equity", ""];
+    expect(
+      formatMatrixAccountRowBalanceBreakdown([100, 40, 30, 0], columnBadges, 3, (value) => String(value))
+    ).toBe("+100 −40 −30 = 30");
+  });
+
+  it("marks the first column in each sector group", () => {
+    expect(isMatrixAccountSectorStartColumn(columns, sectors, 0)).toBe(true);
+    expect(isMatrixAccountSectorStartColumn(columns, sectors, 1)).toBe(false);
+    expect(isMatrixAccountSectorStartColumn(columns, sectors, 2)).toBe(true);
+  });
+
   it("builds sector and leaf headers with equity badges", () => {
     const headerRows = buildMatrixAccountColumnHeaderRows(columns, sectors, columnBadges, undefined, new Set());
-    expect(headerRows[0]?.[0]).toMatchObject({ label: "Households", colSpan: 2 });
+    expect(headerRows[0]?.[0]).toMatchObject({ label: "Households", colSpan: 2, isSectorStart: true });
     expect(headerRows[1]?.map((cell) => cell.stockRole)).toEqual(["asset", "equity", "asset"]);
-    expect(headerRows[1]?.map((cell) => cell.label)).toEqual([
-      ".Deposits (Mh)",
-      ".Net_Worth (Vh)",
-      ".Deposits (Mf)"
+    expect(headerRows[1]?.map((cell) => cell.isSectorStart)).toEqual([true, false, true]);
+    expect(headerRows[1]?.map((cell) => cell.label)).toEqual(["Deposits", "Net_Worth", "Deposits"]);
+    expect(headerRows[1]?.map((cell) => cell.variableSymbol)).toEqual(["Mh", "Vh", "Mf"]);
+    expect(headerRows[1]?.map((cell) => cell.fullLabel)).toEqual([
+      "Households.Deposits (Mh)",
+      "Households.Net_Worth (Vh)",
+      "Firms.Deposits (Mf)"
     ]);
   });
 

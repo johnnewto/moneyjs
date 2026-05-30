@@ -1,5 +1,5 @@
 import {
-  formatMatrixColumnLeafHeaderLabel,
+  parseMatrixAccountColumnLeafDisplay,
   type MatrixAccountBadgeRole,
   type MatrixColumnDisplaySlot,
   type MatrixColumnHeaderCell
@@ -211,10 +211,13 @@ export function buildMatrixColumnHeaderRows(
   ): void {
     const columnKey = resolveMatrixColumnTreeLeafColumnKey(node);
     const columnIndex = columns.findIndex((column) => column.trim() === columnKey);
+    const leafDisplay = parseMatrixAccountColumnLeafDisplay(node.label);
+    const variableSymbol = node.variable?.trim() || leafDisplay.variableSymbol;
     rows[1]?.push({
       nodeId: node.id,
-      label: formatMatrixColumnLeafHeaderLabel(node.label),
-      fullLabel: node.label,
+      label: leafDisplay.accountName,
+      fullLabel: leafDisplay.fullLabel,
+      ...(variableSymbol ? { variableSymbol } : {}),
       colSpan: 1,
       rowSpan: 1,
       columnIndex: columnIndex >= 0 ? columnIndex : undefined,

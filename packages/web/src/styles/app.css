@@ -5269,10 +5269,6 @@ body.panel-splitter-body-lock {
   font-weight: 500;
 }
 
-.notebook-matrix-collapsed-stub-col {
-  width: 2.75rem;
-  min-width: 2.75rem;
-}
 
 .notebook-matrix-tree-collapsed-stub-header {
   background: rgba(241, 245, 249, 0.95);
@@ -5314,7 +5310,30 @@ body.panel-splitter-body-lock {
   white-space: nowrap;
 }
 
+.notebook-matrix-tree-leaf-header-stacked {
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.notebook-matrix-tree-leaf-label-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  line-height: 1.15;
+}
+
+.notebook-matrix-tree-leaf-variable {
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
 .notebook-matrix-tree-leaf-label-button {
+  font-weight: 500;
+}
+
+.notebook-matrix-tree-leaf-label-button .notebook-matrix-tree-leaf-label {
   font-weight: 500;
 }
 
@@ -5324,15 +5343,20 @@ body.panel-splitter-body-lock {
 
 .notebook-matrix-tree-hidden-leaf-header {
   background: rgba(241, 245, 249, 0.95);
+  padding-left: 0.3rem;
+  padding-right: 0.3rem;
   vertical-align: middle;
 }
 
 .notebook-matrix-tree-hidden-leaf-stub {
   background: rgba(241, 245, 249, 0.65);
   color: #94a3b8;
+  padding-left: 0.3rem;
+  padding-right: 0.3rem;
   text-align: center;
   vertical-align: middle;
 }
+
 
 button.notebook-matrix-tree-badge-toggle {
   border: 0;
@@ -5396,6 +5420,7 @@ button.notebook-matrix-tree-badge-toggle:hover {
   margin-top: 0;
   min-width: 680px;
   overflow: hidden;
+  table-layout: fixed;
   width: 100%;
 }
 
@@ -5415,6 +5440,23 @@ button.notebook-matrix-tree-badge-toggle:hover {
 
 .notebook-matrix-value-col-sum {
   width: 4rem;
+}
+
+.notebook-matrix-table col.notebook-matrix-hidden-leaf-col {
+  width: 2.125rem;
+}
+
+.notebook-matrix-table col.notebook-matrix-collapsed-stub-col {
+  width: 2.75rem;
+}
+
+.notebook-matrix-table th.notebook-matrix-tree-hidden-leaf-header,
+.notebook-matrix-table td.notebook-matrix-tree-hidden-leaf-stub {
+  box-sizing: border-box;
+  max-width: 2.125rem;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+  width: 2.125rem;
 }
 
 .notebook-matrix-table th,
@@ -5439,6 +5481,19 @@ button.notebook-matrix-tree-badge-toggle:hover {
   font-weight: 600;
 }
 
+.notebook-matrix-table tbody td {
+  text-align: right;
+}
+
+.notebook-matrix-table tbody td.notebook-matrix-tree-collapsed-stub,
+.notebook-matrix-table tbody td.notebook-matrix-tree-hidden-leaf-stub {
+  text-align: center;
+}
+
+.notebook-matrix-table tbody td.notebook-matrix-cell-editable {
+  cursor: text;
+}
+
 .notebook-matrix-table .notebook-matrix-virtual-spacer-row td {
   border-bottom: 0;
   padding: 0;
@@ -5452,8 +5507,26 @@ button.notebook-matrix-tree-badge-toggle:hover {
   width: 4rem;
 }
 
-.notebook-matrix-table .notebook-matrix-sum-column .matrix-entry-inline {
-  justify-content: flex-end;
+.notebook-matrix-table td.notebook-matrix-cell-asset:not(.matrix-balance-error) {
+  background: rgba(220, 252, 231, 0.35);
+}
+
+.notebook-matrix-table td.notebook-matrix-cell-liability:not(.matrix-balance-error) {
+  background: rgba(254, 226, 226, 0.35);
+}
+
+.notebook-matrix-table td.notebook-matrix-cell-equity:not(.matrix-balance-error) {
+  background: rgba(219, 234, 254, 0.35);
+}
+
+.notebook-matrix-table-account-columns th.notebook-matrix-sector-start,
+.notebook-matrix-table-account-columns td.notebook-matrix-sector-start {
+  border-left: 2px solid rgba(71, 85, 105, 0.42);
+}
+
+.notebook-matrix-table-account-columns th.notebook-matrix-ale-column,
+.notebook-matrix-table-account-columns td.notebook-matrix-ale-column {
+  border-left: 2px solid rgba(51, 65, 85, 0.55);
 }
 
 .notebook-godley {
@@ -6231,15 +6304,17 @@ button.matrix-multiport__stock-name:hover {
 
 .matrix-entry-inline {
   align-items: baseline;
-  display: inline-flex;
+  display: flex;
   gap: 0.35rem;
   white-space: nowrap;
+  width: 100%;
 }
 
 .matrix-entry-source {
   color: #0f172a;
   font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
   font-size: 0.86rem;
+  text-align: left;
 }
 
 .matrix-entry-source.is-editable {
@@ -6261,16 +6336,13 @@ button.matrix-multiport__stock-name:hover {
   gap: 0.4rem;
 }
 
-.matrix-entry-equals {
-  color: #64748b;
-  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
-  font-size: 0.76rem;
-}
-
 .matrix-entry-current {
   color: #475569;
+  flex-shrink: 0;
   font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
   font-size: 0.76rem;
+  margin-left: auto;
+  text-align: right;
 }
 
 .matrix-entry-current.is-editable {
@@ -6282,8 +6354,9 @@ button.matrix-multiport__stock-name:hover {
 }
 
 .matrix-balance-error {
-  background: rgba(254, 242, 242, 0.85);
-  color: #991b1b;
+  background: rgba(254, 243, 199, 0.92);
+  color: #92400e;
+  outline: 1px solid rgba(217, 119, 6, 0.45);
 }
 
 .notebook-cell-run .notebook-cell-content,
