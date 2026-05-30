@@ -51,6 +51,8 @@ import {
 } from "./components/LinkedSectionViews";
 import { ChartCellView, RunCellView } from "./components/RunChartViews";
 import { MatrixCellView } from "./components/MatrixCellView";
+import { MatrixEntryDisplayModeToggle } from "./components/MatrixEntryDisplayModeToggle";
+import { type MatrixEntryDisplayMode } from "./matrixEntryDisplay";
 import {
   buildEditorStateForStandaloneModelSections,
   buildIssueMapForStandaloneModelSections,
@@ -217,6 +219,9 @@ function NotebookCellViewComponent({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isMatrixUnitMetaDialogOpen, setIsMatrixUnitMetaDialogOpen] = useState(false);
   const [matrixUnitMetaSelection, setMatrixUnitMetaSelection] = useState<Set<string>>(new Set());
+  const [matrixEntryDisplayModes, setMatrixEntryDisplayModes] = useState<
+    Record<string, MatrixEntryDisplayMode>
+  >({});
   const insertMenuRef = useRef<HTMLDivElement | null>(null);
   const cellContextMenuRef = useRef<HTMLDivElement | null>(null);
   const sourceTextareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -735,6 +740,17 @@ function NotebookCellViewComponent({
                 title={cell.title}
                 trailingActions={
                   <>
+                    {cell.type === "matrix" && !isEditingSource ? (
+                      <MatrixEntryDisplayModeToggle
+                        mode={matrixEntryDisplayModes[cell.id] ?? "both"}
+                        onChange={(nextMode) =>
+                          setMatrixEntryDisplayModes((current) => ({
+                            ...current,
+                            [cell.id]: nextMode
+                          }))
+                        }
+                      />
+                    ) : null}
                     {cell.type === "chart" && !isEditingSource ? (
                       <button
                         type="button"
@@ -1172,6 +1188,7 @@ function NotebookCellViewComponent({
               <MatrixCellView
                 cell={cell}
                 cells={cells}
+                entryDisplayMode={matrixEntryDisplayModes[cell.id] ?? "both"}
                 runner={runner}
                 selectedPeriodIndex={selectedPeriodIndex}
                 variableDescriptions={variableDescriptions}

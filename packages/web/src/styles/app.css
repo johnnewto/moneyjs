@@ -6144,10 +6144,20 @@ button.matrix-multiport__stock-name:hover {
   gap: 0.4rem;
 }
 
+.matrix-entry-equals {
+  color: #64748b;
+  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+  font-size: 0.76rem;
+}
+
 .matrix-entry-current {
   color: #475569;
   font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
   font-size: 0.76rem;
+}
+
+.matrix-entry-current.is-editable {
+  cursor: text;
 }
 
 .numeric-value-negative {

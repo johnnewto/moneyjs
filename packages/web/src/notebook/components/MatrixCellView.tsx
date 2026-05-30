@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type Mouse
 
 import { evaluateExpression, parseExpression, type SimulationResult } from "@sfcr/core";
 
+import type { MatrixEntryDisplayMode } from "../matrixEntryDisplay";
+
 import { HighlightedFormulaInput, highlightFormula } from "../../components/EquationGridEditor";
 import { NumericValueText } from "../../components/NumericValueText";
 import { VariableLabel } from "../../components/VariableLabel";
@@ -35,6 +37,7 @@ const MATRIX_VARIABLE_INSPECT_DELAY_MS = 400;
 export function MatrixCellView({
   cell,
   cells,
+  entryDisplayMode = "both",
   runner,
   selectedPeriodIndex,
   variableDescriptions,
@@ -46,6 +49,7 @@ export function MatrixCellView({
 }: {
   cell: MatrixCell;
   cells: NotebookCell[];
+  entryDisplayMode?: MatrixEntryDisplayMode;
   runner: ReturnType<typeof useNotebookRunner>;
   selectedPeriodIndex: number;
   variableDescriptions: VariableDescriptions;
@@ -429,6 +433,17 @@ export function MatrixCellView({
                       ? classifyMatrixStockRole(row.label, entry.source, entry.numericValue)
                       : null;
 
+                  const isEditingEntry =
+                    matrixEntryEdit.editingTarget?.rowIndex === rowIndex &&
+                    matrixEntryEdit.editingTarget?.columnIndex === index;
+                  const showEquation =
+                    isEditingEntry || entryDisplayMode === "equation" || entryDisplayMode === "both";
+                  const showValue =
+                    !isEditingEntry &&
+                    ((entry.isSumCell && entry.resolved != null) ||
+                      entryDisplayMode === "value" ||
+                      (entryDisplayMode === "both" && entry.resolved != null));
+
                   return (
                     <div className="matrix-entry-inline">
                       {stockRole ? (
@@ -440,34 +455,36 @@ export function MatrixCellView({
                           {formatStockRoleLabel(stockRole)}
                         </span>
                       ) : null}
-                      <NotebookRenderProfiler
-                        id="MatrixEntrySource"
-                        metadata={{
-                          cellId: cell.id,
-                          columnLabel: cell.columns[index] ?? String(index),
-                          rowLabel: row.label
-                        }}
-                      >
-                        <MatrixEntrySource
-                          columnIndex={index}
-                          currentValues={currentValues}
-                          draftSource={matrixEntryEdit.draftSource}
-                          editingTarget={matrixEntryEdit.editingTarget}
-                          isSumCell={entry.isSumCell}
-                          parameterNames={parameterNames}
-                          rowIndex={rowIndex}
-                          source={entry.source}
-                          sourceSelectVariable={sourceSelectVariable}
-                          highlightedVariable={highlightedVariable}
-                          variableDescriptions={variableDescriptions}
-                          variableUnitMetadata={variableUnitMetadata}
-                          onApply={matrixEntryEdit.applyEntryEdit}
-                          onBeginEdit={beginMatrixEntryEdit}
-                          onCancel={cancelMatrixEntryEdit}
-                          onDraftChange={matrixEntryEdit.setDraftSource}
-                        />
-                      </NotebookRenderProfiler>
-                      {entry.resolved ? (
+                      {showEquation ? (
+                        <NotebookRenderProfiler
+                          id="MatrixEntrySource"
+                          metadata={{
+                            cellId: cell.id,
+                            columnLabel: cell.columns[index] ?? String(index),
+                            rowLabel: row.label
+                          }}
+                        >
+                          <MatrixEntrySource
+                            columnIndex={index}
+                            currentValues={currentValues}
+                            draftSource={matrixEntryEdit.draftSource}
+                            editingTarget={matrixEntryEdit.editingTarget}
+                            isSumCell={entry.isSumCell}
+                            parameterNames={parameterNames}
+                            rowIndex={rowIndex}
+                            source={entry.source}
+                            sourceSelectVariable={sourceSelectVariable}
+                            highlightedVariable={highlightedVariable}
+                            variableDescriptions={variableDescriptions}
+                            variableUnitMetadata={variableUnitMetadata}
+                            onApply={matrixEntryEdit.applyEntryEdit}
+                            onBeginEdit={beginMatrixEntryEdit}
+                            onCancel={cancelMatrixEntryEdit}
+                            onDraftChange={matrixEntryEdit.setDraftSource}
+                          />
+                        </NotebookRenderProfiler>
+                      ) : null}
+                      {showValue ? (
                         <NotebookRenderProfiler
                           id="MatrixEntryResolved"
                           metadata={{
@@ -477,13 +494,21 @@ export function MatrixCellView({
                             selectedPeriodIndex
                           }}
                         >
-                          <span className="matrix-entry-current">
-                            {formatResolvedMatrixValue(
-                              entry.source,
-                              entry.resolved,
-                              variableUnitMetadata
-                            )}
-                          </span>
+                          {entryDisplayMode === "both" && showEquation ? (
+                            <span aria-hidden="true" className="matrix-entry-equals">
+                              =
+                            </span>
+                          ) : null}
+                          <MatrixEntryResolvedValue
+                            columnIndex={index}
+                            entryDisplayMode={entryDisplayMode}
+                            isSumCell={entry.isSumCell}
+                            resolved={entry.resolved}
+                            rowIndex={rowIndex}
+                            source={entry.source}
+                            variableUnitMetadata={variableUnitMetadata}
+                            onBeginEdit={beginMatrixEntryEdit}
+                          />
                         </NotebookRenderProfiler>
                       ) : null}
                     </div>
@@ -1105,21 +1130,67 @@ function formatMatrixNumber(value: number): string {
   });
 }
 
+function MatrixEntryResolvedValue({
+  columnIndex,
+  entryDisplayMode,
+  isSumCell,
+  resolved,
+  rowIndex,
+  source,
+  variableUnitMetadata,
+  onBeginEdit
+}: {
+  columnIndex: number;
+  entryDisplayMode: MatrixEntryDisplayMode;
+  isSumCell: boolean;
+  resolved: string;
+  rowIndex: number;
+  source: string;
+  variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
+  onBeginEdit(rowIndex: number, columnIndex: number, source: string): void;
+}) {
+  const valuePrefix = entryDisplayMode === "both" ? "" : "= ";
+  const content = formatResolvedMatrixValue(source, resolved, variableUnitMetadata, valuePrefix);
+  const className =
+    entryDisplayMode === "value" && !isSumCell
+      ? "matrix-entry-current is-editable"
+      : "matrix-entry-current";
+
+  return (
+    <span
+      className={className}
+      onDoubleClick={
+        isSumCell || entryDisplayMode !== "value"
+          ? undefined
+          : (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onBeginEdit(rowIndex, columnIndex, source);
+            }
+      }
+      title={entryDisplayMode === "value" && !isSumCell ? "Double-click to edit" : undefined}
+    >
+      {content}
+    </span>
+  );
+}
+
 function formatResolvedMatrixValue(
   source: string,
   resolved: string,
-  variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>
+  variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>,
+  valuePrefix = "= "
 ): JSX.Element | string {
   const valueText = resolved.replace(/^=\s*/, "");
   const numericValue = Number(valueText.replace(/,/g, ""));
   if (!Number.isFinite(numericValue)) {
-    return resolved;
+    return valuePrefix ? `${valuePrefix}${valueText}` : valueText;
   }
 
   const unitMeta = inferMatrixExpressionUnitMeta(source, variableUnitMetadata);
   return (
     <NumericValueText
-      prefix="= "
+      prefix={valuePrefix}
       unitMeta={unitMeta}
       value={numericValue}
       options={{
