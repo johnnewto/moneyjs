@@ -77,13 +77,15 @@ function extractVariableNames(source: string): string[] {
 
 function hasLaggedDependencyReference(source: string, variable: string): boolean {
   const escaped = escapeRegExp(variable);
-  return new RegExp(`lag\\s*\\(\\s*${escaped}\\s*\\)|\\b${escaped}\\s*\\[-1\\]`, "i").test(source);
+  return new RegExp(`lag\\s*\\(\\s*${escaped}\\s*\\)|\\b${escaped}\\s*\\[-1\\]|\\b${escaped}'`, "i").test(
+    source
+  );
 }
 
 function hasCurrentDependencyReference(source: string, variable: string): boolean {
   const escaped = escapeRegExp(variable);
   const withoutLaggedReferences = source.replace(
-    new RegExp(`lag\\s*\\(\\s*${escaped}\\s*\\)|\\b${escaped}\\s*\\[-1\\]`, "ig"),
+    new RegExp(`lag\\s*\\(\\s*${escaped}\\s*\\)|\\b${escaped}\\s*\\[-1\\]|\\b${escaped}'`, "ig"),
     " "
   );
   return new RegExp(`\\b${escaped}\\b`).test(withoutLaggedReferences);

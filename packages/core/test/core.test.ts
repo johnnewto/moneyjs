@@ -73,6 +73,18 @@ describe("parser", () => {
     expect(new Set(equation.lagDependencies)).toEqual(new Set(["a", "b"]));
   });
 
+  it("normalizes prime lag syntax", () => {
+    const equation = parseEquation("x", "a' + d(b)");
+    expect(new Set(equation.currentDependencies)).toEqual(new Set(["b"]));
+    expect(new Set(equation.lagDependencies)).toEqual(new Set(["a", "b"]));
+  });
+
+  it("normalizes bullet multiplication syntax", () => {
+    const bullet = parseExpression("a • b + 2 • lag(c)");
+    const star = parseExpression("a * b + 2 * lag(c)");
+    expect(bullet).toEqual(star);
+  });
+
   it("treats dt as a built-in constant, not a model dependency", () => {
     const equation = parseEquation("x", "dt * a + lag(dt) + d(dt)");
 

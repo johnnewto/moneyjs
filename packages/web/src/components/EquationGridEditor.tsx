@@ -824,12 +824,12 @@ export function highlightFormula(
 ): ReactNode[] {
   const parts: ReactNode[] = [];
   const tokenPattern =
-    /(lag\(\s*([A-Za-z_][A-Za-z0-9_.^{}]*)\s*\))|(([A-Za-z_][A-Za-z0-9_.^{}]*)\s*\[\s*-1\s*\])|([A-Za-z_][A-Za-z0-9_.^{}]*|\d+(?:\.\d+)?(?:e[+-]?\d+)?)/gi;
+    /(lag\(\s*([A-Za-z_][A-Za-z0-9_.^{}]*)\s*\))|(([A-Za-z_][A-Za-z0-9_.^{}]*)\s*\[\s*-1\s*\])|(([A-Za-z_][A-Za-z0-9_.^{}]*)')|([A-Za-z_][A-Za-z0-9_.^{}]*|\d+(?:\.\d+)?(?:e[+-]?\d+)?)/gi;
   let lastIndex = 0;
 
   for (const match of source.matchAll(tokenPattern)) {
     const token = match[0];
-    const laggedVariable = match[2] ?? match[4];
+    const laggedVariable = match[2] ?? match[4] ?? match[6];
     const index = match.index ?? 0;
 
     if (index > lastIndex) {

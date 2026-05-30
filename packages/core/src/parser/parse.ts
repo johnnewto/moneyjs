@@ -50,6 +50,7 @@ interface Token {
 
 const IDENTIFIER_SOURCE = String.raw`[A-Za-z_][A-Za-z0-9_\.\^\{\}]*`;
 const LAG_PATTERN = new RegExp(`(${IDENTIFIER_SOURCE})\\[-1\\]`, "g");
+const PRIME_LAG_PATTERN = new RegExp(`(${IDENTIFIER_SOURCE})'`, "g");
 const DIFF_PATTERN = new RegExp(`\\bd\\(\\s*(${IDENTIFIER_SOURCE})\\s*\\)`, "g");
 
 class Lexer {
@@ -455,7 +456,11 @@ function containsIntegral(expression: Expr): boolean {
 }
 
 function normalize(source: string): string {
-  return source.replace(LAG_PATTERN, "lag($1)").replace(DIFF_PATTERN, "diff($1)");
+  return source
+    .replace(/•/g, "*")
+    .replace(LAG_PATTERN, "lag($1)")
+    .replace(PRIME_LAG_PATTERN, "lag($1)")
+    .replace(DIFF_PATTERN, "diff($1)");
 }
 
 function isNumberStart(char: string): boolean {

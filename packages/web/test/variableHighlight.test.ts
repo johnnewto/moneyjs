@@ -14,6 +14,12 @@ describe("variableHighlight", () => {
     expect(canonicalVariableName("Y[-1]")).toBe("Y");
   });
 
+  it("matches prime lag references to the base variable", () => {
+    expect(variableMatchesHighlight("Y'", "Y")).toBe(true);
+    expect(variableMatchesHighlight("Ms'", "Ms")).toBe(true);
+    expect(canonicalVariableName("Y'")).toBe("Y");
+  });
+
   it("matches derivative balance equation names to the stock variable", () => {
     expect(variableMatchesHighlight("d(Mh)", "Mh")).toBe(true);
   });

@@ -15,6 +15,11 @@ export function canonicalVariableName(name: string): string {
     return equationOutputVariable(bracketLagMatch[1]);
   }
 
+  const primeLagMatch = /^(.+)'$/u.exec(trimmed);
+  if (primeLagMatch?.[1]) {
+    return equationOutputVariable(primeLagMatch[1]);
+  }
+
   return equationOutputVariable(trimmed);
 }
 

@@ -51,6 +51,22 @@ describe("EquationGridEditor lag rendering", () => {
     expect(expressionPreview).not.toHaveTextContent("[-1]");
     expect(screen.getAllByText("'", { selector: ".formula-token sup.lag-prime" })).toHaveLength(2);
   });
+
+  it("renders prime lag notation with the same prime styling", () => {
+    render(
+      <EquationGridEditor
+        equations={[{ id: "eq-1", name: "WBd", expression: "-rl' * Ld'" }]}
+        issues={{}}
+        onChange={vi.fn()}
+        parameterNames={[]}
+      />
+    );
+
+    expect(screen.getByDisplayValue("-rl' * Ld'")).toBeInTheDocument();
+    const expressionPreview = document.querySelectorAll(".highlighted-formula-preview")[1];
+    expect(expressionPreview).toHaveTextContent("•");
+    expect(screen.getAllByText("'", { selector: ".formula-token sup.lag-prime" })).toHaveLength(2);
+  });
 });
 
 function getFormulaTokensByText(container: HTMLElement, text: string): HTMLElement[] {

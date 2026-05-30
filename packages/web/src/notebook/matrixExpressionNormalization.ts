@@ -7,6 +7,8 @@ export interface NormalizedMatrixOccurrence {
 }
 
 const IDENTIFIER_PATTERN = String.raw`[A-Za-z_][A-Za-z0-9_.^{}]*`;
+const MULTIPLY_OPERATOR = "[*•]";
+const LAGGED_IDENTIFIER = `(?:lag\\(\\s*(${IDENTIFIER_PATTERN})\\s*\\)|(${IDENTIFIER_PATTERN})\\s*\\[-1\\]|(${IDENTIFIER_PATTERN})')`;
 
 export function extractNormalizedMatrixOccurrences(expression: string): NormalizedMatrixOccurrence[] {
   const trimmed = expression.trim();
@@ -24,19 +26,19 @@ export function extractNormalizedMatrixOccurrences(expression: string): Normaliz
 
   const changeMatch = normalized.match(
     new RegExp(
-      `^\\(?\\s*(${IDENTIFIER_PATTERN})\\s*-\\s*(?:lag\\(\\s*(${IDENTIFIER_PATTERN})\\s*\\)|(${IDENTIFIER_PATTERN})\\s*\\[-1\\])\\s*\\)?$`,
+      `^\\(?\\s*(${IDENTIFIER_PATTERN})\\s*-\\s*${LAGGED_IDENTIFIER}\\s*\\)?$`,
       "i"
     )
   );
   const currentVariable = changeMatch?.[1];
-  const laggedVariable = changeMatch?.[2] ?? changeMatch?.[3];
+  const laggedVariable = changeMatch?.[2] ?? changeMatch?.[3] ?? changeMatch?.[4];
   if (currentVariable && laggedVariable && currentVariable.toLowerCase() === laggedVariable.toLowerCase()) {
     return [{ sign, variable: currentVariable, displayLabel: `d${currentVariable}` }];
   }
 
   const productMatch = normalized.match(
     new RegExp(
-      `^(?:lag\\(\\s*(${IDENTIFIER_PATTERN})\\s*\\)|(${IDENTIFIER_PATTERN})\\s*\\[-1\\]|(${IDENTIFIER_PATTERN}))\\s*\\*\\s*(?:lag\\(\\s*(${IDENTIFIER_PATTERN})\\s*\\)|(${IDENTIFIER_PATTERN})\\s*\\[-1\\]|(${IDENTIFIER_PATTERN}))$`,
+      `^${LAGGED_IDENTIFIER}\\s*${MULTIPLY_OPERATOR}\\s*${LAGGED_IDENTIFIER}$`,
       "i"
     )
   );
@@ -58,7 +60,9 @@ export function extractNormalizedMatrixOccurrences(expression: string): Normaliz
     return [{ sign, variable: lagMatch[1], displayLabel: lagMatch[1] }];
   }
 
-  const variableMatch = normalized.match(new RegExp(`^(${IDENTIFIER_PATTERN})(?:\\s*\\[-1\\])?$`));
+  const variableMatch = normalized.match(
+    new RegExp(`^(${IDENTIFIER_PATTERN})(?:\\s*\\[-1\\]|')?$`)
+  );
   if (variableMatch?.[1]) {
     return [{ sign, variable: variableMatch[1], displayLabel: variableMatch[1] }];
   }
@@ -78,6 +82,7 @@ export function buildNormalizedMatrixReferenceLabel(variable: string, expression
     .replace(/^[-+]+\s*/, "")
     .replace(/\s+/g, "")
     .replace(/lag\(([^)]+)\)/g, "$1[-1]")
+    .replace(/([A-Za-z_][A-Za-z0-9_.^{}]*)'/g, "$1[-1]")
     .replace(/\[-1\]/g, "")
     .replace(/^\((.*)\)$/g, "$1");
 }
