@@ -1,0 +1,322 @@
+format: sfcr-notebook-yaml
+formatVersion: 1
+id: werner-quantity-theory-credit
+title: "Richard Werner: Quantity Theory of Credit"
+metadata:
+  version: 1
+  template: werner-quantity-theory-credit
+cells:
+  - markdown:
+      id: overview
+      title: Overview
+      source: |-
+        # Richard Werner's Quantity Theory of Credit
+
+        Werner's key distinction is not simply the quantity of money, but the destination of newly created bank credit.
+
+        - Productive credit finances GDP transactions: production, wages, inventories, and investment.
+        - Asset credit finances existing assets: land, housing, shares, and speculative financial assets.
+
+        In this notebook, banks create two credit circulations. Credit for GDP transactions drives nominal output. Credit for financial transactions drives the total value of asset-market turnover and therefore the asset-price index.
+  - markdown:
+      id: qtc-equation-note
+      title: QTC equations
+      source: |-
+        ## Quantity Theory of Credit equations
+
+        Werner's Quantity Theory of Credit splits the quantity equation into two separate circuits:
+
+        - Real-economy credit: `Cr * Vr = P * Yr = Y`
+        - Financial credit: `Cf * Vf = PA * AQty = PAQ`
+
+        `Cr` is bank credit used for GDP transactions and `Vr` is its velocity. `Cf` is credit used for financial transactions and `Vf` is its velocity. With velocity treated as relatively stable, growth in `Cr` maps to nominal GDP growth, while growth in `Cf` maps to asset-price inflation.
+  - markdown:
+      id: variables
+      title: Main variables
+      source: |-
+        | Variable | Meaning | Unit |
+        |---|---|---|
+        | `Y` | nominal GDP / income | money per period |
+        | `C` | consumption | money per period |
+        | `I` | productive investment | money per period |
+        | `Cr` | bank credit used for GDP transactions | money per period |
+        | `Cf` | bank credit used for financial transactions | money per period |
+        | `Vr` | velocity of real-economy credit | turns per period |
+        | `Vf` | velocity of financial credit | turns per period |
+        | `Dp` | change in productive credit | money per period |
+        | `Da` | change in asset credit | money per period |
+        | `Lp` | stock of productive loans | money |
+        | `La` | stock of asset loans | money |
+        | `M` | deposits | money |
+        | `PA` | asset price index | index |
+        | `PAQ` | total value of asset transactions | money per period |
+        | `W` | household wealth | money |
+        | `DebtRatio` | total loans relative to GDP | ratio |
+  - matrix:
+      id: balance-sheet
+      sourceRunCellId: baseline-run
+      title: "Balance sheet: loan-created deposits"
+      description: Balance-sheet view showing how bank-created credit maps into deposits, loans, and asset holdings.
+      columns: [Households, Production firms, Banks, Sum]
+      sectors: [Households, Firms, Banks, ""]
+      accountingKind: balance-sheet
+      rows:
+        - [Deposits, Household deposits, +M, "", -M, "0"]
+        - [Loans, Productive loans, "", -Lp, +Lp, "0"]
+        - [Loans, Asset loans, -La, "", +La, "0"]
+        - [Assets, Existing assets, +PAStock, "", "", +PAStock]
+        - [Net worth, Net worth, -W, +Lp, -BankNW, "0"]
+        - [Sum, Sum, "0", "0", "0", "0"]
+  - matrix:
+      id: transactions-flow
+      sourceRunCellId: baseline-run
+      title: "Transaction matrix: productive vs asset credit"
+      description: Transaction-flow view separating credit directed to current production from credit directed to existing assets.
+      columns: [Households, Production firms, Banks, Sum]
+      sectors: [Households, Firms, Banks, ""]
+      accountingKind: transaction-flow
+      rows:
+        - [GDP transactions, Consumption, -C, +C, "", "0"]
+        - [GDP transactions, Wages / income, +Y, -Y, "", "0"]
+        - [GDP transactions, Productive investment, "", +I, "", +I]
+        - [Credit creation, New productive loans, "", +Dp, +Dp, +Dp]
+        - [Credit creation, New asset loans, +Da, "", +Da, +Da]
+        - [Asset market, Existing asset purchases, -Da, "", "", -Da]
+        - [Debt service, Interest on productive loans, "", "-rp[-1] * Lp[-1]", "+rp[-1] * Lp[-1]", "0"]
+        - [Debt service, Interest on asset loans, "-ra[-1] * La[-1]", "", "+ra[-1] * La[-1]", "0"]
+        - [Sum, Sum, "0", "0", "0", "0"]
+  - sequence:
+      id: transaction-flow-sequence
+      title: Transaction flow sequence
+      source:
+        kind: matrix
+        matrixCellId: transactions-flow
+      description: Sequence view generated from the productive-versus-asset-credit transaction matrix.
+  - equations:
+      id: equations-werner-quantity-theory-credit
+      title: Model equations
+      modelId: werner-quantity-theory-credit
+      rows:
+        - [gp, gp_s, "Growth rate of credit used for GDP transactions.", "", "", definition, eq-gp]
+        - [ga, ga_s, "Growth rate of credit used for financial transactions.", "", "", definition, eq-ga]
+        - [Vr, Vr_s, "Velocity of circulation for real-economy credit.", "", "", definition, eq-vr]
+        - [Vf, Vf_s, "Velocity of circulation for financial credit.", "", "", definition, eq-vf]
+        - [Cr, lag(Cr) * (1 + gp), "Bank credit circulating in GDP transactions.", "", "", accumulation, eq-cr]
+        - [Cf, lag(Cf) * (1 + ga), "Bank credit circulating in financial transactions.", "", "", accumulation, eq-cf]
+        - [Y, Cr * Vr, "Nominal GDP from the real-economy credit equation Cr * Vr = P * Yr.", "", "", identity, eq-y]
+        - [PAQ, Cf * Vf, "Total value of asset transactions from the financial-credit equation Cf * Vf = PA * AQty.", "", "", identity, eq-paq]
+        - [PA, PAQ / AQty, "Asset price index implied by financial-credit turnover and the quantity of assets traded.", "", "", identity, eq-pa]
+        - [Dp, Cr - lag(Cr), "Change in credit circulating through GDP transactions.", "", "", definition, eq-dp]
+        - [Da, Cf - lag(Cf), "Change in credit circulating through financial transactions.", "", "", definition, eq-da]
+        - [Lp, lag(Lp) + Dp, "Stock of productive loans.", "", "", accumulation, eq-lp]
+        - [La, lag(La) + Da, "Stock of asset loans.", "", "", accumulation, eq-la]
+        - [L, Lp + La, "Total bank loans.", "", "", identity, eq-l]
+        - [I, Y - C, "Productive investment and other non-consumption GDP demand.", "", "", identity, eq-i]
+        - [C, alpha1 * lag(Y) + alpha2 * lag(W), "Consumption demand.", "", "", behavioral, eq-c]
+        - [M, lag(M) + Dp + Da, "Deposits created by net new credit in both circulations.", "", "", accumulation, eq-m]
+        - [PAStock, PA * AQty, "Value of existing assets held by households.", "", "", definition, eq-pastock]
+        - [W, M + PAStock - La, "Household wealth net of asset-credit liabilities.", "", "", identity, eq-w]
+        - [DebtRatio, L / Y, "Total loans relative to GDP.", "", "", definition, eq-debt]
+        - [ProductiveCreditShare, Cr / (Cr + Cf), "Share of circulating bank credit used for GDP transactions.", "", "", definition, eq-prod-share]
+        - [AssetCreditShare, Cf / (Cr + Cf), "Share of circulating bank credit used for financial transactions.", "", "", definition, eq-asset-share]
+        - [RealCreditGrowth, (Cr - lag(Cr)) / lag(Cr), "Growth form for real-economy credit.", "", "", definition, eq-real-growth]
+        - [FinancialCreditGrowth, (Cf - lag(Cf)) / lag(Cf), "Growth form for financial credit.", "", "", definition, eq-fin-growth]
+        - [NominalGDPGrowth, (Y - lag(Y)) / lag(Y), "Growth rate of nominal GDP implied by real-economy credit growth.", "", "", definition, eq-gdp-growth]
+        - [AssetPriceGrowth, (PA - lag(PA)) / lag(PA), "Growth rate of asset prices implied by financial-credit growth.", "", "", definition, eq-asset-growth]
+        - [BankNW, L - M, "Illustrative banking-sector net worth implied by loans minus deposits.", "", "", definition, eq-bank-nw]
+  - solver:
+      id: solver-werner-quantity-theory-credit
+      title: Solver
+      modelId: werner-quantity-theory-credit
+      method: gauss-seidel
+      tolerance: "1e-8"
+      maxIterations: 200
+      defaultInitialValue: "1e-15"
+      hiddenLeftVariable: ""
+      hiddenRightVariable: ""
+      hiddenTolerance: "1e-5"
+      relativeHiddenTolerance: false
+  - externals:
+      id: parameters-werner-quantity-theory-credit
+      title: Externals
+      modelId: werner-quantity-theory-credit
+      rows:
+        - [alpha1, 0.75, "Marginal propensity to consume out of lagged income.", "", "", ext-alpha1]
+        - [alpha2, 0.03, "Marginal propensity to consume out of lagged wealth.", "", "", ext-alpha2]
+        - [rp, 0.04, "Interest rate on productive loans, used in the accounting view.", "", "", ext-rp]
+        - [ra, 0.05, "Interest rate on asset loans, used in the accounting view.", "", "", ext-ra]
+        - [AQty, 1, "Fixed quantity of existing assets.", "", "", ext-aqty]
+        - [Vr_s, 5, "Velocity of circulation for GDP transactions.", "", "", ext-vrs]
+        - [Vf_s, 5, "Velocity of circulation for financial transactions.", "", "", ext-vfs]
+        - [gp_s, 0.04, "Scenario control for real-economy credit growth.", "", "", ext-gps]
+        - [ga_s, 0.02, "Scenario control for financial-credit growth.", "", "", ext-gas]
+  - initial-values:
+      id: initial-values-werner-quantity-theory-credit
+      title: Initial values
+      modelId: werner-quantity-theory-credit
+      rows:
+        - [Cr, 20, init-cr]
+        - [Cf, 20, init-cf]
+        - [Y, 100, init-y]
+        - [Lp, 80, init-lp]
+        - [La, 40, init-la]
+        - [M, 120, init-m]
+        - [PA, 100, init-pa]
+        - [PAQ, 100, init-paq]
+        - [W, 180, init-w]
+        - [DebtRatio, 1.2, init-debt]
+  - run:
+      id: baseline-run
+      title: "Baseline: more productive credit"
+      sourceModelId: werner-quantity-theory-credit
+      mode: baseline
+      periods: 80
+      resultKey: qtc_baseline
+      description: Baseline run with productive credit growth stronger than asset-credit growth.
+  - chart:
+      id: chart-1
+      title: Baseline headline variables
+      variables:
+        - Y
+        - Cr
+        - PA
+        - Cf
+        - DebtRatio
+      axisMode: separate
+      axisSnapTolarance: 0.1
+      niceScale: true
+      sourceRunCellId: baseline-run
+  - chart:
+      id: chart-2
+      title: Baseline credit composition
+      variables:
+        - ProductiveCreditShare
+        - AssetCreditShare
+      niceScale: true
+      sharedRange:
+        includeZero: true
+      sourceRunCellId: baseline-run
+  - table:
+      id: table-1
+      title: Baseline variable summary
+      variables:
+        - Y
+        - Cr
+        - Cf
+        - Dp
+        - Da
+        - PA
+        - PAQ
+        - W
+        - DebtRatio
+      sourceRunCellId: baseline-run
+  - markdown:
+      id: asset-boom-note
+      title: Scenario 1
+      source: This scenario shifts credit creation toward asset purchases by lowering real-economy credit growth and raising financial-credit growth. In Werner's framing, this is the credit pattern associated with asset-price inflation rather than broad GDP acceleration.
+  - run:
+      id: asset-boom-run
+      title: "Asset boom: more asset credit"
+      sourceModelId: werner-quantity-theory-credit
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 1
+              - 80
+            variables:
+              gp_s:
+                kind: constant
+                value: 0.02
+              ga_s:
+                kind: constant
+                value: 0.08
+            startPeriodInclusive: 1
+            endPeriodInclusive: 80
+      baselineRunCellId: baseline-run
+      periods: 80
+      resultKey: qtc_asset_boom
+      description: Higher asset-credit growth should push asset prices and leverage above the baseline path.
+  - chart:
+      id: asset-boom-chart
+      title: Asset boom vs baseline
+      variables:
+        - Y
+        - PA
+        - DebtRatio
+      axisMode: separate
+      axisSnapTolarance: 0.1
+      niceScale: true
+      referenceTrace: baseline
+      sourceRunCellId: asset-boom-run
+  - chart:
+      id: asset-boom-credit-composition
+      title: Asset boom credit composition
+      variables:
+        - ProductiveCreditShare
+        - AssetCreditShare
+      niceScale: true
+      referenceTrace: baseline
+      sharedRange:
+        includeZero: true
+      sourceRunCellId: asset-boom-run
+  - markdown:
+      id: credit-crunch-note
+      title: Scenario 2
+      source: This scenario slows both credit circulations to show how weaker bank lending compresses nominal GDP growth and cools asset-price growth.
+  - run:
+      id: credit-crunch-run
+      title: "Credit crunch: falling credit growth"
+      sourceModelId: werner-quantity-theory-credit
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 1
+              - 80
+            variables:
+              gp_s:
+                kind: constant
+                value: 0.01
+              ga_s:
+                kind: constant
+                value: 0.005
+            startPeriodInclusive: 1
+            endPeriodInclusive: 80
+      baselineRunCellId: baseline-run
+      periods: 80
+      resultKey: qtc_credit_crunch
+      description: Lower credit growth should weaken output and reduce the pace of asset-price and leverage growth.
+  - chart:
+      id: credit-crunch-chart
+      title: Credit crunch vs baseline
+      variables:
+        - Y
+        - PA
+        - DebtRatio
+      axisMode: separate
+      axisSnapTolarance: 0.1
+      niceScale: true
+      referenceTrace: baseline
+      sourceRunCellId: credit-crunch-run
+  - sequence:
+      id: dependency-graph
+      title: Equation dependency graph
+      source:
+        kind: dependency
+        modelId: werner-quantity-theory-credit
+        showAccountingStrips: true
+        showExogenous: false
+        stripMapping:
+          transactionMatrixCellId: transactions-flow
+          balanceMatrixCellId: balance-sheet
+      description: Dependency view showing how credit allocation, income, deposits, asset prices, and leverage interact.
+  - markdown:
+      id: interpretation
+      title: Interpretation
+      source: |-
+        ## Interpretation
+
+        The model separates bank credit into two flows. Productive credit, `Dp`, directly finances investment and enters GDP demand. Asset credit, `Da`, does not directly create current production. Instead it raises the asset-price index through the asset-credit-pressure term.
+
+        That captures Werner's central point: credit for real-economy transactions tends to raise GDP, while credit for existing assets tends to raise asset prices and leverage.

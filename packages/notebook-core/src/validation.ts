@@ -2,6 +2,8 @@ import Ajv2020, { type ErrorObject } from "ajv/dist/2020";
 import notebookSchema from "./sfcr-notebook.schema.json" with { type: "json" };
 import { createNotebookDiagnostic, type NotebookDiagnostic } from "./diagnostics";
 import { resolveAccountingMatrixKind } from "./accountingMatrixKind";
+import { validateMatrixAccountColumnsLayout } from "./matrixAccountColumns";
+import { validateMatrixColumnTreeMatchesColumns } from "./matrixColumnTree";
 import type {
   MatrixCell,
   NotebookCell,
@@ -307,6 +309,23 @@ function validateMatrixCell(cell: MatrixCell, issues: NotebookValidationIssue[])
     }
   });
 
+  const accountLayoutIssue = validateMatrixAccountColumnsLayout(
+    cell.columns,
+    cell.sectors,
+    cell.columnBadges,
+    cell.variables
+  );
+  if (accountLayoutIssue) {
+    issues.push(createNotebookIssue(`Matrix cell '${cell.id}' ${accountLayoutIssue}`));
+  }
+
+  if (cell.columnTree && cell.columnTree.length > 0 && !cell.columnBadges?.length) {
+    const treeIssue = validateMatrixColumnTreeMatchesColumns(cell.columnTree, cell.columns);
+    if (treeIssue) {
+      issues.push(createNotebookIssue(`Matrix cell '${cell.id}' ${treeIssue}`));
+    }
+  }
+
   validateMatrixBalanceChecks(cell, issues);
 }
 
@@ -319,7 +338,12 @@ function validateMatrixBalanceChecks(cell: MatrixCell, issues: NotebookValidatio
   const hasSumColumn = cell.columns.some((column) => isSumLabel(column));
   const hasSumRow = cell.rows.some((row) => isSumLabel(row.label));
 
-  if ((matrixKind === "transaction-flow" || matrixKind === "balance-sheet") && !hasSumColumn) {
+  if (
+    (matrixKind === "transaction-flow" ||
+      matrixKind === "balance-sheet" ||
+      matrixKind === "account-transactions") &&
+    !hasSumColumn
+  ) {
     issues.push(
       createNotebookIssue(
         `Matrix cell '${cell.id}' should include a 'Sum' column so row balances are visible.`,
@@ -329,7 +353,7 @@ function validateMatrixBalanceChecks(cell: MatrixCell, issues: NotebookValidatio
     );
   }
 
-  if (matrixKind === "transaction-flow" && !hasSumRow) {
+  if ((matrixKind === "transaction-flow" || matrixKind === "account-transactions") && !hasSumRow) {
     issues.push(
       createNotebookIssue(
         `Matrix cell '${cell.id}' should include a 'Sum' row so column balances are visible.`,

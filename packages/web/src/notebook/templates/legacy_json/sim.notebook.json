@@ -9,6 +9,7 @@
       "type": "matrix",
       "title": "SIM balance sheet",
       "sourceRunCellId": "baseline-run",
+      "accountingKind": "balance-sheet",
       "columns": ["Households", "Government", "Sum"],
       "sectors": ["Households", "Government", ""],
       "rows": [
@@ -23,6 +24,7 @@
       "type": "matrix",
       "title": "SIM transactions-flow matrix",
       "sourceRunCellId": "baseline-run",
+      "accountingKind": "transaction-flow",
       "columns": ["Households", "Production", "Government", "Sum"],
       "sectors": ["Households", "Firms", "Government", ""],
       "rows": [
@@ -30,29 +32,13 @@
         { "band": "Government", "label": "Government expenditure", "values": ["", "+Gs", "-Gd", "0"] },
         { "band": "Income", "label": "Wages", "values": ["+W * Ns", "-W * Ns", "", "0"] },
         { "band": "Taxes", "label": "Taxes", "values": ["-TXs", "", "+TXd", "0"] },
-        { "band": "Money", "label": "Change in money stock", "values": ["+d(Hh)", "", "-d(Hs)", "0"] }
-      ,
-        {
-          "band": "Sum",
-          "label": "Sum",
-          "values": [
-            "0",
-            "0",
-            "0",
-            "0"
-          ]
-        }
+        { "band": "Money", "label": "Change in money stock", "values": ["+d(Hh)", "", "-d(Hs)", "0"] },
+        { "band": "Sum", "label": "Sum", "values": ["0", "0", "0", "0"] }
       ],
       "description": "Transactions-flow matrix for the SIM model, arranged around households, production, and government."
     },
     { "id": "transaction-flow-sequence", "type": "sequence", "title": "SIM transaction flow sequence", "source": { "kind": "matrix", "matrixCellId": "transaction-flow" }, "description": "Sequence view generated from the SIM transactions-flow matrix." },
-    {
-      "id": "equation-dependency-graph",
-      "type": "sequence",
-      "title": "SIM equation dependency graph",
-      "source": { "kind": "dependency", "modelId": "sim", "showAccountingStrips": true, "showExogenous": false, "stripMapping": { "transactionMatrixCellId": "transaction-flow", "balanceMatrixCellId": "balance-sheet" } },
-      "description": "Dependency view of the SIM equations. Lagged stock terms keep the dynamic stock accumulation outside same-period dependency cycles."
-    },
+    { "id": "equation-dependency-graph", "type": "sequence", "title": "SIM equation dependency graph", "source": { "kind": "dependency", "modelId": "sim", "showAccountingStrips": true, "showExogenous": false, "stripMapping": { "transactionMatrixCellId": "transaction-flow", "balanceMatrixCellId": "balance-sheet" } }, "description": "Dependency view of the SIM equations. Lagged stock terms keep the dynamic stock accumulation outside same-period dependency cycles." },
     {
       "id": "equations",
       "type": "equations",
@@ -100,10 +86,7 @@
       "mode": "scenario",
       "scenario": {
         "shocks": [
-          {
-            "rangeInclusive": [5, 60],
-            "variables": { "Gd": { "kind": "constant", "value": 30 } }
-          }
+          { "variables": { "Gd": { "kind": "constant", "value": 30 } }, "startPeriodInclusive": 5, "endPeriodInclusive": 60 }
         ]
       },
       "baselineRunCellId": "baseline-run",

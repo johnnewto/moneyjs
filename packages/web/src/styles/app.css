@@ -361,10 +361,12 @@ body.panel-splitter-body-lock {
   line-height: 0;
 }
 
-.formula-token .lag-subscript {
-  font-size: 0.78em;
-  font-weight: 650;
+.formula-token .lag-prime {
+  font-size: 0.82em;
+  font-weight: 900;
+  line-height: 0;
   margin-left: 0.02em;
+  text-shadow: 0.4px 0 0 currentColor;
 }
 
 .assistant-markdown table {
@@ -5230,6 +5232,120 @@ body.panel-splitter-body-lock {
   gap: 0.75rem;
 }
 
+.notebook-matrix-tree-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.notebook-matrix-tree-toggle {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  gap: 0.25rem;
+  padding: 0;
+}
+
+.notebook-matrix-tree-toggle:hover {
+  color: #1d4ed8;
+}
+
+.notebook-matrix-tree-toggle-icon {
+  display: inline-block;
+  font-size: 0.75rem;
+  line-height: 1;
+  width: 0.75rem;
+}
+
+.notebook-matrix-table thead th .notebook-matrix-tree-toggle {
+  font-weight: 600;
+}
+
+.notebook-matrix-table thead th .result-variable-button {
+  font-weight: 500;
+}
+
+.notebook-matrix-collapsed-stub-col {
+  width: 2.75rem;
+  min-width: 2.75rem;
+}
+
+.notebook-matrix-tree-collapsed-stub-header {
+  background: rgba(241, 245, 249, 0.95);
+  vertical-align: middle;
+}
+
+.notebook-matrix-tree-collapsed-stub-toggle {
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0 auto;
+  max-width: 100%;
+  text-align: center;
+  white-space: normal;
+}
+
+.notebook-matrix-tree-collapsed-stub-toggle .notebook-matrix-tree-toggle-icon {
+  margin: 0 auto;
+}
+
+.notebook-matrix-tree-collapsed-stub {
+  background: rgba(241, 245, 249, 0.65);
+  color: #94a3b8;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.notebook-matrix-tree-leaf-header {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.35rem;
+  justify-content: center;
+}
+
+.notebook-matrix-tree-leaf-header.result-variable-button {
+  display: inline-flex;
+}
+
+.notebook-matrix-tree-leaf-label {
+  white-space: nowrap;
+}
+
+.notebook-matrix-tree-leaf-label-button {
+  font-weight: 500;
+}
+
+.notebook-matrix-tree-leaf-header-hidden {
+  justify-content: center;
+}
+
+.notebook-matrix-tree-hidden-leaf-header {
+  background: rgba(241, 245, 249, 0.95);
+  vertical-align: middle;
+}
+
+.notebook-matrix-tree-hidden-leaf-stub {
+  background: rgba(241, 245, 249, 0.65);
+  color: #94a3b8;
+  text-align: center;
+  vertical-align: middle;
+}
+
+button.notebook-matrix-tree-badge-toggle {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+  padding: 0;
+}
+
+button.notebook-matrix-tree-badge-toggle:hover {
+  filter: brightness(0.95);
+}
+
 .notebook-matrix-shell {
   display: grid;
   gap: 0.45rem;
@@ -5433,6 +5549,7 @@ body.panel-splitter-body-lock {
   color: #991b1b;
 }
 
+.notebook-godley-role-equity,
 .notebook-godley-role-netWorth {
   background: rgba(219, 234, 254, 0.92);
   color: #1d4ed8;

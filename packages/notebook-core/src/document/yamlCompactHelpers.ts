@@ -1,4 +1,6 @@
 import { normalizeAccountingMatrixKindInput, normalizeMatrixCellAccountingKind } from "../accountingMatrixKind";
+import { parseMatrixColumnBadges } from "../matrixAccountColumns";
+import { parseMatrixColumnTree } from "../matrixColumnTree";
 import type { NotebookCell, NotebookDocument } from "../types";
 import { NOTEBOOK_CELL_TYPES } from "./documentTypes";
 import { isRecord, numberValue, slugifyIdentifier, stringArray, stringValue } from "./documentUtils";
@@ -196,6 +198,10 @@ export function buildCompactMatrixDescriptor(
     ...(cell.note ? { note: cell.note } : {}),
     columns: cell.columns,
     ...(cell.sectors ? { sectors: cell.sectors } : {}),
+    ...(cell.columnBadges ? { columnBadges: cell.columnBadges } : {}),
+    ...(cell.variables ? { variables: cell.variables } : {}),
+    ...(cell.columnTree ? { columnTree: cell.columnTree } : {}),
+    ...(cell.accountingKind ? { accountingKind: cell.accountingKind } : {}),
     rows: cell.rows.map((row) => (row.band == null ? { label: row.label, values: row.values } : [row.band, row.label, ...row.values]))
   };
 }
@@ -236,6 +242,9 @@ export function buildCompactTableDescriptor(
 
 export function rewriteCompactReferences(value: unknown, idMap: Map<string, string>, modelIdMap: Map<string, string>, key?: string): unknown {
   if (typeof value === "string") {
+    if (key === "type") {
+      return value;
+    }
     if ((key === "modelId" || key === "sourceModelId") && modelIdMap.has(value)) {
       return modelIdMap.get(value);
     }
@@ -545,6 +554,9 @@ export function buildCompactMatrixCell(
     : [];
 
   const accountingKind = normalizeAccountingMatrixKindInput(input.accountingKind);
+  const columnTree = parseMatrixColumnTree(input.columnTree);
+  const columnBadges = parseMatrixColumnBadges(input.columnBadges);
+  const variables = stringArray(input.variables);
 
   return normalizeMatrixCellAccountingKind({
     id: typeof input.id === "string" ? input.id : options.id,
@@ -553,6 +565,9 @@ export function buildCompactMatrixCell(
     ...(options.sourceRunCellId ? { sourceRunCellId: options.sourceRunCellId } : {}),
     ...(accountingKind ? { accountingKind } : {}),
     columns,
+    ...(columnTree ? { columnTree } : {}),
+    ...(columnBadges ? { columnBadges } : {}),
+    ...(variables ? { variables } : {}),
     ...(sectors ? { sectors } : {}),
     rows,
     ...compactCellFlags(input)

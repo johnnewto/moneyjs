@@ -11,6 +11,7 @@ import {
   buildCompactEquationRow,
   buildCompactExternalRow,
   buildCompactInitialValueRow,
+  buildCompactMatrixDescriptor,
   buildCompactSolverDescriptor,
   buildCompactTableDescriptor,
   compactCellFlags,
@@ -106,16 +107,11 @@ export function serializeCompactYamlCell(cell: NotebookCell): Record<string, unk
       return structuredClone(cell) as unknown as Record<string, unknown>;
     case "matrix":
       return {
-        id: cell.id,
         type: "matrix",
-        title: cell.title,
-        ...(cell.description ? { description: cell.description } : {}),
-        ...(cell.note ? { note: cell.note } : {}),
+        id: cell.id,
         ...(cell.collapsed == null ? {} : { collapsed: cell.collapsed }),
         ...(cell.sourceRunCellId ? { sourceRunCellId: cell.sourceRunCellId } : {}),
-        columns: cell.columns,
-        ...(cell.sectors ? { sectors: cell.sectors } : {}),
-        rows: cell.rows.map((row) => (row.band == null ? { label: row.label, values: row.values } : [row.band, row.label, ...row.values]))
+        ...buildCompactMatrixDescriptor(cell, { fallbackId: cell.id, preserveIds: true })
       };
     case "equations":
       return {

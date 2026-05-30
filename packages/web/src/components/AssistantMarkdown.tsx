@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
 import type { VariableUnitMetadata } from "../lib/unitMeta";
 import { documentHighlightClassName } from "../lib/variableHighlight";
+import { formatEquationOperatorDisplay } from "./EquationGridEditor";
 import { VariableLabel } from "./VariableLabel";
 import { renderVariableMathPlainText } from "./VariableMathLabel";
 
@@ -139,7 +140,7 @@ function renderAssistantEquationTextWithOptions(
       }
     }
 
-    return part;
+    return formatEquationOperatorDisplay(part);
   });
 }
 

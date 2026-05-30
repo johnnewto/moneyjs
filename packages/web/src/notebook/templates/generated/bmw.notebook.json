@@ -35,14 +35,37 @@
         { "band": "Investment", "label": "Investment", "values": ["", "+Is", "-Id", "", "", "0"] },
         { "band": "Wages", "label": "Wages", "values": ["+WBs", "-WBd", "", "", "", "0"] },
         { "band": "Depreciation", "label": "Depreciation", "values": ["", "-AF", "+AF", "", "", "0"] },
-        { "band": "Loans", "label": "Interest loans", "values": ["", "-rl[-1] * Ld[-1]", "", "+rl[-1] * Ls[-1]", "", "0"] },
-        { "band": "Deposits", "label": "Interest on deposits", "values": ["+rm[-1] * Mh[-1]", "", "", "-rm[-1] * Ms[-1]", "", "0"] },
+        { "band": "Loans", "label": "Interest loans", "values": ["", "-rl[-1]*Ld[-1]", "", "+rl[-1]*Ls[-1]", "", "0"] },
+        { "band": "Deposits", "label": "Interest on deposits", "values": ["+rm[-1]*Mh[-1]", "", "", "-rm[-1]*Ms[-1]", "", "0"] },
         { "band": "Loans", "label": "Ch. loans", "values": ["", "", "+d(Ld)", "", "-d(Ls)", "0"] },
         { "band": "Deposits", "label": "Ch. deposits", "values": ["-d(Mh)", "", "", "", "+d(Ms)", "0"] },
         { "band": "Sum", "label": "Sum", "values": ["0", "0", "0", "0", "0", "0"] }
       ],
       "description": "Transactions-flow matrix for the BMW model, shown in the same accounting style as the sfcr article.",
       "note": "Signs and row structure follow the BMW transactions-flow matrix in the sfcr article."
+    },
+    {
+      "id": "account-transactions",
+      "type": "matrix",
+      "title": "BMW account transactions",
+      "sourceRunCellId": "baseline-newton",
+      "accountingKind": "account-transactions",
+      "columns": ["Households.Deposits (Mh)", "Households.Net_Worth (Vh)", "Firms.Deposits (Mf)", "Firms.Loans (Ld)", "Firms.Net_Worth (Vf)", "Bank.Firm.Loans (Ls)", "Banks.Households.Deposits (MhL)", "Banks.Firm.Deposits (MfL)", "Banks.Net_Worth (Vb)", "Sum"],
+      "columnBadges": ["asset", "equity", "asset", "liability", "equity", "asset", "liability", "liability", "equity", ""],
+      "sectors": ["Households", "Households", "Firms", "Firms", "Firms", "Banks", "Banks", "Banks", "Banks", ""],
+      "rows": [
+        { "band": "Consumption", "label": "Consumption", "values": ["-Cs", "-Cs", "+Cd", "", "+Cd", "", "", "", "", "0"] },
+        { "band": "Investment", "label": "Investment", "values": ["", "", "+Is", "", "Is", "", "", "", "", "0"] },
+        { "band": "Wages", "label": "Wages", "values": ["WBd", "WBd", "-WBd", "", "-WBd", "", "", "", "", "0"] },
+        { "band": "Depreciation", "label": "Depreciation", "values": ["", "", "-AF", "", "-AF", "", "", "", "", "0"] },
+        { "band": "Loans", "label": "Interest loans", "values": ["", "", "rl[-1]*Ld[-1]", "", "rl[-1]*Ld[-1]", "", "", "", "-rl[-1]*Ls[-1]", "0"] },
+        { "band": "Deposits", "label": "Interest on deposits", "values": ["+rm[-1]*Mh[-1]", "", "", "", "", "", "", "", "-rm[-1]*Ms[-1]", "0"] },
+        { "band": "Loans", "label": "Ch. loans", "values": ["", "", "", "+d(Ld)", "", "+d(Ls)", "", "", "", "0"] },
+        { "band": "Deposits", "label": "Ch. deposits", "values": ["-d(Mh)", "", "", "", "", "+d(Ms)", "", "", "", "0"] },
+        { "band": "Sum", "label": "Sum", "values": ["0", "0", "0", "0", "0", "0", "0", "0", "0", "0"] }
+      ],
+      "description": "Account-level transaction matrix for BMW with hierarchical sector and account columns.",
+      "note": "Columns group balance-sheet accounts by sector. Use Expand all / Collapse all or click sector headers to show or hide account columns."
     },
     { "id": "transaction-flow-sequence", "type": "sequence", "title": "BMW transaction flow sequence", "source": { "kind": "matrix", "matrixCellId": "transaction-flow" }, "participantColumnOrder": ["Households", "Firms_current", "Firms_capital", "Banks_current", "Banks_capital"], "description": "Canvas-rendered sequence view generated from the transactions-flow matrix at the selected simulation period.", "note": "Use Reset and Next step to manually reveal flows in order." },
     {

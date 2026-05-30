@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type MouseEvent as ReactMouseEvent } from "react";
 
 import { evaluateExpression, parseExpression, type SimulationResult } from "@sfcr/core";
+import {
+  computeMatrixAccountRowTotal,
+  type MatrixColumnDisplaySlot,
+  usesMatrixAccountColumnLayout
+} from "@sfcr/notebook-core";
 
 import type { MatrixEntryDisplayMode } from "../matrixEntryDisplay";
 
@@ -18,6 +23,7 @@ import {
   resolveMatrixTableKind
 } from "../matrixSemantics";
 import { resolveInspectorModelSource, type VariableInspectRequest } from "../../lib/variableInspect";
+import { resolveAccountingMatrixKind } from "../validation";
 import { documentHighlightClassName } from "../../lib/variableHighlight";
 import { buildEditorStateForNotebookModel } from "../modelSections";
 import { NotebookRenderProfiler } from "../notebookProfiler";
@@ -25,6 +31,11 @@ import { useMatrixEntryEdit, type MatrixEditingTarget } from "../useMatrixEntryE
 import type { MatrixCell, NotebookCell, RunCell } from "../types";
 import type { useNotebookRunner } from "../useNotebookRunner";
 import { VariableRenameDialog } from "./EquationRowInlineEditor";
+import {
+  collectMatrixAccountLayoutCollapseKeys,
+  MatrixColumnTreeHeader,
+  useMatrixColumnLayout
+} from "./MatrixColumnTreeHeader";
 
 const EMPTY_PARAMETER_NAMES = new Set<string>();
 const MATRIX_VIRTUALIZATION_ROW_THRESHOLD = 20;
@@ -63,6 +74,10 @@ export function MatrixCellView({
   const matrixHeaderScrollRef = useRef<HTMLDivElement | null>(null);
   const variableInspectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [matrixScrollTop, setMatrixScrollTop] = useState(0);
+  const [collapsedColumnTreeNodeIds, setCollapsedColumnTreeNodeIds] = useState<Set<string>>(() => new Set());
+  const columnLayout = useMatrixColumnLayout(cell, collapsedColumnTreeNodeIds);
+  const displaySlots = columnLayout.displaySlots;
+  const usesColumnTree = columnLayout.usesColumnTree;
   const result = cell.sourceRunCellId ? runner.getResult(cell.sourceRunCellId) : null;
   const editor = cell.sourceRunCellId ? resolveEditorStateForRunCellId(cells, cell.sourceRunCellId) : null;
   const currentValues = result
@@ -80,6 +95,9 @@ export function MatrixCellView({
   const matrixKind = useMemo(() => resolveMatrixTableKind(cell), [cell]);
   const sumRowIndex = cell.rows.findIndex((row) => row.label.trim().toLowerCase() === "sum");
   const sumColumnIndex = cell.columns.findIndex((column) => column.trim().toLowerCase() === "sum");
+  const renderedBodyColumnCount = usesColumnTree
+    ? displaySlots.length + (sumColumnIndex >= 0 ? 1 : 0)
+    : cell.columns.length;
   const parameterNames = useMemo(() => {
     if (!editor) {
       return EMPTY_PARAMETER_NAMES;
@@ -252,6 +270,30 @@ export function MatrixCellView({
 
   const sourceSelectVariable = editor ? scheduleInspectVariable : undefined;
 
+  const toggleColumnTreeNode = useCallback((nodeId: string) => {
+    setCollapsedColumnTreeNodeIds((current) => {
+      const next = new Set(current);
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+      } else {
+        next.add(nodeId);
+      }
+      return next;
+    });
+  }, []);
+
+  const expandAllColumnTreeNodes = useCallback(() => {
+    setCollapsedColumnTreeNodeIds(new Set());
+  }, []);
+
+  const collapseAllColumnTreeNodes = useCallback(() => {
+    const keys = collectMatrixAccountLayoutCollapseKeys(cell);
+    if (keys.length === 0) {
+      return;
+    }
+    setCollapsedColumnTreeNodeIds(new Set(keys));
+  }, [cell]);
+
   const matrixEntryEdit = useMatrixEntryEdit({
     cell,
     cells,
@@ -326,21 +368,45 @@ export function MatrixCellView({
     () => (
       <colgroup>
         <col className="notebook-matrix-row-header-col" />
-        {cell.columns.map((column, columnIndex) => (
+        {(usesColumnTree
+          ? displaySlots.map((slot, slotIndex) => ({ slot, slotIndex }))
+          : cell.columns.map((_, columnIndex) => ({ slot: { kind: "leaf" as const, columnIndex }, slotIndex: columnIndex }))
+        ).map(({ slot, slotIndex }) => (
           <col
-            key={column}
+            key={
+              slot.kind === "collapsed"
+                ? `collapsed-${slot.nodeId}`
+                : slot.kind === "hiddenLeaf"
+                  ? `hidden-${slot.nodeId}`
+                  : `${cell.columns[slot.columnIndex] ?? slot.columnIndex}-${slot.columnIndex}`
+            }
             className={
-              columnIndex === sumColumnIndex
-                ? "notebook-matrix-value-col notebook-matrix-value-col-sum"
-                : "notebook-matrix-value-col"
+              slot.kind === "collapsed" || slot.kind === "hiddenLeaf"
+                ? "notebook-matrix-value-col notebook-matrix-collapsed-stub-col"
+                : slot.kind === "leaf" && slot.columnIndex === sumColumnIndex
+                  ? "notebook-matrix-value-col notebook-matrix-value-col-sum"
+                  : "notebook-matrix-value-col"
             }
           />
         ))}
+        {usesColumnTree && sumColumnIndex >= 0 ? (
+          <col className="notebook-matrix-value-col notebook-matrix-value-col-sum" />
+        ) : null}
       </colgroup>
     ),
-    [cell.columns, sumColumnIndex]
+    [cell.columns, displaySlots, sumColumnIndex, usesColumnTree]
   );
-  const matrixHeaderRow = (
+  const matrixHeaderRow = usesColumnTree ? (
+    <MatrixColumnTreeHeader
+      headerRows={columnLayout.headerRows}
+      columns={cell.columns}
+      sumColumnIndex={sumColumnIndex}
+      collapsedNodeIds={collapsedColumnTreeNodeIds}
+      editorLinked={editor != null}
+      onToggleNode={toggleColumnTreeNode}
+      onInspectVariable={editor ? handleInspectVariable : undefined}
+    />
+  ) : (
     <tr>
       <th scope="col">
         {matrixKind === "stocks"
@@ -386,7 +452,7 @@ export function MatrixCellView({
       {virtualizedMatrixWindow.topSpacerHeight > 0 ? (
         <tr aria-hidden="true" className="notebook-matrix-virtual-spacer-row">
           <td
-            colSpan={cell.columns.length + 1}
+            colSpan={renderedBodyColumnCount + 1}
             style={{ height: `${virtualizedMatrixWindow.topSpacerHeight}px` }}
           />
         </tr>
@@ -415,114 +481,34 @@ export function MatrixCellView({
                 />
               </NotebookRenderProfiler>
             </th>
-            {row.entries.map((entry, index) => (
-              <td
-                key={`${row.label}-${cell.columns[index] ?? index}`}
-                className={
-                  [
-                    index === sumColumnIndex ? "notebook-matrix-sum-column" : undefined,
-                    entry.isSumCell && !entry.isBalanced ? "matrix-balance-error" : undefined
-                  ]
-                    .filter(Boolean)
-                    .join(" ") || undefined
-                }
-              >
-                {(() => {
-                  const stockRole =
-                    matrixKind === "stocks" && !entry.isSumCell
-                      ? classifyMatrixStockRole(row.label, entry.source, entry.numericValue)
-                      : null;
-
-                  const isEditingEntry =
-                    matrixEntryEdit.editingTarget?.rowIndex === rowIndex &&
-                    matrixEntryEdit.editingTarget?.columnIndex === index;
-                  const showEquation =
-                    isEditingEntry || entryDisplayMode === "equation" || entryDisplayMode === "both";
-                  const showValue =
-                    !isEditingEntry &&
-                    ((entry.isSumCell && entry.resolved != null) ||
-                      entryDisplayMode === "value" ||
-                      (entryDisplayMode === "both" && entry.resolved != null));
-
-                  return (
-                    <div className="matrix-entry-inline">
-                      {stockRole ? (
-                        <span
-                          className={`notebook-godley-role notebook-godley-role-${stockRole}`}
-                          aria-label={formatStockRoleTitle(stockRole)}
-                          title={formatStockRoleTitle(stockRole)}
-                        >
-                          {formatStockRoleLabel(stockRole)}
-                        </span>
-                      ) : null}
-                      {showEquation ? (
-                        <NotebookRenderProfiler
-                          id="MatrixEntrySource"
-                          metadata={{
-                            cellId: cell.id,
-                            columnLabel: cell.columns[index] ?? String(index),
-                            rowLabel: row.label
-                          }}
-                        >
-                          <MatrixEntrySource
-                            columnIndex={index}
-                            currentValues={currentValues}
-                            draftSource={matrixEntryEdit.draftSource}
-                            editingTarget={matrixEntryEdit.editingTarget}
-                            isSumCell={entry.isSumCell}
-                            parameterNames={parameterNames}
-                            rowIndex={rowIndex}
-                            source={entry.source}
-                            sourceSelectVariable={sourceSelectVariable}
-                            highlightedVariable={highlightedVariable}
-                            variableDescriptions={variableDescriptions}
-                            variableUnitMetadata={variableUnitMetadata}
-                            onApply={matrixEntryEdit.applyEntryEdit}
-                            onBeginEdit={beginMatrixEntryEdit}
-                            onCancel={cancelMatrixEntryEdit}
-                            onDraftChange={matrixEntryEdit.setDraftSource}
-                          />
-                        </NotebookRenderProfiler>
-                      ) : null}
-                      {showValue ? (
-                        <NotebookRenderProfiler
-                          id="MatrixEntryResolved"
-                          metadata={{
-                            cellId: cell.id,
-                            columnLabel: cell.columns[index] ?? String(index),
-                            rowLabel: row.label,
-                            selectedPeriodIndex
-                          }}
-                        >
-                          {entryDisplayMode === "both" && showEquation ? (
-                            <span aria-hidden="true" className="matrix-entry-equals">
-                              =
-                            </span>
-                          ) : null}
-                          <MatrixEntryResolvedValue
-                            columnIndex={index}
-                            entryDisplayMode={entryDisplayMode}
-                            isSumCell={entry.isSumCell}
-                            resolved={entry.resolved}
-                            rowIndex={rowIndex}
-                            source={entry.source}
-                            variableUnitMetadata={variableUnitMetadata}
-                            onBeginEdit={beginMatrixEntryEdit}
-                          />
-                        </NotebookRenderProfiler>
-                      ) : null}
-                    </div>
-                  );
-                })()}
-              </td>
-            ))}
+            {renderMatrixRowDataCells({
+              cell,
+              displaySlots,
+              entryDisplayMode,
+              highlightedVariable,
+              matrixEntryEdit,
+              matrixKind,
+              onBeginEdit: beginMatrixEntryEdit,
+              onCancelEdit: cancelMatrixEntryEdit,
+              parameterNames,
+              row,
+              rowIndex,
+              selectedPeriodIndex,
+              sourceSelectVariable,
+              sumColumnIndex,
+              usesColumnTree,
+              variableDescriptions,
+              variableUnitMetadata,
+              currentValues,
+              onColumnContextMenu: handleMatrixColumnContextMenu
+            })}
           </tr>
         );
       })}
       {virtualizedMatrixWindow.bottomSpacerHeight > 0 ? (
         <tr aria-hidden="true" className="notebook-matrix-virtual-spacer-row">
           <td
-            colSpan={cell.columns.length + 1}
+            colSpan={renderedBodyColumnCount + 1}
             style={{ height: `${virtualizedMatrixWindow.bottomSpacerHeight}px` }}
           />
         </tr>
@@ -542,6 +528,16 @@ export function MatrixCellView({
       }}
     >
       <div className="notebook-matrix">
+        {usesColumnTree ? (
+          <div className="notebook-matrix-tree-controls">
+            <button type="button" className="secondary-button" onClick={expandAllColumnTreeNodes}>
+              Expand all
+            </button>
+            <button type="button" className="secondary-button" onClick={collapseAllColumnTreeNodes}>
+              Collapse all
+            </button>
+          </div>
+        ) : null}
         <NotebookRenderProfiler
           id="MatrixCellTable"
           metadata={{
@@ -870,6 +866,299 @@ export function MatrixCellView({
   );
 }
 
+function renderMatrixRowDataCells({
+  cell,
+  currentValues,
+  displaySlots,
+  entryDisplayMode,
+  highlightedVariable,
+  matrixEntryEdit,
+  matrixKind,
+  onBeginEdit,
+  onCancelEdit,
+  parameterNames,
+  row,
+  rowIndex,
+  selectedPeriodIndex,
+  sourceSelectVariable,
+  sumColumnIndex,
+  usesColumnTree,
+  variableDescriptions,
+  variableUnitMetadata,
+  onColumnContextMenu
+}: {
+  cell: MatrixCell;
+  currentValues: Record<string, number | undefined>;
+  displaySlots: MatrixColumnDisplaySlot[];
+  entryDisplayMode: MatrixEntryDisplayMode;
+  highlightedVariable?: string | null;
+  matrixEntryEdit: ReturnType<typeof useMatrixEntryEdit>;
+  matrixKind: ReturnType<typeof resolveMatrixTableKind>;
+  onBeginEdit(rowIndex: number, columnIndex: number, source: string): void;
+  onCancelEdit(): void;
+  parameterNames: Set<string>;
+  row: {
+    entries: Array<{
+      isBalanced: boolean;
+      isSumCell: boolean;
+      numericValue: number | null;
+      resolved: string | null;
+      source: string;
+    }>;
+    label: string;
+  };
+  rowIndex: number;
+  selectedPeriodIndex: number;
+  sourceSelectVariable?: (variableName: string) => void;
+  sumColumnIndex: number;
+  usesColumnTree: boolean;
+  variableDescriptions: VariableDescriptions;
+  variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
+  onColumnContextMenu(event: ReactMouseEvent<HTMLElement>, columnIndex: number): void;
+}): JSX.Element[] {
+  const cells: JSX.Element[] = [];
+
+  for (const slot of displaySlots) {
+    if (slot.kind === "collapsed") {
+      cells.push(
+        <td
+          key={`${row.label}-collapsed-${slot.nodeId}`}
+          className="notebook-matrix-tree-collapsed-stub"
+          aria-label={`${slot.label} collapsed`}
+          title={`Expand ${slot.label}`}
+        >
+          —
+        </td>
+      );
+      continue;
+    }
+
+    if (slot.kind === "hiddenLeaf") {
+      cells.push(
+        <td
+          key={`${row.label}-hidden-${slot.nodeId}`}
+          className="notebook-matrix-tree-hidden-leaf-stub"
+          aria-label="Column hidden"
+        >
+          —
+        </td>
+      );
+      continue;
+    }
+
+    cells.push(
+      renderMatrixLeafDataCell({
+        cell,
+        columnIndex: slot.columnIndex,
+        currentValues,
+        entryDisplayMode,
+        highlightedVariable,
+        matrixEntryEdit,
+        matrixKind,
+        onBeginEdit,
+        onCancelEdit,
+        parameterNames,
+        row,
+        rowIndex,
+        selectedPeriodIndex,
+        sourceSelectVariable,
+        sumColumnIndex,
+        usesColumnTree,
+        variableDescriptions,
+        variableUnitMetadata,
+        onColumnContextMenu
+      })
+    );
+  }
+
+  if (usesColumnTree && sumColumnIndex >= 0) {
+    cells.push(
+      renderMatrixLeafDataCell({
+        cell,
+        columnIndex: sumColumnIndex,
+        currentValues,
+        entryDisplayMode,
+        highlightedVariable,
+        matrixEntryEdit,
+        matrixKind,
+        onBeginEdit,
+        onCancelEdit,
+        parameterNames,
+        row,
+        rowIndex,
+        selectedPeriodIndex,
+        sourceSelectVariable,
+        sumColumnIndex,
+        usesColumnTree,
+        variableDescriptions,
+        variableUnitMetadata,
+        onColumnContextMenu
+      })
+    );
+  }
+
+  return cells;
+}
+
+function renderMatrixLeafDataCell({
+  cell,
+  columnIndex,
+  currentValues,
+  entryDisplayMode,
+  highlightedVariable,
+  matrixEntryEdit,
+  matrixKind,
+  onBeginEdit,
+  onCancelEdit,
+  parameterNames,
+  row,
+  rowIndex,
+  selectedPeriodIndex,
+  sourceSelectVariable,
+  sumColumnIndex,
+  usesColumnTree,
+  variableDescriptions,
+  variableUnitMetadata,
+  onColumnContextMenu
+}: {
+  cell: MatrixCell;
+  columnIndex: number;
+  currentValues: Record<string, number | undefined>;
+  entryDisplayMode: MatrixEntryDisplayMode;
+  highlightedVariable?: string | null;
+  matrixEntryEdit: ReturnType<typeof useMatrixEntryEdit>;
+  matrixKind: ReturnType<typeof resolveMatrixTableKind>;
+  onBeginEdit(rowIndex: number, columnIndex: number, source: string): void;
+  onCancelEdit(): void;
+  parameterNames: Set<string>;
+  row: {
+    entries: Array<{
+      isBalanced: boolean;
+      isSumCell: boolean;
+      numericValue: number | null;
+      resolved: string | null;
+      source: string;
+    }>;
+    label: string;
+  };
+  rowIndex: number;
+  selectedPeriodIndex: number;
+  sourceSelectVariable?: (variableName: string) => void;
+  sumColumnIndex: number;
+  usesColumnTree: boolean;
+  variableDescriptions: VariableDescriptions;
+  variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
+  onColumnContextMenu(event: ReactMouseEvent<HTMLElement>, columnIndex: number): void;
+}): JSX.Element {
+  const entry = row.entries[columnIndex];
+  if (!entry) {
+    return <td key={`${row.label}-${columnIndex}-missing`} />;
+  }
+
+  return (
+    <td
+      key={`${row.label}-${cell.columns[columnIndex] ?? columnIndex}`}
+      className={
+        [
+          columnIndex === sumColumnIndex ? "notebook-matrix-sum-column" : undefined,
+          entry.isSumCell && !entry.isBalanced ? "matrix-balance-error" : undefined
+        ]
+          .filter(Boolean)
+          .join(" ") || undefined
+      }
+      onContextMenu={usesColumnTree ? undefined : (event) => onColumnContextMenu(event, columnIndex)}
+    >
+      {(() => {
+        const stockRole =
+          matrixKind === "stocks" && !entry.isSumCell
+            ? classifyMatrixStockRole(row.label, entry.source, entry.numericValue)
+            : null;
+
+        const isEditingEntry =
+          matrixEntryEdit.editingTarget?.rowIndex === rowIndex &&
+          matrixEntryEdit.editingTarget?.columnIndex === columnIndex;
+        const showEquation =
+          isEditingEntry || entryDisplayMode === "equation" || entryDisplayMode === "both";
+        const showValue =
+          !isEditingEntry &&
+          ((entry.isSumCell && entry.resolved != null) ||
+            entryDisplayMode === "value" ||
+            (entryDisplayMode === "both" && entry.resolved != null));
+
+        return (
+          <div className="matrix-entry-inline">
+            {stockRole ? (
+              <span
+                className={`notebook-godley-role notebook-godley-role-${stockRole}`}
+                aria-label={formatStockRoleTitle(stockRole)}
+                title={formatStockRoleTitle(stockRole)}
+              >
+                {formatStockRoleLabel(stockRole)}
+              </span>
+            ) : null}
+            {showEquation ? (
+              <NotebookRenderProfiler
+                id="MatrixEntrySource"
+                metadata={{
+                  cellId: cell.id,
+                  columnLabel: cell.columns[columnIndex] ?? String(columnIndex),
+                  rowLabel: row.label
+                }}
+              >
+                <MatrixEntrySource
+                  columnIndex={columnIndex}
+                  currentValues={currentValues}
+                  draftSource={matrixEntryEdit.draftSource}
+                  editingTarget={matrixEntryEdit.editingTarget}
+                  isSumCell={entry.isSumCell}
+                  parameterNames={parameterNames}
+                  rowIndex={rowIndex}
+                  source={entry.source}
+                  sourceSelectVariable={sourceSelectVariable}
+                  highlightedVariable={highlightedVariable}
+                  variableDescriptions={variableDescriptions}
+                  variableUnitMetadata={variableUnitMetadata}
+                  onApply={matrixEntryEdit.applyEntryEdit}
+                  onBeginEdit={onBeginEdit}
+                  onCancel={onCancelEdit}
+                  onDraftChange={matrixEntryEdit.setDraftSource}
+                />
+              </NotebookRenderProfiler>
+            ) : null}
+            {showValue ? (
+              <NotebookRenderProfiler
+                id="MatrixEntryResolved"
+                metadata={{
+                  cellId: cell.id,
+                  columnLabel: cell.columns[columnIndex] ?? String(columnIndex),
+                  rowLabel: row.label,
+                  selectedPeriodIndex
+                }}
+              >
+                {entryDisplayMode === "both" && showEquation ? (
+                  <span aria-hidden="true" className="matrix-entry-equals">
+                    =
+                  </span>
+                ) : null}
+                <MatrixEntryResolvedValue
+                  columnIndex={columnIndex}
+                  entryDisplayMode={entryDisplayMode}
+                  isSumCell={entry.isSumCell}
+                  resolved={entry.resolved}
+                  rowIndex={rowIndex}
+                  source={entry.source}
+                  variableUnitMetadata={variableUnitMetadata}
+                  onBeginEdit={onBeginEdit}
+                />
+              </NotebookRenderProfiler>
+            ) : null}
+          </div>
+        );
+      })()}
+    </td>
+  );
+}
+
 function resolveEditorStateForRunCellId(cells: NotebookCell[], sourceRunCellId: string): EditorState | null {
   const sourceRunCell = cells.find((entry) => entry.id === sourceRunCellId);
   if (!sourceRunCell || sourceRunCell.type !== "run") {
@@ -978,6 +1267,9 @@ function buildEvaluatedMatrix(
 ) {
   const sumRowIndex = cell.rows.findIndex((row) => row.label.trim().toLowerCase() === "sum");
   const sumColumnIndex = cell.columns.findIndex((column) => column.trim().toLowerCase() === "sum");
+  const useAccountRowSumRule =
+    resolveAccountingMatrixKind(cell) === "account-transactions" &&
+    usesMatrixAccountColumnLayout(cell.columnBadges);
   const numericValues = cell.rows.map((row, rowIndex) =>
     row.values.map((value, columnIndex) => {
       if (rowIndex === sumRowIndex || columnIndex === sumColumnIndex) {
@@ -991,7 +1283,14 @@ function buildEvaluatedMatrix(
     const rowEntries = row.values.map((value, columnIndex) => {
       const isSumCell = rowIndex === sumRowIndex || columnIndex === sumColumnIndex;
       const computedValue = isSumCell
-        ? computeMatrixTotal(numericValues, rowIndex, columnIndex, sumRowIndex, sumColumnIndex)
+        ? computeMatrixTotal(
+            numericValues,
+            rowIndex,
+            columnIndex,
+            sumRowIndex,
+            sumColumnIndex,
+            useAccountRowSumRule ? cell.columnBadges : undefined
+          )
         : numericValues[rowIndex]?.[columnIndex] ?? null;
 
       return {
@@ -1012,7 +1311,13 @@ function buildEvaluatedMatrix(
       isBalanced:
         rowIndex === sumRowIndex
           ? rowEntries.every((entry) => entry.isBalanced)
-          : Math.abs(computeRowTotal(numericValues[rowIndex] ?? [], sumColumnIndex)) < 1e-6,
+          : Math.abs(
+              computeRowTotal(
+                numericValues[rowIndex] ?? [],
+                sumColumnIndex,
+                useAccountRowSumRule ? cell.columnBadges : undefined
+              )
+            ) < 1e-6,
       isSumRow: rowIndex === sumRowIndex
     };
   });
@@ -1025,7 +1330,8 @@ function computeMatrixTotal(
   rowIndex: number,
   columnIndex: number,
   sumRowIndex: number,
-  sumColumnIndex: number
+  sumColumnIndex: number,
+  columnBadges?: string[]
 ): number | null {
   if (rowIndex === sumRowIndex && columnIndex === sumColumnIndex) {
     return numericValues
@@ -1039,12 +1345,19 @@ function computeMatrixTotal(
       .reduce<number>((total, row) => total + (row[columnIndex] ?? 0), 0);
   }
   if (columnIndex === sumColumnIndex) {
-    return computeRowTotal(numericValues[rowIndex] ?? [], sumColumnIndex);
+    return computeRowTotal(numericValues[rowIndex] ?? [], sumColumnIndex, columnBadges);
   }
   return numericValues[rowIndex]?.[columnIndex] ?? null;
 }
 
-function computeRowTotal(row: Array<number | null>, sumColumnIndex: number): number {
+function computeRowTotal(
+  row: Array<number | null>,
+  sumColumnIndex: number,
+  columnBadges?: string[]
+): number {
+  if (columnBadges && usesMatrixAccountColumnLayout(columnBadges)) {
+    return computeMatrixAccountRowTotal(row, columnBadges, sumColumnIndex);
+  }
   return row.reduce<number>(
     (total, value, index) => total + (index === sumColumnIndex ? 0 : value ?? 0),
     0
@@ -1143,14 +1456,16 @@ function MatrixEntryResolvedValue({
   columnIndex: number;
   entryDisplayMode: MatrixEntryDisplayMode;
   isSumCell: boolean;
-  resolved: string;
+  resolved: string | null;
   rowIndex: number;
   source: string;
   variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
   onBeginEdit(rowIndex: number, columnIndex: number, source: string): void;
 }) {
   const valuePrefix = entryDisplayMode === "both" ? "" : "= ";
-  const content = formatResolvedMatrixValue(source, resolved, variableUnitMetadata, valuePrefix);
+  const content = resolved
+    ? formatResolvedMatrixValue(source, resolved, variableUnitMetadata, valuePrefix)
+    : "—";
   const className =
     entryDisplayMode === "value" && !isSumCell
       ? "matrix-entry-current is-editable"

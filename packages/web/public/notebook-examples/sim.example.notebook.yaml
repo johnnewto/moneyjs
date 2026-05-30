@@ -7,29 +7,29 @@ metadata:
   template: sim
 cells:
   - markdown:
-      id: intro
+      id: overview
       title: Overview
       source: This notebook implements the SIM model from Godley and Lavoie chapter 3. It includes the baseline model, a government-spending shock scenario, accounting matrices, and result views for the main income, consumption, and stock variables.
   - matrix:
       id: balance-sheet
-      accountingKind: balance-sheet
+      sourceRunCellId: baseline-run
       title: SIM balance sheet
       description: Compact balance sheet for the SIM model. Household money holdings mirror government money liabilities.
-      sourceRunCellId: baseline-run
       columns: [Households, Government, Sum]
       sectors: [Households, Government, ""]
+      accountingKind: balance-sheet
       rows:
         - [Money, Money stock, +Hh, -Hs, "0"]
         - [Balance, Net worth, -Hh, +Hs, "0"]
         - [Sum, Sum, "0", "0", "0"]
   - matrix:
-      id: transaction-flow
-      accountingKind: transaction-flow
+      id: transactions-flow
+      sourceRunCellId: baseline-run
       title: SIM transactions-flow matrix
       description: Transactions-flow matrix for the SIM model, arranged around households, production, and government.
-      sourceRunCellId: baseline-run
       columns: [Households, Production, Government, Sum]
       sectors: [Households, Firms, Government, ""]
+      accountingKind: transactions-flow
       rows:
         - [Consumption, Consumption, -Cd, +Cs, "", "0"]
         - [Government, Government expenditure, "", +Gs, -Gd, "0"]
@@ -42,7 +42,7 @@ cells:
       title: SIM transaction flow sequence
       source:
         kind: matrix
-        matrixCellId: transaction-flow
+        matrixCellId: transactions-flow
       description: Sequence view generated from the SIM transactions-flow matrix.
   - sequence:
       id: equation-dependency-graph
@@ -53,11 +53,11 @@ cells:
         showAccountingStrips: true
         showExogenous: false
         stripMapping:
-          transactionMatrixCellId: transaction-flow
+          transactionMatrixCellId: transactions-flow
           balanceMatrixCellId: balance-sheet
       description: Dependency view of the SIM equations. Lagged stock terms keep the dynamic stock accumulation outside same-period dependency cycles.
   - equations:
-      id: equations
+      id: equations-sim
       title: SIM equations
       modelId: sim
       collapsed: true
@@ -74,7 +74,7 @@ cells:
         - [TXd, theta * W * Ns, "Tax demand.", "", "", definition, eq-9-txd]
         - [Hs, Gd - TXd + lag(Hs), "Government money supply.", "", "", accumulation, eq-10-hs]
   - solver:
-      id: solver
+      id: solver-sim
       title: Solver options
       modelId: sim
       collapsed: true
@@ -87,7 +87,7 @@ cells:
       hiddenTolerance: "1e-5"
       relativeHiddenTolerance: false
   - externals:
-      id: externals
+      id: parameters-sim
       title: Externals
       modelId: sim
       collapsed: true
@@ -98,7 +98,7 @@ cells:
         - [alpha2, 0.4, "Propensity to consume from lagged money holdings."]
         - [theta, 0.2, "Tax rate."]
   - initial-values:
-      id: initial-values
+      id: initial-values-sim
       title: Initial values
       modelId: sim
       collapsed: true
@@ -112,7 +112,7 @@ cells:
       sourceModelId: sim
       description: Baseline SIM run with government expenditure fixed at 20.
   - chart:
-      id: baseline-chart
+      id: chart-1
       title: Baseline income, consumption, and money
       variables:
         - Y
@@ -126,7 +126,7 @@ cells:
         - 60
       sourceRunCellId: baseline-run
   - table:
-      id: baseline-table
+      id: table-1
       title: Baseline SIM summary
       variables:
         - Y

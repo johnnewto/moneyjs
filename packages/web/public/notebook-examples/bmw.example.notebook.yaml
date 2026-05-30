@@ -7,18 +7,18 @@ metadata:
   template: bmw
 cells:
   - markdown:
-      id: intro
+      id: overview
       title: Overview
       source: This browser notebook adapts the BMW vignette into executable model, run, and chart cells. It focuses on a Newton baseline and two scenario comparisons.
   - matrix:
       id: balance-sheet
-      accountingKind: balance-sheet
+      sourceRunCellId: baseline-run
       title: BMW balance sheet
       description: Balance-sheet matrix for the BMW model, following the sfcr article presentation.
       note: Source structure adapted from the sfcr BMW article balance-sheet display.
-      sourceRunCellId: baseline-newton
       columns: [Households, Production firms, Banks, Sum]
       sectors: [Households, Firms, Banks, ""]
+      accountingKind: balance-sheet
       rows:
         - [Deposits, Money deposits, +Mh, "", -Ms, "0"]
         - [Loans, Loans, "", -Ld, +Ls, "0"]
@@ -26,30 +26,50 @@ cells:
         - [Balance, Balance (net worth), -Vh, -V, "0", "0"]
         - [Sum, Sum, "0", "0", "0", "0"]
   - matrix:
-      id: transaction-flow
-      accountingKind: transaction-flow
+      id: transactions-flow
+      sourceRunCellId: baseline-run
       title: BMW transactions-flow matrix
       description: Transactions-flow matrix for the BMW model, shown in the same accounting style as the sfcr article.
       note: Signs and row structure follow the BMW transactions-flow matrix in the sfcr article.
-      sourceRunCellId: baseline-newton
       columns: [Households, Firms_current, Firms_capital, Banks_current, Banks_capital, Sum]
       sectors: [Households, Firms, Firms, Banks, Banks, ""]
+      accountingKind: transactions-flow
       rows:
         - [Consumption, Consumption, -Cs, +Cd, "", "", "", "0"]
         - [Investment, Investment, "", +Is, -Id, "", "", "0"]
         - [Wages, Wages, +WBs, -WBd, "", "", "", "0"]
         - [Depreciation, Depreciation, "", -AF, +AF, "", "", "0"]
-        - [Loans, Interest loans, "", "-rl[-1] * Ld[-1]", "", "+rl[-1] * Ls[-1]", "", "0"]
-        - [Deposits, Interest on deposits, "+rm[-1] * Mh[-1]", "", "", "-rm[-1] * Ms[-1]", "", "0"]
+        - [Loans, Interest loans, "", "-rl[-1]*Ld[-1]", "", "+rl[-1]*Ls[-1]", "", "0"]
+        - [Deposits, Interest on deposits, "+rm[-1]*Mh[-1]", "", "", "-rm[-1]*Ms[-1]", "", "0"]
         - [Loans, Ch. loans, "", "", +d(Ld), "", -d(Ls), "0"]
         - [Deposits, Ch. deposits, -d(Mh), "", "", "", +d(Ms), "0"]
         - [Sum, Sum, "0", "0", "0", "0", "0", "0"]
+  - matrix:
+      id: account-transactions
+      sourceRunCellId: baseline-run
+      title: BMW account transactions
+      description: Account-level transaction matrix for BMW with hierarchical sector and account columns.
+      note: Columns group balance-sheet accounts by sector. Use Expand all / Collapse all or click sector headers to show or hide account columns.
+      columns: [Households.Deposits (Mh), Households.Net_Worth (Vh), Firms.Deposits (Mf), Firms.Loans (Ld), Firms.Net_Worth (Vf), Bank.Firm.Loans (Ls), Banks.Households.Deposits (MhL), Banks.Firm.Deposits (MfL), Banks.Net_Worth (Vb), Sum]
+      sectors: [Households, Households, Firms, Firms, Firms, Banks, Banks, Banks, Banks, ""]
+      columnBadges: [asset, equity, asset, liability, equity, asset, liability, liability, equity, ""]
+      accountingKind: account-transactions
+      rows:
+        - [Consumption, Consumption, -Cs, -Cs, +Cd, "", +Cd, "", "", "", "", "0"]
+        - [Investment, Investment, "", "", +Is, "", Is, "", "", "", "", "0"]
+        - [Wages, Wages, WBd, WBd, -WBd, "", -WBd, "", "", "", "", "0"]
+        - [Depreciation, Depreciation, "", "", -AF, "", -AF, "", "", "", "", "0"]
+        - [Loans, Interest loans, "", "", "rl[-1]*Ld[-1]", "", "rl[-1]*Ld[-1]", "", "", "", "-rl[-1]*Ls[-1]", "0"]
+        - [Deposits, Interest on deposits, "+rm[-1]*Mh[-1]", "", "", "", "", "", "", "", "-rm[-1]*Ms[-1]", "0"]
+        - [Loans, Ch. loans, "", "", "", +d(Ld), "", +d(Ls), "", "", "", "0"]
+        - [Deposits, Ch. deposits, -d(Mh), "", "", "", "", +d(Ms), "", "", "", "0"]
+        - [Sum, Sum, "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]
   - sequence:
       id: transaction-flow-sequence
       title: BMW transaction flow sequence
       source:
         kind: matrix
-        matrixCellId: transaction-flow
+        matrixCellId: transactions-flow
       participantColumnOrder:
         - Households
         - Firms_current
@@ -59,9 +79,9 @@ cells:
       description: Canvas-rendered sequence view generated from the transactions-flow matrix at the selected simulation period.
       note: Use Reset and Next step to manually reveal flows in order.
   - equations:
-      id: equations-newton
+      id: equations-bmw
       title: BMW model
-      modelId: equations-newton
+      modelId: bmw
       collapsed: true
       rows:
         - [Cs, Cd, "Consumption goods supply", $/year, flow, definition]
@@ -85,9 +105,9 @@ cells:
         - [KT, kappa * lag(Y), "Target stock of capital", $, stock, target]
         - [Id, gamma * (KT - lag(K)) + DA, "Demand for investment goods", $/year, flow, behavioral]
   - solver:
-      id: solver-newton
+      id: solver-bmw
       title: Solver options
-      modelId: equations-newton
+      modelId: bmw
       collapsed: true
       method: newton
       tolerance: "1e-10"
@@ -98,9 +118,9 @@ cells:
       hiddenTolerance: "0.00001"
       relativeHiddenTolerance: false
   - externals:
-      id: externals-equations-newton
+      id: parameters-bmw
       title: Externals
-      modelId: equations-newton
+      modelId: bmw
       collapsed: true
       rows:
         - [rl, 0.025, "Rate of interest on bank loans, set exogenously", 1/year, aux]
@@ -112,22 +132,22 @@ cells:
         - [kappa, 1, "Capital-output ratio", year, aux]
         - [pr, 1, "Labor productivity", $/item, aux]
   - initial-values:
-      id: initial-values-equations-newton
+      id: initial-values-bmw
       title: Initial values
-      modelId: equations-newton
+      modelId: bmw
       collapsed: true
       rows: []
   - run:
-      id: baseline-newton
+      id: baseline-run
       title: Baseline run with Newton
       note: This Newton baseline provides the reference path for the BMW scenarios.
       description: Run the baseline for 50 periods using the Newton solver to generate the reference path for the BMW scenarios.
       mode: baseline
       periods: 50
       resultKey: bmw_newton
-      sourceModelId: equations-newton
+      sourceModelId: bmw
   - chart:
-      id: baseline-chart
+      id: chart-1
       title: Baseline headline variables
       description: Chart of key variables in the baseline run to show the model's dynamic behavior over time.
       note: This chart shows the time paths of selected variables in the baseline run, which serves as the reference for the scenario comparisons.
@@ -139,9 +159,9 @@ cells:
       axisMode: separate
       axisSnapTolarance: 0.1
       niceScale: true
-      sourceRunCellId: baseline-newton
+      sourceRunCellId: baseline-run
   - table:
-      id: baseline-table
+      id: table-1
       title: Baseline variable summary
       note: Table of selected variables for the baseline run, showing values at each period.
       description: This table shows the values of key variables in the baseline run across all periods.
@@ -152,7 +172,7 @@ cells:
         - K
         - Mh
         - W
-      sourceRunCellId: baseline-newton
+      sourceRunCellId: baseline-run
   - markdown:
       id: scenario-1-note
       title: Scenario 1
@@ -174,10 +194,10 @@ cells:
                 value: 30
             startPeriodInclusive: 5
             endPeriodInclusive: 50
-      baselineRunCellId: baseline-newton
+      baselineRunCellId: baseline-run
       periods: 50
       resultKey: bmw_s1
-      sourceModelId: equations-newton
+      sourceModelId: bmw
       baselineStartPeriod: 40
   - chart:
       id: scenario-1-chart
@@ -209,10 +229,10 @@ cells:
                 value: 0.7
             startPeriodInclusive: 5
             endPeriodInclusive: 50
-      baselineRunCellId: baseline-newton
+      baselineRunCellId: baseline-run
       periods: 50
       resultKey: bmw_s2
-      sourceModelId: equations-newton
+      sourceModelId: bmw
   - chart:
       id: scenario-2-chart
       title: Scenario 2 headline variables
@@ -228,7 +248,7 @@ cells:
       title: BMW equation dependency graph
       source:
         kind: dependency
-        modelId: equations-newton
+        modelId: bmw
         showAccountingStrips: true
         showExogenous: false
       description: Dependency view of the BMW equations organized by sector strips and accounting bands.

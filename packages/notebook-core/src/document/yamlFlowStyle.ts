@@ -77,6 +77,8 @@ export function markMatrixFlowSequences(document: YamlDocument, matrixKey: "bala
 export function markMatrixFlowSequencesAtPath(document: YamlDocument, matrixPath: Array<string | number>): void {
   markFlowSequence(document, [...matrixPath, "columns"]);
   markFlowSequence(document, [...matrixPath, "sectors"]);
+  markFlowSequence(document, [...matrixPath, "columnBadges"]);
+  markFlowSequence(document, [...matrixPath, "variables"]);
 
   const rows = document.getIn([...matrixPath, "rows"], true);
   if (!isSeq(rows)) {

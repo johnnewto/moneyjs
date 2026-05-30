@@ -97,6 +97,56 @@ describe("analyzeNotebookSource", () => {
     expect(parsed.cells.some((cell) => cell.type === "equations" && cell.title === "Equations")).toBe(true);
   });
 
+  it("preserves typed compact YAML wrappers when canonical cell ids match cell types", () => {
+    const document = parseNotebookSource(
+      JSON.stringify({
+        id: "sim-notebook",
+        title: "SIM",
+        metadata: { version: 1, template: "sim" },
+        cells: [
+          {
+            id: "equations",
+            type: "equations",
+            title: "SIM equations",
+            modelId: "sim",
+            equations: [{ id: "eq-0-y", name: "Y", expression: "G" }]
+          },
+          {
+            id: "solver",
+            type: "solver",
+            title: "Solver options",
+            modelId: "sim",
+            options: {
+              solverMethod: "BROYDEN",
+              toleranceText: "1e-8",
+              maxIterations: 100,
+              defaultInitialValueText: "1e-15",
+              hiddenLeftVariable: "",
+              hiddenRightVariable: "",
+              hiddenToleranceText: "1e-5",
+              relativeHiddenTolerance: false
+            }
+          },
+          {
+            id: "externals",
+            type: "externals",
+            title: "Externals",
+            modelId: "sim",
+            externals: [{ id: "ext-0-g", name: "G", kind: "constant", valueText: "20" }]
+          }
+        ]
+      }),
+      "json"
+    ).document;
+
+    const yaml = notebookToCompactYaml(document);
+
+    expect(yaml).toContain("  - equations:");
+    expect(yaml).toContain("  - solver:");
+    expect(yaml).toContain("  - externals:");
+    expect(yaml).not.toMatch(/  - markdown:\n      id: equations-/);
+  });
+
   it("parses expanded YAML for backwards compatibility", () => {
     const yaml = [
       "format: sfcr-notebook-yaml",

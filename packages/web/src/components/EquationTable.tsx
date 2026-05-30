@@ -4,6 +4,7 @@ import { useDragScroll } from "../hooks/useDragScroll";
 import type { EquationRow } from "../lib/editorModel";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
 import { InstantTooltip } from "./InstantTooltip";
+import { formatEquationOperatorDisplay } from "./EquationGridEditor";
 import { VariableLabel } from "./VariableLabel";
 
 interface EquationTableProps {
@@ -134,7 +135,9 @@ export function EquationTable({
                     {equation.name || `Equation ${index + 1}`}
                   </VariableLabel>
                   <span className="equation-list-expression">
-                    {equation.expression || "No expression yet"}
+                    {equation.expression
+                      ? formatEquationOperatorDisplay(equation.expression)
+                      : "No expression yet"}
                   </span>
                 </button>
               );

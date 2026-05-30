@@ -31,6 +31,7 @@ describe("accounting matrix kind", () => {
   it("normalizes author-friendly aliases", () => {
     expect(normalizeAccountingMatrixKindInput("Balance")).toBe("balance-sheet");
     expect(normalizeAccountingMatrixKindInput("transactionFlow")).toBe("transaction-flow");
+    expect(normalizeAccountingMatrixKindInput("accountTransactions")).toBe("account-transactions");
     expect(normalizeAccountingMatrixKindInput("balance-sheet")).toBe("balance-sheet");
   });
 
@@ -68,5 +69,19 @@ describe("accounting matrix kind", () => {
 
     expect(inferAccountingMatrixKind(cell)).toBeNull();
     expect(resolveMatrixTableKind(cell)).toBe("stocks");
+  });
+
+  it("treats account-transactions as a flow matrix", () => {
+    const cell: MatrixCell = {
+      id: "account-transactions",
+      type: "matrix",
+      accountingKind: "account-transactions",
+      title: "Account transactions",
+      columns: ["Mh", "Sum"],
+      rows: [{ label: "Consumption", values: ["-Cs", "0"] }]
+    };
+
+    expect(resolveAccountingMatrixKind(cell)).toBe("account-transactions");
+    expect(resolveMatrixTableKind(cell)).toBe("flows");
   });
 });

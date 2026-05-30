@@ -17,6 +17,6 @@ describe("matrix semantics", () => {
     };
 
     expect(inferMatrixTableKind(cell)).toBe("stocks");
-    expect(classifyMatrixStockRole("Net Wealth", "-Vh", -100)).toBe("netWorth");
+    expect(classifyMatrixStockRole("Net Wealth", "-Vh", -100)).toBe("equity");
   });
 });

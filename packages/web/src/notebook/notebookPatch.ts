@@ -47,6 +47,8 @@ const ALLOWED_CELL_PROPERTIES = new Set([
   "baselineRunCellId",
   "baselineStartPeriod",
   "collapsed",
+  "columnBadges",
+  "columnTree",
   "columns",
   "description",
   "equations",

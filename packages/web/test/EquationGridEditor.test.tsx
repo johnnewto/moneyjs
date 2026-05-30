@@ -15,7 +15,7 @@ afterEach(() => {
 });
 
 describe("EquationGridEditor lag rendering", () => {
-  it("renders simple lag calls as variable subscript minus one in the preview layer", () => {
+  it("renders lag(Name) and Name[-1] as primed variables in the preview layer", () => {
     render(
       <EquationGridEditor
         equations={[{ id: "eq-1", name: "YD", expression: "lag(r^F) * lag(B^{CB})" }]}
@@ -26,10 +26,30 @@ describe("EquationGridEditor lag rendering", () => {
     );
 
     expect(screen.getByDisplayValue("lag(r^F) * lag(B^{CB})")).toBeInTheDocument();
+    const expressionPreview = document.querySelectorAll(".highlighted-formula-preview")[1];
+    expect(expressionPreview).toHaveTextContent("•");
+    expect(expressionPreview).not.toHaveTextContent("*");
     expect(screen.getByText("F", { selector: ".formula-token sup" })).toBeInTheDocument();
     expect(screen.getByText("CB", { selector: ".formula-token sup" })).toBeInTheDocument();
-    expect(screen.getAllByText("-1", { selector: ".formula-token sub.lag-subscript" })).toHaveLength(2);
+    expect(screen.getAllByText("'", { selector: ".formula-token sup.lag-prime" })).toHaveLength(2);
     expect(screen.queryByText("lag")).not.toBeInTheDocument();
+  });
+
+  it("renders bracket lag notation with the same prime styling", () => {
+    render(
+      <EquationGridEditor
+        equations={[{ id: "eq-1", name: "WBd", expression: "-rl[-1] * Ld[-1]" }]}
+        issues={{}}
+        onChange={vi.fn()}
+        parameterNames={[]}
+      />
+    );
+
+    expect(screen.getByDisplayValue("-rl[-1] * Ld[-1]")).toBeInTheDocument();
+    const expressionPreview = document.querySelectorAll(".highlighted-formula-preview")[1];
+    expect(expressionPreview).toHaveTextContent("'");
+    expect(expressionPreview).not.toHaveTextContent("[-1]");
+    expect(screen.getAllByText("'", { selector: ".formula-token sup.lag-prime" })).toHaveLength(2);
   });
 });
 
@@ -98,7 +118,7 @@ describe("EquationGridEditor", () => {
     expect(screen.getByText("sin")).toHaveClass("formula-function");
     expect(screen.getByText("gnd")).toHaveClass("formula-default");
     expect(screen.getByText("K")).toHaveClass("formula-uppercase");
-    expect(screen.getByText("-1", { selector: ".formula-token sub.lag-subscript" })).toBeInTheDocument();
+    expect(screen.getByText("'", { selector: ".formula-token sup.lag-prime" })).toBeInTheDocument();
     expect(screen.queryByText("lag")).not.toBeInTheDocument();
   });
 

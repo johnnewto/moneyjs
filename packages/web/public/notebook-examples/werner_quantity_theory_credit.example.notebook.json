@@ -1,0 +1,164 @@
+{
+  "id": "werner-quantity-theory-credit",
+  "title": "Richard Werner: Quantity Theory of Credit",
+  "metadata": { "version": 1, "template": "werner-quantity-theory-credit" },
+  "cells": [
+    { "id": "overview", "type": "markdown", "title": "Overview", "source": "# Richard Werner's Quantity Theory of Credit\n\nWerner's key distinction is not simply the quantity of money, but the destination of newly created bank credit.\n\n- Productive credit finances GDP transactions: production, wages, inventories, and investment.\n- Asset credit finances existing assets: land, housing, shares, and speculative financial assets.\n\nIn this notebook, banks create two credit circulations. Credit for GDP transactions drives nominal output. Credit for financial transactions drives the total value of asset-market turnover and therefore the asset-price index." },
+    { "id": "qtc-equation-note", "type": "markdown", "title": "QTC equations", "source": "## Quantity Theory of Credit equations\n\nWerner's Quantity Theory of Credit splits the quantity equation into two separate circuits:\n\n- Real-economy credit: `Cr * Vr = P * Yr = Y`\n- Financial credit: `Cf * Vf = PA * AQty = PAQ`\n\n`Cr` is bank credit used for GDP transactions and `Vr` is its velocity. `Cf` is credit used for financial transactions and `Vf` is its velocity. With velocity treated as relatively stable, growth in `Cr` maps to nominal GDP growth, while growth in `Cf` maps to asset-price inflation." },
+    { "id": "variables", "type": "markdown", "title": "Main variables", "source": "| Variable | Meaning | Unit |\n|---|---|---|\n| `Y` | nominal GDP / income | money per period |\n| `C` | consumption | money per period |\n| `I` | productive investment | money per period |\n| `Cr` | bank credit used for GDP transactions | money per period |\n| `Cf` | bank credit used for financial transactions | money per period |\n| `Vr` | velocity of real-economy credit | turns per period |\n| `Vf` | velocity of financial credit | turns per period |\n| `Dp` | change in productive credit | money per period |\n| `Da` | change in asset credit | money per period |\n| `Lp` | stock of productive loans | money |\n| `La` | stock of asset loans | money |\n| `M` | deposits | money |\n| `PA` | asset price index | index |\n| `PAQ` | total value of asset transactions | money per period |\n| `W` | household wealth | money |\n| `DebtRatio` | total loans relative to GDP | ratio |" },
+    {
+      "id": "balance-sheet",
+      "type": "matrix",
+      "title": "Balance sheet: loan-created deposits",
+      "sourceRunCellId": "baseline-run",
+      "accountingKind": "balance-sheet",
+      "columns": ["Households", "Production firms", "Banks", "Sum"],
+      "sectors": ["Households", "Firms", "Banks", ""],
+      "rows": [
+        { "band": "Deposits", "label": "Household deposits", "values": ["+M", "", "-M", "0"] },
+        { "band": "Loans", "label": "Productive loans", "values": ["", "-Lp", "+Lp", "0"] },
+        { "band": "Loans", "label": "Asset loans", "values": ["-La", "", "+La", "0"] },
+        { "band": "Assets", "label": "Existing assets", "values": ["+PAStock", "", "", "+PAStock"] },
+        { "band": "Net worth", "label": "Net worth", "values": ["-W", "+Lp", "-BankNW", "0"] },
+        { "band": "Sum", "label": "Sum", "values": ["0", "0", "0", "0"] }
+      ],
+      "description": "Balance-sheet view showing how bank-created credit maps into deposits, loans, and asset holdings."
+    },
+    {
+      "id": "transaction-matrix",
+      "type": "matrix",
+      "title": "Transaction matrix: productive vs asset credit",
+      "sourceRunCellId": "baseline-run",
+      "accountingKind": "transaction-flow",
+      "columns": ["Households", "Production firms", "Banks", "Sum"],
+      "sectors": ["Households", "Firms", "Banks", ""],
+      "rows": [
+        { "band": "GDP transactions", "label": "Consumption", "values": ["-C", "+C", "", "0"] },
+        { "band": "GDP transactions", "label": "Wages / income", "values": ["+Y", "-Y", "", "0"] },
+        { "band": "GDP transactions", "label": "Productive investment", "values": ["", "+I", "", "+I"] },
+        { "band": "Credit creation", "label": "New productive loans", "values": ["", "+Dp", "+Dp", "+Dp"] },
+        { "band": "Credit creation", "label": "New asset loans", "values": ["+Da", "", "+Da", "+Da"] },
+        { "band": "Asset market", "label": "Existing asset purchases", "values": ["-Da", "", "", "-Da"] },
+        { "band": "Debt service", "label": "Interest on productive loans", "values": ["", "-rp[-1] * Lp[-1]", "+rp[-1] * Lp[-1]", "0"] },
+        { "band": "Debt service", "label": "Interest on asset loans", "values": ["-ra[-1] * La[-1]", "", "+ra[-1] * La[-1]", "0"] },
+        { "band": "Sum", "label": "Sum", "values": ["0", "0", "0", "0"] }
+      ],
+      "description": "Transaction-flow view separating credit directed to current production from credit directed to existing assets."
+    },
+    { "id": "transaction-flow-sequence", "type": "sequence", "title": "Transaction flow sequence", "source": { "kind": "matrix", "matrixCellId": "transaction-matrix" }, "description": "Sequence view generated from the productive-versus-asset-credit transaction matrix." },
+    {
+      "id": "qtc-equations",
+      "type": "equations",
+      "title": "Model equations",
+      "modelId": "qtc-model",
+      "equations": [
+        { "id": "eq-gp", "name": "gp", "desc": "Growth rate of credit used for GDP transactions.", "expression": "gp_s", "role": "definition" },
+        { "id": "eq-ga", "name": "ga", "desc": "Growth rate of credit used for financial transactions.", "expression": "ga_s", "role": "definition" },
+        { "id": "eq-vr", "name": "Vr", "desc": "Velocity of circulation for real-economy credit.", "expression": "Vr_s", "role": "definition" },
+        { "id": "eq-vf", "name": "Vf", "desc": "Velocity of circulation for financial credit.", "expression": "Vf_s", "role": "definition" },
+        { "id": "eq-cr", "name": "Cr", "desc": "Bank credit circulating in GDP transactions.", "expression": "lag(Cr) * (1 + gp)", "role": "accumulation" },
+        { "id": "eq-cf", "name": "Cf", "desc": "Bank credit circulating in financial transactions.", "expression": "lag(Cf) * (1 + ga)", "role": "accumulation" },
+        { "id": "eq-y", "name": "Y", "desc": "Nominal GDP from the real-economy credit equation Cr * Vr = P * Yr.", "expression": "Cr * Vr", "role": "identity" },
+        { "id": "eq-paq", "name": "PAQ", "desc": "Total value of asset transactions from the financial-credit equation Cf * Vf = PA * AQty.", "expression": "Cf * Vf", "role": "identity" },
+        { "id": "eq-pa", "name": "PA", "desc": "Asset price index implied by financial-credit turnover and the quantity of assets traded.", "expression": "PAQ / AQty", "role": "identity" },
+        { "id": "eq-dp", "name": "Dp", "desc": "Change in credit circulating through GDP transactions.", "expression": "Cr - lag(Cr)", "role": "definition" },
+        { "id": "eq-da", "name": "Da", "desc": "Change in credit circulating through financial transactions.", "expression": "Cf - lag(Cf)", "role": "definition" },
+        { "id": "eq-lp", "name": "Lp", "desc": "Stock of productive loans.", "expression": "lag(Lp) + Dp", "role": "accumulation" },
+        { "id": "eq-la", "name": "La", "desc": "Stock of asset loans.", "expression": "lag(La) + Da", "role": "accumulation" },
+        { "id": "eq-l", "name": "L", "desc": "Total bank loans.", "expression": "Lp + La", "role": "identity" },
+        { "id": "eq-i", "name": "I", "desc": "Productive investment and other non-consumption GDP demand.", "expression": "Y - C", "role": "identity" },
+        { "id": "eq-c", "name": "C", "desc": "Consumption demand.", "expression": "alpha1 * lag(Y) + alpha2 * lag(W)", "role": "behavioral" },
+        { "id": "eq-m", "name": "M", "desc": "Deposits created by net new credit in both circulations.", "expression": "lag(M) + Dp + Da", "role": "accumulation" },
+        { "id": "eq-pastock", "name": "PAStock", "desc": "Value of existing assets held by households.", "expression": "PA * AQty", "role": "definition" },
+        { "id": "eq-w", "name": "W", "desc": "Household wealth net of asset-credit liabilities.", "expression": "M + PAStock - La", "role": "identity" },
+        { "id": "eq-debt", "name": "DebtRatio", "desc": "Total loans relative to GDP.", "expression": "L / Y", "role": "definition" },
+        { "id": "eq-prod-share", "name": "ProductiveCreditShare", "desc": "Share of circulating bank credit used for GDP transactions.", "expression": "Cr / (Cr + Cf)", "role": "definition" },
+        { "id": "eq-asset-share", "name": "AssetCreditShare", "desc": "Share of circulating bank credit used for financial transactions.", "expression": "Cf / (Cr + Cf)", "role": "definition" },
+        { "id": "eq-real-growth", "name": "RealCreditGrowth", "desc": "Growth form for real-economy credit.", "expression": "(Cr - lag(Cr)) / lag(Cr)", "role": "definition" },
+        { "id": "eq-fin-growth", "name": "FinancialCreditGrowth", "desc": "Growth form for financial credit.", "expression": "(Cf - lag(Cf)) / lag(Cf)", "role": "definition" },
+        { "id": "eq-gdp-growth", "name": "NominalGDPGrowth", "desc": "Growth rate of nominal GDP implied by real-economy credit growth.", "expression": "(Y - lag(Y)) / lag(Y)", "role": "definition" },
+        { "id": "eq-asset-growth", "name": "AssetPriceGrowth", "desc": "Growth rate of asset prices implied by financial-credit growth.", "expression": "(PA - lag(PA)) / lag(PA)", "role": "definition" },
+        { "id": "eq-bank-nw", "name": "BankNW", "desc": "Illustrative banking-sector net worth implied by loans minus deposits.", "expression": "L - M", "role": "definition" }
+      ]
+    },
+    { "id": "qtc-solver", "type": "solver", "title": "Solver", "modelId": "qtc-model", "options": { "solverMethod": "GAUSS_SEIDEL", "toleranceText": "1e-8", "maxIterations": 200, "defaultInitialValueText": "1e-15", "hiddenLeftVariable": "", "hiddenRightVariable": "", "hiddenToleranceText": "1e-5", "relativeHiddenTolerance": false } },
+    {
+      "id": "qtc-externals",
+      "type": "externals",
+      "title": "Externals",
+      "modelId": "qtc-model",
+      "externals": [
+        { "id": "ext-alpha1", "name": "alpha1", "desc": "Marginal propensity to consume out of lagged income.", "kind": "constant", "valueText": "0.75" },
+        { "id": "ext-alpha2", "name": "alpha2", "desc": "Marginal propensity to consume out of lagged wealth.", "kind": "constant", "valueText": "0.03" },
+        { "id": "ext-rp", "name": "rp", "desc": "Interest rate on productive loans, used in the accounting view.", "kind": "constant", "valueText": "0.04" },
+        { "id": "ext-ra", "name": "ra", "desc": "Interest rate on asset loans, used in the accounting view.", "kind": "constant", "valueText": "0.05" },
+        { "id": "ext-aqty", "name": "AQty", "desc": "Fixed quantity of existing assets.", "kind": "constant", "valueText": "1" },
+        { "id": "ext-vrs", "name": "Vr_s", "desc": "Velocity of circulation for GDP transactions.", "kind": "constant", "valueText": "5" },
+        { "id": "ext-vfs", "name": "Vf_s", "desc": "Velocity of circulation for financial transactions.", "kind": "constant", "valueText": "5" },
+        { "id": "ext-gps", "name": "gp_s", "desc": "Scenario control for real-economy credit growth.", "kind": "constant", "valueText": "0.04" },
+        { "id": "ext-gas", "name": "ga_s", "desc": "Scenario control for financial-credit growth.", "kind": "constant", "valueText": "0.02" }
+      ]
+    },
+    {
+      "id": "qtc-initial-values",
+      "type": "initial-values",
+      "title": "Initial values",
+      "modelId": "qtc-model",
+      "initialValues": [
+        { "id": "init-cr", "name": "Cr", "valueText": "20" },
+        { "id": "init-cf", "name": "Cf", "valueText": "20" },
+        { "id": "init-y", "name": "Y", "valueText": "100" },
+        { "id": "init-lp", "name": "Lp", "valueText": "80" },
+        { "id": "init-la", "name": "La", "valueText": "40" },
+        { "id": "init-m", "name": "M", "valueText": "120" },
+        { "id": "init-pa", "name": "PA", "valueText": "100" },
+        { "id": "init-paq", "name": "PAQ", "valueText": "100" },
+        { "id": "init-w", "name": "W", "valueText": "180" },
+        { "id": "init-debt", "name": "DebtRatio", "valueText": "1.2" }
+      ]
+    },
+    { "id": "baseline-run", "type": "run", "title": "Baseline: more productive credit", "sourceModelId": "qtc-model", "mode": "baseline", "periods": 80, "resultKey": "qtc_baseline", "description": "Baseline run with productive credit growth stronger than asset-credit growth." },
+    { "id": "baseline-chart", "type": "chart", "title": "Baseline headline variables", "sourceRunCellId": "baseline-run", "variables": ["Y", "Cr", "PA", "Cf", "DebtRatio"], "axisMode": "separate", "axisSnapTolarance": 0.1, "niceScale": true },
+    { "id": "baseline-credit-composition", "type": "chart", "title": "Baseline credit composition", "sourceRunCellId": "baseline-run", "variables": ["ProductiveCreditShare", "AssetCreditShare"], "sharedRange": { "includeZero": true }, "niceScale": true },
+    { "id": "baseline-table", "type": "table", "title": "Baseline variable summary", "sourceRunCellId": "baseline-run", "variables": ["Y", "Cr", "Cf", "Dp", "Da", "PA", "PAQ", "W", "DebtRatio"] },
+    { "id": "asset-boom-note", "type": "markdown", "title": "Scenario 1", "source": "This scenario shifts credit creation toward asset purchases by lowering real-economy credit growth and raising financial-credit growth. In Werner's framing, this is the credit pattern associated with asset-price inflation rather than broad GDP acceleration." },
+    {
+      "id": "asset-boom-run",
+      "type": "run",
+      "title": "Asset boom: more asset credit",
+      "sourceModelId": "qtc-model",
+      "mode": "scenario",
+      "scenario": {
+        "shocks": [
+          { "variables": { "gp_s": { "kind": "constant", "value": 0.02 }, "ga_s": { "kind": "constant", "value": 0.08 } }, "startPeriodInclusive": 1, "endPeriodInclusive": 80 }
+        ]
+      },
+      "baselineRunCellId": "baseline-run",
+      "periods": 80,
+      "resultKey": "qtc_asset_boom",
+      "description": "Higher asset-credit growth should push asset prices and leverage above the baseline path."
+    },
+    { "id": "asset-boom-chart", "type": "chart", "title": "Asset boom vs baseline", "sourceRunCellId": "asset-boom-run", "variables": ["Y", "PA", "DebtRatio"], "axisMode": "separate", "axisSnapTolarance": 0.1, "niceScale": true, "referenceTrace": "baseline" },
+    { "id": "asset-boom-credit-composition", "type": "chart", "title": "Asset boom credit composition", "sourceRunCellId": "asset-boom-run", "variables": ["ProductiveCreditShare", "AssetCreditShare"], "sharedRange": { "includeZero": true }, "niceScale": true, "referenceTrace": "baseline" },
+    { "id": "credit-crunch-note", "type": "markdown", "title": "Scenario 2", "source": "This scenario slows both credit circulations to show how weaker bank lending compresses nominal GDP growth and cools asset-price growth." },
+    {
+      "id": "credit-crunch-run",
+      "type": "run",
+      "title": "Credit crunch: falling credit growth",
+      "sourceModelId": "qtc-model",
+      "mode": "scenario",
+      "scenario": {
+        "shocks": [
+          { "variables": { "gp_s": { "kind": "constant", "value": 0.01 }, "ga_s": { "kind": "constant", "value": 0.005 } }, "startPeriodInclusive": 1, "endPeriodInclusive": 80 }
+        ]
+      },
+      "baselineRunCellId": "baseline-run",
+      "periods": 80,
+      "resultKey": "qtc_credit_crunch",
+      "description": "Lower credit growth should weaken output and reduce the pace of asset-price and leverage growth."
+    },
+    { "id": "credit-crunch-chart", "type": "chart", "title": "Credit crunch vs baseline", "sourceRunCellId": "credit-crunch-run", "variables": ["Y", "PA", "DebtRatio"], "axisMode": "separate", "axisSnapTolarance": 0.1, "niceScale": true, "referenceTrace": "baseline" },
+    { "id": "dependency-graph", "type": "sequence", "title": "Equation dependency graph", "source": { "kind": "dependency", "modelId": "qtc-model", "showAccountingStrips": true, "showExogenous": false, "stripMapping": { "transactionMatrixCellId": "transaction-matrix", "balanceMatrixCellId": "balance-sheet" } }, "description": "Dependency view showing how credit allocation, income, deposits, asset prices, and leverage interact." },
+    { "id": "interpretation", "type": "markdown", "title": "Interpretation", "source": "## Interpretation\n\nThe model separates bank credit into two flows. Productive credit, `Dp`, directly finances investment and enters GDP demand. Asset credit, `Da`, does not directly create current production. Instead it raises the asset-price index through the asset-credit-pressure term.\n\nThat captures Werner's central point: credit for real-economy transactions tends to raise GDP, while credit for existing assets tends to raise asset prices and leverage." }
+  ]
+}

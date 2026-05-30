@@ -805,6 +805,11 @@ function getEquationRoleLabel(role?: EquationRole): string {
   return EQUATION_ROLE_OPTIONS.find((option) => option.value === role)?.label ?? "Auto";
 }
 
+/** Display-only: ASCII multiplication in stored expressions → bullet operator. */
+export function formatEquationOperatorDisplay(text: string): string {
+  return text.replace(/\*/g, "•");
+}
+
 export function highlightFormula(
   source: string,
   parameterNames: Set<string>,
@@ -819,16 +824,16 @@ export function highlightFormula(
 ): ReactNode[] {
   const parts: ReactNode[] = [];
   const tokenPattern =
-    /(lag\(\s*([A-Za-z_][A-Za-z0-9_.^{}]*)\s*\))|([A-Za-z_][A-Za-z0-9_.^{}]*|\d+(?:\.\d+)?(?:e[+-]?\d+)?)/gi;
+    /(lag\(\s*([A-Za-z_][A-Za-z0-9_.^{}]*)\s*\))|(([A-Za-z_][A-Za-z0-9_.^{}]*)\s*\[\s*-1\s*\])|([A-Za-z_][A-Za-z0-9_.^{}]*|\d+(?:\.\d+)?(?:e[+-]?\d+)?)/gi;
   let lastIndex = 0;
 
   for (const match of source.matchAll(tokenPattern)) {
     const token = match[0];
-    const laggedVariable = match[2];
+    const laggedVariable = match[2] ?? match[4];
     const index = match.index ?? 0;
 
     if (index > lastIndex) {
-      parts.push(source.slice(lastIndex, index));
+      parts.push(formatEquationOperatorDisplay(source.slice(lastIndex, index)));
     }
 
     const normalizedToken = (laggedVariable ?? token).trim();
@@ -912,7 +917,7 @@ export function highlightFormula(
   }
 
   if (lastIndex < source.length) {
-    parts.push(source.slice(lastIndex));
+    parts.push(formatEquationOperatorDisplay(source.slice(lastIndex)));
   }
 
   return parts;
@@ -921,9 +926,9 @@ export function highlightFormula(
 function renderLaggedVariableMathLabel(name: string): ReactNode[] {
   return [
     ...renderVariableMathLabel(name),
-    <sub key={`lag-${name}`} className="lag-subscript">
-      -1
-    </sub>
+    <sup key={`lag-${name}`} className="lag-prime" aria-hidden="true">
+      '
+    </sup>
   ];
 }
 

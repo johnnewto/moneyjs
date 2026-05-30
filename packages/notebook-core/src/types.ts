@@ -183,10 +183,20 @@ export interface TableCell extends NotebookCellBase {
   variables: string[];
 }
 
+export interface MatrixColumnTreeNode {
+  id: string;
+  label: string;
+  variable?: string;
+  children?: MatrixColumnTreeNode[];
+}
+
 export interface MatrixCell extends NotebookCellBase {
   type: "matrix";
-  accountingKind?: "transaction-flow" | "balance-sheet";
+  accountingKind?: "transaction-flow" | "balance-sheet" | "account-transactions";
   columns: string[];
+  columnTree?: MatrixColumnTreeNode[];
+  columnBadges?: string[];
+  variables?: string[];
   sectors?: string[];
   sourceRunCellId?: string;
   rows: Array<{

@@ -41,7 +41,7 @@ export function resolveMatrixTableKind(
   if (accountingKind === "balance-sheet") {
     return "stocks";
   }
-  if (accountingKind === "transaction-flow") {
+  if (accountingKind === "transaction-flow" || accountingKind === "account-transactions") {
     return "flows";
   }
 
@@ -71,7 +71,7 @@ export function inferMatrixTableKind(
   return stockScore > flowScore ? "stocks" : "flows";
 }
 
-export type MatrixStockRole = "asset" | "liability" | "netWorth";
+export type MatrixStockRole = "asset" | "liability" | "equity";
 
 export function formatStockRoleLabel(role: MatrixStockRole): string {
   switch (role) {
@@ -79,7 +79,7 @@ export function formatStockRoleLabel(role: MatrixStockRole): string {
       return "A";
     case "liability":
       return "L";
-    case "netWorth":
+    case "equity":
       return "E";
   }
 }
@@ -90,7 +90,7 @@ export function formatStockRoleTitle(role: MatrixStockRole): string {
       return "Asset";
     case "liability":
       return "Liability";
-    case "netWorth":
+    case "equity":
       return "Equity";
   }
 }
@@ -106,7 +106,7 @@ export function classifyMatrixStockRole(
     normalizedLabel.includes("net wealth") ||
     normalizedLabel.includes("balance")
   ) {
-    return "netWorth";
+    return "equity";
   }
 
   const direction = inferMatrixDirection(source);

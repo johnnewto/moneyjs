@@ -40,7 +40,14 @@ function expectedUnitLabelsForKind(kind: AccountingMatrixKind): string {
 }
 
 function matrixKindLabel(kind: AccountingMatrixKind): string {
-  return kind === "balance-sheet" ? "Balance-sheet" : "Transaction-flow";
+  switch (kind) {
+    case "balance-sheet":
+      return "Balance-sheet";
+    case "account-transactions":
+      return "Account-transactions";
+    default:
+      return "Transaction-flow";
+  }
 }
 
 function formatEntryLocation(context?: MatrixEntryUnitContext): string {
