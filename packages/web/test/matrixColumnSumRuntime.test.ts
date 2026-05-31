@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   columnHasFlowEntries,
   formatMatrixColumnSumReference,
+  formatQualifiedMatrixColumnSumReference,
   resolveMatrixColumnSumBindings
 } from "../src/notebook/matrixColumnSumRuntime";
 import type { EquationsCell, MatrixCell, NotebookCell, RunCell } from "../src/notebook/types";
@@ -40,6 +41,17 @@ describe("matrixColumnSumRuntime", () => {
     expect(formatMatrixColumnSumReference("Households.Deposits (Mh)")).toBe("Households.Deposits");
   });
 
+  it("qualifies account-only column labels with their sector", () => {
+    expect(formatQualifiedMatrixColumnSumReference("Households(HH)", "Deposits (Mh)")).toBe(
+      "Households.Deposits"
+    );
+    expect(formatQualifiedMatrixColumnSumReference("Firms", "Deposits (Mf)")).toBe("Firms.Deposits");
+    expect(formatQualifiedMatrixColumnSumReference("Households(HH)", "Net_Worth (Vh)")).toBe(
+      "Households.Net_Worth"
+    );
+    expect(formatQualifiedMatrixColumnSumReference("Firms", "Firms.Loans (Ld)")).toBe("Firms.Loans");
+  });
+
   it("detects whether a column has flow entries", () => {
     const sumRowIndex = accountTransactionsMatrix.rows.findIndex((row) => row.label === "Sum");
     expect(columnHasFlowEntries(accountTransactionsMatrix, 0, sumRowIndex)).toBe(true);
@@ -69,6 +81,34 @@ describe("matrixColumnSumRuntime", () => {
 
     expect(bindings).toEqual({
       Mh: ["WBd", "-Cs"]
+    });
+  });
+
+  it("resolves bindings when sector and account are stored separately", () => {
+    const bmwStyleMatrix: MatrixCell = {
+      ...accountTransactionsMatrix,
+      columns: ["Deposits (Mh)", "Deposits (Mf)", "Sum"],
+      sectors: ["Households(HH)", "Firms", ""],
+      rows: [
+        { band: "Wages", label: "Wages", values: ["WBd", "-WBd", "0"] },
+        { band: "Consumption", label: "Consumption", values: ["-Cs", "+Cd", "0"] },
+        { band: "Sum", label: "Sum", values: ["Mh", "Mf", "0"] }
+      ]
+    };
+
+    expect(
+      resolveMatrixColumnSumBindings({
+        cells: [runCell, bmwStyleMatrix],
+        modelId,
+        runCellId: "baseline-run",
+        equationSources: [
+          "Mh' + sum(Households.Deposits) * dt",
+          "Mf' + sum(Firms.Deposits) * dt"
+        ]
+      })
+    ).toEqual({
+      "Households.Deposits": ["WBd", "-Cs"],
+      "Firms.Deposits": ["-WBd", "+Cd"]
     });
   });
 });

@@ -3,6 +3,7 @@ import {
   type MatrixColumnSumBindings
 } from "@sfcr/core";
 import {
+  parseMatrixSectorDisplay,
   parseVariableFromColumnLabel,
   resolveMatrixColumnInspectVariable
 } from "@sfcr/notebook-core";
@@ -13,6 +14,22 @@ import type { MatrixCell, NotebookCell, RunCell } from "./types";
 
 export function formatMatrixColumnSumReference(columnLabel: string): string {
   return columnLabel.trim().replace(/\s*\([^)]+\)\s*$/, "").trim();
+}
+
+/** Builds sum(columnRef) key from separate sector and account column labels. */
+export function formatQualifiedMatrixColumnSumReference(
+  sectorLabel: string,
+  columnLabel: string
+): string {
+  const baseRef = formatMatrixColumnSumReference(columnLabel);
+  if (!baseRef || baseRef.includes(".")) {
+    return baseRef;
+  }
+  const sectorName = parseMatrixSectorDisplay(sectorLabel).sectorName.trim();
+  if (!sectorName) {
+    return baseRef;
+  }
+  return `${sectorName}.${baseRef}`;
 }
 
 export function columnHasFlowEntries(
@@ -63,11 +80,15 @@ function resolveColumnIndexForRef(matrix: MatrixCell, columnRef: string): number
     }
 
     const ref = formatMatrixColumnSumReference(columnLabel);
+    const sectorLabel = matrix.sectors?.[columnIndex]?.trim() ?? "";
+    const qualifiedRef = sectorLabel
+      ? formatQualifiedMatrixColumnSumReference(sectorLabel, columnLabel)
+      : ref;
     const variable =
       parseVariableFromColumnLabel(columnLabel) ??
       resolveMatrixColumnInspectVariable(matrix.columns, columnIndex, matrix.variables);
 
-    if (ref === columnRef || variable === columnRef) {
+    if (ref === columnRef || qualifiedRef === columnRef || variable === columnRef) {
       return columnIndex;
     }
   }

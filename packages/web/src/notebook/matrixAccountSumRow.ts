@@ -4,7 +4,11 @@ import { parseVariableFromColumnLabel, resolveMatrixColumnInspectVariable } from
 import type { UnitMeta } from "../lib/unitMeta";
 import { createUniqueRowId } from "./assistantTools/shared";
 import { findEquationsCell } from "./modelSections";
-import { formatMatrixColumnSumReference, columnHasFlowEntries } from "./matrixColumnSumRuntime";
+import {
+  columnHasFlowEntries,
+  formatMatrixColumnSumReference,
+  formatQualifiedMatrixColumnSumReference
+} from "./matrixColumnSumRuntime";
 import { classifyMatrixEntrySource } from "./matrixVariableReference";
 import { resolveAccountingMatrixKind } from "./validation";
 import type { EquationsCell, MatrixCell, NotebookCell } from "./types";
@@ -321,7 +325,10 @@ export function collectProposedMatrixEquationUpdates(args: {
     }
 
     const columnLabel = args.matrix.columns[columnIndex]?.trim() ?? variable;
-    const columnRef = formatMatrixColumnSumReference(columnLabel);
+    const sectorLabel = args.matrix.sectors?.[columnIndex]?.trim() ?? "";
+    const columnRef = sectorLabel
+      ? formatQualifiedMatrixColumnSumReference(sectorLabel, columnLabel)
+      : formatMatrixColumnSumReference(columnLabel);
     const hasFlows = columnHasFlowEntries(args.matrix, columnIndex, sumRowIndex);
     const proposedExpression = buildProposedAccumulationExpression(variable, columnRef, hasFlows);
     const existingIndex = equationsCell.equations.findIndex(
