@@ -70,8 +70,33 @@ export function isEditableAccountSumRowCell(
 }
 
 export function isSumRowStockChangeAnnotation(source: string): boolean {
-  const reference = classifyMatrixEntrySource(source);
-  return reference?.shape.kind === "diff";
+  return classifyMatrixEntrySource(source)?.shape.kind === "diff";
+}
+
+export function isSumRowStockAnnotation(source: string): boolean {
+  const kind = classifyMatrixEntrySource(source)?.shape.kind;
+  return kind === "diff" || kind === "plain";
+}
+
+export function sumRowHasStockAnnotations(matrix: MatrixCell): boolean {
+  if (!isAccountTransactionsMatrix(matrix)) {
+    return false;
+  }
+
+  const sumRowIndex = matrix.rows.findIndex((row) => isSumLabel(row.label));
+  const sumColumnIndex = matrix.columns.findIndex((column) => isSumLabel(column));
+  if (sumRowIndex < 0) {
+    return false;
+  }
+
+  return matrix.rows[sumRowIndex]?.values.some((source, columnIndex) => {
+    if (columnIndex === sumColumnIndex) {
+      return false;
+    }
+
+    const trimmed = source.trim();
+    return Boolean(trimmed && trimmed !== "0" && isSumRowStockAnnotation(trimmed));
+  }) ?? false;
 }
 
 export function resolveSumRowStockVariable(
@@ -315,7 +340,7 @@ export function collectProposedMatrixEquationUpdates(args: {
     }
 
     const trimmedSource = source.trim();
-    if (!trimmedSource || trimmedSource === "0" || !isSumRowStockChangeAnnotation(trimmedSource)) {
+    if (!trimmedSource || trimmedSource === "0" || !isSumRowStockAnnotation(trimmedSource)) {
       return;
     }
 

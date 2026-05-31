@@ -22,6 +22,7 @@ import { MatrixSourceEditor } from "./MatrixSourceEditor";
 import {
   applyMatrixEquationUpdates,
   collectProposedMatrixEquationUpdates,
+  sumRowHasStockAnnotations,
   defaultSelectedMatrixEquationVariables,
   isAccountTransactionsMatrix,
   type ProposedMatrixEquationUpdate
@@ -311,7 +312,8 @@ function NotebookCellViewComponent({
       return {
         matrixTitle: parsed.title,
         modelId,
-        proposals
+        proposals,
+        hasStockAnnotations: sumRowHasStockAnnotations(parsed)
       };
     } catch {
       return null;
@@ -1041,7 +1043,7 @@ function NotebookCellViewComponent({
               {draftMatrixEquationContext ? (
                 <button
                   className="secondary-button notebook-matrix-unit-meta-button"
-                  disabled={draftMatrixEquationContext.proposals.length === 0}
+                  disabled={!draftMatrixEquationContext.hasStockAnnotations}
                   onClick={handleOpenMatrixEquationProposalDialog}
                   type="button"
                 >

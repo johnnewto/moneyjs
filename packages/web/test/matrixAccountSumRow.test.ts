@@ -13,7 +13,9 @@ import {
   evaluateMatrixEntryNumber,
   isEditableAccountSumRowCell,
   isEmptyAccountSumRowSource,
+  isSumRowStockAnnotation,
   isSumRowStockChangeAnnotation,
+  sumRowHasStockAnnotations,
   resolveAccountSumRowCellBalance,
   resolveAccountSumRowDisplayValue
 } from "../src/notebook/matrixAccountSumRow";
@@ -111,6 +113,35 @@ describe("matrixAccountSumRow", () => {
       "Mh' + sum(Households.Deposits) * dt"
     );
     expect(buildProposedAccumulationExpression("Ld", "Firms.Loans", false)).toBe("Ld'");
+  });
+
+  it("proposes accumulation equations from sum-row stock variable annotations", () => {
+    const matrix: MatrixCell = {
+      ...accountTransactionsMatrix,
+      rows: [
+        { band: "Wages", label: "Wages", values: ["WBd", "", "0"] },
+        { band: "Sum", label: "Sum", values: ["Mh", "Ld", "0"] }
+      ]
+    };
+
+    const updates = collectProposedMatrixEquationUpdates({
+      cells,
+      matrix,
+      modelId
+    });
+
+    expect(updates.find((update) => update.variable === "Mh")).toMatchObject({
+      action: "update",
+      proposed: {
+        expression: "Mh' + sum(Households.Deposits) * dt"
+      }
+    });
+    expect(updates.find((update) => update.variable === "Ld")).toMatchObject({
+      action: "update",
+      proposed: {
+        expression: "Ld'"
+      }
+    });
   });
 
   it("proposes add and update accumulation equations from sum-row d(stock) annotations", () => {

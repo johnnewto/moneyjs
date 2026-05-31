@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { stringifyJsonWithCompactLeaves } from "../lib/jsonFormat";
 import { normalizeUnitMetaAliases } from "../lib/unitMeta";
+import accountTransactionsMatrixHelp from "./help/account-transactions-matrix.md?raw";
 import balanceSheetMatrixHelp from "./help/balance-sheet-matrix.md?raw";
 import chartHelp from "./help/chart.md?raw";
 import equationsHelp from "./help/equations.md?raw";
@@ -17,6 +18,7 @@ import solverHelp from "./help/solver.md?raw";
 import tableHelp from "./help/table.md?raw";
 import transactionFlowMatrixHelp from "./help/transaction-flow-matrix.md?raw";
 import { normalizeScenarioFromNotebook, serializeNotebookCell } from "./document";
+import { resolveAccountingMatrixKind } from "./validation";
 import type {
   ChartCell,
   EquationsCell,
@@ -45,6 +47,7 @@ export type NotebookHelpTopicId =
   | "matrix"
   | "balance-sheet-matrix"
   | "transaction-flow-matrix"
+  | "account-transactions-matrix"
   | "sequence";
 
 export interface NotebookHelpTopic {
@@ -84,6 +87,12 @@ export const NOTEBOOK_HELP_TOPICS: NotebookHelpTopic[] = [
     title: "Transaction Flow Matrix",
     description: "SFC flow accounting across sectors over a period.",
     text: transactionFlowMatrixHelp
+  },
+  {
+    id: "account-transactions-matrix",
+    title: "Account Transactions Matrix",
+    description: "Account-level flows with sector grouping and asset/liability/equity columns.",
+    text: accountTransactionsMatrixHelp
   },
   {
     id: "sequence",
@@ -250,8 +259,26 @@ export function buildSourceHelperActions(
       ];
     case "matrix":
       return [
-        { label: "Columns array", insert: '"columns": ["Households", "Firms"]' },
+        {
+          label: "Balance sheet kind",
+          insert: '"accountingKind": "balance-sheet"'
+        },
+        {
+          label: "Transaction flow kind",
+          insert: '"accountingKind": "transaction-flow"'
+        },
+        {
+          label: "Account transactions kind",
+          insert: '"accountingKind": "account-transactions"'
+        },
+        { label: "Columns array", insert: '"columns": ["Households", "Firms", "Sum"]' },
+        { label: "Sectors array", insert: '"sectors": ["Households", "Firms", ""]' },
+        {
+          label: "Column badges",
+          insert: '"columnBadges": ["asset", "liability", ""]'
+        },
         { label: "Rows array", insert: '"rows": []' },
+        { label: "Source run id", insert: '"sourceRunCellId": "baseline-run"' },
         { label: "Collapsed true", insert: '"collapsed": true' }
       ];
     case "sequence":
@@ -453,15 +480,52 @@ This cell owns the initial-values section for one notebook model. Hide/show only
 - variables: string[]`;
     case "matrix":
       return `Required fields:
-    - title
-    - id
-    - type: "matrix"
-    - columns: string[]
-    - rows: [{ "label": string, "values": string[] }]
+- title
+- id
+- type: "matrix"
+- columns: string[]
+- rows: [{ "label": string, "values": string[] }]
 
-    Behavior:
-    Use Grid mode in the source editor to edit columns, row labels, and values directly.
-    Switch to JSON only for bulk copy, paste, or advanced edits.`;
+Optional:
+- accountingKind: "balance-sheet" | "transaction-flow" | "account-transactions"
+- sourceRunCellId: string
+- sectors: string[] (same length as columns)
+- columnBadges: string[] (asset | liability | equity per column; set in Grid via the A / L / E row)
+- band on each row
+- collapsed: boolean
+
+accountingKind (recommended) drives stock badges, unit validation, and Sum-row checks.
+Aliases normalized at load: Balance → balance-sheet, transactionFlow → transaction-flow, accountTransactions → account-transactions.
+
+Example:
+${formatCellBody(
+  {
+    title: cell.title,
+    id: cell.id,
+    type: "matrix",
+    accountingKind: "transaction-flow",
+    sourceRunCellId: "baseline-run",
+    columns: ["Households", "Firms", "Sum"],
+    sectors: ["Households", "Firms", ""],
+    rows: [
+      {
+        band: "Consumption",
+        label: "Consumption",
+        values: ["-Cd", "+Cs", "0"]
+      },
+      {
+        band: "Sum",
+        label: "Sum",
+        values: ["0", "0", "0"]
+      }
+    ]
+  },
+  "compact"
+)}
+
+Behavior:
+Use Grid mode in the source editor to edit columns, row labels, and values directly.
+Switch to JSON only for bulk copy, paste, or advanced edits.`;
     case "sequence":
       return `Required fields:
 - title
@@ -494,14 +558,15 @@ export function getNotebookHelpTopicIdForCell(cell: NotebookCell): NotebookHelpT
 }
 
 function getMatrixHelpTopicId(cell: MatrixCell): NotebookHelpTopicId {
-  const normalizedLabel = `${cell.id} ${cell.title}`.toLowerCase();
-
-  if (normalizedLabel.includes("transaction-flow") || normalizedLabel.includes("transaction flow")) {
+  const kind = resolveAccountingMatrixKind(cell);
+  if (kind === "balance-sheet") {
+    return "balance-sheet-matrix";
+  }
+  if (kind === "transaction-flow") {
     return "transaction-flow-matrix";
   }
-
-  if (normalizedLabel.includes("balance-sheet") || normalizedLabel.includes("balance sheet")) {
-    return "balance-sheet-matrix";
+  if (kind === "account-transactions") {
+    return "account-transactions-matrix";
   }
 
   return "matrix";

@@ -290,7 +290,7 @@ Transactions-flow matrices use the same structure.
 
 Matrix rules:
 
-- `accountingKind` (optional but recommended): `balance-sheet` or `transaction-flow`. YAML aliases such as `Balance` and `transactionFlow` are normalized at load. When set, this drives balance-sheet stock badges (A/L/E), unit validation, and Sum-row checks instead of guessing from row labels or cell id/title.
+- `accountingKind` (optional but recommended): `balance-sheet`, `transaction-flow`, or `account-transactions`. YAML aliases such as `Balance`, `transactionFlow`, and `accountTransactions` are normalized at load. When set, this drives balance-sheet stock badges (A/L/E), flow unit validation, account-column layout, and Sum-row checks instead of guessing from row labels or cell id/title.
 - `columns` are the displayed column headers.
 - `sectors` must have the same length as `columns`.
 - Use `_current` and `_capital` suffixes for sector account splits when helpful.

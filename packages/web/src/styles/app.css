@@ -5084,6 +5084,12 @@ body.panel-splitter-body-lock {
   width: 100%;
 }
 
+.notebook-matrix-editor-metadata-line .notebook-matrix-editor-field {
+  justify-self: start;
+  max-width: 100%;
+  width: auto;
+}
+
 .notebook-matrix-editor-metadata-line input:hover {
   background: rgba(255, 255, 255, 0.34);
   border-color: rgba(148, 163, 184, 0.28);
@@ -5151,12 +5157,63 @@ body.panel-splitter-body-lock {
   color: inherit;
 }
 
-.notebook-matrix-editor-table thead tr.notebook-matrix-editor-dag-row th {
-  background: rgba(220, 252, 231, 0.92);
+.notebook-matrix-editor-table thead tr.notebook-matrix-editor-dag-row th,
+.notebook-matrix-editor-table thead tr.notebook-matrix-editor-columns-row th {
+  background: rgba(241, 245, 249, 0.96);
+  color: #475569;
+}
+
+.notebook-matrix-editor-table thead tr.notebook-matrix-editor-badge-row th.notebook-matrix-editor-sidehead {
+  background: rgba(254, 243, 199, 0.92);
+  color: #92400e;
+}
+
+.notebook-matrix-editor-table
+  thead
+  tr.notebook-matrix-editor-badge-row
+  th.notebook-matrix-editor-badge-cell:not(.notebook-godley-role) {
+  background: rgba(248, 250, 252, 0.92);
+  color: #64748b;
+}
+
+.notebook-matrix-editor-table
+  thead
+  tr.notebook-matrix-editor-badge-row
+  th.notebook-matrix-editor-badge-cell.notebook-godley-role {
+  border-radius: 0;
+  font-size: inherit;
+  padding: 0.12rem 0.28rem;
+}
+
+.notebook-matrix-editor-table
+  thead
+  tr.notebook-matrix-editor-badge-row
+  th.notebook-matrix-editor-badge-cell.notebook-godley-role-asset {
+  background: rgba(220, 252, 231, 0.9);
   color: #166534;
 }
 
-.notebook-matrix-editor-table thead tr.notebook-matrix-editor-dag-row + tr th:first-child,
+.notebook-matrix-editor-table
+  thead
+  tr.notebook-matrix-editor-badge-row
+  th.notebook-matrix-editor-badge-cell.notebook-godley-role-liability {
+  background: rgba(254, 226, 226, 0.9);
+  color: #991b1b;
+}
+
+.notebook-matrix-editor-table
+  thead
+  tr.notebook-matrix-editor-badge-row
+  th.notebook-matrix-editor-badge-cell.notebook-godley-role-equity {
+  background: rgba(219, 234, 254, 0.92);
+  color: #1d4ed8;
+}
+
+.notebook-matrix-editor-badge-row .notebook-matrix-editor-badge-select {
+  background: transparent;
+  color: inherit;
+}
+
 .notebook-matrix-editor-table tbody td:first-child {
   background: rgba(220, 252, 231, 0.92);
   color: #166534;
@@ -5176,6 +5233,51 @@ body.panel-splitter-body-lock {
     border-color 120ms ease,
     box-shadow 120ms ease;
   width: 100%;
+}
+
+.notebook-matrix-editor-field {
+  field-sizing: content;
+  font-family: inherit;
+  max-width: 100%;
+  width: auto;
+}
+
+.notebook-matrix-editor-table .notebook-matrix-editor-field {
+  display: inline-block;
+  vertical-align: top;
+}
+
+.notebook-matrix-editor-badge-select {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  box-sizing: border-box;
+  color: inherit;
+  font: inherit;
+  max-width: 100%;
+  outline: none;
+  padding: 0.18rem 0.28rem;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+  width: auto;
+}
+
+.notebook-matrix-editor-badge-select:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.34);
+  border-color: rgba(148, 163, 184, 0.28);
+}
+
+.notebook-matrix-editor-badge-select:focus {
+  background: rgba(255, 255, 255, 0.48);
+  border-color: rgba(245, 158, 11, 0.52);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.12);
+}
+
+.notebook-matrix-editor-badge-select:disabled {
+  cursor: default;
+  opacity: 0.55;
 }
 
 .notebook-matrix-editor-table input:hover {
@@ -5199,17 +5301,16 @@ body.panel-splitter-body-lock {
 }
 
 .notebook-matrix-editor-table .notebook-matrix-editor-sum-column {
-  max-width: 4rem;
-  min-width: 4rem;
+  min-width: 3rem;
   padding-left: 0.16rem;
   padding-right: 0.16rem;
-  width: 4rem;
+  white-space: nowrap;
 }
 
-.notebook-matrix-editor-table .notebook-matrix-editor-sum-column input {
+.notebook-matrix-editor-table .notebook-matrix-editor-sum-column .notebook-matrix-editor-field {
   padding-left: 0.16rem;
   padding-right: 0.16rem;
-  text-align: center;
+  text-align: left;
 }
 
 .notebook-matrix-editor-controlcell {

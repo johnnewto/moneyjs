@@ -113,8 +113,8 @@ export function MatrixEquationProposalDialog({
       >
         <h3>Propose accumulation equations from matrix</h3>
         <p>
-          Add or update model accumulation equations using <strong>d(stock)</strong> annotations in
-          the Sum row of <strong>{matrixTitle}</strong>.
+          Add or update model accumulation equations using stock annotations (<strong>Mh</strong>,{" "}
+          <strong>d(Mh)</strong>, and similar) in the Sum row of <strong>{matrixTitle}</strong>.
         </p>
         <ul className="notebook-help-list matrix-unit-meta-dialog-explainer">
           <li>Each selected proposal uses the symbolic sum of that account column as the flow term.</li>

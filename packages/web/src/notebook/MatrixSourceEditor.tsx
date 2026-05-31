@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { normalizeMatrixAccountBadgeRole } from "@sfcr/notebook-core";
+import { useMemo, type ChangeEvent } from "react";
 
 import type { MatrixCell } from "./types";
 import { formatCellBody } from "./sourceEditing";
@@ -34,7 +35,9 @@ export function MatrixSourceEditor({ value, onChange }: MatrixSourceEditorProps)
         ...cell,
         columns: nextColumns,
         rows: nextRows,
-        sectors: cell.sectors == null ? undefined : adjustArrayLength(cell.sectors, nextColumnsLength)
+        sectors: cell.sectors == null ? undefined : adjustArrayLength(cell.sectors, nextColumnsLength),
+        columnBadges:
+          cell.columnBadges == null ? undefined : adjustArrayLength(cell.columnBadges, nextColumnsLength)
       };
     });
   }
@@ -53,6 +56,17 @@ export function MatrixSourceEditor({ value, onChange }: MatrixSourceEditorProps)
       return {
         ...cell,
         sectors: nextSectors
+      };
+    });
+  }
+
+  function updateColumnBadgeValue(badgeIndex: number, nextValue: string): void {
+    commitMatrix((cell) => {
+      const nextBadges = adjustArrayLength(cell.columnBadges ?? [], cell.columns.length);
+      nextBadges[badgeIndex] = nextValue;
+      return {
+        ...cell,
+        columnBadges: finalizeColumnBadges(nextBadges)
       };
     });
   }
@@ -93,7 +107,11 @@ export function MatrixSourceEditor({ value, onChange }: MatrixSourceEditorProps)
           values: insertAt(row.values, nextIndex, "")
         })),
         sectors:
-          cell.sectors == null ? undefined : insertAt(adjustArrayLength(cell.sectors, cell.columns.length), nextIndex, "")
+          cell.sectors == null ? undefined : insertAt(adjustArrayLength(cell.sectors, cell.columns.length), nextIndex, ""),
+        columnBadges:
+          cell.columnBadges == null
+            ? undefined
+            : insertAt(adjustArrayLength(cell.columnBadges, cell.columns.length), nextIndex, "")
       };
     });
   }
@@ -106,7 +124,8 @@ export function MatrixSourceEditor({ value, onChange }: MatrixSourceEditorProps)
         ...row,
         values: [...row.values, ""]
       })),
-      sectors: cell.sectors == null ? undefined : [...cell.sectors, ""]
+      sectors: cell.sectors == null ? undefined : [...cell.sectors, ""],
+      columnBadges: cell.columnBadges == null ? undefined : [...cell.columnBadges, ""]
     }));
   }
 
@@ -118,7 +137,9 @@ export function MatrixSourceEditor({ value, onChange }: MatrixSourceEditorProps)
         ...row,
         values: row.values.filter((_, index) => index !== columnIndex)
       })),
-      sectors: cell.sectors == null ? undefined : cell.sectors.filter((_, index) => index !== columnIndex)
+      sectors: cell.sectors == null ? undefined : cell.sectors.filter((_, index) => index !== columnIndex),
+      columnBadges:
+        cell.columnBadges == null ? undefined : cell.columnBadges.filter((_, index) => index !== columnIndex)
     }));
   }
 
@@ -138,7 +159,11 @@ export function MatrixSourceEditor({ value, onChange }: MatrixSourceEditorProps)
       sectors:
         cell.sectors == null
           ? undefined
-          : moveArrayItem(adjustArrayLength(cell.sectors, cell.columns.length), columnIndex, targetIndex)
+          : moveArrayItem(adjustArrayLength(cell.sectors, cell.columns.length), columnIndex, targetIndex),
+      columnBadges:
+        cell.columnBadges == null
+          ? undefined
+          : moveArrayItem(adjustArrayLength(cell.columnBadges, cell.columns.length), columnIndex, targetIndex)
     }));
   }
 
@@ -200,8 +225,7 @@ export function MatrixSourceEditor({ value, onChange }: MatrixSourceEditorProps)
       <div className="notebook-matrix-editor-fields notebook-matrix-editor-metadata-lines">
         <div className="notebook-matrix-editor-metadata-line">
           <span>Source run cell id</span>
-          <input
-            type="text"
+          <MatrixEditorField
             value={matrix.sourceRunCellId ?? ""}
             onChange={(event) =>
               commitMatrix((cell) => ({
@@ -216,8 +240,7 @@ export function MatrixSourceEditor({ value, onChange }: MatrixSourceEditorProps)
 
         <div className="notebook-matrix-editor-metadata-line">
           <span>Description</span>
-          <input
-            type="text"
+          <MatrixEditorField
             value={matrix.description ?? ""}
             onChange={(event) =>
               commitMatrix((cell) => ({
@@ -232,8 +255,7 @@ export function MatrixSourceEditor({ value, onChange }: MatrixSourceEditorProps)
 
         <div className="notebook-matrix-editor-metadata-line">
           <span>Note</span>
-          <input
-            type="text"
+          <MatrixEditorField
             value={matrix.note ?? ""}
             onChange={(event) =>
               commitMatrix((cell) => ({
@@ -255,7 +277,7 @@ export function MatrixSourceEditor({ value, onChange }: MatrixSourceEditorProps)
                 <th scope="col" colSpan={2} className="notebook-matrix-editor-sidehead" />
                 {matrix.columns.map((column, index) => (
                   <th
-                    key={`controls-${column}-${index}`}
+                    key={`column-controls-${index}`}
                     scope="col"
                     className={[
                       "notebook-matrix-editor-topcell",
@@ -310,13 +332,13 @@ export function MatrixSourceEditor({ value, onChange }: MatrixSourceEditorProps)
                 ))}
                 <th scope="col" className="notebook-matrix-editor-action-head" />
               </tr>
-              <tr>
+              <tr className="notebook-matrix-editor-dag-row">
                 <th scope="col" colSpan={2} className="notebook-matrix-editor-sidehead">
-                  Columns
+                  Sectors
                 </th>
                 {matrix.columns.map((column, index) => (
                   <th
-                    key={`${column}-${index}`}
+                    key={`column-sector-${index}`}
                     scope="col"
                     className={[
                       "notebook-matrix-editor-topcell",
@@ -325,8 +347,32 @@ export function MatrixSourceEditor({ value, onChange }: MatrixSourceEditorProps)
                       .filter(Boolean)
                       .join(" ")}
                   >
-                    <input
-                      type="text"
+                    <MatrixEditorField
+                      value={adjustArrayLength(matrix.sectors ?? [], matrix.columns.length)[index] ?? ""}
+                      onChange={(event) => updateSectorValue(index, event.target.value)}
+                      aria-label={`Matrix sector ${index + 1}`}
+                      placeholder="---"
+                    />
+                  </th>
+                ))}
+                <th scope="col" className="notebook-matrix-editor-action-head" />
+              </tr>
+              <tr className="notebook-matrix-editor-columns-row">
+                <th scope="col" colSpan={2} className="notebook-matrix-editor-sidehead">
+                  Columns
+                </th>
+                {matrix.columns.map((column, index) => (
+                  <th
+                    key={`column-header-${index}`}
+                    scope="col"
+                    className={[
+                      "notebook-matrix-editor-topcell",
+                      index === sumColumnIndex ? "notebook-matrix-editor-sum-column" : undefined
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
+                    <MatrixEditorField
                       value={column}
                       onChange={(event) => {
                         const nextColumns = matrix.columns.slice();
@@ -340,30 +386,35 @@ export function MatrixSourceEditor({ value, onChange }: MatrixSourceEditorProps)
                 ))}
                 <th scope="col" className="notebook-matrix-editor-action-head" />
               </tr>
-              <tr className="notebook-matrix-editor-dag-row">
+              <tr className="notebook-matrix-editor-badge-row">
                 <th scope="col" colSpan={2} className="notebook-matrix-editor-sidehead">
-                  Sectors (DAG)
+                  A / L / E
                 </th>
-                {matrix.columns.map((column, index) => (
+                {matrix.columns.map((column, index) => {
+                  const badgeValue =
+                    adjustArrayLength(matrix.columnBadges ?? [], matrix.columns.length)[index] ?? "";
+                  return (
                   <th
-                    key={`sector-${column}-${index}`}
+                    key={`column-badge-${index}`}
                     scope="col"
                     className={[
                       "notebook-matrix-editor-topcell",
+                      "notebook-matrix-editor-badge-cell",
+                      matrixEditorBadgeCellClass(badgeValue),
                       index === sumColumnIndex ? "notebook-matrix-editor-sum-column" : undefined
                     ]
                       .filter(Boolean)
                       .join(" ")}
                   >
-                    <input
-                      type="text"
-                      value={adjustArrayLength(matrix.sectors ?? [], matrix.columns.length)[index] ?? ""}
-                      onChange={(event) => updateSectorValue(index, event.target.value)}
-                      aria-label={`Matrix sector ${index + 1}`}
-                      placeholder="---"
+                    <MatrixBadgeSelect
+                      value={badgeValue}
+                      onChange={(nextValue) => updateColumnBadgeValue(index, nextValue)}
+                      aria-label={`Matrix column ${index + 1} stock badge`}
+                      disabled={index === sumColumnIndex}
                     />
                   </th>
-                ))}
+                  );
+                })}
                 <th scope="col" className="notebook-matrix-editor-action-head" />
               </tr>
               <tr>
@@ -371,7 +422,7 @@ export function MatrixSourceEditor({ value, onChange }: MatrixSourceEditorProps)
                 <th scope="col">Label</th>
                 {matrix.columns.map((column, index) => (
                   <th
-                    key={`value-${column}-${index}`}
+                    key={`column-value-head-${index}`}
                     scope="col"
                     className={index === sumColumnIndex ? "notebook-matrix-editor-sum-column" : undefined}
                   >
@@ -385,10 +436,9 @@ export function MatrixSourceEditor({ value, onChange }: MatrixSourceEditorProps)
               {matrix.rows.map((row, rowIndex) => {
                 const rowValues = adjustArrayLength(row.values, matrix.columns.length);
                 return (
-                  <tr key={`${row.label}-${rowIndex}`}>
+                  <tr key={`row-${rowIndex}`}>
                     <td>
-                      <input
-                        type="text"
+                      <MatrixEditorField
                         value={row.band ?? ""}
                         onChange={(event) =>
                           updateRow(rowIndex, { band: normalizeOptionalText(event.target.value) })
@@ -397,8 +447,7 @@ export function MatrixSourceEditor({ value, onChange }: MatrixSourceEditorProps)
                       />
                     </td>
                     <td>
-                      <input
-                        type="text"
+                      <MatrixEditorField
                         value={row.label}
                         onChange={(event) => updateRow(rowIndex, { label: event.target.value })}
                         aria-label={`Matrix row ${rowIndex + 1} label`}
@@ -411,13 +460,13 @@ export function MatrixSourceEditor({ value, onChange }: MatrixSourceEditorProps)
                           columnIndex === sumColumnIndex ? "notebook-matrix-editor-sum-column" : undefined
                         }
                       >
-                        <input
-                          type="text"
+                        <MatrixEditorField
                           value={rowValues[columnIndex] ?? ""}
                           onChange={(event) =>
                             updateRowValue(rowIndex, columnIndex, event.target.value)
                           }
                           aria-label={`Matrix row ${rowIndex + 1} value for ${column || `column ${columnIndex + 1}`}`}
+                          minimum={3}
                         />
                       </td>
                     ))}
@@ -496,6 +545,7 @@ function parseMatrixCell(value: string): { ok: true; value: MatrixCell } | { ok:
         ...parsed,
         columns: parsed.columns.map((column) => String(column)),
         sectors: parsed.sectors?.map((sector) => String(sector)),
+        columnBadges: parsed.columnBadges?.map((badge) => String(badge)),
         rows: parsed.rows.map((row, index) => ({
           ...row,
           band: row.band,
@@ -538,4 +588,86 @@ function moveArrayItem<T>(values: T[], fromIndex: number, toIndex: number): T[] 
 
 function normalizeOptionalText(value: string): string | undefined {
   return value.trim() ? value : undefined;
+}
+
+function finalizeColumnBadges(badges: string[]): string[] | undefined {
+  if (!badges.some((badge) => badge.trim().length > 0)) {
+    return undefined;
+  }
+
+  return badges;
+}
+
+function columnBadgeSelectValue(raw: string): "" | "asset" | "liability" | "equity" {
+  return normalizeMatrixAccountBadgeRole(raw) ?? "";
+}
+
+function matrixEditorBadgeCellClass(raw: string): string | undefined {
+  const role = columnBadgeSelectValue(raw);
+  if (!role) {
+    return undefined;
+  }
+
+  return `notebook-godley-role notebook-godley-role-${role}`;
+}
+
+const MATRIX_EDITOR_PLACEHOLDER_SIZE_CAP = 48;
+
+function matrixEditorInputSize(value: string, placeholder = "", minimum = 4): number {
+  const placeholderLength =
+    value.length > 0 ? 0 : Math.min(placeholder.length, MATRIX_EDITOR_PLACEHOLDER_SIZE_CAP);
+  return Math.max(minimum, value.length, placeholderLength) + 1;
+}
+
+function MatrixBadgeSelect({
+  value,
+  onChange,
+  "aria-label": ariaLabel,
+  disabled = false
+}: {
+  value: string;
+  onChange(nextValue: string): void;
+  "aria-label": string;
+  disabled?: boolean;
+}) {
+  return (
+    <select
+      className="notebook-matrix-editor-badge-select"
+      value={columnBadgeSelectValue(value)}
+      onChange={(event) => onChange(event.target.value)}
+      aria-label={ariaLabel}
+      disabled={disabled}
+    >
+      <option value="">—</option>
+      <option value="asset">A</option>
+      <option value="liability">L</option>
+      <option value="equity">E</option>
+    </select>
+  );
+}
+
+function MatrixEditorField({
+  value,
+  onChange,
+  "aria-label": ariaLabel,
+  placeholder,
+  minimum = 4
+}: {
+  value: string;
+  onChange(event: ChangeEvent<HTMLInputElement>): void;
+  "aria-label": string;
+  placeholder?: string;
+  minimum?: number;
+}) {
+  return (
+    <input
+      type="text"
+      className="notebook-matrix-editor-field"
+      value={value}
+      onChange={onChange}
+      size={matrixEditorInputSize(value, placeholder, minimum)}
+      aria-label={ariaLabel}
+      placeholder={placeholder}
+    />
+  );
 }

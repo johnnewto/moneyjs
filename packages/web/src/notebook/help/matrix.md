@@ -1,4 +1,6 @@
-Matrix cells display structured accounting relationships. They are commonly used for balance sheets, transaction-flow matrices, and other SFC accounting views.
+Matrix cells display structured accounting relationships. They are commonly used for balance sheets, transaction-flow matrices, account-transactions matrices, and other SFC accounting views.
+
+Set `accountingKind` to `balance-sheet`, `transaction-flow`, or `account-transactions` when the matrix follows one of those SFC layouts. The notebook uses it for badges, unit checks, and Sum-row behavior instead of guessing from the cell id or title.
 
 ## How To Use
 
