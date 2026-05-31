@@ -10,7 +10,9 @@ import {
   isMatrixAccountSectorStartColumn,
   resolveMatrixAccountColumnCellClasses,
   normalizeMatrixAccountBadgeRole,
+  formatMatrixSectorCollapsedLabel,
   parseMatrixAccountColumnLeafDisplay,
+  parseMatrixSectorDisplay,
   signedMatrixAccountColumnContribution,
   validateMatrixAccountColumnsLayout
 } from "@sfcr/notebook-core";
@@ -59,6 +61,16 @@ describe("matrixAccountColumns", () => {
     ).toMatch(/columnBadges has 2 entries/);
   });
 
+  it("parses sector display names and collapsed aliases", () => {
+    expect(parseMatrixSectorDisplay("Households (H)")).toEqual({
+      sectorName: "Households",
+      variableSymbol: "H",
+      fullLabel: "Households (H)"
+    });
+    expect(formatMatrixSectorCollapsedLabel("Firms")).toBe("Firms");
+    expect(formatMatrixSectorCollapsedLabel("Banks (Bk)")).toBe("Bk");
+  });
+
   it("parses leaf display names and variable symbols", () => {
     expect(parseMatrixAccountColumnLeafDisplay("Households.Deposits (Mh)")).toEqual({
       accountName: "Deposits",
@@ -103,8 +115,28 @@ describe("matrixAccountColumns", () => {
   });
 
   it("builds sector and leaf headers with equity badges", () => {
+    const sectorsWithAliases = ["Households (H)", "Households (H)", "Firms (F)", ""];
+    const collapsedSectorHeaders = buildMatrixAccountColumnHeaderRows(
+      columns,
+      sectorsWithAliases,
+      columnBadges,
+      undefined,
+      new Set(["sector:Households (H)"])
+    );
+    expect(collapsedSectorHeaders[0]?.[0]).toMatchObject({
+      label: "H",
+      fullLabel: "Households (H)",
+      variableSymbol: "H",
+      isCollapsedStub: true
+    });
+
     const headerRows = buildMatrixAccountColumnHeaderRows(columns, sectors, columnBadges, undefined, new Set());
-    expect(headerRows[0]?.[0]).toMatchObject({ label: "Households", colSpan: 2, isSectorStart: true });
+    expect(headerRows[0]?.[0]).toMatchObject({
+      label: "Households",
+      fullLabel: "Households",
+      colSpan: 2,
+      isSectorStart: true
+    });
     expect(headerRows[1]?.map((cell) => cell.stockRole)).toEqual(["asset", "equity", "asset"]);
     expect(headerRows[1]?.map((cell) => cell.isSectorStart)).toEqual([true, false, true]);
     expect(headerRows[1]?.map((cell) => cell.label)).toEqual(["Deposits", "Net_Worth", "Deposits"]);
@@ -117,14 +149,36 @@ describe("matrixAccountColumns", () => {
   });
 
   it("supports sector collapse and per-column hide", () => {
+    const sectorsWithAliases = ["Households (H)", "Households (H)", "Firms (F)", ""];
     const collapsedSector = buildMatrixAccountColumnDisplaySlots(
+      columns,
+      sectorsWithAliases,
+      columnBadges,
+      new Set(["sector:Households (H)"])
+    );
+    expect(collapsedSector).toEqual([
+      {
+        kind: "collapsed",
+        nodeId: "sector:Households (H)",
+        label: "H",
+        fullLabel: "Households (H)"
+      },
+      { kind: "leaf", columnIndex: 2 }
+    ]);
+
+    const collapsedPlainSector = buildMatrixAccountColumnDisplaySlots(
       columns,
       sectors,
       columnBadges,
       new Set(["sector:Households"])
     );
-    expect(collapsedSector).toEqual([
-      { kind: "collapsed", nodeId: "sector:Households", label: "Households" },
+    expect(collapsedPlainSector).toEqual([
+      {
+        kind: "collapsed",
+        nodeId: "sector:Households",
+        label: "Households",
+        fullLabel: "Households"
+      },
       { kind: "leaf", columnIndex: 2 }
     ]);
 

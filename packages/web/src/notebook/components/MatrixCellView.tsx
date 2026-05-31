@@ -37,11 +37,8 @@ import { useMatrixEntryEdit, type MatrixEditingTarget } from "../useMatrixEntryE
 import type { MatrixCell, NotebookCell, RunCell } from "../types";
 import type { useNotebookRunner } from "../useNotebookRunner";
 import { VariableRenameDialog } from "./EquationRowInlineEditor";
-import {
-  collectMatrixAccountLayoutCollapseKeys,
-  MatrixColumnTreeHeader,
-  useMatrixColumnLayout
-} from "./MatrixColumnTreeHeader";
+import { useMatrixColumnCollapseState } from "../matrixColumnCollapseStorage";
+import { MatrixColumnTreeHeader, useMatrixColumnLayout } from "./MatrixColumnTreeHeader";
 
 const EMPTY_PARAMETER_NAMES = new Set<string>();
 const MATRIX_VIRTUALIZATION_ROW_THRESHOLD = 20;
@@ -66,6 +63,7 @@ export function MatrixCellView({
   cell,
   cells,
   entryDisplayMode = "both",
+  notebookScopeId,
   runner,
   selectedPeriodIndex,
   variableDescriptions,
@@ -78,6 +76,7 @@ export function MatrixCellView({
   cell: MatrixCell;
   cells: NotebookCell[];
   entryDisplayMode?: MatrixEntryDisplayMode;
+  notebookScopeId: string;
   runner: ReturnType<typeof useNotebookRunner>;
   selectedPeriodIndex: number;
   variableDescriptions: VariableDescriptions;
@@ -91,7 +90,12 @@ export function MatrixCellView({
   const matrixHeaderScrollRef = useRef<HTMLDivElement | null>(null);
   const variableInspectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [matrixScrollTop, setMatrixScrollTop] = useState(0);
-  const [collapsedColumnTreeNodeIds, setCollapsedColumnTreeNodeIds] = useState<Set<string>>(() => new Set());
+  const {
+    collapsedNodeIds: collapsedColumnTreeNodeIds,
+    toggleColumnTreeNode,
+    expandAllColumnTreeNodes,
+    collapseAllColumnTreeNodes
+  } = useMatrixColumnCollapseState(notebookScopeId, cell);
   const columnLayout = useMatrixColumnLayout(cell, collapsedColumnTreeNodeIds);
   const displaySlots = columnLayout.displaySlots;
   const usesColumnTree = columnLayout.usesColumnTree;
@@ -288,30 +292,6 @@ export function MatrixCellView({
 
   const sourceSelectVariable = editor ? scheduleInspectVariable : undefined;
 
-  const toggleColumnTreeNode = useCallback((nodeId: string) => {
-    setCollapsedColumnTreeNodeIds((current) => {
-      const next = new Set(current);
-      if (next.has(nodeId)) {
-        next.delete(nodeId);
-      } else {
-        next.add(nodeId);
-      }
-      return next;
-    });
-  }, []);
-
-  const expandAllColumnTreeNodes = useCallback(() => {
-    setCollapsedColumnTreeNodeIds(new Set());
-  }, []);
-
-  const collapseAllColumnTreeNodes = useCallback(() => {
-    const keys = collectMatrixAccountLayoutCollapseKeys(cell);
-    if (keys.length === 0) {
-      return;
-    }
-    setCollapsedColumnTreeNodeIds(new Set(keys));
-  }, [cell]);
-
   const matrixEntryEdit = useMatrixEntryEdit({
     cell,
     cells,
@@ -494,7 +474,17 @@ export function MatrixCellView({
         return (
           <tr
             key={row.label}
-            className={row.isSumRow && !row.isBalanced ? "matrix-balance-error" : undefined}
+            className={
+              [
+                accountColumnLayout && rowIndex === 0 && !row.isSumRow
+                  ? "notebook-matrix-flow-start-row"
+                  : undefined,
+                row.isSumRow ? "notebook-matrix-sum-row" : undefined,
+                row.isSumRow && !row.isBalanced ? "matrix-balance-error" : undefined
+              ]
+                .filter(Boolean)
+                .join(" ") || undefined
+            }
           >
             <th scope="row" onContextMenu={(event) => handleMatrixRowContextMenu(event, rowIndex)}>
               <NotebookRenderProfiler
@@ -966,6 +956,8 @@ function renderMatrixRowDataCells({
 
   for (const slot of displaySlots) {
     if (slot.kind === "collapsed") {
+      const collapsedLabel = slot.label.trim();
+      const expandTitle = slot.fullLabel?.trim() || collapsedLabel;
       cells.push(
         <td
           key={`${row.label}-collapsed-${slot.nodeId}`}
@@ -974,10 +966,10 @@ function renderMatrixRowDataCells({
               ? "notebook-matrix-tree-collapsed-stub notebook-matrix-sector-start"
               : "notebook-matrix-tree-collapsed-stub"
           }
-          aria-label={`${slot.label} collapsed`}
-          title={`Expand ${slot.label}`}
+          aria-label={`${expandTitle} collapsed`}
+          title={`Expand ${expandTitle}`}
         >
-          —
+          {accountColumnLayout && collapsedLabel ? collapsedLabel : "—"}
         </td>
       );
       continue;

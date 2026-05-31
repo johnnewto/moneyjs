@@ -132,6 +132,7 @@ export function MatrixColumnTreeHeader({
                 columns,
                 collapsedNodeIds,
                 editorLinked,
+                accountColumnLayout,
                 onInspectVariable,
                 onToggleNode
               })}
@@ -157,6 +158,7 @@ function renderHeaderCell({
   columns,
   collapsedNodeIds,
   editorLinked,
+  accountColumnLayout,
   onInspectVariable,
   onToggleNode
 }: {
@@ -164,11 +166,13 @@ function renderHeaderCell({
   columns: string[];
   collapsedNodeIds: ReadonlySet<string>;
   editorLinked: boolean;
+  accountColumnLayout: boolean;
   onInspectVariable?(variableName: string): void;
   onToggleNode(nodeId: string): void;
 }): JSX.Element | string {
   if (cell.isCollapsedStub || cell.isExpandable) {
     const isCollapsed = cell.isCollapsedStub || collapsedNodeIds.has(cell.nodeId);
+    const titleLabel = cell.fullLabel ?? cell.label;
     return (
       <button
         type="button"
@@ -179,7 +183,7 @@ function renderHeaderCell({
         }
         aria-expanded={!isCollapsed}
         onClick={() => onToggleNode(cell.nodeId)}
-        title={isCollapsed ? `Expand ${cell.label}` : `Collapse ${cell.label}`}
+        title={isCollapsed ? `Expand ${titleLabel}` : `Collapse ${titleLabel}`}
       >
         <span className="notebook-matrix-tree-toggle-icon" aria-hidden="true">
           {isCollapsed ? "▸" : "▾"}
@@ -212,13 +216,14 @@ function renderHeaderCell({
       return <span className="notebook-matrix-tree-leaf-header notebook-matrix-tree-leaf-header-hidden">{badgeButton}</span>;
     }
 
-    const stackedLabel = (
+    const showVariableSymbolLine = Boolean(variableSymbol) && !accountColumnLayout;
+    const labelNode = showVariableSymbolLine ? (
       <span className="notebook-matrix-tree-leaf-label-stack">
         <span className="notebook-matrix-tree-leaf-label">{displayLabel}</span>
-        {variableSymbol ? (
-          <span className="notebook-matrix-tree-leaf-variable">{variableSymbol}</span>
-        ) : null}
+        <span className="notebook-matrix-tree-leaf-variable">{variableSymbol}</span>
       </span>
+    ) : (
+      <span className="notebook-matrix-tree-leaf-label">{displayLabel}</span>
     );
 
     const labelContent = (
@@ -231,16 +236,23 @@ function renderHeaderCell({
             title={titleLabel}
             onClick={() => onInspectVariable(inspectName)}
           >
-            {stackedLabel}
+            {labelNode}
           </button>
         ) : (
-          stackedLabel
+          labelNode
         )}
       </>
     );
 
+    const headerClassName = [
+      "notebook-matrix-tree-leaf-header",
+      showVariableSymbolLine ? "notebook-matrix-tree-leaf-header-stacked" : undefined
+    ]
+      .filter(Boolean)
+      .join(" ");
+
     return (
-      <span className="notebook-matrix-tree-leaf-header notebook-matrix-tree-leaf-header-stacked" title={titleLabel}>
+      <span className={headerClassName} title={titleLabel}>
         {labelContent}
       </span>
     );

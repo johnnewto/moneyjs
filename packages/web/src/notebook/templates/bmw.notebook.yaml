@@ -51,8 +51,8 @@ cells:
       title: BMW account transactions
       description: Account-level transaction matrix for BMW with hierarchical sector and account columns.
       note: Columns group balance-sheet accounts by sector. Use Expand all / Collapse all or click sector headers to show or hide account columns.
-      columns: [Households.Deposits (Mh), Households.Net_Worth (Vh), Firms.Deposits (Mf), Firms.Capital, Firms.Loans (Ld), Firms.Net_Worth (Vf), Bank.Firm.Loans (Ls), Banks.Households.Deposits (MhL), Banks.Firm.Deposits (MfL), Banks.Net_Worth (Vb), Sum]
-      sectors: [Households, Households, Firms, Firms, Firms, Firms, Banks, Banks, Banks, Banks, ""]
+      columns: [Households.Deposits (Mh), Households.Net_Worth (Vh), Firms.Deposits (Mf), Firms.Capital, Firms.Loans, Firms.Net_Worth (Vf), Bank.Firm.Loans, Banks.HH.Deposits, Banks.Firm.Deposits, Banks.Net_Worth (Vb), Sum]
+      sectors: [Households(HH), Households(HH), Firms, Firms, Firms, Firms, Banks, Banks, Banks, Banks, ""]
       columnBadges: [asset, equity, asset, asset, liability, equity, asset, liability, liability, equity, ""]
       accountingKind: account-transactions
       rows:
@@ -64,7 +64,7 @@ cells:
         - [Deposits, Interest on deposits, +rm'*Mh', +rm'*Mh', "", "", "", "", "", -rm'•Mh', "", "-rm[-1]*Ms[-1]", "0"]
         - [Loans, Ch. loans, "", "", +d(Ld), "", -d(Ls), +d(Ld)-d(Ls), +d(Ls), "", -d(Ld), "", "0"]
         - [Deposits, Ch. deposits, "", "", "", "", "", "", "", "", "", "", "0"]
-        - [Sum, Sum, d(Mh), "", "", d(K), d(Ld), "", d(Ls), "", "", "", "0"]
+        - [Sum, Sum, d(Mh), d(Vh), d(Mf), "", "", "", "", "", "", "", "0"]
   - sequence:
       id: transaction-flow-sequence
       title: BMW transaction flow sequence
@@ -78,7 +78,7 @@ cells:
       id: equations-newton
       title: BMW model
       modelId: equations-newton
-      collapsed: true
+      collapsed: false
       rows:
         - [Cs, Cd, "Consumption goods supply", $/year, flow, definition]
         - [Is, Id, "Supply of investment goods", $/year, flow, definition]
@@ -89,17 +89,19 @@ cells:
         - [AF, delta * lag(K), "Amortization funds", $/year, flow, definition]
         - [Ld, lag(Ld) + (Id - AF) * dt, "Demand for bank loans", $, stock, accumulation]
         - [YD, WBs + lag(rm) * lag(Mh), "Disposable income of households", $/year, flow, identity]
-        - [Mh, lag(Mh) + (YD - Cd) * dt, "Bank deposits held by households", $, stock, accumulation]
+        - [Mh, Mh' + sum(Households.Deposits) * dt, "Stock accumulation from Households.Deposits (Mh)", $, stock, accumulation]
         - [Ms, lag(Ms) + d(Ls) * dt, "Supply of bank deposits", $, stock, accumulation]
         - [rm, rl, "Rate of interest on bank deposits", 1/year, aux, definition]
         - [WBs, W * Ns, "Wage bill - supply", $/year, flow, identity]
         - [Nd, Y / pr, "Demand for labor", items/year, flow, definition]
         - [W, WBd / Nd, "Wage rate", $/item, aux, definition]
         - [Cd, alpha0 + alpha1 * YD + alpha2 * lag(Mh), "Consumption goods demand by households", $/year, flow, behavioral]
-        - [K, lag(K) + (Id - DA) * dt, "Stock of capital", $, stock, accumulation]
+        - [K, K' + (Id - DA) • dt, "Stock of capital", $, stock, accumulation]
         - [DA, delta * lag(K), "Depreciation allowance", $/year, flow, definition]
         - [KT, kappa * lag(Y), "Target stock of capital", $, stock, target]
         - [Id, gamma * (KT - lag(K)) + DA, "Demand for investment goods", $/year, flow, behavioral]
+        - [Mf, Mf' + sum(Firms.Deposits) * dt, "Stock accumulation from Firms.Deposits (Mf)", $, stock, accumulation, eq-mf]
+        - [Vh, Vh' + sum(Households.Net_Worth) * dt, "Stock accumulation from Households.Net_Worth (Vh)", $, stock, accumulation, eq-vh]
   - solver:
       id: solver-newton
       title: Solver options

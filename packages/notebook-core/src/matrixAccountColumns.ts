@@ -23,9 +23,15 @@ export interface MatrixAccountColumnLeafDisplay {
   fullLabel: string;
 }
 
+export interface MatrixSectorDisplay {
+  sectorName: string;
+  variableSymbol?: string;
+  fullLabel: string;
+}
+
 export type MatrixColumnDisplaySlot =
   | { kind: "leaf"; columnIndex: number }
-  | { kind: "collapsed"; nodeId: string; label: string }
+  | { kind: "collapsed"; nodeId: string; label: string; fullLabel?: string }
   | {
       kind: "hiddenLeaf";
       nodeId: string;
@@ -88,6 +94,25 @@ export function normalizeMatrixAccountBadgeRole(input: unknown): MatrixAccountBa
   }
 }
 
+export function parseMatrixSectorDisplay(label: string): MatrixSectorDisplay {
+  const fullLabel = label.trim();
+  const variableSymbol = parseVariableFromColumnLabel(fullLabel);
+  const sectorName = variableSymbol
+    ? fullLabel.replace(/\s*\([^)]+\)\s*$/, "").trim()
+    : fullLabel;
+  return {
+    sectorName,
+    fullLabel,
+    ...(variableSymbol ? { variableSymbol } : {})
+  };
+}
+
+/** Header/body label for a collapsed sector group; prefers the parenthetical alias. */
+export function formatMatrixSectorCollapsedLabel(label: string): string {
+  const display = parseMatrixSectorDisplay(label);
+  return display.variableSymbol ?? display.sectorName;
+}
+
 export function parseMatrixAccountColumnLeafDisplay(label: string): MatrixAccountColumnLeafDisplay {
   const fullLabel = label.trim();
   const variableSymbol = parseVariableFromColumnLabel(fullLabel);
@@ -101,6 +126,18 @@ export function parseMatrixAccountColumnLeafDisplay(label: string): MatrixAccoun
     accountName,
     ...(variableSymbol ? { variableSymbol } : {}),
     fullLabel
+  };
+}
+
+function matrixSectorHeaderFields(
+  sectorLabel: string,
+  collapsed: boolean
+): Pick<MatrixColumnHeaderCell, "label" | "fullLabel" | "variableSymbol"> {
+  const display = parseMatrixSectorDisplay(sectorLabel);
+  return {
+    label: collapsed ? formatMatrixSectorCollapsedLabel(sectorLabel) : display.sectorName,
+    fullLabel: display.fullLabel,
+    ...(display.variableSymbol ? { variableSymbol: display.variableSymbol } : {})
   };
 }
 
@@ -324,7 +361,13 @@ export function buildMatrixAccountColumnDisplaySlots(
       }
 
       if (collapsedNodeIds.has(sectorCollapseKey(sectorLabel))) {
-        slots.push({ kind: "collapsed", nodeId: sectorCollapseKey(sectorLabel), label: sectorLabel });
+        const sectorDisplay = parseMatrixSectorDisplay(sectorLabel);
+        slots.push({
+          kind: "collapsed",
+          nodeId: sectorCollapseKey(sectorLabel),
+          label: formatMatrixSectorCollapsedLabel(sectorLabel),
+          fullLabel: sectorDisplay.fullLabel
+        });
         index = groupEnd;
         continue;
       }
@@ -385,7 +428,7 @@ export function buildMatrixAccountColumnHeaderRows(
       if (collapsedNodeIds.has(sectorCollapseKey(sectorLabel))) {
         rows[0]?.push({
           nodeId: sectorCollapseKey(sectorLabel),
-          label: sectorLabel,
+          ...matrixSectorHeaderFields(sectorLabel, true),
           colSpan: 1,
           rowSpan: MATRIX_ACCOUNT_HEADER_ROW_COUNT,
           isLeaf: false,
@@ -399,7 +442,7 @@ export function buildMatrixAccountColumnHeaderRows(
 
       rows[0]?.push({
         nodeId: sectorCollapseKey(sectorLabel),
-        label: sectorLabel,
+        ...matrixSectorHeaderFields(sectorLabel, false),
         colSpan: groupEnd - index,
         rowSpan: 1,
         isLeaf: false,

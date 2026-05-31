@@ -66,6 +66,7 @@ import {
   type NotebookPatchResult
 } from "./notebookPatch";
 import { NotebookCellView } from "./NotebookCellView";
+import { resolveNotebookScopeId } from "./resolveNotebookScopeId";
 import { NotebookRenderProfiler } from "./notebookProfiler";
 import { AssistantInlinePatchView } from "./AssistantInlinePatchView";
 import { SourceCodeEditor } from "./SourceCodeEditor";
@@ -813,6 +814,15 @@ export function NotebookApp() {
   const currentTemplateId = useMemo(
     () => resolveCurrentTemplateId(notebookDocument),
     [notebookDocument]
+  );
+  const notebookScopeId = useMemo(
+    () =>
+      resolveNotebookScopeId({
+        activeVariantId,
+        document: notebookDocument,
+        currentTemplateId
+      }),
+    [activeVariantId, currentTemplateId, notebookDocument]
   );
   const syncNotebookLocation = useCallback(
     (cellId?: string | null) => {
@@ -3034,6 +3044,7 @@ export function NotebookApp() {
                   activeEditorCellId={activeEditorCellId}
                   cell={cell}
                   cells={notebookDocument.cells}
+                  notebookScopeId={notebookScopeId}
                   getModelCurrentValues={getCurrentValueMapForModelRef}
                   maxPeriodIndex={maxResultPeriodIndex}
                   viewportRoot={mainColumnElement}

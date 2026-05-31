@@ -5524,6 +5524,13 @@ button.notebook-matrix-tree-badge-toggle:hover {
   font-weight: 600;
 }
 
+.notebook-matrix-table tbody tr.notebook-matrix-flow-start-row th,
+.notebook-matrix-table tbody tr.notebook-matrix-flow-start-row td,
+.notebook-matrix-table tbody tr.notebook-matrix-sum-row th,
+.notebook-matrix-table tbody tr.notebook-matrix-sum-row td {
+  border-top: 2px solid rgba(51, 65, 85, 0.55);
+}
+
 .notebook-matrix-table tbody td {
   text-align: right;
 }
@@ -5567,7 +5574,7 @@ button.notebook-matrix-tree-badge-toggle:hover {
 
 .notebook-matrix-table-account-columns th.notebook-matrix-sector-start,
 .notebook-matrix-table-account-columns td.notebook-matrix-sector-start {
-  border-left: 2px solid rgba(71, 85, 105, 0.42);
+  border-left: 3px double rgba(71, 85, 105, 0.42);
 }
 
 .notebook-matrix-table-account-columns th.notebook-matrix-intra-sector-divider,

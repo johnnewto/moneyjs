@@ -158,6 +158,7 @@ export interface NotebookCellViewProps {
   activeEditorCellId: string | null;
   cell: NotebookCell;
   cells: NotebookCell[];
+  notebookScopeId: string;
   getModelCurrentValues(ref: {
     modelId?: string;
     sourceModelId?: string;
@@ -191,6 +192,7 @@ function NotebookCellViewComponent({
   activeEditorCellId,
   cell,
   cells,
+  notebookScopeId,
   getModelCurrentValues,
   maxPeriodIndex,
   viewportRoot,
@@ -1262,6 +1264,7 @@ function NotebookCellViewComponent({
                 cell={cell}
                 cells={cells}
                 entryDisplayMode={matrixEntryDisplayModes[cell.id] ?? "both"}
+                notebookScopeId={notebookScopeId}
                 runner={runner}
                 selectedPeriodIndex={selectedPeriodIndex}
                 variableDescriptions={variableDescriptions}
@@ -1485,6 +1488,9 @@ function areNotebookCellViewPropsEqual(
   nextProps: NotebookCellViewProps
 ): boolean {
   if (previousProps.cell !== nextProps.cell || previousProps.cells !== nextProps.cells) {
+    return false;
+  }
+  if (previousProps.notebookScopeId !== nextProps.notebookScopeId) {
     return false;
   }
   if (
