@@ -48,7 +48,7 @@ Wrap model variables in backticks, such as `Y`, `Cd`, `Mh`, or `alpha1`. This ma
 
 When explaining an equation, keep the equation short:
 
-`Mh = lag(Mh) + (YD - Cd) * dt`
+`Mh = Mh' + (YD - Cd) * dt`
 
 For longer explanations, split the text into a short equation and a short interpretation.
 

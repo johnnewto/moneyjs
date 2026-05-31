@@ -105,8 +105,8 @@ cells:
       modelId: simple
       rows:
         - [Y, G, "Income", $/year, flow, identity]
-        - [C, alpha0 + alpha1 * Y + alpha2 * lag(M), "Consumption", $/year, flow, behavioral]
-        - [M, lag(M) + Y - C, "Money stock", $, stock, accumulation]
+        - [C, alpha0 + alpha1 * Y + alpha2 * M', "Consumption", $/year, flow, behavioral]
+        - [M, M' + Y - C, "Money stock", $, stock, accumulation]
   - solver:
       id: solver-main
       title: Solver options
@@ -155,8 +155,8 @@ Use compact row arrays inside an `equations` cell.
       modelId: sim
       rows:
         - [Y, Cs + Gs, "Income = GDP", $/year, flow, identity]
-        - [YD, WBs + lag(rm) * lag(Mh), "Disposable income", $/year, flow, identity]
-        - [Mh, lag(Mh) + (YD - Cd) * dt, "Household money deposits", $, stock, accumulation]
+        - [YD, WBs + rm' * Mh', "Disposable income", $/year, flow, identity]
+        - [Mh, Mh' + (YD - Cd) * dt, "Household money deposits", $, stock, accumulation]
 ```
 
 Equation row shape:
@@ -169,7 +169,8 @@ Always quote descriptions in generated YAML. Units and expressions may stay unqu
 
 Expression syntax:
 
-- `lag(varName)`: previous period value
+- `varName'`: previous period value (preferred)
+- `lag(varName)` or `varName[-1]`: equivalent lag syntax
 - `d(varName)`: change in variable, current minus lagged value
 - `I(flowExpr)`: stock accumulation shorthand
 - `dt`: time step, usually `1`
@@ -295,7 +296,7 @@ Matrix rules:
 - Use `_current` and `_capital` suffixes for sector account splits when helpful.
 - Use empty string `""` for sum-sector labels and blank matrix cells.
 - Use signs directly in values, such as `+Mh` and `-Ms`.
-- Use `lag()` in equations and `[-1]` notation in matrix display formulas when matching paper-style tables.
+- Prefer `varName'` in equations; use `[-1]` notation in matrix display formulas when matching paper-style tables.
 - Common balance-sheet bands: `Money`, `Loans`, `Equities`, `Inventories`, `Balance`.
 - Common transactions-flow bands: `Consumption`, `Investment`, `Wages`, `Profits`, `Interest`, `Taxes`, `Deposits`, `Loans`.
 
@@ -450,10 +451,10 @@ Equation naming conventions:
       title: Model equations
       modelId: model
       rows:
-        - [K, lag(K) + (I - delta * lag(K)) * dt, "Accumulation", $, stock, accumulation]
-        - [Y_E, theta * lag(Y) + (1 - theta) * lag(Y_E), "Adaptive expectations", $/year, flow, definition]
-        - [I, gamma * (K_T - lag(K)) + delta * lag(K), "Target-based adjustment", $/year, flow, behavioral]
-        - [C, alpha0 + alpha1 * YD + alpha2 * lag(Mh), "Consumption function", $/year, flow, behavioral]
+        - [K, K' + (I - delta * K') * dt, "Accumulation", $, stock, accumulation]
+        - [Y_E, theta * Y' + (1 - theta) * Y_E', "Adaptive expectations", $/year, flow, definition]
+        - [I, gamma * (K_T - K') + delta * K', "Target-based adjustment", $/year, flow, behavioral]
+        - [C, alpha0 + alpha1 * YD + alpha2 * Mh', "Consumption function", $/year, flow, behavioral]
 ```
 
 ## Validation Checklist
@@ -525,7 +526,7 @@ Ensure all variables are defined as equations, externals, initial values, or val
 
 ### Error: "Circular dependency"
 
-Check for missing `lag()` operators. Stock-flow feedback loops usually need lagged stock terms.
+Check for missing lag terms (`varName'`). Stock-flow feedback loops usually need lagged stock terms.
 
 ### Error: "Hidden equation variables not found"
 

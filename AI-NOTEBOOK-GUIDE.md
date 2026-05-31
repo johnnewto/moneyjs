@@ -97,9 +97,10 @@ Defines the core model equations.
   - `signature`: dimensional analysis (e.g., `{"money": 1, "time": -1}` for flow)
 
 **Expression syntax:**
-- `lag(varName)`: previous period value
+- `varName'`: previous period value (preferred)
+- `lag(varName)` or `varName[-1]`: equivalent lag syntax
 - `d(varName)`: change in variable (current - lag)
-- `I(flowExpr)`: stock accumulation shorthand. On the equation left-hand side `X`, `X = I(flowExpr)` is equivalent to `X = lag(X) + flowExpr * dt`.
+- `I(flowExpr)`: stock accumulation shorthand. On the equation left-hand side `X`, `X = I(flowExpr)` is equivalent to `X = X' + flowExpr * dt`.
 - `dt`: time step (usually equals 1)
 - Standard operators: `+`, `-`, `*`, `/`
 - Exponentiation: `pow(base, exponent)`. The `^` character is reserved for paper-style variable notation such as `H^P`.
@@ -217,7 +218,7 @@ Sets period-0 values for stock variables and expectations.
 ```
 
 **When to use:**
-- Stock variables with accumulation equations (e.g., `Mh = lag(Mh) + ...`)
+- Stock variables with accumulation equations (e.g., `Mh = Mh' + ...`)
 - Lagged values that don't have a natural default
 - Adaptive expectations (e.g., `s_E`, `ydhsw_E`)
 
@@ -531,12 +532,12 @@ Generates sequence diagrams from matrices or dependency graphs.
         {
           "id": "eq-1-C",
           "name": "C",
-          "expression": "alpha0 + alpha1 * Y + alpha2 * lag(M)"
+          "expression": "alpha0 + alpha1 * Y + alpha2 * M'"
         },
         {
           "id": "eq-2-M",
           "name": "M",
-          "expression": "lag(M) + Y - C"
+          "expression": "M' + Y - C"
         }
       ]
     },
@@ -642,7 +643,7 @@ Recommended sequence:
   - Bands: group by transaction type (Consumption, Investment, Wages, Profits, Interest)
   - Split sectors into current and capital accounts when relevant
   - Include change-in-stock rows (e.g., `d(Mh)`, `d(Ld)`)
-  - Use `lag()` for interest payments (e.g., `rl[-1] * Ld[-1]`)
+  - Use lagged rates in matrix formulas (e.g., `rl[-1] * Ld[-1]`) or prime notation in equations (e.g., `rl' * Ld'`)
 
 ### Common Patterns
 
@@ -650,7 +651,7 @@ Recommended sequence:
 ```json
 {
   "name": "K",
-  "expression": "lag(K) + (I - delta * lag(K)) * dt",
+  "expression": "K' + (I - delta * K') * dt",
   "role": "accumulation"
 }
 ```
@@ -659,7 +660,7 @@ Recommended sequence:
 ```json
 {
   "name": "Y_E",
-  "expression": "theta * lag(Y) + (1 - theta) * lag(Y_E)"
+  "expression": "theta * Y' + (1 - theta) * Y_E'"
 }
 ```
 
@@ -667,7 +668,7 @@ Recommended sequence:
 ```json
 {
   "name": "I",
-  "expression": "gamma * (K_T - lag(K)) + delta * lag(K)"
+  "expression": "gamma * (K_T - K') + delta * K'"
 }
 ```
 
@@ -675,7 +676,7 @@ Recommended sequence:
 ```json
 {
   "name": "C",
-  "expression": "alpha0 + alpha1 * YD + alpha2 * lag(Mh)"
+  "expression": "alpha0 + alpha1 * YD + alpha2 * Mh'"
 }
 ```
 
@@ -709,7 +710,7 @@ Add dimensional analysis to catch errors:
 ```json
 {
   "name": "K",
-  "expression": "lag(K) + (Id - DA) * dt",
+  "expression": "K' + (Id - DA) * dt",
   "unitMeta": {
     "stockFlow": "stock",
     "signature": { "money": 1 }
@@ -778,7 +779,7 @@ Values apply to periods 0, 1, 2, ... If series is shorter than simulation, last 
 **Solution:** Ensure all variables in expressions are defined as equations, externals, or are valid lag references.
 
 ### Error: "Circular dependency"
-**Solution:** Check for missing `lag()` operators. Stock-flow cycles require lagged feedback.
+**Solution:** Check for missing lag terms (`varName'`). Stock-flow cycles require lagged feedback.
 
 ### Error: "Hidden equation variables not found"
 **Solution:** `hiddenLeftVariable` and `hiddenRightVariable` must match actual variable names.

@@ -30,7 +30,7 @@ describe("matrixAccountColumns", () => {
     expect(normalizeMatrixAccountBadgeRole("netWorth")).toBe("equity");
   });
 
-  it("sums account-transaction rows as A - L - E", () => {
+  it("sums unsigned stock magnitudes as A - L - E", () => {
     expect(signedMatrixAccountColumnContribution(10, "asset")).toBe(10);
     expect(signedMatrixAccountColumnContribution(10, "liability")).toBe(-10);
     expect(signedMatrixAccountColumnContribution(10, "equity")).toBe(-10);
@@ -38,6 +38,18 @@ describe("matrixAccountColumns", () => {
     const columnBadges = ["asset", "liability", "equity", ""];
     expect(computeMatrixAccountRowTotal([100, 40, 30, 0], columnBadges, 3)).toBe(30);
     expect(computeMatrixAccountRowTotal([100, 100, 100, 0], columnBadges, 3)).toBe(-100);
+  });
+
+  it("does not apply A-L-E to signed account-transaction flow rows", () => {
+    const columnBadges = ["asset", "equity", "asset", "asset", "liability", ""];
+    const interestOnDepositsRow = [12, -12, 0, 12, -12, null];
+    expect(computeMatrixAccountRowTotal(interestOnDepositsRow, columnBadges, 5)).toBe(48);
+    expect(
+      interestOnDepositsRow.reduce<number>(
+        (total, value, index) => (index === 5 ? total : total + (value ?? 0)),
+        0
+      )
+    ).toBe(0);
   });
 
   it("validates parallel sectors and columnBadges lengths", () => {

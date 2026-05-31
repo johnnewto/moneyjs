@@ -64,7 +64,7 @@ cells:
         - [Deposits, Interest on deposits, +rm'*Mh', +rm'*Mh', "", "", "", "", "", -rm'•Mh', "", "-rm[-1]*Ms[-1]", "0"]
         - [Loans, Ch. loans, "", "", +d(Ld), "", -d(Ls), +d(Ld)-d(Ls), +d(Ls), "", -d(Ld), "", "0"]
         - [Deposits, Ch. deposits, "", "", "", "", "", "", "", "", "", "", "0"]
-        - [Sum, Sum, "0", "0", "0", "", "0", "0", "0", "0", "0", "0", "0"]
+        - [Sum, Sum, d(Mh), "", "", d(K), d(Ld), "", d(Ls), "", "", "", "0"]
   - sequence:
       id: transaction-flow-sequence
       title: BMW transaction flow sequence

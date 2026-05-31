@@ -5,6 +5,7 @@ import type { SimulationResult } from "../result/result";
 import { broydenSolver } from "../solver/broyden";
 import { gaussSeidelSolver } from "../solver/gaussSeidel";
 import { newtonSolver } from "../solver/newton";
+import { wrapContextWithMatrixColumnSums } from "./matrixColumnSum";
 import { SeriesStore } from "./seriesStore";
 import { validateHiddenEquation, validateModel, validateOptions } from "./validate";
 
@@ -15,7 +16,10 @@ export function runBaseline(
   validateModel(model);
   validateOptions(options);
 
-  const parsed = model.equations.map((equation) => parseEquation(equation.name, equation.expression));
+  const matrixColumnSums = model.matrixColumnSums ?? {};
+  const parsed = model.equations.map((equation) =>
+    parseEquation(equation.name, equation.expression, { matrixColumnSums })
+  );
   const ordered = buildOrderedBlocks(parsed);
   const equationsByName = new Map(parsed.map((equation) => [equation.name, equation]));
   const endogenousNames = parsed.map((equation) => equation.name);
@@ -50,7 +54,10 @@ export function runBaseline(
 
   const solver = selectSolver(options);
   for (let period = 1; period < options.periods; period += 1) {
-    const context = SeriesStore.forPeriod(series, period);
+    const context = wrapContextWithMatrixColumnSums(
+      SeriesStore.forPeriod(series, period),
+      matrixColumnSums
+    );
     for (const block of ordered.blocks) {
       solver.solveBlock(period, block, equationsByName, context, {
         tolerance: options.tolerance,

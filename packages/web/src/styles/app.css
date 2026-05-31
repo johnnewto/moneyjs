@@ -4970,6 +4970,49 @@ body.panel-splitter-body-lock {
   padding-right: 0.25rem;
 }
 
+.matrix-equation-proposal-dialog .matrix-unit-meta-dialog-list-header,
+.matrix-equation-proposal-dialog .matrix-unit-meta-dialog-row {
+  grid-template-columns: auto minmax(7rem, 10rem) minmax(14rem, 1.5fr) minmax(14rem, 1.5fr) minmax(12rem, 1fr);
+}
+
+.matrix-equation-proposal-action {
+  color: #64748b;
+  display: block;
+  font-family: var(--font-sans, "IBM Plex Sans", "Segoe UI", sans-serif);
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-top: 0.15rem;
+}
+
+.matrix-equation-proposal-expression {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.84rem;
+  line-height: 1.35;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.matrix-equation-proposal-input {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 8px;
+  box-sizing: border-box;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.84rem;
+  line-height: 1.35;
+  min-height: 2.6rem;
+  min-width: 0;
+  padding: 0.35rem 0.45rem;
+  resize: vertical;
+  width: 100%;
+}
+
+.matrix-equation-proposal-input:focus {
+  border-color: rgba(37, 99, 235, 0.55);
+  outline: 2px solid rgba(37, 99, 235, 0.18);
+  outline-offset: 1px;
+}
+
 .matrix-unit-meta-dialog-sources {
   color: #64748b;
   font-size: 0.8rem;

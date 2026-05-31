@@ -10,6 +10,8 @@ import {
   type SimulationOptions,
   type SolverMethod
 } from "@sfcr/core";
+import type { NotebookCell } from "../notebook/types";
+import { resolveMatrixColumnSumBindings } from "../notebook/matrixColumnSumRuntime";
 import { stringifyJsonWithCompactLeaves } from "../lib/jsonFormat";
 import type { UnitMeta } from "../lib/unitMeta";
 import { buildVariableUnitMetadata, diagnoseEquationUnits } from "../lib/units";
@@ -146,7 +148,16 @@ export function editorStateFromModel(
   };
 }
 
-export function buildRuntimeConfig(editor: EditorState): {
+export interface BuildRuntimeConfigOptions {
+  notebookCells?: NotebookCell[];
+  modelId?: string;
+  runCellId?: string;
+}
+
+export function buildRuntimeConfig(
+  editor: EditorState,
+  runtimeOptions?: BuildRuntimeConfigOptions
+): {
   model: ModelDefinition;
   options: SimulationOptions;
   scenario: ScenarioDefinition | null;
@@ -177,10 +188,25 @@ export function buildRuntimeConfig(editor: EditorState): {
       .map((initial) => [initial.name.trim(), parseNumber(initial.valueText)])
   );
 
+  const matrixColumnSums =
+    runtimeOptions?.notebookCells &&
+    runtimeOptions.modelId &&
+    runtimeOptions.runCellId
+      ? resolveMatrixColumnSumBindings({
+          cells: runtimeOptions.notebookCells,
+          modelId: runtimeOptions.modelId,
+          runCellId: runtimeOptions.runCellId,
+          equationSources: equations.map((equation) => equation.expression)
+        })
+      : undefined;
+
   const model: ModelDefinition = {
     equations,
     externals,
-    initialValues
+    initialValues,
+    ...(matrixColumnSums && Object.keys(matrixColumnSums).length > 0
+      ? { matrixColumnSums }
+      : {})
   };
 
   const hiddenLeft = editor.options.hiddenLeftVariable.trim();

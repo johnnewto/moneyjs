@@ -4,6 +4,7 @@ export type Expr =
   | LagExpr
   | DiffExpr
   | IntegralExpr
+  | MatrixColumnSumExpr
   | UnaryExpr
   | BinaryExpr
   | IfExpr
@@ -32,6 +33,11 @@ export interface DiffExpr {
 export interface IntegralExpr {
   type: "Integral";
   expr: Expr;
+}
+
+export interface MatrixColumnSumExpr {
+  type: "MatrixColumnSum";
+  columnRef: string;
 }
 
 export interface UnaryExpr {

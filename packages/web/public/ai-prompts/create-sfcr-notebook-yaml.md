@@ -24,7 +24,7 @@ Requirements:
 - If you create matrix cells, include both `columns` and `sectors`, and make each row match the column count exactly.
 - Include at least one baseline run for executable models.
 - Prefer concise markdown explanations before scenarios.
-- If the model has stocks with `lag(...)`, provide matching initial values unless the default initialization is clearly acceptable.
+- If the model has stocks with lagged terms (`varName'`, `lag(...)`, or `[-1]`), provide matching initial values unless the default initialization is clearly acceptable.
 
 Recommended notebook order:
 

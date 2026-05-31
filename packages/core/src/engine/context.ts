@@ -4,4 +4,5 @@ export interface SolverContext {
   diffValue(variable: string): number;
   setCurrentValue(variable: string, value: number): void;
   hasSeries(variable: string): boolean;
+  evaluateMatrixColumnSum?(columnRef: string): number;
 }

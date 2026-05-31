@@ -122,7 +122,7 @@ This equation depends on last period’s `y`, not the current one, so it is not 
 Many SFC models contain stock-accumulation equations of the form:
 
 ```text
-V = lag(V) + flow
+V = V' + flow
 ```
 
 Conceptually, this is very close to the system dynamics and ODE view of a stock.
@@ -173,7 +173,7 @@ With `dt = 1`, this is the standard SFC stock equation.
 Take a standard household-wealth equation:
 
 ```text
-Hh = lag(Hh) + YD - C
+Hh = Hh' + YD - C
 ```
 
 Here:
@@ -186,7 +186,7 @@ Here:
 So in SFC notation:
 
 ```text
-Hh = lag(Hh) + YD - C
+Hh = Hh' + YD - C
 ```
 
 or equivalently:

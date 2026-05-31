@@ -17,7 +17,15 @@ import {
 } from "./modelSections";
 import { resolveNearestNotebookContextCell } from "./notebookContext";
 import { MatrixUnitMetaDialog } from "./components/MatrixUnitMetaDialog";
+import { MatrixEquationProposalDialog } from "./components/MatrixEquationProposalDialog";
 import { MatrixSourceEditor } from "./MatrixSourceEditor";
+import {
+  applyMatrixEquationUpdates,
+  collectProposedMatrixEquationUpdates,
+  defaultSelectedMatrixEquationVariables,
+  isAccountTransactionsMatrix,
+  type ProposedMatrixEquationUpdate
+} from "./matrixAccountSumRow";
 import {
   applyMatrixUnitMetaUpdates,
   collectProposedMatrixUnitUpdates,
@@ -219,6 +227,10 @@ function NotebookCellViewComponent({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isMatrixUnitMetaDialogOpen, setIsMatrixUnitMetaDialogOpen] = useState(false);
   const [matrixUnitMetaSelection, setMatrixUnitMetaSelection] = useState<Set<string>>(new Set());
+  const [isMatrixEquationProposalDialogOpen, setIsMatrixEquationProposalDialogOpen] = useState(false);
+  const [matrixEquationProposalSelection, setMatrixEquationProposalSelection] = useState<Set<string>>(
+    new Set()
+  );
   const [matrixEntryDisplayModes, setMatrixEntryDisplayModes] = useState<
     Record<string, MatrixEntryDisplayMode>
   >({});
@@ -265,6 +277,33 @@ function NotebookCellViewComponent({
         matrix: parsed,
         modelId,
         variableUnitMetadata: modelUnitMetadata
+      });
+
+      return {
+        matrixTitle: parsed.title,
+        modelId,
+        proposals
+      };
+    } catch {
+      return null;
+    }
+  }, [cell, cells, isEditingSource, sourceDraft, sourceLayoutMode]);
+  const draftMatrixEquationContext = useMemo(() => {
+    if (!isEditingSource || cell.type !== "matrix" || sourceLayoutMode !== "grid") {
+      return null;
+    }
+
+    try {
+      const parsed = parseCellSource(cell, sourceDraft) as MatrixCell;
+      const modelId = resolveModelIdFromSourceRunCell(cells, parsed.sourceRunCellId);
+      if (!isAccountTransactionsMatrix(parsed) || !modelId) {
+        return null;
+      }
+
+      const proposals = collectProposedMatrixEquationUpdates({
+        cells,
+        matrix: parsed,
+        modelId
       });
 
       return {
@@ -363,6 +402,8 @@ function NotebookCellViewComponent({
     setIsLinkedEditorEditing(false);
     setIsMatrixUnitMetaDialogOpen(false);
     setMatrixUnitMetaSelection(new Set());
+    setIsMatrixEquationProposalDialogOpen(false);
+    setMatrixEquationProposalSelection(new Set());
     setMatrixSequenceViewState(null);
   }, [cell]);
 
@@ -534,6 +575,17 @@ function NotebookCellViewComponent({
     setIsMatrixUnitMetaDialogOpen(true);
   }
 
+  function handleOpenMatrixEquationProposalDialog(): void {
+    if (!draftMatrixEquationContext) {
+      return;
+    }
+
+    setMatrixEquationProposalSelection(
+      defaultSelectedMatrixEquationVariables(draftMatrixEquationContext.proposals)
+    );
+    setIsMatrixEquationProposalDialogOpen(true);
+  }
+
   function handleApplyMatrixUnitMetaUpdates(): void {
     if (!draftMatrixUnitMetaContext) {
       return;
@@ -550,6 +602,15 @@ function NotebookCellViewComponent({
     setIsMatrixUnitMetaDialogOpen(false);
   }
 
+  function handleApplyMatrixEquationUpdates(updates: ProposedMatrixEquationUpdate[]): void {
+    if (updates.length === 0) {
+      return;
+    }
+
+    onReplaceCells(applyMatrixEquationUpdates(cells, updates));
+    setIsMatrixEquationProposalDialogOpen(false);
+  }
+
   function handleCancelSource(): void {
     setTitleDraft(cell.title);
     setSourceDraft(serializeCellBody(cell));
@@ -559,6 +620,8 @@ function NotebookCellViewComponent({
     setSourceValidationError(null);
     setIsMatrixUnitMetaDialogOpen(false);
     setMatrixUnitMetaSelection(new Set());
+    setIsMatrixEquationProposalDialogOpen(false);
+    setMatrixEquationProposalSelection(new Set());
     setIsEditingSource(false);
   }
 
@@ -973,6 +1036,16 @@ function NotebookCellViewComponent({
                   Set variable units from matrix…
                 </button>
               ) : null}
+              {draftMatrixEquationContext ? (
+                <button
+                  className="secondary-button notebook-matrix-unit-meta-button"
+                  disabled={draftMatrixEquationContext.proposals.length === 0}
+                  onClick={handleOpenMatrixEquationProposalDialog}
+                  type="button"
+                >
+                  Propose accumulation equations…
+                </button>
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -1351,6 +1424,15 @@ function NotebookCellViewComponent({
           onApply={handleApplyMatrixUnitMetaUpdates}
           onCancel={() => setIsMatrixUnitMetaDialogOpen(false)}
           onSelectionChange={setMatrixUnitMetaSelection}
+        />
+        <MatrixEquationProposalDialog
+          isOpen={isMatrixEquationProposalDialogOpen}
+          matrixTitle={draftMatrixEquationContext?.matrixTitle ?? cell.title}
+          proposals={draftMatrixEquationContext?.proposals ?? []}
+          selectedVariables={matrixEquationProposalSelection}
+          onApply={handleApplyMatrixEquationUpdates}
+          onCancel={() => setIsMatrixEquationProposalDialogOpen(false)}
+          onSelectionChange={setMatrixEquationProposalSelection}
         />
         {isDeleteDialogOpen ? (
           <div

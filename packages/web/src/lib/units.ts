@@ -244,9 +244,20 @@ export function inferUnits(expr: Expr, variableUnits: VariableUnitMetadata): Inf
       return inferIfUnits(expr, variableUnits);
     case "Function":
       return inferFunctionUnits(expr, variableUnits);
+    case "MatrixColumnSum":
+      return inferMatrixColumnSumUnits(variableUnits);
     case "Binary":
       return inferBinaryUnits(expr, variableUnits);
   }
+}
+
+function inferMatrixColumnSumUnits(variableUnits: VariableUnitMetadata): InferredUnit {
+  for (const meta of variableUnits.values()) {
+    if (meta.stockFlow === "flow" && meta.signature) {
+      return known(meta.signature);
+    }
+  }
+  return unknown();
 }
 
 function inferIfUnits(

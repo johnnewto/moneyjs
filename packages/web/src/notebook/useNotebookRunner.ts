@@ -190,7 +190,13 @@ export function useNotebookRunner(
       return null;
     }
 
-    const runtime = buildRuntimeConfig(editor);
+    const modelKey = resolveRunCellModelKey(document.cells, cell);
+    const modelId = resolveModelIdFromRunCellKey(modelKey);
+    const runtime = buildRuntimeConfig(editor, {
+      notebookCells: document.cells,
+      modelId: modelId ?? undefined,
+      runCellId: cell.id
+    });
     return resolveRunCellOptions(runtime.options, cell);
   }
 
@@ -286,7 +292,11 @@ export function useNotebookRunner(
     });
 
     try {
-      const runtime = buildRuntimeConfig(editor);
+      const runtime = buildRuntimeConfig(editor, {
+        notebookCells: document.cells,
+        modelId: resolveModelIdFromRunCellKey(modelOutputKey) ?? undefined,
+        runCellId: cell.id
+      });
       const runOptions = resolveRunCellOptions(runtime.options, cell);
       let result: SimulationResult;
 

@@ -30,7 +30,7 @@ This matrix is a flow-of-funds statement with double-entry bookkeeping across se
 
 The transaction matrix generates flows, and those flows update balance sheet stocks through accumulation equations such as:
 
-`Vh = lag(Vh) + (YD - C) * dt`
+`Vh = Vh' + (YD - C) * dt`
 
 `YD` and `C` are flows from the transaction matrix. `Vh` is a stock. That bridge is the core SFC principle: every flow comes from somewhere and goes somewhere, and every stock changes consistently with flows.
 
@@ -39,4 +39,4 @@ Practical checks:
 - Transaction matrices should strictly use flow units.
 - Row sums should be zero.
 - Column sums should be zero.
-- Accumulation equations like `X = lag(X) + flow * dt` signal stock-flow links.
+- Accumulation equations like `X = X' + flow * dt` signal stock-flow links.

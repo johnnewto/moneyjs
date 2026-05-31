@@ -27,7 +27,7 @@ Interpretation:
 
 Balance sheet stocks are updated by flows from the transaction matrix through accumulation equations such as:
 
-`Vh = lag(Vh) + (YD - C) * dt`
+`Vh = Vh' + (YD - C) * dt`
 
 `YD` and `C` are flows. `Vh` is a stock. This is the core SFC principle: every flow comes from somewhere and goes somewhere, and every stock changes consistently with flows.
 
@@ -42,5 +42,5 @@ Practical checks:
 
 - Balance matrices should strictly use stock units.
 - Financial assets should have counterpart liabilities somewhere.
-- Equations like `X = lag(X) + flow * dt` are strong signals of stock variables.
+- Equations like `X = X' + flow * dt` are strong signals of stock variables.
 - Stock-flow linkage consistency can be checked against the related transaction rows.

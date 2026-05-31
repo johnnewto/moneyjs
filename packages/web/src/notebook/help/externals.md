@@ -71,7 +71,7 @@ Use units to catch stock-flow mistakes. Examples:
 - A money flow has units like `$/yr`.
 - A stock has units like `$`.
 
-External unit metadata should match how the parameter is used in equations. For example, if `delta * lag(K)` produces a flow, `delta` should behave like a per-year rate.
+External unit metadata should match how the parameter is used in equations. For example, if `delta * K'` produces a flow, `delta` should behave like a per-year rate.
 
 ## Naming
 

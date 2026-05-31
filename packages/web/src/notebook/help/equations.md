@@ -27,13 +27,13 @@ Avoid names that differ only by capitalization unless the source model truly use
 Expressions describe how the variable is computed. Common forms:
 
 - `Y = Cs + Is` is entered as name `Y`, expression `Cs + Is`.
-- `Mh = lag(Mh) + (YD - Cd) * dt` is entered as name `Mh`, expression `lag(Mh) + (YD - Cd) * dt`.
-- `KT = kappa * lag(Y)` is entered as name `KT`, expression `kappa * lag(Y)`.
+- `Mh = Mh' + (YD - Cd) * dt` is entered as name `Mh`, expression `Mh' + (YD - Cd) * dt`.
+- `KT = kappa * Y'` is entered as name `KT`, expression `kappa * Y'`.
 
 Supported syntax includes:
 
 - Arithmetic: `+`, `-`, `*`, `/`.
-- Lagged values: `lag(X)` or `X[-1]`.
+- Lagged values: `X'` (preferred), or `lag(X)`, or `X[-1]`.
 - Stock changes: `d(X)`.
 - Time step: `dt`.
 - Functions such as `min(a, b)`, `max(a, b)`, `abs(x)`, `sqrt(x)`, `pow(x, n)`, `exp(x)`, and `log(x)`.
@@ -45,11 +45,11 @@ Roles explain what kind of equation a row represents. They help readers and tool
 
 | Role | Use For | Example |
 | --- | --- | --- |
-| Accumulation | Stock updates from flows | `lag(Mh) + (YD - Cd) * dt` |
+| Accumulation | Stock updates from flows | `Mh' + (YD - Cd) * dt` |
 | Identity | Accounting or closure relations | `Cs + Is` |
 | Definition | Direct algebraic definitions | `rl` |
-| Behavioral | Decision rules or estimated behavior | `alpha0 + alpha1 * YD + alpha2 * lag(Mh)` |
-| Target | Desired or notional levels | `kappa * lag(Y)` |
+| Behavioral | Decision rules or estimated behavior | `alpha0 + alpha1 * YD + alpha2 * Mh'` |
+| Target | Desired or notional levels | `kappa * Y'` |
 | Auto | Let the app infer the role | Short exploratory rows |
 
 Use **Accumulation** for equations that update stocks. These are strong stock-flow links and should usually include a lagged stock plus a flow multiplied by `dt`.
@@ -60,20 +60,20 @@ SFC equations should respect stock-flow units:
 
 - Stocks have units like `$`.
 - Flows have units like `$/yr`.
-- A stock update usually has the form `stock = lag(stock) + flow * dt`.
+- A stock update usually has the form `stock = stock' + flow * dt`.
 - Do not add a flow directly to a stock without multiplying by `dt`.
 
 Examples:
 
-`Mh = lag(Mh) + (YD - Cd) * dt`
+`Mh = Mh' + (YD - Cd) * dt`
 
-`K = lag(K) + (Id - DA) * dt`
+`K = K' + (Id - DA) * dt`
 
 If the unit checker reports a mismatch, inspect whether a flow needs `* dt`, whether a lag is missing, or whether the unit metadata is inconsistent.
 
 ## Initial Values
 
-Any equation that depends on `lag(X)` needs a previous-period value for `X`. The app can use the solver's default initial value, but important stocks should usually have explicit initial values.
+Any equation that depends on a lagged value such as `X'` needs a previous-period value for `X`. The app can use the solver's default initial value, but important stocks should usually have explicit initial values.
 
 Add explicit initial values for:
 
@@ -98,7 +98,7 @@ When a model does not solve:
 
 1. Check equation names for typos.
 2. Check that every referenced parameter appears in equations or externals.
-3. Check accumulation equations for missing `lag()` or `dt`.
+3. Check accumulation equations for missing lag terms (`X'`) or `dt`.
 4. Check divisions for possible zero denominators.
 5. Check units if a diagnostic says stocks and flows are mixed.
 6. Start with a baseline run before adding scenario shocks.

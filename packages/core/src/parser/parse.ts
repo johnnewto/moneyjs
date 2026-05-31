@@ -347,6 +347,11 @@ class Parser {
         this.expect("RPAREN");
         return { type: "Integral", expr: argument };
       }
+      case "sum": {
+        const argument = this.expect("IDENTIFIER").text;
+        this.expect("RPAREN");
+        return { type: "MatrixColumnSum", columnRef: argument };
+      }
       case "exp":
       case "log":
       case "abs":
@@ -391,19 +396,24 @@ export function parseExpression(source: string): Expr {
   return expression;
 }
 
-export function parseEquation(name: string, source: string): ParsedEquation {
+export function parseEquation(
+  name: string,
+  source: string,
+  options?: { matrixColumnSums?: Record<string, string[]> }
+): ParsedEquation {
   const { name: equationName, source: equationSource } = normalizeDerivativeBalanceTarget(
     name,
     source
   );
   const sourceExpression = parseExpression(equationSource);
   const expression = lowerIntegrals(equationName, sourceExpression);
+  const matrixColumnSums = options?.matrixColumnSums;
   return {
     name: equationName,
     expression,
     sourceExpression,
-    currentDependencies: Array.from(collectCurrentDependencies(expression)),
-    lagDependencies: Array.from(collectLagDependencies(expression))
+    currentDependencies: Array.from(collectCurrentDependencies(expression, matrixColumnSums)),
+    lagDependencies: Array.from(collectLagDependencies(expression, matrixColumnSums))
   };
 }
 
@@ -447,6 +457,8 @@ function containsIntegral(expression: Expr): boolean {
       );
     case "Function":
       return expression.args.some((arg) => containsIntegral(arg));
+    case "MatrixColumnSum":
+      return false;
     case "Number":
     case "Variable":
     case "Lag":

@@ -14,14 +14,14 @@ The solver has a default initial value, but explicit initial values make the mod
 
 Initial values matter when equations reference previous-period values:
 
-`Mh = lag(Mh) + (YD - Cd) * dt`
+`Mh = Mh' + (YD - Cd) * dt`
 
-The first period needs a value for `lag(Mh)`. If `Mh` is not listed in initial values, the solver falls back to the default initial value from the solver cell.
+The first period needs a value for `Mh'`. If `Mh` is not listed in initial values, the solver falls back to the default initial value from the solver cell.
 
 Set explicit initial values for:
 
 - Money deposits, loans, bonds, wealth, capital, inventories, reserves, or other stocks.
-- Variables appearing inside `lag(...)` or `X[-1]`.
+- Variables appearing inside `X'`, `lag(...)`, or `X[-1]`.
 - Variables used in denominators.
 - Variables with known steady-state starting levels.
 - Models where the early path should match a reference implementation.
@@ -38,7 +38,7 @@ Initial values are usually stock levels at the start of the simulation. For exam
 | `Vh` | Household wealth | Opening net worth |
 | `Y` | Income/output | Previous-period flow used by targets or expectations |
 
-Flows can also need initial values when they are lagged by another equation. For example, `KT = kappa * lag(Y)` needs a starting value for `Y`.
+Flows can also need initial values when they are lagged by another equation. For example, `KT = kappa * Y'` needs a starting value for `Y`.
 
 ## Steady-State Starts
 
@@ -71,7 +71,7 @@ Use the default when:
 
 If period 1 looks strange:
 
-- Check which equations use `lag(...)` or `[-1]`.
+- Check which equations use `X'`, `lag(...)`, or `[-1]`.
 - Add initial values for those variables.
 - Check denominators for zero or near-zero starts.
 - Check whether the starting stock levels are consistent with the balance sheet matrix.

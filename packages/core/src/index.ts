@@ -9,6 +9,7 @@ export * from "./graph/sectors";
 export * from "./engine/context";
 export * from "./engine/seriesStore";
 export * from "./engine/validate";
+export * from "./engine/matrixColumnSum";
 export * from "./engine/runBaseline";
 export * from "./engine/runScenario";
 export * from "./engine/validateRunnable";

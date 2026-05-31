@@ -23,6 +23,8 @@ export interface ModelDefinition {
   equations: EquationDef[];
   externals: Record<string, ExternalDef>;
   initialValues: Record<string, number>;
+  /** Maps sum(columnRef) keys to matrix cell expression strings summed at runtime. */
+  matrixColumnSums?: Record<string, string[]>;
 }
 
 export interface SimulationOptions {

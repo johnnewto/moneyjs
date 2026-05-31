@@ -8,12 +8,14 @@ import {
   simGovernmentSpendingShock
 } from "../src/fixtures/sim";
 import { validateShock } from "../src/engine/validate";
+import { wrapContextWithMatrixColumnSums } from "../src/engine/matrixColumnSum";
 import { buildOrderedBlocks } from "../src/graph/blocks";
 import {
   classifySectorEdge,
   createSectorTopology,
   mergeSectorTopologies
 } from "../src/graph/sectors";
+import { evaluateExpression, collectCurrentDependencies, collectLagDependencies } from "../src/parser/dependencies";
 import { analyzeParsedEquation } from "../src/parser/analyze";
 import {
   isDerivativeBalanceTarget,
@@ -77,6 +79,46 @@ describe("parser", () => {
     const equation = parseEquation("x", "a' + d(b)");
     expect(new Set(equation.currentDependencies)).toEqual(new Set(["b"]));
     expect(new Set(equation.lagDependencies)).toEqual(new Set(["a", "b"]));
+  });
+
+  it("parses sum(columnRef) and collects dependencies from matrix bindings", () => {
+    const expression = parseExpression("sum(Households.Deposits)");
+    expect(expression).toEqual({
+      type: "MatrixColumnSum",
+      columnRef: "Households.Deposits"
+    });
+
+    const bindings = {
+      "Households.Deposits": ["WBd", "-Cs"]
+    };
+    const fullExpression = parseExpression("Mh' + sum(Households.Deposits) * dt");
+    expect(new Set(collectCurrentDependencies(fullExpression, bindings))).toEqual(
+      new Set(["WBd", "Cs"])
+    );
+    expect(new Set(collectLagDependencies(fullExpression, bindings))).toEqual(new Set(["Mh"]));
+
+    const equation = parseEquation("Mh", "Mh' + sum(Households.Deposits) * dt", {
+      matrixColumnSums: bindings
+    });
+    expect(new Set(equation.currentDependencies)).toEqual(new Set(["WBd", "Cs"]));
+    expect(new Set(equation.lagDependencies)).toEqual(new Set(["Mh"]));
+  });
+
+  it("evaluates bound matrix column sums at runtime", () => {
+    const context = wrapContextWithMatrixColumnSums(
+      {
+        currentValue: (name) => ({ WBd: 10, Cs: 4 }[name] ?? 0),
+        lagValue: () => 0,
+        diffValue: () => 0,
+        setCurrentValue: () => {},
+        hasSeries: () => true
+      },
+      {
+        "Households.Deposits": ["WBd", "-Cs"]
+      }
+    );
+
+    expect(evaluateExpression(parseExpression("sum(Households.Deposits)"), context)).toBe(6);
   });
 
   it("normalizes bullet multiplication syntax", () => {
