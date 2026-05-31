@@ -5507,14 +5507,17 @@ button.notebook-matrix-tree-badge-toggle:hover {
   width: 4rem;
 }
 
+.notebook-matrix-table thead th.notebook-matrix-cell-asset,
 .notebook-matrix-table td.notebook-matrix-cell-asset:not(.matrix-balance-error) {
   background: rgba(220, 252, 231, 0.35);
 }
 
+.notebook-matrix-table thead th.notebook-matrix-cell-liability,
 .notebook-matrix-table td.notebook-matrix-cell-liability:not(.matrix-balance-error) {
   background: rgba(254, 226, 226, 0.35);
 }
 
+.notebook-matrix-table thead th.notebook-matrix-cell-equity,
 .notebook-matrix-table td.notebook-matrix-cell-equity:not(.matrix-balance-error) {
   background: rgba(219, 234, 254, 0.35);
 }
@@ -5524,9 +5527,33 @@ button.notebook-matrix-tree-badge-toggle:hover {
   border-left: 2px solid rgba(71, 85, 105, 0.42);
 }
 
-.notebook-matrix-table-account-columns th.notebook-matrix-ale-column,
-.notebook-matrix-table-account-columns td.notebook-matrix-ale-column {
+.notebook-matrix-table-account-columns th.notebook-matrix-intra-sector-divider,
+.notebook-matrix-table-account-columns td.notebook-matrix-intra-sector-divider {
+  border-right: 1.5px solid rgba(100, 116, 139, 0.55);
+}
+
+.notebook-matrix-table-account-columns th.notebook-matrix-sum-column,
+.notebook-matrix-table-account-columns td.notebook-matrix-sum-column {
   border-left: 2px solid rgba(51, 65, 85, 0.55);
+}
+
+.notebook-matrix-table-account-columns thead th {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.notebook-matrix-table-account-columns thead tr th:first-child {
+  text-align: left;
+}
+
+.notebook-matrix-table-account-columns thead th .notebook-matrix-tree-toggle {
+  justify-content: center;
+  width: 100%;
+}
+
+.notebook-matrix-table-account-columns thead th .notebook-matrix-tree-leaf-header {
+  justify-content: center;
+  width: 100%;
 }
 
 .notebook-godley {

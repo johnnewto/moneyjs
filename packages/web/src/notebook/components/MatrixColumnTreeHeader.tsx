@@ -6,7 +6,7 @@ import {
   buildMatrixColumnDisplaySlots,
   buildMatrixColumnHeaderRows,
   collectMatrixAccountSectorCollapseKeys,
-  MATRIX_ACCOUNT_SUM_COLUMN_LABEL,
+  resolveMatrixAccountColumnCellClasses,
   type MatrixColumnDisplaySlot,
   type MatrixColumnHeaderCell,
   usesMatrixAccountColumnLayout
@@ -68,6 +68,8 @@ export const useMatrixColumnTreeLayout = useMatrixColumnLayout;
 export function MatrixColumnTreeHeader({
   headerRows,
   columns,
+  sectors,
+  columnBadges,
   sumColumnIndex,
   collapsedNodeIds,
   editorLinked,
@@ -77,6 +79,8 @@ export function MatrixColumnTreeHeader({
 }: {
   headerRows: MatrixColumnHeaderCell[][];
   columns: string[];
+  sectors?: string[];
+  columnBadges?: string[];
   sumColumnIndex: number;
   collapsedNodeIds: ReadonlySet<string>;
   editorLinked: boolean;
@@ -86,11 +90,7 @@ export function MatrixColumnTreeHeader({
 }): JSX.Element {
   const cornerRowSpan = Math.max(headerRows.length, 1);
   const cornerLabel = accountColumnLayout ? "Flow / account" : "Transaction";
-  const sumColumnHeaderLabel = accountColumnLayout
-    ? MATRIX_ACCOUNT_SUM_COLUMN_LABEL
-    : sumColumnIndex >= 0
-      ? columns[sumColumnIndex]
-      : "";
+  const sumColumnHeaderLabel = sumColumnIndex >= 0 ? columns[sumColumnIndex] : "";
 
   return (
     <>
@@ -110,7 +110,18 @@ export function MatrixColumnTreeHeader({
               className={[
                 cell.isCollapsedStub ? "notebook-matrix-tree-collapsed-stub-header" : undefined,
                 cell.isLeafHidden ? "notebook-matrix-tree-hidden-leaf-header" : undefined,
-                cell.isSectorStart ? "notebook-matrix-sector-start" : undefined,
+                accountColumnLayout && rowIndex === 0 && cell.isSectorStart
+                  ? "notebook-matrix-sector-start"
+                  : undefined,
+                ...(accountColumnLayout && cell.columnIndex != null && !cell.isCollapsedStub
+                  ? resolveMatrixAccountColumnCellClasses(
+                      columns,
+                      sectors,
+                      columnBadges,
+                      cell.columnIndex,
+                      sumColumnIndex
+                    )
+                  : []),
                 cell.isLeaf && cell.columnIndex === sumColumnIndex ? "notebook-matrix-sum-column" : undefined
               ]
                 .filter(Boolean)
@@ -130,11 +141,7 @@ export function MatrixColumnTreeHeader({
             <th
               rowSpan={cornerRowSpan}
               scope="col"
-              className={
-                accountColumnLayout
-                  ? "notebook-matrix-sum-column notebook-matrix-ale-column"
-                  : "notebook-matrix-sum-column"
-              }
+              className="notebook-matrix-sum-column"
             >
               {sumColumnHeaderLabel}
             </th>

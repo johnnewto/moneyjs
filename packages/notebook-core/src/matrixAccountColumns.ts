@@ -1,7 +1,5 @@
 export type MatrixAccountBadgeRole = "asset" | "liability" | "equity";
 
-export const MATRIX_ACCOUNT_SUM_COLUMN_LABEL = "A-L-E";
-
 export interface MatrixColumnHeaderCell {
   nodeId: string;
   label: string;
@@ -176,6 +174,64 @@ export function isMatrixAccountSectorStartColumn(
   }
 
   return index === columnIndex;
+}
+
+/** True when a faint divider should appear to the right (another account column follows in the same sector). */
+export function isMatrixAccountIntraSectorColumnDivider(
+  columns: string[],
+  sectors: string[] | undefined,
+  columnIndex: number
+): boolean {
+  const columnLabel = columns[columnIndex]?.trim() ?? "";
+  if (isSumColumnLabel(columnLabel)) {
+    return false;
+  }
+
+  const sectorLabel = sectors?.[columnIndex]?.trim() ?? "";
+  if (!sectorLabel) {
+    return false;
+  }
+
+  const nextIndex = columnIndex + 1;
+  if (nextIndex >= columns.length) {
+    return false;
+  }
+
+  const nextLabel = columns[nextIndex]?.trim() ?? "";
+  if (isSumColumnLabel(nextLabel)) {
+    return false;
+  }
+
+  return (sectors?.[nextIndex]?.trim() ?? "") === sectorLabel;
+}
+
+export function resolveMatrixAccountColumnCellClasses(
+  columns: string[],
+  sectors: string[] | undefined,
+  columnBadges: string[] | undefined,
+  columnIndex: number,
+  sumColumnIndex: number
+): string[] {
+  if (!usesMatrixAccountColumnLayout(columnBadges)) {
+    return [];
+  }
+
+  const classes: string[] = [];
+  if (isMatrixAccountSectorStartColumn(columns, sectors, columnIndex)) {
+    classes.push("notebook-matrix-sector-start");
+  }
+  if (isMatrixAccountIntraSectorColumnDivider(columns, sectors, columnIndex)) {
+    classes.push("notebook-matrix-intra-sector-divider");
+  }
+  if (columnIndex === sumColumnIndex) {
+    return classes;
+  }
+
+  const role = normalizeMatrixAccountBadgeRole(columnBadges[columnIndex]);
+  if (role) {
+    classes.push(`notebook-matrix-cell-${role}`);
+  }
+  return classes;
 }
 
 /** Row total for account-transaction matrices: asset +, liability and equity −. */

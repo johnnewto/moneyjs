@@ -6,7 +6,9 @@ import {
   collectMatrixAccountSectorCollapseKeys,
   computeMatrixAccountRowTotal,
   formatMatrixAccountRowBalanceBreakdown,
+  isMatrixAccountIntraSectorColumnDivider,
   isMatrixAccountSectorStartColumn,
+  resolveMatrixAccountColumnCellClasses,
   normalizeMatrixAccountBadgeRole,
   parseMatrixAccountColumnLeafDisplay,
   signedMatrixAccountColumnContribution,
@@ -69,6 +71,23 @@ describe("matrixAccountColumns", () => {
     expect(isMatrixAccountSectorStartColumn(columns, sectors, 0)).toBe(true);
     expect(isMatrixAccountSectorStartColumn(columns, sectors, 1)).toBe(false);
     expect(isMatrixAccountSectorStartColumn(columns, sectors, 2)).toBe(true);
+  });
+
+  it("marks intra-sector column dividers before the next column in the same sector", () => {
+    expect(isMatrixAccountIntraSectorColumnDivider(columns, sectors, 0)).toBe(true);
+    expect(isMatrixAccountIntraSectorColumnDivider(columns, sectors, 1)).toBe(false);
+    expect(isMatrixAccountIntraSectorColumnDivider(columns, sectors, 2)).toBe(false);
+  });
+
+  it("resolves surface classes for visible and collapsed account columns", () => {
+    expect(resolveMatrixAccountColumnCellClasses(columns, sectors, columnBadges, 0, 3)).toEqual([
+      "notebook-matrix-sector-start",
+      "notebook-matrix-intra-sector-divider",
+      "notebook-matrix-cell-asset"
+    ]);
+    expect(resolveMatrixAccountColumnCellClasses(columns, sectors, columnBadges, 1, 3)).toEqual([
+      "notebook-matrix-cell-equity"
+    ]);
   });
 
   it("builds sector and leaf headers with equity badges", () => {

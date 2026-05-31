@@ -2,11 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type Mouse
 
 import { evaluateExpression, parseExpression, type SimulationResult } from "@sfcr/core";
 import {
-  computeMatrixAccountRowTotal,
-  formatMatrixAccountRowBalanceBreakdown,
-  MATRIX_ACCOUNT_SUM_COLUMN_LABEL,
-  isMatrixAccountSectorStartColumn,
-  normalizeMatrixAccountBadgeRole,
+  resolveMatrixAccountColumnCellClasses,
   type MatrixColumnDisplaySlot,
   usesMatrixAccountColumnLayout
 } from "@sfcr/notebook-core";
@@ -27,7 +23,6 @@ import {
   resolveMatrixTableKind
 } from "../matrixSemantics";
 import { resolveInspectorModelSource, type VariableInspectRequest } from "../../lib/variableInspect";
-import { resolveAccountingMatrixKind } from "../validation";
 import { documentHighlightClassName } from "../../lib/variableHighlight";
 import { buildEditorStateForNotebookModel } from "../modelSections";
 import { NotebookRenderProfiler } from "../notebookProfiler";
@@ -418,6 +413,8 @@ export function MatrixCellView({
     <MatrixColumnTreeHeader
       headerRows={columnLayout.headerRows}
       columns={cell.columns}
+      sectors={cell.sectors}
+      columnBadges={cell.columnBadges}
       sumColumnIndex={sumColumnIndex}
       collapsedNodeIds={collapsedColumnTreeNodeIds}
       editorLinked={editor != null}
@@ -443,9 +440,7 @@ export function MatrixCellView({
           className={columnIndex === sumColumnIndex ? "notebook-matrix-sum-column" : undefined}
           onContextMenu={(event) => handleMatrixColumnContextMenu(event, columnIndex)}
         >
-          {columnIndex === sumColumnIndex && accountColumnLayout ? (
-            MATRIX_ACCOUNT_SUM_COLUMN_LABEL
-          ) : editor ? (
+          {editor ? (
             <button
               type="button"
               className={documentHighlightClassName(column, highlightedVariable, "result-variable-button")}
@@ -900,32 +895,6 @@ export function MatrixCellView({
   );
 }
 
-function resolveMatrixAccountColumnCellClasses(
-  accountColumnLayout: boolean,
-  cell: Pick<MatrixCell, "columns" | "sectors" | "columnBadges">,
-  columnIndex: number,
-  sumColumnIndex: number
-): string[] {
-  if (!accountColumnLayout) {
-    return [];
-  }
-
-  const classes: string[] = [];
-  if (isMatrixAccountSectorStartColumn(cell.columns, cell.sectors, columnIndex)) {
-    classes.push("notebook-matrix-sector-start");
-  }
-  if (columnIndex === sumColumnIndex) {
-    classes.push("notebook-matrix-ale-column");
-    return classes;
-  }
-
-  const role = normalizeMatrixAccountBadgeRole(cell.columnBadges?.[columnIndex]);
-  if (role) {
-    classes.push(`notebook-matrix-cell-${role}`);
-  }
-  return classes;
-}
-
 function renderMatrixRowDataCells({
   accountColumnLayout,
   cell,
@@ -962,7 +931,6 @@ function renderMatrixRowDataCells({
   parameterNames: Set<string>;
   row: {
     entries: Array<{
-      balanceBreakdown?: string;
       isBalanced: boolean;
       isSumCell: boolean;
       numericValue: number | null;
@@ -1006,7 +974,20 @@ function renderMatrixRowDataCells({
       cells.push(
         <td
           key={`${row.label}-hidden-${slot.nodeId}`}
-          className="notebook-matrix-tree-hidden-leaf-stub"
+          className={
+            [
+              "notebook-matrix-tree-hidden-leaf-stub",
+              ...resolveMatrixAccountColumnCellClasses(
+                cell.columns,
+                cell.sectors,
+                cell.columnBadges,
+                slot.columnIndex,
+                sumColumnIndex
+              )
+            ]
+              .filter(Boolean)
+              .join(" ") || undefined
+          }
           aria-label="Column hidden"
         >
           —
@@ -1109,7 +1090,6 @@ function renderMatrixLeafDataCell({
   parameterNames: Set<string>;
   row: {
     entries: Array<{
-      balanceBreakdown?: string;
       isBalanced: boolean;
       isSumCell: boolean;
       numericValue: number | null;
@@ -1144,7 +1124,13 @@ function renderMatrixLeafDataCell({
       key={`${row.label}-${cell.columns[columnIndex] ?? columnIndex}`}
       className={
         [
-          ...resolveMatrixAccountColumnCellClasses(accountColumnLayout, cell, columnIndex, sumColumnIndex),
+          ...resolveMatrixAccountColumnCellClasses(
+            cell.columns,
+            cell.sectors,
+            cell.columnBadges,
+            columnIndex,
+            sumColumnIndex
+          ),
           columnIndex === sumColumnIndex ? "notebook-matrix-sum-column" : undefined,
           entry.isSumCell && !entry.isBalanced ? "matrix-balance-error" : undefined,
           isEditableDataCell && !isEditingEntry ? "notebook-matrix-cell-editable" : undefined
@@ -1152,7 +1138,7 @@ function renderMatrixLeafDataCell({
           .filter(Boolean)
           .join(" ") || undefined
       }
-      title={entry.balanceBreakdown ?? (isEditableDataCell ? "Double-click to edit" : undefined)}
+      title={isEditableDataCell ? "Double-click to edit" : undefined}
       onDoubleClickCapture={
         isEditableDataCell && !isEditingEntry
           ? (event) => {
@@ -1358,9 +1344,6 @@ function buildEvaluatedMatrix(
 ) {
   const sumRowIndex = cell.rows.findIndex((row) => row.label.trim().toLowerCase() === "sum");
   const sumColumnIndex = cell.columns.findIndex((column) => column.trim().toLowerCase() === "sum");
-  const useAccountRowSumRule =
-    resolveAccountingMatrixKind(cell) === "account-transactions" &&
-    usesMatrixAccountColumnLayout(cell.columnBadges);
   const numericValues = cell.rows.map((row, rowIndex) =>
     row.values.map((value, columnIndex) => {
       if (rowIndex === sumRowIndex || columnIndex === sumColumnIndex) {
@@ -1374,30 +1357,8 @@ function buildEvaluatedMatrix(
     const rowEntries = row.values.map((value, columnIndex) => {
       const isSumCell = rowIndex === sumRowIndex || columnIndex === sumColumnIndex;
       const computedValue = isSumCell
-        ? computeMatrixTotal(
-            numericValues,
-            rowIndex,
-            columnIndex,
-            sumRowIndex,
-            sumColumnIndex,
-            useAccountRowSumRule ? cell.columnBadges : undefined
-          )
+        ? computeMatrixTotal(numericValues, rowIndex, columnIndex, sumRowIndex, sumColumnIndex)
         : numericValues[rowIndex]?.[columnIndex] ?? null;
-
-      const isBalanced = isSumCell ? Math.abs(computedValue ?? 0) < 1e-6 : true;
-      const balanceBreakdown =
-        useAccountRowSumRule &&
-        isSumCell &&
-        columnIndex === sumColumnIndex &&
-        !isBalanced &&
-        cell.columnBadges
-          ? formatMatrixAccountRowBalanceBreakdown(
-              numericValues[rowIndex] ?? [],
-              cell.columnBadges,
-              sumColumnIndex,
-              formatMatrixNumber
-            )
-          : undefined;
 
       return {
         numericValue: computedValue,
@@ -1406,9 +1367,8 @@ function buildEvaluatedMatrix(
           computedValue != null && Number.isFinite(computedValue)
             ? `= ${formatMatrixNumber(computedValue)}`
             : resolveMatrixEntryValue(value, result, selectedPeriodIndex),
-        isBalanced,
-        isSumCell,
-        balanceBreakdown
+        isBalanced: isSumCell ? Math.abs(computedValue ?? 0) < 1e-6 : true,
+        isSumCell
       };
     });
 
@@ -1418,13 +1378,7 @@ function buildEvaluatedMatrix(
       isBalanced:
         rowIndex === sumRowIndex
           ? rowEntries.every((entry) => entry.isBalanced)
-          : Math.abs(
-              computeRowTotal(
-                numericValues[rowIndex] ?? [],
-                sumColumnIndex,
-                useAccountRowSumRule ? cell.columnBadges : undefined
-              )
-            ) < 1e-6,
+          : Math.abs(computeRowTotal(numericValues[rowIndex] ?? [], sumColumnIndex)) < 1e-6,
       isSumRow: rowIndex === sumRowIndex
     };
   });
@@ -1437,8 +1391,7 @@ function computeMatrixTotal(
   rowIndex: number,
   columnIndex: number,
   sumRowIndex: number,
-  sumColumnIndex: number,
-  columnBadges?: string[]
+  sumColumnIndex: number
 ): number | null {
   if (rowIndex === sumRowIndex && columnIndex === sumColumnIndex) {
     return numericValues
@@ -1452,19 +1405,12 @@ function computeMatrixTotal(
       .reduce<number>((total, row) => total + (row[columnIndex] ?? 0), 0);
   }
   if (columnIndex === sumColumnIndex) {
-    return computeRowTotal(numericValues[rowIndex] ?? [], sumColumnIndex, columnBadges);
+    return computeRowTotal(numericValues[rowIndex] ?? [], sumColumnIndex);
   }
   return numericValues[rowIndex]?.[columnIndex] ?? null;
 }
 
-function computeRowTotal(
-  row: Array<number | null>,
-  sumColumnIndex: number,
-  columnBadges?: string[]
-): number {
-  if (columnBadges && usesMatrixAccountColumnLayout(columnBadges)) {
-    return computeMatrixAccountRowTotal(row, columnBadges, sumColumnIndex);
-  }
+function computeRowTotal(row: Array<number | null>, sumColumnIndex: number): number {
   return row.reduce<number>(
     (total, value, index) => total + (index === sumColumnIndex ? 0 : value ?? 0),
     0
@@ -1571,7 +1517,9 @@ function MatrixEntryResolvedValue({
 }) {
   const content = resolved
     ? formatResolvedMatrixValue(source, resolved, variableUnitMetadata)
-    : "—";
+    : entryDisplayMode === "value"
+      ? ""
+      : "—";
   const className =
     entryDisplayMode === "value" && !isSumCell
       ? "matrix-entry-current is-editable"

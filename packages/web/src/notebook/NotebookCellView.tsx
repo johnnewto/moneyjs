@@ -740,7 +740,7 @@ function NotebookCellViewComponent({
                 title={cell.title}
                 trailingActions={
                   <>
-                    {cell.type === "matrix" && !isEditingSource ? (
+                    {cell.type === "matrix" && !isEditingSource && cell.collapsed !== true ? (
                       <MatrixEntryDisplayModeToggle
                         mode={matrixEntryDisplayModes[cell.id] ?? "both"}
                         onChange={(nextMode) =>
