@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { runBaseline } from "@sfcr/core";
+import { runBaseline, type SimulationResult } from "@sfcr/core";
 import { bmwBaselineModel, bmwBaselineOptions } from "../../core/src/fixtures/bmw";
 
 import {
+  ACCOUNT_SUM_ROW_FLOW_UNIT_META,
   applyMatrixEquationUpdates,
   buildProposedAccumulationExpression,
   collectProposedMatrixEquationUpdates,
@@ -11,9 +12,12 @@ import {
   equationExpressionsMatch,
   evaluateMatrixEntryNumber,
   isEditableAccountSumRowCell,
+  isEmptyAccountSumRowSource,
   isSumRowStockChangeAnnotation,
-  resolveAccountSumRowCellBalance
+  resolveAccountSumRowCellBalance,
+  resolveAccountSumRowDisplayValue
 } from "../src/notebook/matrixAccountSumRow";
+import { formatUnitText } from "../src/lib/unitMeta";
 import { NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
 import type { EquationsCell, MatrixCell, NotebookCell, RunCell } from "../src/notebook/types";
 
@@ -223,6 +227,43 @@ describe("matrixAccountSumRow", () => {
     expect(resolveAccountSumRowCellBalance("d(Mh)", 10, null, 0)).toBe(true);
     expect(resolveAccountSumRowCellBalance("d(Mh)", 10.0000001, null, 0)).toBe(true);
     expect(resolveAccountSumRowCellBalance("", 10, null, 0)).toBe(true);
+  });
+
+  it("detects empty account-transactions sum-row sources", () => {
+    expect(isEmptyAccountSumRowSource("")).toBe(true);
+    expect(isEmptyAccountSumRowSource("0")).toBe(true);
+    expect(isEmptyAccountSumRowSource("  ")).toBe(true);
+    expect(isEmptyAccountSumRowSource("d(Mh)")).toBe(false);
+  });
+
+  it("uses default flow units for empty sum-row display", () => {
+    expect(formatUnitText(ACCOUNT_SUM_ROW_FLOW_UNIT_META)).toBe("$/yr");
+  });
+
+  it("prefers annotated sum-row evaluation over the column sum for display", () => {
+    const result: SimulationResult = {
+      blocks: [],
+      model: {
+        equations: [],
+        externals: {},
+        initialValues: {}
+      },
+      options: {
+        periods: 2,
+        solverMethod: "NEWTON",
+        tolerance: 1e-15,
+        maxIterations: 200,
+        defaultInitialValue: 1e-15
+      },
+      series: {
+        Mh: new Float64Array([100, 110])
+      }
+    };
+
+    expect(resolveAccountSumRowDisplayValue("d(Mh)", 999, result, 1)).toBe(10);
+    expect(resolveAccountSumRowDisplayValue("Mh", 999, result, 1)).toBe(110);
+    expect(resolveAccountSumRowDisplayValue("", 42, result, 1)).toBe(42);
+    expect(resolveAccountSumRowDisplayValue("0", 42, result, 1)).toBe(42);
   });
 
   it("BMW interest on deposits row sums to zero at period 3", () => {

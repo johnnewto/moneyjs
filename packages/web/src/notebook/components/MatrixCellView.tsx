@@ -27,11 +27,16 @@ import { resolveInspectorModelSource, type VariableInspectRequest } from "../../
 import { documentHighlightClassName } from "../../lib/variableHighlight";
 import { buildEditorStateForNotebookModel } from "../modelSections";
 import { NotebookRenderProfiler } from "../notebookProfiler";
-import { evaluateMatrixEntryNumber,
+import {
+  ACCOUNT_SUM_ROW_FLOW_UNIT_META,
+  evaluateMatrixEntryNumber,
   isAccountTransactionsMatrix,
   isEditableAccountSumRowCell,
-  resolveAccountSumRowCellBalance
+  isEmptyAccountSumRowSource,
+  resolveAccountSumRowCellBalance,
+  resolveAccountSumRowDisplayValue
 } from "../matrixAccountSumRow";
+import type { UnitMeta } from "../../lib/unitMeta";
 import { resolveAccountingMatrixKind } from "../validation";
 import { useMatrixEntryEdit, type MatrixEditingTarget } from "../useMatrixEntryEdit";
 import type { MatrixCell, NotebookCell, RunCell } from "../types";
@@ -551,7 +556,7 @@ export function MatrixCellView({
       }}
     >
       <div className="notebook-matrix">
-        {usesColumnTree ? (
+        {usesColumnTree && !isAccountTransactionsMatrix(cell) ? (
           <div className="notebook-matrix-tree-controls">
             <button type="button" className="secondary-button" onClick={expandAllColumnTreeNodes}>
               Expand all
@@ -1131,6 +1136,8 @@ function renderMatrixLeafDataCell({
   const isEditableDataCell =
     isEditableAccountSumRow ||
     (!entry.isSumCell && rowIndex !== sumRowIndex && columnIndex !== sumColumnIndex);
+  const showAccountSumRowFlowDelta =
+    isEditableAccountSumRow && isEmptyAccountSumRowSource(entry.source);
 
   return (
     <td
@@ -1209,6 +1216,7 @@ function renderMatrixLeafDataCell({
                   isSumCell={entry.isSumCell}
                   parameterNames={parameterNames}
                   rowIndex={rowIndex}
+                  showFlowDeltaPlaceholder={showAccountSumRowFlowDelta}
                   source={entry.source}
                   sourceSelectVariable={sourceSelectVariable}
                   highlightedVariable={highlightedVariable}
@@ -1236,6 +1244,9 @@ function renderMatrixLeafDataCell({
                   entryDisplayMode={entryDisplayMode}
                   isSumCell={entry.isSumCell}
                   resolved={entry.resolved}
+                  resolvedUnitMeta={
+                    showAccountSumRowFlowDelta ? ACCOUNT_SUM_ROW_FLOW_UNIT_META : undefined
+                  }
                   rowIndex={rowIndex}
                   source={entry.source}
                   variableUnitMetadata={variableUnitMetadata}
@@ -1375,7 +1386,7 @@ function buildEvaluatedMatrix(
   const rows = cell.rows.map((row, rowIndex) => {
     const rowEntries = row.values.map((value, columnIndex) => {
       const isSumCell = rowIndex === sumRowIndex || columnIndex === sumColumnIndex;
-      const computedValue = isSumCell
+      const columnSum = isSumCell
         ? computeMatrixTotal(
             numericValues,
             rowIndex,
@@ -1384,13 +1395,20 @@ function buildEvaluatedMatrix(
             sumColumnIndex,
             useAccountRowSumRule ? cell.columnBadges : undefined
           )
+        : null;
+      const computedValue = isSumCell
+        ? rowIndex === sumRowIndex &&
+          columnIndex !== sumColumnIndex &&
+          isAccountTransactionsMatrix(cell)
+          ? resolveAccountSumRowDisplayValue(value, columnSum, result, selectedPeriodIndex)
+          : columnSum
         : numericValues[rowIndex]?.[columnIndex] ?? null;
 
       const isBalanced = isSumCell
         ? rowIndex === sumRowIndex &&
           columnIndex !== sumColumnIndex &&
           isAccountTransactionsMatrix(cell)
-          ? resolveAccountSumRowCellBalance(value, computedValue, result, selectedPeriodIndex)
+          ? resolveAccountSumRowCellBalance(value, columnSum, result, selectedPeriodIndex)
           : Math.abs(computedValue ?? 0) < 1e-6
         : true;
 
@@ -1530,6 +1548,7 @@ function MatrixEntryResolvedValue({
   entryDisplayMode,
   isSumCell,
   resolved,
+  resolvedUnitMeta,
   rowIndex,
   source,
   variableUnitMetadata,
@@ -1539,13 +1558,14 @@ function MatrixEntryResolvedValue({
   entryDisplayMode: MatrixEntryDisplayMode;
   isSumCell: boolean;
   resolved: string | null;
+  resolvedUnitMeta?: UnitMeta;
   rowIndex: number;
   source: string;
   variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
   onBeginEdit(rowIndex: number, columnIndex: number, source: string): void;
 }) {
   const content = resolved
-    ? formatResolvedMatrixValue(source, resolved, variableUnitMetadata)
+    ? formatResolvedMatrixValue(source, resolved, variableUnitMetadata, resolvedUnitMeta)
     : entryDisplayMode === "value"
       ? ""
       : "—";
@@ -1576,7 +1596,8 @@ function MatrixEntryResolvedValue({
 function formatResolvedMatrixValue(
   source: string,
   resolved: string,
-  variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>
+  variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>,
+  resolvedUnitMeta?: UnitMeta
 ): JSX.Element | string {
   const valueText = resolved.replace(/^=\s*/, "");
   const numericValue = Number(valueText.replace(/,/g, ""));
@@ -1584,7 +1605,7 @@ function formatResolvedMatrixValue(
     return valueText;
   }
 
-  const unitMeta = inferMatrixExpressionUnitMeta(source, variableUnitMetadata);
+  const unitMeta = resolvedUnitMeta ?? inferMatrixExpressionUnitMeta(source, variableUnitMetadata);
   return (
     <NumericValueText
       prefix=""
@@ -1630,6 +1651,7 @@ function MatrixEntrySource({
   isSumCell,
   parameterNames,
   rowIndex,
+  showFlowDeltaPlaceholder = false,
   source,
   sourceSelectVariable,
   highlightedVariable = null,
@@ -1648,6 +1670,7 @@ function MatrixEntrySource({
   isSumCell: boolean;
   parameterNames: Set<string>;
   rowIndex: number;
+  showFlowDeltaPlaceholder?: boolean;
   source: string;
   sourceSelectVariable?: (variableName: string) => void;
   highlightedVariable?: string | null;
@@ -1736,6 +1759,18 @@ function MatrixEntrySource({
     event.stopPropagation();
     onBeginEdit(rowIndex, columnIndex, source);
   };
+
+  if (showFlowDeltaPlaceholder) {
+    return (
+      <span
+        className="matrix-entry-source is-editable matrix-entry-flow-delta"
+        onDoubleClick={beginEdit}
+        title="Net column flow this period; double-click to add d(stock)"
+      >
+        Δ
+      </span>
+    );
+  }
 
   return (
     <span className="matrix-entry-source is-editable" onDoubleClick={beginEdit} title="Double-click to edit">

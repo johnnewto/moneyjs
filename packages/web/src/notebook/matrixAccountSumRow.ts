@@ -11,6 +11,16 @@ import type { EquationsCell, MatrixCell, NotebookCell } from "./types";
 
 const MATRIX_BALANCE_TOLERANCE = 1e-6;
 
+export const ACCOUNT_SUM_ROW_FLOW_UNIT_META: UnitMeta = {
+  stockFlow: "flow",
+  signature: { money: 1, time: -1 }
+};
+
+export function isEmptyAccountSumRowSource(source: string): boolean {
+  const trimmed = source.trim();
+  return !trimmed || trimmed === "0";
+}
+
 export interface ProposedMatrixEquationUpdate {
   variable: string;
   action: "add" | "update";
@@ -192,6 +202,23 @@ export function resolveAccountSumRowCellBalance(
   }
 
   return Math.abs(computedColumnSum - expected) < MATRIX_BALANCE_TOLERANCE;
+}
+
+export function resolveAccountSumRowDisplayValue(
+  source: string,
+  columnSum: number | null,
+  result: SimulationResult | null,
+  selectedPeriodIndex: number
+): number | null {
+  const trimmed = source.trim();
+  if (trimmed && trimmed !== "0") {
+    const evaluated = evaluateMatrixEntryNumber(trimmed, result, selectedPeriodIndex);
+    if (evaluated != null) {
+      return evaluated;
+    }
+  }
+
+  return columnSum;
 }
 
 function stripLeadingPlus(source: string): string {
