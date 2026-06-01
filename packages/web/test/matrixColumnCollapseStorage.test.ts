@@ -6,6 +6,7 @@ import {
   collectMatrixColumnCollapseNodeIds,
   filterMatrixColumnCollapseNodeIds,
   matrixColumnCollapseStorageKey,
+  normalizeMatrixColumnCollapseNodeIds,
   readStoredMatrixColumnCollapse,
   writeStoredMatrixColumnCollapse
 } from "../src/notebook/matrixColumnCollapseStorage";
@@ -70,8 +71,8 @@ describe("matrixColumnCollapseStorage", () => {
     const valid = collectMatrixColumnCollapseNodeIds(accountMatrix);
     expect(valid.has("sector:Households (H)")).toBe(true);
     expect(valid.has("sector:Firms (F)")).toBe(true);
-    expect(valid.has("col:0")).toBe(true);
-    expect(valid.has("col:1")).toBe(true);
+    expect(valid.has("col:Households (H):Households.Deposits (Mh)")).toBe(true);
+    expect(valid.has("col:Firms (F):Firms.Loans (Ld)")).toBe(true);
     expect(valid.has("col:2")).toBe(false);
   });
 
@@ -79,12 +80,14 @@ describe("matrixColumnCollapseStorage", () => {
     const valid = collectMatrixColumnCollapseNodeIds(accountMatrix);
     writeStoredMatrixColumnCollapse(storageKey, new Set(["sector:Households (H)", "col:1", "stale:id"]));
 
-    expect(readStoredMatrixColumnCollapse(storageKey, valid)).toEqual(
-      new Set(["sector:Households (H)", "col:1"])
-    );
+    expect(
+      readStoredMatrixColumnCollapse(storageKey, valid, accountMatrix.columns, accountMatrix.sectors)
+    ).toEqual(new Set(["sector:Households (H)", "col:Firms (F):Firms.Loans (Ld)"]));
 
     const otherKey = matrixColumnCollapseStorageKey("template:sim", "account-transactions");
-    expect(readStoredMatrixColumnCollapse(otherKey, valid)).toEqual(new Set());
+    expect(
+      readStoredMatrixColumnCollapse(otherKey, valid, accountMatrix.columns, accountMatrix.sectors)
+    ).toEqual(new Set());
   });
 
   it("filters unknown node ids", () => {
@@ -92,5 +95,34 @@ describe("matrixColumnCollapseStorage", () => {
     expect(filterMatrixColumnCollapseNodeIds(["sector:Households", "col:9"], valid)).toEqual(
       new Set(["sector:Households"])
     );
+  });
+
+  it("migrates legacy index-only column collapse ids", () => {
+    const valid = collectMatrixColumnCollapseNodeIds(accountMatrix);
+    expect(
+      normalizeMatrixColumnCollapseNodeIds(
+        ["col:0", "sector:Households (H)"],
+        valid,
+        accountMatrix.columns,
+        accountMatrix.sectors
+      )
+    ).toEqual(
+      new Set(["col:Households (H):Households.Deposits (Mh)", "sector:Households (H)"])
+    );
+  });
+
+  it("collects only sector collapse ids for transactions-flow sector layouts", () => {
+    const transactionFlowMatrix: MatrixCell = {
+      id: "transaction-flow",
+      type: "matrix",
+      title: "Transactions flow",
+      columns: ["Households", "Firms current", "Firms capital", "Sum"],
+      sectors: ["Households", "Firms", "Firms", ""],
+      rows: [{ label: "Consumption", values: ["-C", "+C", "", "0"] }]
+    };
+    const valid = collectMatrixColumnCollapseNodeIds(transactionFlowMatrix);
+    expect(valid.has("sector:Households")).toBe(true);
+    expect(valid.has("sector:Firms")).toBe(true);
+    expect([...valid].some((nodeId) => nodeId.startsWith("col:"))).toBe(false);
   });
 });

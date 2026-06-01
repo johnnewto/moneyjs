@@ -4,7 +4,10 @@ import {
   collectMatrixAccountSectorCollapseKeys,
   columnCollapseKey,
   isSumColumnLabel,
+  migrateLegacyColumnCollapseNodeId,
+  serializeMatrixColumnCollapseNodeIds,
   usesMatrixAccountColumnLayout,
+  usesMatrixSectorColumnLayout,
   type MatrixColumnTreeNode
 } from "@sfcr/notebook-core";
 
@@ -43,8 +46,17 @@ export function collectMatrixColumnCollapseNodeIds(
     for (let columnIndex = 0; columnIndex < cell.columns.length; columnIndex += 1) {
       const columnLabel = cell.columns[columnIndex]?.trim() ?? "";
       if (!isSumColumnLabel(columnLabel)) {
-        ids.add(columnCollapseKey(columnIndex));
+        ids.add(columnCollapseKey(columnIndex, cell.columns, cell.sectors));
       }
+    }
+    return ids;
+  }
+
+  if (
+    usesMatrixSectorColumnLayout(cell.columns, cell.sectors, cell.columnBadges, cell.columnTree)
+  ) {
+    for (const nodeId of collectMatrixAccountSectorCollapseKeys(cell.sectors)) {
+      ids.add(nodeId);
     }
     return ids;
   }
@@ -71,30 +83,58 @@ export function filterMatrixColumnCollapseNodeIds(
   return filtered;
 }
 
-export function readStoredMatrixColumnCollapse(
-  storageKey: string,
-  validNodeIds: ReadonlySet<string>
+export function normalizeMatrixColumnCollapseNodeIds(
+  nodeIds: Iterable<string>,
+  validNodeIds: ReadonlySet<string>,
+  columns: readonly string[],
+  sectors?: readonly string[]
 ): Set<string> {
+  const filtered = new Set<string>();
+  for (const nodeId of nodeIds) {
+    const migrated = migrateLegacyColumnCollapseNodeId(nodeId, columns, sectors);
+    if (validNodeIds.has(migrated)) {
+      filtered.add(migrated);
+      continue;
+    }
+    if (validNodeIds.has(nodeId)) {
+      filtered.add(nodeId);
+    }
+  }
+  return filtered;
+}
+
+function readStoredMatrixColumnCollapseRaw(storageKey: string): string[] {
   if (typeof window === "undefined") {
-    return new Set();
+    return [];
   }
 
   try {
     const raw = window.localStorage.getItem(storageKey);
     if (!raw) {
-      return new Set();
+      return [];
     }
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) {
-      return new Set();
+      return [];
     }
-    return filterMatrixColumnCollapseNodeIds(
-      parsed.filter((entry): entry is string => typeof entry === "string"),
-      validNodeIds
-    );
+    return parsed.filter((entry): entry is string => typeof entry === "string");
   } catch {
-    return new Set();
+    return [];
   }
+}
+
+export function readStoredMatrixColumnCollapse(
+  storageKey: string,
+  validNodeIds: ReadonlySet<string>,
+  columns: readonly string[],
+  sectors?: readonly string[]
+): Set<string> {
+  return normalizeMatrixColumnCollapseNodeIds(
+    readStoredMatrixColumnCollapseRaw(storageKey),
+    validNodeIds,
+    columns,
+    sectors
+  );
 }
 
 export function writeStoredMatrixColumnCollapse(storageKey: string, nodeIds: ReadonlySet<string>): void {
@@ -107,6 +147,18 @@ export function writeStoredMatrixColumnCollapse(storageKey: string, nodeIds: Rea
   } catch {
     // Ignore quota / private-mode failures.
   }
+}
+
+function collapseNodeIdSetsEqual(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
+  if (left.size !== right.size) {
+    return false;
+  }
+  for (const nodeId of left) {
+    if (!right.has(nodeId)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 export function useMatrixColumnCollapseState(
@@ -122,6 +174,10 @@ export function useMatrixColumnCollapseState(
     () => collectMatrixColumnCollapseNodeIds(cell),
     [cell.columnBadges, cell.columnTree, cell.columns, cell.sectors]
   );
+  const validNodeIdsKey = useMemo(
+    () => serializeMatrixColumnCollapseNodeIds(validNodeIds),
+    [validNodeIds]
+  );
   const storageKey = useMemo(
     () => matrixColumnCollapseStorageKey(notebookScopeId, cell.id),
     [cell.id, notebookScopeId]
@@ -129,34 +185,32 @@ export function useMatrixColumnCollapseState(
   const collapseAllNodeIds = useMemo(() => {
     const keys = collectMatrixAccountLayoutCollapseKeys(cell);
     return new Set(keys);
-  }, [cell.columnBadges, cell.columnTree, cell.sectors]);
+  }, [cell.columnBadges, cell.columnTree, cell.columns, cell.sectors]);
 
   const [collapsedNodeIds, setCollapsedNodeIds] = useState<Set<string>>(() =>
-    readStoredMatrixColumnCollapse(storageKey, validNodeIds)
+    readStoredMatrixColumnCollapse(storageKey, validNodeIds, cell.columns, cell.sectors)
   );
 
   useEffect(() => {
-    setCollapsedNodeIds(readStoredMatrixColumnCollapse(storageKey, validNodeIds));
-  }, [storageKey, validNodeIds]);
+    setCollapsedNodeIds(
+      readStoredMatrixColumnCollapse(storageKey, validNodeIds, cell.columns, cell.sectors)
+    );
+  }, [storageKey, validNodeIdsKey]);
 
   useEffect(() => {
     setCollapsedNodeIds((current) => {
-      const filtered = filterMatrixColumnCollapseNodeIds(current, validNodeIds);
-      if (filtered.size === current.size) {
-        let unchanged = true;
-        for (const nodeId of filtered) {
-          if (!current.has(nodeId)) {
-            unchanged = false;
-            break;
-          }
-        }
-        if (unchanged) {
-          return current;
-        }
+      const filtered = normalizeMatrixColumnCollapseNodeIds(
+        current,
+        validNodeIds,
+        cell.columns,
+        cell.sectors
+      );
+      if (collapseNodeIdSetsEqual(filtered, current)) {
+        return current;
       }
       return filtered;
     });
-  }, [validNodeIds]);
+  }, [validNodeIdsKey]);
 
   useEffect(() => {
     writeStoredMatrixColumnCollapse(storageKey, collapsedNodeIds);

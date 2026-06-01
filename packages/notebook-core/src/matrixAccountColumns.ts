@@ -49,8 +49,43 @@ export function sectorCollapseKey(sectorLabel: string): string {
   return `sector:${sectorLabel.trim()}`;
 }
 
-export function columnCollapseKey(columnIndex: number): string {
+export function columnCollapseKey(
+  columnIndex: number,
+  columns?: readonly string[],
+  sectors?: readonly string[]
+): string {
+  if (columns) {
+    const label = columns[columnIndex]?.trim() ?? "";
+    const sector = sectors?.[columnIndex]?.trim() ?? "";
+    if (sector && label) {
+      return `col:${sector}:${label}`;
+    }
+    if (label) {
+      return `col:${label}@${columnIndex}`;
+    }
+  }
   return `col:${columnIndex}`;
+}
+
+/** Maps legacy index-only collapse ids from localStorage to stable sector/label keys. */
+export function migrateLegacyColumnCollapseNodeId(
+  nodeId: string,
+  columns: readonly string[],
+  sectors?: readonly string[]
+): string {
+  const legacy = /^col:(\d+)$/.exec(nodeId);
+  if (!legacy) {
+    return nodeId;
+  }
+  const index = Number(legacy[1]);
+  if (!Number.isInteger(index) || index < 0 || index >= columns.length) {
+    return nodeId;
+  }
+  return columnCollapseKey(index, columns, sectors);
+}
+
+export function serializeMatrixColumnCollapseNodeIds(ids: Iterable<string>): string {
+  return [...ids].sort().join("\u0001");
 }
 
 export function parseVariableFromColumnLabel(label: string): string | undefined {
@@ -206,6 +241,24 @@ export function usesMatrixAccountColumnLayout(columnBadges: string[] | undefined
   return Array.isArray(columnBadges) && columnBadges.length > 0;
 }
 
+export function usesMatrixSectorColumnLayout(
+  columns: readonly string[],
+  sectors: string[] | undefined,
+  columnBadges: string[] | undefined,
+  columnTree?: readonly unknown[] | undefined
+): boolean {
+  if (usesMatrixAccountColumnLayout(columnBadges)) {
+    return false;
+  }
+  if (columnTree && columnTree.length > 0) {
+    return false;
+  }
+  if (!sectors || sectors.length !== columns.length) {
+    return false;
+  }
+  return sectors.some((sector) => sector.trim().length > 0);
+}
+
 export function isMatrixAccountSectorStartColumn(
   columns: string[],
   sectors: string[] | undefined,
@@ -287,7 +340,7 @@ export function resolveMatrixAccountColumnCellClasses(
     return classes;
   }
 
-  const role = normalizeMatrixAccountBadgeRole(columnBadges[columnIndex]);
+  const role = normalizeMatrixAccountBadgeRole(columnBadges?.[columnIndex]);
   if (role) {
     classes.push(`notebook-matrix-cell-${role}`);
   }
@@ -357,8 +410,10 @@ export function buildMatrixAccountColumnDisplaySlots(
   columns: string[],
   sectors: string[] | undefined,
   columnBadges: string[],
-  collapsedNodeIds: ReadonlySet<string>
+  collapsedNodeIds: ReadonlySet<string>,
+  options?: { perColumnCollapse?: boolean }
 ): MatrixColumnDisplaySlot[] {
+  const perColumnCollapse = options?.perColumnCollapse ?? true;
   const slots: MatrixColumnDisplaySlot[] = [];
   let index = 0;
 
@@ -396,18 +451,21 @@ export function buildMatrixAccountColumnDisplaySlots(
       }
     }
 
-    const badgeRole = normalizeMatrixAccountBadgeRole(columnBadges[index]);
-    const collapseKey = columnCollapseKey(index);
-    if (collapsedNodeIds.has(collapseKey)) {
-      slots.push({
-        kind: "hiddenLeaf",
-        nodeId: collapseKey,
-        columnIndex: index,
-        ...(badgeRole ? { stockRole: badgeRole } : {})
-      });
-    } else {
-      slots.push({ kind: "leaf", columnIndex: index });
+    if (perColumnCollapse) {
+      const badgeRole = normalizeMatrixAccountBadgeRole(columnBadges[index]);
+      const collapseKey = columnCollapseKey(index, columns, sectors);
+      if (collapsedNodeIds.has(collapseKey)) {
+        slots.push({
+          kind: "hiddenLeaf",
+          nodeId: collapseKey,
+          columnIndex: index,
+          ...(badgeRole ? { stockRole: badgeRole } : {})
+        });
+        index += 1;
+        continue;
+      }
     }
+    slots.push({ kind: "leaf", columnIndex: index });
     index += 1;
   }
 
@@ -419,8 +477,10 @@ export function buildMatrixAccountColumnHeaderRows(
   sectors: string[] | undefined,
   columnBadges: string[],
   variables: string[] | undefined,
-  collapsedNodeIds: ReadonlySet<string>
+  collapsedNodeIds: ReadonlySet<string>,
+  options?: { perColumnCollapse?: boolean }
 ): MatrixColumnHeaderCell[][] {
+  const perColumnCollapse = options?.perColumnCollapse ?? true;
   const rows: MatrixColumnHeaderCell[][] = Array.from(
     { length: MATRIX_ACCOUNT_HEADER_ROW_COUNT },
     () => []
@@ -478,8 +538,8 @@ export function buildMatrixAccountColumnHeaderRows(
       const label = columns[columnIndex]?.trim() ?? "";
       const leafDisplay = parseMatrixAccountColumnLeafDisplay(label);
       const badgeRole = normalizeMatrixAccountBadgeRole(columnBadges[columnIndex]);
-      const collapseKey = columnCollapseKey(columnIndex);
-      const isHidden = collapsedNodeIds.has(collapseKey);
+      const collapseKey = columnCollapseKey(columnIndex, columns, sectors);
+      const isHidden = perColumnCollapse && collapsedNodeIds.has(collapseKey);
       rows[1]?.push({
         nodeId: collapseKey,
         label: formatMatrixAccountColumnDisplayLabel(label),

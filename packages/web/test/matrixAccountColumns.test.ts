@@ -13,9 +13,11 @@ import {
   formatMatrixSectorCollapsedLabel,
   formatMatrixAccountColumnDisplayLabel,
   formatMatrixAccountColumnTooltipLabel,
+  migrateLegacyColumnCollapseNodeId,
   parseMatrixAccountColumnLeafDisplay,
   parseMatrixSectorDisplay,
   signedMatrixAccountColumnContribution,
+  usesMatrixSectorColumnLayout,
   validateMatrixAccountColumnsLayout
 } from "@sfcr/notebook-core";
 
@@ -278,12 +280,13 @@ describe("matrixAccountColumns", () => {
       columns,
       sectors,
       columnBadges,
-      new Set(["col:0"])
+      new Set(["col:Households:Households.Deposits (Mh)"])
     );
     expect(hiddenLeaf[0]).toMatchObject({
       kind: "hiddenLeaf",
       columnIndex: 0,
-      stockRole: "asset"
+      stockRole: "asset",
+      nodeId: "col:Households:Households.Deposits (Mh)"
     });
   });
 
@@ -291,6 +294,50 @@ describe("matrixAccountColumns", () => {
     expect(collectMatrixAccountSectorCollapseKeys(sectors)).toEqual([
       "sector:Households",
       "sector:Firms"
+    ]);
+  });
+
+  it("detects sector-only layouts for transactions-flow matrices", () => {
+    expect(
+      usesMatrixSectorColumnLayout(
+        ["Households", "Firms current", "Sum"],
+        ["Households", "Firms", ""],
+        undefined,
+        undefined
+      )
+    ).toBe(true);
+    expect(
+      usesMatrixSectorColumnLayout(columns, sectors, columnBadges, undefined)
+    ).toBe(false);
+  });
+
+  it("migrates legacy column collapse ids to sector-qualified keys", () => {
+    expect(migrateLegacyColumnCollapseNodeId("col:0", columns, sectors)).toBe(
+      "col:Households:Households.Deposits (Mh)"
+    );
+    expect(migrateLegacyColumnCollapseNodeId("sector:Households", columns, sectors)).toBe(
+      "sector:Households"
+    );
+  });
+
+  it("builds sector-grouped slots for transactions-flow layouts without per-column hide", () => {
+    const flowColumns = ["Households", "Firms current", "Firms capital", "Sum"];
+    const flowSectors = ["Households", "Production firms", "Production firms", ""];
+    const collapsedFirms = buildMatrixAccountColumnDisplaySlots(
+      flowColumns,
+      flowSectors,
+      [],
+      new Set(["sector:Production firms"]),
+      { perColumnCollapse: false }
+    );
+    expect(collapsedFirms).toEqual([
+      { kind: "leaf", columnIndex: 0 },
+      {
+        kind: "collapsed",
+        nodeId: "sector:Production firms",
+        label: "Production firms",
+        fullLabel: "Production firms"
+      }
     ]);
   });
 });

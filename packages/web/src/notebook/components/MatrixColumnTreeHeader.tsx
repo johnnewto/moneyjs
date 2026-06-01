@@ -9,7 +9,8 @@ import {
   resolveMatrixAccountColumnCellClasses,
   type MatrixColumnDisplaySlot,
   type MatrixColumnHeaderCell,
-  usesMatrixAccountColumnLayout
+  usesMatrixAccountColumnLayout,
+  usesMatrixSectorColumnLayout
 } from "@sfcr/notebook-core";
 import type { MatrixCell } from "../types";
 
@@ -46,6 +47,29 @@ export function useMatrixColumnLayout(
       };
     }
 
+    if (
+      usesMatrixSectorColumnLayout(cell.columns, cell.sectors, cell.columnBadges, cell.columnTree)
+    ) {
+      return {
+        displaySlots: buildMatrixAccountColumnDisplaySlots(
+          cell.columns,
+          cell.sectors,
+          [],
+          collapsedNodeIds,
+          { perColumnCollapse: false }
+        ),
+        headerRows: buildMatrixAccountColumnHeaderRows(
+          cell.columns,
+          cell.sectors,
+          [],
+          cell.variables,
+          collapsedNodeIds,
+          { perColumnCollapse: false }
+        ),
+        usesColumnTree: true
+      };
+    }
+
     if (cell.columnTree && cell.columnTree.length > 0) {
       return {
         displaySlots: buildMatrixColumnDisplaySlots(cell.columnTree, cell.columns, collapsedNodeIds),
@@ -74,6 +98,7 @@ export function MatrixColumnTreeHeader({
   collapsedNodeIds,
   editorLinked,
   accountColumnLayout = false,
+  sectorGroupedColumns = accountColumnLayout,
   onToggleNode,
   onInspectVariable
 }: {
@@ -85,6 +110,7 @@ export function MatrixColumnTreeHeader({
   collapsedNodeIds: ReadonlySet<string>;
   editorLinked: boolean;
   accountColumnLayout?: boolean;
+  sectorGroupedColumns?: boolean;
   onToggleNode(nodeId: string): void;
   onInspectVariable?(variableName: string): void;
 }): JSX.Element {
@@ -110,7 +136,7 @@ export function MatrixColumnTreeHeader({
               className={[
                 cell.isCollapsedStub ? "notebook-matrix-tree-collapsed-stub-header" : undefined,
                 cell.isLeafHidden ? "notebook-matrix-tree-hidden-leaf-header" : undefined,
-                accountColumnLayout && rowIndex === 0 && cell.isSectorStart
+                sectorGroupedColumns && rowIndex === 0 && cell.isSectorStart
                   ? "notebook-matrix-sector-start"
                   : undefined,
                 ...(accountColumnLayout && cell.columnIndex != null && !cell.isCollapsedStub
@@ -265,9 +291,14 @@ function renderHeaderCell({
 }
 
 export function collectMatrixAccountLayoutCollapseKeys(
-  cell: Pick<MatrixCell, "columnTree" | "sectors" | "columnBadges">
+  cell: Pick<MatrixCell, "columns" | "columnTree" | "sectors" | "columnBadges">
 ): string[] {
   if (usesMatrixAccountColumnLayout(cell.columnBadges)) {
+    return collectMatrixAccountSectorCollapseKeys(cell.sectors);
+  }
+  if (
+    usesMatrixSectorColumnLayout(cell.columns, cell.sectors, cell.columnBadges, cell.columnTree)
+  ) {
     return collectMatrixAccountSectorCollapseKeys(cell.sectors);
   }
   if (!cell.columnTree) {

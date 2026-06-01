@@ -1,7 +1,7 @@
 format: sfcr-notebook-yaml
 formatVersion: 1
-id: gl7-insout-notebook
-title: GL7 INSOUT Notebook
+id: gl7-insout-v2
+title: GL7 INSOUT-v2
 metadata:
   version: 1
   template: gl7-insout
@@ -12,12 +12,12 @@ cells:
       source: "This notebook adapts the `gl7-insout.Rmd` article into executable browser cells. It includes the INSOUT balance-sheet and transactions-flow matrices, the full baseline model, and three representative simulations from the article: higher targeted inventories, higher government expenditure, and the combined inflation-plus-interest-rate experiment."
   - matrix:
       id: balance-sheet
-      accountingKind: balance-sheet
+      sourceRunCellId: baseline-run
       title: INSOUT balance sheet
       description: Balance-sheet matrix for model INSOUT following the gl7 article.
       note: Validated against the baseline simulation in the R vignette fixture.
-      sourceRunCellId: baseline-run
       columns: [Households, Firms, Government, Central bank, Banks, Sum]
+      accountingKind: balance-sheet
       rows:
         - label: Inventories
           values:
@@ -94,13 +94,13 @@ cells:
         - [Sum, Sum, "0", "0", "0", "0", "0", "0"]
   - matrix:
       id: transaction-flow
-      accountingKind: transaction-flow
+      sourceRunCellId: baseline-run
       title: INSOUT transactions-flow matrix
       description: Transactions-flow matrix for model INSOUT following the gl7 article.
       note: Validated against the baseline simulation in the R vignette fixture.
-      sourceRunCellId: baseline-run
       columns: [Households, Firms current, Firms capital, Government, CB current, CB capital, Banks current, Banks capital, Sum]
       sectors: [Households, Production firms, Production firms, Government, Central bank, Central bank, Banks, Banks, ""]
+      accountingKind: transaction-flow
       rows:
         - [Consumption, Consumption, -C, +C, "", "", "", "", "", "", "0"]
         - [Government, Govt. expenditures, "", +G, "", -G, "", "", "", "", "0"]
@@ -123,6 +123,39 @@ cells:
         - [Bills, Change bills, -d(Bhh), "", "", +d(Bs), "", -d(Bcb), "", -d(Bbd), "0"]
         - [Bonds, Change bonds, -d(BLh) * pbl, "", "", +d(BLs) * pbl, "", "", "", "", "0"]
         - [Sum, Sum, "0", "0", "0", "0", "0", "0", "0", "0", "0"]
+  - matrix:
+      id: account-transactions
+      collapsed: false
+      sourceRunCellId: baseline-run
+      title: INSOUT account transactions
+      description: Account-level transaction matrix for INSOUT with hierarchical sector and account columns.
+      note: Columns group balance-sheet accounts by sector. Use Expand all / Collapse all or click sector headers to show or hide account columns.
+      columns: [Deposits, Net_Worth, Current, Capital, Loans, Net_Worth, Government, Current, Capital, Firms.Loans, HH.Deposits, Firms.Current, Current, Capital, Net_Worth, Sum]
+      sectors: [Households (HH), Households (HH), Firms, Firms, Firms, Firms, Government (Govt), Central bank (CB), Central bank (CB), Banks, Banks, Banks, Banks, Banks, Banks, ""]
+      columnBadges: [asset, equity, asset, asset, liability, equity, asset, liability, asset, asset, liability, liability, asset, asset, equity, ""]
+      accountingKind: account-transactions
+      rows:
+        - [Consumption, Consumption, -C, "", +C, "", "", "", "", "", "", "", "", "", "", "", "", "0"]
+        - [Government, Govt. expenditures, "", "", +G, "", "", "", -G, "", "", "", "", "", "", "", "", "0"]
+        - [Inventories, Change inventories, "", "", +d(INV), -d(INV), "", "", "", "", "", "", "", "", "", "", "", "0"]
+        - [Taxes, Taxes, "", "", -TX, "", "", "", +TX, "", "", "", "", "", "", "", "", "0"]
+        - [Wages, Wages, +WB, "", -WB, "", "", "", "", "", "", "", "", "", "", "", "", "0"]
+        - [Profits, Entrepreneurial profits, +FXf, "", -FXf, "", "", "", "", "", "", "", "", "", "", "", "", "0"]
+        - [Profits, Bank profits, +FXb, "", "", "", "", "", "", "", "", "", "", "", -FXb, "-", "", "0"]
+        - [Profits, CB profits, "", "", "", "", "", "", +FXcb, -FXcb, "", "", "", "", "", "", "", "0"]
+        - [Interest, Interest advances, "", "", "", "", "", "", "", +ra'•As', "", "", "", "", -ra•Ad', "", "", "0"]
+        - [Interest, Interest loans, "", "", -rl'•Ld', "", "", "", "", "", "", "", "", "", +rl'•Ld', "", "", "0"]
+        - [Interest, Interest deposits, +rm'•M2h', "", "", "", "", "", "", "", "", "", "", "", -rm'•M2h', "", "", "0"]
+        - [Interest, Interest bills, +rb'•Bhh', "", "", "", "", "", -rb'•Bs', +rb'•Bcb', "", "", "", "", +rb'•Bbd', "", "", "0"]
+        - [Interest, Interest bonds, +BLh', "", "", "", "", "", -BLs', "", "", "", "", "", "", "", "", "0"]
+        - [Advances, Change advances, "", "", "", "", "", "", "", "", -d(As), "", "", "", "", +d(Ad), "", "0"]
+        - [Loans, Change loans, "", "", +d(Ld), "", -d(Ld), "", "", "", "", +d(Ls), "", -d(Ld), "", "", "", "0"]
+        - [Money, Change cash, -d(Hhh), "", "", "", "", "", "", "", +d(Hs), "", "", "", "", -d(Hbd), "", "0"]
+        - [Money, Change M1, -d(M1h), "", "", "", "", "", "", "", "", "", "", "", "", +d(M1s), "", "0"]
+        - [Money, Change M2, -d(M2h), "", "", "", "", "", "", "", "", "", "", "", "", +d(M2s), "", "0"]
+        - [Bills, Change bills, -d(Bhh), "", "", "", "", "", +d(Bs), "", -d(Bcb), "", "", "", "", -d(Bbd), "", "0"]
+        - [Bonds, Change bonds, -d(BLh)•pbl, "", "", "", "", "", +d(BLs)•pbl, "", "", "", "", "", "", "", "", "0"]
+        - [Sum, Sum, "", V, "0", INV, Ld, "", GD, Hs, "", Ls, "", "0", "", "", "", "0"]
   - sequence:
       id: transaction-flow-sequence
       title: INSOUT transaction flow sequence
@@ -130,22 +163,23 @@ cells:
         kind: matrix
         matrixCellId: transaction-flow
       description: Sequence view generated from the INSOUT transactions-flow matrix at the selected simulation period.
+      collapsed: true
   - equations:
       id: equations
       title: INSOUT model
       modelId: equations
-      collapsed: true
+      collapsed: false
       rows:
-        - [y, sE + (invE - lag(inv)), "Output determined by expected sales and inventory adjustment."]
+        - [y, s^E + (inv^E - lag(inv)), "Output determined by expected sales and inventory adjustment."]
         - [N, y / pr, "Employment from output and productivity."]
         - [WB, N * W, "Wage bill."]
         - [UC, WB / y, "Unit cost."]
-        - [sE, beta * lag(s) + (1 - beta) * lag(sE), "Expected sales formed adaptively."]
-        - [invT, sigmaT * sE, "Target inventory stock."]
-        - [sigmaT, sigma0 - sigma1 * rl, "Target inventory-sales ratio responds to the loan rate."]
-        - [invE, lag(inv) + gamma * (invT - lag(inv)), "Expected inventory stock."]
+        - [s^E, beta * lag(s) + (1 - beta) * lag(s^E), "Expected sales formed adaptively.", "", "", "", eq-4-sE]
+        - [inv^T, sigma^T * s^E, "Target inventory stock.", "", "", "", eq-5-invT]
+        - [sigma^T, sigma0 - sigma1 * rl, "Target inventory-sales ratio responds to the loan rate.", "", "", "", eq-6-sigmaT]
+        - [inv^E, lag(inv) + gamma * (inv^T - lag(inv)), "Expected inventory stock.", "", "", "", eq-7-invE]
         - [p, (1 + tau) * (1 + phi) * NHUC, "Price level."]
-        - [NHUC, (1 - sigmaT) * UC + sigmaT * (1 + lag(rl)) * lag(UC), "Normalized historic unit cost."]
+        - [NHUC, (1 - sigma^T) * UC + sigma^T * (1 + lag(rl)) * lag(UC), "Normalized historic unit cost."]
         - [s, c + g, "Real sales."]
         - [S, s * p, "Nominal sales."]
         - [inv, lag(inv) + y - s, "Real inventories."]
@@ -163,18 +197,18 @@ cells:
         - [ydr, (YDr / p) - pi * (lag(V) / p), "Real disposable income."]
         - [ydhs, (YDr - pi * lag(V) + CG) / p, "Real Haig-Simons disposable income."]
         - [v, V / p, "Real wealth."]
-        - [c, alpha0 + alpha1 * ydrE + alpha2 * lag(v), "Real consumption demand."]
-        - [ydrE, epsilon * lag(ydr) + (1 - epsilon) * lag(ydrE), "Expected real disposable income."]
+        - [c, alpha0 + alpha1 * ydr^E + alpha2 * lag(v), "Real consumption demand."]
+        - [ydr^E, epsilon * lag(ydr) + (1 - epsilon) * lag(ydr^E), "Expected real disposable income.", "", "", "", eq-28-ydrE]
         - [C, p * c, "Nominal consumption demand."]
-        - [YDrE, p * ydrE + pi * (lag(V) / p), "Expected nominal disposable income."]
-        - [VE, lag(V) + (YDrE - C), "Expected wealth."]
+        - [YDr^E, p * ydr^E + pi * (lag(V) / p), "Expected nominal disposable income.", "", "", "", eq-30-YDrE]
+        - [V^E, lag(V) + (YDr^E - C), "Expected wealth.", "", "", "", eq-31-VE]
         - [Hhd, lambdac * C, "Cash demand."]
-        - [VncE, VE - Hhd, "Expected wealth net of cash."]
+        - [VncE, V^E - Hhd, "Expected wealth net of cash."]
         - [ERrbl, rbl, "Expected bond return."]
-        - [M2d, VncE * (lambda20 + lambda22 * rm + lambda23 * rb + lambda24 * ERrbl + lambda25 * (YDrE / VncE)), "Household time-deposit demand."]
-        - [Bhd, VncE * (lambda30 + lambda32 * rm + lambda33 * rb + lambda34 * ERrbl + lambda35 * (YDrE / VncE)), "Household bill demand."]
-        - [BLd, (VncE / pbl) * (lambda40 + lambda42 * rm + lambda43 * rb + lambda44 * ERrbl + lambda45 * (YDrE / VncE)), "Household bond demand."]
-        - [M1d, VncE * (lambda10 + lambda12 * rm + lambda13 * rb + lambda14 * ERrbl + lambda15 * (YDrE / VncE)), "Household checking-deposit demand."]
+        - [M2d, VncE * (lambda20 + lambda22 * rm + lambda23 * rb + lambda24 * ERrbl + lambda25 * (YDr^E / VncE)), "Household time-deposit demand."]
+        - [Bhd, VncE * (lambda30 + lambda32 * rm + lambda33 * rb + lambda34 * ERrbl + lambda35 * (YDr^E / VncE)), "Household bill demand."]
+        - [BLd, (VncE / pbl) * (lambda40 + lambda42 * rm + lambda43 * rb + lambda44 * ERrbl + lambda45 * (YDr^E / VncE)), "Household bond demand."]
+        - [M1d, VncE * (lambda10 + lambda12 * rm + lambda13 * rb + lambda14 * ERrbl + lambda15 * (YDr^E / VncE)), "Household checking-deposit demand."]
         - [M1d2, VncE - M2d - Bhd - pbl * BLd, "Checking-deposit residual definition."]
         - [Hhh, Hhd, "Realized cash holdings."]
         - [Bhh, Bhd, "Realized household bill holdings."]
@@ -219,8 +253,8 @@ cells:
         - [lM1s, lag(M1s), "Lag helper for M1s."]
         - [lM2s, lag(M2s), "Lag helper for M2s."]
         - [BPM, (FXb + lag(FXb)) / (lM1s + lag(lM1s) + lM2s + lag(lM2s)), "Bank profit margin."]
-        - [omegaT, exp(Omega0 + Omega1 * log(pr) + Omega2 * log(N / Nfe)), "Target real wage."]
-        - [W, lag(W) * (1 + Omega3 * (lag(omegaT) - (lag(W) / lag(p)))), "Money wage."]
+        - [omega^T, exp(Omega0 + Omega1 * log(pr) + Omega2 * log(N / Nfe)), "Target real wage.", "", "", "", eq-83-omegaT]
+        - [W, lag(W) * (1 + Omega3 * (lag(omega^T) - (lag(W) / lag(p)))), "Money wage."]
         - [Y, p * s + UC * (inv - lag(inv)), "Nominal output."]
   - solver:
       id: solver
@@ -298,7 +332,7 @@ cells:
       id: initial-values-equations
       title: Initial values
       modelId: equations
-      collapsed: true
+      collapsed: false
       rows:
         - [p, 1]
         - [W, 1]
@@ -317,6 +351,8 @@ cells:
       id: baseline-chart
       title: Baseline steady-state checks
       variables:
+        - W
+        - WB
         - Y
         - pi
         - BLRN
@@ -346,7 +382,7 @@ cells:
   - markdown:
       id: scenario-1-note
       title: Simulation 1
-      source: Simulation 1 raises `sigma0` from `0.3612` to `0.4` between periods 5 and 70, increasing the targeted inventories-to-sales ratio through the `sigmaT` rule.
+      source: Simulation 1 raises `sigma0` from `0.3612` to `0.4` between periods 5 and 70, increasing the targeted inventories-to-sales ratio through the `sigma^T` rule.
   - run:
       id: scenario-1-run
       title: "Simulation 1: targeted inventories shock"
@@ -360,6 +396,8 @@ cells:
               sigma0:
                 kind: constant
                 value: 0.4
+            startPeriodInclusive: 5
+            endPeriodInclusive: 70
       baselineRunCellId: baseline-run
       periods: 70
       resultKey: gl7_insout_s1
@@ -397,6 +435,8 @@ cells:
               g:
                 kind: constant
                 value: 30
+            startPeriodInclusive: 5
+            endPeriodInclusive: 55
       baselineRunCellId: baseline-run
       baselineStartPeriod: 60
       periods: 55
@@ -433,6 +473,8 @@ cells:
               Omega0:
                 kind: constant
                 value: -0.2
+            startPeriodInclusive: 4
+            endPeriodInclusive: 55
           - rangeInclusive:
               - 5
               - 55
@@ -443,6 +485,8 @@ cells:
               rbl:
                 kind: constant
                 value: 0.039
+            startPeriodInclusive: 5
+            endPeriodInclusive: 55
       baselineRunCellId: baseline-run
       periods: 55
       resultKey: gl7_insout_s7

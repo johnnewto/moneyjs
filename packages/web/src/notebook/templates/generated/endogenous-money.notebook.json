@@ -1,0 +1,162 @@
+{
+  "id": "endogenous-money",
+  "title": "Endogenous Money: Bank-Originated Money and Debt",
+  "metadata": { "version": 1, "template": "endogenous-money" },
+  "cells": [
+    { "id": "intro", "type": "markdown", "title": "Overview", "source": "# Endogenous Money\n\nThis notebook turns section 4, \"Endogenous Money\", from Money From First Principles into a runnable stylized SFC model.\n\nThe model follows the Bank-Originated Money and Debt view: banks are not loanable-funds intermediaries. Bank lending creates deposits, firm debt and government debt sit on private-bank balance sheets as assets, and a government deficit can support private-sector money balances without forcing an automatic debt crisis." },
+    { "id": "institutional-story", "type": "markdown", "title": "Institutional story", "source": "## What changes relative to Loanable Funds\n\n- Private banks originate loans and create matching deposits.\n- `Debt` and `Gov_Bonds` are assets of private banks.\n- `Money` is the sum of worker, firm, and bank accounts.\n- GDP is driven by money turnover: `GDP = Money * Velocity`.\n- Government debt to GDP and private debt to GDP are shown as chart variables." },
+    {
+      "id": "balance-sheet",
+      "type": "matrix",
+      "title": "Endogenous money balance sheet",
+      "sourceRunCellId": "baseline-run",
+      "accountingKind": "balance-sheet",
+      "columns": ["Firms", "Workers", "Government", "Private_banks", "Sum"],
+      "sectors": ["Firms", "Households", "Government", "Banks", ""],
+      "rows": [
+        { "band": "Deposits", "label": "Firm deposits", "values": ["+Firms_eq", "", "", "-Firms_eq", "0"] },
+        { "band": "Deposits", "label": "Worker deposits", "values": ["", "+Workers_eq", "", "-Workers_eq", "0"] },
+        { "band": "Deposits", "label": "Bank account", "values": ["", "", "", "+Banks_eq", "+Banks_eq"] },
+        { "band": "Loans", "label": "Private debt", "values": ["-Debt", "", "", "+Debt", "0"] },
+        { "band": "Bonds", "label": "Government bonds", "values": ["", "", "-Gov_Bonds", "+Gov_Bonds", "0"] },
+        { "band": "Sum", "label": "Sum", "values": ["0", "0", "0", "0", "0"] }
+      ],
+      "description": "BOMD balance sheet.",
+      "note": "Loans and government bonds are private-bank assets."
+    },
+    {
+      "id": "transaction-flow",
+      "type": "matrix",
+      "title": "Endogenous money transaction-flow matrix",
+      "sourceRunCellId": "baseline-run",
+      "accountingKind": "transaction-flow",
+      "columns": ["Firms", "Workers", "Government", "Private_banks", "Sum"],
+      "sectors": ["Firms", "Households", "Government", "Banks", ""],
+      "rows": [
+        { "band": "Loans", "label": "New loans", "values": ["-Loans", "", "", "+Loans", ""] },
+        { "band": "Consumption", "label": "Worker consumption", "values": ["+Con_W", "-Con_W", "", "", "0"] },
+        { "band": "Wages", "label": "Wages", "values": ["-Wages", "+Wages", "", "", "0"] },
+        { "band": "Taxes", "label": "Taxes", "values": ["", "-Tax", "+Tax", "", "0"] },
+        { "band": "Government", "label": "Government spending", "values": ["+Spend_Govt", "", "-Spend_Govt", "", "0"] },
+        { "band": "Bonds", "label": "Government bonds", "values": ["", "", "+Bonds", "-Bonds", "0"] },
+        { "band": "Interest", "label": "Private debt interest", "values": ["-Interest", "", "", "+Interest", "0"] },
+        { "band": "Fees", "label": "Bank fees", "values": ["-Fee", "", "", "+Fee", "0"] },
+        { "band": "Interest", "label": "Bond interest", "values": ["", "", "-Int_Bonds", "+Int_Bonds", "0"] },
+        { "band": "Bank spending", "label": "Bank spending", "values": ["+Spend_banks", "", "", "-Spend_banks", "0"] },
+        { "band": "Sum", "label": "Sum", "values": ["0", "0", "0", "0", "0"] }
+      ],
+      "description": "BOMD transaction flows.",
+      "note": "Compact accounting display of the executable model."
+    },
+    {
+      "id": "account-transactions",
+      "type": "matrix",
+      "title": "Endogenous money account transactions",
+      "sourceRunCellId": "baseline-run",
+      "accountingKind": "account-transactions",
+      "columns": ["Deposits (Workers_eq)", "Deposits (Firms_eq)", "Private debt (Debt)", "Gov bonds (Gov_Bonds)", "Worker deposits", "Firm deposits", "Private debt", "Gov bonds", "Bank account (Banks_eq)", "Sum"],
+      "columnBadges": ["asset", "asset", "liability", "liability", "liability", "liability", "asset", "asset", "equity", ""],
+      "sectors": ["Households", "Firms", "Firms", "Government", "Banks", "Banks", "Banks", "Banks", "Banks", ""],
+      "rows": [
+        { "band": "Loans", "label": "New loans", "values": ["", "+Loans", "-Loans", "", "", "-Loans", "+Loans", "", "", "0"] },
+        { "band": "Consumption", "label": "Worker consumption", "values": ["-Con_W", "+Con_W", "", "", "-Con_W", "+Con_W", "", "", "", "0"] },
+        { "band": "Wages", "label": "Wages", "values": ["+Wages", "-Wages", "", "", "+Wages", "-Wages", "", "", "", "0"] },
+        { "band": "Taxes", "label": "Taxes", "values": ["-Tax", "", "", "+Tax", "", "", "", "", "", "0"] },
+        { "band": "Government", "label": "Government spending", "values": ["", "+Spend_Govt", "", "-Spend_Govt", "", "", "", "", "", "0"] },
+        { "band": "Bonds", "label": "Government bonds", "values": ["", "", "", "+Bonds", "", "-Bonds", "", "", "", "0"] },
+        { "band": "Interest", "label": "Private debt interest", "values": ["", "-Interest", "", "", "", "", "", "", "+Interest", "0"] },
+        { "band": "Fees", "label": "Bank fees", "values": ["", "-Fee", "", "", "", "", "", "", "+Fee", "0"] },
+        { "band": "Interest", "label": "Bond interest", "values": ["", "", "", "-Int_Bonds", "", "", "", "", "+Int_Bonds", "0"] },
+        { "band": "Bank spending", "label": "Bank spending", "values": ["", "+Spend_banks", "", "", "", "", "", "", "-Spend_banks", "0"] },
+        { "band": "Sum", "label": "Sum", "values": ["Workers_eq", "Firms_eq", "Debt", "Gov_Bonds", "Workers_eq", "Firms_eq", "Debt", "Gov_Bonds", "Banks_eq", "0"] }
+      ],
+      "collapsed": false,
+      "description": "Account-level transaction matrix with deposit, debt, and bond columns by sector.",
+      "note": "Columns group balance-sheet accounts by sector. Use Expand all / Collapse all or click sector headers to show or hide account columns."
+    },
+    { "id": "transaction-sequence", "type": "sequence", "title": "Endogenous money transaction sequence", "description": "Transaction sequence.", "note": "Step through loans, spending, tax, bond, interest, and fee flows.", "source": { "kind": "matrix", "matrixCellId": "transaction-flow" }, "participantColumnOrder": ["Firms", "Workers", "Government", "Private_banks"], "collapsed": true },
+    {
+      "id": "endogenous-money-equations",
+      "type": "equations",
+      "title": "Endogenous money model",
+      "modelId": "endogenous-money-model",
+      "equations": [
+        { "id": "eq-0-Int_Bonds", "name": "Int_Bonds", "desc": "Bond interest.", "expression": "Gov_Bonds * Interest_rate", "role": "definition", "unitMeta": { "stockFlow": "flow", "signature": { "money": 1, "time": -1 } } },
+        { "id": "eq-1-Deficit", "name": "Deficit", "desc": "Deficit.", "expression": "Spend_Govt - Tax", "role": "identity", "unitMeta": { "stockFlow": "flow", "signature": { "money": 1, "time": -1 } } },
+        { "id": "eq-437d2cc1-8540-4574-90f5-71b53de8b2d5", "name": "Spend_Govt", "expression": "GDP * Spend_frac" },
+        { "id": "eq-2-Bonds", "name": "Bonds", "desc": "Bonds.", "expression": "Int_Bonds + Deficit", "role": "identity", "unitMeta": { "stockFlow": "flow", "signature": { "money": 1, "time": -1 } } },
+        { "id": "eq-3-Gov_Bonds", "name": "Gov_Bonds", "desc": "Government bonds.", "expression": "lag(Gov_Bonds) + Bonds", "role": "accumulation", "unitMeta": { "stockFlow": "stock", "signature": { "money": 1 } } },
+        { "id": "eq-4-Money", "name": "Money", "desc": "Money.", "expression": "Workers_eq + Firms_eq + Banks_eq", "role": "identity", "unitMeta": { "stockFlow": "stock", "signature": { "money": 1 } } },
+        { "id": "eq-5-GDP", "name": "GDP", "desc": "GDP.", "expression": "Money * Velocity", "role": "identity", "unitMeta": { "stockFlow": "flow", "signature": { "money": 1, "time": -1 } } },
+        { "id": "eq-6-Lend", "name": "Lend", "desc": "Lend.", "expression": "GDP * lend_rate", "role": "behavioral", "unitMeta": { "stockFlow": "flow", "signature": { "money": 1, "time": -1 } } },
+        { "id": "eq-7-Loans", "name": "Loans", "desc": "Loans.", "expression": "Lend", "role": "definition", "unitMeta": { "stockFlow": "flow", "signature": { "money": 1, "time": -1 } } },
+        { "id": "eq-8-Debt", "name": "Debt", "desc": "Private debt.", "expression": "lag(Debt) + Loans", "role": "accumulation", "unitMeta": { "stockFlow": "stock", "signature": { "money": 1 } } },
+        { "id": "eq-9-Interest", "name": "Interest", "desc": "Interest.", "expression": "Debt * Interest_rate", "role": "definition", "unitMeta": { "stockFlow": "flow", "signature": { "money": 1, "time": -1 } } },
+        { "id": "eq-10-Fee", "name": "Fee", "desc": "Fee.", "expression": "Interest * Fee_rate", "role": "definition", "unitMeta": { "stockFlow": "flow", "signature": { "money": 1, "time": -1 } } },
+        { "id": "eq-11-Spend_banks", "name": "Spend_banks", "desc": "Bank spending.", "expression": "Banks_eq * Spend_rate", "role": "behavioral", "unitMeta": { "stockFlow": "flow", "signature": { "money": 1, "time": -1 } } },
+        { "id": "eq-12-Con_W", "name": "Con_W", "desc": "Worker consumption.", "expression": "Workers_eq * Workers_spendrate", "role": "behavioral", "unitMeta": { "stockFlow": "flow", "signature": { "money": 1, "time": -1 } } },
+        { "id": "eq-13-Wages", "name": "Wages", "desc": "Wages.", "expression": "GDP * Wage_rate", "role": "definition", "unitMeta": { "stockFlow": "flow", "signature": { "money": 1, "time": -1 } } },
+        { "id": "eq-14-Tax", "name": "Tax", "desc": "Taxes.", "expression": "GDP * Tax_frac", "role": "policy", "unitMeta": { "stockFlow": "flow", "signature": { "money": 1, "time": -1 } } },
+        { "id": "eq-15-Workers_eq", "name": "Workers_eq", "desc": "Workers account.", "expression": "lag(Workers_eq) + Wages - Con_W - Tax", "role": "accumulation", "unitMeta": { "stockFlow": "stock", "signature": { "money": 1 } } },
+        { "id": "eq-16-Firms_eq", "name": "Firms_eq", "desc": "Firms account.", "expression": "lag(Firms_eq) + Con_W + Loans + Spend_Govt + Spend_banks - Wages - Interest - Fee", "role": "accumulation", "unitMeta": { "stockFlow": "stock", "signature": { "money": 1 } } },
+        { "id": "eq-17-Banks_eq", "name": "Banks_eq", "desc": "Banks account.", "expression": "lag(Banks_eq) + Interest + Fee + Int_Bonds - Spend_banks", "role": "accumulation", "unitMeta": { "stockFlow": "stock", "signature": { "money": 1 } } },
+        { "id": "eq-18-Govt_Debt_GDP", "name": "Govt_Debt_GDP", "desc": "Government debt to GDP.", "expression": "Gov_Bonds / GDP", "role": "definition", "unitMeta": { "stockFlow": "aux" } },
+        { "id": "eq-19-Private_Debt_GDP", "name": "Private_Debt_GDP", "desc": "Private debt to GDP.", "expression": "Debt / GDP", "role": "definition", "unitMeta": { "stockFlow": "aux" } },
+        { "id": "eq-20-BankAssets", "name": "BankAssets", "desc": "Bank assets.", "expression": "Gov_Bonds + Debt", "role": "identity", "unitMeta": { "stockFlow": "stock", "signature": { "money": 1 } } },
+        { "id": "eq-21-NominalGrowth", "name": "NominalGrowth", "desc": "GDP growth.", "expression": "(GDP - lag(GDP)) / lag(GDP)", "role": "definition", "unitMeta": { "stockFlow": "aux" } }
+      ]
+    },
+    { "id": "endogenous-money-solver", "type": "solver", "title": "Solver", "modelId": "endogenous-money-model", "options": { "solverMethod": "GAUSS_SEIDEL", "toleranceText": "1e-8", "maxIterations": 200, "defaultInitialValueText": "1e-15", "hiddenLeftVariable": "", "hiddenRightVariable": "", "hiddenToleranceText": "1e-5", "relativeHiddenTolerance": false }, "collapsed": true },
+    {
+      "id": "endogenous-money-externals",
+      "type": "externals",
+      "title": "Externals",
+      "modelId": "endogenous-money-model",
+      "externals": [
+        { "id": "ext-0-Spend_Govt", "name": "Spend_frac", "desc": "Government spending.", "kind": "constant", "valueText": "0.31", "unitMeta": { "stockFlow": "aux", "signature": { "money": 1, "time": -1 } } },
+        { "id": "ext-1-Velocity", "name": "Velocity", "desc": "Velocity.", "kind": "constant", "valueText": "2", "unitMeta": { "stockFlow": "aux", "signature": { "time": -1 } } },
+        { "id": "ext-2-lend_rate", "name": "lend_rate", "desc": "Lend rate.", "kind": "constant", "valueText": "0.05", "unitMeta": { "stockFlow": "aux" } },
+        { "id": "ext-4-Interest_Rate", "name": "Interest_rate", "desc": "Debt interest rate.", "kind": "constant", "valueText": "0.05", "unitMeta": { "stockFlow": "aux", "signature": { "time": -1 } } },
+        { "id": "ext-5-Fee_rate", "name": "Fee_rate", "desc": "Fee rate.", "kind": "constant", "valueText": "0.5", "unitMeta": { "stockFlow": "aux" } },
+        { "id": "ext-6-Spend_rate", "name": "Spend_rate", "desc": "Bank spend rate.", "kind": "constant", "valueText": "0.1", "unitMeta": { "stockFlow": "aux", "signature": { "time": -1 } } },
+        { "id": "ext-7-Workers_spendrate", "name": "Workers_spendrate", "desc": "Worker spend rate.", "kind": "constant", "valueText": "0.08", "unitMeta": { "stockFlow": "aux", "signature": { "time": -1 } } },
+        { "id": "ext-8-Wage_rate", "name": "Wage_rate", "desc": "Wage rate.", "kind": "constant", "valueText": "0.65", "unitMeta": { "stockFlow": "aux" } },
+        { "id": "ext-9-Tax_rate", "name": "Tax_frac", "desc": "Tax rate.", "kind": "constant", "valueText": "0.3", "unitMeta": { "stockFlow": "aux" } }
+      ]
+    },
+    {
+      "id": "endogenous-money-initial-values",
+      "type": "initial-values",
+      "title": "Initial values",
+      "modelId": "endogenous-money-model",
+      "initialValues": [
+        { "id": "init-3-Workers_eq", "name": "Workers_eq", "valueText": "80" },
+        { "id": "init-4-Firms_eq", "name": "Firms_eq", "valueText": "10" },
+        { "id": "init-5-Banks_eq", "name": "Banks_eq", "valueText": "10" }
+      ]
+    },
+    { "id": "baseline-run", "type": "run", "title": "Baseline run", "description": "Baseline endogenous-money run.", "sourceModelId": "endogenous-money-model", "mode": "baseline", "periods": 80, "resultKey": "endogenous_money_baseline" },
+    { "id": "baseline-money-chart", "type": "chart", "title": "Money, loans, and GDP", "sourceRunCellId": "baseline-run", "variables": ["GDP", "Money", "Loans", "BankAssets"], "axisMode": "separate", "axisSnapTolarance": 0.1, "niceScale": true },
+    { "id": "baseline-debt-chart", "type": "chart", "title": "Debt ratios", "sourceRunCellId": "baseline-run", "variables": ["Govt_Debt_GDP", "Private_Debt_GDP", "Gov_Bonds", "Debt"], "axisMode": "separate", "axisSnapTolarance": 0.1, "niceScale": true },
+    { "id": "baseline-sector-table", "type": "table", "title": "Sector account summary", "sourceRunCellId": "baseline-run", "variables": ["Workers_eq", "Firms_eq", "Banks_eq", "Money", "GDP", "Govt_Debt_GDP", "Private_Debt_GDP"] },
+    { "id": "higher-spending-note", "type": "markdown", "title": "Scenario", "source": "## Scenario: higher government spending\n\nThis scenario raises `Spend_Govt` from 35 to 45 from period 10 onward. The debt-ratio charts show the response of government and private debt relative to GDP." },
+    {
+      "id": "higher-deficit-run",
+      "type": "run",
+      "title": "Scenario: higher government spending",
+      "description": "Raise government spending.",
+      "mode": "scenario",
+      "scenario": {
+        "shocks": [
+          { "variables": { "Spend_Govt": { "kind": "constant", "value": 45 } }, "startPeriodInclusive": 10, "endPeriodInclusive": 80 }
+        ]
+      },
+      "baselineRunCellId": "baseline-run",
+      "periods": 80,
+      "resultKey": "endogenous_money_higher_spending",
+      "sourceModelId": "endogenous-money-model"
+    },
+    { "id": "higher-deficit-chart", "type": "chart", "title": "Higher spending results", "sourceRunCellId": "higher-deficit-run", "variables": ["GDP", "Govt_Debt_GDP", "Private_Debt_GDP", "Money"], "axisMode": "separate", "axisSnapTolarance": 0.1, "niceScale": true },
+    { "id": "equation-dependency-graph", "type": "sequence", "title": "Endogenous money dependency graph", "description": "Model dependency view.", "source": { "kind": "dependency", "modelId": "endogenous-money-model", "showAccountingStrips": true, "showExogenous": false }, "collapsed": true }
+  ]
+}

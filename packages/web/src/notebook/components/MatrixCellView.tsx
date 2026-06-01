@@ -5,7 +5,8 @@ import {
   computeMatrixAccountRowTotal,
   resolveMatrixAccountColumnCellClasses,
   type MatrixColumnDisplaySlot,
-  usesMatrixAccountColumnLayout
+  usesMatrixAccountColumnLayout,
+  usesMatrixSectorColumnLayout
 } from "@sfcr/notebook-core";
 
 import type { MatrixEntryDisplayMode } from "../matrixEntryDisplay";
@@ -105,6 +106,9 @@ export function MatrixCellView({
   const displaySlots = columnLayout.displaySlots;
   const usesColumnTree = columnLayout.usesColumnTree;
   const accountColumnLayout = usesMatrixAccountColumnLayout(cell.columnBadges);
+  const sectorGroupedColumns =
+    accountColumnLayout ||
+    usesMatrixSectorColumnLayout(cell.columns, cell.sectors, cell.columnBadges, cell.columnTree);
   const result = cell.sourceRunCellId ? runner.getResult(cell.sourceRunCellId) : null;
   const editor = cell.sourceRunCellId ? resolveEditorStateForRunCellId(cells, cell.sourceRunCellId) : null;
   const currentValues = result
@@ -417,6 +421,7 @@ export function MatrixCellView({
       collapsedNodeIds={collapsedColumnTreeNodeIds}
       editorLinked={editor != null}
       accountColumnLayout={accountColumnLayout}
+      sectorGroupedColumns={sectorGroupedColumns}
       onToggleNode={toggleColumnTreeNode}
       onInspectVariable={editor ? handleInspectVariable : undefined}
     />
@@ -481,7 +486,7 @@ export function MatrixCellView({
             key={row.label}
             className={
               [
-                accountColumnLayout && rowIndex === 0 && !row.isSumRow
+                sectorGroupedColumns && rowIndex === 0 && !row.isSumRow
                   ? "notebook-matrix-flow-start-row"
                   : undefined,
                 row.isSumRow ? "notebook-matrix-sum-row" : undefined,
@@ -509,6 +514,7 @@ export function MatrixCellView({
             </th>
             {renderMatrixRowDataCells({
               accountColumnLayout,
+              sectorGroupedColumns,
               cell,
               displaySlots,
               entryDisplayMode,
@@ -603,7 +609,7 @@ export function MatrixCellView({
                     className={[
                       "notebook-matrix-table",
                       "notebook-matrix-table-virtualized",
-                      accountColumnLayout ? "notebook-matrix-table-account-columns" : undefined
+                      sectorGroupedColumns ? "notebook-matrix-table-account-columns" : undefined
                     ]
                       .filter(Boolean)
                       .join(" ")}
@@ -642,7 +648,7 @@ export function MatrixCellView({
                 className={[
                   "notebook-matrix-table",
                   isVirtualizedMatrix ? "notebook-matrix-table-virtualized" : undefined,
-                  accountColumnLayout ? "notebook-matrix-table-account-columns" : undefined
+                  sectorGroupedColumns ? "notebook-matrix-table-account-columns" : undefined
                 ]
                   .filter(Boolean)
                   .join(" ")}
@@ -905,6 +911,7 @@ export function MatrixCellView({
 
 function renderMatrixRowDataCells({
   accountColumnLayout,
+  sectorGroupedColumns,
   cell,
   currentValues,
   displaySlots,
@@ -927,6 +934,7 @@ function renderMatrixRowDataCells({
   onColumnContextMenu
 }: {
   accountColumnLayout: boolean;
+  sectorGroupedColumns: boolean;
   cell: MatrixCell;
   currentValues: Record<string, number | undefined>;
   displaySlots: MatrixColumnDisplaySlot[];
@@ -967,14 +975,14 @@ function renderMatrixRowDataCells({
         <td
           key={`${row.label}-collapsed-${slot.nodeId}`}
           className={
-            accountColumnLayout
+            sectorGroupedColumns
               ? "notebook-matrix-tree-collapsed-stub notebook-matrix-sector-start"
               : "notebook-matrix-tree-collapsed-stub"
           }
           aria-label={`${expandTitle} collapsed`}
           title={`Expand ${expandTitle}`}
         >
-          {accountColumnLayout && collapsedLabel ? collapsedLabel : "—"}
+          {sectorGroupedColumns && collapsedLabel ? collapsedLabel : "—"}
         </td>
       );
       continue;
@@ -1141,7 +1149,7 @@ function renderMatrixLeafDataCell({
 
   return (
     <td
-      key={`${row.label}-${cell.columns[columnIndex] ?? columnIndex}`}
+      key={`${rowIndex}-${columnIndex}`}
       className={
         [
           ...resolveMatrixAccountColumnCellClasses(

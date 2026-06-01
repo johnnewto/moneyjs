@@ -63,6 +63,29 @@ cells:
         - [Interest, Bond interest, "", "", -Int_Bonds, +Int_Bonds, "0"]
         - [Bank spending, Bank spending, +Spend_banks, "", "", -Spend_banks, "0"]
         - [Sum, Sum, "0", "0", "0", "0", "0"]
+  - matrix:
+      id: account-transactions
+      collapsed: false
+      sourceRunCellId: baseline-run
+      title: Endogenous money account transactions
+      description: Account-level transaction matrix with deposit, debt, and bond columns by sector.
+      note: Columns group balance-sheet accounts by sector. Use Expand all / Collapse all or click sector headers to show or hide account columns.
+      columns: [Deposits (Workers_eq), Deposits (Firms_eq), Private debt (Debt), Gov bonds (Gov_Bonds), Worker deposits, Firm deposits, Private debt, Gov bonds, Bank account (Banks_eq), Sum]
+      sectors: [Households, Firms, Firms, Government, Banks, Banks, Banks, Banks, Banks, ""]
+      columnBadges: [asset, asset, liability, liability, liability, liability, asset, asset, equity, ""]
+      accountingKind: account-transactions
+      rows:
+        - [Loans, New loans, "", +Loans, -Loans, "", "", -Loans, +Loans, "", "", "0"]
+        - [Consumption, Worker consumption, -Con_W, +Con_W, "", "", -Con_W, +Con_W, "", "", "", "0"]
+        - [Wages, Wages, +Wages, -Wages, "", "", +Wages, -Wages, "", "", "", "0"]
+        - [Taxes, Taxes, -Tax, "", "", +Tax, "", "", "", "", "", "0"]
+        - [Government, Government spending, "", +Spend_Govt, "", -Spend_Govt, "", "", "", "", "", "0"]
+        - [Bonds, Government bonds, "", "", "", +Bonds, "", -Bonds, "", "", "", "0"]
+        - [Interest, Private debt interest, "", -Interest, "", "", "", "", "", "", +Interest, "0"]
+        - [Fees, Bank fees, "", -Fee, "", "", "", "", "", "", +Fee, "0"]
+        - [Interest, Bond interest, "", "", "", -Int_Bonds, "", "", "", "", +Int_Bonds, "0"]
+        - [Bank spending, Bank spending, "", +Spend_banks, "", "", "", "", "", "", -Spend_banks, "0"]
+        - [Sum, Sum, Workers_eq, Firms_eq, Debt, Gov_Bonds, Workers_eq, Firms_eq, Debt, Gov_Bonds, Banks_eq, "0"]
   - sequence:
       id: transaction-sequence
       title: Endogenous money transaction sequence
