@@ -7,7 +7,11 @@ import {
   type VariableDescriptions
 } from "../lib/variableDescriptions";
 import { buildVariableUnitMetadata } from "../lib/units";
-import { resolveInspectorModelSource, type VariableInspectRequest } from "../lib/variableInspect";
+import {
+  findRunCellForInspectorModelSource,
+  resolveInspectorModelSource,
+  type VariableInspectRequest
+} from "../lib/variableInspect";
 import {
   buildEditorStateForNotebookModel,
   findEquationsCell,
@@ -1932,10 +1936,12 @@ function resolveNotebookInspectionContext({
   }
 
   if (cell.type === "model") {
+    const modelSource = { sourceModelCellId: cell.id };
     return {
       currentValues: getModelCurrentValues({ sourceModelCellId: cell.id }),
       editor: cell.editor,
-      modelSource: { sourceModelCellId: cell.id },
+      modelSource,
+      sourceRunCellId: findRunCellForInspectorModelSource(cells, modelSource)?.id ?? null,
       variableDescriptions: buildVariableDescriptions({
         equations: cell.editor.equations,
         externals: cell.editor.externals
@@ -1953,10 +1959,12 @@ function resolveNotebookInspectionContext({
     cell.type === "initial-values" ||
     cell.type === "solver"
   ) {
+    const modelSource = { sourceModelId: cell.modelId };
     return {
       currentValues: getModelCurrentValues({ modelId: cell.modelId }),
       editor: buildEditorStateForStandaloneModelSections(cells, cell.modelId),
-      modelSource: { sourceModelId: cell.modelId },
+      modelSource,
+      sourceRunCellId: findRunCellForInspectorModelSource(cells, modelSource)?.id ?? null,
       variableDescriptions: resolveModelVariableDescriptionsForModelId(cells, cell.modelId),
       variableUnitMetadata: resolveModelVariableUnitMetadataForModelId(cells, cell.modelId)
     };
@@ -1990,6 +1998,7 @@ function resolveNotebookInspectionContext({
       currentValues,
       editor,
       modelSource: resolveInspectorModelSource(cell),
+      sourceRunCellId: cell.id,
       variableDescriptions: resolveModelVariableDescriptionsForRunCell(cells, cell),
       variableUnitMetadata: resolveModelVariableUnitMetadataForRunCell(cells, cell)
     };

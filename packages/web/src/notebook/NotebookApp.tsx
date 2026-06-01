@@ -151,7 +151,10 @@ import { buildVariableDescriptions } from "../lib/variableDescriptions";
 import { buildVariableUnitMetadata } from "../lib/units";
 import {
   applyInspectorDefiningEquationExpression,
+  buildInspectorCurrentValues,
+  buildInspectorSeriesValues,
   buildVariableInspectRequestFromCatalogRow,
+  resolveInspectorRunCell,
   isInspectorModelEditable,
   isSameInspectorContext,
   resolveInspectorModelSource,
@@ -779,9 +782,28 @@ export function NotebookApp() {
 
     return Math.max(configuredMaxPeriodIndex, outputMaxPeriodIndex);
   }, [notebookDocument, runner.outputs]);
+  const inspectorCurrentValues = useMemo(
+    () =>
+      inspectorContext
+        ? buildInspectorCurrentValues({
+            cells: notebookDocument.cells,
+            getResult: (runCellId) => runner.getResult(runCellId),
+            modelSource: inspectorContext.modelSource,
+            selectedPeriodIndex,
+            sourceRunCellId: inspectorContext.sourceRunCellId
+          })
+        : {},
+    [
+      inspectorContext,
+      inspectorContext?.sourceRunCellId,
+      notebookDocument.cells,
+      runner.outputs,
+      selectedPeriodIndex
+    ]
+  );
   const selectedVariableData = inspectorContext
     ? buildVariableInspectorData({
-        currentValues: inspectorContext.currentValues,
+        currentValues: inspectorCurrentValues,
         editor: inspectorContext.editor,
         notebookCells: notebookDocument.cells,
         selectedVariable: inspectorContext.selectedVariable,
@@ -789,6 +811,25 @@ export function NotebookApp() {
         variableUnitMetadata: inspectorContext.variableUnitMetadata
       })
     : null;
+  const inspectorSeriesValues = useMemo(() => {
+    if (!inspectorContext || !selectedVariableData) {
+      return undefined;
+    }
+
+    return buildInspectorSeriesValues({
+      cells: notebookDocument.cells,
+      getResult: (runCellId) => runner.getResult(runCellId),
+      modelSource: inspectorContext.modelSource,
+      sourceRunCellId: inspectorContext.sourceRunCellId,
+      variableName: selectedVariableData.name
+    });
+  }, [
+    inspectorContext,
+    inspectorContext?.sourceRunCellId,
+    notebookDocument.cells,
+    runner.outputs,
+    selectedVariableData?.name
+  ]);
   const notebookMainDragScroll = useDragScroll<HTMLDivElement>();
   const notebookRailDragScroll = useDragScroll<HTMLElement>();
   const handleMainColumnRef = useCallback(
@@ -1274,12 +1315,18 @@ export function NotebookApp() {
   }
 
   function handleVariableInspectRequest(args: VariableInspectRequest): void {
-    if (isSameInspectorContext(inspectorContext, args)) {
-      inspectorVariableHistory.push(args.selectedVariable);
+    const sourceRunCellId =
+      args.sourceRunCellId ??
+      resolveInspectorRunCell(notebookDocument.cells, args.modelSource, null)?.id ??
+      null;
+    const request: VariableInspectRequest = { ...args, sourceRunCellId };
+
+    if (isSameInspectorContext(inspectorContext, request)) {
+      inspectorVariableHistory.push(request.selectedVariable);
     } else {
-      inspectorVariableHistory.reset(args.selectedVariable);
+      inspectorVariableHistory.reset(request.selectedVariable);
     }
-    setInspectorContext(args);
+    setInspectorContext(request);
     setActiveRailTab("inspect");
   }
 
@@ -3338,7 +3385,7 @@ export function NotebookApp() {
               canGoBack={inspectorVariableHistory.canGoBack}
               canGoForward={inspectorVariableHistory.canGoForward}
               commitStyle="draft"
-              currentValues={inspectorContext?.currentValues}
+              currentValues={inspectorCurrentValues}
               data={selectedVariableData}
               onApplyDefiningExpression={handleInspectorDefiningExpressionApply}
               onGoBack={handleInspectorGoBack}
@@ -3356,6 +3403,8 @@ export function NotebookApp() {
               onParameterOverrideRelease={handleParameterOverrideRelease}
               parameterNames={inspectorContext?.editor.externals.map((external) => external.name) ?? []}
               parameterOverrides={parameterOverrides}
+              selectedPeriodIndex={selectedPeriodIndex}
+              seriesValues={inspectorSeriesValues}
               variableDescriptions={inspectorContext?.variableDescriptions}
               variableUnitMetadata={inspectorContext?.variableUnitMetadata}
             />

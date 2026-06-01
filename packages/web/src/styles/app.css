@@ -1792,11 +1792,53 @@ body.panel-splitter-body-lock {
   line-height: 1.5;
 }
 
+.variable-inspector-hero-block {
+  display: grid;
+  gap: 0.35rem;
+}
+
 .variable-inspector-hero {
   align-items: start;
   display: flex;
   gap: 0.45rem;
   justify-content: space-between;
+}
+
+.variable-inspector-sparkline-wrap {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.variable-inspector-sparkline {
+  display: block;
+  height: 6.2rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.variable-inspector-sparkline-range {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.variable-inspector-sparkline-line {
+  stroke: #111827;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.variable-inspector-sparkline-marker-ring {
+  fill: #ffffff;
+  stroke: #111827;
+  stroke-width: 1.5;
+}
+
+.variable-inspector-sparkline-marker {
+  fill: #111827;
 }
 
 .variable-inspector-hero-title {
@@ -1951,21 +1993,6 @@ body.panel-splitter-body-lock {
   cursor: pointer;
 }
 
-.inspector-equation-edit-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 0.75rem;
-  margin-bottom: 0.35rem;
-}
-
-.inspector-equation-edit-toggle {
-  align-items: center;
-  color: #475569;
-  display: inline-flex;
-  font-size: 0.78rem;
-  gap: 0.35rem;
-}
-
 .inspector-equation-editor {
   display: grid;
   gap: 0.35rem;
@@ -1985,18 +2012,34 @@ body.panel-splitter-body-lock {
   gap: 0.4rem;
 }
 
-.inspector-helper {
-  color: #64748b;
-  font-size: 0.88rem;
-}
-
 .inspector-generated-explanation {
   background: rgba(255, 248, 220, 0.45);
   border: 1px solid rgba(245, 158, 11, 0.24);
   border-radius: 12px;
-  display: grid;
-  gap: 0.2rem;
   padding: 0.42rem 0.52rem;
+}
+
+.inspector-generated-explanation summary {
+  color: #334155;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 650;
+  list-style: none;
+}
+
+.inspector-generated-explanation summary::-webkit-details-marker {
+  display: none;
+}
+
+.inspector-generated-explanation[open] summary {
+  margin-bottom: 0.2rem;
+}
+
+.inspector-generated-explanation p {
+  color: #475569;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  margin: 0;
 }
 
 .inspector-related-equation-list {

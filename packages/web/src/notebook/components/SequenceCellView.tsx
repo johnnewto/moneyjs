@@ -175,6 +175,7 @@ function MatrixSequenceCellView({
         currentValues: bundle.currentValues,
         editor: bundle.editor,
         modelSource: bundle.modelSource,
+        sourceRunCellId: bundle.sourceRunCellId,
         selectedVariable,
         variableDescriptions: bundle.variableDescriptions,
         variableUnitMetadata: bundle.variableUnitMetadata

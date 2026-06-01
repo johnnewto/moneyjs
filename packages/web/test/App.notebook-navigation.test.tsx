@@ -542,7 +542,8 @@ describe("App notebook navigation and inspection", () => {
       throw new Error("Expected variable inspector container.");
     }
 
-    await user.click(within(inspector).getByRole("checkbox", { name: /^Edit expression$/i }));
+    const inspectorEquationDisplay = within(inspector).getByTitle(/^Double-click expression to edit$/i);
+    await user.dblClick(inspectorEquationDisplay);
     const expressionField = within(inspector).getByRole("textbox", { name: /^Expression for Y$/i });
     fireEvent.change(expressionField, { target: { value: "Cs + Is + G" } });
     await user.click(within(inspector).getByRole("button", { name: /^Apply$/i }));

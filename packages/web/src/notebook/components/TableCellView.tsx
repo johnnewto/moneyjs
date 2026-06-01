@@ -67,6 +67,7 @@ export function TableCellView({
           currentValues,
           editor,
           modelSource,
+          sourceRunCellId: cell.sourceRunCellId,
           selectedVariable,
           variableDescriptions,
           variableUnitMetadata

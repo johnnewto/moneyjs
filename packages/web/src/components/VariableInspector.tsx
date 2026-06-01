@@ -13,6 +13,7 @@ import type { VariableUnitMetadata } from "../lib/unitMeta";
 import { HighlightedFormulaInput, highlightFormula } from "./EquationGridEditor";
 import { ParameterSliderControl } from "./ParameterSliderControl";
 import { VariableLabel } from "./VariableLabel";
+import { VariableInspectorSparkline } from "./VariableInspectorSparkline";
 
 interface VariableInspectorProps {
   canEditDefiningEquation?: boolean;
@@ -32,6 +33,8 @@ interface VariableInspectorProps {
   onSelectVariable(variableName: string): void;
   parameterNames?: string[];
   parameterOverrides?: ConstantExternalOverrides;
+  selectedPeriodIndex?: number;
+  seriesValues?: number[];
   variableDescriptions?: VariableDescriptions;
   variableUnitMetadata?: VariableUnitMetadata;
 }
@@ -54,6 +57,8 @@ export function VariableInspector({
   onSelectVariable,
   parameterNames = [],
   parameterOverrides = {},
+  selectedPeriodIndex,
+  seriesValues,
   variableDescriptions,
   variableUnitMetadata
 }: VariableInspectorProps) {
@@ -61,6 +66,7 @@ export function VariableInspector({
     <section className="control-panel variable-inspector-panel">
       {data ? (
         <div className="variable-inspector-body">
+          <div className="variable-inspector-hero-block">
           <div className="variable-inspector-hero">
             <div className="variable-inspector-hero-title">
               <div className="variable-inspector-eyebrow-row">
@@ -106,6 +112,13 @@ export function VariableInspector({
               ) : null}
               {data.unitLabel ? <span className="inspector-badge is-muted">{data.unitLabel}</span> : null}
             </div>
+          </div>
+          {seriesValues ? (
+            <VariableInspectorSparkline
+              selectedPeriodIndex={selectedPeriodIndex}
+              seriesValues={seriesValues}
+            />
+          ) : null}
           </div>
 
           <InspectorSection title={data.description?.trim() || "Equation"}>
@@ -403,28 +416,8 @@ function InspectorDefiningEquation({
     }
   }
 
-  const editControls = canEdit ? (
-    <div className="inspector-equation-edit-controls">
-      <label className="inspector-equation-edit-toggle">
-        <input
-          checked={isEditing}
-          onChange={(event) => {
-            if (event.target.checked) {
-              beginEditing();
-            } else {
-              cancelEditing();
-            }
-          }}
-          type="checkbox"
-        />
-        <span>Edit expression</span>
-      </label>
-    </div>
-  ) : null;
-
   return (
     <>
-      {editControls}
       {isEditing ? (
         <div className="inspector-equation-editor">
           <div className="inspector-equation-editor-lhs">
@@ -500,18 +493,13 @@ function InspectorDefiningEquation({
               currentValues
             )}
           </code>
-          {canEdit ? (
-            <p className="inspector-helper">
-              Double-click the expression to edit, or check Edit expression.
-            </p>
-          ) : null}
         </>
       )}
       {generatedEquationExplanation ? (
-        <div className="inspector-generated-explanation">
-          <div className="inspector-chip-label">Generated explanation</div>
+        <details className="inspector-generated-explanation">
+          <summary>Generated explanation</summary>
           <p>{generatedEquationExplanation}</p>
-        </div>
+        </details>
       ) : null}
     </>
   );

@@ -240,7 +240,7 @@ export function catalogRowToAssistantEntry(row: VariableCatalogRow, unitMeta: Un
   };
 }
 
-function findLatestRunForModelKey(document: NotebookDocument, modelKey: string): RunCell | null {
+export function findLatestRunForModelKey(document: NotebookDocument, modelKey: string): RunCell | null {
   let latest: RunCell | null = null;
 
   for (const cell of document.cells) {

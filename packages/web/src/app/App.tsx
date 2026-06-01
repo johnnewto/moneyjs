@@ -264,6 +264,10 @@ export function WorkspaceApp() {
     variableDescriptions,
     variableUnitMetadata
   });
+  const inspectorSeriesValues =
+    selectedVariable && solver.result
+      ? Array.from(solver.result.series[selectedVariable.trim()] ?? [])
+      : undefined;
   const workspaceMainDragScroll = useDragScroll<HTMLDivElement>();
   const workspaceSidebarDragScroll = useDragScroll<HTMLElement>();
   const workspacePanelSplitter = usePanelSplitter({
@@ -500,6 +504,8 @@ export function WorkspaceApp() {
             commitStyle="immediate"
             currentValues={currentValueMap}
             data={selectedVariableData}
+            selectedPeriodIndex={selectedPeriodIndex}
+            seriesValues={inspectorSeriesValues}
             onApplyDefiningExpression={(expression) => {
               const definingEquation = selectedVariableData?.definingEquation;
               if (!definingEquation) {

@@ -43,6 +43,7 @@ export function RunCellView({
             currentValues,
             editor,
             modelSource,
+            sourceRunCellId: cell.id,
             selectedVariable,
             variableDescriptions,
             variableUnitMetadata

@@ -1,10 +1,12 @@
+import type { SimulationResult } from "@sfcr/core";
+
 import type { EditorState } from "./editorModel";
-import type { NotebookCell, NotebookDocument } from "../notebook/types";
+import type { NotebookCell, NotebookDocument, RunCell } from "../notebook/types";
 import { findEquationsCell, findExternalsCell, findInitialValuesCell, findLegacyModelCell, findSolverCell } from "../notebook/modelSections";
 import { buildVariableDescriptions } from "./variableDescriptions";
 import { buildVariableUnitMetadata } from "./units";
 import type { VariableCatalogRow } from "./variableCatalog";
-import { listCatalogModelContexts } from "./variableCatalog";
+import { findLatestRunForModelKey, listCatalogModelContexts } from "./variableCatalog";
 
 export type InspectorModelSource = { sourceModelId: string } | { sourceModelCellId: string };
 
@@ -12,12 +14,93 @@ export interface VariableInspectContext {
   currentValues: Record<string, number | undefined>;
   editor: EditorState;
   modelSource: InspectorModelSource | null;
+  sourceRunCellId?: string | null;
   variableDescriptions: import("./variableDescriptions").VariableDescriptions;
   variableUnitMetadata: import("./unitMeta").VariableUnitMetadata;
 }
 
 export interface VariableInspectRequest extends VariableInspectContext {
   selectedVariable: string;
+}
+
+export function findRunCellForInspectorModelSource(
+  cells: NotebookCell[],
+  modelSource: InspectorModelSource | null
+): RunCell | null {
+  return resolveInspectorRunCell(cells, modelSource, null);
+}
+
+export function resolveInspectorRunCell(
+  cells: NotebookCell[],
+  modelSource: InspectorModelSource | null,
+  sourceRunCellId?: string | null
+): RunCell | null {
+  if (sourceRunCellId) {
+    const explicit = cells.find(
+      (cell): cell is RunCell => cell.type === "run" && cell.id === sourceRunCellId
+    );
+    if (explicit) {
+      return explicit;
+    }
+  }
+
+  if (!modelSource) {
+    return null;
+  }
+
+  for (const cell of cells) {
+    if (cell.type !== "run") {
+      continue;
+    }
+
+    if (isSameInspectorModelSource(resolveInspectorModelSource(cell), modelSource)) {
+      return cell;
+    }
+  }
+
+  return null;
+}
+
+export function buildInspectorCurrentValues(args: {
+  cells: NotebookCell[];
+  getResult: (runCellId: string) => SimulationResult | null;
+  modelSource: InspectorModelSource | null;
+  selectedPeriodIndex: number;
+  sourceRunCellId?: string | null;
+}): Record<string, number | undefined> {
+  const runCell = resolveInspectorRunCell(args.cells, args.modelSource, args.sourceRunCellId);
+  if (!runCell) {
+    return {};
+  }
+
+  const result = args.getResult(runCell.id);
+  if (!result) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(result.series).map(([name, values]) => [
+      name,
+      values[Math.min(args.selectedPeriodIndex, Math.max(values.length - 1, 0))]
+    ])
+  );
+}
+
+export function buildInspectorSeriesValues(args: {
+  cells: NotebookCell[];
+  getResult: (runCellId: string) => SimulationResult | null;
+  modelSource: InspectorModelSource | null;
+  sourceRunCellId?: string | null;
+  variableName: string;
+}): number[] | undefined {
+  const runCell = resolveInspectorRunCell(args.cells, args.modelSource, args.sourceRunCellId);
+  if (!runCell) {
+    return undefined;
+  }
+
+  const result = args.getResult(runCell.id);
+  const values = result?.series[args.variableName.trim()];
+  return values ? Array.from(values) : undefined;
 }
 
 export function isSameInspectorModelSource(
@@ -170,10 +253,18 @@ export function buildVariableInspectRequestFromCatalogRow(args: {
     return null;
   }
 
+  const catalogContext = listCatalogModelContexts(args.document).find(
+    (context) => context.modelId === args.row.modelId
+  );
+  const sourceRunCellId = catalogContext
+    ? findLatestRunForModelKey(args.document, catalogContext.modelKey)?.id ?? null
+    : null;
+
   return {
     currentValues: args.currentValues,
     editor,
     modelSource: args.row.modelSource,
+    sourceRunCellId,
     selectedVariable: args.row.name,
     variableDescriptions: buildVariableDescriptions({
       equations: editor.equations,

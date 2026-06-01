@@ -153,10 +153,12 @@ export function MatrixCellView({
     ? cells.find((entry): entry is RunCell => entry.type === "run" && entry.id === cell.sourceRunCellId)
     : null;
   const modelSource = sourceRunCell ? resolveInspectorModelSource(sourceRunCell) : null;
+  const sourceRunCellId = cell.sourceRunCellId ?? sourceRunCell?.id ?? null;
   const inspectContextRef = useRef({
     currentValues,
     editor,
     modelSource,
+    sourceRunCellId,
     variableDescriptions,
     variableUnitMetadata
   });
@@ -166,10 +168,11 @@ export function MatrixCellView({
       currentValues,
       editor,
       modelSource,
+      sourceRunCellId,
       variableDescriptions,
       variableUnitMetadata
     };
-  }, [currentValues, editor, modelSource, variableDescriptions, variableUnitMetadata]);
+  }, [currentValues, editor, modelSource, sourceRunCellId, variableDescriptions, variableUnitMetadata]);
 
   const closeContextMenus = useCallback(() => {
     setRowContextMenu(null);

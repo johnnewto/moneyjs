@@ -18,6 +18,7 @@ export interface SequenceMatrixInspectBundle {
   currentValues: Record<string, number | undefined>;
   editor: EditorState | null;
   modelSource: InspectorModelSource | null;
+  sourceRunCellId: string | null;
   parameterNames: Set<string>;
   variableDescriptions: VariableDescriptions;
   variableUnitMetadata: VariableUnitMetadata;
@@ -71,6 +72,7 @@ export function resolveSequenceMatrixInspectBundle(
     currentValues,
     editor,
     modelSource,
+    sourceRunCellId,
     parameterNames,
     variableDescriptions,
     variableUnitMetadata
