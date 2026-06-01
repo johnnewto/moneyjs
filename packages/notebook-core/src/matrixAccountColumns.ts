@@ -145,6 +145,29 @@ export function formatMatrixColumnLeafHeaderLabel(label: string): string {
   return parseMatrixAccountColumnLeafDisplay(label).accountName;
 }
 
+/** Visible account header: column text without trailing (variable) suffix. */
+export function formatMatrixAccountColumnDisplayLabel(label: string): string {
+  const fullLabel = label.trim();
+  const variableSymbol = parseVariableFromColumnLabel(fullLabel);
+  if (variableSymbol) {
+    return fullLabel.replace(/\s*\([^)]+\)\s*$/, "").trim();
+  }
+  return fullLabel;
+}
+
+/** Tooltip title: sector prepended to the display label when sector is set. */
+export function formatMatrixAccountColumnTooltipLabel(
+  columnLabel: string,
+  sectorLabel: string | undefined
+): string {
+  const displayLabel = formatMatrixAccountColumnDisplayLabel(columnLabel);
+  const sector = sectorLabel?.trim() ?? "";
+  if (!sector) {
+    return displayLabel;
+  }
+  return `${sector}.${displayLabel}`;
+}
+
 export function formatMatrixAccountRowBalanceBreakdown(
   row: Array<number | null>,
   columnBadges: string[],
@@ -459,8 +482,8 @@ export function buildMatrixAccountColumnHeaderRows(
       const isHidden = collapsedNodeIds.has(collapseKey);
       rows[1]?.push({
         nodeId: collapseKey,
-        label: leafDisplay.accountName,
-        fullLabel: leafDisplay.fullLabel,
+        label: formatMatrixAccountColumnDisplayLabel(label),
+        fullLabel: formatMatrixAccountColumnTooltipLabel(label, sectors?.[columnIndex]),
         ...(leafDisplay.variableSymbol ? { variableSymbol: leafDisplay.variableSymbol } : {}),
         colSpan: 1,
         rowSpan: 1,

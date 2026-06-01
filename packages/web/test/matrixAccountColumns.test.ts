@@ -11,6 +11,8 @@ import {
   resolveMatrixAccountColumnCellClasses,
   normalizeMatrixAccountBadgeRole,
   formatMatrixSectorCollapsedLabel,
+  formatMatrixAccountColumnDisplayLabel,
+  formatMatrixAccountColumnTooltipLabel,
   parseMatrixAccountColumnLeafDisplay,
   parseMatrixSectorDisplay,
   signedMatrixAccountColumnContribution,
@@ -69,6 +71,18 @@ describe("matrixAccountColumns", () => {
     });
     expect(formatMatrixSectorCollapsedLabel("Firms")).toBe("Firms");
     expect(formatMatrixSectorCollapsedLabel("Banks (Bk)")).toBe("Bk");
+  });
+
+  it("formats account column display labels and sector-prefixed tooltips", () => {
+    expect(formatMatrixAccountColumnDisplayLabel("Deposits (Mh)")).toBe("Deposits");
+    expect(formatMatrixAccountColumnDisplayLabel("Firm.Loans")).toBe("Firm.Loans");
+    expect(formatMatrixAccountColumnDisplayLabel("Households.Deposits (Mh)")).toBe("Households.Deposits");
+
+    expect(formatMatrixAccountColumnTooltipLabel("Deposits (Mh)", "Households(HH)")).toBe(
+      "Households(HH).Deposits"
+    );
+    expect(formatMatrixAccountColumnTooltipLabel("Firm.Loans", "Banks")).toBe("Banks.Firm.Loans");
+    expect(formatMatrixAccountColumnTooltipLabel("Capital", "")).toBe("Capital");
   });
 
   it("parses leaf display names and variable symbols", () => {
@@ -139,12 +153,90 @@ describe("matrixAccountColumns", () => {
     });
     expect(headerRows[1]?.map((cell) => cell.stockRole)).toEqual(["asset", "equity", "asset"]);
     expect(headerRows[1]?.map((cell) => cell.isSectorStart)).toEqual([true, false, true]);
-    expect(headerRows[1]?.map((cell) => cell.label)).toEqual(["Deposits", "Net_Worth", "Deposits"]);
+    expect(headerRows[1]?.map((cell) => cell.label)).toEqual([
+      "Households.Deposits",
+      "Households.Net_Worth",
+      "Firms.Deposits"
+    ]);
     expect(headerRows[1]?.map((cell) => cell.variableSymbol)).toEqual(["Mh", "Vh", "Mf"]);
     expect(headerRows[1]?.map((cell) => cell.fullLabel)).toEqual([
-      "Households.Deposits (Mh)",
-      "Households.Net_Worth (Vh)",
-      "Firms.Deposits (Mf)"
+      "Households.Households.Deposits",
+      "Households.Households.Net_Worth",
+      "Firms.Firms.Deposits"
+    ]);
+  });
+
+  it("builds BMW-style split sector and account headers", () => {
+    const bmwColumns = [
+      "Deposits (Mh)",
+      "Net_Worth (Vh)",
+      "Deposits (Mf)",
+      "Capital",
+      "Loans",
+      "Net_Worth (Vf)",
+      "Firm.Loans",
+      "HH.Deposits",
+      "Firm.Deposits",
+      "Net_Worth (Vb)",
+      "Sum"
+    ];
+    const bmwSectors = [
+      "Households(HH)",
+      "Households(HH)",
+      "Firms",
+      "Firms",
+      "Firms",
+      "Firms",
+      "Banks",
+      "Banks",
+      "Banks",
+      "Banks",
+      ""
+    ];
+    const bmwBadges = [
+      "asset",
+      "equity",
+      "asset",
+      "asset",
+      "liability",
+      "equity",
+      "asset",
+      "liability",
+      "liability",
+      "equity",
+      ""
+    ];
+    const headerRows = buildMatrixAccountColumnHeaderRows(
+      bmwColumns,
+      bmwSectors,
+      bmwBadges,
+      undefined,
+      new Set()
+    );
+
+    expect(headerRows[1]?.map((cell) => cell.label)).toEqual([
+      "Deposits",
+      "Net_Worth",
+      "Deposits",
+      "Capital",
+      "Loans",
+      "Net_Worth",
+      "Firm.Loans",
+      "HH.Deposits",
+      "Firm.Deposits",
+      "Net_Worth"
+    ]);
+    expect(headerRows[1]?.map((cell) => cell.fullLabel)).toEqual([
+      "Households(HH).Deposits",
+      "Households(HH).Net_Worth",
+      "Firms.Deposits",
+      "Firms.Capital",
+      "Firms.Loans",
+      "Firms.Net_Worth",
+      "Banks.Firm.Loans",
+      "Banks.HH.Deposits",
+      "Banks.Firm.Deposits",
+      "Banks.Net_Worth"
     ]);
   });
 

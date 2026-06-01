@@ -172,7 +172,10 @@ function renderHeaderCell({
 }): JSX.Element | string {
   if (cell.isCollapsedStub || cell.isExpandable) {
     const isCollapsed = cell.isCollapsedStub || collapsedNodeIds.has(cell.nodeId);
-    const titleLabel = cell.fullLabel ?? cell.label;
+    const titleLabel =
+      accountColumnLayout && cell.fullLabel?.trim()
+        ? cell.fullLabel.trim()
+        : (cell.fullLabel ?? cell.label);
     return (
       <button
         type="button"
@@ -196,7 +199,7 @@ function renderHeaderCell({
   if (cell.isLeaf) {
     const inspectName = cell.inspectVariable?.trim() || (cell.columnIndex != null ? columns[cell.columnIndex] ?? cell.label : cell.label).trim();
     const displayLabel = cell.label;
-    const titleLabel = cell.fullLabel ?? cell.label;
+    const titleLabel = cell.fullLabel?.trim() || cell.label.trim();
     const variableSymbol = cell.variableSymbol?.trim();
     const isHidden = cell.isLeafHidden === true;
     const badgeButton = cell.stockRole ? (
