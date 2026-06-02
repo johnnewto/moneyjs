@@ -98,7 +98,7 @@ export function TransactionFlowSvgOverlay({
               x={midX - 82}
               y={rowY - 44}
             >
-              <div className="matrix-flow-edge-label" xmlns="http://www.w3.org/1999/xhtml">
+              <div className="matrix-flow-edge-label">
                 <div className="matrix-flow-edge-label__title">{edgeData.flowLabel}</div>
                 {expressionLabel ? (
                   <div className="matrix-flow-edge-label__expr" style={{ color: labelColor }}>

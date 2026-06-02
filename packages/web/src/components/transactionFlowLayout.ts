@@ -219,6 +219,9 @@ function buildRowLabelByIndex(steps: SequenceStep[]): Map<number, string> {
   const labels = new Map<number, string>();
 
   steps.forEach((step, stepIndex) => {
+    if (step.type === "divider") {
+      return;
+    }
     const rowIndex = step.rowIndex ?? stepIndex;
     if (labels.has(rowIndex)) {
       return;
