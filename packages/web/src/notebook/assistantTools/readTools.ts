@@ -204,7 +204,10 @@ export function getCausalLoopDiagram(snapshot: NotebookAssistantSnapshot, modelI
     throw new Error(modelId ? `Unknown model id: ${modelId}` : "No model found.");
   }
 
-  const cld = buildCldFromEditor(model.editor);
+  const cld = buildCldFromEditor(model.editor, {
+    notebookCells: snapshot.document.cells,
+    modelId: model.modelId
+  });
   return {
     modelId: model.modelId,
     modelTitle: model.title,

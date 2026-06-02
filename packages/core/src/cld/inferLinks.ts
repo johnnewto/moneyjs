@@ -1,5 +1,6 @@
 import type { Expr } from "../parser/ast";
-import { parseEquation } from "../parser/parse";
+import { parseEquation, parseExpression } from "../parser/parse";
+import type { MatrixColumnSumBindings } from "../parser/dependencies";
 import type { Link, LinkPolarity } from "./types";
 import { normalizeCldEquationSource } from "./normalize";
 
@@ -11,6 +12,10 @@ interface SignedRef {
   lagged: boolean;
 }
 
+export interface InferLinksOptions {
+  matrixColumnSums?: MatrixColumnSumBindings;
+}
+
 /**
  * Infer signed causal links from equation RHS expressions.
  *
@@ -19,10 +24,12 @@ interface SignedRef {
  */
 export function inferLinksFromEquations(
   equations: Record<string, string>,
-  endogenous: Set<string>
+  endogenous: Set<string>,
+  options: InferLinksOptions = {}
 ): { links: Link[]; errors: string[] } {
   const errors: string[] = [];
   const linkMap = new Map<string, Link>();
+  const matrixColumnSums = options.matrixColumnSums;
 
   for (const [rawTarget, rawSource] of Object.entries(equations)) {
     const target = rawTarget.trim();
@@ -33,7 +40,7 @@ export function inferLinksFromEquations(
 
     let parsed;
     try {
-      parsed = parseEquation(target, source);
+      parsed = parseEquation(target, source, { matrixColumnSums });
     } catch (error) {
       errors.push(
         `${target}: ${error instanceof Error ? error.message : "Unable to parse expression."}`
@@ -41,7 +48,7 @@ export function inferLinksFromEquations(
       continue;
     }
 
-    const refs = collectSignedEndogenousRefs(parsed.expression, 1);
+    const refs = collectSignedEndogenousRefs(parsed.expression, 1, matrixColumnSums);
     for (const ref of refs) {
       if (!endogenous.has(ref.variable)) {
         continue;
@@ -83,12 +90,44 @@ function flipSign(sign: Sign): Sign {
   return sign === 1 ? -1 : 1;
 }
 
-function collectSignedEndogenousRefs(expr: Expr, sign: Sign): SignedRef[] {
+function stripLeadingPlus(source: string): string {
+  return source.startsWith("+") ? source.slice(1).trimStart() : source;
+}
+
+function collectSignedEndogenousRefsFromMatrixCellSources(
+  sources: string[],
+  sign: Sign,
+  matrixColumnSums?: MatrixColumnSumBindings
+): SignedRef[] {
+  const refs: SignedRef[] = [];
+  for (const source of sources) {
+    const trimmed = source.trim();
+    if (!trimmed || trimmed === "0") {
+      continue;
+    }
+    try {
+      const expression = parseExpression(stripLeadingPlus(trimmed));
+      refs.push(...collectSignedEndogenousRefs(expression, sign, matrixColumnSums));
+    } catch {
+      // Ignore invalid matrix cell sources during CLD link inference.
+    }
+  }
+  return refs;
+}
+
+function collectSignedEndogenousRefs(
+  expr: Expr,
+  sign: Sign,
+  matrixColumnSums?: MatrixColumnSumBindings
+): SignedRef[] {
   switch (expr.type) {
     case "Number":
-    case "MatrixColumnSum":
     case "Integral":
       return [];
+    case "MatrixColumnSum": {
+      const sources = matrixColumnSums?.[expr.columnRef.trim()] ?? [];
+      return collectSignedEndogenousRefsFromMatrixCellSources(sources, sign, matrixColumnSums);
+    }
     case "Variable":
       return [{ variable: expr.name, sign, lagged: false }];
     case "Lag":
@@ -96,25 +135,28 @@ function collectSignedEndogenousRefs(expr: Expr, sign: Sign): SignedRef[] {
       return [{ variable: expr.name, sign, lagged: true }];
     case "Unary":
       if (expr.op === "-") {
-        return collectSignedEndogenousRefs(expr.expr, flipSign(sign));
+        return collectSignedEndogenousRefs(expr.expr, flipSign(sign), matrixColumnSums);
       }
       return [];
     case "Binary": {
       if (expr.op === "+" || expr.op === "-") {
-        const leftRefs = collectSignedEndogenousRefs(expr.left, sign);
+        const leftRefs = collectSignedEndogenousRefs(expr.left, sign, matrixColumnSums);
         const rightSign = expr.op === "+" ? sign : flipSign(sign);
-        return [...leftRefs, ...collectSignedEndogenousRefs(expr.right, rightSign)];
+        return [
+          ...leftRefs,
+          ...collectSignedEndogenousRefs(expr.right, rightSign, matrixColumnSums)
+        ];
       }
       if (expr.op === "*") {
         return [
-          ...collectSignedEndogenousRefs(expr.left, sign),
-          ...collectSignedEndogenousRefs(expr.right, sign)
+          ...collectSignedEndogenousRefs(expr.left, sign, matrixColumnSums),
+          ...collectSignedEndogenousRefs(expr.right, sign, matrixColumnSums)
         ];
       }
       if (expr.op === "/") {
         return [
-          ...collectSignedEndogenousRefs(expr.left, sign),
-          ...collectSignedEndogenousRefs(expr.right, flipSign(sign))
+          ...collectSignedEndogenousRefs(expr.left, sign, matrixColumnSums),
+          ...collectSignedEndogenousRefs(expr.right, flipSign(sign), matrixColumnSums)
         ];
       }
       return [];

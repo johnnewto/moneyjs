@@ -39,6 +39,27 @@ describe("generateCld", () => {
     expect(result.links).toEqual([...EXPECTED_LINKS]);
   });
 
+  it("expands sum(column) links via matrixColumnSums bindings", () => {
+    const equations = {
+      A: "1",
+      B: "1",
+      C: "1",
+      Y: "sum(col1)"
+    };
+    const result = generateCld(equations, {
+      matrixColumnSums: {
+        col1: ["+A", "-B", "0", "  + C  "]
+      }
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.links).toEqual([
+      { from: "A", to: "Y", polarity: "+", lagged: false },
+      { from: "B", to: "Y", polarity: "-", lagged: false },
+      { from: "C", to: "Y", polarity: "+", lagged: false }
+    ]);
+  });
+
   it("accepts pedagogical _lag suffixes via normalization", () => {
     const equations = {
       K: "K_lag + I - AF",

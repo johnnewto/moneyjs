@@ -6127,6 +6127,18 @@ button.notebook-matrix-tree-badge-toggle:hover {
   gap: 0.55rem;
 }
 
+.sequence-toolbar-checkbox {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  user-select: none;
+}
+
+.sequence-toolbar-checkbox input {
+  accent-color: #0f172a;
+}
+
 .sequence-toolbar-meta span {
   background: rgba(255, 255, 255, 0.88);
   border: 1px solid rgba(148, 163, 184, 0.28);

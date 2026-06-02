@@ -29,3 +29,5 @@ export interface CldResult {
   loopSummary: string;
   errors: string[];
 }
+
+export type CldNodeKind = "stock" | "flow" | "aux";
