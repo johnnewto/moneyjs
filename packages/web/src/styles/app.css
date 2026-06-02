@@ -1161,7 +1161,6 @@ body.panel-splitter-body-lock {
 
 .result-variable-button.is-document-highlighted,
 .formula-token.is-document-highlighted,
-.matrix-entry-source.is-document-highlighted,
 .assistant-variable-button.is-document-highlighted,
 .chart-legend-item.is-document-highlighted {
   background: rgba(253, 224, 71, 0.28);
@@ -1178,18 +1177,10 @@ body.panel-splitter-body-lock {
   box-shadow: 0 0 0 1px rgba(217, 119, 6, 0.35);
 }
 
-.notebook-matrix-slice-highlight-row > th,
-.notebook-matrix-slice-highlight-row > td {
-  background: rgba(96, 165, 250, 0.1);
-}
-
-.notebook-matrix-slice-highlight-column {
-  background: rgba(96, 165, 250, 0.1);
-}
-
-.notebook-matrix-slice-highlight-header {
-  background: rgba(96, 165, 250, 0.16);
-  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.22);
+.matrix-entry-source.is-document-highlighted {
+  background: rgba(253, 224, 71, 0.22);
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgba(217, 119, 6, 0.4);
 }
 
 .result-variable-button:hover .variable-label-inline {
@@ -5856,6 +5847,31 @@ button.notebook-matrix-tree-badge-toggle:hover {
 .notebook-matrix-table thead th.notebook-matrix-cell-equity,
 .notebook-matrix-table td.notebook-matrix-cell-equity:not(.matrix-balance-error) {
   background: rgba(219, 234, 254, 0.35);
+}
+
+/* Graph rail slice highlight — inset rings stay visible over A/L/E column tints */
+.notebook-matrix-table tr.notebook-matrix-slice-highlight-row > th,
+.notebook-matrix-table tr.notebook-matrix-slice-highlight-row > td {
+  box-shadow: inset 0 0 0 2px rgba(37, 99, 235, 0.62);
+}
+
+.notebook-matrix-table td.notebook-matrix-slice-highlight-column,
+.notebook-matrix-table th.notebook-matrix-slice-highlight-header {
+  box-shadow: inset 0 0 0 2px rgba(37, 99, 235, 0.62);
+}
+
+.notebook-matrix-table tr.notebook-matrix-slice-highlight-row > td.notebook-matrix-slice-highlight-column {
+  box-shadow:
+    inset 0 0 0 2px rgba(37, 99, 235, 0.72),
+    0 0 10px rgba(59, 130, 246, 0.18);
+}
+
+.notebook-matrix-table .matrix-entry-source.is-document-highlighted {
+  background: rgba(253, 224, 71, 0.24);
+  border-radius: 4px;
+  box-shadow:
+    inset 0 0 0 2px rgba(217, 119, 6, 0.88),
+    0 0 0 3px rgba(251, 191, 36, 0.42);
 }
 
 .notebook-matrix-table-account-columns th.notebook-matrix-sector-start,
