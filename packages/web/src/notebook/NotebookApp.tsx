@@ -518,7 +518,10 @@ function resolveModelSourceFromCell(
       return { sourceModelCellId: cell.sourceModelCellId };
     }
   }
-  if (cell.type === "sequence" && cell.source.kind === "dependency") {
+  if (
+    cell.type === "sequence" &&
+    (cell.source.kind === "dependency" || cell.source.kind === "cld")
+  ) {
     const source = cell.source;
     const modelId = source.modelId ?? source.sourceModelId;
     if (modelId && hasRunnableSectionModel(cells, modelId)) {

@@ -293,6 +293,10 @@ export function buildSourceHelperActions(
           label: "Dependency source",
           insert: '"source": {\n  "kind": "dependency",\n  "modelId": "main"\n}'
         },
+        {
+          label: "CLD source",
+          insert: '"source": {\n  "kind": "cld",\n  "modelId": "main"\n}'
+        },
         { label: "Collapsed true", insert: '"collapsed": true' }
       ];
     case "equations":
@@ -911,13 +915,13 @@ function validateCellSourceShape(
       }
       const source = (parsed as SequenceCell).source;
       if (
-        source.kind === "dependency" &&
+        (source.kind === "dependency" || source.kind === "cld") &&
         typeof source.modelId !== "string" &&
         typeof source.sourceModelId !== "string" &&
         typeof source.sourceModelCellId !== "string"
       ) {
         throw new Error(
-          "Dependency sequence sources require modelId, sourceModelId, or sourceModelCellId."
+          `${source.kind === "cld" ? "CLD" : "Dependency"} sequence sources require modelId, sourceModelId, or sourceModelCellId.`
         );
       }
       return;

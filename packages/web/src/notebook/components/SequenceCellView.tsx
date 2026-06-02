@@ -18,6 +18,7 @@ import { resolveSequenceDiagram } from "../sequence";
 import { resolveSequenceMatrixInspectBundle } from "../sequenceMatrixInspect";
 import type { MatrixCell, NotebookCell, SequenceCell } from "../types";
 import type { useNotebookRunner } from "../useNotebookRunner";
+import { CldSequenceView } from "./CldSequenceView";
 import { DependencySequenceSummaryView } from "./DependencySequenceSummaryView";
 
 interface MatrixSequenceViewState {
@@ -87,6 +88,25 @@ export function SequenceCellView({
         cells={cells}
         getModelCurrentValues={getModelCurrentValues}
         onCellChange={onCellChange}
+        onVariableInspectRequest={onVariableInspectRequest}
+        variableDescriptions={variableDescriptions}
+      />
+    );
+  }
+
+  if (cell.source.kind === "cld") {
+    const cldCell: SequenceCell & {
+      source: Extract<SequenceCell["source"], { kind: "cld" }>;
+    } = {
+      ...cell,
+      source: cell.source
+    };
+
+    return (
+      <CldSequenceView
+        cell={cldCell}
+        cells={cells}
+        getModelCurrentValues={getModelCurrentValues}
         onVariableInspectRequest={onVariableInspectRequest}
         variableDescriptions={variableDescriptions}
       />

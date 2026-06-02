@@ -39,6 +39,7 @@ const NOTEBOOK_ASSISTANT_READ_TOOL_NAMES = new Set<string>([
   "getMatrix",
   "getVariableMetadata",
   "getDependencyGraph",
+  "getCausalLoopDiagram",
   "listRuns",
   "listVariables",
   "listCharts"

@@ -163,7 +163,10 @@ export function resolveInspectorModelSourceFromCell(cell: NotebookCell): Inspect
     return resolveInspectorModelSource(cell);
   }
 
-  if (cell.type === "sequence" && cell.source.kind === "dependency") {
+  if (
+    cell.type === "sequence" &&
+    (cell.source.kind === "dependency" || cell.source.kind === "cld")
+  ) {
     return resolveInspectorModelSource(cell.source);
   }
 

@@ -6,6 +6,7 @@ import {
   dispatchNotebookAssistantTool,
   dispatchNotebookAssistantToolRequests,
   getCurrentValues,
+  getCausalLoopDiagram,
   getDependencyGraph,
   getEquation,
   getMatrix,
@@ -161,6 +162,16 @@ describe("notebook assistant tools", () => {
     expect(graph.variable).toBe("Y");
     expect(graph.nodes.map((node) => node.name)).toEqual(expect.arrayContaining(["Y", "Cs", "Is"]));
     expect(graph.edges.length).toBeGreaterThan(0);
+  });
+
+  it("returns causal loop diagram data for a model", () => {
+    const snapshot = buildSnapshot();
+    const cld = getCausalLoopDiagram(snapshot, "equations-newton");
+
+    expect(cld.modelId).toBe("equations-newton");
+    expect(cld.links.length).toBeGreaterThan(0);
+    expect(cld.mermaid).toContain("flowchart TD");
+    expect(cld.loopSummary.length).toBeGreaterThan(0);
   });
 
   it("dispatches tools and returns typed errors", () => {

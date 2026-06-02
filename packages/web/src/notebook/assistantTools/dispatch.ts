@@ -4,7 +4,7 @@ import { createAddChartPatch, createAddMatrixRowPatch, createAddTablePatch, crea
 import { createAddEquationPatch, createAddExternalPatch, createAddInitialValuePatch, createRemoveEquationPatch, createUpdateEquationPatch, createUpdateExternalPatch, createUpdateInitialValuePatch, createUpdateParameterPatch, createUpdateVariableDescriptionPatch, createUpdateVariableUnitMetaPatch } from "./modelPatchBuilders";
 import { createAddMarkdownCellPatch, createAddScenarioRunPatch, createUpdateMarkdownCellPatch, createUpdateNotebookTitlePatch, createUpdateRunOptionsPatch } from "./notebookPatchBuilders";
 import { explainNotebookPatch } from "./patchTools";
-import { getCurrentValues, getDependencyGraph, getEquation, getMatrix, getNotebookSummary, getSeries, getSeriesWindow, getVariableMetadata, listCharts, listRuns, listVariables } from "./readTools";
+import { getCausalLoopDiagram, getCurrentValues, getDependencyGraph, getEquation, getMatrix, getNotebookSummary, getSeries, getSeriesWindow, getVariableMetadata, listCharts, listRuns, listVariables } from "./readTools";
 import { summarizeNotebookPatchResult } from "./shared";
 import { NOTEBOOK_ASSISTANT_TOOL_NAMES, type NotebookAssistantSnapshot, type NotebookAssistantToolName, type NotebookAssistantToolRequest, type NotebookAssistantToolResult } from "./types";
 
@@ -61,6 +61,11 @@ export function dispatchNotebookAssistantTool(
         return success(
           request.name,
           getDependencyGraph(snapshot, optionalString(request.args, "variable") ?? snapshot.selectedVariable ?? undefined)
+        );
+      case "getCausalLoopDiagram":
+        return success(
+          request.name,
+          getCausalLoopDiagram(snapshot, optionalString(request.args, "modelId") ?? undefined)
         );
       case "listRuns":
         return success(request.name, listRuns(snapshot));

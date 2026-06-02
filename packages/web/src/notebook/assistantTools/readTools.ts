@@ -8,6 +8,7 @@ import {
   catalogRowToAssistantEntry,
   listCatalogModelContexts
 } from "../../lib/variableCatalog";
+import { buildCldFromEditor } from "../cld";
 import { buildDependencyGraph } from "../dependencyGraph";
 import type { ChartCell, MatrixCell, RunCell } from "../types";
 import { NOTEBOOK_ASSISTANT_TOOL_NAMES, type NotebookAssistantSnapshot } from "./types";
@@ -192,6 +193,27 @@ export function getVariableMetadata(snapshot: NotebookAssistantSnapshot, variabl
   }
 
   throw new Error(`Unknown variable: ${normalizedVariable}`);
+}
+
+export function getCausalLoopDiagram(snapshot: NotebookAssistantSnapshot, modelId?: string) {
+  const model = modelId
+    ? listModelContexts(snapshot).find((candidate) => candidate.modelId === modelId)
+    : listModelContexts(snapshot)[0];
+
+  if (!model) {
+    throw new Error(modelId ? `Unknown model id: ${modelId}` : "No model found.");
+  }
+
+  const cld = buildCldFromEditor(model.editor);
+  return {
+    modelId: model.modelId,
+    modelTitle: model.title,
+    links: cld.links,
+    loops: cld.loops,
+    loopSummary: cld.loopSummary,
+    mermaid: cld.mermaid,
+    errors: cld.errors
+  };
 }
 
 export function getDependencyGraph(snapshot: NotebookAssistantSnapshot, variable?: string) {

@@ -151,7 +151,8 @@ function readScript(source: string, startIndex: number): { value: string; nextIn
     }
   }
 
-  const match = source.slice(startIndex).match(/^[A-Za-z0-9]+/);
+  // Allow signed numeric scripts like `K_-1` in addition to `K_1` / `K_t`.
+  const match = source.slice(startIndex).match(/^[+-]?[A-Za-z0-9]+/);
   if (match?.[0]) {
     return {
       value: match[0],

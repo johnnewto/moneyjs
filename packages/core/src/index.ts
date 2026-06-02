@@ -22,3 +22,4 @@ export * from "./result/result";
 export * from "./fixtures/sim";
 export * from "./fixtures/bmw";
 export * from "./fixtures/graph";
+export * from "./cld";

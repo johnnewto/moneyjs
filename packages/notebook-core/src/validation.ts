@@ -290,7 +290,7 @@ function validateSequenceCellReferences(
     context.issues.push(createNotebookIssue(`Sequence cell '${cell.id}' references missing matrix '${cell.source.matrixCellId}'.`));
   }
 
-  if (cell.source.kind !== "dependency") {
+  if (cell.source.kind !== "dependency" && cell.source.kind !== "cld") {
     return;
   }
 

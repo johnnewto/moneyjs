@@ -593,7 +593,7 @@ function cellMatchesModelId(cell: NotebookCell, cells: NotebookCell[], modelId: 
     case "chart":
       return runCellMatchesModelId(cells, cell.sourceRunCellId, modelId);
     case "sequence":
-      if (cell.source.kind === "dependency") {
+      if (cell.source.kind === "dependency" || cell.source.kind === "cld") {
         return (cell.source.modelId ?? cell.source.sourceModelId) === modelId;
       }
       if (cell.source.kind === "matrix") {
@@ -619,7 +619,10 @@ function cellMatchesLegacyModelCell(cell: NotebookCell, cells: NotebookCell[], c
     return run?.sourceModelCellId === cellId;
   }
 
-  if (cell.type === "sequence" && cell.source.kind === "dependency") {
+  if (
+    cell.type === "sequence" &&
+    (cell.source.kind === "dependency" || cell.source.kind === "cld")
+  ) {
     return cell.source.sourceModelCellId === cellId;
   }
 

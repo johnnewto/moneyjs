@@ -247,6 +247,12 @@ export type SequenceCellSource =
         transactionMatrixCellId?: string;
         balanceMatrixCellId?: string;
       };
+    }
+  | {
+      kind: "cld";
+      modelId?: string;
+      sourceModelId?: string;
+      sourceModelCellId?: string;
     };
 
 export type NotebookCellOutput =

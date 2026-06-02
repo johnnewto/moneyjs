@@ -423,7 +423,7 @@ function buildCompletionData(document: NotebookDocument, format: NotebookSourceF
   return {
     enumValues: {
       axisMode: ["shared", "separate"],
-      kind: ["constant", "series", "matrix", "dependency", "plantuml"],
+      kind: ["constant", "series", "matrix", "dependency", "cld", "plantuml"],
       mode: ["baseline", "scenario"],
       referenceTrace: ["none", "baseline", "previous-run"],
       solverMethod: ["GAUSS_SEIDEL", "BROYDEN", "NEWTON"],

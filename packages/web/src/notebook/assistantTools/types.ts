@@ -38,6 +38,7 @@ export const NOTEBOOK_ASSISTANT_TOOL_REGISTRY = [
   { name: "getMatrix", kind: "read", args: "{ matrixId?: string }", notes: ["Omit matrixId to list all matrix cells with their ids and contents."] },
   { name: "getVariableMetadata", kind: "read", args: "{ variable: string }" },
   { name: "getDependencyGraph", kind: "read", args: "{ variable?: string }" },
+  { name: "getCausalLoopDiagram", kind: "read", args: "{ modelId?: string }" },
   { name: "listRuns", kind: "read", args: "{}" },
   { name: "listVariables", kind: "read", args: "{}" },
   { name: "listCharts", kind: "read", args: "{}" },

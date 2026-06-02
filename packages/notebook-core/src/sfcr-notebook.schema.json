@@ -297,6 +297,17 @@
               }
             }
           }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": {
+            "kind": { "const": "cld" },
+            "modelId": { "type": "string" },
+            "sourceModelId": { "type": "string" },
+            "sourceModelCellId": { "type": "string" }
+          }
         }
       ]
     },

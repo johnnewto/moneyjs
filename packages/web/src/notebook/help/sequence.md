@@ -47,6 +47,22 @@ A dependency sequence shows equation relationships for a model.
 
 Use this to inspect how variables feed into each other and how accounting bands relate to model equations.
 
+### CLD Source
+
+A causal loop diagram (CLD) sequence infers signed feedback links from model equations and classifies reinforcing (R) and balancing (B) loops.
+
+```json
+{
+  "type": "sequence",
+  "source": {
+    "kind": "cld",
+    "modelId": "main"
+  }
+}
+```
+
+The view shows an interactive graph with `+` and `-` polarities, a loop summary, and a **Copy Mermaid** action for external diagrams. Only endogenous variables appear as nodes; parameters and exogenous terms are ignored.
+
 ### PlantUML Source
 
 Some sequence cells can use a PlantUML-style source string.
