@@ -2,7 +2,7 @@
 
 import "@testing-library/jest-dom/vitest";
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CldSequenceView } from "../src/notebook/components/CldSequenceView";
@@ -17,7 +17,7 @@ afterEach(() => {
 });
 
 describe("CldSequenceView", () => {
-  it("hides loops that include lagged edges when toggled", () => {
+  it("hides loops that include lagged edges when toggled", async () => {
     const cells: NotebookCell[] = [
       {
         type: "equations",
@@ -72,11 +72,16 @@ describe("CldSequenceView", () => {
 
     const loopsBadge = () =>
       screen.getByText((_, element) => (element?.textContent ?? "").trim().startsWith("Loops"));
-    expect(loopsBadge()).toHaveTextContent("Loops 1");
+
+    await waitFor(() => {
+      expect(loopsBadge()).toHaveTextContent("Loops 1");
+    });
 
     fireEvent.click(screen.getByLabelText("Hide lagged loops"));
 
-    expect(loopsBadge()).toHaveTextContent("Loops 0");
+    await waitFor(() => {
+      expect(loopsBadge()).toHaveTextContent("Loops 0");
+    });
     expect(screen.queryByRole("heading", { name: "Feedback loops" })).not.toBeInTheDocument();
   });
 });

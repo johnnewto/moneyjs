@@ -1,30 +1,75 @@
-import type { Link, Loop, LoopEdge, LoopPolarity } from "./types";
+import { DEFAULT_CLD_LOOP_LIMITS } from "./limits";
+import type {
+  CldLoopDetectionStopReason,
+  DetectLoopsOptions,
+  Link,
+  Loop,
+  LoopEdge,
+  LoopPolarity
+} from "./types";
 
-export function detectLoops(links: Link[]): Loop[] {
+export interface DetectLoopsResult {
+  loops: Loop[];
+  truncated: boolean;
+  stopReason?: CldLoopDetectionStopReason;
+  maxLoops: number;
+  maxLoopLength: number;
+  timeoutMs: number;
+}
+
+interface DetectLoopsContext {
+  maxLoops: number;
+  maxLength: number;
+  deadline: number;
+  found: Map<string, Loop>;
+  truncated: boolean;
+  stopReason?: CldLoopDetectionStopReason;
+}
+
+export function detectLoops(links: Link[], options: DetectLoopsOptions = {}): DetectLoopsResult {
   const nodes = collectNodes(links);
   if (nodes.length === 0) {
-    return [];
+    return {
+      loops: [],
+      truncated: false,
+      maxLoops: options.maxLoops ?? DEFAULT_CLD_LOOP_LIMITS.maxLoops,
+      maxLoopLength: options.maxLoopLength ?? DEFAULT_CLD_LOOP_LIMITS.maxLoopLength,
+      timeoutMs: options.timeoutMs ?? DEFAULT_CLD_LOOP_LIMITS.timeoutMs
+    };
   }
+
+  const maxLoops = options.maxLoops ?? DEFAULT_CLD_LOOP_LIMITS.maxLoops;
+  const maxLoopLength = Math.min(
+    nodes.length,
+    options.maxLoopLength ?? DEFAULT_CLD_LOOP_LIMITS.maxLoopLength
+  );
+  const timeoutMs = options.timeoutMs ?? DEFAULT_CLD_LOOP_LIMITS.timeoutMs;
 
   const adjacency = buildAdjacency(links);
   const edgeMetaByEdge = buildEdgeMetaMap(links);
-  const maxLength = nodes.length;
-  const found = new Map<string, Loop>();
+  const ctx: DetectLoopsContext = {
+    maxLoops,
+    maxLength: maxLoopLength,
+    deadline: Date.now() + timeoutMs,
+    found: new Map<string, Loop>(),
+    truncated: false
+  };
 
   for (const start of nodes) {
-    enumerateCyclesFrom(
-      start,
-      start,
-      adjacency,
-      edgeMetaByEdge,
-      maxLength,
-      [start],
-      new Set([start]),
-      found
-    );
+    if (shouldAbortLoopSearch(ctx)) {
+      break;
+    }
+    enumerateCyclesFrom(start, start, adjacency, edgeMetaByEdge, ctx, [start], new Set([start]));
   }
 
-  return [...found.values()].sort(compareLoops);
+  return {
+    loops: [...ctx.found.values()].sort(compareLoops),
+    truncated: ctx.truncated,
+    stopReason: ctx.stopReason,
+    maxLoops,
+    maxLoopLength,
+    timeoutMs
+  };
 }
 
 export function formatLoopSummary(loops: Loop[]): string {
@@ -112,24 +157,49 @@ function buildEdgeMetaMap(links: Link[]): Map<string, { polarity: "+" | "-"; lag
   return polarityByEdge;
 }
 
+function shouldAbortLoopSearch(ctx: DetectLoopsContext): boolean {
+  if (ctx.found.size >= ctx.maxLoops) {
+    if (!ctx.truncated) {
+      ctx.truncated = true;
+      ctx.stopReason = "maxLoops";
+    }
+    return true;
+  }
+  if (Date.now() >= ctx.deadline) {
+    if (!ctx.truncated) {
+      ctx.truncated = true;
+      ctx.stopReason = "timeout";
+    }
+    return true;
+  }
+  return false;
+}
+
 function enumerateCyclesFrom(
   start: string,
   current: string,
   adjacency: Map<string, string[]>,
   edgeMetaByEdge: Map<string, { polarity: "+" | "-"; lagged: boolean }>,
-  maxLength: number,
+  ctx: DetectLoopsContext,
   path: string[],
-  visited: Set<string>,
-  found: Map<string, Loop>
+  visited: Set<string>
 ): void {
-  if (path.length > maxLength) {
+  if (shouldAbortLoopSearch(ctx)) {
+    return;
+  }
+
+  if (path.length > ctx.maxLength) {
     return;
   }
 
   const neighbors = adjacency.get(current) ?? [];
   for (const next of neighbors) {
+    if (shouldAbortLoopSearch(ctx)) {
+      return;
+    }
+
     if (next === start && path.length >= 2) {
-      recordCycle(path, edgeMetaByEdge, found);
+      recordCycle(path, edgeMetaByEdge, ctx.found);
       continue;
     }
 
@@ -139,7 +209,7 @@ function enumerateCyclesFrom(
 
     visited.add(next);
     path.push(next);
-    enumerateCyclesFrom(start, next, adjacency, edgeMetaByEdge, maxLength, path, visited, found);
+    enumerateCyclesFrom(start, next, adjacency, edgeMetaByEdge, ctx, path, visited);
     path.pop();
     visited.delete(next);
   }

@@ -84,6 +84,32 @@ describe("generateCld", () => {
     expect(result.mermaid).toContain("P -->|+| I");
   });
 
+  it("truncates loop enumeration when maxLoops is exceeded", () => {
+    const equations: Record<string, string> = {};
+    for (let index = 1; index <= 8; index += 1) {
+      const current = `V${index}`;
+      const previous = index === 1 ? "V8" : `V${index - 1}`;
+      equations[current] = `${previous} + V${index === 8 ? 1 : index + 1}`;
+    }
+
+    const uncapped = generateCld(equations, {
+      loopDetection: { maxLoops: 10_000, maxLoopLength: 16, timeoutMs: 30_000 }
+    });
+    const capped = generateCld(equations, {
+      loopDetection: { maxLoops: 5, maxLoopLength: 16, timeoutMs: 30_000 }
+    });
+
+    expect(uncapped.loops.length).toBeGreaterThan(5);
+    expect(capped.loops).toHaveLength(5);
+    expect(capped.loopDetection).toMatchObject({
+      truncated: true,
+      stopReason: "maxLoops",
+      maxLoops: 5,
+      timeoutMs: 30_000
+    });
+    expect(capped.loopDetection?.maxLoopLength).toBeLessThanOrEqual(16);
+  });
+
   it("detects reinforcing and balancing loops", () => {
     const result = generateCld(GODLEY_LAVOIE_EQUATIONS);
 

@@ -3,11 +3,15 @@ import type { MatrixColumnSumBindings } from "../parser/dependencies";
 import { inferLinksFromEquations } from "./inferLinks";
 import { detectLoops, formatLoopSummary } from "./loops";
 import { formatCldMermaid } from "./mermaid";
-import type { CldNodeKind, CldResult } from "./types";
+import type { CldNodeKind, CldResult, DetectLoopsOptions } from "./types";
 
 export function generateCld(
   equations: Record<string, string>,
-  options?: { matrixColumnSums?: MatrixColumnSumBindings; nodeKinds?: Record<string, CldNodeKind | undefined> }
+  options?: {
+    matrixColumnSums?: MatrixColumnSumBindings;
+    nodeKinds?: Record<string, CldNodeKind | undefined>;
+    loopDetection?: DetectLoopsOptions;
+  }
 ): CldResult {
   const trimmedEntries = Object.entries(equations)
     .map(([name, expression]) => [name.trim(), expression.trim()] as const)
@@ -18,14 +22,23 @@ export function generateCld(
   const { links, errors } = inferLinksFromEquations(equationRecord, endogenous, {
     matrixColumnSums: options?.matrixColumnSums
   });
-  const loops = detectLoops(links);
+  const loopDetection = detectLoops(links, options?.loopDetection);
 
   return {
     links,
     mermaid: formatCldMermaid(links, { nodeKinds: options?.nodeKinds }),
-    loops,
-    loopSummary: formatLoopSummary(loops),
-    errors
+    loops: loopDetection.loops,
+    loopSummary: formatLoopSummary(loopDetection.loops),
+    errors,
+    loopDetection: loopDetection.truncated
+      ? {
+          truncated: true,
+          stopReason: loopDetection.stopReason,
+          maxLoops: loopDetection.maxLoops,
+          maxLoopLength: loopDetection.maxLoopLength,
+          timeoutMs: loopDetection.timeoutMs
+        }
+      : undefined
   };
 }
 

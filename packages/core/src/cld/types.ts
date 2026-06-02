@@ -22,12 +22,29 @@ export interface Loop {
   polarity: LoopPolarity;
 }
 
+export interface DetectLoopsOptions {
+  maxLoops?: number;
+  maxLoopLength?: number;
+  timeoutMs?: number;
+}
+
+export type CldLoopDetectionStopReason = "maxLoops" | "timeout";
+
+export interface CldLoopDetectionMeta {
+  truncated: boolean;
+  stopReason?: CldLoopDetectionStopReason;
+  maxLoops: number;
+  maxLoopLength: number;
+  timeoutMs: number;
+}
+
 export interface CldResult {
   links: Link[];
   mermaid: string;
   loops: Loop[];
   loopSummary: string;
   errors: string[];
+  loopDetection?: CldLoopDetectionMeta;
 }
 
 export type CldNodeKind = "stock" | "flow" | "aux";

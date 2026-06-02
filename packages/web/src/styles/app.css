@@ -6797,6 +6797,27 @@ button.matrix-multiport__stock-name:hover {
   gap: 0.85rem;
 }
 
+.cld-sequence-view__status {
+  color: #64748b;
+  font-size: 0.74rem;
+  font-style: italic;
+}
+
+.cld-sequence-view__truncated-note {
+  background: rgba(254, 243, 199, 0.65);
+  border: 1px solid rgba(217, 119, 6, 0.35);
+  border-radius: 10px;
+  color: #92400e;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+}
+
+.cld-sequence-view__show-more {
+  margin-bottom: 0.65rem;
+}
+
 .cld-sequence-view__canvas {
   border: 1px solid rgba(148, 163, 184, 0.28);
   border-radius: 12px;
