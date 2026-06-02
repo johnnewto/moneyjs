@@ -55,14 +55,13 @@ import {
   type MatrixGraphSliceHighlight
 } from "../graphDocumentHighlight";
 import { useMatrixColumnCollapseState } from "../matrixColumnCollapseStorage";
+import {
+  useMatrixFloatingColumnHeader,
+  useSyncedHorizontalScroll
+} from "../useMatrixFloatingColumnHeader";
 import { MatrixColumnTreeHeader, useMatrixColumnLayout } from "./MatrixColumnTreeHeader";
 
 const EMPTY_PARAMETER_NAMES = new Set<string>();
-const MATRIX_VIRTUALIZATION_ROW_THRESHOLD = 20;
-const MATRIX_VIRTUALIZATION_ROW_HEIGHT_PX = 44;
-const MATRIX_VIRTUALIZATION_HEADER_HEIGHT_PX = 44;
-const MATRIX_VIRTUALIZATION_VIEWPORT_HEIGHT_PX = 480;
-const MATRIX_VIRTUALIZATION_OVERSCAN_ROWS = 4;
 const MATRIX_VARIABLE_INSPECT_DELAY_MS = 400;
 
 const MATRIX_CELL_DOUBLE_CLICK_IGNORE_SELECTOR =
@@ -90,7 +89,8 @@ export function MatrixCellView({
   onMatrixGraphRequest,
   onVariableInspectRequest,
   highlightedVariable = null,
-  graphSliceHighlight = null
+  graphSliceHighlight = null,
+  viewportRoot = null
 }: {
   cell: MatrixCell;
   cells: NotebookCell[];
@@ -102,15 +102,18 @@ export function MatrixCellView({
   variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
   highlightedVariable?: string | null;
   graphSliceHighlight?: MatrixGraphSliceHighlight | null;
+  viewportRoot?: Element | null;
   onCellChange(cellId: string, updater: (cell: NotebookCell) => NotebookCell): void;
   onReplaceCells(nextCells: NotebookCell[]): void;
   onMatrixGraphRequest?(request: MatrixGraphRequest): void;
   onVariableInspectRequest(args: VariableInspectRequest): void;
 }) {
   const matrixDragScroll = useDragScroll<HTMLDivElement>();
-  const matrixHeaderScrollRef = useRef<HTMLDivElement | null>(null);
+  const matrixRootRef = useRef<HTMLDivElement | null>(null);
+  const matrixWrapRef = useRef<HTMLDivElement | null>(null);
+  const matrixColumnRowRef = useRef<HTMLTableRowElement | null>(null);
+  const matrixFloatingScrollRef = useRef<HTMLDivElement | null>(null);
   const variableInspectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [matrixScrollTop, setMatrixScrollTop] = useState(0);
   const {
     collapsedNodeIds: collapsedColumnTreeNodeIds,
     toggleColumnTreeNode,
@@ -120,6 +123,16 @@ export function MatrixCellView({
   const columnLayout = useMatrixColumnLayout(cell, collapsedColumnTreeNodeIds);
   const displaySlots = columnLayout.displaySlots;
   const usesColumnTree = columnLayout.usesColumnTree;
+  const usesFloatingColumnHeader = usesColumnTree && columnLayout.headerRows.length >= 2;
+  const { visible: floatingColumnHeaderVisible, anchor: floatingColumnHeaderAnchor } =
+    useMatrixFloatingColumnHeader({
+      scrollRoot: viewportRoot,
+      columnRowRef: matrixColumnRowRef,
+      tableWrapRef: matrixWrapRef,
+      cellRootRef: matrixRootRef,
+      enabled: usesFloatingColumnHeader
+    });
+  useSyncedHorizontalScroll(matrixWrapRef, matrixFloatingScrollRef, floatingColumnHeaderVisible);
   const accountColumnLayout = usesMatrixAccountColumnLayout(cell.columnBadges);
   const sectorGroupedColumns =
     accountColumnLayout ||
@@ -141,9 +154,6 @@ export function MatrixCellView({
   const matrixKind = useMemo(() => resolveMatrixTableKind(cell), [cell]);
   const sumRowIndex = cell.rows.findIndex((row) => row.label.trim().toLowerCase() === "sum");
   const sumColumnIndex = cell.columns.findIndex((column) => column.trim().toLowerCase() === "sum");
-  const renderedBodyColumnCount = usesColumnTree
-    ? displaySlots.length + (sumColumnIndex >= 0 ? 1 : 0)
-    : cell.columns.length;
   const parameterNames = useMemo(() => {
     if (!editor) {
       return EMPTY_PARAMETER_NAMES;
@@ -151,9 +161,6 @@ export function MatrixCellView({
 
     return new Set(editor.externals.map((external) => external.name.trim()).filter(Boolean));
   }, [editor]);
-  const isVirtualizedMatrix =
-    cell.id === "transaction-flow" &&
-    evaluatedMatrix.rows.length > MATRIX_VIRTUALIZATION_ROW_THRESHOLD;
   const [rowContextMenu, setRowContextMenu] = useState<{ rowIndex: number; x: number; y: number } | null>(
     null
   );
@@ -463,41 +470,6 @@ export function MatrixCellView({
       cancelMatrixEntryEdit();
     }
   }, [cancelMatrixEntryEdit, cell.rows, matrixEntryEdit.editingTarget]);
-  const virtualizedMatrixWindow = useMemo(() => {
-    if (!isVirtualizedMatrix) {
-      return {
-        bottomSpacerHeight: 0,
-        endIndex: evaluatedMatrix.rows.length,
-        startIndex: 0,
-        topSpacerHeight: 0
-      };
-    }
-
-    const visibleCount = Math.ceil(
-      MATRIX_VIRTUALIZATION_VIEWPORT_HEIGHT_PX / MATRIX_VIRTUALIZATION_ROW_HEIGHT_PX
-    );
-    const bodyScrollTop = Math.max(0, matrixScrollTop - MATRIX_VIRTUALIZATION_HEADER_HEIGHT_PX);
-    const unclampedStartIndex =
-      Math.floor(bodyScrollTop / MATRIX_VIRTUALIZATION_ROW_HEIGHT_PX) -
-      MATRIX_VIRTUALIZATION_OVERSCAN_ROWS;
-    const startIndex = Math.max(0, unclampedStartIndex);
-    const endIndex = Math.min(
-      evaluatedMatrix.rows.length,
-      startIndex + visibleCount + MATRIX_VIRTUALIZATION_OVERSCAN_ROWS * 2
-    );
-
-    return {
-      bottomSpacerHeight:
-        (evaluatedMatrix.rows.length - endIndex) * MATRIX_VIRTUALIZATION_ROW_HEIGHT_PX,
-      endIndex,
-      startIndex,
-      topSpacerHeight: startIndex * MATRIX_VIRTUALIZATION_ROW_HEIGHT_PX
-    };
-  }, [evaluatedMatrix.rows.length, isVirtualizedMatrix, matrixScrollTop]);
-  const renderedMatrixRows = useMemo(
-    () => evaluatedMatrix.rows.slice(virtualizedMatrixWindow.startIndex, virtualizedMatrixWindow.endIndex),
-    [evaluatedMatrix.rows, virtualizedMatrixWindow.endIndex, virtualizedMatrixWindow.startIndex]
-  );
   const matrixColumnGroup = useMemo(
     () => (
       <colgroup>
@@ -532,26 +504,27 @@ export function MatrixCellView({
     ),
     [cell.columns, displaySlots, sumColumnIndex, usesColumnTree]
   );
+  const matrixColumnTreeHeaderProps = {
+    headerRows: columnLayout.headerRows,
+    columns: cell.columns,
+    sectors: cell.sectors,
+    columnBadges: cell.columnBadges,
+    sumColumnIndex,
+    collapsedNodeIds: collapsedColumnTreeNodeIds,
+    editorLinked: editor != null,
+    accountColumnLayout,
+    sectorGroupedColumns,
+    onToggleNode: toggleColumnTreeNode,
+    graphLinked: canGraphMatrix,
+    graphSliceHighlight,
+    matrixCellId: cell.id,
+    onColumnLabelClick: canGraphMatrix || editor ? handleColumnLabelClick : undefined,
+    onInspectVariable: editor ? handleInspectVariable : undefined
+  };
   const matrixHeaderRow = usesColumnTree ? (
-    <MatrixColumnTreeHeader
-      headerRows={columnLayout.headerRows}
-      columns={cell.columns}
-      sectors={cell.sectors}
-      columnBadges={cell.columnBadges}
-      sumColumnIndex={sumColumnIndex}
-      collapsedNodeIds={collapsedColumnTreeNodeIds}
-      editorLinked={editor != null}
-      accountColumnLayout={accountColumnLayout}
-      sectorGroupedColumns={sectorGroupedColumns}
-      onToggleNode={toggleColumnTreeNode}
-      graphLinked={canGraphMatrix}
-      graphSliceHighlight={graphSliceHighlight}
-      matrixCellId={cell.id}
-      onColumnLabelClick={canGraphMatrix || editor ? handleColumnLabelClick : undefined}
-      onInspectVariable={editor ? handleInspectVariable : undefined}
-    />
+    <MatrixColumnTreeHeader {...matrixColumnTreeHeaderProps} columnRowRef={matrixColumnRowRef} />
   ) : (
-    <tr>
+    <tr ref={matrixColumnRowRef}>
       <th scope="col">
         {accountColumnLayout
           ? "Flow / account"
@@ -605,108 +578,84 @@ export function MatrixCellView({
       ))}
     </tr>
   );
-  const matrixBodyRows = (
-    <>
-      {virtualizedMatrixWindow.topSpacerHeight > 0 ? (
-        <tr aria-hidden="true" className="notebook-matrix-virtual-spacer-row">
-          <td
-            colSpan={renderedBodyColumnCount + 1}
-            style={{ height: `${virtualizedMatrixWindow.topSpacerHeight}px` }}
-          />
-        </tr>
-      ) : null}
-      {renderedMatrixRows.map((row, visibleRowIndex) => {
-        const rowIndex = virtualizedMatrixWindow.startIndex + visibleRowIndex;
-
-        return (
-          <tr
-            key={row.label}
-            className={
-              [
-                sectorGroupedColumns && rowIndex === 0 && !row.isSumRow
-                  ? "notebook-matrix-flow-start-row"
-                  : undefined,
-                row.isSumRow ? "notebook-matrix-sum-row" : undefined,
-                row.isSumRow && !row.isBalanced ? "matrix-balance-error" : undefined,
-                matrixSliceRowClassName(cell.id, rowIndex, graphSliceHighlight)
-              ]
-                .filter(Boolean)
-                .join(" ") || undefined
-            }
-          >
-            <th
-              scope="row"
-              className={matrixSliceHeaderClassName(cell.id, "row", rowIndex, graphSliceHighlight)}
-              onContextMenu={(event) => handleMatrixRowContextMenu(event, rowIndex)}
+  const matrixBodyRows = evaluatedMatrix.rows.map((row, rowIndex) => (
+    <tr
+      key={row.label}
+      className={
+        [
+          sectorGroupedColumns && rowIndex === 0 && !row.isSumRow
+            ? "notebook-matrix-flow-start-row"
+            : undefined,
+          row.isSumRow ? "notebook-matrix-sum-row" : undefined,
+          row.isSumRow && !row.isBalanced ? "matrix-balance-error" : undefined,
+          matrixSliceRowClassName(cell.id, rowIndex, graphSliceHighlight)
+        ]
+          .filter(Boolean)
+          .join(" ") || undefined
+      }
+    >
+      <th
+        scope="row"
+        className={matrixSliceHeaderClassName(cell.id, "row", rowIndex, graphSliceHighlight)}
+        onContextMenu={(event) => handleMatrixRowContextMenu(event, rowIndex)}
+      >
+        <NotebookRenderProfiler
+          id="MatrixTableRowLabel"
+          metadata={{
+            cellId: cell.id,
+            rowLabel: row.label,
+            selectedPeriodIndex
+          }}
+        >
+          {canGraphMatrix && !row.isSumRow ? (
+            <button
+              type="button"
+              className="notebook-matrix-slice-label-button result-variable-button"
+              title={`Graph row ${row.label}`}
+              onClick={(event) => handleRowLabelClick(event, rowIndex, row.label)}
             >
-              <NotebookRenderProfiler
-                id="MatrixTableRowLabel"
-                metadata={{
-                  cellId: cell.id,
-                  rowLabel: row.label,
-                  selectedPeriodIndex
-                }}
-              >
-                {canGraphMatrix && !row.isSumRow ? (
-                  <button
-                    type="button"
-                    className="notebook-matrix-slice-label-button result-variable-button"
-                    title={`Graph row ${row.label}`}
-                    onClick={(event) => handleRowLabelClick(event, rowIndex, row.label)}
-                  >
-                    <VariableLabel
-                      name={row.label}
-                      variableDescriptions={variableDescriptions}
-                      variableUnitMetadata={variableUnitMetadata}
-                    />
-                  </button>
-                ) : (
-                  <VariableLabel
-                    name={row.label}
-                    variableDescriptions={variableDescriptions}
-                    variableUnitMetadata={variableUnitMetadata}
-                  />
-                )}
-              </NotebookRenderProfiler>
-            </th>
-            {renderMatrixRowDataCells({
-              accountColumnLayout,
-              sectorGroupedColumns,
-              cell,
-              displaySlots,
-              entryDisplayMode,
-              graphSliceHighlight,
-              highlightedVariable,
-              matrixEntryEdit,
-              matrixKind,
-              onBeginEdit: beginMatrixEntryEdit,
-              onCancelEdit: cancelMatrixEntryEdit,
-              parameterNames,
-              row,
-              rowIndex,
-              selectedPeriodIndex,
-              sourceSelectVariable,
-              sumColumnIndex,
-              sumRowIndex,
-              usesColumnTree,
-              variableDescriptions,
-              variableUnitMetadata,
-              currentValues,
-              onColumnContextMenu: handleMatrixColumnContextMenu
-            })}
-          </tr>
-        );
+              <VariableLabel
+                name={row.label}
+                variableDescriptions={variableDescriptions}
+                variableUnitMetadata={variableUnitMetadata}
+              />
+            </button>
+          ) : (
+            <VariableLabel
+              name={row.label}
+              variableDescriptions={variableDescriptions}
+              variableUnitMetadata={variableUnitMetadata}
+            />
+          )}
+        </NotebookRenderProfiler>
+      </th>
+      {renderMatrixRowDataCells({
+        accountColumnLayout,
+        sectorGroupedColumns,
+        cell,
+        displaySlots,
+        entryDisplayMode,
+        graphSliceHighlight,
+        highlightedVariable,
+        matrixEntryEdit,
+        matrixKind,
+        onBeginEdit: beginMatrixEntryEdit,
+        onCancelEdit: cancelMatrixEntryEdit,
+        parameterNames,
+        row,
+        rowIndex,
+        selectedPeriodIndex,
+        sourceSelectVariable,
+        sumColumnIndex,
+        sumRowIndex,
+        usesColumnTree,
+        variableDescriptions,
+        variableUnitMetadata,
+        currentValues,
+        onColumnContextMenu: handleMatrixColumnContextMenu
       })}
-      {virtualizedMatrixWindow.bottomSpacerHeight > 0 ? (
-        <tr aria-hidden="true" className="notebook-matrix-virtual-spacer-row">
-          <td
-            colSpan={renderedBodyColumnCount + 1}
-            style={{ height: `${virtualizedMatrixWindow.bottomSpacerHeight}px` }}
-          />
-        </tr>
-      ) : null}
-    </>
-  );
+    </tr>
+  ));
 
   return (
     <NotebookRenderProfiler
@@ -719,7 +668,7 @@ export function MatrixCellView({
         selectedPeriodIndex
       }}
     >
-      <div className="notebook-matrix">
+      <div className="notebook-matrix" ref={matrixRootRef}>
         {usesColumnTree && !isAccountTransactionsMatrix(cell) ? (
           <div className="notebook-matrix-tree-controls">
             <button type="button" className="secondary-button" onClick={expandAllColumnTreeNodes}>
@@ -741,14 +690,30 @@ export function MatrixCellView({
           }}
         >
           <div
-            className={
-              isVirtualizedMatrix ? "notebook-matrix-shell notebook-matrix-shell-virtualized" : undefined
-            }
+            ref={(node) => {
+              matrixDragScroll.dragScrollRef.current = node;
+              matrixWrapRef.current = node;
+            }}
+            data-drag-scroll-ignore="true"
+            className={[
+              "notebook-matrix-wrap",
+              "notebook-oversize-scroll",
+              matrixDragScroll.dragScrollProps.className
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            onClickCapture={matrixDragScroll.dragScrollProps.onClickCapture}
+            onMouseDown={matrixDragScroll.dragScrollProps.onMouseDown}
           >
-            {isVirtualizedMatrix ? (
-              <p className="notebook-matrix-scroll-hint">Scroll within the table to inspect all rows.</p>
-            ) : null}
-            {isVirtualizedMatrix ? (
+            <table
+              className={[
+                "notebook-matrix-table",
+                sectorGroupedColumns ? "notebook-matrix-table-account-columns" : undefined
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            >
+              {matrixColumnGroup}
               <NotebookRenderProfiler
                 id="MatrixTableHeader"
                 metadata={{
@@ -758,88 +723,60 @@ export function MatrixCellView({
                   selectedPeriodIndex
                 }}
               >
-                <div
-                  ref={matrixHeaderScrollRef}
-                  className="notebook-oversize-scroll notebook-matrix-wrap notebook-matrix-wrap-virtualized-header"
-                  data-drag-scroll-ignore="true"
-                >
-                  <table
-                    className={[
-                      "notebook-matrix-table",
-                      "notebook-matrix-table-virtualized",
-                      sectorGroupedColumns ? "notebook-matrix-table-account-columns" : undefined
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                  >
-                    {matrixColumnGroup}
-                    <thead>{matrixHeaderRow}</thead>
-                  </table>
-                </div>
-              </NotebookRenderProfiler>
-            ) : null}
-            <div
-              ref={(node) => {
-                matrixDragScroll.dragScrollRef.current = node;
-              }}
-              data-drag-scroll-ignore="true"
-              className={[
-                "notebook-matrix-wrap",
-                "notebook-oversize-scroll",
-                matrixDragScroll.dragScrollProps.className,
-                isVirtualizedMatrix ? "notebook-matrix-wrap-virtualized-body" : undefined
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              onClickCapture={matrixDragScroll.dragScrollProps.onClickCapture}
-              onMouseDown={matrixDragScroll.dragScrollProps.onMouseDown}
-              onScroll={(event) => {
-                if (isVirtualizedMatrix) {
-                  setMatrixScrollTop(event.currentTarget.scrollTop);
-                  if (matrixHeaderScrollRef.current) {
-                    matrixHeaderScrollRef.current.scrollLeft = event.currentTarget.scrollLeft;
+                <thead
+                  className={
+                    !usesFloatingColumnHeader ? "notebook-matrix-thead-sticky" : undefined
                   }
-                }
-              }}
-            >
-              <table
-                className={[
-                  "notebook-matrix-table",
-                  isVirtualizedMatrix ? "notebook-matrix-table-virtualized" : undefined,
-                  sectorGroupedColumns ? "notebook-matrix-table-account-columns" : undefined
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-              >
-                {matrixColumnGroup}
-                {!isVirtualizedMatrix ? (
-                  <NotebookRenderProfiler
-                    id="MatrixTableHeader"
-                    metadata={{
-                      cellId: cell.id,
-                      columnCount: cell.columns.length,
-                      rowCount: evaluatedMatrix.rows.length,
-                      selectedPeriodIndex
-                    }}
-                  >
-                    <thead>{matrixHeaderRow}</thead>
-                  </NotebookRenderProfiler>
-                ) : null}
-                <NotebookRenderProfiler
-                  id="MatrixTableBody"
-                  metadata={{
-                    cellId: cell.id,
-                    columnCount: cell.columns.length,
-                    rowCount: evaluatedMatrix.rows.length,
-                    visibleRowCount: renderedMatrixRows.length,
-                    selectedPeriodIndex
-                  }}
                 >
-                  <tbody>{matrixBodyRows}</tbody>
-                </NotebookRenderProfiler>
-              </table>
-            </div>
+                  {matrixHeaderRow}
+                </thead>
+              </NotebookRenderProfiler>
+              <NotebookRenderProfiler
+                id="MatrixTableBody"
+                metadata={{
+                  cellId: cell.id,
+                  columnCount: cell.columns.length,
+                  rowCount: evaluatedMatrix.rows.length,
+                  selectedPeriodIndex
+                }}
+              >
+                <tbody>{matrixBodyRows}</tbody>
+              </NotebookRenderProfiler>
+            </table>
           </div>
+          {floatingColumnHeaderVisible ? (
+            <div
+              className="notebook-floating-header notebook-matrix-floating-column-header"
+              style={{
+                top: `${floatingColumnHeaderAnchor.top}px`,
+                left: `${floatingColumnHeaderAnchor.left}px`,
+                width: `${floatingColumnHeaderAnchor.width}px`
+              }}
+              aria-hidden="true"
+            >
+              <div
+                ref={matrixFloatingScrollRef}
+                className="notebook-floating-header-scroll notebook-matrix-floating-column-header-scroll"
+              >
+                <table
+                  className={[
+                    "notebook-matrix-table",
+                    sectorGroupedColumns ? "notebook-matrix-table-account-columns" : undefined
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  {matrixColumnGroup}
+                  <thead>
+                    <MatrixColumnTreeHeader
+                      {...matrixColumnTreeHeaderProps}
+                      variant="column-row"
+                    />
+                  </thead>
+                </table>
+              </div>
+            </div>
+          ) : null}
         </NotebookRenderProfiler>
       </div>
       {rowContextMenu ? (
@@ -1160,7 +1097,8 @@ function renderMatrixRowDataCells({
                 cell.sectors,
                 cell.columnBadges,
                 slot.columnIndex,
-                sumColumnIndex
+                sumColumnIndex,
+                cell.columnTree
               )
             ]
               .filter(Boolean)
@@ -1321,7 +1259,8 @@ function renderMatrixLeafDataCell({
             cell.sectors,
             cell.columnBadges,
             columnIndex,
-            sumColumnIndex
+            sumColumnIndex,
+            cell.columnTree
           ),
           columnIndex === sumColumnIndex ? "notebook-matrix-sum-column" : undefined,
           matrixSliceColumnClassName(cell.id, columnIndex, graphSliceHighlight),

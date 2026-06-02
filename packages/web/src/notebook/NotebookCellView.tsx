@@ -1096,6 +1096,7 @@ function NotebookCellViewComponent({
             onHelpRequest={requestCellHelp}
             onVariableInspectRequest={onVariableInspectRequest}
             highlightedVariable={highlightedVariable}
+            viewportRoot={viewportRoot}
             onReplaceCells={onReplaceCells}
             selectedPeriodIndex={selectedPeriodIndex}
             solverCell={findSolverCell(cells, cell.modelId)}
@@ -1164,6 +1165,7 @@ function NotebookCellViewComponent({
             onReplaceCells={onReplaceCells}
             onVariableInspectRequest={onVariableInspectRequest}
             highlightedVariable={highlightedVariable}
+            viewportRoot={viewportRoot}
             title={cell.title}
             onChange={(externals) =>
               onCellChange(cell.id, (current) =>
@@ -1189,6 +1191,7 @@ function NotebookCellViewComponent({
             onHelpRequest={requestCellHelp}
             onVariableInspectRequest={onVariableInspectRequest}
             highlightedVariable={highlightedVariable}
+            viewportRoot={viewportRoot}
             title={cell.title}
             variableDescriptions={variableDescriptions}
             variableUnitMetadata={variableUnitMetadata}
@@ -1281,6 +1284,7 @@ function NotebookCellViewComponent({
                 selectedPeriodIndex={selectedPeriodIndex}
                 variableDescriptions={variableDescriptions}
                 variableUnitMetadata={variableUnitMetadata}
+                viewportRoot={viewportRoot}
                 onCellChange={onCellChange}
                 onReplaceCells={onReplaceCells}
                 onMatrixGraphRequest={onMatrixGraphRequest}

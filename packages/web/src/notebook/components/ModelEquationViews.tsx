@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { analyzeParsedEquation, parseEquation, type EquationRole } from "@sfcr/core";
 
@@ -26,7 +26,10 @@ import { buildEditorStateFromSections, countModelSectionIssues, findEquationsCel
 import type { VariableInspectRequest } from "../../lib/variableInspect";
 import type { EquationsCell, ExternalsCell, ModelCell, NotebookCell, SolverCell } from "../types";
 import { NotebookLinkedEditorActions, NotebookLinkedEditorHeader } from "./NotebookCellHeader";
+import { NotebookFloatingHeaderOverlay } from "./NotebookFloatingHeaderOverlay";
 import { NotebookEquationViewTable } from "./NotebookEquationViewTable";
+import { EquationsModelViewHeaderRowStatic } from "./notebookModelViewHeaderRows";
+import { useNotebookFloatingHeaderRow } from "../useNotebookFloatingHeaderRow";
 
 export function ModelCellView({
   cell,
@@ -348,7 +351,8 @@ export function EquationsCellView({
   solverCell,
   title,
   onChange,
-  onToggleCollapsed
+  onToggleCollapsed,
+  viewportRoot = null
 }: {
   cell: EquationsCell;
   cells: NotebookCell[];
@@ -363,11 +367,16 @@ export function EquationsCellView({
   selectedPeriodIndex: number;
   solverCell: SolverCell | null;
   title: string;
+  viewportRoot?: Element | null;
   onChange(equations: EquationsCell["equations"]): void;
   onToggleCollapsed(): void;
 }) {
   const modelSource = { sourceModelId: cell.modelId };
   const equationsViewDragScroll = useDragScroll<HTMLElement>();
+  const cellRootRef = useRef<HTMLDivElement | null>(null);
+  const sectionWrapRef = useRef<HTMLElement | null>(null);
+  const headerRowRef = useRef<HTMLDivElement | null>(null);
+  const tableShellRef = useRef<HTMLDivElement | null>(null);
   const [draftEquations, setDraftEquations] = useState(cell.equations);
   const editor = buildEditorStateFromSections({
     equations: draftEquations,
@@ -423,6 +432,15 @@ export function EquationsCellView({
       : null;
   const [isEditingEquations, setIsEditingEquations] = useState(false);
   const [showExternalValues, setShowExternalValues] = useState(true);
+  const floatingEnabled = cell.collapsed !== true && !isEditingEquations && viewportRoot != null;
+  const { visible: floatingHeaderVisible, anchor: floatingHeaderAnchor } =
+    useNotebookFloatingHeaderRow({
+      scrollRoot: viewportRoot,
+      headerRowRef,
+      tableWrapRef: sectionWrapRef,
+      cellRootRef,
+      enabled: floatingEnabled
+    });
   const hasDraftEdits = JSON.stringify(draftEquations) !== JSON.stringify(cell.equations);
   const externalDisplayValues = useMemo(
     () => buildExternalDisplayValues(externals, selectedPeriodIndex),
@@ -472,7 +490,7 @@ export function EquationsCellView({
   const { scheduleDeferredAction } = useDeferredAction();
 
   return (
-    <div className="notebook-model-stack">
+    <div ref={cellRootRef} className="notebook-model-stack">
       <NotebookLinkedEditorHeader
         actions={
           <NotebookLinkedEditorActions
@@ -555,14 +573,21 @@ export function EquationsCellView({
         </div>
       ) : (
         <section
-          ref={equationsViewDragScroll.dragScrollRef}
+          ref={(node) => {
+            equationsViewDragScroll.dragScrollRef.current = node;
+            sectionWrapRef.current = node;
+          }}
           className={`notebook-model-view notebook-oversize-scroll ${equationsViewDragScroll.dragScrollProps.className}`}
           aria-label="Model view"
           data-drag-scroll-ignore="true"
           onClickCapture={equationsViewDragScroll.dragScrollProps.onClickCapture}
           onMouseDown={equationsViewDragScroll.dragScrollProps.onMouseDown}
         >
-          <NotebookEquationViewTable ariaLabel="Model equations">
+          <NotebookEquationViewTable
+            ariaLabel="Model equations"
+            headerRowRef={headerRowRef}
+            tableShellRef={tableShellRef}
+          >
             {cell.equations.map((equation, index) => {
               const issue =
                 issueMap[`equations.${index}.name`] ?? issueMap[`equations.${index}.expression`];
@@ -663,6 +688,14 @@ export function EquationsCellView({
           ) : null}
         </section>
       )}
+      <NotebookFloatingHeaderOverlay
+        visible={floatingHeaderVisible}
+        anchor={floatingHeaderAnchor}
+        horizontalScrollSourceRef={sectionWrapRef}
+        resizableTableSourceRef={tableShellRef}
+      >
+        <EquationsModelViewHeaderRowStatic />
+      </NotebookFloatingHeaderOverlay>
       <VariableRenameDialog
         cellCount={inlineEdit.renameReferenceCount.cellCount}
         isOpen={inlineEdit.renameDialog != null}

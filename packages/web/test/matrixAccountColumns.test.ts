@@ -130,6 +130,20 @@ describe("matrixAccountColumns", () => {
     ]);
   });
 
+  it("resolves sector boundary classes for sector-only balance-sheet and transaction-flow layouts", () => {
+    const flowColumns = ["Households", "Firms current", "Firms capital", "Sum"];
+    const flowSectors = ["Households", "Production firms", "Production firms", ""];
+
+    expect(resolveMatrixAccountColumnCellClasses(flowColumns, flowSectors, undefined, 0, 3)).toEqual([
+      "notebook-matrix-sector-start"
+    ]);
+    expect(resolveMatrixAccountColumnCellClasses(flowColumns, flowSectors, undefined, 1, 3)).toEqual([
+      "notebook-matrix-sector-start",
+      "notebook-matrix-intra-sector-divider"
+    ]);
+    expect(resolveMatrixAccountColumnCellClasses(flowColumns, flowSectors, undefined, 2, 3)).toEqual([]);
+  });
+
   it("builds sector and leaf headers with equity badges", () => {
     const sectorsWithAliases = ["Households (H)", "Households (H)", "Firms (F)", ""];
     const collapsedSectorHeaders = buildMatrixAccountColumnHeaderRows(

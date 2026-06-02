@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ExternalEditor } from "../../components/ExternalEditor";
 import { InitialValuesEditor } from "../../components/InitialValuesEditor";
@@ -26,6 +26,12 @@ import {
 import { VariableRenameDialog } from "./EquationRowInlineEditor";
 import { NotebookExternalReadRow } from "./ExternalRowInlineEditor";
 import { NotebookInitialValueReadRow } from "./InitialValueRowInlineEditor";
+import { NotebookFloatingHeaderOverlay } from "./NotebookFloatingHeaderOverlay";
+import {
+  ExternalsModelViewHeaderRow,
+  InitialValuesModelViewHeaderRow
+} from "./notebookModelViewHeaderRows";
+import { useNotebookFloatingHeaderRow } from "../useNotebookFloatingHeaderRow";
 
 export function SolverCellView({
   cell,
@@ -221,7 +227,8 @@ export function ExternalsCellView({
   highlightedVariable = null,
   title,
   onChange,
-  onToggleCollapsed
+  onToggleCollapsed,
+  viewportRoot = null
 }: {
   cell: ExternalsCell;
   cells: NotebookCell[];
@@ -234,11 +241,15 @@ export function ExternalsCellView({
   onReplaceCells(nextCells: NotebookCell[]): void;
   onVariableInspectRequest(args: VariableInspectRequest): void;
   title: string;
+  viewportRoot?: Element | null;
   onChange(externals: EditorState["externals"]): void;
   onToggleCollapsed(): void;
 }) {
   const modelSource = { sourceModelId: cell.modelId };
   const externalsViewDragScroll = useDragScroll<HTMLElement>();
+  const cellRootRef = useRef<HTMLDivElement | null>(null);
+  const sectionWrapRef = useRef<HTMLElement | null>(null);
+  const headerRowRef = useRef<HTMLDivElement | null>(null);
   const issuePaths = Object.keys(issueMap);
   const seriesExternalCount = cell.externals.filter((external) => external.kind === "series").length;
   const variableDescriptions = useMemo(
@@ -252,6 +263,15 @@ export function ExternalsCellView({
   const [isEditingExternals, setIsEditingExternals] = useState(false);
   const [draftExternals, setDraftExternals] = useState(cell.externals);
   const hasDraftEdits = JSON.stringify(draftExternals) !== JSON.stringify(cell.externals);
+  const floatingEnabled = cell.collapsed !== true && !isEditingExternals && viewportRoot != null;
+  const { visible: floatingHeaderVisible, anchor: floatingHeaderAnchor } =
+    useNotebookFloatingHeaderRow({
+      scrollRoot: viewportRoot,
+      headerRowRef,
+      tableWrapRef: sectionWrapRef,
+      cellRootRef,
+      enabled: floatingEnabled
+    });
 
   useEffect(() => {
     onEditingChange?.(isEditingExternals);
@@ -295,7 +315,7 @@ export function ExternalsCellView({
   });
 
   return (
-    <div className="notebook-model-stack notebook-linked-editor-cell">
+    <div ref={cellRootRef} className="notebook-model-stack notebook-linked-editor-cell">
       <NotebookLinkedEditorHeader
         actions={
           <NotebookLinkedEditorActions
@@ -341,7 +361,10 @@ export function ExternalsCellView({
         </div>
       ) : (
         <section
-          ref={externalsViewDragScroll.dragScrollRef}
+          ref={(node) => {
+            externalsViewDragScroll.dragScrollRef.current = node;
+            sectionWrapRef.current = node;
+          }}
           className={`notebook-model-view notebook-oversize-scroll ${externalsViewDragScroll.dragScrollProps.className}`}
           aria-label="Externals view"
           data-drag-scroll-ignore="true"
@@ -349,15 +372,7 @@ export function ExternalsCellView({
           onMouseDown={externalsViewDragScroll.dragScrollProps.onMouseDown}
         >
           <div className="notebook-model-view-table" role="table" aria-label="Externals">
-            <div
-              className="notebook-model-view-row notebook-model-view-row-header notebook-model-view-row-external"
-              role="row"
-            >
-              <span role="columnheader">Name</span>
-              <span role="columnheader">Value</span>
-              <span role="columnheader">Current</span>
-              <span role="columnheader">Kind</span>
-            </div>
+            <ExternalsModelViewHeaderRow headerRowRef={headerRowRef} />
             {cell.externals.map((external, index) => {
               const issue =
                 issueMap[`externals.${index}.name`] ??
@@ -438,6 +453,13 @@ export function ExternalsCellView({
           ) : null}
         </section>
       )}
+      <NotebookFloatingHeaderOverlay
+        visible={floatingHeaderVisible}
+        anchor={floatingHeaderAnchor}
+        horizontalScrollSourceRef={sectionWrapRef}
+      >
+        <ExternalsModelViewHeaderRow />
+      </NotebookFloatingHeaderOverlay>
       <VariableRenameDialog
         cellCount={inlineEdit.renameReferenceCount.cellCount}
         isOpen={inlineEdit.renameDialog != null}
@@ -465,7 +487,8 @@ export function InitialValuesCellView({
   variableDescriptions,
   variableUnitMetadata,
   onChange,
-  onToggleCollapsed
+  onToggleCollapsed,
+  viewportRoot = null
 }: {
   cell: InitialValuesCell;
   currentValues: Record<string, number | undefined>;
@@ -478,16 +501,29 @@ export function InitialValuesCellView({
   title: string;
   variableDescriptions: VariableDescriptions;
   variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
+  viewportRoot?: Element | null;
   onChange(initialValues: EditorState["initialValues"]): void;
   onToggleCollapsed(): void;
 }) {
   const modelSource = { sourceModelId: cell.modelId };
   const initialValuesViewDragScroll = useDragScroll<HTMLElement>();
+  const cellRootRef = useRef<HTMLDivElement | null>(null);
+  const sectionWrapRef = useRef<HTMLElement | null>(null);
+  const headerRowRef = useRef<HTMLDivElement | null>(null);
   const issuePaths = Object.keys(issueMap);
   const [isEditingInitialValues, setIsEditingInitialValues] = useState(false);
   const [draftInitialValues, setDraftInitialValues] = useState(cell.initialValues);
   const hasDraftEdits =
     JSON.stringify(draftInitialValues) !== JSON.stringify(cell.initialValues);
+  const floatingEnabled = cell.collapsed !== true && !isEditingInitialValues && viewportRoot != null;
+  const { visible: floatingHeaderVisible, anchor: floatingHeaderAnchor } =
+    useNotebookFloatingHeaderRow({
+      scrollRoot: viewportRoot,
+      headerRowRef,
+      tableWrapRef: sectionWrapRef,
+      cellRootRef,
+      enabled: floatingEnabled
+    });
 
   useEffect(() => {
     onEditingChange?.(isEditingInitialValues);
@@ -528,7 +564,7 @@ export function InitialValuesCellView({
   });
 
   return (
-    <div className="notebook-model-stack notebook-linked-editor-cell">
+    <div ref={cellRootRef} className="notebook-model-stack notebook-linked-editor-cell">
       <NotebookLinkedEditorHeader
         actions={
           <NotebookLinkedEditorActions
@@ -594,7 +630,10 @@ export function InitialValuesCellView({
         </div>
       ) : (
         <section
-          ref={initialValuesViewDragScroll.dragScrollRef}
+          ref={(node) => {
+            initialValuesViewDragScroll.dragScrollRef.current = node;
+            sectionWrapRef.current = node;
+          }}
           className={`notebook-model-view notebook-oversize-scroll ${initialValuesViewDragScroll.dragScrollProps.className}`}
           aria-label="Initial values view"
           data-drag-scroll-ignore="true"
@@ -602,15 +641,7 @@ export function InitialValuesCellView({
           onMouseDown={initialValuesViewDragScroll.dragScrollProps.onMouseDown}
         >
           <div className="notebook-model-view-table" role="table" aria-label="Initial values">
-            <div
-              className="notebook-model-view-row notebook-model-view-row-header notebook-model-view-row-initial"
-              role="row"
-            >
-              <span role="columnheader">Name</span>
-              <span role="columnheader">Initial</span>
-              <span role="columnheader">Current</span>
-              <span role="columnheader">Status</span>
-            </div>
+            <InitialValuesModelViewHeaderRow headerRowRef={headerRowRef} />
             {cell.initialValues.map((initialValue, index) => {
               const issue =
                 issueMap[`initialValues.${index}.name`] ??
@@ -696,6 +727,13 @@ export function InitialValuesCellView({
           ) : null}
         </section>
       )}
+      <NotebookFloatingHeaderOverlay
+        visible={floatingHeaderVisible}
+        anchor={floatingHeaderAnchor}
+        horizontalScrollSourceRef={sectionWrapRef}
+      >
+        <InitialValuesModelViewHeaderRow />
+      </NotebookFloatingHeaderOverlay>
     </div>
   );
 }

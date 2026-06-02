@@ -155,6 +155,7 @@ import { VariableMathLabel } from "../components/VariableMathLabel";
 import { useDragScroll } from "../hooks/useDragScroll";
 import { useInspectorVariableHistory } from "../hooks/useInspectorVariableHistory";
 import { usePanelSplitter } from "../hooks/usePanelSplitter";
+import { useNotebookStickySurfaceTop } from "./useNotebookStickySurfaceTop";
 import { buildVariableInspectorData } from "../lib/variableInspector";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
 import { buildVariableDescriptions } from "../lib/variableDescriptions";
@@ -880,6 +881,7 @@ export function NotebookApp() {
     },
     [notebookMainDragScroll.dragScrollRef]
   );
+  useNotebookStickySurfaceTop(mainColumnElement);
   const notebookPanelSplitter = usePanelSplitter({
     defaultLeftWidthPercent: 62,
     minLeftWidthPx: 640,

@@ -1,4 +1,4 @@
-import { useMemo, type JSX, type MouseEvent as ReactMouseEvent } from "react";
+import { useMemo, type JSX, type MouseEvent as ReactMouseEvent, type Ref } from "react";
 
 import {
   buildMatrixAccountColumnDisplaySlots,
@@ -101,6 +101,8 @@ export function MatrixColumnTreeHeader({
   editorLinked,
   accountColumnLayout = false,
   sectorGroupedColumns = accountColumnLayout,
+  variant = "full",
+  columnRowRef,
   onToggleNode,
   graphLinked = false,
   graphSliceHighlight = null,
@@ -117,6 +119,9 @@ export function MatrixColumnTreeHeader({
   editorLinked: boolean;
   accountColumnLayout?: boolean;
   sectorGroupedColumns?: boolean;
+  /** Full sector+column header, or a single column-label row (for floating headers). */
+  variant?: "full" | "column-row";
+  columnRowRef?: Ref<HTMLTableRowElement>;
   onToggleNode(nodeId: string): void;
   graphLinked?: boolean;
   graphSliceHighlight?: MatrixGraphSliceHighlight | null;
@@ -131,13 +136,29 @@ export function MatrixColumnTreeHeader({
   const cornerRowSpan = Math.max(headerRows.length, 1);
   const cornerLabel = accountColumnLayout ? "Flow / account" : "Transaction";
   const sumColumnHeaderLabel = sumColumnIndex >= 0 ? columns[sumColumnIndex] : "";
+  const renderedRows =
+    variant === "column-row"
+      ? headerRows.length >= 2
+        ? [{ row: headerRows[1]!, rowIndex: 1 }]
+        : headerRows.length === 1
+          ? [{ row: headerRows[0]!, rowIndex: 0 }]
+          : []
+      : headerRows.map((row, rowIndex) => ({ row, rowIndex }));
 
   return (
     <>
-      {headerRows.map((row, rowIndex) => (
-        <tr key={`matrix-column-tree-header-${rowIndex}`}>
-          {rowIndex === 0 ? (
-            <th rowSpan={cornerRowSpan} scope="col">
+      {renderedRows.map(({ row, rowIndex }) => (
+        <tr
+          key={`matrix-column-tree-header-${rowIndex}`}
+          ref={
+            variant === "column-row" ||
+            (headerRows.length >= 2 ? rowIndex === 1 : rowIndex === 0)
+              ? columnRowRef
+              : undefined
+          }
+        >
+          {variant === "column-row" || rowIndex === 0 ? (
+            <th scope="col" {...(variant === "column-row" ? {} : { rowSpan: cornerRowSpan })}>
               {cornerLabel}
             </th>
           ) : null}
@@ -150,10 +171,10 @@ export function MatrixColumnTreeHeader({
               className={[
                 cell.isCollapsedStub ? "notebook-matrix-tree-collapsed-stub-header" : undefined,
                 cell.isLeafHidden ? "notebook-matrix-tree-hidden-leaf-header" : undefined,
-                sectorGroupedColumns && rowIndex === 0 && cell.isSectorStart
+                sectorGroupedColumns && rowIndex === 0 && cell.isSectorStart && cell.columnIndex == null
                   ? "notebook-matrix-sector-start"
                   : undefined,
-                ...(accountColumnLayout && cell.columnIndex != null && !cell.isCollapsedStub
+                ...(sectorGroupedColumns && cell.columnIndex != null && !cell.isCollapsedStub
                   ? resolveMatrixAccountColumnCellClasses(
                       columns,
                       sectors,
@@ -183,10 +204,10 @@ export function MatrixColumnTreeHeader({
               })}
             </th>
           ))}
-          {rowIndex === 0 && sumColumnIndex >= 0 ? (
+          {(variant === "column-row" || rowIndex === 0) && sumColumnIndex >= 0 ? (
             <th
-              rowSpan={cornerRowSpan}
               scope="col"
+              {...(variant === "column-row" ? {} : { rowSpan: cornerRowSpan })}
               className={
                 [
                   "notebook-matrix-sum-column",

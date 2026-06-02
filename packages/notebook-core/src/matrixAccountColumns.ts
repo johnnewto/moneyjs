@@ -323,9 +323,13 @@ export function resolveMatrixAccountColumnCellClasses(
   sectors: string[] | undefined,
   columnBadges: string[] | undefined,
   columnIndex: number,
-  sumColumnIndex: number
+  sumColumnIndex: number,
+  columnTree?: readonly unknown[] | undefined
 ): string[] {
-  if (!usesMatrixAccountColumnLayout(columnBadges)) {
+  const showSectorBoundaries =
+    usesMatrixAccountColumnLayout(columnBadges) ||
+    usesMatrixSectorColumnLayout(columns, sectors, columnBadges, columnTree);
+  if (!showSectorBoundaries) {
     return [];
   }
 
@@ -337,6 +341,10 @@ export function resolveMatrixAccountColumnCellClasses(
     classes.push("notebook-matrix-intra-sector-divider");
   }
   if (columnIndex === sumColumnIndex) {
+    return classes;
+  }
+
+  if (!usesMatrixAccountColumnLayout(columnBadges)) {
     return classes;
   }
 

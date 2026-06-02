@@ -1,12 +1,31 @@
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 
 import { useEquationGridColumnResize } from "../../hooks/useEquationGridColumnResize";
 
+import { EquationsModelViewHeaderRow } from "./notebookModelViewHeaderRows";
+
+function assignRef<T>(ref: Ref<T> | undefined, value: T | null): void {
+  if (!ref) {
+    return;
+  }
+
+  if (typeof ref === "function") {
+    ref(value);
+    return;
+  }
+
+  ref.current = value;
+}
+
 export function NotebookEquationViewTable({
   ariaLabel,
+  headerRowRef,
+  tableShellRef,
   children
 }: {
   ariaLabel: string;
+  headerRowRef?: Ref<HTMLDivElement>;
+  tableShellRef?: Ref<HTMLDivElement>;
   children: ReactNode;
 }) {
   const columnResize = useEquationGridColumnResize({
@@ -16,25 +35,15 @@ export function NotebookEquationViewTable({
 
   return (
     <div
-      ref={columnResize.shellRef}
+      ref={(node) => {
+        columnResize.shellRef.current = node;
+        assignRef(tableShellRef, node);
+      }}
       className={`notebook-model-view-table notebook-model-view-table-resizable${columnResize.shellClassName ? ` ${columnResize.shellClassName}` : ""}`.trim()}
       role="table"
       aria-label={ariaLabel}
     >
-      <div className="notebook-model-view-row notebook-model-view-row-header" role="row">
-        <span ref={columnResize.variableHeaderRef} role="columnheader">
-          Variable
-        </span>
-        <span ref={columnResize.expressionHeaderRef} role="columnheader">
-          Expression
-        </span>
-        <span role="columnheader">Description</span>
-        <span className="notebook-model-view-role" role="columnheader">
-          Role
-        </span>
-        <div {...columnResize.variableResizeHandleProps} />
-        <div {...columnResize.expressionResizeHandleProps} />
-      </div>
+      <EquationsModelViewHeaderRow columnResize={columnResize} headerRowRef={headerRowRef} />
       {children}
     </div>
   );
