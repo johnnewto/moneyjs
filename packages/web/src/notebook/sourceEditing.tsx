@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { isRowComment } from "@sfcr/notebook-core";
+
 import { stringifyJsonWithCompactLeaves } from "../lib/jsonFormat";
 import { normalizeUnitMetaAliases } from "../lib/unitMeta";
 import accountTransactionsMatrixHelp from "./help/account-transactions-matrix.md?raw";
@@ -678,31 +680,47 @@ function normalizeCellSource(cell: NotebookCell): NotebookCell {
         ...cell,
         editor: {
           ...cell.editor,
-          equations: cell.editor.equations.map((equation) => ({
-            ...equation,
-            unitMeta: normalizeUnitMetaAliases(equation.unitMeta)
-          })),
-          externals: cell.editor.externals.map((external) => ({
-            ...external,
-            unitMeta: normalizeUnitMetaAliases(external.unitMeta)
-          }))
+          equations: cell.editor.equations.map((equation) =>
+            isRowComment(equation)
+              ? equation
+              : {
+                  ...equation,
+                  unitMeta: normalizeUnitMetaAliases(equation.unitMeta)
+                }
+          ),
+          externals: cell.editor.externals.map((external) =>
+            isRowComment(external)
+              ? external
+              : {
+                  ...external,
+                  unitMeta: normalizeUnitMetaAliases(external.unitMeta)
+                }
+          )
         }
       };
     case "equations":
       return {
         ...cell,
-        equations: cell.equations.map((equation) => ({
-          ...equation,
-          unitMeta: normalizeUnitMetaAliases(equation.unitMeta)
-        }))
+        equations: cell.equations.map((equation) =>
+          isRowComment(equation)
+            ? equation
+            : {
+                ...equation,
+                unitMeta: normalizeUnitMetaAliases(equation.unitMeta)
+              }
+        )
       };
     case "externals":
       return {
         ...cell,
-        externals: cell.externals.map((external) => ({
-          ...external,
-          unitMeta: normalizeUnitMetaAliases(external.unitMeta)
-        }))
+        externals: cell.externals.map((external) =>
+          isRowComment(external)
+            ? external
+            : {
+                ...external,
+                unitMeta: normalizeUnitMetaAliases(external.unitMeta)
+              }
+        )
       };
     case "run":
       if (!cell.scenario) {

@@ -1,11 +1,15 @@
+import { equationRowsOnly } from "@sfcr/notebook-core";
 import { notebookFromJson } from "../notebook/document";
 import { buildEditorStateForNotebookModel } from "../notebook/modelSections";
 import type { NotebookDocument } from "../notebook/types";
 import type {
   EditorOptions,
   EditorState,
+  EquationListItem,
   EquationRow,
+  ExternalListItem,
   ExternalRow,
+  InitialValueListItem,
   InitialValueRow
 } from "../lib/editorModel";
 
@@ -20,9 +24,9 @@ export const CHAT_BUILDER_SECTION_NAMES = [
 
 export interface ChatBuilderDraftPlan {
   assistantText: string;
-  equations: EquationRow[];
-  externals: ExternalRow[];
-  initialValues: InitialValueRow[];
+  equations: EquationListItem[];
+  externals: ExternalListItem[];
+  initialValues: InitialValueListItem[];
   notebookDocument: NotebookDocument | null;
   sections: string[];
   solverOptions: Partial<EditorOptions> | null;
@@ -320,9 +324,9 @@ function inferDraftSections(args: {
 }
 
 export function buildDraftEditorState(args: {
-  equations: EquationRow[];
-  externals: ExternalRow[];
-  initialValues: InitialValueRow[];
+  equations: EquationListItem[];
+  externals: ExternalListItem[];
+  initialValues: InitialValueListItem[];
   solverOptions: Partial<EditorOptions> | null;
 }): EditorState | null {
   if (
@@ -361,7 +365,9 @@ export function buildDraftNotebookDocument(args: {
   const notebookId = slugifyChatBuilderText(args.draftFocus || args.summary);
   const modelId = `${notebookId}-model`;
   const runCellId = `${notebookId}-baseline-run`;
-  const chartVariables = args.editor.equations.slice(0, 3).map((equation) => equation.name);
+  const chartVariables = equationRowsOnly(args.editor.equations)
+    .slice(0, 3)
+    .map((equation) => equation.name);
 
   return {
     id: notebookId,

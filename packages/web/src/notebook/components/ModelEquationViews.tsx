@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { analyzeParsedEquation, parseEquation, type EquationRole } from "@sfcr/core";
+import { countDataRows, externalRowsOnly, formatCompactRowCommentText, isRowComment, type EquationListItem } from "@sfcr/notebook-core";
 
 import { EquationGridEditor } from "../../components/EquationGridEditor";
 import { buildActiveTrace, buildTraceModel, type PinnedTrace } from "../../components/EquationGridEditor";
+import { newRowComment } from "../rowCommentHelpers";
+import { useInlineCommentRowEdit } from "../useInlineCommentRowEdit";
 import { useInlineEquationRowEdit } from "../useInlineEquationRowEdit";
+import { CommentRowReadView } from "./CommentRowReadView";
 import {
   canMoveRowDown,
   canMoveRowUp,
@@ -18,7 +22,7 @@ import {
   useDeferredAction,
   VariableRenameDialog
 } from "./EquationRowInlineEditor";
-import { buildRuntimeConfig, diagnoseBuildRuntime, validateEditorState, type EditorState } from "../../lib/editorModel";
+import { buildRuntimeConfig, diagnoseBuildRuntime, validateEditorState, type EditorState, type ExternalRow } from "../../lib/editorModel";
 import { buildVariableDescriptions, type VariableDescriptions } from "../../lib/variableDescriptions";
 import { buildVariableUnitMetadata } from "../../lib/units";
 import { useDragScroll } from "../../hooks/useDragScroll";
@@ -72,7 +76,7 @@ export function ModelCellView({
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
   const [pinnedTrace, setPinnedTrace] = useState<PinnedTrace | null>(null);
   const parameterNameSet = useMemo(
-    () => new Set(draftEditor.externals.map((external) => external.name)),
+    () => new Set(externalRowsOnly(draftEditor.externals).map((external) => external.name)),
     [draftEditor.externals]
   );
   const variableDescriptions = useMemo(
@@ -125,6 +129,10 @@ export function ModelCellView({
     setIsEditingEquations(false);
   }
 
+  const commentEdit = useInlineCommentRowEdit({
+    onChangeRows: (equations) => onChange({ ...cell.editor, equations }),
+    rows: cell.editor.equations
+  });
   const inlineEdit = useInlineEquationRowEdit({
     cells,
     equations: cell.editor.equations,
@@ -136,6 +144,7 @@ export function ModelCellView({
     ignoredSelector: "select",
     onChangeRows: (equations) => {
       inlineEdit.cancelRowEdit();
+      commentEdit.cancelRowEdit();
       onChange({ ...cell.editor, equations });
     },
     rows: cell.editor.equations
@@ -163,7 +172,7 @@ export function ModelCellView({
       >
         <div className="notebook-model-summary" aria-label="Model summary">
           <span className="notebook-model-chip">
-            Eq <strong>{cell.editor.equations.length}</strong>
+            Eq <strong>{countDataRows(cell.editor.equations)}</strong>
           </span>
           <span className="notebook-model-chip">
             Ext <strong>{cell.editor.externals.length}</strong>
@@ -206,7 +215,7 @@ export function ModelCellView({
               })
             }
             documentHighlightedVariable={highlightedVariable}
-            parameterNames={draftEditor.externals.map((external) => external.name)}
+            parameterNames={externalRowsOnly(draftEditor.externals).map((external) => external.name)}
             showHeading={false}
             showTraceHelp={false}
             variableDescriptions={variableDescriptions}
@@ -223,7 +232,21 @@ export function ModelCellView({
           onMouseDown={modelViewDragScroll.dragScrollProps.onMouseDown}
         >
           <NotebookEquationViewTable ariaLabel="Model equations">
-            {cell.editor.equations.map((equation, index) => {
+            {cell.editor.equations.map((row, index) => {
+              if (isRowComment(row)) {
+                return (
+                  <CommentRowReadView
+                    key={row.id}
+                    commentEdit={commentEdit}
+                    index={index}
+                    row={row}
+                    onCancelDataRowEdit={inlineEdit.cancelRowEdit}
+                    onContextMenu={equationRowMenu.handleRowContextMenu}
+                  />
+                );
+              }
+
+              const equation = row;
               const issue =
                 issueMap[`equations.${index}.name`] ?? issueMap[`equations.${index}.expression`];
 
@@ -256,7 +279,10 @@ export function ModelCellView({
                   variableDescriptions={variableDescriptions}
                   variableUnitMetadata={variableUnitMetadata}
                   onApplyRow={inlineEdit.applyRowEdit}
-                  onBeginRowEdit={inlineEdit.beginRowEdit}
+                  onBeginRowEdit={(equationId, focus) => {
+                    commentEdit.cancelRowEdit();
+                    inlineEdit.beginRowEdit(equationId, focus);
+                  }}
                   onCancelRow={inlineEdit.cancelRowEdit}
                   onDraftExpressionChange={inlineEdit.setDraftExpression}
                   onDraftNameChange={inlineEdit.setDraftName}
@@ -295,6 +321,7 @@ export function ModelCellView({
           </NotebookEquationViewTable>
           {equationRowMenu.rowContextMenu ? (
             <GridRowContextMenu
+              addCommentLabel="Add section comment"
               addItemLabel="Add equation"
               canMoveDown={canMoveRowDown(cell.editor.equations, equationRowMenu.rowContextMenu.rowIndex)}
               canMoveUp={canMoveRowUp(cell.editor.equations, equationRowMenu.rowContextMenu.rowIndex)}
@@ -302,6 +329,9 @@ export function ModelCellView({
               menuTypeLabel="Equation"
               onAdd={() =>
                 equationRowMenu.insertRowBelow(equationRowMenu.rowContextMenu!.rowIndex, newEquationRow())
+              }
+              onAddComment={() =>
+                equationRowMenu.insertRowBelow(equationRowMenu.rowContextMenu!.rowIndex, newRowComment())
               }
               onDelete={() => equationRowMenu.requestDelete(equationRowMenu.rowContextMenu!.rowIndex)}
               onMoveDown={() => equationRowMenu.moveRowAt(equationRowMenu.rowContextMenu!.rowIndex, 1)}
@@ -311,7 +341,11 @@ export function ModelCellView({
           ) : null}
           {equationRowMenu.deleteDialogRowIndex != null ? (
             <GridRowDeleteDialog
-              deleteTitle="Delete equation?"
+              deleteTitle={
+                isRowComment(cell.editor.equations[equationRowMenu.deleteDialogRowIndex])
+                  ? "Delete section comment?"
+                  : "Delete equation?"
+              }
               itemLabel={formatEquationDeleteLabel(
                 cell.editor.equations[equationRowMenu.deleteDialogRowIndex],
                 equationRowMenu.deleteDialogRowIndex
@@ -407,7 +441,7 @@ export function EquationsCellView({
   const runtime = safeBuildRuntime(editor);
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
   const [pinnedTrace, setPinnedTrace] = useState<PinnedTrace | null>(null);
-  const parameterNameSet = useMemo(() => new Set(externals.map((external) => external.name)), [externals]);
+  const parameterNameSet = useMemo(() => new Set(externalRowsOnly(externals).map((external) => external.name)), [externals]);
   const variableDescriptions = useMemo(
     () =>
       buildVariableDescriptions({
@@ -472,6 +506,10 @@ export function EquationsCellView({
     setIsEditingEquations(false);
   }
 
+  const commentEdit = useInlineCommentRowEdit({
+    onChangeRows: onChange,
+    rows: cell.equations
+  });
   const inlineEdit = useInlineEquationRowEdit({
     cells,
     equations: cell.equations,
@@ -483,6 +521,7 @@ export function EquationsCellView({
     ignoredSelector: "select",
     onChangeRows: (equations) => {
       inlineEdit.cancelRowEdit();
+      commentEdit.cancelRowEdit();
       onChange(equations);
     },
     rows: cell.equations
@@ -522,7 +561,7 @@ export function EquationsCellView({
       >
         <div className="notebook-model-summary" aria-label="Equations summary">
           <span className="notebook-model-chip">
-            Eq <strong>{cell.equations.length}</strong>
+            Eq <strong>{countDataRows(cell.equations)}</strong>
           </span>
           <span className="notebook-model-chip">
             Ext <strong>{externals.length}</strong>
@@ -564,7 +603,7 @@ export function EquationsCellView({
               })
             }
             documentHighlightedVariable={highlightedVariable}
-            parameterNames={externals.map((external) => external.name)}
+            parameterNames={externalRowsOnly(externals).map((external) => external.name)}
             showHeading={false}
             showTraceHelp={false}
             variableDescriptions={variableDescriptions}
@@ -588,7 +627,21 @@ export function EquationsCellView({
             headerRowRef={headerRowRef}
             tableShellRef={tableShellRef}
           >
-            {cell.equations.map((equation, index) => {
+            {cell.equations.map((row, index) => {
+              if (isRowComment(row)) {
+                return (
+                  <CommentRowReadView
+                    key={row.id}
+                    commentEdit={commentEdit}
+                    index={index}
+                    row={row}
+                    onCancelDataRowEdit={inlineEdit.cancelRowEdit}
+                    onContextMenu={equationRowMenu.handleRowContextMenu}
+                  />
+                );
+              }
+
+              const equation = row;
               const issue =
                 issueMap[`equations.${index}.name`] ?? issueMap[`equations.${index}.expression`];
 
@@ -622,7 +675,10 @@ export function EquationsCellView({
                   variableDescriptions={variableDescriptions}
                   variableUnitMetadata={variableUnitMetadata}
                   onApplyRow={inlineEdit.applyRowEdit}
-                  onBeginRowEdit={inlineEdit.beginRowEdit}
+                  onBeginRowEdit={(equationId, focus) => {
+                    commentEdit.cancelRowEdit();
+                    inlineEdit.beginRowEdit(equationId, focus);
+                  }}
                   onCancelRow={inlineEdit.cancelRowEdit}
                   onDraftExpressionChange={inlineEdit.setDraftExpression}
                   onDraftNameChange={inlineEdit.setDraftName}
@@ -661,6 +717,7 @@ export function EquationsCellView({
           </NotebookEquationViewTable>
           {equationRowMenu.rowContextMenu ? (
             <GridRowContextMenu
+              addCommentLabel="Add section comment"
               addItemLabel="Add equation"
               canMoveDown={canMoveRowDown(cell.equations, equationRowMenu.rowContextMenu.rowIndex)}
               canMoveUp={canMoveRowUp(cell.equations, equationRowMenu.rowContextMenu.rowIndex)}
@@ -668,6 +725,9 @@ export function EquationsCellView({
               menuTypeLabel="Equation"
               onAdd={() =>
                 equationRowMenu.insertRowBelow(equationRowMenu.rowContextMenu!.rowIndex, newEquationRow())
+              }
+              onAddComment={() =>
+                equationRowMenu.insertRowBelow(equationRowMenu.rowContextMenu!.rowIndex, newRowComment())
               }
               onDelete={() => equationRowMenu.requestDelete(equationRowMenu.rowContextMenu!.rowIndex)}
               onMoveDown={() => equationRowMenu.moveRowAt(equationRowMenu.rowContextMenu!.rowIndex, 1)}
@@ -677,7 +737,11 @@ export function EquationsCellView({
           ) : null}
           {equationRowMenu.deleteDialogRowIndex != null ? (
             <GridRowDeleteDialog
-              deleteTitle="Delete equation?"
+              deleteTitle={
+                isRowComment(cell.equations[equationRowMenu.deleteDialogRowIndex])
+                  ? "Delete section comment?"
+                  : "Delete equation?"
+              }
               itemLabel={formatEquationDeleteLabel(
                 cell.equations[equationRowMenu.deleteDialogRowIndex],
                 equationRowMenu.deleteDialogRowIndex
@@ -754,15 +818,16 @@ function buildExternalDisplayValues(
   selectedPeriodIndex: number
 ): Map<string, string> {
   return new Map(
-    externals.map((external) => [
-      external.name,
-      formatExternalValueLabel(external, selectedPeriodIndex)
-    ])
+    externals.flatMap((external) =>
+      isRowComment(external)
+        ? []
+        : [[external.name, formatExternalValueLabel(external, selectedPeriodIndex)] as const]
+    )
   );
 }
 
 function formatExternalValueLabel(
-  external: ExternalsCell["externals"][number],
+  external: ExternalRow,
   selectedPeriodIndex: number
 ): string {
   if (external.kind === "constant") {
@@ -811,11 +876,14 @@ function newEquationRow() {
   };
 }
 
-function formatEquationDeleteLabel(
-  equation: { name: string } | undefined,
-  rowIndex: number
-): string {
-  const name = equation?.name.trim();
+function formatEquationDeleteLabel(row: EquationListItem | undefined, rowIndex: number): string {
+  if (!row) {
+    return `Row ${rowIndex + 1}`;
+  }
+  if (isRowComment(row)) {
+    return formatCompactRowCommentText(row.text);
+  }
+  const name = row.name.trim();
   return name ? name : `Equation ${rowIndex + 1}`;
 }
 

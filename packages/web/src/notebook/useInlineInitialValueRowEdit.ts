@@ -1,5 +1,7 @@
 import { useCallback, useState } from "react";
 
+import { isRowComment, type InitialValueListItem } from "@sfcr/notebook-core";
+
 import type { InitialValueRow } from "../lib/editorModel";
 import type { InitialValueRowEditFocus } from "./components/InitialValueRowInlineEditor";
 
@@ -7,8 +9,8 @@ export function useInlineInitialValueRowEdit({
   initialValues,
   onChangeInitialValues
 }: {
-  initialValues: InitialValueRow[];
-  onChangeInitialValues(next: InitialValueRow[]): void;
+  initialValues: InitialValueListItem[];
+  onChangeInitialValues(next: InitialValueListItem[]): void;
 }) {
   const [editingInitialValueId, setEditingInitialValueId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState("");
@@ -26,7 +28,7 @@ export function useInlineInitialValueRowEdit({
   const beginRowEdit = useCallback(
     (initialValueId: string, focus: InitialValueRowEditFocus) => {
       const initialValue = initialValues.find((entry) => entry.id === initialValueId);
-      if (!initialValue) {
+      if (!initialValue || isRowComment(initialValue)) {
         return;
       }
 
@@ -45,7 +47,7 @@ export function useInlineInitialValueRowEdit({
     }
 
     const initialValue = initialValues.find((entry) => entry.id === editingInitialValueId);
-    if (!initialValue) {
+    if (!initialValue || isRowComment(initialValue)) {
       cancelRowEdit();
       return;
     }
@@ -67,13 +69,13 @@ export function useInlineInitialValueRowEdit({
 
     onChangeInitialValues(
       initialValues.map((row) =>
-        row.id === editingInitialValueId
-          ? {
+        isRowComment(row) || row.id !== editingInitialValueId
+          ? row
+          : {
               ...row,
               name: trimmedName,
               valueText: trimmedValueText
             }
-          : row
       )
     );
     cancelRowEdit();

@@ -5,6 +5,8 @@ import {
   type EquationRole
 } from "@sfcr/core";
 
+import { isRowComment } from "@sfcr/notebook-core";
+
 import type { EditorState, EquationRow, ExternalRow, InitialValueRow } from "../lib/editorModel";
 
 export type VariableType = "parameter" | "auxiliary" | "flow" | "stock" | "exogenous";
@@ -69,6 +71,9 @@ export function buildDependencyGraph(
   const parsedEquations: ParsedEquationEntry[] = [];
 
   editor.equations.forEach((row, equationIndex) => {
+    if (isRowComment(row)) {
+      return;
+    }
     const name = row.name.trim();
     const expression = row.expression.trim();
     if (!name || !expression) {
@@ -96,6 +101,9 @@ export function buildDependencyGraph(
   const initialValues = new Map<string, number>();
 
   editor.initialValues.forEach((row) => {
+    if (isRowComment(row)) {
+      return;
+    }
     const name = row.name.trim();
     const value = row.valueText.trim();
     if (!name || !value) {
@@ -316,10 +324,15 @@ export function buildDependencyGraph(
   };
 }
 
-function collectExternalRows(rows: ExternalRow[]): Array<Pick<ExternalRow, "name" | "desc">> {
+function collectExternalRows(
+  rows: EditorState["externals"]
+): Array<Pick<ExternalRow, "name" | "desc">> {
   const uniqueRows = new Map<string, Pick<ExternalRow, "name" | "desc">>();
 
   rows.forEach((row) => {
+    if (isRowComment(row)) {
+      return;
+    }
     const name = row.name.trim();
     if (!name || uniqueRows.has(name)) {
       return;

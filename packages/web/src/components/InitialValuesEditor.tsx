@@ -1,4 +1,8 @@
+import { formatCompactRowCommentText, isRowComment, type InitialValueListItem } from "@sfcr/notebook-core";
+
 import type { InitialValueRow } from "../lib/editorModel";
+import { NotebookRowComment } from "../notebook/components/NotebookRowComment";
+import { newRowComment, patchCommentInRows } from "../notebook/rowCommentHelpers";
 import type { VariableUnitMetadata } from "../lib/unitMeta";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
 import { NumericValueText } from "./NumericValueText";
@@ -17,9 +21,9 @@ interface InitialValuesEditorProps {
   currentValues?: Record<string, number | undefined>;
   highlightedVariable?: string | null;
   isEmbedded?: boolean;
-  initialValues: InitialValueRow[];
+  initialValues: InitialValueListItem[];
   issues: Record<string, string | undefined>;
-  onChange(next: InitialValueRow[]): void;
+  onChange(next: InitialValueListItem[]): void;
   onSelectVariable?(variableName: string): void;
   showHeading?: boolean;
   variableDescriptions?: VariableDescriptions;
@@ -63,7 +67,21 @@ export function InitialValuesEditor({
         </div>
 
         <div className="initial-grid-body">
-        {initialValues.map((initialValue, index) => (
+        {initialValues.map((row, index) => {
+          if (isRowComment(row)) {
+            return (
+              <NotebookRowComment
+                key={row.id}
+                mode="grid"
+                text={row.text}
+                onContextMenu={(event) => rowContextMenu.handleRowContextMenu(event, index)}
+                onTextChange={(text) => onChange(patchCommentInRows(initialValues, row.id, text))}
+              />
+            );
+          }
+
+          const initialValue = row;
+          return (
           <div
             className={`initial-grid-row${
               issues[`initialValues.${index}.name`] || issues[`initialValues.${index}.valueText`]
@@ -121,7 +139,8 @@ export function InitialValuesEditor({
               -
             </button>
           </div>
-        ))}
+          );
+        })}
         </div>
       </div>
 
@@ -129,10 +148,14 @@ export function InitialValuesEditor({
         <button type="button" onClick={() => onChange([...initialValues, newInitialValueRow()])}>
           Add initial
         </button>
+        <button type="button" className="secondary-button" onClick={() => onChange([...initialValues, newRowComment()])}>
+          Add section comment
+        </button>
       </div>
 
       {rowContextMenu.rowContextMenu ? (
         <GridRowContextMenu
+          addCommentLabel="Add section comment"
           addItemLabel="Add initial value"
           canMoveDown={canMoveRowDown(initialValues, rowContextMenu.rowContextMenu.rowIndex)}
           canMoveUp={canMoveRowUp(initialValues, rowContextMenu.rowContextMenu.rowIndex)}
@@ -144,6 +167,9 @@ export function InitialValuesEditor({
               newInitialValueRow()
             )
           }
+          onAddComment={() =>
+            rowContextMenu.insertRowBelow(rowContextMenu.rowContextMenu!.rowIndex, newRowComment())
+          }
           onDelete={() => rowContextMenu.requestDelete(rowContextMenu.rowContextMenu!.rowIndex)}
           onMoveDown={() => rowContextMenu.moveRowAt(rowContextMenu.rowContextMenu!.rowIndex, 1)}
           onMoveUp={() => rowContextMenu.moveRowAt(rowContextMenu.rowContextMenu!.rowIndex, -1)}
@@ -153,7 +179,11 @@ export function InitialValuesEditor({
 
       {rowContextMenu.deleteDialogRowIndex != null ? (
         <GridRowDeleteDialog
-          deleteTitle="Delete initial value?"
+          deleteTitle={
+            isRowComment(initialValues[rowContextMenu.deleteDialogRowIndex])
+              ? "Delete section comment?"
+              : "Delete initial value?"
+          }
           itemLabel={formatInitialValueDeleteLabel(
             initialValues[rowContextMenu.deleteDialogRowIndex],
             rowContextMenu.deleteDialogRowIndex
@@ -175,19 +205,29 @@ function newInitialValueRow(): InitialValueRow {
 }
 
 function updateRow(
-  rows: InitialValueRow[],
+  rows: InitialValueListItem[],
   index: number,
   patch: Partial<InitialValueRow>,
-  onChange: (next: InitialValueRow[]) => void
+  onChange: (next: InitialValueListItem[]) => void
 ): void {
-  onChange(rows.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)));
+  onChange(
+    rows.map((row, rowIndex) =>
+      rowIndex === index && !isRowComment(row) ? { ...row, ...patch } : row
+    )
+  );
 }
 
 function formatInitialValueDeleteLabel(
-  initialValue: InitialValueRow | undefined,
+  initialValue: InitialValueListItem | undefined,
   rowIndex: number
 ): string {
-  const name = initialValue?.name.trim();
+  if (!initialValue) {
+    return `Row ${rowIndex + 1}`;
+  }
+  if (isRowComment(initialValue)) {
+    return formatCompactRowCommentText(initialValue.text);
+  }
+  const name = initialValue.name.trim();
   return name ? name : `Initial value ${rowIndex + 1}`;
 }
 

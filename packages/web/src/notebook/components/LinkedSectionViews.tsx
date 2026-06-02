@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import {
+  countDataRows,
+  formatCompactRowCommentText,
+  isRowComment,
+  type ExternalListItem,
+  type InitialValueListItem
+} from "@sfcr/notebook-core";
+
 import { ExternalEditor } from "../../components/ExternalEditor";
 import { InitialValuesEditor } from "../../components/InitialValuesEditor";
 import { SolverPanel } from "../../components/SolverPanel";
@@ -9,8 +17,11 @@ import { buildVariableUnitMetadata } from "../../lib/units";
 import { useDragScroll } from "../../hooks/useDragScroll";
 import type { VariableInspectRequest } from "../../lib/variableInspect";
 import { countModelSectionIssues } from "../modelSections";
+import { newRowComment } from "../rowCommentHelpers";
+import { useInlineCommentRowEdit } from "../useInlineCommentRowEdit";
 import { useInlineExternalRowEdit } from "../useInlineExternalRowEdit";
 import { useInlineInitialValueRowEdit } from "../useInlineInitialValueRowEdit";
+import { CommentRowReadView } from "./CommentRowReadView";
 import type { ExternalsCell, InitialValuesCell, NotebookCell, SolverCell } from "../types";
 import {
   canMoveRowDown,
@@ -251,7 +262,9 @@ export function ExternalsCellView({
   const sectionWrapRef = useRef<HTMLElement | null>(null);
   const headerRowRef = useRef<HTMLDivElement | null>(null);
   const issuePaths = Object.keys(issueMap);
-  const seriesExternalCount = cell.externals.filter((external) => external.kind === "series").length;
+  const seriesExternalCount = cell.externals.filter(
+    (external) => !isRowComment(external) && external.kind === "series"
+  ).length;
   const variableDescriptions = useMemo(
     () => buildVariableDescriptions({ externals: cell.externals }),
     [cell.externals]
@@ -298,6 +311,10 @@ export function ExternalsCellView({
     setIsEditingExternals(false);
   }
 
+  const commentEdit = useInlineCommentRowEdit({
+    onChangeRows: onChange,
+    rows: cell.externals
+  });
   const inlineEdit = useInlineExternalRowEdit({
     cells,
     externals: cell.externals,
@@ -309,6 +326,7 @@ export function ExternalsCellView({
     ignoredSelector: "select",
     onChangeRows: (externals) => {
       inlineEdit.cancelRowEdit();
+      commentEdit.cancelRowEdit();
       onChange(externals);
     },
     rows: cell.externals
@@ -338,7 +356,7 @@ export function ExternalsCellView({
             Model <strong>{cell.modelId}</strong>
           </span>
           <span className="notebook-model-chip">
-            Ext <strong>{cell.externals.length}</strong>
+            Ext <strong>{countDataRows(cell.externals)}</strong>
           </span>
           <span className="notebook-model-chip">
             Series <strong>{seriesExternalCount}</strong>
@@ -373,7 +391,21 @@ export function ExternalsCellView({
         >
           <div className="notebook-model-view-table" role="table" aria-label="Externals">
             <ExternalsModelViewHeaderRow headerRowRef={headerRowRef} />
-            {cell.externals.map((external, index) => {
+            {cell.externals.map((row, index) => {
+              if (isRowComment(row)) {
+                return (
+                  <CommentRowReadView
+                    key={row.id}
+                    commentEdit={commentEdit}
+                    index={index}
+                    row={row}
+                    onCancelDataRowEdit={inlineEdit.cancelRowEdit}
+                    onContextMenu={externalRowMenu.handleRowContextMenu}
+                  />
+                );
+              }
+
+              const external = row;
               const issue =
                 issueMap[`externals.${index}.name`] ??
                 issueMap[`externals.${index}.valueText`] ??
@@ -403,7 +435,10 @@ export function ExternalsCellView({
                   variableDescriptions={variableDescriptions}
                   variableUnitMetadata={variableUnitMetadata}
                   onApplyRow={inlineEdit.applyRowEdit}
-                  onBeginRowEdit={inlineEdit.beginRowEdit}
+                  onBeginRowEdit={(externalId, focus) => {
+                    commentEdit.cancelRowEdit();
+                    inlineEdit.beginRowEdit(externalId, focus);
+                  }}
                   onCancelRow={inlineEdit.cancelRowEdit}
                   onDraftNameChange={inlineEdit.setDraftName}
                   onDraftValueTextChange={inlineEdit.setDraftValueText}
@@ -423,6 +458,7 @@ export function ExternalsCellView({
           </div>
           {externalRowMenu.rowContextMenu ? (
             <GridRowContextMenu
+              addCommentLabel="Add section comment"
               addItemLabel="Add external"
               canMoveDown={canMoveRowDown(cell.externals, externalRowMenu.rowContextMenu.rowIndex)}
               canMoveUp={canMoveRowUp(cell.externals, externalRowMenu.rowContextMenu.rowIndex)}
@@ -434,6 +470,9 @@ export function ExternalsCellView({
                   newExternalRow()
                 )
               }
+              onAddComment={() =>
+                externalRowMenu.insertRowBelow(externalRowMenu.rowContextMenu!.rowIndex, newRowComment())
+              }
               onDelete={() => externalRowMenu.requestDelete(externalRowMenu.rowContextMenu!.rowIndex)}
               onMoveDown={() => externalRowMenu.moveRowAt(externalRowMenu.rowContextMenu!.rowIndex, 1)}
               onMoveUp={() => externalRowMenu.moveRowAt(externalRowMenu.rowContextMenu!.rowIndex, -1)}
@@ -442,7 +481,11 @@ export function ExternalsCellView({
           ) : null}
           {externalRowMenu.deleteDialogRowIndex != null ? (
             <GridRowDeleteDialog
-              deleteTitle="Delete external?"
+              deleteTitle={
+                isRowComment(cell.externals[externalRowMenu.deleteDialogRowIndex])
+                  ? "Delete section comment?"
+                  : "Delete external?"
+              }
               itemLabel={formatExternalDeleteLabel(
                 cell.externals[externalRowMenu.deleteDialogRowIndex],
                 externalRowMenu.deleteDialogRowIndex
@@ -550,6 +593,10 @@ export function InitialValuesCellView({
     setIsEditingInitialValues(false);
   }
 
+  const commentEdit = useInlineCommentRowEdit({
+    onChangeRows: onChange,
+    rows: cell.initialValues
+  });
   const inlineEdit = useInlineInitialValueRowEdit({
     initialValues: cell.initialValues,
     onChangeInitialValues: onChange
@@ -558,6 +605,7 @@ export function InitialValuesCellView({
     ignoredSelector: "select",
     onChangeRows: (initialValues) => {
       inlineEdit.cancelRowEdit();
+      commentEdit.cancelRowEdit();
       onChange(initialValues);
     },
     rows: cell.initialValues
@@ -587,14 +635,15 @@ export function InitialValuesCellView({
             Model <strong>{cell.modelId}</strong>
           </span>
           <span className="notebook-model-chip">
-            Init <strong>{cell.initialValues.length}</strong>
+            Init <strong>{countDataRows(cell.initialValues)}</strong>
           </span>
           <span className="notebook-model-chip">
             Populated{" "}
             <strong>
               {
                 cell.initialValues.filter(
-                  (initialValue) => initialValue.valueText.trim() !== ""
+                  (initialValue) =>
+                    !isRowComment(initialValue) && initialValue.valueText.trim() !== ""
                 ).length
               }
             </strong>
@@ -642,7 +691,21 @@ export function InitialValuesCellView({
         >
           <div className="notebook-model-view-table" role="table" aria-label="Initial values">
             <InitialValuesModelViewHeaderRow headerRowRef={headerRowRef} />
-            {cell.initialValues.map((initialValue, index) => {
+            {cell.initialValues.map((row, index) => {
+              if (isRowComment(row)) {
+                return (
+                  <CommentRowReadView
+                    key={row.id}
+                    commentEdit={commentEdit}
+                    index={index}
+                    row={row}
+                    onCancelDataRowEdit={inlineEdit.cancelRowEdit}
+                    onContextMenu={initialValueRowMenu.handleRowContextMenu}
+                  />
+                );
+              }
+
+              const initialValue = row;
               const issue =
                 issueMap[`initialValues.${index}.name`] ??
                 issueMap[`initialValues.${index}.valueText`];
@@ -671,7 +734,10 @@ export function InitialValuesCellView({
                   variableDescriptions={variableDescriptions}
                   variableUnitMetadata={variableUnitMetadata}
                   onApplyRow={inlineEdit.applyRowEdit}
-                  onBeginRowEdit={inlineEdit.beginRowEdit}
+                  onBeginRowEdit={(initialValueId, focus) => {
+                    commentEdit.cancelRowEdit();
+                    inlineEdit.beginRowEdit(initialValueId, focus);
+                  }}
                   onCancelRow={inlineEdit.cancelRowEdit}
                   onDraftNameChange={inlineEdit.setDraftName}
                   onDraftValueTextChange={inlineEdit.setDraftValueText}
@@ -691,6 +757,7 @@ export function InitialValuesCellView({
           </div>
           {initialValueRowMenu.rowContextMenu ? (
             <GridRowContextMenu
+              addCommentLabel="Add section comment"
               addItemLabel="Add initial value"
               canMoveDown={canMoveRowDown(cell.initialValues, initialValueRowMenu.rowContextMenu.rowIndex)}
               canMoveUp={canMoveRowUp(cell.initialValues, initialValueRowMenu.rowContextMenu.rowIndex)}
@@ -700,6 +767,12 @@ export function InitialValuesCellView({
                 initialValueRowMenu.insertRowBelow(
                   initialValueRowMenu.rowContextMenu!.rowIndex,
                   newInitialValueRow()
+                )
+              }
+              onAddComment={() =>
+                initialValueRowMenu.insertRowBelow(
+                  initialValueRowMenu.rowContextMenu!.rowIndex,
+                  newRowComment()
                 )
               }
               onDelete={() =>
@@ -716,7 +789,11 @@ export function InitialValuesCellView({
           ) : null}
           {initialValueRowMenu.deleteDialogRowIndex != null ? (
             <GridRowDeleteDialog
-              deleteTitle="Delete initial value?"
+              deleteTitle={
+                isRowComment(cell.initialValues[initialValueRowMenu.deleteDialogRowIndex])
+                  ? "Delete section comment?"
+                  : "Delete initial value?"
+              }
               itemLabel={formatInitialValueDeleteLabel(
                 cell.initialValues[initialValueRowMenu.deleteDialogRowIndex],
                 initialValueRowMenu.deleteDialogRowIndex
@@ -748,12 +825,29 @@ function newExternalRow() {
   };
 }
 
-function formatExternalDeleteLabel(
-  external: { name: string } | undefined,
+function formatExternalDeleteLabel(row: ExternalListItem | undefined, rowIndex: number): string {
+  if (!row) {
+    return `Row ${rowIndex + 1}`;
+  }
+  if (isRowComment(row)) {
+    return formatCompactRowCommentText(row.text);
+  }
+  const name = row.name.trim();
+  return name ? name : `External ${rowIndex + 1}`;
+}
+
+function formatInitialValueDeleteLabel(
+  row: InitialValueListItem | undefined,
   rowIndex: number
 ): string {
-  const name = external?.name.trim();
-  return name ? name : `External ${rowIndex + 1}`;
+  if (!row) {
+    return `Row ${rowIndex + 1}`;
+  }
+  if (isRowComment(row)) {
+    return formatCompactRowCommentText(row.text);
+  }
+  const name = row.name.trim();
+  return name ? name : `Initial value ${rowIndex + 1}`;
 }
 
 function newInitialValueRow() {
@@ -762,12 +856,4 @@ function newInitialValueRow() {
     name: "",
     valueText: ""
   };
-}
-
-function formatInitialValueDeleteLabel(
-  initialValue: { name: string } | undefined,
-  rowIndex: number
-): string {
-  const name = initialValue?.name.trim();
-  return name ? name : `Initial value ${rowIndex + 1}`;
 }

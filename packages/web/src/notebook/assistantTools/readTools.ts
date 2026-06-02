@@ -1,3 +1,5 @@
+import { isRowComment } from "@sfcr/notebook-core";
+
 import { getVariableUnitText, buildVariableUnitMetadata } from "../../lib/units";
 import { buildVariableDescriptions } from "../../lib/variableDescriptions";
 import {
@@ -36,8 +38,10 @@ export function getEquation(snapshot: NotebookAssistantSnapshot, variable: strin
   const normalizedVariable = normalizeRequiredName(variable, "variable");
 
   for (const model of listModelContexts(snapshot)) {
-    const equation = model.editor.equations.find((row) => row.name.trim() === normalizedVariable);
-    if (!equation) {
+    const equation = model.editor.equations.find(
+      (row) => !isRowComment(row) && row.name.trim() === normalizedVariable
+    );
+    if (!equation || isRowComment(equation)) {
       continue;
     }
 
@@ -158,8 +162,12 @@ export function getVariableMetadata(snapshot: NotebookAssistantSnapshot, variabl
     });
     const graph = buildDependencyGraph(model.editor);
     const node = graph.nodes.find((candidate) => candidate.name === normalizedVariable);
-    const equation = model.editor.equations.find((row) => row.name.trim() === normalizedVariable);
-    const external = model.editor.externals.find((row) => row.name.trim() === normalizedVariable);
+    const equation = model.editor.equations.find(
+      (row) => !isRowComment(row) && row.name.trim() === normalizedVariable
+    );
+    const external = model.editor.externals.find(
+      (row) => !isRowComment(row) && row.name.trim() === normalizedVariable
+    );
     const unitMeta = unitMetadata.get(normalizedVariable);
 
     if (!node && !equation && !external && !descriptions.has(normalizedVariable) && !unitMeta) {
@@ -174,12 +182,12 @@ export function getVariableMetadata(snapshot: NotebookAssistantSnapshot, variabl
       unitText: getVariableUnitText(unitMetadata, normalizedVariable),
       unitMeta: serializeUnitMeta(unitMeta),
       variableType: node?.variableType ?? (external ? "exogenous" : null),
-      equationRole: node?.equationRole ?? equation?.role ?? null,
+      equationRole: node?.equationRole ?? (equation && !isRowComment(equation) ? equation.role : null) ?? null,
       currentDependencies: node?.currentDependencyNames ?? [],
       lagDependencies: node?.lagDependencyNames ?? [],
       initialValue: node?.initialValue ?? null,
-      externalKind: external?.kind ?? null,
-      externalValueText: external?.valueText ?? null
+      externalKind: external && !isRowComment(external) ? external.kind : null,
+      externalValueText: external && !isRowComment(external) ? external.valueText : null
     };
   }
 
@@ -190,8 +198,12 @@ export function getDependencyGraph(snapshot: NotebookAssistantSnapshot, variable
   const normalizedVariable = variable ? normalizeRequiredName(variable, "variable") : null;
   const model = normalizedVariable
     ? listModelContexts(snapshot).find((candidate) =>
-        candidate.editor.equations.some((row) => row.name.trim() === normalizedVariable) ||
-        candidate.editor.externals.some((row) => row.name.trim() === normalizedVariable)
+        candidate.editor.equations.some(
+          (row) => !isRowComment(row) && row.name.trim() === normalizedVariable
+        ) ||
+        candidate.editor.externals.some(
+          (row) => !isRowComment(row) && row.name.trim() === normalizedVariable
+        )
       )
     : listModelContexts(snapshot)[0];
 

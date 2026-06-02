@@ -1,5 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 
+import { externalRowsOnly, isRowComment } from "@sfcr/notebook-core";
+
 import {
   bmwBaselineModel,
   bmwBaselineOptions,
@@ -46,9 +48,9 @@ import {
   validateEditorState,
   type EditorOptions,
   type EditorState,
-  type EquationRow,
-  type ExternalRow,
-  type InitialValueRow,
+  type EquationListItem,
+  type ExternalListItem,
+  type InitialValueListItem,
   type RuntimeDocument
 } from "../lib/editorModel";
 import type { UnitMeta } from "../lib/unitMeta";
@@ -442,7 +444,7 @@ export function WorkspaceApp() {
             issues={equationIssueMap}
             onChange={(equations) => setEditor((current) => ({ ...current, equations }))}
             onSelectVariable={setSelectedVariable}
-            parameterNames={editor.externals.map((external) => external.name)}
+            parameterNames={externalRowsOnly(editor.externals).map((external) => external.name)}
             variableDescriptions={variableDescriptions}
             variableUnitMetadata={variableUnitMetadata}
           />
@@ -516,7 +518,7 @@ export function WorkspaceApp() {
                 updateEditorDefiningEquationExpression(current, definingEquation.id, expression)
               );
             }}
-            parameterNames={editor.externals.map((external) => external.name)}
+            parameterNames={externalRowsOnly(editor.externals).map((external) => external.name)}
             onSelectVariable={setSelectedVariable}
             variableDescriptions={variableDescriptions}
             variableUnitMetadata={variableUnitMetadata}
@@ -782,9 +784,9 @@ function ChatBuilderApp() {
     "The model preview will summarize the generated notebook sections here."
   );
   const [draftSections, setDraftSections] = useState<string[]>(CHAT_BUILDER_SECTION_NAMES);
-  const [draftEquations, setDraftEquations] = useState<EquationRow[]>([]);
-  const [draftExternals, setDraftExternals] = useState<ExternalRow[]>([]);
-  const [draftInitialValues, setDraftInitialValues] = useState<InitialValueRow[]>([]);
+  const [draftEquations, setDraftEquations] = useState<EquationListItem[]>([]);
+  const [draftExternals, setDraftExternals] = useState<ExternalListItem[]>([]);
+  const [draftInitialValues, setDraftInitialValues] = useState<InitialValueListItem[]>([]);
   const [draftSolverOptions, setDraftSolverOptions] = useState<Partial<EditorOptions> | null>(null);
   const [draftNotebookDocument, setDraftNotebookDocument] = useState<NotebookDocument | null>(null);
   const [draftArtifactJson, setDraftArtifactJson] = useState<string | null>(null);
@@ -1218,9 +1220,15 @@ function ChatBuilderApp() {
                 <ul className="chat-preview-detail-list">
                   {draftEquations.map((equation) => (
                     <li key={equation.id}>
-                      <strong>{equation.name}</strong>
-                      <span className="chat-preview-code"> = {equation.expression}</span>
-                      {equation.desc ? <div className="status-hint">{equation.desc}</div> : null}
+                      {isRowComment(equation) ? (
+                        <em>{equation.text}</em>
+                      ) : (
+                        <>
+                          <strong>{equation.name}</strong>
+                          <span className="chat-preview-code"> = {equation.expression}</span>
+                          {equation.desc ? <div className="status-hint">{equation.desc}</div> : null}
+                        </>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -1233,12 +1241,18 @@ function ChatBuilderApp() {
                 <ul className="chat-preview-detail-list">
                   {draftExternals.map((external) => (
                     <li key={external.id}>
-                      <strong>{external.name}</strong>
-                      <span>
-                        {` (${external.kind}) `}
-                        <span className="chat-preview-code">= {external.valueText}</span>
-                      </span>
-                      {external.desc ? <div className="status-hint">{external.desc}</div> : null}
+                      {isRowComment(external) ? (
+                        <em>{external.text}</em>
+                      ) : (
+                        <>
+                          <strong>{external.name}</strong>
+                          <span>
+                            {` (${external.kind}) `}
+                            <span className="chat-preview-code">= {external.valueText}</span>
+                          </span>
+                          {external.desc ? <div className="status-hint">{external.desc}</div> : null}
+                        </>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -1251,8 +1265,14 @@ function ChatBuilderApp() {
                 <ul className="chat-preview-detail-list">
                   {draftInitialValues.map((initialValue) => (
                     <li key={initialValue.id}>
-                      <strong>{initialValue.name}</strong>
-                      <span className="chat-preview-code"> = {initialValue.valueText}</span>
+                      {isRowComment(initialValue) ? (
+                        <em>{initialValue.text}</em>
+                      ) : (
+                        <>
+                          <strong>{initialValue.name}</strong>
+                          <span className="chat-preview-code"> = {initialValue.valueText}</span>
+                        </>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -1323,15 +1343,23 @@ function withEditorDescriptions(
 ): EditorState {
   return {
     ...editor,
-    equations: editor.equations.map((equation) => ({
-      ...equation,
-      desc: equationDescriptions[equation.name] ?? equation.desc ?? "",
-      unitMeta: equationUnits[equation.name] ?? equation.unitMeta
-    })),
-    externals: editor.externals.map((external) => ({
-      ...external,
-      desc: externalDescriptions[external.name] ?? external.desc ?? "",
-      unitMeta: externalUnits[external.name] ?? external.unitMeta
-    }))
+    equations: editor.equations.map((equation) =>
+      isRowComment(equation)
+        ? equation
+        : {
+            ...equation,
+            desc: equationDescriptions[equation.name] ?? equation.desc ?? "",
+            unitMeta: equationUnits[equation.name] ?? equation.unitMeta
+          }
+    ),
+    externals: editor.externals.map((external) =>
+      isRowComment(external)
+        ? external
+        : {
+            ...external,
+            desc: externalDescriptions[external.name] ?? external.desc ?? "",
+            unitMeta: externalUnits[external.name] ?? external.unitMeta
+          }
+    )
   };
 }

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type MouseEvent as ReactMouseEvent } from "react";
 
+import { externalRowsOnly } from "@sfcr/notebook-core";
+
 import { evaluateExpression, parseExpression, type SimulationResult } from "@sfcr/core";
 import {
   computeMatrixAccountRowTotal,
@@ -159,7 +161,7 @@ export function MatrixCellView({
       return EMPTY_PARAMETER_NAMES;
     }
 
-    return new Set(editor.externals.map((external) => external.name.trim()).filter(Boolean));
+    return new Set(externalRowsOnly(editor.externals).map((external) => external.name.trim()).filter(Boolean));
   }, [editor]);
   const [rowContextMenu, setRowContextMenu] = useState<{ rowIndex: number; x: number; y: number } | null>(
     null

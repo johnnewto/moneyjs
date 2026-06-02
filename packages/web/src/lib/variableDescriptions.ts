@@ -1,16 +1,23 @@
 import { derivativeBalanceStockName } from "@sfcr/core";
 
+import { isRowComment } from "@sfcr/notebook-core";
+
+import type { EquationListItem, ExternalListItem } from "@sfcr/notebook-core";
+
 import type { EquationRow, ExternalRow } from "./editorModel";
 
 export type VariableDescriptions = Map<string, string>;
 
 export function buildVariableDescriptions(args: {
-  equations?: EquationRow[];
-  externals?: ExternalRow[];
+  equations?: readonly (EquationRow | EquationListItem)[];
+  externals?: readonly (ExternalRow | ExternalListItem)[];
 }): VariableDescriptions {
   const descriptions: VariableDescriptions = new Map();
 
   for (const equation of args.equations ?? []) {
+    if (isRowComment(equation)) {
+      continue;
+    }
     setVariableDescription(descriptions, equation.name, equation.desc);
     const stockName = derivativeBalanceStockName(equation.name);
     if (stockName && stockName !== equation.name.trim()) {
@@ -19,6 +26,9 @@ export function buildVariableDescriptions(args: {
   }
 
   for (const external of args.externals ?? []) {
+    if (isRowComment(external)) {
+      continue;
+    }
     setVariableDescription(descriptions, external.name, external.desc);
   }
 

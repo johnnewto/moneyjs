@@ -11,7 +11,6 @@ import type {
 
 import type { NotebookScenarioDefinition } from "./document/scenarioFormat";
 import type { UnitMeta } from "./unitMetaAliases";
-
 export interface EquationRow {
   id: string;
   name: string;
@@ -35,6 +34,16 @@ export interface InitialValueRow {
   name: string;
   valueText: string;
 }
+
+export interface RowComment {
+  id: string;
+  kind: "comment";
+  text: string;
+}
+
+export type EquationListItem = EquationRow | RowComment;
+export type ExternalListItem = ExternalRow | RowComment;
+export type InitialValueListItem = InitialValueRow | RowComment;
 
 export interface ShockVariableRow {
   id: string;
@@ -67,9 +76,9 @@ export interface EditorOptions {
 }
 
 export interface EditorState {
-  equations: EquationRow[];
-  externals: ExternalRow[];
-  initialValues: InitialValueRow[];
+  equations: EquationListItem[];
+  externals: ExternalListItem[];
+  initialValues: InitialValueListItem[];
   options: EditorOptions;
   scenario: EditorScenario;
 }
@@ -130,7 +139,7 @@ export interface ModelCell extends NotebookCellBase {
 export interface EquationsCell extends NotebookCellBase {
   type: "equations";
   modelId: string;
-  equations: EquationRow[];
+  equations: EquationListItem[];
 }
 
 export interface SolverCell extends NotebookCellBase {
@@ -142,13 +151,13 @@ export interface SolverCell extends NotebookCellBase {
 export interface ExternalsCell extends NotebookCellBase {
   type: "externals";
   modelId: string;
-  externals: ExternalRow[];
+  externals: ExternalListItem[];
 }
 
 export interface InitialValuesCell extends NotebookCellBase {
   type: "initial-values";
   modelId: string;
-  initialValues: InitialValueRow[];
+  initialValues: InitialValueListItem[];
 }
 
 export interface RunCell extends NotebookCellBase {

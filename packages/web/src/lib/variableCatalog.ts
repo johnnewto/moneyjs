@@ -1,4 +1,5 @@
 import { equationDefinesVariable, type EquationRole } from "@sfcr/core";
+import { isRowComment } from "@sfcr/notebook-core";
 
 import { buildDependencyGraph, type VariableType } from "../notebook/dependencyGraph";
 import { buildEditorStateForNotebookModel, resolveRunCellModelKey } from "../notebook/modelSections";
@@ -112,7 +113,10 @@ export function buildVariableCatalogRows(args: {
       }
       seen.add(node.name);
 
-      const external = context.editor.externals.find((row) => row.name.trim() === node.name) ?? null;
+      const external =
+        context.editor.externals.find(
+          (row) => !isRowComment(row) && row.name.trim() === node.name
+        ) ?? null;
       const initialValue = parseInitialValue(context.editor, node.name);
       const endogenousExogenous = deriveEndogenousExogenous({
         editor: context.editor,
@@ -139,8 +143,8 @@ export function buildVariableCatalogRows(args: {
         equationRole: node.equationRole ?? null,
         modelId: context.modelId,
         modelTitle: context.modelTitle,
-        externalKind: external?.kind ?? null,
-        externalValueText: external?.valueText ?? null,
+        externalKind: external && !isRowComment(external) ? external.kind : null,
+        externalValueText: external && !isRowComment(external) ? external.valueText : null,
         initialValue,
         currentDependencies: [...node.currentDependencyNames],
         lagDependencies: [...node.lagDependencyNames],
@@ -262,14 +266,16 @@ function deriveEndogenousExogenous(args: {
   name: string;
   initialValue: number | null;
 }): VariableCatalogEndogenousExogenous {
-  const hasDefiningEquation = args.editor.equations.some((equation) =>
-    equationDefinesVariable(equation.name, args.name)
+  const hasDefiningEquation = args.editor.equations.some(
+    (equation) => !isRowComment(equation) && equationDefinesVariable(equation.name, args.name)
   );
   if (hasDefiningEquation) {
     return "endogenous";
   }
 
-  const external = args.editor.externals.find((row) => row.name.trim() === args.name);
+  const external = args.editor.externals.find(
+    (row) => !isRowComment(row) && row.name.trim() === args.name
+  );
   if (external) {
     return "exogenous";
   }
@@ -282,8 +288,10 @@ function deriveEndogenousExogenous(args: {
 }
 
 function parseInitialValue(editor: EditorState, name: string): number | null {
-  const row = editor.initialValues.find((entry) => entry.name.trim() === name);
-  if (!row) {
+  const row = editor.initialValues.find(
+    (entry) => !isRowComment(entry) && entry.name.trim() === name
+  );
+  if (!row || isRowComment(row)) {
     return null;
   }
 

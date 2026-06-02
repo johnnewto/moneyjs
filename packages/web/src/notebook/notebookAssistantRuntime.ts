@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
-import { createNotebookDiagnostic } from "@sfcr/notebook-core";
+import { createNotebookDiagnostic, isRowComment } from "@sfcr/notebook-core";
 
 import { extractOpenAiTextResponse, extractOpenAiUsageResponse, postAssistantJson, type OpenAiTextResponse } from "../assistant/client";
 import { readAssistantSseResponse, type AssistantTokenUsage } from "../assistant/sse";
@@ -345,15 +345,27 @@ function buildCompactNotebookAssistantContext(args: CompactAssistantContextArgs)
 function resolveSelectedModelId(document: NotebookDocument, selectedVariable: string | undefined): string | null {
   if (selectedVariable) {
     for (const cell of document.cells) {
-      if (cell.type === "equations" && cell.equations.some((equation) => equation.name === selectedVariable)) {
+      if (
+        cell.type === "equations" &&
+        cell.equations.some(
+          (equation) => !isRowComment(equation) && equation.name === selectedVariable
+        )
+      ) {
         return cell.modelId;
       }
-      if (cell.type === "externals" && cell.externals.some((external) => external.name === selectedVariable)) {
+      if (
+        cell.type === "externals" &&
+        cell.externals.some(
+          (external) => !isRowComment(external) && external.name === selectedVariable
+        )
+      ) {
         return cell.modelId;
       }
       if (
         cell.type === "initial-values" &&
-        cell.initialValues.some((initialValue) => initialValue.name === selectedVariable)
+        cell.initialValues.some(
+          (initialValue) => !isRowComment(initialValue) && initialValue.name === selectedVariable
+        )
       ) {
         return cell.modelId;
       }
@@ -394,16 +406,28 @@ function buildCompactModelRow(
     eq:
       parameterOnly
         ? []
-        : equationsCell?.equations.map((equation) =>
-            compactArray([equation.name, equation.expression, equation.role, equation.desc])
+        : equationsCell?.equations.flatMap((equation) =>
+            isRowComment(equation)
+              ? []
+              : [compactArray([equation.name, equation.expression, equation.role, equation.desc])]
           ) ?? [],
     ex:
-      externalsCell?.externals
-        .filter((external) => !parameterOnly || parameterVariables?.has(external.name))
-        .map((external) => compactArray([external.name, external.kind, external.valueText, external.desc])) ?? [],
+      externalsCell?.externals.flatMap((external) => {
+        if (isRowComment(external)) {
+          return [];
+        }
+        if (parameterOnly && !parameterVariables?.has(external.name)) {
+          return [];
+        }
+        return [compactArray([external.name, external.kind, external.valueText, external.desc])];
+      }) ?? [],
     iv: parameterOnly
       ? []
-      : initialValuesCell?.initialValues.map((initialValue) => compactArray([initialValue.name, initialValue.valueText])) ?? [],
+      : initialValuesCell?.initialValues.flatMap((initialValue) =>
+          isRowComment(initialValue)
+            ? []
+            : [compactArray([initialValue.name, initialValue.valueText])]
+        ) ?? [],
     opt: solverCell
       ? compactObject({
           method: solverCell.options.solverMethod,
@@ -438,6 +462,9 @@ function inferExplicitParameterTargets(
       continue;
     }
     for (const external of cell.externals) {
+      if (isRowComment(external)) {
+        continue;
+      }
       const variable = external.name.trim();
       if (!variable) {
         continue;
@@ -471,6 +498,9 @@ function collectUniqueExternalDescriptionTokens(document: NotebookDocument): Map
     }
 
     for (const external of cell.externals) {
+      if (isRowComment(external)) {
+        continue;
+      }
       const tokens = new Set(tokenizeParameterDescription(external.desc));
       tokensByExternal.set(externalKey(cell.modelId, external.name), tokens);
       for (const token of tokens) {

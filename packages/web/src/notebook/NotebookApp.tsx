@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { externalRowsOnly, isRowComment, type EquationRow } from "@sfcr/notebook-core";
+
 import {
   detectNotebookSourceFormat,
   parseNotebookSource,
@@ -543,7 +545,10 @@ function resolveDefaultVariablesForRun(cells: NotebookCell[], runCell: RunCell):
       (cell) => cell.type === "equations" && cell.modelId === modelId
     );
     if (equationsCell?.type === "equations") {
-      return equationsCell.equations.map((equation) => equation.name).filter(Boolean);
+      return equationsCell.equations
+        .filter((equation): equation is EquationRow => !isRowComment(equation))
+        .map((equation) => equation.name)
+        .filter(Boolean);
     }
   }
 
@@ -551,7 +556,10 @@ function resolveDefaultVariablesForRun(cells: NotebookCell[], runCell: RunCell):
     ? cells.find((cell) => cell.type === "model" && cell.id === runCell.sourceModelCellId)
     : null;
   return modelCell?.type === "model"
-    ? modelCell.editor.equations.map((equation) => equation.name).filter(Boolean)
+    ? modelCell.editor.equations
+        .filter((equation): equation is EquationRow => !isRowComment(equation))
+        .map((equation) => equation.name)
+        .filter(Boolean)
     : [];
 }
 
@@ -1015,6 +1023,9 @@ export function NotebookApp() {
         return {
           ...cell,
           externals: cell.externals.map((external) => {
+            if (isRowComment(external)) {
+              return external;
+            }
             const name = external.name.trim();
             if (external.kind !== "constant" || !(name in modelOverrides)) {
               return external;
@@ -3482,7 +3493,7 @@ export function NotebookApp() {
               inspectorModelId={inspectorModelId}
               onParameterOverrideChange={handleParameterOverrideChange}
               onParameterOverrideRelease={handleParameterOverrideRelease}
-              parameterNames={inspectorContext?.editor.externals.map((external) => external.name) ?? []}
+              parameterNames={externalRowsOnly(inspectorContext?.editor.externals ?? []).map((external) => external.name)}
               parameterOverrides={parameterOverrides}
               selectedPeriodIndex={selectedPeriodIndex}
               seriesValues={inspectorSeriesValues}

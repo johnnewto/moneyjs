@@ -5,7 +5,11 @@ import {
   isDerivativeBalanceTarget,
   type EquationRole
 } from "@sfcr/core";
+import { isRowComment, normalizeRowCommentText, type EquationListItem } from "@sfcr/notebook-core";
+
 import type { EquationRow, ValidationIssue } from "../lib/editorModel";
+import { NotebookRowComment } from "../notebook/components/NotebookRowComment";
+import { newRowComment, patchCommentInRows } from "../notebook/rowCommentHelpers";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
 import {
   normalizeSignature,
@@ -58,10 +62,10 @@ export {
 interface EquationGridEditorProps {
   buildError?: string | null;
   currentValues?: Record<string, number | undefined>;
-  equations: EquationRow[];
+  equations: EquationListItem[];
   issues: Record<string, string | ValidationIssue | undefined>;
   isEmbedded?: boolean;
-  onChange(next: EquationRow[]): void;
+  onChange(next: EquationListItem[]): void;
   onSelectVariable?(variableName: string): void;
   documentHighlightedVariable?: string | null;
   parameterNames?: string[];
@@ -172,7 +176,20 @@ export function EquationGridEditor({
         </div>
 
         <div className="equation-grid-body">
-          {equations.map((equation, index) => {
+          {equations.map((row, index) => {
+            if (isRowComment(row)) {
+              return (
+                <NotebookRowComment
+                  key={row.id}
+                  mode="grid"
+                  text={row.text}
+                  onContextMenu={(event) => handleRowContextMenu(event, index)}
+                  onTextChange={(text) => onChange(patchCommentInRows(equations, row.id, text))}
+                />
+              );
+            }
+
+            const equation = row;
             const issue = resolveEquationIssue(index, issues);
             const issueMessage = issue?.message ?? null;
             const traceRole = activeTrace?.rowStates.get(equation.id) ?? null;
@@ -331,10 +348,14 @@ export function EquationGridEditor({
         <button type="button" onClick={() => onChange([...equations, newEquationRow()])}>
           Add equation
         </button>
+        <button type="button" className="secondary-button" onClick={() => onChange([...equations, newRowComment()])}>
+          Add section comment
+        </button>
       </div>
 
       {rowContextMenu.rowContextMenu ? (
         <GridRowContextMenu
+          addCommentLabel="Add section comment"
           addItemLabel="Add equation"
           canMoveDown={canMoveRowDown(equations, rowContextMenu.rowContextMenu.rowIndex)}
           canMoveUp={canMoveRowUp(equations, rowContextMenu.rowContextMenu.rowIndex)}
@@ -342,6 +363,9 @@ export function EquationGridEditor({
           menuTypeLabel="Equation"
           onAdd={() =>
             rowContextMenu.insertRowBelow(rowContextMenu.rowContextMenu!.rowIndex, newEquationRow())
+          }
+          onAddComment={() =>
+            rowContextMenu.insertRowBelow(rowContextMenu.rowContextMenu!.rowIndex, newRowComment())
           }
           onDelete={() => rowContextMenu.requestDelete(rowContextMenu.rowContextMenu!.rowIndex)}
           onMoveDown={() => rowContextMenu.moveRowAt(rowContextMenu.rowContextMenu!.rowIndex, 1)}
@@ -352,7 +376,11 @@ export function EquationGridEditor({
 
       {rowContextMenu.deleteDialogRowIndex != null ? (
         <GridRowDeleteDialog
-          deleteTitle="Delete equation?"
+          deleteTitle={
+            isRowComment(equations[rowContextMenu.deleteDialogRowIndex])
+              ? "Delete section comment?"
+              : "Delete equation?"
+          }
           itemLabel={formatEquationDeleteLabel(
             equations[rowContextMenu.deleteDialogRowIndex],
             rowContextMenu.deleteDialogRowIndex
@@ -993,16 +1021,26 @@ function newEquationRow(): EquationRow {
 }
 
 function updateRow(
-  rows: EquationRow[],
+  rows: EquationListItem[],
   index: number,
   patch: Partial<EquationRow>,
-  onChange: (next: EquationRow[]) => void
+  onChange: (next: EquationListItem[]) => void
 ): void {
-  onChange(rows.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)));
+  onChange(
+    rows.map((row, rowIndex) =>
+      rowIndex === index && !isRowComment(row) ? { ...row, ...patch } : row
+    )
+  );
 }
 
-function formatEquationDeleteLabel(equation: EquationRow | undefined, rowIndex: number): string {
-  const name = equation?.name.trim();
+function formatEquationDeleteLabel(row: EquationListItem | undefined, rowIndex: number): string {
+  if (!row) {
+    return `Row ${rowIndex + 1}`;
+  }
+  if (isRowComment(row)) {
+    return normalizeRowCommentText(row.text) || `Section ${rowIndex + 1}`;
+  }
+  const name = row.name.trim();
   return name ? name : `Equation ${rowIndex + 1}`;
 }
 

@@ -42,6 +42,8 @@ function explainExpr(expr: Expr, variableDescriptions: VariableDescriptions): st
       return explainFunction(expr.name, expr.args, variableDescriptions);
     case "Binary":
       return explainBinary(expr, variableDescriptions);
+    default:
+      return formatNumber(0);
   }
 }
 

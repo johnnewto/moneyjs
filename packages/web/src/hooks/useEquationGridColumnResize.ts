@@ -180,8 +180,8 @@ export function useEquationGridColumnResize({
   const [variableHandleLeftPx, setVariableHandleLeftPx] = useState(0);
   const [expressionHandleLeftPx, setExpressionHandleLeftPx] = useState(0);
   const [draggingColumn, setDraggingColumn] = useState<ResizableEquationColumn | null>(null);
-  const [maxVariableWidthPx, setMaxVariableWidthPx] = useState(staticMaxVariableWidthPx);
-  const [maxExpressionWidthPx, setMaxExpressionWidthPx] = useState(staticMaxExpressionWidthPx);
+  const [maxVariableWidthPx, setMaxVariableWidthPx] = useState<number>(staticMaxVariableWidthPx);
+  const [maxExpressionWidthPx, setMaxExpressionWidthPx] = useState<number>(staticMaxExpressionWidthPx);
 
   const updateHandlePositions = useCallback(() => {
     const shell = shellRef.current;

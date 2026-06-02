@@ -1,5 +1,7 @@
 import { useCallback, useState } from "react";
 
+import { isRowComment, type ExternalListItem } from "@sfcr/notebook-core";
+
 import type { ExternalRow } from "../lib/editorModel";
 import {
   countVariableReferences,
@@ -26,8 +28,8 @@ export function useInlineExternalRowEdit({
   scope
 }: {
   cells: NotebookCell[];
-  externals: ExternalRow[];
-  onChangeExternals(next: ExternalRow[]): void;
+  externals: ExternalListItem[];
+  onChangeExternals(next: ExternalListItem[]): void;
   onReplaceCells(nextCells: NotebookCell[]): void;
   scope: ModelRenameScope;
 }) {
@@ -49,7 +51,7 @@ export function useInlineExternalRowEdit({
   const beginRowEdit = useCallback(
     (externalId: string, focus: ExternalRowEditFocus) => {
       const external = externals.find((entry) => entry.id === externalId);
-      if (!external) {
+      if (!external || isRowComment(external)) {
         return;
       }
 
@@ -66,13 +68,13 @@ export function useInlineExternalRowEdit({
   const commitRowOnly = useCallback(
     (patch: { externalId: string; name: string; valueText: string }) => {
       const nextExternals = externals.map((external) =>
-        external.id === patch.externalId
-          ? {
+        isRowComment(external) || external.id !== patch.externalId
+          ? external
+          : {
               ...external,
               name: patch.name,
               valueText: patch.valueText
             }
-          : external
       );
       onChangeExternals(nextExternals);
       cancelRowEdit();
@@ -86,7 +88,7 @@ export function useInlineExternalRowEdit({
     }
 
     const external = externals.find((entry) => entry.id === editingExternalId);
-    if (!external) {
+    if (!external || isRowComment(external)) {
       cancelRowEdit();
       return;
     }

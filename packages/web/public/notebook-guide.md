@@ -164,6 +164,7 @@ Equation row shape:
 - `[name, expression]`
 - `[name, expression, "description", unit, type, role]`
 - Optional trailing `id` may be used when preserving a runtime ID that differs from the generated ID.
+- Section comments: a **quoted** string row such as `- "Equalize supply to demand."` (unquoted lines starting with `#` are YAML comments and are dropped). Text may use a small inline markdown subset in the UI: `**bold**`, `*italic*`, and `` `code` ``. Also accepts `{ comment: "Section title" }` or `{ kind: comment, text: "..." }`. Comment rows appear in the cell table but are not sent to the solver.
 
 Always quote descriptions in generated YAML. Units and expressions may stay unquoted when YAML accepts them safely; quote expressions containing characters that YAML could misread.
 
@@ -182,7 +183,7 @@ Equation ordering does not determine execution order. The solver builds the depe
 
 ## Externals And Initial Values
 
-Use `externals` for exogenous constants or series. Most constant externals should use compact row arrays.
+Use `externals` for exogenous constants or series. Most constant externals should use compact row arrays. You may insert the same quoted section-comment string rows between external rows for grouping.
 
 ```yaml
   - externals:

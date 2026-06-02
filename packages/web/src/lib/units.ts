@@ -6,6 +6,7 @@ import {
   parseExpression,
   type Expr
 } from "@sfcr/core";
+import { isRowComment, type EquationListItem, type ExternalListItem } from "@sfcr/notebook-core";
 
 import type { EquationRow, ExternalRow } from "./editorModel";
 import {
@@ -41,12 +42,15 @@ const TIME_STEP: UnitSignature = { time: 1 };
 const DT_VARIABLE = "dt";
 
 export function buildVariableUnitMetadata(args: {
-  equations?: EquationRow[];
-  externals?: ExternalRow[];
+  equations?: readonly (EquationRow | EquationListItem)[];
+  externals?: readonly (ExternalRow | ExternalListItem)[];
 }): VariableUnitMetadata {
   const metadata: VariableUnitMetadata = new Map();
 
   for (const equation of args.equations ?? []) {
+    if (isRowComment(equation)) {
+      continue;
+    }
     setVariableUnitMeta(metadata, equation.name, equation.unitMeta);
     const stockName = derivativeBalanceStockName(equation.name);
     if (stockName && stockName !== equation.name.trim()) {
@@ -55,6 +59,9 @@ export function buildVariableUnitMetadata(args: {
   }
 
   for (const external of args.externals ?? []) {
+    if (isRowComment(external)) {
+      continue;
+    }
     setVariableUnitMeta(metadata, external.name, external.unitMeta);
   }
 
@@ -741,6 +748,8 @@ function renderExpr(expr: Expr): string {
       return `if (...)`;
     case "Function":
       return `${expr.name}(...)`;
+    default:
+      return "";
   }
 }
 

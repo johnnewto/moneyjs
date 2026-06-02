@@ -1,3 +1,4 @@
+import { externalRowsOnly } from "@sfcr/notebook-core";
 import type { SimulationResult } from "@sfcr/core";
 
 import type { EditorState } from "../lib/editorModel";
@@ -59,7 +60,7 @@ export function resolveSequenceMatrixInspectBundle(
   const currentValues = buildCurrentValues(result, selectedPeriodIndex);
   const modelSource = sourceRunCell ? resolveInspectorModelSource(sourceRunCell) : null;
   const parameterNames = editor
-    ? new Set(editor.externals.map((external) => external.name.trim()).filter(Boolean))
+    ? new Set(externalRowsOnly(editor.externals).map((external) => external.name.trim()).filter(Boolean))
     : EMPTY_PARAMETER_NAMES;
   const variableUnitMetadata = editor
     ? buildVariableUnitMetadata({

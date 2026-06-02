@@ -8,6 +8,8 @@ import { Compartment, EditorState, type Extension, type Text } from "@codemirror
 import { Decoration, EditorView, placeholder, type DecorationSet } from "@codemirror/view";
 import { basicSetup } from "codemirror";
 
+import { isRowComment } from "@sfcr/notebook-core";
+
 import { type NotebookSourceDiagnostic, type NotebookSourceFormat } from "./document";
 import {
   resolveDiagnosticRange,
@@ -398,19 +400,19 @@ function buildCompletionData(document: NotebookDocument, format: NotebookSourceF
     new Set(
       document.cells.flatMap((cell) => {
         if (cell.type === "equations") {
-          return cell.equations.map((row) => row.name);
+          return cell.equations.flatMap((row) => (isRowComment(row) ? [] : [row.name]));
         }
         if (cell.type === "externals") {
-          return cell.externals.map((row) => row.name);
+          return cell.externals.flatMap((row) => (isRowComment(row) ? [] : [row.name]));
         }
         if (cell.type === "initial-values") {
-          return cell.initialValues.map((row) => row.name);
+          return cell.initialValues.flatMap((row) => (isRowComment(row) ? [] : [row.name]));
         }
         if (cell.type === "model") {
           return [
-            ...cell.editor.equations.map((row) => row.name),
-            ...cell.editor.externals.map((row) => row.name),
-            ...cell.editor.initialValues.map((row) => row.name)
+            ...cell.editor.equations.flatMap((row) => (isRowComment(row) ? [] : [row.name])),
+            ...cell.editor.externals.flatMap((row) => (isRowComment(row) ? [] : [row.name])),
+            ...cell.editor.initialValues.flatMap((row) => (isRowComment(row) ? [] : [row.name]))
           ];
         }
         return [];

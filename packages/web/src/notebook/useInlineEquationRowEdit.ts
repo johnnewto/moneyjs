@@ -1,5 +1,7 @@
 import { useCallback, useState } from "react";
 
+import { isRowComment, type EquationListItem } from "@sfcr/notebook-core";
+
 import type { EquationRow } from "../lib/editorModel";
 import {
   countVariableReferences,
@@ -26,8 +28,8 @@ export function useInlineEquationRowEdit({
   scope
 }: {
   cells: NotebookCell[];
-  equations: EquationRow[];
-  onChangeEquations(next: EquationRow[]): void;
+  equations: EquationListItem[];
+  onChangeEquations(next: EquationListItem[]): void;
   onReplaceCells(nextCells: NotebookCell[]): void;
   scope: ModelRenameScope;
 }) {
@@ -49,7 +51,7 @@ export function useInlineEquationRowEdit({
   const beginRowEdit = useCallback(
     (equationId: string, focus: EquationRowEditFocus) => {
       const equation = equations.find((entry) => entry.id === equationId);
-      if (!equation) {
+      if (!equation || isRowComment(equation)) {
         return;
       }
 
@@ -66,7 +68,7 @@ export function useInlineEquationRowEdit({
   const commitRowOnly = useCallback(
     (patch: { equationId: string; expression: string; name: string }) => {
       const nextEquations = equations.map((equation) =>
-        equation.id === patch.equationId
+        !isRowComment(equation) && equation.id === patch.equationId
           ? {
               ...equation,
               name: patch.name,
@@ -86,7 +88,7 @@ export function useInlineEquationRowEdit({
     }
 
     const equation = equations.find((entry) => entry.id === editingEquationId);
-    if (!equation) {
+    if (!equation || isRowComment(equation)) {
       cancelRowEdit();
       return;
     }

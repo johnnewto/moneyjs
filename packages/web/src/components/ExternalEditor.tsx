@@ -1,4 +1,8 @@
+import { formatCompactRowCommentText, isRowComment, type ExternalListItem } from "@sfcr/notebook-core";
+
 import type { ExternalRow } from "../lib/editorModel";
+import { NotebookRowComment } from "../notebook/components/NotebookRowComment";
+import { newRowComment, patchCommentInRows } from "../notebook/rowCommentHelpers";
 import { formatUnitLabel } from "../lib/unitMeta";
 import {
   canMoveRowDown,
@@ -11,10 +15,10 @@ import {
 
 interface ExternalEditorProps {
   currentValues?: Record<string, number | undefined>;
-  externals: ExternalRow[];
+  externals: ExternalListItem[];
   isEmbedded?: boolean;
   issues: Record<string, string | undefined>;
-  onChange(next: ExternalRow[]): void;
+  onChange(next: ExternalListItem[]): void;
   showHeading?: boolean;
 }
 
@@ -58,7 +62,21 @@ export function ExternalEditor({
         </div>
 
         <div className="external-grid-body">
-        {externals.map((external, index) => (
+        {externals.map((row, index) => {
+          if (isRowComment(row)) {
+            return (
+              <NotebookRowComment
+                key={row.id}
+                mode="grid"
+                text={row.text}
+                onContextMenu={(event) => rowContextMenu.handleRowContextMenu(event, index)}
+                onTextChange={(text) => onChange(patchCommentInRows(externals, row.id, text))}
+              />
+            );
+          }
+
+          const external = row;
+          return (
           <div
             className={`external-grid-row${
               issues[`externals.${index}.name`] || issues[`externals.${index}.valueText`]
@@ -131,7 +149,8 @@ export function ExternalEditor({
               -
             </button>
           </div>
-        ))}
+          );
+        })}
 
           {externals.length === 0 ? (
             <div className="external-grid-empty">Add an external to define a parameter or input series.</div>
@@ -143,10 +162,14 @@ export function ExternalEditor({
         <button type="button" onClick={() => onChange([...externals, newExternalRow()])}>
           Add external
         </button>
+        <button type="button" className="secondary-button" onClick={() => onChange([...externals, newRowComment()])}>
+          Add section comment
+        </button>
       </div>
 
       {rowContextMenu.rowContextMenu ? (
         <GridRowContextMenu
+          addCommentLabel="Add section comment"
           addItemLabel="Add external"
           canMoveDown={canMoveRowDown(externals, rowContextMenu.rowContextMenu.rowIndex)}
           canMoveUp={canMoveRowUp(externals, rowContextMenu.rowContextMenu.rowIndex)}
@@ -154,6 +177,9 @@ export function ExternalEditor({
           menuTypeLabel="External"
           onAdd={() =>
             rowContextMenu.insertRowBelow(rowContextMenu.rowContextMenu!.rowIndex, newExternalRow())
+          }
+          onAddComment={() =>
+            rowContextMenu.insertRowBelow(rowContextMenu.rowContextMenu!.rowIndex, newRowComment())
           }
           onDelete={() => rowContextMenu.requestDelete(rowContextMenu.rowContextMenu!.rowIndex)}
           onMoveDown={() => rowContextMenu.moveRowAt(rowContextMenu.rowContextMenu!.rowIndex, 1)}
@@ -164,7 +190,11 @@ export function ExternalEditor({
 
       {rowContextMenu.deleteDialogRowIndex != null ? (
         <GridRowDeleteDialog
-          deleteTitle="Delete external?"
+          deleteTitle={
+            isRowComment(externals[rowContextMenu.deleteDialogRowIndex])
+              ? "Delete section comment?"
+              : "Delete external?"
+          }
           itemLabel={formatExternalDeleteLabel(
             externals[rowContextMenu.deleteDialogRowIndex],
             rowContextMenu.deleteDialogRowIndex
@@ -188,15 +218,25 @@ function newExternalRow(): ExternalRow {
 }
 
 function updateRow(
-  rows: ExternalRow[],
+  rows: ExternalListItem[],
   index: number,
   patch: Partial<ExternalRow>,
-  onChange: (next: ExternalRow[]) => void
+  onChange: (next: ExternalListItem[]) => void
 ): void {
-  onChange(rows.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)));
+  onChange(
+    rows.map((row, rowIndex) =>
+      rowIndex === index && !isRowComment(row) ? { ...row, ...patch } : row
+    )
+  );
 }
 
-function formatExternalDeleteLabel(external: ExternalRow | undefined, rowIndex: number): string {
-  const name = external?.name.trim();
+function formatExternalDeleteLabel(external: ExternalListItem | undefined, rowIndex: number): string {
+  if (!external) {
+    return `Row ${rowIndex + 1}`;
+  }
+  if (isRowComment(external)) {
+    return formatCompactRowCommentText(external.text);
+  }
+  const name = external.name.trim();
   return name ? name : `External ${rowIndex + 1}`;
 }

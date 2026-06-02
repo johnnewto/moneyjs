@@ -4,6 +4,8 @@ import { createNotebookDiagnostic, type NotebookDiagnostic } from "./diagnostics
 import { resolveAccountingMatrixKind } from "./accountingMatrixKind";
 import { validateMatrixAccountColumnsLayout } from "./matrixAccountColumns";
 import { validateMatrixColumnTreeMatchesColumns } from "./matrixColumnTree";
+import { isRecord } from "./document/documentUtils";
+import { isRowComment } from "./rowComments";
 import type {
   MatrixCell,
   NotebookCell,
@@ -410,7 +412,7 @@ function validateModelSectionNames(
 function validateNamesForKind(
   modelId: string,
   kind: string,
-  entries: Array<{ name: string }>,
+  entries: unknown[],
   namesByModelAndKind: Map<string, Map<string, Set<string>>>,
   issues: NotebookValidationIssue[]
 ): void {
@@ -418,7 +420,11 @@ function validateNamesForKind(
   const seen = namesByKind.get(kind) ?? new Set<string>();
 
   for (const entry of entries) {
-    const name = entry.name.trim();
+    if (isRowComment(entry)) {
+      continue;
+    }
+    const name =
+      isRecord(entry) && typeof entry.name === "string" ? entry.name.trim() : "";
     if (!name) {
       continue;
     }

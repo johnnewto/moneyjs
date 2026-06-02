@@ -46,6 +46,7 @@ Compact row reminders:
 - Equation row: `[name, expression, "description", unit, type, role]`
 - External row: `[name, value, "description", unit, type]`
 - Initial value row: `[name, value]`
+- Section comment row: `- "Section title"` (must be quoted; optional inline markdown `**bold**`, `` `code` ``; also works in externals and initial-values lists)
 - Use object rows for non-constant external series that need `kind: series` and `valueText`.
 
 Output rules:

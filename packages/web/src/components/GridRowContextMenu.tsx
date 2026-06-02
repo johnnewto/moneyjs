@@ -127,23 +127,27 @@ export function useGridRowContextMenu<T>({
 }
 
 export function GridRowContextMenu({
+  addCommentLabel,
   addItemLabel,
   canMoveDown,
   canMoveUp,
   menuRef,
   menuTypeLabel,
   onAdd,
+  onAddComment,
   onDelete,
   onMoveDown,
   onMoveUp,
   rowIndex
 }: {
+  addCommentLabel?: string;
   addItemLabel: string;
   canMoveDown: boolean;
   canMoveUp: boolean;
   menuRef: RefObject<HTMLDivElement | null>;
   menuTypeLabel: string;
   onAdd(): void;
+  onAddComment?(): void;
   onDelete(): void;
   onMoveDown(): void;
   onMoveUp(): void;
@@ -162,6 +166,11 @@ export function GridRowContextMenu({
       <button type="button" role="menuitem" onClick={onAdd}>
         {addItemLabel}
       </button>
+      {addCommentLabel && onAddComment ? (
+        <button type="button" role="menuitem" onClick={onAddComment}>
+          {addCommentLabel}
+        </button>
+      ) : null}
       <div className="notebook-cell-context-menu-separator" role="separator" />
       <button type="button" role="menuitem" disabled={!canMoveUp} onClick={onMoveUp}>
         Move up

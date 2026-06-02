@@ -8,11 +8,13 @@ import {
   parseExpression,
   type EquationRole
 } from "@sfcr/core";
+import { isRowComment } from "@sfcr/notebook-core";
 
 import type {
   EditorState,
   EquationRow,
   ExternalRow,
+  InitialValueListItem,
   InitialValueRow
 } from "./editorModel";
 import type { NotebookCell } from "../notebook/types";
@@ -76,22 +78,31 @@ export function buildVariableInspectorData(args: {
     return null;
   }
 
-  const equationAnalysis = buildEquationAnalysis(args.editor.equations);
+  const equationAnalysis = buildEquationAnalysis(
+    args.editor.equations.filter((equation): equation is EquationRow => !isRowComment(equation))
+  );
   const definingEquation =
-    args.editor.equations.find((equation) =>
-      equationDefinesVariable(equation.name, selectedVariable)
+    args.editor.equations.find(
+      (equation): equation is EquationRow =>
+        !isRowComment(equation) && equationDefinesVariable(equation.name, selectedVariable)
     ) ?? null;
   const externalDefinition =
-    args.editor.externals.find((external) => external.name.trim() === selectedVariable) ?? null;
+    args.editor.externals.find(
+      (external): external is ExternalRow =>
+        !isRowComment(external) && external.name.trim() === selectedVariable
+    ) ?? null;
   const initialValue = findInitialValue(args.editor.initialValues, selectedVariable);
-  const appearsInEquations = args.editor.equations.filter((equation) => {
+  const appearsInEquations = args.editor.equations.filter((equation): equation is EquationRow => {
+    if (isRowComment(equation)) {
+      return false;
+    }
     if (equationDefinesVariable(equation.name, selectedVariable)) {
       return false;
     }
     const analysis = equationAnalysis.get(equation.id);
-    return (
+    return Boolean(
       analysis?.currentDependencies.includes(selectedVariable) ||
-      analysis?.lagDependencies.includes(selectedVariable)
+        analysis?.lagDependencies.includes(selectedVariable)
     );
   });
 
@@ -133,7 +144,11 @@ export function buildVariableInspectorData(args: {
   const equationRoleMeta = definingEquation
     ? buildEquationRoleMeta(definingEquation)
     : { label: null, sourceLabel: null };
-  const parameterNames = uniqueSorted(args.editor.externals.map((external) => external.name.trim()));
+  const parameterNames = uniqueSorted(
+    args.editor.externals.flatMap((external) =>
+      isRowComment(external) ? [] : [external.name.trim()]
+    )
+  );
   const relatedEquations = buildRelatedEquations({
     editor: args.editor,
     equationAnalysis,
@@ -186,6 +201,9 @@ function buildRelatedEquations(args: {
 }): VariableInspectorData["relatedEquations"] {
   const rowsByOutput = new Map<string, EquationRow[]>();
   args.editor.equations.forEach((equation) => {
+    if (isRowComment(equation)) {
+      return;
+    }
     const output = equationOutputVariable(equation.name);
     if (!output) {
       return;
@@ -355,9 +373,14 @@ function buildEquationAnalysis(equations: EquationRow[]): Map<string, EquationAn
   return analysis;
 }
 
-function findInitialValue(initialValues: InitialValueRow[], variableName: string): number | undefined {
-  const row = initialValues.find((initial) => initial.name.trim() === variableName);
-  if (!row) {
+function findInitialValue(
+  initialValues: InitialValueListItem[],
+  variableName: string
+): number | undefined {
+  const row = initialValues.find(
+    (initial) => !isRowComment(initial) && initial.name.trim() === variableName
+  );
+  if (!row || isRowComment(row)) {
     return undefined;
   }
   const value = Number(row.valueText);

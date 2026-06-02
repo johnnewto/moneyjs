@@ -21,6 +21,7 @@ import {
   type NotebookPatchResult,
   type NotebookPatchSummary
 } from "./notebookPatch";
+import { isRowComment } from "@sfcr/notebook-core";
 import { notebookFromJson } from "./document";
 import type { NotebookDocument } from "./types";
 
@@ -359,8 +360,10 @@ function validateExpectedDocument(
 function findExternal(document: NotebookDocument, name: string): { valueText: string } | null {
   for (const cell of document.cells) {
     if (cell.type === "externals") {
-      const external = cell.externals.find((candidate) => candidate.name === name);
-      if (external) {
+      const external = cell.externals.find(
+        (candidate) => !isRowComment(candidate) && candidate.name === name
+      );
+      if (external && !isRowComment(external)) {
         return external;
       }
     }
@@ -371,8 +374,10 @@ function findExternal(document: NotebookDocument, name: string): { valueText: st
 function findEquation(document: NotebookDocument, name: string): { expression: string } | null {
   for (const cell of document.cells) {
     if (cell.type === "equations") {
-      const equation = cell.equations.find((candidate) => candidate.name === name);
-      if (equation) {
+      const equation = cell.equations.find(
+        (candidate) => !isRowComment(candidate) && candidate.name === name
+      );
+      if (equation && !isRowComment(equation)) {
         return equation;
       }
     }

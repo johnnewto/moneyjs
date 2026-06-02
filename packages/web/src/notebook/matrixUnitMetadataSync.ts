@@ -7,6 +7,7 @@ import {
   type UnitSignature,
   type VariableUnitMetadata
 } from "../lib/unitMeta";
+import { isRowComment } from "@sfcr/notebook-core";
 import { buildVariableUnitMetadata } from "../lib/units";
 import { findEquationsCell, findExternalsCell } from "./modelSections";
 import {
@@ -70,7 +71,7 @@ function resolveVariableTarget(
   const equationsCell = findEquationsCell(cells, modelId);
   if (equationsCell) {
     const rowIndex = equationsCell.equations.findIndex(
-      (equation) => equation.name.trim() === variable
+      (equation) => !isRowComment(equation) && equation.name.trim() === variable
     );
     if (rowIndex >= 0) {
       return {
@@ -84,7 +85,7 @@ function resolveVariableTarget(
   const externalsCell = findExternalsCell(cells, modelId);
   if (externalsCell) {
     const rowIndex = externalsCell.externals.findIndex(
-      (external) => external.name.trim() === variable
+      (external) => !isRowComment(external) && external.name.trim() === variable
     );
     if (rowIndex >= 0) {
       return {

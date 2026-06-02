@@ -8,9 +8,9 @@ import {
 import { serializeNotebookCell } from "./notebookSerialize";
 import {
   buildCompactChartDescriptor,
-  buildCompactEquationRow,
-  buildCompactExternalRow,
-  buildCompactInitialValueRow,
+  buildCompactEquationListRow,
+  buildCompactExternalListRow,
+  buildCompactInitialValueListRow,
   buildCompactMatrixDescriptor,
   buildCompactSolverDescriptor,
   buildCompactTableDescriptor,
@@ -120,7 +120,7 @@ export function serializeCompactYamlCell(cell: NotebookCell): Record<string, unk
         title: cell.title,
         modelId: cell.modelId,
         ...compactCellFlags(cell),
-        rows: cell.equations.map(buildCompactEquationRow)
+        rows: cell.equations.map(buildCompactEquationListRow)
       };
     case "externals":
       return {
@@ -129,7 +129,7 @@ export function serializeCompactYamlCell(cell: NotebookCell): Record<string, unk
         title: cell.title,
         modelId: cell.modelId,
         ...compactCellFlags(cell),
-        rows: cell.externals.map(buildCompactExternalRow)
+        rows: cell.externals.map(buildCompactExternalListRow)
       };
     case "initial-values":
       return {
@@ -138,7 +138,7 @@ export function serializeCompactYamlCell(cell: NotebookCell): Record<string, unk
         title: cell.title,
         modelId: cell.modelId,
         ...compactCellFlags(cell),
-        rows: cell.initialValues.map(buildCompactInitialValueRow)
+        rows: cell.initialValues.map(buildCompactInitialValueListRow)
       };
     case "solver":
       return {

@@ -80,6 +80,7 @@ cells:
       modelId: equations-newton
       collapsed: false
       rows:
+        - "Equalize supply to demand."
         - [Cs, Cd, "Consumption goods supply", $/year, flow, definition]
         - [Is, Id, "Supply of investment goods", $/year, flow, definition]
         - [Ns, Nd, "Supply of labor", items/year, flow, definition]

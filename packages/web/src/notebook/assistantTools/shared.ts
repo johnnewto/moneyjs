@@ -1,3 +1,6 @@
+import { isRowComment } from "@sfcr/notebook-core";
+
+import type { EquationRow, ExternalRow } from "../../lib/editorModel";
 import type { UnitMeta } from "../../lib/unitMeta";
 import { buildDependencyGraph } from "../dependencyGraph";
 import { buildEditorStateForNotebookModel, resolveRunCellModelKey } from "../modelSections";
@@ -6,12 +9,12 @@ import type { ChartCell, EquationsCell, ExternalsCell, InitialValuesCell, Markdo
 import type { NotebookAssistantSnapshot } from "./types";
 
 type VariableUnitMetaTarget =
-  | { cell: EquationsCell; property: "equations"; row: EquationsCell["equations"][number]; rowIndex: number }
-  | { cell: ExternalsCell; property: "externals"; row: ExternalsCell["externals"][number]; rowIndex: number };
+  | { cell: EquationsCell; property: "equations"; row: EquationRow; rowIndex: number }
+  | { cell: ExternalsCell; property: "externals"; row: ExternalRow; rowIndex: number };
 
 type VariableDescriptionTarget =
-  | { cell: EquationsCell; property: "equations"; row: EquationsCell["equations"][number]; rowIndex: number }
-  | { cell: ExternalsCell; property: "externals"; row: ExternalsCell["externals"][number]; rowIndex: number };
+  | { cell: EquationsCell; property: "equations"; row: EquationRow; rowIndex: number }
+  | { cell: ExternalsCell; property: "externals"; row: ExternalRow; rowIndex: number };
 
 export function resolveVariableUnitMetaTarget(
   snapshot: NotebookAssistantSnapshot,
@@ -23,19 +26,23 @@ export function resolveVariableUnitMetaTarget(
 
   for (const cell of snapshot.document.cells) {
     if (cell.type === "equations" && (!modelId || cell.modelId === modelId)) {
-      const rowIndex = cell.equations.findIndex((equation) => equation.name.trim() === normalizedVariable);
+      const rowIndex = cell.equations.findIndex(
+        (equation) => !isRowComment(equation) && equation.name.trim() === normalizedVariable
+      );
       if (rowIndex >= 0) {
         const row = cell.equations[rowIndex];
-        if (row) {
+        if (row && !isRowComment(row)) {
           targets.push({ cell, property: "equations", row, rowIndex });
         }
       }
     }
     if (cell.type === "externals" && (!modelId || cell.modelId === modelId)) {
-      const rowIndex = cell.externals.findIndex((external) => external.name.trim() === normalizedVariable);
+      const rowIndex = cell.externals.findIndex(
+        (external) => !isRowComment(external) && external.name.trim() === normalizedVariable
+      );
       if (rowIndex >= 0) {
         const row = cell.externals[rowIndex];
-        if (row) {
+        if (row && !isRowComment(row)) {
           targets.push({ cell, property: "externals", row, rowIndex });
         }
       }
@@ -66,19 +73,23 @@ export function resolveVariableDescriptionTarget(
   const externalsCell = resolveOptionalModelCell(snapshot, modelId, "externals");
 
   if (equationsCell) {
-    const rowIndex = equationsCell.equations.findIndex((equation) => equation.name.trim() === normalizedVariable);
+    const rowIndex = equationsCell.equations.findIndex(
+      (equation) => !isRowComment(equation) && equation.name.trim() === normalizedVariable
+    );
     if (rowIndex >= 0) {
       const row = equationsCell.equations[rowIndex];
-      if (row) {
+      if (row && !isRowComment(row)) {
         targets.push({ cell: equationsCell, property: "equations", row, rowIndex });
       }
     }
   }
   if (externalsCell) {
-    const rowIndex = externalsCell.externals.findIndex((external) => external.name.trim() === normalizedVariable);
+    const rowIndex = externalsCell.externals.findIndex(
+      (external) => !isRowComment(external) && external.name.trim() === normalizedVariable
+    );
     if (rowIndex >= 0) {
       const row = externalsCell.externals[rowIndex];
-      if (row) {
+      if (row && !isRowComment(row)) {
         targets.push({ cell: externalsCell, property: "externals", row, rowIndex });
       }
     }
@@ -267,25 +278,39 @@ export function resolveBaselineRunForScenario(
 
 export function resolveEquationRow(cell: EquationsCell, variable: string) {
   const normalizedVariable = normalizeRequiredName(variable, "variable");
-  const rowIndex = cell.equations.findIndex((equation) => equation.name.trim() === normalizedVariable);
+  const rowIndex = cell.equations.findIndex(
+    (equation) => !isRowComment(equation) && equation.name.trim() === normalizedVariable
+  );
   if (rowIndex < 0) {
     throw new Error(`Unknown equation '${normalizedVariable}' for model '${cell.modelId}'.`);
   }
-  return { row: cell.equations[rowIndex] as EquationsCell["equations"][number], rowIndex };
+  const row = cell.equations[rowIndex];
+  if (!row || isRowComment(row)) {
+    throw new Error(`Unknown equation '${normalizedVariable}' for model '${cell.modelId}'.`);
+  }
+  return { row, rowIndex };
 }
 
 export function resolveExternalRow(cell: ExternalsCell, variable: string) {
   const normalizedVariable = normalizeRequiredName(variable, "variable");
-  const rowIndex = cell.externals.findIndex((external) => external.name.trim() === normalizedVariable);
+  const rowIndex = cell.externals.findIndex(
+    (external) => !isRowComment(external) && external.name.trim() === normalizedVariable
+  );
   if (rowIndex < 0) {
     throw new Error(`Unknown parameter '${normalizedVariable}' for model '${cell.modelId}'.`);
   }
-  return { row: cell.externals[rowIndex] as ExternalsCell["externals"][number], rowIndex };
+  const row = cell.externals[rowIndex];
+  if (!row || isRowComment(row)) {
+    throw new Error(`Unknown parameter '${normalizedVariable}' for model '${cell.modelId}'.`);
+  }
+  return { row, rowIndex };
 }
 
 export function resolveInitialValueRow(cell: InitialValuesCell, variable: string) {
   const normalizedVariable = normalizeRequiredName(variable, "variable");
-  const rowIndex = cell.initialValues.findIndex((initialValue) => initialValue.name.trim() === normalizedVariable);
+  const rowIndex = cell.initialValues.findIndex(
+    (initialValue) => !isRowComment(initialValue) && initialValue.name.trim() === normalizedVariable
+  );
   if (rowIndex < 0) {
     throw new Error(`Unknown initial value '${normalizedVariable}' for model '${cell.modelId}'.`);
   }
@@ -418,14 +443,16 @@ export function createSetNestedCellPropertyOperation(
 }
 
 export function resolveInsertAfterVariableIndex(
-  rows: Array<{ name: string }>,
+  rows: Array<{ name: string } | { kind: "comment" }>,
   insertAfterVariable?: string
 ) {
   if (!insertAfterVariable) {
     return rows.length;
   }
   const normalizedVariable = normalizeRequiredName(insertAfterVariable, "insertAfterVariable");
-  const rowIndex = rows.findIndex((row) => row.name.trim() === normalizedVariable);
+  const rowIndex = rows.findIndex(
+    (row) => "name" in row && row.name.trim() === normalizedVariable
+  );
   if (rowIndex < 0) {
     return rows.length;
   }
@@ -451,17 +478,29 @@ export function ensureModelVariableNameAvailable(snapshot: NotebookAssistantSnap
   const normalizedVariable = normalizeRequiredName(variable, "name");
   const equationsCell = resolveOptionalModelCell(snapshot, modelId, "equations");
   const externalsCell = resolveOptionalModelCell(snapshot, modelId, "externals");
-  if (equationsCell?.equations.some((equation) => equation.name.trim() === normalizedVariable)) {
+  if (
+    equationsCell?.equations.some(
+      (equation) => !isRowComment(equation) && equation.name.trim() === normalizedVariable
+    )
+  ) {
     throw new Error(`Model '${modelId}' already defines equation '${normalizedVariable}'.`);
   }
-  if (externalsCell?.externals.some((external) => external.name.trim() === normalizedVariable)) {
+  if (
+    externalsCell?.externals.some(
+      (external) => !isRowComment(external) && external.name.trim() === normalizedVariable
+    )
+  ) {
     throw new Error(`Model '${modelId}' already defines external '${normalizedVariable}'.`);
   }
 }
 
 export function ensureInitialValueNameAvailable(cell: InitialValuesCell, variable: string) {
   const normalizedVariable = normalizeRequiredName(variable, "variable");
-  if (cell.initialValues.some((row) => row.name.trim() === normalizedVariable)) {
+  if (
+    cell.initialValues.some(
+      (row) => !isRowComment(row) && row.name.trim() === normalizedVariable
+    )
+  ) {
     throw new Error(`Model '${cell.modelId}' already has an initial value for '${normalizedVariable}'.`);
   }
 }

@@ -1,4 +1,5 @@
 import type { ExternalDef, EquationRole } from "@sfcr/core";
+import { isRowComment } from "@sfcr/notebook-core";
 import type { UnitMeta } from "../../lib/unitMeta";
 import type { NotebookPatch } from "../notebookPatch";
 import type { NotebookAssistantSnapshot } from "./types";
@@ -123,7 +124,7 @@ export function createUpdateVariableDescriptionPatch(
   };
 
   const patch: NotebookPatch = {
-    description: `Update description for '${updatedRow.name}'.`,
+    description: `Update description for '${args.variable}'.`,
     operations: [
       {
         op: "replace",
@@ -273,7 +274,9 @@ export function createUpdateParameterPatch(
     throw new Error(`Unknown externals model id: ${args.modelId}`);
   }
 
-  const rowIndex = externalsCell.externals.findIndex((external) => external.name.trim() === args.variable);
+  const rowIndex = externalsCell.externals.findIndex(
+    (external) => !isRowComment(external) && external.name.trim() === args.variable
+  );
   if (rowIndex < 0) {
     throw new Error(`Unknown parameter '${args.variable}' for model '${args.modelId}'.`);
   }

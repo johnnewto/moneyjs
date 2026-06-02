@@ -86,6 +86,16 @@
         }
       }
     },
+    "rowComment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "text"],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "const": "comment" },
+        "text": { "type": "string" }
+      }
+    },
     "equation": {
       "type": "object",
       "additionalProperties": false,
@@ -102,6 +112,15 @@
           "$ref": "#/$defs/unitMeta"
         }
       }
+    },
+    "equationListItem": {
+      "oneOf": [{ "$ref": "#/$defs/equation" }, { "$ref": "#/$defs/rowComment" }]
+    },
+    "externalListItem": {
+      "oneOf": [{ "$ref": "#/$defs/external" }, { "$ref": "#/$defs/rowComment" }]
+    },
+    "initialValueListItem": {
+      "oneOf": [{ "$ref": "#/$defs/initialValue" }, { "$ref": "#/$defs/rowComment" }]
     },
     "external": {
       "type": "object",
@@ -315,7 +334,7 @@
         "modelId": { "type": "string" },
         "equations": {
           "type": "array",
-          "items": { "$ref": "#/$defs/equation" }
+          "items": { "$ref": "#/$defs/equationListItem" }
         },
         "options": {
           "type": "object",
@@ -344,11 +363,11 @@
         },
         "externals": {
           "type": "array",
-          "items": { "$ref": "#/$defs/external" }
+          "items": { "$ref": "#/$defs/externalListItem" }
         },
         "initialValues": {
           "type": "array",
-          "items": { "$ref": "#/$defs/initialValue" }
+          "items": { "$ref": "#/$defs/initialValueListItem" }
         },
         "sourceModelCellId": { "type": "string" },
         "sourceModelId": { "type": "string" },

@@ -7,3 +7,10 @@ export * from "./types";
 export * from "./validation";
 export * from "./jsonFormat";
 export * from "./unitMetaAliases";
+export * from "./rowComments";
+export {
+  buildCompactEquationListRow,
+  parseCompactEquationRows,
+  parseCompactExternalRows,
+  parseCompactInitialValueRows
+} from "./document/yamlCompactHelpers";

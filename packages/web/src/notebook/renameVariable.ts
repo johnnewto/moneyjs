@@ -1,4 +1,5 @@
 import { derivativeBalanceStockName, type ShockVariableDef } from "@sfcr/core";
+import { isRowComment } from "@sfcr/notebook-core";
 
 import type { EquationRow, ExternalRow } from "../lib/editorModel";
 import { resolveNearestNotebookContextCell } from "./notebookContext";
@@ -56,6 +57,7 @@ export function isModelVariableNameAvailable(
       if (
         cell.equations.some(
           (equation) =>
+            !isRowComment(equation) &&
             equationNameDefinesVariable(equation.name, normalizedVariable) &&
             equation.id !== options?.excludeEquationId
         )
@@ -68,7 +70,9 @@ export function isModelVariableNameAvailable(
       if (
         cell.externals.some(
           (external) =>
-            external.name.trim() === normalizedVariable && external.id !== options?.excludeExternalId
+            !isRowComment(external) &&
+            external.name.trim() === normalizedVariable &&
+            external.id !== options?.excludeExternalId
         )
       ) {
         return false;
@@ -79,6 +83,7 @@ export function isModelVariableNameAvailable(
       if (
         cell.editor.equations.some(
           (equation) =>
+            !isRowComment(equation) &&
             equationNameDefinesVariable(equation.name, normalizedVariable) &&
             equation.id !== options?.excludeEquationId
         )
@@ -88,7 +93,9 @@ export function isModelVariableNameAvailable(
       if (
         cell.editor.externals.some(
           (external) =>
-            external.name.trim() === normalizedVariable && external.id !== options?.excludeExternalId
+            !isRowComment(external) &&
+            external.name.trim() === normalizedVariable &&
+            external.id !== options?.excludeExternalId
         )
       ) {
         return false;
@@ -149,7 +156,7 @@ export function patchEquationInNotebook(
       return {
         ...cell,
         equations: cell.equations.map((equation) =>
-          equation.id === equationId
+          !isRowComment(equation) && equation.id === equationId
             ? {
                 ...equation,
                 name: patch.name,
@@ -166,7 +173,7 @@ export function patchEquationInNotebook(
         editor: {
           ...cell.editor,
           equations: cell.editor.equations.map((equation) =>
-            equation.id === equationId
+            !isRowComment(equation) && equation.id === equationId
               ? {
                   ...equation,
                   name: patch.name,
@@ -193,7 +200,7 @@ export function patchExternalInNotebook(
       return {
         ...cell,
         externals: cell.externals.map((external) =>
-          external.id === externalId
+          !isRowComment(external) && external.id === externalId
             ? {
                 ...external,
                 name: patch.name,
@@ -210,7 +217,7 @@ export function patchExternalInNotebook(
         editor: {
           ...cell.editor,
           externals: cell.editor.externals.map((external) =>
-            external.id === externalId
+            !isRowComment(external) && external.id === externalId
               ? {
                   ...external,
                   name: patch.name,
@@ -241,27 +248,39 @@ function renameVariableInCell(
     case "equations":
       return {
         ...cell,
-        equations: cell.equations.map((equation) => ({
-          ...equation,
-          name: renameEquationTargetName(equation.name, oldName, newName),
-          expression: replaceIdentifierInSource(equation.expression, oldName, newName)
-        }))
+        equations: cell.equations.map((equation) =>
+          isRowComment(equation)
+            ? equation
+            : {
+                ...equation,
+                name: renameEquationTargetName(equation.name, oldName, newName),
+                expression: replaceIdentifierInSource(equation.expression, oldName, newName)
+              }
+        )
       };
     case "externals":
       return {
         ...cell,
-        externals: cell.externals.map((external) => ({
-          ...external,
-          name: external.name.trim() === oldName ? newName : external.name
-        }))
+        externals: cell.externals.map((external) =>
+          isRowComment(external)
+            ? external
+            : {
+                ...external,
+                name: external.name.trim() === oldName ? newName : external.name
+              }
+        )
       };
     case "initial-values":
       return {
         ...cell,
-        initialValues: cell.initialValues.map((row) => ({
-          ...row,
-          name: row.name.trim() === oldName ? newName : row.name
-        }))
+        initialValues: cell.initialValues.map((row) =>
+          isRowComment(row)
+            ? row
+            : {
+                ...row,
+                name: row.name.trim() === oldName ? newName : row.name
+              }
+        )
       };
     case "solver":
       return {
@@ -283,19 +302,31 @@ function renameVariableInCell(
         ...cell,
         editor: {
           ...cell.editor,
-          equations: cell.editor.equations.map((equation) => ({
-            ...equation,
-            name: renameEquationTargetName(equation.name, oldName, newName),
-            expression: replaceIdentifierInSource(equation.expression, oldName, newName)
-          })),
-          externals: cell.editor.externals.map((external) => ({
-            ...external,
-            name: external.name.trim() === oldName ? newName : external.name
-          })),
-          initialValues: cell.editor.initialValues.map((row) => ({
-            ...row,
-            name: row.name.trim() === oldName ? newName : row.name
-          })),
+          equations: cell.editor.equations.map((equation) =>
+            isRowComment(equation)
+              ? equation
+              : {
+                  ...equation,
+                  name: renameEquationTargetName(equation.name, oldName, newName),
+                  expression: replaceIdentifierInSource(equation.expression, oldName, newName)
+                }
+          ),
+          externals: cell.editor.externals.map((external) =>
+            isRowComment(external)
+              ? external
+              : {
+                  ...external,
+                  name: external.name.trim() === oldName ? newName : external.name
+                }
+          ),
+          initialValues: cell.editor.initialValues.map((row) =>
+            isRowComment(row)
+              ? row
+              : {
+                  ...row,
+                  name: row.name.trim() === oldName ? newName : row.name
+                }
+          ),
           options: {
             ...cell.editor.options,
             hiddenLeftVariable:
@@ -412,17 +443,27 @@ function countReferencesInCell(
 
   switch (cell.type) {
     case "equations":
-      return cell.equations.reduce(
-        (total, equation) =>
+      return cell.equations.reduce((total, equation) => {
+        if (isRowComment(equation)) {
+          return total;
+        }
+        return (
           total +
           countNameMatch(equation.name, variable) +
-          countIdentifierOccurrences(equation.expression, variable),
+          countIdentifierOccurrences(equation.expression, variable)
+        );
+      }, 0);
+    case "externals":
+      return cell.externals.reduce(
+        (total, external) =>
+          isRowComment(external) ? total : total + countNameMatch(external.name, variable),
         0
       );
-    case "externals":
-      return cell.externals.reduce((total, external) => total + countNameMatch(external.name, variable), 0);
     case "initial-values":
-      return cell.initialValues.reduce((total, row) => total + countNameMatch(row.name, variable), 0);
+      return cell.initialValues.reduce(
+        (total, row) => (isRowComment(row) ? total : total + countNameMatch(row.name, variable)),
+        0
+      );
     case "solver":
       return (
         countNameMatch(cell.options.hiddenLeftVariable, variable) +
@@ -430,18 +471,25 @@ function countReferencesInCell(
       );
     case "model":
       return (
-        cell.editor.equations.reduce(
-          (total, equation) =>
+        cell.editor.equations.reduce((total, equation) => {
+          if (isRowComment(equation)) {
+            return total;
+          }
+          return (
             total +
             countNameMatch(equation.name, variable) +
-            countIdentifierOccurrences(equation.expression, variable),
-          0
-        ) +
+            countIdentifierOccurrences(equation.expression, variable)
+          );
+        }, 0) +
         cell.editor.externals.reduce(
-          (total, external) => total + countNameMatch(external.name, variable),
+          (total, external) =>
+            isRowComment(external) ? total : total + countNameMatch(external.name, variable),
           0
         ) +
-        cell.editor.initialValues.reduce((total, row) => total + countNameMatch(row.name, variable), 0) +
+        cell.editor.initialValues.reduce(
+          (total, row) => (isRowComment(row) ? total : total + countNameMatch(row.name, variable)),
+          0
+        ) +
         countNameMatch(cell.editor.options.hiddenLeftVariable, variable) +
         countNameMatch(cell.editor.options.hiddenRightVariable, variable)
       );

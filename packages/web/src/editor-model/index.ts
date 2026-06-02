@@ -10,11 +10,29 @@ import {
   type SimulationOptions,
   type SolverMethod
 } from "@sfcr/core";
+import {
+  createNotebookDiagnostic,
+  equationRowsOnly,
+  externalRowsOnly,
+  initialValueRowsOnly,
+  isRowComment,
+  type EquationListItem,
+  type ExternalListItem,
+  type InitialValueListItem,
+  type NotebookDiagnosticDomain
+} from "@sfcr/notebook-core";
 import type { NotebookCell } from "../notebook/types";
 import { resolveMatrixColumnSumBindings } from "../notebook/matrixColumnSumRuntime";
 import { stringifyJsonWithCompactLeaves } from "../lib/jsonFormat";
 import type { UnitMeta } from "../lib/unitMeta";
 import { buildVariableUnitMetadata, diagnoseEquationUnits } from "../lib/units";
+
+export type {
+  EquationListItem,
+  ExternalListItem,
+  InitialValueListItem,
+  RowComment
+} from "@sfcr/notebook-core";
 
 export interface EquationRow {
   id: string;
@@ -24,8 +42,6 @@ export interface EquationRow {
   role?: EquationRole;
   unitMeta?: UnitMeta;
 }
-
-import { createNotebookDiagnostic, type NotebookDiagnosticDomain } from "@sfcr/notebook-core";
 export interface ExternalRow {
   id: string;
   domain?: NotebookDiagnosticDomain;
@@ -73,9 +89,9 @@ export interface EditorOptions {
 }
 
 export interface EditorState {
-  equations: EquationRow[];
-  externals: ExternalRow[];
-  initialValues: InitialValueRow[];
+  equations: EquationListItem[];
+  externals: ExternalListItem[];
+  initialValues: InitialValueListItem[];
   options: EditorOptions;
   scenario: EditorScenario;
 }
@@ -162,7 +178,7 @@ export function buildRuntimeConfig(
   options: SimulationOptions;
   scenario: ScenarioDefinition | null;
 } {
-  const equations = editor.equations
+  const equations = equationRowsOnly(editor.equations)
     .filter((equation) => equation.name.trim() !== "" && equation.expression.trim() !== "")
     .map((equation) => {
       const { name, source } = normalizeDerivativeBalanceTarget(
@@ -177,13 +193,13 @@ export function buildRuntimeConfig(
     });
 
   const externals = Object.fromEntries(
-    editor.externals
+    externalRowsOnly(editor.externals)
       .filter((external) => external.name.trim() !== "" && external.valueText.trim() !== "")
       .map((external) => [external.name.trim(), parseExternal(external.kind, external.valueText)])
   );
 
   const initialValues = Object.fromEntries(
-    editor.initialValues
+    initialValueRowsOnly(editor.initialValues)
       .filter((initial) => initial.name.trim() !== "" && initial.valueText.trim() !== "")
       .map((initial) => [initial.name.trim(), parseNumber(initial.valueText)])
   );
@@ -292,6 +308,9 @@ export function validateEditorState(editor: EditorState): ValidationIssue[] {
   const initialNames = new Set<string>();
 
   editor.equations.forEach((equation, index) => {
+    if (isRowComment(equation)) {
+      return;
+    }
     const name = equation.name.trim();
     const expression = equation.expression.trim();
     if (!name) {
@@ -321,6 +340,9 @@ export function validateEditorState(editor: EditorState): ValidationIssue[] {
   });
 
   editor.externals.forEach((external, index) => {
+    if (isRowComment(external)) {
+      return;
+    }
     const name = external.name.trim();
     if (!name) {
       issues.push({ path: `externals.${index}.name`, message: "External name is required." });
@@ -344,6 +366,9 @@ export function validateEditorState(editor: EditorState): ValidationIssue[] {
   });
 
   editor.initialValues.forEach((initial, index) => {
+    if (isRowComment(initial)) {
+      return;
+    }
     const name = initial.name.trim();
     if (!name) {
       issues.push({ path: `initialValues.${index}.name`, message: "Initial variable is required." });
@@ -466,6 +491,9 @@ export function diagnoseBuildRuntime(editor: EditorState): BuildDiagnosticResult
   });
 
   editor.equations.forEach((equation, index) => {
+    if (isRowComment(equation)) {
+      return;
+    }
     const name = equation.name.trim();
     const expression = equation.expression.trim();
     if (!name || !expression) {
@@ -494,6 +522,9 @@ export function diagnoseBuildRuntime(editor: EditorState): BuildDiagnosticResult
   });
 
   editor.externals.forEach((external, index) => {
+    if (isRowComment(external)) {
+      return;
+    }
     if (!external.name.trim() || !external.valueText.trim()) {
       return;
     }
@@ -509,6 +540,9 @@ export function diagnoseBuildRuntime(editor: EditorState): BuildDiagnosticResult
   });
 
   editor.initialValues.forEach((initial, index) => {
+    if (isRowComment(initial)) {
+      return;
+    }
     if (!initial.name.trim() || !initial.valueText.trim()) {
       return;
     }

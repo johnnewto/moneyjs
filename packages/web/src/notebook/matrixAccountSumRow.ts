@@ -1,3 +1,5 @@
+import { isRowComment } from "@sfcr/notebook-core";
+
 import { evaluateExpression, parseExpression, type EquationRole, type SimulationResult } from "@sfcr/core";
 import { parseVariableFromColumnLabel, resolveMatrixColumnInspectVariable } from "@sfcr/notebook-core";
 
@@ -305,7 +307,10 @@ function resolveStockUnitMeta(
   variable: string,
   equationsCell: EquationsCell | null
 ): UnitMeta {
-  const existing = equationsCell?.equations.find((equation) => equation.name.trim() === variable)?.unitMeta;
+  const match = equationsCell?.equations.find(
+    (equation) => !isRowComment(equation) && equation.name.trim() === variable
+  );
+  const existing = match && !isRowComment(match) ? match.unitMeta : undefined;
   if (existing?.stockFlow === "stock" && existing.signature) {
     return existing;
   }
@@ -357,10 +362,12 @@ export function collectProposedMatrixEquationUpdates(args: {
     const hasFlows = columnHasFlowEntries(args.matrix, columnIndex, sumRowIndex);
     const proposedExpression = buildProposedAccumulationExpression(variable, columnRef, hasFlows);
     const existingIndex = equationsCell.equations.findIndex(
-      (equation) => equation.name.trim() === variable
+      (equation) => !isRowComment(equation) && equation.name.trim() === variable
     );
     const existing =
-      existingIndex >= 0 ? equationsCell.equations[existingIndex] : undefined;
+      existingIndex >= 0 && !isRowComment(equationsCell.equations[existingIndex]!)
+        ? equationsCell.equations[existingIndex]
+        : undefined;
     const proposed = {
       name: variable,
       expression: proposedExpression,

@@ -1,3 +1,5 @@
+import { isRowComment } from "@sfcr/notebook-core";
+
 import { getNotebookAssistantToolSyntax, type NotebookAssistantToolRequest, type NotebookAssistantToolResult } from "./notebookAssistantTools";
 import type { NotebookPatch } from "./notebookPatch";
 import type { ExternalsCell, EquationsCell, InitialValuesCell, ModelCell, NotebookCell, NotebookDocument, RunCell } from "./types";
@@ -1117,21 +1119,45 @@ function collectKnownNotebookVariables(document: NotebookDocument): Set<string> 
 }
 
 function collectModelCellVariables(cell: ModelCell, variables: Set<string>): void {
-  cell.editor.equations.forEach((row) => variables.add(row.name));
-  cell.editor.externals.forEach((row) => variables.add(row.name));
-  cell.editor.initialValues.forEach((row) => variables.add(row.name));
+  cell.editor.equations.forEach((row) => {
+    if (!isRowComment(row)) {
+      variables.add(row.name);
+    }
+  });
+  cell.editor.externals.forEach((row) => {
+    if (!isRowComment(row)) {
+      variables.add(row.name);
+    }
+  });
+  cell.editor.initialValues.forEach((row) => {
+    if (!isRowComment(row)) {
+      variables.add(row.name);
+    }
+  });
 }
 
 function collectEquationsCellVariables(cell: EquationsCell, variables: Set<string>): void {
-  cell.equations.forEach((row) => variables.add(row.name));
+  cell.equations.forEach((row) => {
+    if (!isRowComment(row)) {
+      variables.add(row.name);
+    }
+  });
 }
 
 function collectExternalsCellVariables(cell: ExternalsCell, variables: Set<string>): void {
-  cell.externals.forEach((row) => variables.add(row.name));
+  cell.externals.forEach((row) => {
+    if (!isRowComment(row)) {
+      variables.add(row.name);
+    }
+  });
 }
 
 function collectInitialValuesCellVariables(cell: InitialValuesCell, variables: Set<string>): void {
-  cell.initialValues.forEach((row) => variables.add(row.name));
+  cell.initialValues.forEach((row) => {
+    if (!isRowComment(row)) {
+      variables.add(row.name);
+    }
+  });
 }
 
 function escapeJsonPointerSegment(value: string): string {
@@ -1304,7 +1330,7 @@ function resolveExternalValuePatchTarget(
   const cellId = unescapeJsonPointerSegment(match[1]);
   const cell = document.cells.find((candidate): candidate is ExternalsCell => candidate.id === cellId && candidate.type === "externals");
   const external = cell?.externals[Number(match[2])];
-  if (!cell || !external) {
+  if (!cell || !external || isRowComment(external)) {
     return null;
   }
   return { cell, variable: external.name };
@@ -1330,7 +1356,7 @@ function resolveVariableUnitMetaPatchTarget(
 
   const rowIndex = Number(match[3]);
   const row = cell.type === "equations" ? cell.equations[rowIndex] : cell.externals[rowIndex];
-  if (!row) {
+  if (!row || isRowComment(row)) {
     return null;
   }
 

@@ -1,5 +1,7 @@
 import type { MouseEvent } from "react";
 
+import { isRowComment, type EquationListItem } from "@sfcr/notebook-core";
+
 import type { EquationRow } from "../lib/editorModel";
 
 export type TraceMode = "inputs" | "outputs" | "both";
@@ -28,12 +30,19 @@ export interface PinnedTrace {
   rowId: string;
 }
 
-export function buildTraceModel(rows: EquationRow[]): TraceModel {
-  const traceRows = rows.map((row) => ({
-    id: row.id,
-    output: normalizeVariableName(row.name),
-    inputs: extractVariableTokens(row.expression)
-  }));
+export function buildTraceModel(rows: readonly EquationListItem[]): TraceModel {
+  const traceRows = rows.flatMap((row) => {
+    if (isRowComment(row)) {
+      return [];
+    }
+    return [
+      {
+        id: row.id,
+        output: normalizeVariableName(row.name),
+        inputs: extractVariableTokens(row.expression)
+      }
+    ];
+  });
 
   const rowsByOutput = new Map<string, string[]>();
   for (const row of traceRows) {

@@ -1,4 +1,10 @@
-import type { EditorOptions, EditorState, EquationRow, ExternalRow, InitialValueRow } from "../lib/editorModel";
+import type {
+  EditorOptions,
+  EditorState,
+  EquationListItem,
+  ExternalListItem,
+  InitialValueListItem
+} from "../lib/editorModel";
 import type {
   EquationsCell,
   ExternalsCell,
@@ -130,9 +136,9 @@ export function countModelSectionIssues(
 }
 
 export function buildEditorStateFromSections(args: {
-  equations: EquationRow[];
-  externals: ExternalRow[];
-  initialValues: InitialValueRow[];
+  equations: EquationListItem[];
+  externals: ExternalListItem[];
+  initialValues: InitialValueListItem[];
   options: EditorOptions;
 }): EditorState {
   return {

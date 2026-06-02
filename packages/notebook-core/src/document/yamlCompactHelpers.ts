@@ -1,7 +1,22 @@
 import { normalizeAccountingMatrixKindInput, normalizeMatrixCellAccountingKind } from "../accountingMatrixKind";
 import { parseMatrixColumnBadges } from "../matrixAccountColumns";
 import { parseMatrixColumnTree } from "../matrixColumnTree";
-import type { NotebookCell, NotebookDocument } from "../types";
+import {
+  assertCompactRowPresent,
+  buildCompactRowComment,
+  isRowComment,
+  parseCompactRowComment
+} from "../rowComments";
+import type {
+  EquationListItem,
+  EquationRow,
+  ExternalListItem,
+  ExternalRow,
+  InitialValueListItem,
+  InitialValueRow,
+  NotebookCell,
+  NotebookDocument
+} from "../types";
 import { NOTEBOOK_CELL_TYPES } from "./documentTypes";
 import { isRecord, numberValue, slugifyIdentifier, stringArray, stringValue } from "./documentUtils";
 
@@ -27,6 +42,9 @@ export function buildCompactVariables(
 ): Record<string, Record<string, unknown>> {
   const variables: Record<string, Record<string, unknown>> = {};
   equationsCell.equations.forEach((equation) => {
+    if (isRowComment(equation)) {
+      return;
+    }
     variables[equation.name] = {
       ...(equation.desc ? { description: equation.desc } : {}),
       ...compactUnitFields(equation.unitMeta),
@@ -34,6 +52,9 @@ export function buildCompactVariables(
     };
   });
   parametersCell?.externals.forEach((external) => {
+    if (isRowComment(external)) {
+      return;
+    }
     variables[external.name] = {
       ...(external.desc ? { description: external.desc } : {}),
       ...compactUnitFields(external.unitMeta)
@@ -47,6 +68,9 @@ export function buildCompactEquationVariables(
 ): Record<string, Record<string, unknown>> {
   const variables: Record<string, Record<string, unknown>> = {};
   equationsCell.equations.forEach((equation) => {
+    if (isRowComment(equation)) {
+      return;
+    }
     variables[equation.name] = {
       ...(equation.desc ? { description: equation.desc } : {}),
       ...compactUnitFields(equation.unitMeta),
@@ -56,10 +80,14 @@ export function buildCompactEquationVariables(
   return variables;
 }
 
-export function buildCompactEquationRow(
-  equation: Extract<NotebookCell, { type: "equations" }>["equations"][number],
-  index: number
-): unknown[] {
+export function buildCompactEquationListRow(item: EquationListItem, index: number): unknown {
+  if (isRowComment(item)) {
+    return buildCompactRowComment(item);
+  }
+  return buildCompactEquationRow(item, index);
+}
+
+export function buildCompactEquationRow(equation: EquationRow, index: number): unknown[] {
   const unit = formatCompactUnit(equation.unitMeta);
   const type = equation.unitMeta?.stockFlow;
   const row = [equation.name, equation.expression, equation.desc, unit, type, equation.role];
@@ -77,10 +105,14 @@ export function buildCompactEquationRow(
   return [...normalized, equation.id];
 }
 
-export function buildCompactExternalRow(
-  external: Extract<NotebookCell, { type: "externals" }>["externals"][number],
-  index: number
-): unknown[] | Record<string, unknown> {
+export function buildCompactExternalListRow(item: ExternalListItem, index: number): unknown {
+  if (isRowComment(item)) {
+    return buildCompactRowComment(item);
+  }
+  return buildCompactExternalRow(item, index);
+}
+
+export function buildCompactExternalRow(external: ExternalRow, index: number): unknown[] | Record<string, unknown> {
   if (external.kind !== "constant") {
     return {
       id: external.id,
@@ -109,10 +141,14 @@ export function buildCompactExternalRow(
   return [...normalized, external.id];
 }
 
-export function buildCompactInitialValueRow(
-  initialValue: Extract<NotebookCell, { type: "initial-values" }>["initialValues"][number],
-  index: number
-): unknown[] {
+export function buildCompactInitialValueListRow(item: InitialValueListItem, index: number): unknown {
+  if (isRowComment(item)) {
+    return buildCompactRowComment(item);
+  }
+  return buildCompactInitialValueRow(item, index);
+}
+
+export function buildCompactInitialValueRow(initialValue: InitialValueRow, index: number): unknown[] {
   const row = [initialValue.name, scalarFromValueText(initialValue.valueText)];
   const fallbackId = `init-${index}-${slugifyIdentifier(initialValue.name)}`;
   return initialValue.id === fallbackId ? row : [...row, initialValue.id];
@@ -123,6 +159,9 @@ export function buildCompactExternalVariables(
 ): Record<string, Record<string, unknown>> | undefined {
   const variables = Object.fromEntries(
     parametersCell.externals.flatMap((external) => {
+      if (isRowComment(external)) {
+        return [];
+      }
       const meta = {
         ...(external.desc ? { description: external.desc } : {}),
         ...compactUnitFields(external.unitMeta)
@@ -133,7 +172,7 @@ export function buildCompactExternalVariables(
   return Object.keys(variables).length > 0 ? variables : undefined;
 }
 
-export function compactUnitFields(unitMeta: Extract<NotebookCell, { type: "equations" }>["equations"][number]["unitMeta"]): Record<string, unknown> {
+export function compactUnitFields(unitMeta: EquationRow["unitMeta"]): Record<string, unknown> {
   if (!unitMeta) {
     return {};
   }
@@ -270,7 +309,7 @@ export function scalarFromValueText(valueText: string): string | number | boolea
   return Number.isFinite(number) && String(number) === valueText.trim() ? number : valueText;
 }
 
-export function formatCompactUnit(unitMeta: Extract<NotebookCell, { type: "equations" }>["equations"][number]["unitMeta"]): string | undefined {
+export function formatCompactUnit(unitMeta: EquationRow["unitMeta"]): string | undefined {
   const signature = compactUnitSignature(unitMeta);
   if (!signature) {
     return undefined;
@@ -374,9 +413,15 @@ export function parseCompactEquations(source: string, variables: unknown): Extra
     });
 }
 
-export function parseCompactEquationRows(rows: unknown[], variables: unknown): Extract<NotebookCell, { type: "equations" }>["equations"] {
+export function parseCompactEquationRows(rows: unknown[], variables: unknown): EquationListItem[] {
   const variableMeta = isRecord(variables) ? variables : {};
   return rows.map((row, index) => {
+    assertCompactRowPresent(row, index, "Equation");
+    const comment = parseCompactRowComment(row, index, "eq-comment");
+    if (comment) {
+      return comment;
+    }
+
     if (Array.isArray(row)) {
       const [rawName, rawExpression, rawDescription, rawUnit, rawType, rawRole, rawId] = row;
       const name = stringValue(rawName, "");
@@ -440,9 +485,15 @@ export function buildCompactParameters(parameters: unknown, variables: unknown):
   });
 }
 
-export function parseCompactExternalRows(rows: unknown[], variables: unknown): Extract<NotebookCell, { type: "externals" }>["externals"] {
+export function parseCompactExternalRows(rows: unknown[], variables: unknown): ExternalListItem[] {
   const variableMeta = isRecord(variables) ? variables : {};
   return rows.map((row, index) => {
+    assertCompactRowPresent(row, index, "External");
+    const comment = parseCompactRowComment(row, index, "ext-comment");
+    if (comment) {
+      return comment;
+    }
+
     if (Array.isArray(row)) {
       const [rawName, rawValue, rawDescription, rawUnit, rawType, rawId] = row;
       const name = stringValue(rawName, "");
@@ -497,8 +548,14 @@ export function buildCompactInitialValues(initialValues: unknown): Extract<Noteb
   }));
 }
 
-export function parseCompactInitialValueRows(rows: unknown[]): Extract<NotebookCell, { type: "initial-values" }>["initialValues"] {
+export function parseCompactInitialValueRows(rows: unknown[]): InitialValueListItem[] {
   return rows.map((row, index) => {
+    assertCompactRowPresent(row, index, "Initial value");
+    const comment = parseCompactRowComment(row, index, "init-comment");
+    if (comment) {
+      return comment;
+    }
+
     if (Array.isArray(row)) {
       const [rawName, rawValue, rawId] = row;
       const name = stringValue(rawName, "");
@@ -629,9 +686,9 @@ export function buildCompactTableCells(tables: unknown, sourceRunCellId: string)
   }));
 }
 
-export function resolveEquationRole(meta: Record<string, unknown>): Extract<NotebookCell, { type: "equations" }>["equations"][number]["role"] | undefined {
+export function resolveEquationRole(meta: Record<string, unknown>): EquationRow["role"] | undefined {
   if (typeof meta.role === "string") {
-    return meta.role as Extract<NotebookCell, { type: "equations" }>["equations"][number]["role"];
+    return meta.role as EquationRow["role"];
   }
   if (meta.type === "stock") {
     return "accumulation";
@@ -642,7 +699,7 @@ export function resolveEquationRole(meta: Record<string, unknown>): Extract<Note
   return undefined;
 }
 
-export function buildUnitMeta(meta: Record<string, unknown>): Extract<NotebookCell, { type: "equations" }>["equations"][number]["unitMeta"] | undefined {
+export function buildUnitMeta(meta: Record<string, unknown>): EquationRow["unitMeta"] | undefined {
   const unit = typeof meta.unit === "string" ? meta.unit : undefined;
   const unitMeta = isRecord(meta.unitMeta) ? meta.unitMeta : undefined;
   if (unitMeta) {
