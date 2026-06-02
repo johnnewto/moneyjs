@@ -1160,6 +1160,7 @@ body.panel-splitter-body-lock {
 
 .result-variable-button.is-document-highlighted,
 .formula-token.is-document-highlighted,
+.matrix-entry-source.is-document-highlighted,
 .assistant-variable-button.is-document-highlighted,
 .chart-legend-item.is-document-highlighted {
   background: rgba(253, 224, 71, 0.28);
@@ -1167,22 +1168,27 @@ body.panel-splitter-body-lock {
   box-shadow: 0 0 0 1px rgba(217, 119, 6, 0.35);
 }
 
-.result-variable-button.is-document-highlighted {
-  padding: 0.05rem 0.2rem;
-}
-
 .formula-token.is-document-highlighted {
   border-radius: 3px;
-  padding: 0 0.08rem;
-}
-
-.assistant-markdown .assistant-variable-button.is-document-highlighted {
-  padding: 0 0.12rem;
 }
 
 .chart-legend-item.is-document-highlighted,
 .legend-item.is-document-highlighted {
-  padding: 0.08rem 0.2rem;
+  box-shadow: 0 0 0 1px rgba(217, 119, 6, 0.35);
+}
+
+.notebook-matrix-slice-highlight-row > th,
+.notebook-matrix-slice-highlight-row > td {
+  background: rgba(96, 165, 250, 0.1);
+}
+
+.notebook-matrix-slice-highlight-column {
+  background: rgba(96, 165, 250, 0.1);
+}
+
+.notebook-matrix-slice-highlight-header {
+  background: rgba(96, 165, 250, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.22);
 }
 
 .result-variable-button:hover .variable-label-inline {
@@ -3344,6 +3350,146 @@ body.panel-splitter-body-lock {
   display: grid;
   gap: 0.7rem;
   min-width: 0;
+}
+
+.notebook-graph-rail-panel .result-chart {
+  margin-top: 0;
+}
+
+.notebook-graph-rail-panel .result-panel .panel-header {
+  margin-bottom: 0.45rem;
+}
+
+.notebook-graph-rail-panel .result-chart-hover-zone .result-chart {
+  margin-top: 0;
+}
+
+.notebook-graph-rail-panel .result-panel h2 {
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.notebook-graph-rail-chart-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.notebook-graph-rail-chart .result-panel {
+  margin-bottom: 0;
+}
+
+.result-chart-heading {
+  align-items: center;
+  display: flex;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.result-chart-heading h2 {
+  min-width: 0;
+}
+
+.result-chart-heading-actions {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 0.15rem;
+}
+
+.panel-header .result-chart-pin-button,
+.panel-header .result-chart-dismiss-button,
+.panel-header .result-chart-legend-mode-button {
+  align-items: center;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  color: #64748b;
+  cursor: pointer;
+  display: inline-flex;
+  flex-shrink: 0;
+  height: 1.5rem;
+  justify-content: center;
+  min-height: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.panel-header .result-chart-legend-mode-button {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  min-width: 2.75rem;
+  padding: 0 0.35rem;
+  width: auto;
+}
+
+.panel-header .result-chart-pin-button,
+.panel-header .result-chart-dismiss-button {
+  width: 1.5rem;
+}
+
+.panel-header .result-chart-pin-button:hover,
+.panel-header .result-chart-dismiss-button:hover,
+.panel-header .result-chart-legend-mode-button:hover,
+.panel-header .result-chart-pin-button:focus-visible,
+.panel-header .result-chart-dismiss-button:focus-visible,
+.panel-header .result-chart-legend-mode-button:focus-visible {
+  background: rgba(20, 33, 61, 0.06);
+  outline: none;
+  transform: none;
+}
+
+.panel-header .result-chart-legend-mode-button[aria-pressed="false"] {
+  color: #64748b;
+}
+
+.panel-header .result-chart-legend-mode-button[aria-pressed="true"] {
+  background: rgba(245, 158, 11, 0.12);
+  color: #92400e;
+}
+
+.panel-header .result-chart-pin-button[aria-pressed="false"] {
+  color: #64748b;
+}
+
+.panel-header .result-chart-pin-button[aria-pressed="false"]:hover,
+.panel-header .result-chart-pin-button[aria-pressed="false"]:focus-visible {
+  color: #475569;
+}
+
+.panel-header .result-chart-pin-button[aria-pressed="true"] {
+  color: #b45309;
+}
+
+.panel-header .result-chart-pin-button[aria-pressed="true"]:hover,
+.panel-header .result-chart-pin-button[aria-pressed="true"]:focus-visible {
+  color: #92400e;
+}
+
+.panel-header .result-chart-dismiss-button:hover,
+.panel-header .result-chart-dismiss-button:focus-visible {
+  color: #14213d;
+}
+
+.panel-header .result-chart-pin-button svg,
+.panel-header .result-chart-dismiss-button svg {
+  display: block;
+  height: 0.95rem;
+  width: 0.95rem;
+}
+
+.notebook-matrix-slice-label-button {
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-align: inherit;
+}
+
+.notebook-matrix-slice-label-button:not(.result-variable-button) {
+  background: transparent;
+  border: 0;
+  color: inherit;
 }
 
 .notebook-rail-tabs {

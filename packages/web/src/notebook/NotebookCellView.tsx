@@ -63,9 +63,11 @@ import {
   SolverCellView
 } from "./components/LinkedSectionViews";
 import { ChartCellView, RunCellView } from "./components/RunChartViews";
+import type { MatrixGraphSliceHighlight } from "./graphDocumentHighlight";
 import { MatrixCellView } from "./components/MatrixCellView";
 import { MatrixEntryDisplayModeToggle } from "./components/MatrixEntryDisplayModeToggle";
 import { type MatrixEntryDisplayMode } from "./matrixEntryDisplay";
+import type { MatrixGraphRequest } from "./matrixSliceGraph";
 import {
   buildEditorStateForStandaloneModelSections,
   buildIssueMapForStandaloneModelSections,
@@ -186,8 +188,10 @@ export interface NotebookCellViewProps {
     cellType: NotebookCell["type"];
     title: string;
   }): void;
+  onMatrixGraphRequest?(request: MatrixGraphRequest): void;
   onVariableInspectRequest(args: VariableInspectRequest): void;
   highlightedVariable?: string | null;
+  graphSliceHighlight?: MatrixGraphSliceHighlight | null;
   runner: ReturnType<typeof useNotebookRunner>;
   selectedCellId: string | null;
   selectedPeriodIndex: number;
@@ -215,8 +219,10 @@ function NotebookCellViewComponent({
   onCellChange,
   onReplaceCells,
   onCellHelpRequest,
+  onMatrixGraphRequest,
   onVariableInspectRequest,
-  highlightedVariable = null
+  highlightedVariable = null,
+  graphSliceHighlight = null
 }: NotebookCellViewProps) {
   const status = runner.status[cell.id] ?? "idle";
   const error = runner.errors[cell.id];
@@ -1277,8 +1283,10 @@ function NotebookCellViewComponent({
                 variableUnitMetadata={variableUnitMetadata}
                 onCellChange={onCellChange}
                 onReplaceCells={onReplaceCells}
+                onMatrixGraphRequest={onMatrixGraphRequest}
                 onVariableInspectRequest={onVariableInspectRequest}
                 highlightedVariable={highlightedVariable}
+                graphSliceHighlight={graphSliceHighlight}
               />
             ) : null}
             {cell.type === "sequence" ? (
@@ -1537,6 +1545,10 @@ function areNotebookCellViewPropsEqual(
   }
 
   if (previousProps.highlightedVariable !== nextProps.highlightedVariable) {
+    return false;
+  }
+
+  if (previousProps.graphSliceHighlight !== nextProps.graphSliceHighlight) {
     return false;
   }
 

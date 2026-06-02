@@ -60,12 +60,43 @@ export function variableMatchesHighlight(
   return false;
 }
 
+export function normalizeMatrixHighlightKey(value: string): string {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+export function matrixSourceMatchesHighlight(
+  source: string,
+  highlightedVariable: string | null | undefined
+): boolean {
+  if (!highlightedVariable?.trim()) {
+    return false;
+  }
+
+  const normalizedSource = normalizeMatrixHighlightKey(source);
+  const normalizedHighlight = normalizeMatrixHighlightKey(highlightedVariable);
+  if (!normalizedSource || !normalizedHighlight) {
+    return false;
+  }
+
+  return normalizedSource === normalizedHighlight;
+}
+
+export function documentMentionMatchesHighlight(
+  mentionName: string,
+  highlightedVariable: string | null | undefined
+): boolean {
+  return (
+    variableMatchesHighlight(mentionName, highlightedVariable) ||
+    matrixSourceMatchesHighlight(mentionName, highlightedVariable)
+  );
+}
+
 export function documentHighlightClassName(
   mentionName: string,
   highlightedVariable: string | null | undefined,
   baseClassName: string
 ): string {
-  return variableMatchesHighlight(mentionName, highlightedVariable)
+  return documentMentionMatchesHighlight(mentionName, highlightedVariable)
     ? `${baseClassName} is-document-highlighted`
     : baseClassName;
 }

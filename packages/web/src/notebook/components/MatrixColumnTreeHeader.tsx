@@ -1,4 +1,4 @@
-import { useMemo, type JSX } from "react";
+import { useMemo, type JSX, type MouseEvent as ReactMouseEvent } from "react";
 
 import {
   buildMatrixAccountColumnDisplaySlots,
@@ -18,6 +18,8 @@ import {
   formatStockRoleLabel,
   formatStockRoleTitle
 } from "../matrixSemantics";
+import type { MatrixGraphSliceHighlight } from "../graphDocumentHighlight";
+import { matrixSliceHeaderClassName } from "../graphDocumentHighlight";
 
 export function useMatrixColumnLayout(
   cell: Pick<MatrixCell, "columns" | "columnTree" | "sectors" | "columnBadges" | "variables">,
@@ -100,6 +102,10 @@ export function MatrixColumnTreeHeader({
   accountColumnLayout = false,
   sectorGroupedColumns = accountColumnLayout,
   onToggleNode,
+  graphLinked = false,
+  graphSliceHighlight = null,
+  matrixCellId,
+  onColumnLabelClick,
   onInspectVariable
 }: {
   headerRows: MatrixColumnHeaderCell[][];
@@ -112,6 +118,14 @@ export function MatrixColumnTreeHeader({
   accountColumnLayout?: boolean;
   sectorGroupedColumns?: boolean;
   onToggleNode(nodeId: string): void;
+  graphLinked?: boolean;
+  graphSliceHighlight?: MatrixGraphSliceHighlight | null;
+  matrixCellId: string;
+  onColumnLabelClick?(
+    event: ReactMouseEvent<HTMLElement>,
+    columnIndex: number,
+    inspectVariableName: string
+  ): void;
   onInspectVariable?(variableName: string): void;
 }): JSX.Element {
   const cornerRowSpan = Math.max(headerRows.length, 1);
@@ -148,7 +162,10 @@ export function MatrixColumnTreeHeader({
                       sumColumnIndex
                     )
                   : []),
-                cell.isLeaf && cell.columnIndex === sumColumnIndex ? "notebook-matrix-sum-column" : undefined
+                cell.isLeaf && cell.columnIndex === sumColumnIndex ? "notebook-matrix-sum-column" : undefined,
+                cell.columnIndex != null
+                  ? matrixSliceHeaderClassName(matrixCellId, "column", cell.columnIndex, graphSliceHighlight)
+                  : undefined
               ]
                 .filter(Boolean)
                 .join(" ") || undefined}
@@ -158,7 +175,9 @@ export function MatrixColumnTreeHeader({
                 columns,
                 collapsedNodeIds,
                 editorLinked,
+                graphLinked,
                 accountColumnLayout,
+                onColumnLabelClick,
                 onInspectVariable,
                 onToggleNode
               })}
@@ -168,7 +187,14 @@ export function MatrixColumnTreeHeader({
             <th
               rowSpan={cornerRowSpan}
               scope="col"
-              className="notebook-matrix-sum-column"
+              className={
+                [
+                  "notebook-matrix-sum-column",
+                  matrixSliceHeaderClassName(matrixCellId, "column", sumColumnIndex, graphSliceHighlight)
+                ]
+                  .filter(Boolean)
+                  .join(" ") || undefined
+              }
             >
               {sumColumnHeaderLabel}
             </th>
@@ -184,7 +210,9 @@ function renderHeaderCell({
   columns,
   collapsedNodeIds,
   editorLinked,
+  graphLinked,
   accountColumnLayout,
+  onColumnLabelClick,
   onInspectVariable,
   onToggleNode
 }: {
@@ -192,7 +220,13 @@ function renderHeaderCell({
   columns: string[];
   collapsedNodeIds: ReadonlySet<string>;
   editorLinked: boolean;
+  graphLinked: boolean;
   accountColumnLayout: boolean;
+  onColumnLabelClick?(
+    event: ReactMouseEvent<HTMLElement>,
+    columnIndex: number,
+    inspectVariableName: string
+  ): void;
   onInspectVariable?(variableName: string): void;
   onToggleNode(nodeId: string): void;
 }): JSX.Element | string {
@@ -258,12 +292,22 @@ function renderHeaderCell({
     const labelContent = (
       <>
         {badgeButton}
-        {editorLinked && onInspectVariable && inspectName ? (
+        {(graphLinked || editorLinked) && cell.columnIndex != null && inspectName ? (
           <button
             type="button"
-            className="result-variable-button notebook-matrix-tree-leaf-label-button"
-            title={titleLabel}
-            onClick={() => onInspectVariable(inspectName)}
+            className="result-variable-button notebook-matrix-tree-leaf-label-button notebook-matrix-slice-label-button"
+            title={
+              graphLinked
+                ? `Graph column ${titleLabel}. Ctrl+click to inspect.`
+                : titleLabel
+            }
+            onClick={(event) => {
+              if (onColumnLabelClick) {
+                onColumnLabelClick(event, cell.columnIndex!, inspectName);
+                return;
+              }
+              onInspectVariable?.(inspectName);
+            }}
           >
             {labelNode}
           </button>

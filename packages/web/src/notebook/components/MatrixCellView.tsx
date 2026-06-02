@@ -25,7 +25,7 @@ import {
   resolveMatrixTableKind
 } from "../matrixSemantics";
 import { resolveInspectorModelSource, type VariableInspectRequest } from "../../lib/variableInspect";
-import { documentHighlightClassName } from "../../lib/variableHighlight";
+import { documentHighlightClassName, matrixSourceMatchesHighlight } from "../../lib/variableHighlight";
 import { buildEditorStateForNotebookModel } from "../modelSections";
 import { NotebookRenderProfiler } from "../notebookProfiler";
 import {
@@ -39,10 +39,21 @@ import {
 } from "../matrixAccountSumRow";
 import type { UnitMeta } from "../../lib/unitMeta";
 import { resolveAccountingMatrixKind } from "../validation";
+import {
+  collectMatrixColumnGraphSeries,
+  collectMatrixRowGraphSeries,
+  type MatrixGraphRequest
+} from "../matrixSliceGraph";
 import { useMatrixEntryEdit, type MatrixEditingTarget } from "../useMatrixEntryEdit";
 import type { MatrixCell, NotebookCell, RunCell } from "../types";
 import type { useNotebookRunner } from "../useNotebookRunner";
 import { VariableRenameDialog } from "./EquationRowInlineEditor";
+import {
+  matrixSliceColumnClassName,
+  matrixSliceHeaderClassName,
+  matrixSliceRowClassName,
+  type MatrixGraphSliceHighlight
+} from "../graphDocumentHighlight";
 import { useMatrixColumnCollapseState } from "../matrixColumnCollapseStorage";
 import { MatrixColumnTreeHeader, useMatrixColumnLayout } from "./MatrixColumnTreeHeader";
 
@@ -76,8 +87,10 @@ export function MatrixCellView({
   variableUnitMetadata,
   onCellChange,
   onReplaceCells,
+  onMatrixGraphRequest,
   onVariableInspectRequest,
-  highlightedVariable = null
+  highlightedVariable = null,
+  graphSliceHighlight = null
 }: {
   cell: MatrixCell;
   cells: NotebookCell[];
@@ -88,8 +101,10 @@ export function MatrixCellView({
   variableDescriptions: VariableDescriptions;
   variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
   highlightedVariable?: string | null;
+  graphSliceHighlight?: MatrixGraphSliceHighlight | null;
   onCellChange(cellId: string, updater: (cell: NotebookCell) => NotebookCell): void;
   onReplaceCells(nextCells: NotebookCell[]): void;
+  onMatrixGraphRequest?(request: MatrixGraphRequest): void;
   onVariableInspectRequest(args: VariableInspectRequest): void;
 }) {
   const matrixDragScroll = useDragScroll<HTMLDivElement>();
@@ -291,6 +306,109 @@ export function MatrixCellView({
     [onVariableInspectRequest]
   );
 
+  const canGraphMatrix = Boolean(cell.sourceRunCellId && result && onMatrixGraphRequest);
+
+  const handleGraphRow = useCallback(
+    (rowIndex: number, label: string) => {
+      if (!canGraphMatrix || !cell.sourceRunCellId || !result || !onMatrixGraphRequest) {
+        return;
+      }
+      if (rowIndex === sumRowIndex) {
+        return;
+      }
+
+      onMatrixGraphRequest({
+        index: rowIndex,
+        kind: "row",
+        label,
+        matrixCellId: cell.id,
+        matrixTitle: cell.title,
+        sourceRunCellId: cell.sourceRunCellId,
+        series: collectMatrixRowGraphSeries(cell, rowIndex, result),
+        variableDescriptions,
+        variableUnitMetadata
+      });
+    },
+    [
+      canGraphMatrix,
+      cell,
+      onMatrixGraphRequest,
+      result,
+      sumRowIndex,
+      variableDescriptions,
+      variableUnitMetadata
+    ]
+  );
+
+  const handleGraphColumn = useCallback(
+    (columnIndex: number) => {
+      if (!canGraphMatrix || !cell.sourceRunCellId || !result || !onMatrixGraphRequest) {
+        return;
+      }
+      if (columnIndex === sumColumnIndex) {
+        return;
+      }
+
+      const label = cell.columns[columnIndex]?.trim() || `Column ${columnIndex + 1}`;
+      onMatrixGraphRequest({
+        index: columnIndex,
+        kind: "column",
+        label,
+        matrixCellId: cell.id,
+        matrixTitle: cell.title,
+        sourceRunCellId: cell.sourceRunCellId,
+        series: collectMatrixColumnGraphSeries(cell, columnIndex, result),
+        variableDescriptions,
+        variableUnitMetadata
+      });
+    },
+    [
+      canGraphMatrix,
+      cell,
+      onMatrixGraphRequest,
+      result,
+      sumColumnIndex,
+      variableDescriptions,
+      variableUnitMetadata
+    ]
+  );
+
+  const handleColumnLabelClick = useCallback(
+    (event: ReactMouseEvent<HTMLElement>, columnIndex: number, inspectVariableName: string) => {
+      if ((event.metaKey || event.ctrlKey) && editor) {
+        event.preventDefault();
+        event.stopPropagation();
+        handleInspectVariable(inspectVariableName);
+        return;
+      }
+
+      if (canGraphMatrix) {
+        event.preventDefault();
+        event.stopPropagation();
+        handleGraphColumn(columnIndex);
+        return;
+      }
+
+      if (editor) {
+        handleInspectVariable(inspectVariableName);
+      }
+    },
+    [canGraphMatrix, editor, handleGraphColumn, handleInspectVariable]
+  );
+
+  const handleRowLabelClick = useCallback(
+    (event: ReactMouseEvent<HTMLElement>, rowIndex: number, label: string) => {
+      if (!canGraphMatrix || rowIndex === sumRowIndex) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      handleGraphRow(rowIndex, label);
+    },
+    [canGraphMatrix, handleGraphRow, sumRowIndex]
+  );
+
   const scheduleInspectVariable = useCallback(
     (selectedVariable: string) => {
       clearDeferredVariableInspect();
@@ -426,6 +544,10 @@ export function MatrixCellView({
       accountColumnLayout={accountColumnLayout}
       sectorGroupedColumns={sectorGroupedColumns}
       onToggleNode={toggleColumnTreeNode}
+      graphLinked={canGraphMatrix}
+      graphSliceHighlight={graphSliceHighlight}
+      matrixCellId={cell.id}
+      onColumnLabelClick={canGraphMatrix || editor ? handleColumnLabelClick : undefined}
       onInspectVariable={editor ? handleInspectVariable : undefined}
     />
   ) : (
@@ -443,14 +565,26 @@ export function MatrixCellView({
         <th
           key={column}
           scope="col"
-          className={columnIndex === sumColumnIndex ? "notebook-matrix-sum-column" : undefined}
+          className={
+            [
+              columnIndex === sumColumnIndex ? "notebook-matrix-sum-column" : undefined,
+              matrixSliceHeaderClassName(cell.id, "column", columnIndex, graphSliceHighlight)
+            ]
+              .filter(Boolean)
+              .join(" ") || undefined
+          }
           onContextMenu={(event) => handleMatrixColumnContextMenu(event, columnIndex)}
         >
-          {editor ? (
+          {canGraphMatrix || editor ? (
             <button
               type="button"
-              className={documentHighlightClassName(column, highlightedVariable, "result-variable-button")}
-              onClick={() => handleInspectVariable(column)}
+              className={documentHighlightClassName(column, highlightedVariable, "result-variable-button notebook-matrix-slice-label-button")}
+              title={
+                canGraphMatrix
+                  ? `Graph column ${column}. Ctrl+click to inspect.`
+                  : `Inspect ${column}`
+              }
+              onClick={(event) => handleColumnLabelClick(event, columnIndex, column)}
             >
               <VariableLabel
                 currentValues={currentValues}
@@ -493,13 +627,18 @@ export function MatrixCellView({
                   ? "notebook-matrix-flow-start-row"
                   : undefined,
                 row.isSumRow ? "notebook-matrix-sum-row" : undefined,
-                row.isSumRow && !row.isBalanced ? "matrix-balance-error" : undefined
+                row.isSumRow && !row.isBalanced ? "matrix-balance-error" : undefined,
+                matrixSliceRowClassName(cell.id, rowIndex, graphSliceHighlight)
               ]
                 .filter(Boolean)
                 .join(" ") || undefined
             }
           >
-            <th scope="row" onContextMenu={(event) => handleMatrixRowContextMenu(event, rowIndex)}>
+            <th
+              scope="row"
+              className={matrixSliceHeaderClassName(cell.id, "row", rowIndex, graphSliceHighlight)}
+              onContextMenu={(event) => handleMatrixRowContextMenu(event, rowIndex)}
+            >
               <NotebookRenderProfiler
                 id="MatrixTableRowLabel"
                 metadata={{
@@ -508,11 +647,26 @@ export function MatrixCellView({
                   selectedPeriodIndex
                 }}
               >
-                <VariableLabel
-                  name={row.label}
-                  variableDescriptions={variableDescriptions}
-                  variableUnitMetadata={variableUnitMetadata}
-                />
+                {canGraphMatrix && !row.isSumRow ? (
+                  <button
+                    type="button"
+                    className="notebook-matrix-slice-label-button result-variable-button"
+                    title={`Graph row ${row.label}`}
+                    onClick={(event) => handleRowLabelClick(event, rowIndex, row.label)}
+                  >
+                    <VariableLabel
+                      name={row.label}
+                      variableDescriptions={variableDescriptions}
+                      variableUnitMetadata={variableUnitMetadata}
+                    />
+                  </button>
+                ) : (
+                  <VariableLabel
+                    name={row.label}
+                    variableDescriptions={variableDescriptions}
+                    variableUnitMetadata={variableUnitMetadata}
+                  />
+                )}
               </NotebookRenderProfiler>
             </th>
             {renderMatrixRowDataCells({
@@ -521,6 +675,7 @@ export function MatrixCellView({
               cell,
               displaySlots,
               entryDisplayMode,
+              graphSliceHighlight,
               highlightedVariable,
               matrixEntryEdit,
               matrixKind,
@@ -919,6 +1074,7 @@ function renderMatrixRowDataCells({
   currentValues,
   displaySlots,
   entryDisplayMode,
+  graphSliceHighlight,
   highlightedVariable,
   matrixEntryEdit,
   matrixKind,
@@ -942,6 +1098,7 @@ function renderMatrixRowDataCells({
   currentValues: Record<string, number | undefined>;
   displaySlots: MatrixColumnDisplaySlot[];
   entryDisplayMode: MatrixEntryDisplayMode;
+  graphSliceHighlight?: MatrixGraphSliceHighlight | null;
   highlightedVariable?: string | null;
   matrixEntryEdit: ReturnType<typeof useMatrixEntryEdit>;
   matrixKind: ReturnType<typeof resolveMatrixTableKind>;
@@ -1024,6 +1181,7 @@ function renderMatrixRowDataCells({
         columnIndex: slot.columnIndex,
         currentValues,
         entryDisplayMode,
+        graphSliceHighlight,
         highlightedVariable,
         matrixEntryEdit,
         matrixKind,
@@ -1052,6 +1210,7 @@ function renderMatrixRowDataCells({
         columnIndex: sumColumnIndex,
         currentValues,
         entryDisplayMode,
+        graphSliceHighlight,
         highlightedVariable,
         matrixEntryEdit,
         matrixKind,
@@ -1081,6 +1240,7 @@ function renderMatrixLeafDataCell({
   columnIndex,
   currentValues,
   entryDisplayMode,
+  graphSliceHighlight,
   highlightedVariable,
   matrixEntryEdit,
   matrixKind,
@@ -1103,6 +1263,7 @@ function renderMatrixLeafDataCell({
   columnIndex: number;
   currentValues: Record<string, number | undefined>;
   entryDisplayMode: MatrixEntryDisplayMode;
+  graphSliceHighlight?: MatrixGraphSliceHighlight | null;
   highlightedVariable?: string | null;
   matrixEntryEdit: ReturnType<typeof useMatrixEntryEdit>;
   matrixKind: ReturnType<typeof resolveMatrixTableKind>;
@@ -1163,6 +1324,7 @@ function renderMatrixLeafDataCell({
             sumColumnIndex
           ),
           columnIndex === sumColumnIndex ? "notebook-matrix-sum-column" : undefined,
+          matrixSliceColumnClassName(cell.id, columnIndex, graphSliceHighlight),
           entry.isSumCell && !entry.isBalanced ? "matrix-balance-error" : undefined,
           isEditableDataCell && !isEditingEntry ? "notebook-matrix-cell-editable" : undefined
         ]
@@ -1748,7 +1910,13 @@ function MatrixEntrySource({
 
   if (isSumCell && !allowSumCellEdit) {
     return (
-      <span className="matrix-entry-source">
+      <span
+        className={withMatrixEntrySourceHighlight(
+          source,
+          highlightedVariable,
+          "matrix-entry-source"
+        )}
+      >
         {highlightFormula(
           source,
           parameterNames,
@@ -1784,7 +1952,15 @@ function MatrixEntrySource({
   }
 
   return (
-    <span className="matrix-entry-source is-editable" onDoubleClick={beginEdit} title="Double-click to edit">
+    <span
+      className={withMatrixEntrySourceHighlight(
+        source,
+        highlightedVariable,
+        "matrix-entry-source is-editable"
+      )}
+      onDoubleClick={beginEdit}
+      title="Double-click to edit"
+    >
       {highlightFormula(
         source,
         parameterNames,
@@ -1799,4 +1975,14 @@ function MatrixEntrySource({
       )}
     </span>
   );
+}
+
+function withMatrixEntrySourceHighlight(
+  source: string,
+  highlightedVariable: string | null | undefined,
+  className: string
+): string {
+  return matrixSourceMatchesHighlight(source, highlightedVariable)
+    ? `${className} is-document-highlighted`
+    : className;
 }

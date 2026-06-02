@@ -5,6 +5,8 @@ import type { VariableDescriptions } from "../lib/variableDescriptions";
 import { getVariableUnitLabel } from "../lib/units";
 import { documentHighlightClassName } from "../lib/variableHighlight";
 import { InstantTooltip } from "./InstantTooltip";
+import { PinToggleIcon } from "./PinToggleIcon";
+import type { MatrixGraphSliceHighlight } from "../notebook/graphDocumentHighlight";
 import {
   DEFAULT_AXIS_TICK_COUNT,
   buildAxisMetrics,
@@ -20,6 +22,8 @@ import {
 import { VariableMathLabel, renderVariableMathSvgLabel } from "./VariableMathLabel";
 
 interface ChartSeries {
+  highlightKey?: string;
+  legendTooltip?: string;
   name: string;
   values: number[];
 }
@@ -43,9 +47,20 @@ interface ResultChartProps {
   sharedRange?: ChartAxisRange;
   timeRangeDefaults?: { endPeriodInclusive: number; startPeriodInclusive: number };
   timeRangeInclusive?: [number, number];
+  graphSlice?: MatrixGraphSliceHighlight | null;
   highlightedVariable?: string | null;
+  isPinned?: boolean;
+  legendMode?: "expression" | "cross";
+  legendModeCrossHint?: string;
+  onDismiss?(): void;
+  onGraphExpressionHighlightChange?(expression: string | null): void;
+  onGraphSliceHighlightChange?(slice: MatrixGraphSliceHighlight | null): void;
+  onToggleLegendMode?(): void;
+  onTogglePin?(): void;
+  title?: string;
   variableDescriptions?: VariableDescriptions;
   variableUnitMetadata?: VariableUnitMetadata;
+  showAxisSummary?: boolean;
   yAxisTickCount?: number;
 }
 
@@ -68,8 +83,19 @@ export function ResultChart({
   timeRangeDefaults,
   timeRangeInclusive,
   highlightedVariable = null,
+  graphSlice = null,
+  isPinned = false,
+  legendMode = "expression",
+  legendModeCrossHint = "cross labels",
+  onDismiss,
+  onGraphExpressionHighlightChange,
+  onGraphSliceHighlightChange,
+  onToggleLegendMode,
+  onTogglePin,
+  title = "Chart",
   variableDescriptions,
   variableUnitMetadata,
+  showAxisSummary = true,
   yAxisTickCount = DEFAULT_AXIS_TICK_COUNT,
   selectedIndex = 0
 }: ResultChartProps) {
@@ -104,6 +130,43 @@ export function ResultChart({
       ): entry is ChartSeries & { color: string; finiteValues: number[] } =>
         entry != null && entry.values.length > 1 && entry.finiteValues.length > 0
     );
+
+  const hoveredSeriesName = hoveredDatum?.seriesName ?? null;
+
+  useEffect(() => {
+    if (!onGraphExpressionHighlightChange) {
+      return;
+    }
+
+    if (!hoveredSeriesName) {
+      onGraphExpressionHighlightChange(null);
+      return;
+    }
+
+    const activeSeries = normalizedSeries.find((entry) => entry.name === hoveredSeriesName);
+    const expression = activeSeries?.highlightKey ?? activeSeries?.name ?? null;
+    onGraphExpressionHighlightChange(expression);
+  }, [hoveredSeriesName, normalizedSeries, onGraphExpressionHighlightChange]);
+
+  function handleChartHoverZoneEnter(): void {
+    if (graphSlice) {
+      onGraphSliceHighlightChange?.(graphSlice);
+    }
+  }
+
+  function handleChartHoverZoneLeave(): void {
+    setHoveredDatum(null);
+    onGraphSliceHighlightChange?.(null);
+    onGraphExpressionHighlightChange?.(null);
+  }
+
+  function updateHoveredDatum(nextHover: { index: number; seriesName: string }): void {
+    setHoveredDatum((current) =>
+      current?.seriesName === nextHover.seriesName && current.index === nextHover.index
+        ? current
+        : nextHover
+    );
+  }
 
   if (normalizedSeries.length === 0) {
     return null;
@@ -197,6 +260,7 @@ export function ResultChart({
   );
   const canAddVariable = onAddVariable != null && selectableVariableNames.length > 0;
   const hasLegendContextMenu = onMoveVariable != null || onRemoveVariable != null;
+  const legendDocumentHighlight = onGraphExpressionHighlightChange ? null : highlightedVariable;
 
   useEffect(() => {
     if (!canAddVariable && isAddVariableMenuOpen) {
@@ -283,9 +347,71 @@ export function ResultChart({
 
   return (
     <section className="result-panel">
-      <div className="panel-header">
-        <h2>Chart</h2>
-        <div className="chart-legend">
+      <div
+        className="result-chart-hover-zone"
+        onMouseEnter={handleChartHoverZoneEnter}
+        onMouseLeave={handleChartHoverZoneLeave}
+      >
+        <div className="panel-header">
+          <div className="result-chart-heading">
+            <h2>{title}</h2>
+            {onTogglePin || onDismiss || onToggleLegendMode ? (
+              <div className="result-chart-heading-actions">
+                {onTogglePin ? (
+                  <button
+                    type="button"
+                    className="result-chart-pin-button"
+                    aria-label={isPinned ? "Unpin chart" : "Pin chart"}
+                    aria-pressed={isPinned ? "true" : "false"}
+                    title={isPinned ? "Unpin chart" : "Pin chart"}
+                    onClick={onTogglePin}
+                  >
+                    <PinToggleIcon pinned={isPinned} />
+                  </button>
+                ) : null}
+                {onDismiss ? (
+                  <button
+                    type="button"
+                    className="result-chart-dismiss-button"
+                    aria-label="Remove chart"
+                    title="Remove chart"
+                    onClick={onDismiss}
+                  >
+                    <svg viewBox="0 0 16 16" focusable="false" aria-hidden="true">
+                      <path
+                        d="M4.2 4.2 11.8 11.8M11.8 4.2 4.2 11.8"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeLinecap="round"
+                        strokeWidth="1.5"
+                      />
+                    </svg>
+                  </button>
+                ) : null}
+                {onToggleLegendMode ? (
+                  <button
+                    type="button"
+                    className="result-chart-legend-mode-button"
+                    aria-label={
+                      legendMode === "cross"
+                        ? "Show matrix cell expressions in legend"
+                        : `Show ${legendModeCrossHint} in legend`
+                    }
+                    aria-pressed={legendMode === "cross" ? "true" : "false"}
+                    title={
+                      legendMode === "cross"
+                        ? "Show expressions"
+                        : `Show ${legendModeCrossHint}`
+                    }
+                    onClick={onToggleLegendMode}
+                  >
+                    {legendMode === "cross" ? "Exprs" : "Labels"}
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+          <div className="chart-legend">
           {onAddVariable ? (
             <div className="legend-item legend-item-add chart-legend-add" ref={addVariableMenuRef}>
               <button
@@ -346,9 +472,10 @@ export function ResultChart({
             const isHidden = hiddenSeriesNames.has(entry.name);
             const isHovered = hoveredDatum?.seriesName === entry.name;
             const isLegendMenuOpen = openLegendMenuSeriesName === entry.name;
+            const legendHighlightKey = entry.highlightKey ?? entry.name;
             const className = documentHighlightClassName(
-              entry.name,
-              highlightedVariable,
+              legendHighlightKey,
+              legendDocumentHighlight,
               `legend-item${
                 isHidden
                   ? " is-hidden"
@@ -366,10 +493,9 @@ export function ResultChart({
                 className={className}
                 onMouseEnter={() => {
                   if (!isHidden) {
-                    setHoveredDatum({ index: fallbackHoverVisibleIndex, seriesName: entry.name });
+                    updateHoveredDatum({ index: fallbackHoverVisibleIndex, seriesName: entry.name });
                   }
                 }}
-                onMouseLeave={() => setHoveredDatum(null)}
                 onContextMenu={(event: ReactMouseEvent<HTMLElement>) => {
                   if (!hasLegendContextMenu) {
                     return;
@@ -381,10 +507,13 @@ export function ResultChart({
                     current === entry.name ? null : entry.name
                   );
                 }}
-                tooltip={formatVariableTooltip(
-                  variableDescriptions?.get(entry.name),
-                  variableUnitMetadata?.get(entry.name)
-                )}
+                tooltip={
+                  entry.legendTooltip ??
+                  formatVariableTooltip(
+                    variableDescriptions?.get(entry.name),
+                    variableUnitMetadata?.get(entry.name)
+                  )
+                }
               >
                 {isHidden ? (
                   <button
@@ -393,7 +522,6 @@ export function ResultChart({
                     aria-label={`Show ${entry.name} trace`}
                     aria-pressed="false"
                     onClick={() => toggleSeriesVisibility(entry.name)}
-                    onBlur={() => setHoveredDatum(null)}
                   >
                     <span className={`legend-swatch legend-swatch-${entry.colorIndex}`} aria-hidden="true">
                       <svg viewBox="0 0 16 16" focusable="false">
@@ -409,8 +537,7 @@ export function ResultChart({
                     aria-label={`Hide ${entry.name} trace`}
                     aria-pressed="true"
                     onClick={() => toggleSeriesVisibility(entry.name)}
-                    onFocus={() => setHoveredDatum({ index: fallbackHoverVisibleIndex, seriesName: entry.name })}
-                    onBlur={() => setHoveredDatum(null)}
+                    onFocus={() => updateHoveredDatum({ index: fallbackHoverVisibleIndex, seriesName: entry.name })}
                   >
                     <span className={`legend-swatch legend-swatch-${entry.colorIndex}`} aria-hidden="true">
                       <svg viewBox="0 0 16 16" focusable="false">
@@ -479,15 +606,14 @@ export function ResultChart({
               </InstantTooltip>
             );
           })}
+          </div>
         </div>
-      </div>
 
-      <svg
+        <svg
         className="result-chart"
         viewBox={`0 0 ${width} ${height}`}
         role="img"
         aria-label={ariaLabel}
-        onMouseLeave={() => setHoveredDatum(null)}
         onMouseMove={(event) => {
           const nextHover = resolveHoveredDatum(
             event,
@@ -502,7 +628,7 @@ export function ResultChart({
             visibleLength
           );
           if (nextHover) {
-            setHoveredDatum(nextHover);
+            updateHoveredDatum(nextHover);
           }
         }}
       >
@@ -588,9 +714,8 @@ export function ResultChart({
                   : `chart-axis${isAxisActive ? " is-active" : ""}${isAxisDimmed ? " is-dimmed" : ""}`
               }
               onMouseEnter={() =>
-                setHoveredDatum({ index: fallbackHoverVisibleIndex, seriesName: entry.name })
+                updateHoveredDatum({ index: fallbackHoverVisibleIndex, seriesName: entry.name })
               }
-              onMouseLeave={() => setHoveredDatum(null)}
             >
               {axisMode === "shared" ? null : (
                 <title>
@@ -802,31 +927,34 @@ export function ResultChart({
           Period
         </text>
       </svg>
-
-      <div className={`chart-scale ${axisMode === "shared" ? "chart-scale-shared" : "chart-scale-multi"}`}>
-        <span>
-          Time axis: {resolvedTimeRange.startPeriodInclusive + periodLabelOffset} to {resolvedTimeRange.endPeriodInclusive + periodLabelOffset}
-        </span>
-        {axisMode === "shared" ? (
-          <span>
-            Shared axis: <span className={sharedMetrics.min < 0 ? "numeric-value-negative" : undefined}>{formatAxisValue(sharedMetrics.min)}</span> to <span className={sharedMetrics.max < 0 ? "numeric-value-negative" : undefined}>{formatAxisValue(sharedMetrics.max)}</span>
-          </span>
-        ) : (
-          axisMetrics.map((entry) => (
-            <InstantTooltip
-              as="span"
-              key={`scale-${entry.name}`}
-              style={{ color: entry.color }}
-              tooltip={formatVariableTooltip(
-                variableDescriptions?.get(entry.name),
-                variableUnitMetadata?.get(entry.name)
-              )}
-            >
-              <VariableMathLabel name={entry.name} />: <span className={entry.min < 0 ? "numeric-value-negative" : undefined}>{formatAxisValue(entry.min)}</span> to <span className={entry.max < 0 ? "numeric-value-negative" : undefined}>{formatAxisValue(entry.max)}</span>
-            </InstantTooltip>
-          ))
-        )}
       </div>
+
+      {showAxisSummary ? (
+        <div className={`chart-scale ${axisMode === "shared" ? "chart-scale-shared" : "chart-scale-multi"}`}>
+          <span>
+            Time axis: {resolvedTimeRange.startPeriodInclusive + periodLabelOffset} to {resolvedTimeRange.endPeriodInclusive + periodLabelOffset}
+          </span>
+          {axisMode === "shared" ? (
+            <span>
+              Shared axis: <span className={sharedMetrics.min < 0 ? "numeric-value-negative" : undefined}>{formatAxisValue(sharedMetrics.min)}</span> to <span className={sharedMetrics.max < 0 ? "numeric-value-negative" : undefined}>{formatAxisValue(sharedMetrics.max)}</span>
+            </span>
+          ) : (
+            axisMetrics.map((entry) => (
+              <InstantTooltip
+                as="span"
+                key={`scale-${entry.name}`}
+                style={{ color: entry.color }}
+                tooltip={formatVariableTooltip(
+                  variableDescriptions?.get(entry.name),
+                  variableUnitMetadata?.get(entry.name)
+                )}
+              >
+                <VariableMathLabel name={entry.name} />: <span className={entry.min < 0 ? "numeric-value-negative" : undefined}>{formatAxisValue(entry.min)}</span> to <span className={entry.max < 0 ? "numeric-value-negative" : undefined}>{formatAxisValue(entry.max)}</span>
+              </InstantTooltip>
+            ))
+          )}
+        </div>
+      ) : null}
     </section>
   );
 }

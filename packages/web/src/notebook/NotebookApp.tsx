@@ -141,6 +141,16 @@ import { AssistantMarkdown } from "../components/AssistantMarkdown";
 import { formatAssistantTokenUsage, mergeAssistantTokenUsage, type AssistantTokenUsage } from "../assistant/sse";
 import { VariableInspector } from "../components/VariableInspector";
 import { VariableCatalogPanel } from "../components/VariableCatalogPanel";
+import type { MatrixGraphSliceHighlight } from "./graphDocumentHighlight";
+import { matrixGraphSliceHighlightsEqual } from "./graphDocumentHighlight";
+import { MatrixGraphRailPanel } from "./components/MatrixGraphRailPanel";
+import {
+  applyMatrixGraphRequest,
+  removeMatrixGraphChart,
+  toggleMatrixGraphChartLegendMode,
+  toggleMatrixGraphChartPin,
+  type MatrixGraphChartEntry
+} from "./matrixGraphRailState";
 import { VariableMathLabel } from "../components/VariableMathLabel";
 import { useDragScroll } from "../hooks/useDragScroll";
 import { useInspectorVariableHistory } from "../hooks/useInspectorVariableHistory";
@@ -171,8 +181,17 @@ import {
   hasParameterOverrides,
   type ConstantExternalOverrides
 } from "../lib/externalParameterControls";
+import type { MatrixGraphRequest } from "./matrixSliceGraph";
 
-type NotebookRailTab = "editor" | "variables" | "inspect" | "contents" | "assistant" | "help" | "preview";
+type NotebookRailTab =
+  | "editor"
+  | "variables"
+  | "inspect"
+  | "graph"
+  | "contents"
+  | "assistant"
+  | "help"
+  | "preview";
 
 const BUILD_DATE_LABEL = formatBuildDate(__SFCR_BUILD_DATE__);
 const NOTEBOOK_HISTORY_LIMIT = 50;
@@ -654,6 +673,10 @@ export function NotebookApp() {
     return resolveNotebookAssistantMode(window.localStorage.getItem(NOTEBOOK_ASSISTANT_MODE_STORAGE_KEY));
   });
   const [inspectorContext, setInspectorContext] = useState<VariableInspectRequest | null>(null);
+  const [matrixGraphCharts, setMatrixGraphCharts] = useState<MatrixGraphChartEntry[]>([]);
+  const [graphSliceHighlight, setGraphSliceHighlight] = useState<MatrixGraphSliceHighlight | null>(null);
+  const [graphExpressionHighlight, setGraphExpressionHighlight] = useState<string | null>(null);
+  const matrixGraphChartIdRef = useRef(0);
   const inspectorVariableHistory = useInspectorVariableHistory();
   const [parameterOverrides, setParameterOverrides] = useState<ConstantExternalOverrides>({});
   const parameterRunTimeoutRef = useRef<number | null>(null);
@@ -700,6 +723,23 @@ export function NotebookApp() {
       currentValuesByModel: catalogCurrentValuesByModel
     });
   }, [activeRailTab, notebookDocument, catalogCurrentValuesByModel]);
+
+  useEffect(() => {
+    if (activeRailTab !== "graph") {
+      setGraphSliceHighlight(null);
+      setGraphExpressionHighlight(null);
+    }
+  }, [activeRailTab]);
+
+  const handleGraphSliceHighlightChange = useCallback((slice: MatrixGraphSliceHighlight | null) => {
+    setGraphSliceHighlight((current) =>
+      matrixGraphSliceHighlightsEqual(current, slice) ? current : slice
+    );
+  }, []);
+
+  const handleGraphExpressionHighlightChange = useCallback((expression: string | null) => {
+    setGraphExpressionHighlight((current) => (current === expression ? current : expression));
+  }, []);
 
   const scheduleParameterRun = useCallback(() => {
     if (parameterRunTimeoutRef.current != null) {
@@ -1328,6 +1368,28 @@ export function NotebookApp() {
     }
     setInspectorContext(request);
     setActiveRailTab("inspect");
+  }
+
+  function handleMatrixGraphRequest(request: MatrixGraphRequest): void {
+    setMatrixGraphCharts((current) =>
+      applyMatrixGraphRequest(current, request, () => {
+        matrixGraphChartIdRef.current += 1;
+        return `matrix-graph-${matrixGraphChartIdRef.current}`;
+      })
+    );
+    setActiveRailTab("graph");
+  }
+
+  function handleToggleMatrixGraphChartPin(chartId: string): void {
+    setMatrixGraphCharts((current) => toggleMatrixGraphChartPin(current, chartId));
+  }
+
+  function handleToggleMatrixGraphChartLegendMode(chartId: string): void {
+    setMatrixGraphCharts((current) => toggleMatrixGraphChartLegendMode(current, chartId));
+  }
+
+  function handleDismissMatrixGraphChart(chartId: string): void {
+    setMatrixGraphCharts((current) => removeMatrixGraphChart(current, chartId));
   }
 
   function handleCatalogRowSelect(row: VariableCatalogRow): void {
@@ -3107,8 +3169,16 @@ export function NotebookApp() {
                   onCellChange={updateCell}
                   onReplaceCells={replaceCells}
                   onCellHelpRequest={handleCellHelpRequest}
+                  onMatrixGraphRequest={handleMatrixGraphRequest}
                   onVariableInspectRequest={handleVariableInspectRequest}
-                  highlightedVariable={inspectorContext?.selectedVariable ?? null}
+                  highlightedVariable={
+                    cell.id === graphSliceHighlight?.matrixCellId
+                      ? graphExpressionHighlight
+                      : inspectorContext?.selectedVariable ?? null
+                  }
+                  graphSliceHighlight={
+                    cell.id === graphSliceHighlight?.matrixCellId ? graphSliceHighlight : null
+                  }
                   selectedCellId={selectedCellId}
                   selectedPeriodIndex={selectedPeriodIndex}
                 />
@@ -3215,6 +3285,15 @@ export function NotebookApp() {
                 onClick={() => setActiveRailTab("inspect")}
               >
                 Inspect
+              </button>
+              <button
+                type="button"
+                role="tab"
+                {...{ "aria-selected": activeRailTab === "graph" }}
+                className={`notebook-rail-tab${activeRailTab === "graph" ? " is-active" : ""}`}
+                onClick={() => setActiveRailTab("graph")}
+              >
+                Graph
               </button>
               <button
                 type="button"
@@ -3407,6 +3486,18 @@ export function NotebookApp() {
               seriesValues={inspectorSeriesValues}
               variableDescriptions={inspectorContext?.variableDescriptions}
               variableUnitMetadata={inspectorContext?.variableUnitMetadata}
+            />
+          ) : null}
+
+          {activeRailTab === "graph" ? (
+            <MatrixGraphRailPanel
+              charts={matrixGraphCharts}
+              onDismissChart={handleDismissMatrixGraphChart}
+              onGraphExpressionHighlightChange={handleGraphExpressionHighlightChange}
+              onGraphSliceHighlightChange={handleGraphSliceHighlightChange}
+              onToggleChartLegendMode={handleToggleMatrixGraphChartLegendMode}
+              onToggleChartPin={handleToggleMatrixGraphChartPin}
+              selectedPeriodIndex={selectedPeriodIndex}
             />
           ) : null}
 
