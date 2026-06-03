@@ -3239,14 +3239,24 @@ body.panel-splitter-body-lock {
 }
 
 .stability-inspector-actions {
+  align-items: center;
   display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
   margin-top: 0.5rem;
 }
 
+.stability-inspector-actions-hint {
+  color: #64748b;
+  flex: 1;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  min-width: 10rem;
+}
+
 .stability-analyze-button {
-  align-self: flex-start;
+  flex-shrink: 0;
 }
 
 .stability-inspector-section {

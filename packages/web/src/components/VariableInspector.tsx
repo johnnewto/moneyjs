@@ -75,7 +75,6 @@ export function VariableInspector({
           display={stability.display}
           isComputing={stability.isComputing}
           onClearAnalysis={stability.onClearAnalysis}
-          onOpenRawData={stability.onOpenRawData}
           onRequestAnalysis={stability.onRequestAnalysis}
           selectedPeriodIndex={selectedPeriodIndex}
           selectedVariableName={data?.name ?? null}

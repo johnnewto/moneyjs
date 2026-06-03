@@ -3537,7 +3537,6 @@ export function NotebookApp() {
                   setStabilityEnabled(false);
                   setShowStabilityRawPanel(false);
                 },
-                onOpenRawData: () => setShowStabilityRawPanel(true),
                 onRequestAnalysis: () => setStabilityEnabled(true),
                 selectedPeriodIndex,
                 simulationResult: stabilityTarget?.result ?? null
