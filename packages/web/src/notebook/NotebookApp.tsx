@@ -156,6 +156,11 @@ import {
 import { VariableMathLabel } from "../components/VariableMathLabel";
 import { useDragScroll } from "../hooks/useDragScroll";
 import { useInspectorVariableHistory } from "../hooks/useInspectorVariableHistory";
+import {
+  stabilityTargetCacheKey,
+  useStabilityMetrics
+} from "../hooks/useStabilityMetrics";
+import { resolveNotebookStabilityTarget } from "../lib/stabilityAtPeriod";
 import { usePanelSplitter } from "../hooks/usePanelSplitter";
 import { useNotebookStickySurfaceTop } from "./useNotebookStickySurfaceTop";
 import { buildVariableInspectorData } from "../lib/variableInspector";
@@ -882,6 +887,25 @@ export function NotebookApp() {
     runner.outputs,
     selectedVariableData?.name
   ]);
+  const stabilityTarget = useMemo(
+    () =>
+      resolveNotebookStabilityTarget({
+        document: notebookDocument,
+        getResult: (runCellId) => runner.getResult(runCellId),
+        inspectorContext
+      }),
+    [notebookDocument, inspectorContext, runner.outputs]
+  );
+  const [stabilityEnabled, setStabilityEnabled] = useState(false);
+  const stabilityTargetKey = stabilityTarget ? stabilityTargetCacheKey(stabilityTarget) : null;
+  useEffect(() => {
+    setStabilityEnabled(false);
+  }, [stabilityTargetKey]);
+  const { display: stabilityDisplay, isComputing: stabilityIsComputing } = useStabilityMetrics(
+    stabilityTarget,
+    selectedPeriodIndex,
+    { enabled: stabilityEnabled }
+  );
   const notebookMainDragScroll = useDragScroll<HTMLDivElement>();
   const notebookRailDragScroll = useDragScroll<HTMLElement>();
   const handleMainColumnRef = useCallback(
@@ -3500,6 +3524,13 @@ export function NotebookApp() {
               parameterOverrides={parameterOverrides}
               selectedPeriodIndex={selectedPeriodIndex}
               seriesValues={inspectorSeriesValues}
+              stability={{
+                display: stabilityDisplay,
+                isComputing: stabilityIsComputing,
+                onClearAnalysis: () => setStabilityEnabled(false),
+                onRequestAnalysis: () => setStabilityEnabled(true),
+                selectedPeriodIndex
+              }}
               variableDescriptions={inspectorContext?.variableDescriptions}
               variableUnitMetadata={inspectorContext?.variableUnitMetadata}
             />

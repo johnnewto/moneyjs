@@ -2,7 +2,8 @@ import type {
   ModelDefinition,
   ScenarioDefinition,
   SimulationOptions,
-  SimulationResult
+  SimulationResult,
+  StabilityAnalysis
 } from "@sfcr/core";
 import type { WorkerRequest, WorkerResponse } from "@sfcr/core-worker";
 
@@ -14,6 +15,7 @@ export interface SolverClient {
     options: SimulationOptions
   ): Promise<SimulationResult>;
   validateRunnable(model: ModelDefinition, options: SimulationOptions): Promise<void>;
+  computeStabilityMetrics(result: SimulationResult, period: number): Promise<StabilityAnalysis>;
   dispose(): void;
 }
 
@@ -21,6 +23,11 @@ type PendingRequest =
   | {
       type: "success";
       resolve: (result: SimulationResult) => void;
+      reject: (error: Error) => void;
+    }
+  | {
+      type: "stabilitySuccess";
+      resolve: (analysis: StabilityAnalysis) => void;
       reject: (error: Error) => void;
     }
   | {
@@ -58,6 +65,11 @@ class BrowserWorkerClient implements SolverClient {
       this.pending.delete(response.id);
 
       if (response.type === "success" && pending.type === "success") {
+        pending.resolve(response.payload);
+        return;
+      }
+
+      if (response.type === "stabilitySuccess" && pending.type === "stabilitySuccess") {
         pending.resolve(response.payload);
         return;
       }
@@ -109,6 +121,16 @@ class BrowserWorkerClient implements SolverClient {
     });
   }
 
+  async computeStabilityMetrics(
+    result: SimulationResult,
+    period: number
+  ): Promise<StabilityAnalysis> {
+    return this.requestStability({
+      type: "computeStabilityMetrics",
+      payload: { result, period }
+    });
+  }
+
   dispose(): void {
     this.worker?.terminate();
     this.worker = null;
@@ -138,6 +160,16 @@ class BrowserWorkerClient implements SolverClient {
     const id = crypto.randomUUID();
     return new Promise<void>((resolve, reject) => {
       this.pending.set(id, { type: "validationSuccess", resolve, reject });
+      this.ensureWorker().postMessage({ id, ...message });
+    });
+  }
+
+  private requestStability(
+    message: Omit<Extract<WorkerRequest, { type: "computeStabilityMetrics" }>, "id">
+  ): Promise<StabilityAnalysis> {
+    const id = crypto.randomUUID();
+    return new Promise<StabilityAnalysis>((resolve, reject) => {
+      this.pending.set(id, { type: "stabilitySuccess", resolve, reject });
       this.ensureWorker().postMessage({ id, ...message });
     });
   }

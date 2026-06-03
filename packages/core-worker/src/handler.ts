@@ -2,6 +2,7 @@ import {
   ConvergenceError,
   ModelValidationError,
   ParseError,
+  computeStabilityMetrics,
   runBaseline,
   runScenario,
   validateRunnable
@@ -33,6 +34,12 @@ export function handleWorkerRequest(request: WorkerRequest): WorkerResponse {
         return {
           id: request.id,
           type: "validationSuccess"
+        };
+      case "computeStabilityMetrics":
+        return {
+          id: request.id,
+          type: "stabilitySuccess",
+          payload: computeStabilityMetrics(request.payload.result, request.payload.period)
         };
     }
   } catch (error) {

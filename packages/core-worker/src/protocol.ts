@@ -2,7 +2,8 @@ import type {
   ModelDefinition,
   ScenarioDefinition,
   SimulationOptions,
-  SimulationResult
+  SimulationResult,
+  StabilityAnalysis
 } from "@sfcr/core";
 
 export type WorkerRequest =
@@ -25,6 +26,11 @@ export type WorkerRequest =
       /** Shortened baseline via @sfcr/core validateRunnable (not a full simulation). */
       type: "validateRunnable";
       payload: { model: ModelDefinition; options: SimulationOptions };
+    }
+  | {
+      id: string;
+      type: "computeStabilityMetrics";
+      payload: { result: SimulationResult; period: number };
     };
 
 export type WorkerResponse =
@@ -32,6 +38,11 @@ export type WorkerResponse =
       id: string;
       type: "success";
       payload: SimulationResult;
+    }
+  | {
+      id: string;
+      type: "stabilitySuccess";
+      payload: StabilityAnalysis;
     }
   | {
       id: string;

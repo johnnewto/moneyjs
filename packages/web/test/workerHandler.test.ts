@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { ModelValidationError, type ModelDefinition, type SimulationOptions } from "@sfcr/core";
+import {
+  ModelValidationError,
+  runBaseline,
+  type ModelDefinition,
+  type SimulationOptions
+} from "@sfcr/core";
 import { handleWorkerRequest } from "@sfcr/core-worker";
 
 const options: SimulationOptions = {
@@ -74,5 +79,32 @@ describe("core worker handler", () => {
       id: "validate-2",
       type: "validationSuccess"
     });
+  });
+
+  it("returns stabilitySuccess for computeStabilityMetrics", () => {
+    const model: ModelDefinition = {
+      equations: [{ name: "y", expression: "a * lag(y) + g" }],
+      externals: {
+        a: { kind: "constant", value: 0.8 },
+        g: { kind: "constant", value: 10 }
+      },
+      initialValues: { y: 100 }
+    };
+
+    const result = runBaseline(model, options);
+    const response = handleWorkerRequest({
+      id: "stability-1",
+      type: "computeStabilityMetrics",
+      payload: { result, period: 2 }
+    });
+
+    expect(response.type).toBe("stabilitySuccess");
+    if (response.type !== "stabilitySuccess") {
+      return;
+    }
+
+    expect(response.id).toBe("stability-1");
+    expect(response.payload.spectralRadius).toBeCloseTo(0.8, 5);
+    expect(response.payload.classification).toBe("stable");
   });
 });

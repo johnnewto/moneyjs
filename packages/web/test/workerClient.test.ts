@@ -89,6 +89,48 @@ describe("worker client", () => {
     await expect(pending).resolves.toBe(result);
   });
 
+  it("sends a stability request and resolves the worker response", async () => {
+    const client = createWorkerClient();
+    const pending = client.computeStabilityMetrics(result, 2);
+
+    const worker = MockWorker.instances[0];
+    expect(worker?.messages[0]).toMatchObject({
+      id: "test-id",
+      type: "computeStabilityMetrics",
+      payload: { result, period: 2 }
+    });
+
+    worker?.emit({
+      id: "test-id",
+      type: "stabilitySuccess",
+      payload: {
+        period: 2,
+        variables: ["y"],
+        residual: [0],
+        residualNorm: 0,
+        A0: [[-1]],
+        A1: [[0.8]],
+        T: [[0.8]],
+        eigenvalues: [{ re: 0.8, im: 0, abs: 0.8 }],
+        spectralRadius: 0.8,
+        classification: "stable",
+        dominantMode: {
+          eigenvalue: { re: 0.8, im: 0, abs: 0.8 },
+          eigenpairResidualNorm: 0,
+          eigenpairResidualRelative: 0,
+          reliable: true,
+          participation: [{ variable: "y", weight: 1 }]
+        },
+        nearUnitRootModes: []
+      }
+    });
+
+    await expect(pending).resolves.toMatchObject({
+      spectralRadius: 0.8,
+      classification: "stable"
+    });
+  });
+
   it("resolves validation requests without payload", async () => {
     const client = createWorkerClient();
     const pending = client.validateRunnable(model, options);

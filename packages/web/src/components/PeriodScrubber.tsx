@@ -1,13 +1,17 @@
+import type { ReactNode } from "react";
+
 interface PeriodScrubberProps {
   maxIndex: number;
   onChange(nextIndex: number): void;
   selectedIndex: number;
+  summarySlot?: ReactNode;
 }
 
 export function PeriodScrubber({
   maxIndex,
   onChange,
-  selectedIndex
+  selectedIndex,
+  summarySlot
 }: PeriodScrubberProps) {
   const clampedIndex = Math.min(Math.max(selectedIndex, 0), maxIndex);
 
@@ -44,6 +48,7 @@ export function PeriodScrubber({
             Next
           </button>
         </div>
+        {summarySlot ? <div className="period-scrubber-summary">{summarySlot}</div> : null}
       </div>
     </section>
   );

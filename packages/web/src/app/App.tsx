@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 
 import { externalRowsOnly, isRowComment } from "@sfcr/notebook-core";
 
@@ -29,6 +29,10 @@ import { VariableInspector } from "../components/VariableInspector";
 import { useDragScroll } from "../hooks/useDragScroll";
 import { usePanelSplitter } from "../hooks/usePanelSplitter";
 import { useSolver } from "../hooks/useSolver";
+import {
+  stabilityTargetCacheKey,
+  useStabilityMetrics
+} from "../hooks/useStabilityMetrics";
 import { notebookToJson } from "../notebook/document";
 import type { NotebookDocument } from "../notebook/types";
 import {
@@ -270,6 +274,27 @@ export function WorkspaceApp() {
     selectedVariable && solver.result
       ? Array.from(solver.result.series[selectedVariable.trim()] ?? [])
       : undefined;
+  const stabilityTarget = useMemo(
+    () =>
+      solver.result
+        ? {
+            runCellId: "workspace",
+            result: solver.result,
+            modelLabel: preset.label
+          }
+        : null,
+    [preset.label, solver.result]
+  );
+  const [stabilityEnabled, setStabilityEnabled] = useState(false);
+  const stabilityTargetKey = stabilityTarget ? stabilityTargetCacheKey(stabilityTarget) : null;
+  useEffect(() => {
+    setStabilityEnabled(false);
+  }, [stabilityTargetKey]);
+  const { display: stabilityDisplay, isComputing: stabilityIsComputing } = useStabilityMetrics(
+    stabilityTarget,
+    selectedPeriodIndex,
+    { enabled: stabilityEnabled }
+  );
   const workspaceMainDragScroll = useDragScroll<HTMLDivElement>();
   const workspaceSidebarDragScroll = useDragScroll<HTMLElement>();
   const workspacePanelSplitter = usePanelSplitter({
@@ -508,6 +533,13 @@ export function WorkspaceApp() {
             data={selectedVariableData}
             selectedPeriodIndex={selectedPeriodIndex}
             seriesValues={inspectorSeriesValues}
+            stability={{
+              display: stabilityDisplay,
+              isComputing: stabilityIsComputing,
+              onClearAnalysis: () => setStabilityEnabled(false),
+              onRequestAnalysis: () => setStabilityEnabled(true),
+              selectedPeriodIndex
+            }}
             onApplyDefiningExpression={(expression) => {
               const definingEquation = selectedVariableData?.definingEquation;
               if (!definingEquation) {

@@ -14,6 +14,10 @@ import { HighlightedFormulaInput, highlightFormula } from "./EquationGridEditor"
 import { ParameterSliderControl } from "./ParameterSliderControl";
 import { VariableLabel } from "./VariableLabel";
 import { VariableInspectorSparkline } from "./VariableInspectorSparkline";
+import {
+  StabilityInspectorSection,
+  type StabilitySummaryProps
+} from "./StabilitySummary";
 
 interface VariableInspectorProps {
   canEditDefiningEquation?: boolean;
@@ -35,6 +39,7 @@ interface VariableInspectorProps {
   parameterOverrides?: ConstantExternalOverrides;
   selectedPeriodIndex?: number;
   seriesValues?: number[];
+  stability?: StabilitySummaryProps | null;
   variableDescriptions?: VariableDescriptions;
   variableUnitMetadata?: VariableUnitMetadata;
 }
@@ -57,13 +62,24 @@ export function VariableInspector({
   onSelectVariable,
   parameterNames = [],
   parameterOverrides = {},
-  selectedPeriodIndex,
+  selectedPeriodIndex = 0,
   seriesValues,
+  stability = null,
   variableDescriptions,
   variableUnitMetadata
 }: VariableInspectorProps) {
   return (
     <section className="control-panel variable-inspector-panel">
+      {stability ? (
+        <StabilityInspectorSection
+          display={stability.display}
+          isComputing={stability.isComputing}
+          onClearAnalysis={stability.onClearAnalysis}
+          onRequestAnalysis={stability.onRequestAnalysis}
+          selectedPeriodIndex={selectedPeriodIndex}
+          selectedVariableName={data?.name ?? null}
+        />
+      ) : null}
       {data ? (
         <div className="variable-inspector-body">
           <div className="variable-inspector-hero-block">
