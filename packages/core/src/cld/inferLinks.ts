@@ -53,7 +53,9 @@ export function inferLinksFromEquations(
       if (!endogenous.has(ref.variable)) {
         continue;
       }
-      if (ref.variable === target) {
+      // Stock accumulation (lag(X) on equation X) is the identity X_{t-1} → X_t.
+      // Skip same-period self references only.
+      if (ref.variable === target && !ref.lagged) {
         continue;
       }
 

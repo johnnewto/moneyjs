@@ -17,7 +17,9 @@ const EXPECTED_LINKS = [
   { from: "I", to: "K", polarity: "+", lagged: false },
   { from: "I", to: "L", polarity: "+", lagged: false },
   { from: "K", to: "AF", polarity: "+", lagged: true },
+  { from: "K", to: "K", polarity: "+", lagged: true },
   { from: "K", to: "Y", polarity: "+", lagged: true },
+  { from: "L", to: "L", polarity: "+", lagged: true },
   { from: "L", to: "P", polarity: "-", lagged: true },
   { from: "P", to: "I", polarity: "+", lagged: false },
   { from: "P", to: "L", polarity: "-", lagged: false },
@@ -37,6 +39,48 @@ describe("generateCld", () => {
 
     expect(result.errors).toEqual([]);
     expect(result.links).toEqual([...EXPECTED_LINKS]);
+  });
+
+  it("includes lagged stock identity links (X_{t-1} → X_t)", () => {
+    const result = generateCld({
+      Mh: "lag(Mh) + YD - Cd",
+      YD: "1",
+      Cd: "1"
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.links).toContainEqual({
+      from: "Mh",
+      to: "Mh",
+      polarity: "+",
+      lagged: true
+    });
+  });
+
+  it("infers stock identity from prime notation (Mh' + flows)", () => {
+    const result = generateCld(
+      {
+        Mh: "Mh' + sum(Households.Deposits) * dt",
+        WBd: "1",
+        Cs: "1",
+        Cd: "1"
+      },
+      {
+        matrixColumnSums: {
+          "Households.Deposits": ["WBd", "-Cs"]
+        }
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(result.links).toContainEqual({
+      from: "Mh",
+      to: "Mh",
+      polarity: "+",
+      lagged: true
+    });
+    expect(result.links).toContainEqual({ from: "WBd", to: "Mh", polarity: "+", lagged: false });
+    expect(result.links).toContainEqual({ from: "Cs", to: "Mh", polarity: "-", lagged: false });
   });
 
   it("expands sum(column) links via matrixColumnSums bindings", () => {
