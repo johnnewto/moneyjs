@@ -256,13 +256,6 @@ cells:
         - [omega^T, exp(Omega0 + Omega1 * log(pr) + Omega2 * log(N / Nfe)), "Target real wage.", "", "", "", eq-83-omegaT]
         - [W, lag(W) * (1 + Omega3 * (lag(omega^T) - (lag(W) / lag(p)))), "Money wage."]
         - [Y, p * s + UC * (inv - lag(inv)), "Nominal output."]
-  - sequence:
-      id: sequence-cld
-      title: Causal loop diagram
-      source:
-        kind: cld
-        modelId: equations
-      collapsed: false
   - solver:
       id: solver
       title: Solver
