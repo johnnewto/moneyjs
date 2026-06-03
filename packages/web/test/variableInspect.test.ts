@@ -11,7 +11,7 @@ import type { EditorState } from "../src/lib/editorModel";
 import type { NotebookDocument } from "../src/notebook/types";
 
 describe("variableInspect", () => {
-  it("builds current values from the first matching run unless sourceRunCellId is set", () => {
+  it("builds current values from the baseline run for the model", () => {
     const document: NotebookDocument = {
       id: "nb",
       title: "Test",
@@ -39,7 +39,7 @@ describe("variableInspect", () => {
     };
 
     const currentValues = buildInspectorCurrentValues({
-      cells: document.cells,
+      document,
       getResult: (runCellId) =>
         runCellId === "run-scenario"
           ? {
@@ -61,7 +61,7 @@ describe("variableInspect", () => {
     expect(currentValues.Y).toBe(2);
 
     const scenarioValues = buildInspectorCurrentValues({
-      cells: document.cells,
+      document,
       getResult: (runCellId) =>
         runCellId === "run-scenario"
           ? {
@@ -81,10 +81,10 @@ describe("variableInspect", () => {
       sourceRunCellId: "run-scenario"
     });
 
-    expect(scenarioValues.Y).toBe(20);
+    expect(scenarioValues.Y).toBe(2);
 
     const baselineSeries = buildInspectorSeriesValues({
-      cells: document.cells,
+      document,
       getResult: (runCellId) =>
         runCellId === "run-scenario"
           ? { options: { periods: 3 }, series: { Y: [0, 10, 20] } }
@@ -93,7 +93,7 @@ describe("variableInspect", () => {
       variableName: "Y"
     });
     const scenarioSeries = buildInspectorSeriesValues({
-      cells: document.cells,
+      document,
       getResult: (runCellId) =>
         runCellId === "run-scenario"
           ? { options: { periods: 3 }, series: { Y: [0, 10, 20] } }
@@ -104,7 +104,7 @@ describe("variableInspect", () => {
     });
 
     expect(baselineSeries).toEqual([0, 1, 2]);
-    expect(scenarioSeries).toEqual([0, 10, 20]);
+    expect(scenarioSeries).toEqual([0, 1, 2]);
   });
 
   it("resolves model id from run cell source", () => {

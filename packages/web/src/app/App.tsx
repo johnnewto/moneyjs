@@ -26,6 +26,10 @@ import { ScenarioEditor } from "../components/ScenarioEditor";
 import { SolverPanel } from "../components/SolverPanel";
 import { ValidationSummary } from "../components/ValidationSummary";
 import { VariableInspector } from "../components/VariableInspector";
+import {
+  StabilityRawDataDialog,
+  STABILITY_RAW_PANEL_DEBOUNCE_MS
+} from "../components/StabilityRawDataDialog";
 import { useDragScroll } from "../hooks/useDragScroll";
 import { usePanelSplitter } from "../hooks/usePanelSplitter";
 import { useSolver } from "../hooks/useSolver";
@@ -286,14 +290,20 @@ export function WorkspaceApp() {
     [preset.label, solver.result]
   );
   const [stabilityEnabled, setStabilityEnabled] = useState(false);
+  const [showStabilityRawPanel, setShowStabilityRawPanel] = useState(false);
   const stabilityTargetKey = stabilityTarget ? stabilityTargetCacheKey(stabilityTarget) : null;
+  const stabilityAnalysisEnabled = stabilityEnabled || showStabilityRawPanel;
   useEffect(() => {
     setStabilityEnabled(false);
+    setShowStabilityRawPanel(false);
   }, [stabilityTargetKey]);
   const { display: stabilityDisplay, isComputing: stabilityIsComputing } = useStabilityMetrics(
     stabilityTarget,
     selectedPeriodIndex,
-    { enabled: stabilityEnabled }
+    {
+      enabled: stabilityAnalysisEnabled,
+      debounceMs: showStabilityRawPanel ? STABILITY_RAW_PANEL_DEBOUNCE_MS : 0
+    }
   );
   const workspaceMainDragScroll = useDragScroll<HTMLDivElement>();
   const workspaceSidebarDragScroll = useDragScroll<HTMLElement>();
@@ -536,9 +546,14 @@ export function WorkspaceApp() {
             stability={{
               display: stabilityDisplay,
               isComputing: stabilityIsComputing,
-              onClearAnalysis: () => setStabilityEnabled(false),
+              onClearAnalysis: () => {
+                setStabilityEnabled(false);
+                setShowStabilityRawPanel(false);
+              },
+              onOpenRawData: () => setShowStabilityRawPanel(true),
               onRequestAnalysis: () => setStabilityEnabled(true),
-              selectedPeriodIndex
+              selectedPeriodIndex,
+              simulationResult: stabilityTarget?.result ?? null
             }}
             onApplyDefiningExpression={(expression) => {
               const definingEquation = selectedVariableData?.definingEquation;
@@ -669,6 +684,17 @@ export function WorkspaceApp() {
           ) : null}
         </aside>
       </div>
+      {showStabilityRawPanel ? (
+        <StabilityRawDataDialog
+          display={stabilityDisplay}
+          isComputing={stabilityIsComputing}
+          periodLabel={selectedPeriodIndex + 1}
+          selectedPeriodIndex={selectedPeriodIndex}
+          runLabel={stabilityTarget?.modelLabel ?? stabilityDisplay.modelLabel}
+          simulationResult={stabilityTarget?.result ?? null}
+          onClose={() => setShowStabilityRawPanel(false)}
+        />
+      ) : null}
     </main>
   );
 }

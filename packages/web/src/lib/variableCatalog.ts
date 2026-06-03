@@ -188,7 +188,7 @@ export function buildCurrentValuesByModel(args: {
   const valuesByModel = new Map<string, Record<string, number | undefined>>();
 
   for (const context of listCatalogModelContexts(args.document)) {
-    const runCell = findLatestRunForModelKey(args.document, context.modelKey);
+    const runCell = findPreferredRunForModelKey(args.document, context.modelKey);
     if (!runCell) {
       continue;
     }
@@ -259,6 +259,26 @@ export function findLatestRunForModelKey(document: NotebookDocument, modelKey: s
   }
 
   return latest;
+}
+
+/** First baseline run for a model (document order). Used as the default path for stability and catalog inspect. */
+export function findBaselineRunForModelKey(document: NotebookDocument, modelKey: string): RunCell | null {
+  for (const cell of document.cells) {
+    if (cell.type !== "run" || cell.mode !== "baseline") {
+      continue;
+    }
+
+    if (resolveRunCellModelKey(document.cells, cell) === modelKey) {
+      return cell;
+    }
+  }
+
+  return null;
+}
+
+/** Baseline run when present; otherwise the latest run for the model. */
+export function findPreferredRunForModelKey(document: NotebookDocument, modelKey: string): RunCell | null {
+  return findBaselineRunForModelKey(document, modelKey) ?? findLatestRunForModelKey(document, modelKey);
 }
 
 function deriveEndogenousExogenous(args: {

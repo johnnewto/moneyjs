@@ -6,7 +6,8 @@ import { findEquationsCell, findExternalsCell, findInitialValuesCell, findLegacy
 import { buildVariableDescriptions } from "./variableDescriptions";
 import { buildVariableUnitMetadata } from "./units";
 import type { VariableCatalogRow } from "./variableCatalog";
-import { findLatestRunForModelKey, listCatalogModelContexts } from "./variableCatalog";
+import { findPreferredRunForModelKey, listCatalogModelContexts } from "./variableCatalog";
+import { resolveRunCellModelKey } from "../notebook/modelSections";
 
 export type InspectorModelSource = { sourceModelId: string } | { sourceModelCellId: string };
 
@@ -61,14 +62,32 @@ export function resolveInspectorRunCell(
   return null;
 }
 
+/** Baseline run for a model when present; used for notebook right-rail defaults. */
+export function resolvePreferredInspectorRunCell(
+  document: NotebookDocument,
+  modelSource: InspectorModelSource | null
+): RunCell | null {
+  const probe = resolveInspectorRunCell(document.cells, modelSource, null);
+  if (!probe) {
+    return null;
+  }
+
+  const modelKey = resolveRunCellModelKey(document.cells, probe);
+  if (!modelKey) {
+    return null;
+  }
+
+  return findPreferredRunForModelKey(document, modelKey);
+}
+
 export function buildInspectorCurrentValues(args: {
-  cells: NotebookCell[];
+  document: NotebookDocument;
   getResult: (runCellId: string) => SimulationResult | null;
   modelSource: InspectorModelSource | null;
   selectedPeriodIndex: number;
   sourceRunCellId?: string | null;
 }): Record<string, number | undefined> {
-  const runCell = resolveInspectorRunCell(args.cells, args.modelSource, args.sourceRunCellId);
+  const runCell = resolvePreferredInspectorRunCell(args.document, args.modelSource);
   if (!runCell) {
     return {};
   }
@@ -87,13 +106,13 @@ export function buildInspectorCurrentValues(args: {
 }
 
 export function buildInspectorSeriesValues(args: {
-  cells: NotebookCell[];
+  document: NotebookDocument;
   getResult: (runCellId: string) => SimulationResult | null;
   modelSource: InspectorModelSource | null;
   sourceRunCellId?: string | null;
   variableName: string;
 }): number[] | undefined {
-  const runCell = resolveInspectorRunCell(args.cells, args.modelSource, args.sourceRunCellId);
+  const runCell = resolvePreferredInspectorRunCell(args.document, args.modelSource);
   if (!runCell) {
     return undefined;
   }
@@ -260,7 +279,7 @@ export function buildVariableInspectRequestFromCatalogRow(args: {
     (context) => context.modelId === args.row.modelId
   );
   const sourceRunCellId = catalogContext
-    ? findLatestRunForModelKey(args.document, catalogContext.modelKey)?.id ?? null
+    ? findPreferredRunForModelKey(args.document, catalogContext.modelKey)?.id ?? null
     : null;
 
   return {

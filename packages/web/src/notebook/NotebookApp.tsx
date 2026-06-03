@@ -142,6 +142,10 @@ import { PeriodScrubber } from "../components/PeriodScrubber";
 import { AssistantMarkdown } from "../components/AssistantMarkdown";
 import { formatAssistantTokenUsage, mergeAssistantTokenUsage, type AssistantTokenUsage } from "../assistant/sse";
 import { VariableInspector } from "../components/VariableInspector";
+import {
+  StabilityRawDataDialog,
+  STABILITY_RAW_PANEL_DEBOUNCE_MS
+} from "../components/StabilityRawDataDialog";
 import { VariableCatalogPanel } from "../components/VariableCatalogPanel";
 import type { MatrixGraphSliceHighlight } from "./graphDocumentHighlight";
 import { matrixGraphSliceHighlightsEqual } from "./graphDocumentHighlight";
@@ -171,6 +175,7 @@ import {
   applyInspectorDefiningEquationExpression,
   buildInspectorCurrentValues,
   buildInspectorSeriesValues,
+  resolvePreferredInspectorRunCell,
   buildVariableInspectRequestFromCatalogRow,
   resolveInspectorRunCell,
   isInspectorModelEditable,
@@ -182,6 +187,7 @@ import {
 import {
   buildCurrentValuesByModel,
   buildVariableCatalogRows,
+  findPreferredRunForModelKey,
   listCatalogModelContexts,
   type VariableCatalogRow
 } from "../lib/variableCatalog";
@@ -843,11 +849,10 @@ export function NotebookApp() {
     () =>
       inspectorContext
         ? buildInspectorCurrentValues({
-            cells: notebookDocument.cells,
+            document: notebookDocument,
             getResult: (runCellId) => runner.getResult(runCellId),
             modelSource: inspectorContext.modelSource,
-            selectedPeriodIndex,
-            sourceRunCellId: inspectorContext.sourceRunCellId
+            selectedPeriodIndex
           })
         : {},
     [
@@ -874,16 +879,14 @@ export function NotebookApp() {
     }
 
     return buildInspectorSeriesValues({
-      cells: notebookDocument.cells,
+      document: notebookDocument,
       getResult: (runCellId) => runner.getResult(runCellId),
       modelSource: inspectorContext.modelSource,
-      sourceRunCellId: inspectorContext.sourceRunCellId,
       variableName: selectedVariableData.name
     });
   }, [
     inspectorContext,
-    inspectorContext?.sourceRunCellId,
-    notebookDocument.cells,
+    notebookDocument,
     runner.outputs,
     selectedVariableData?.name
   ]);
@@ -897,14 +900,20 @@ export function NotebookApp() {
     [notebookDocument, inspectorContext, runner.outputs]
   );
   const [stabilityEnabled, setStabilityEnabled] = useState(false);
+  const [showStabilityRawPanel, setShowStabilityRawPanel] = useState(false);
   const stabilityTargetKey = stabilityTarget ? stabilityTargetCacheKey(stabilityTarget) : null;
+  const stabilityAnalysisEnabled = stabilityEnabled || showStabilityRawPanel;
   useEffect(() => {
     setStabilityEnabled(false);
+    setShowStabilityRawPanel(false);
   }, [stabilityTargetKey]);
   const { display: stabilityDisplay, isComputing: stabilityIsComputing } = useStabilityMetrics(
     stabilityTarget,
     selectedPeriodIndex,
-    { enabled: stabilityEnabled }
+    {
+      enabled: stabilityAnalysisEnabled,
+      debounceMs: showStabilityRawPanel ? STABILITY_RAW_PANEL_DEBOUNCE_MS : 0
+    }
   );
   const notebookMainDragScroll = useDragScroll<HTMLDivElement>();
   const notebookRailDragScroll = useDragScroll<HTMLElement>();
@@ -1396,6 +1405,7 @@ export function NotebookApp() {
 
   function handleVariableInspectRequest(args: VariableInspectRequest): void {
     const sourceRunCellId =
+      resolvePreferredInspectorRunCell(notebookDocument, args.modelSource)?.id ??
       args.sourceRunCellId ??
       resolveInspectorRunCell(notebookDocument.cells, args.modelSource, null)?.id ??
       null;
@@ -2882,12 +2892,8 @@ export function NotebookApp() {
       return {};
     }
 
-    const sourceRunCell = notebookDocument.cells.find(
-      (cell) =>
-        cell.type === "run" &&
-        resolveRunCellModelKey(notebookDocument.cells, cell) === modelKey
-    );
-    if (!sourceRunCell || sourceRunCell.type !== "run") {
+    const sourceRunCell = findPreferredRunForModelKey(notebookDocument, modelKey);
+    if (!sourceRunCell) {
       return {};
     }
 
@@ -3527,9 +3533,14 @@ export function NotebookApp() {
               stability={{
                 display: stabilityDisplay,
                 isComputing: stabilityIsComputing,
-                onClearAnalysis: () => setStabilityEnabled(false),
+                onClearAnalysis: () => {
+                  setStabilityEnabled(false);
+                  setShowStabilityRawPanel(false);
+                },
+                onOpenRawData: () => setShowStabilityRawPanel(true),
                 onRequestAnalysis: () => setStabilityEnabled(true),
-                selectedPeriodIndex
+                selectedPeriodIndex,
+                simulationResult: stabilityTarget?.result ?? null
               }}
               variableDescriptions={inspectorContext?.variableDescriptions}
               variableUnitMetadata={inspectorContext?.variableUnitMetadata}
@@ -3945,6 +3956,17 @@ export function NotebookApp() {
         onOpenVariant={handleOpenVariant}
         onRename={handleRenameVariant}
       />
+      {showStabilityRawPanel ? (
+        <StabilityRawDataDialog
+          display={stabilityDisplay}
+          isComputing={stabilityIsComputing}
+          periodLabel={selectedPeriodIndex + 1}
+          selectedPeriodIndex={selectedPeriodIndex}
+          runLabel={stabilityTarget?.modelLabel ?? stabilityDisplay.modelLabel}
+          simulationResult={stabilityTarget?.result ?? null}
+          onClose={() => setShowStabilityRawPanel(false)}
+        />
+      ) : null}
       </main>
     </NotebookRenderProfiler>
   );

@@ -8,8 +8,11 @@ import {
   DEFAULT_MAX_EDGES,
   formatTransitionLoopPath,
   type EigenmodeAnalysis,
+  type Eigenvalue,
   type TransitionEdge
 } from "@sfcr/core";
+
+import type { SimulationResult } from "@sfcr/core";
 
 import type { StabilityDisplayState } from "../hooks/useStabilityMetrics";
 import {
@@ -26,8 +29,10 @@ export interface StabilitySummaryProps {
   isComputing?: boolean;
   selectedPeriodIndex: number;
   selectedVariableName?: string | null;
+  simulationResult?: SimulationResult | null;
   onRequestAnalysis?: () => void;
   onClearAnalysis?: () => void;
+  onOpenRawData?: () => void;
 }
 
 export function StabilityInspectorSection({
@@ -35,8 +40,10 @@ export function StabilityInspectorSection({
   isComputing = false,
   selectedPeriodIndex,
   selectedVariableName = null,
+  simulationResult = null,
   onRequestAnalysis,
-  onClearAnalysis
+  onClearAnalysis,
+  onOpenRawData
 }: StabilitySummaryProps) {
   const periodLabel = selectedPeriodIndex + 1;
   const canAnalyze = stabilityPeriodFromUiIndex(selectedPeriodIndex) != null;
@@ -70,6 +77,7 @@ export function StabilityInspectorSection({
           }
           onRequestAnalysis={onRequestAnalysis}
         />
+        <StabilityRawDataOpenButton canOpen={canAnalyze} onOpen={onOpenRawData} />
       </section>
     );
   }
@@ -100,6 +108,7 @@ export function StabilityInspectorSection({
           onClearAnalysis={onClearAnalysis}
         />
         <p className="inspector-empty-note">Computing stability metrics…</p>
+        <StabilityRawDataOpenButton canOpen={canAnalyze} onOpen={onOpenRawData} />
       </section>
     );
   }
@@ -122,6 +131,7 @@ export function StabilityInspectorSection({
           }
           onRequestAnalysis={onRequestAnalysis}
         />
+        <StabilityRawDataOpenButton canOpen={canAnalyze} onOpen={onOpenRawData} />
       </section>
     );
   }
@@ -134,6 +144,68 @@ export function StabilityInspectorSection({
   const residualWarning = stabilityResidualWarning(analysis);
   const topEigenvalues = analysis.eigenvalues.slice(0, 8);
 
+  return (
+    <StabilityInspectorReadySection
+      analysis={analysis}
+      periodLabel={periodLabel}
+      display={display}
+      residualWarning={residualWarning}
+      topEigenvalues={topEigenvalues}
+      selectedVariableName={selectedVariableName}
+      simulationResult={simulationResult}
+      onClearAnalysis={onClearAnalysis}
+      onOpenRawData={onOpenRawData}
+    />
+  );
+}
+
+function StabilityRawDataOpenButton({
+  canOpen = true,
+  onOpen
+}: {
+  canOpen?: boolean;
+  onOpen?: () => void;
+}) {
+  if (!onOpen) {
+    return null;
+  }
+
+  return (
+    <div className="stability-inspector-debug-actions">
+      <button
+        type="button"
+        className="secondary-button"
+        disabled={!canOpen}
+        title={canOpen ? undefined : "Move the scrubber to period 2 or later."}
+        onClick={onOpen}
+      >
+        View T, Jacobians, eigenvectors…
+      </button>
+    </div>
+  );
+}
+
+function StabilityInspectorReadySection({
+  analysis,
+  periodLabel,
+  display,
+  residualWarning,
+  topEigenvalues,
+  selectedVariableName,
+  simulationResult,
+  onClearAnalysis,
+  onOpenRawData
+}: {
+  analysis: NonNullable<StabilityDisplayState["analysis"]>;
+  periodLabel: number;
+  display: StabilityDisplayState;
+  residualWarning: string | null;
+  topEigenvalues: Eigenvalue[];
+  selectedVariableName: string | null;
+  simulationResult?: SimulationResult | null;
+  onClearAnalysis?: () => void;
+  onOpenRawData?: () => void;
+}) {
   return (
     <section className="inspector-section stability-inspector-section">
       <StabilityInspectorHeading periodLabel={periodLabel} onClearAnalysis={onClearAnalysis} />
@@ -159,6 +231,8 @@ export function StabilityInspectorSection({
         </div>
       </dl>
       {residualWarning ? <p className="stability-inspector-warning">{residualWarning}</p> : null}
+
+      <StabilityRawDataOpenButton canOpen onOpen={onOpenRawData} />
 
       <EigenmodeInspectorBlock title="Dominant mode" mode={analysis.dominantMode} />
 

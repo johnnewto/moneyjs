@@ -23,6 +23,12 @@ export * from "./analysis/transitionMatrix";
 export * from "./analysis/transitionGraph";
 export * from "./analysis/transitionLoops";
 export * from "./analysis/stability";
+export {
+  computeEigenpair,
+  type ComplexValue,
+  type EigenpairResult,
+  type Eigenvalue
+} from "./analysis/eigenvalues";
 export * from "./fixtures/sim";
 export * from "./fixtures/bmw";
 export * from "./fixtures/graph";

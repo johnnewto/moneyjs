@@ -2,8 +2,9 @@ import type { StabilityAnalysis, StabilityClassification, SimulationResult } fro
 
 import type { NotebookDocument } from "../notebook/types";
 import type { VariableInspectRequest } from "./variableInspect";
-import { resolveInspectorRunCell } from "./variableInspect";
-import { findLatestRunForModelKey, listCatalogModelContexts } from "./variableCatalog";
+import { resolvePreferredInspectorRunCell } from "./variableInspect";
+import { findPreferredRunForModelKey, listCatalogModelContexts } from "./variableCatalog";
+import type { RunCell } from "../notebook/types";
 
 export interface StabilityRunTarget {
   runCellId: string;
@@ -26,12 +27,8 @@ export function resolveNotebookStabilityTarget(args: {
 }): StabilityRunTarget | null {
   const { cells } = args.document;
 
-  if (args.inspectorContext) {
-    const runCell = resolveInspectorRunCell(
-      cells,
-      args.inspectorContext.modelSource,
-      args.inspectorContext.sourceRunCellId
-    );
+  if (args.inspectorContext?.modelSource) {
+    const runCell = resolvePreferredInspectorRunCell(args.document, args.inspectorContext.modelSource);
     if (runCell) {
       const result = args.getResult(runCell.id);
       if (result) {
@@ -51,18 +48,20 @@ export function resolveNotebookStabilityTarget(args: {
       return null;
     }
 
-    const runCell = findLatestRunForModelKey(args.document, context.modelKey);
+    const runCell = findPreferredRunForModelKey(args.document, context.modelKey);
     if (runCell) {
       const result = args.getResult(runCell.id);
       if (result) {
         return {
           runCellId: runCell.id,
           result,
-          modelLabel: context.modelTitle
+          modelLabel: runCell.title.trim() || context.modelTitle
         };
       }
     }
   }
+
+  let fallbackRun: RunCell | null = null;
 
   for (const cell of cells) {
     if (cell.type !== "run") {
@@ -70,11 +69,28 @@ export function resolveNotebookStabilityTarget(args: {
     }
 
     const result = args.getResult(cell.id);
-    if (result) {
+    if (!result) {
+      continue;
+    }
+
+    if (cell.mode === "baseline") {
       return {
         runCellId: cell.id,
         result,
         modelLabel: cell.title.trim() || "Model run"
+      };
+    }
+
+    fallbackRun ??= cell;
+  }
+
+  if (fallbackRun) {
+    const result = args.getResult(fallbackRun.id);
+    if (result) {
+      return {
+        runCellId: fallbackRun.id,
+        result,
+        modelLabel: fallbackRun.title.trim() || "Model run"
       };
     }
   }
