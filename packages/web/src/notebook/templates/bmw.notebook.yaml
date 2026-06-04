@@ -74,33 +74,36 @@ cells:
       participantColumnOrder: [Households, Firms_current, Firms_capital, Banks_current, Banks_capital]
       description: Canvas-rendered sequence view generated from the transactions-flow matrix at the selected simulation period.
       note: Use Reset and Next step to manually reveal flows in order.
-  - equations:
+  -  equations:
       id: equations-newton
       title: BMW model
       modelId: equations-newton
       collapsed: false
       rows:
-        - "Equalize supply to demand."
+        - Equalize supply to demand.
         - [Cs, Cd, "Consumption goods supply", $/year, flow, definition]
         - [Is, Id, "Supply of investment goods", $/year, flow, definition]
         - [Ns, Nd, "Supply of labor", items/year, flow, definition]
         - [Ls, lag(Ls) + d(Ld) * dt, "Supply of bank loans", $, stock, accumulation]
-        - [Y, Cs + Is, "Income = GDP", $/year, flow, identity]
-        - [WBd, Y - lag(rl) * lag(Ld) - AF, "Wage bill - demand", $/year, flow, identity]
-        - [AF, delta * lag(K), "Amortization funds", $/year, flow, definition]
-        - [Ld, lag(Ld) + (Id - AF) * dt, "Demand for bank loans", $, stock, accumulation]
-        - [YD, WBs + lag(rm) * lag(Mh), "Disposable income of households", $/year, flow, identity]
-        - [Mh, Mh' + sum(Households.Deposits) * dt, "Stock accumulation from Households.Deposits (Mh)", $, stock, accumulation]
-        - [Ms, lag(Ms) + d(Ls) * dt, "Supply of bank deposits", $, stock, accumulation]
-        - [rm, rl, "Rate of interest on bank deposits", 1/year, aux, definition]
-        - [WBs, W * Ns, "Wage bill - supply", $/year, flow, identity]
-        - [Nd, Y / pr, "Demand for labor", items/year, flow, definition]
-        - [W, WBd / Nd, "Wage rate", $/item, aux, definition]
-        - [Cd, alpha0 + alpha1 * YD + alpha2 * lag(Mh), "Consumption goods demand by households", $/year, flow, behavioral]
-        - [K, K' + (Id - DA) • dt, "Stock of capital", $, stock, accumulation]
-        - [DA, delta * lag(K), "Depreciation allowance", $/year, flow, definition]
-        - [KT, kappa * lag(Y), "Target stock of capital", $, stock, target]
-        - [Id, gamma * (KT - lag(K)) + DA, "Demand for investment goods", $/year, flow, behavioral]
+        - [Ms, lag(Ms) + d(Ls) * dt, "Supply of bank deposits", $, stock, accumulation, eq-11-Ms]
+        - Production ﬁrms
+        - [Y, Cs + Is, "Income = GDP", $/year, flow, identity, eq-5-Y]
+        - [WBd, Y - lag(rl) * lag(Ld) - AF, "Wage bill - demand", $/year, flow, identity, eq-6-WBd]
+        - [AF, delta * lag(K), "Amortization funds", $/year, flow, definition, eq-7-AF]
+        - [DA, delta * lag(K), "Depreciation allowance", $/year, flow, definition, eq-18-DA]
+        - [Ld, lag(Ld) + (Id - AF) * dt, "Demand for bank loans", $, stock, accumulation, eq-8-Ld]
+        - [KT, kappa * lag(Y), "Target stock of capital", $, stock, target, eq-19-KT]
+        - [K, K' + (Id - DA) • dt, "Stock of capital", $, stock, accumulation, eq-17-K]
+        - [Id, gamma * (KT - lag(K)) + DA, "Demand for investment goods", $/year, flow, behavioral, eq-20-Id]
+        - Households.
+        - [YD, WBs + lag(rm) * lag(Mh), "Disposable income of households", $/year, flow, identity, eq-9-YD]
+        - [Cd, alpha0 + alpha1 * YD + alpha2 * lag(Mh), "Consumption goods demand by households", $/year, flow, behavioral, eq-16-Cd]
+        - [rm, rl, "Rate of interest on bank deposits", 1/year, aux, definition, eq-12-rm]
+        - [Mh, Mh' + sum(Households.Deposits) * dt, "Stock accumulation from Households.Deposits (Mh)", $, stock, accumulation, eq-10-Mh]
+        - Wage bill
+        - [WBs, W * Ns, "Wage bill - supply", $/year, flow, identity, eq-13-WBs]
+        - [Nd, Y / pr, "Demand for labor", items/year, flow, definition, eq-14-Nd]
+        - [W, WBd / Nd, "Wage rate", $/item, aux, definition, eq-15-W]
         - [Mf, Mf' + sum(Firms.Deposits) * dt, "Stock accumulation from Firms.Deposits (Mf)", $, stock, accumulation, eq-mf]
         - [Vh, Vh' + sum(Households.Net_Worth) * dt, "Stock accumulation from Households.Net_Worth (Vh)", $, stock, accumulation, eq-vh]
   - sequence:

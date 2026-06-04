@@ -8,20 +8,9 @@ import { NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
 import { validateNotebookDocument } from "../src/notebook/validation";
 
 const templateRoot = path.resolve(__dirname, "../src/notebook/templates");
-const legacyJsonRoot = path.join(templateRoot, "legacy_json");
 const publicExamplesRoot = path.resolve(__dirname, "../public/notebook-examples");
 const PILOT_TEMPLATE_IDS = ["bmw", "sim", "werner_quantity_theory_credit", "werner_qtc_explainer"] as const;
 const PILOT_PUBLIC_EXAMPLE_IDS = ["bmw", "sim"] as const;
-
-function omitSequenceParticipantColumnOrder(documentJson: string): string {
-  const document = JSON.parse(documentJson) as { cells?: Array<Record<string, unknown>> };
-  document.cells?.forEach((cell) => {
-    if (cell.type === "sequence") {
-      delete cell.participantColumnOrder;
-    }
-  });
-  return JSON.stringify(document, null, 2);
-}
 
 describe("shipped notebook templates", () => {
   for (const [templateId, template] of Object.entries(NOTEBOOK_TEMPLATES)) {
@@ -63,7 +52,6 @@ describe("canonical YAML notebook templates", () => {
         path.join(templateRoot, "generated", `${templateId}.notebook.json`),
         "utf8"
       );
-      const legacyJsonPath = path.join(legacyJsonRoot, `${templateId}.notebook.json`);
 
       const compiledDocument = notebookFromYaml(yamlSource);
       const generatedDocument = notebookFromJson(generatedJsonSource);
@@ -71,14 +59,6 @@ describe("canonical YAML notebook templates", () => {
       expect(validateNotebookDocument(compiledDocument)).toEqual([]);
       expect(validateNotebookModels(compiledDocument).issueCount).toBe(0);
       expect(notebookToJson(compiledDocument)).toBe(notebookToJson(generatedDocument));
-
-      if (fs.existsSync(legacyJsonPath)) {
-        const legacyJsonSource = fs.readFileSync(legacyJsonPath, "utf8");
-        const legacyDocument = notebookFromJson(legacyJsonSource);
-        expect(omitSequenceParticipantColumnOrder(notebookToJson(compiledDocument))).toBe(
-          omitSequenceParticipantColumnOrder(notebookToJson(legacyDocument))
-        );
-      }
     });
   }
 

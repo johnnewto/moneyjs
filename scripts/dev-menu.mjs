@@ -36,6 +36,16 @@ const commands = [
     args: ["--filter", "@sfcr/web", "run", "test:templates"]
   },
   {
+    label: "Compile pilot notebook YAML",
+    command: "pnpm",
+    args: ["web:compile:notebook-yaml"]
+  },
+  {
+    label: "Compile pilot YAML + public examples",
+    command: "pnpm",
+    args: ["web:compile:notebook-yaml:public"]
+  },
+  {
     label: "Typecheck",
     command: "pnpm",
     args: ["typecheck"]
