@@ -67,7 +67,8 @@ import {
   type NotebookPatch,
   type NotebookPatchResult
 } from "./notebookPatch";
-import { NotebookCellView } from "./NotebookCellView";
+import { NotebookCellView, type NotebookCellViewProps } from "./NotebookCellView";
+import { PinnedCellPanel } from "./components/PinnedCellPanel";
 import { resolveNotebookScopeId } from "./resolveNotebookScopeId";
 import { NotebookRenderProfiler } from "./notebookProfiler";
 import { AssistantInlinePatchView } from "./AssistantInlinePatchView";
@@ -658,6 +659,7 @@ export function NotebookApp() {
   const [selectedCellId, setSelectedCellId] = useState<string | null>(
     () => initialNotebookRoute.cellId
   );
+  const [pinnedCellId, setPinnedCellId] = useState<string | null>(null);
   const [activeRailTab, setActiveRailTab] = useState<NotebookRailTab>("contents");
   const [helpContext, setHelpContext] = useState<{
     cellId: string;
@@ -969,6 +971,9 @@ export function NotebookApp() {
   );
   const selectNotebookCell = useCallback((cellId: string | null) => {
     setSelectedCellId(cellId);
+  }, []);
+  const handlePinCellRequest = useCallback((cellId: string) => {
+    setPinnedCellId((current) => (current === cellId ? null : cellId));
   }, []);
   const setNotebookCellUrl = useCallback(
     (cellId: string) => {
@@ -2956,6 +2961,83 @@ export function NotebookApp() {
   scrollToCellRef.current = scrollToCell;
 
   useEffect(() => {
+    if (pinnedCellId && !notebookDocument.cells.some((cell) => cell.id === pinnedCellId)) {
+      setPinnedCellId(null);
+    }
+  }, [notebookDocument.cells, pinnedCellId]);
+
+  const pinnedCell = useMemo(
+    () =>
+      pinnedCellId
+        ? notebookDocument.cells.find((cell) => cell.id === pinnedCellId) ?? null
+        : null,
+    [notebookDocument.cells, pinnedCellId]
+  );
+
+  const buildNotebookCellViewProps = useCallback(
+    (cell: (typeof notebookDocument.cells)[number], overrides: Partial<NotebookCellViewProps> = {}) =>
+      ({
+        activeEditorCellId,
+        cell,
+        cells: notebookDocument.cells,
+        notebookScopeId,
+        getModelCurrentValues: getCurrentValueMapForModelRef,
+        maxPeriodIndex: maxResultPeriodIndex,
+        onPinCellRequest: handlePinCellRequest,
+        onSelectedCellIdChange: selectNotebookCell,
+        onSetCellUrl: setNotebookCellUrl,
+        onSelectedPeriodIndexChange: setSelectedPeriodIndex,
+        runner,
+        onActiveEditorCellIdChange: setActiveEditorCellId,
+        onDeleteCell: deleteCell,
+        onInsertCell: insertCell,
+        onMoveCell: moveCell,
+        onModelChange: updateModelCell,
+        onCellChange: updateCell,
+        onReplaceCells: replaceCells,
+        onCellHelpRequest: handleCellHelpRequest,
+        onMatrixGraphRequest: handleMatrixGraphRequest,
+        onVariableInspectRequest: handleVariableInspectRequest,
+        highlightedVariable:
+          cell.id === graphSliceHighlight?.matrixCellId
+            ? graphExpressionHighlight
+            : inspectorContext?.selectedVariable ?? null,
+        graphSliceHighlight:
+          cell.id === graphSliceHighlight?.matrixCellId ? graphSliceHighlight : null,
+        selectedCellId,
+        selectedPeriodIndex,
+        viewportRoot: mainColumnElement,
+        ...overrides
+      }) satisfies NotebookCellViewProps,
+    [
+      activeEditorCellId,
+      deleteCell,
+      getCurrentValueMapForModelRef,
+      graphExpressionHighlight,
+      graphSliceHighlight,
+      handleCellHelpRequest,
+      handleMatrixGraphRequest,
+      handlePinCellRequest,
+      handleVariableInspectRequest,
+      insertCell,
+      inspectorContext?.selectedVariable,
+      mainColumnElement,
+      maxResultPeriodIndex,
+      moveCell,
+      notebookDocument.cells,
+      notebookScopeId,
+      replaceCells,
+      runner,
+      selectNotebookCell,
+      selectedCellId,
+      selectedPeriodIndex,
+      setNotebookCellUrl,
+      updateCell,
+      updateModelCell
+    ]
+  );
+
+  useEffect(() => {
     const cellId = readNotebookRouteLocation().cellId;
     if (!cellId) {
       return;
@@ -3196,37 +3278,9 @@ export function NotebookApp() {
               {notebookDocument.cells.map((cell) => (
                 <NotebookCellView
                   key={cell.id}
-                  activeEditorCellId={activeEditorCellId}
-                  cell={cell}
-                  cells={notebookDocument.cells}
-                  notebookScopeId={notebookScopeId}
-                  getModelCurrentValues={getCurrentValueMapForModelRef}
-                  maxPeriodIndex={maxResultPeriodIndex}
-                  viewportRoot={mainColumnElement}
-                  onSelectedCellIdChange={selectNotebookCell}
-                  onSetCellUrl={setNotebookCellUrl}
-                  onSelectedPeriodIndexChange={setSelectedPeriodIndex}
-                  runner={runner}
-                  onActiveEditorCellIdChange={setActiveEditorCellId}
-                  onDeleteCell={deleteCell}
-                  onInsertCell={insertCell}
-                  onMoveCell={moveCell}
-                  onModelChange={updateModelCell}
-                  onCellChange={updateCell}
-                  onReplaceCells={replaceCells}
-                  onCellHelpRequest={handleCellHelpRequest}
-                  onMatrixGraphRequest={handleMatrixGraphRequest}
-                  onVariableInspectRequest={handleVariableInspectRequest}
-                  highlightedVariable={
-                    cell.id === graphSliceHighlight?.matrixCellId
-                      ? graphExpressionHighlight
-                      : inspectorContext?.selectedVariable ?? null
-                  }
-                  graphSliceHighlight={
-                    cell.id === graphSliceHighlight?.matrixCellId ? graphSliceHighlight : null
-                  }
-                  selectedCellId={selectedCellId}
-                  selectedPeriodIndex={selectedPeriodIndex}
+                  {...buildNotebookCellViewProps(cell, {
+                    isPinnedInPanel: pinnedCellId === cell.id
+                  })}
                 />
               ))}
             </section>
@@ -3964,6 +4018,24 @@ export function NotebookApp() {
           runLabel={stabilityTarget?.modelLabel ?? stabilityDisplay.modelLabel}
           simulationResult={stabilityTarget?.result ?? null}
           onClose={() => setShowStabilityRawPanel(false)}
+        />
+      ) : null}
+      {pinnedCell ? (
+        <PinnedCellPanel
+          cellTitle={pinnedCell.title}
+          cellType={pinnedCell.type}
+          maxPeriodIndex={maxResultPeriodIndex}
+          selectedPeriodIndex={selectedPeriodIndex}
+          onClose={() => setPinnedCellId(null)}
+          renderContent={(viewportRoot) => (
+            <NotebookCellView
+              key={pinnedCell.id}
+              {...buildNotebookCellViewProps(pinnedCell, {
+                presentation: "pinned-panel",
+                viewportRoot
+              })}
+            />
+          )}
         />
       ) : null}
       </main>

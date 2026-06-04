@@ -131,6 +131,12 @@ body.panel-splitter-body-lock {
   user-select: none;
 }
 
+body.floating-panel-resize-body-lock {
+  cursor: nwse-resize;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 .mode-switch {
   display: flex;
   gap: 0.75rem;
@@ -3470,6 +3476,126 @@ body.panel-splitter-body-lock {
   z-index: 1200;
 }
 
+.notebook-pinned-cell-panel {
+  --notebook-sticky-surface-top: 0px;
+  background: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 0.65rem;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.22);
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+  min-width: 320px;
+  pointer-events: auto;
+  position: fixed;
+  z-index: 1190;
+}
+
+.notebook-pinned-cell-panel-header {
+  align-items: flex-start;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  padding: 0.85rem 0.95rem 0.75rem;
+}
+
+.notebook-pinned-cell-panel-header-draggable {
+  cursor: grab;
+  flex: 1;
+  min-width: 0;
+  touch-action: none;
+  user-select: none;
+}
+
+.notebook-pinned-cell-panel-header-draggable:active {
+  cursor: grabbing;
+}
+
+.notebook-pinned-cell-panel-header h3 {
+  margin: 0.1rem 0 0;
+}
+
+.notebook-pinned-cell-panel-subtitle {
+  color: #64748b;
+  font-size: 0.82rem;
+  margin: 0.25rem 0 0;
+}
+
+.notebook-pinned-cell-panel-close {
+  background: transparent;
+  border: 0;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 1.35rem;
+  line-height: 1;
+  padding: 0.15rem 0.35rem;
+}
+
+.notebook-pinned-cell-panel-close:hover {
+  color: #0f172a;
+}
+
+.notebook-pinned-cell-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.35rem 0.45rem 0.55rem;
+}
+
+.notebook-pinned-cell-panel-resize-handle {
+  background: transparent;
+  border: 0;
+  bottom: 0;
+  cursor: nwse-resize;
+  height: 18px;
+  padding: 0;
+  position: absolute;
+  right: 0;
+  touch-action: none;
+  width: 18px;
+  z-index: 3;
+}
+
+.notebook-pinned-cell-panel-resize-handle::before {
+  background: linear-gradient(
+    135deg,
+    transparent 0 45%,
+    rgba(100, 116, 139, 0.55) 45% 55%,
+    transparent 55% 100%
+  );
+  border-radius: 0 0 0.55rem 0;
+  content: "";
+  inset: 4px;
+  position: absolute;
+}
+
+.notebook-pinned-cell-panel-resize-handle:hover::before,
+.notebook-pinned-cell-panel-resize-handle:focus-visible::before {
+  background: linear-gradient(
+    135deg,
+    transparent 0 45%,
+    rgba(37, 99, 235, 0.72) 45% 55%,
+    transparent 55% 100%
+  );
+}
+
+.notebook-pinned-cell-panel-resize-handle:focus-visible {
+  outline: none;
+}
+
+.notebook-pinned-cell-panel-body .notebook-cell {
+  border-top: 0;
+}
+
+.notebook-pinned-cell-panel-body .notebook-cell-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
 .stability-raw-dialog-header-draggable {
   cursor: grab;
   touch-action: none;
@@ -3890,6 +4016,58 @@ body.panel-splitter-body-lock {
   display: inline-flex;
   flex-shrink: 0;
   gap: 0.15rem;
+}
+
+.result-chart-pin-button {
+  align-items: center;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  color: #64748b;
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  height: 1.5rem;
+  justify-content: center;
+  min-height: 0;
+  min-width: 0;
+  padding: 0;
+  width: 1.5rem;
+}
+
+.result-chart-pin-button:hover,
+.result-chart-pin-button:focus-visible {
+  background: rgba(20, 33, 61, 0.06);
+  outline: none;
+  transform: none;
+}
+
+.result-chart-pin-button[aria-pressed="false"] {
+  color: #64748b;
+}
+
+.result-chart-pin-button[aria-pressed="false"]:hover,
+.result-chart-pin-button[aria-pressed="false"]:focus-visible {
+  color: #475569;
+}
+
+.result-chart-pin-button[aria-pressed="true"] {
+  color: #b45309;
+}
+
+.result-chart-pin-button[aria-pressed="true"]:hover,
+.result-chart-pin-button[aria-pressed="true"]:focus-visible {
+  color: #92400e;
+}
+
+.result-chart-pin-button svg,
+.pin-toggle-icon {
+  display: block;
+  flex-shrink: 0;
+  height: 0.95rem;
+  width: 0.95rem;
 }
 
 .panel-header .result-chart-pin-button,

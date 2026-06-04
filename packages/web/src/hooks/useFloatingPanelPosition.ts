@@ -27,6 +27,14 @@ export function useFloatingPanelPosition(storageKey: string): {
       return;
     }
 
+    const interactiveTarget = event.target;
+    if (
+      interactiveTarget instanceof Element &&
+      interactiveTarget.closest("button, a, input, select, textarea, [role='button']")
+    ) {
+      return;
+    }
+
     const target = event.currentTarget;
     target.setPointerCapture(event.pointerId);
     dragRef.current = {

@@ -21,4 +21,15 @@ describe("PinToggleIcon", () => {
     render(<PinToggleIcon pinned={false} />);
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
   });
+
+  it("uses a filled pushpin head when pinned and outline when unpinned", () => {
+    const { rerender } = render(<PinToggleIcon pinned={false} />);
+    const outlineIcon = document.querySelector(".pin-toggle-icon-off");
+    expect(outlineIcon).toHaveAttribute("width", "16");
+    expect(outlineIcon?.querySelector("circle[fill='currentColor']")).not.toBeInTheDocument();
+
+    rerender(<PinToggleIcon pinned={true} />);
+    const pinnedIcon = document.querySelector(".pin-toggle-icon-on");
+    expect(pinnedIcon?.querySelector("circle[fill='currentColor']")).toBeInTheDocument();
+  });
 });

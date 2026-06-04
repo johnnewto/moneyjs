@@ -1,6 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 
 import { AssistantMarkdown } from "../components/AssistantMarkdown";
+import { PinToggleIcon } from "../components/PinToggleIcon";
 import type { EditorState } from "../lib/editorModel";
 import {
   buildVariableDescriptions,
@@ -161,6 +162,8 @@ interface MatrixSequenceViewState {
   visibleStepCount: number;
 }
 
+export type NotebookCellPresentation = "canvas" | "pinned-panel";
+
 export interface NotebookCellViewProps {
   activeEditorCellId: string | null;
   cell: NotebookCell;
@@ -171,7 +174,10 @@ export interface NotebookCellViewProps {
     sourceModelId?: string;
     sourceModelCellId?: string;
   }): Record<string, number | undefined>;
+  isPinnedInPanel?: boolean;
   maxPeriodIndex: number;
+  onPinCellRequest?(cellId: string): void;
+  presentation?: NotebookCellPresentation;
   viewportRoot: Element | null;
   onActiveEditorCellIdChange(cellId: string | null): void;
   onSelectedCellIdChange(cellId: string): void;
@@ -203,7 +209,10 @@ function NotebookCellViewComponent({
   cells,
   notebookScopeId,
   getModelCurrentValues,
+  isPinnedInPanel = false,
   maxPeriodIndex,
+  onPinCellRequest,
+  presentation = "canvas",
   viewportRoot,
   onActiveEditorCellIdChange,
   onSelectedCellIdChange,
@@ -750,14 +759,16 @@ function NotebookCellViewComponent({
         ref={(node) => {
           cellViewport.targetRef.current = node;
         }}
-        id={cell.id}
+        id={presentation === "canvas" ? cell.id : undefined}
         className={`notebook-cell notebook-cell-${cell.type}${
+          presentation === "pinned-panel" ? " notebook-cell-is-pinned-panel" : ""
+        }${
           isCompactLinkedCellHeader(cell) ? " notebook-cell-linked-collapsed" : ""
         }${selectedCellId === cell.id ? " notebook-cell-is-selected" : ""}${
           activeEditorCellId === cell.id ? " notebook-cell-is-active-editor" : ""
         }`}
-        onClick={handleCellClick}
-        onContextMenu={handleCellContextMenu}
+        onClick={presentation === "canvas" ? handleCellClick : undefined}
+        onContextMenu={presentation === "canvas" ? handleCellContextMenu : undefined}
       >
         <div className="notebook-cell-content">
         <div className="notebook-cell-toolbar">
@@ -817,6 +828,18 @@ function NotebookCellViewComponent({
                 title={cell.title}
                 trailingActions={
                   <>
+                    {presentation === "canvas" && onPinCellRequest ? (
+                      <button
+                        type="button"
+                        className="result-chart-pin-button"
+                        aria-label={isPinnedInPanel ? "Unpin floating panel" : "Pin in floating panel"}
+                        aria-pressed={isPinnedInPanel}
+                        title={isPinnedInPanel ? "Unpin floating panel" : "Pin in floating panel"}
+                        onClick={() => onPinCellRequest(cell.id)}
+                      >
+                        <PinToggleIcon pinned={isPinnedInPanel} />
+                      </button>
+                    ) : null}
                     {cell.type === "matrix" && !isEditingSource && cell.collapsed !== true ? (
                       <MatrixEntryDisplayModeToggle
                         mode={matrixEntryDisplayModes[cell.id] ?? "both"}
@@ -1435,6 +1458,18 @@ function NotebookCellViewComponent({
             >
               URL
             </button>
+            {onPinCellRequest ? (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  onPinCellRequest(cell.id);
+                  closeCellContextMenu();
+                }}
+              >
+                {isPinnedInPanel ? "Unpin floating panel" : "Pin in floating panel"}
+              </button>
+            ) : null}
           </div>
         ) : null}
         <MatrixUnitMetaDialog
@@ -1520,6 +1555,14 @@ function areNotebookCellViewPropsEqual(
   }
 
   if (previousProps.viewportRoot !== nextProps.viewportRoot) {
+    return false;
+  }
+
+  if (previousProps.presentation !== nextProps.presentation) {
+    return false;
+  }
+
+  if (previousProps.isPinnedInPanel !== nextProps.isPinnedInPanel) {
     return false;
   }
 
