@@ -9,6 +9,7 @@ import {
 import { useMultiportEdgeAnimation } from "../hooks/useMultiportEdgeAnimation";
 import type { ParsedDiagram } from "../notebook/sequence";
 import { FlowGraphShell } from "./flow/FlowGraphShell";
+import { FLOW_GRAPH_MULTIPORT_FIT_PADDING } from "./flow/flowGraphShellLayout";
 import { MatrixMultiportNode, MatrixMultiportNoteNode } from "./flow/MatrixMultiportNode";
 import {
   MultiportVariableInspectProvider,
@@ -299,6 +300,7 @@ export function TransactionFlowMultiportCanvas({
           edges={edges}
           fitViewKey={`multiport-${baseLayout.width}-${baseLayout.height}-${visibleStepCount}-${highlightedStepIndex ?? "none"}-${columnOrder.join(",")}`}
           fitViewPriority="width"
+          fitPadding={FLOW_GRAPH_MULTIPORT_FIT_PADDING}
           fitViewRequest={fitViewRequest}
           minViewportWidth={360}
           nodeExtent={canReorder ? nodeExtent : undefined}

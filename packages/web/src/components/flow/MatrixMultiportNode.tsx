@@ -10,6 +10,7 @@ import {
   MULTIPORT_ROW_HEIGHT,
   MULTIPORT_ROW_TOP,
   MULTIPORT_STOCK_FOOTER_GAP,
+  MULTIPORT_STOCK_FOOTER_BOTTOM_PAD,
   MULTIPORT_STOCK_ROW_HEIGHT,
   handleId,
   type MatrixMultiportNodeData,
@@ -36,7 +37,9 @@ export function MatrixMultiportNode({ data }: NodeProps) {
   const icon = ACCOUNT_ICONS[nodeData.order % ACCOUNT_ICONS.length];
   const stocksFooterHeight =
     nodeData.stocks.length > 0
-      ? MULTIPORT_STOCK_FOOTER_GAP + nodeData.stocks.length * MULTIPORT_STOCK_ROW_HEIGHT + 8
+      ? MULTIPORT_STOCK_FOOTER_GAP +
+        nodeData.stocks.length * MULTIPORT_STOCK_ROW_HEIGHT +
+        MULTIPORT_STOCK_FOOTER_BOTTOM_PAD
       : 0;
 
   return (

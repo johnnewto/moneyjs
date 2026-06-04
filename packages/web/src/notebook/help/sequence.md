@@ -92,7 +92,7 @@ Use it to answer:
 - Are payments and receipts paired correctly?
 - Which rows represent financial asset changes rather than current flows?
 
-The Reset and Next step controls are useful for teaching or debugging the accounting story. **Swimlane** and **Multiport** layouts scale the diagram to the visible cell width on load; scroll the mouse wheel over the canvas to zoom, and use **Fit to window** after panning or zooming to reset the view.
+The Reset and Next step controls are useful for teaching or debugging the accounting story. **Swimlane** and **Multiport** layouts scale the diagram to the visible cell width on load; the mouse wheel scrolls the notebook, and **Ctrl+scroll** (**Cmd+scroll** on Mac) zooms the canvas. Use **Fit to window** after panning or zooming to reset the view.
 
 ## Dependency Sequences
 

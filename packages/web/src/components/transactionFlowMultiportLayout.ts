@@ -13,16 +13,18 @@ import type {
   SequenceStep
 } from "../notebook/sequence";
 
-export const MULTIPORT_NODE_WIDTH = 210;
-export const MULTIPORT_NODE_MIN_HEIGHT = 420;
-export const MULTIPORT_X_GAP = 255;
+export const MULTIPORT_NODE_WIDTH = 200;
+export const MULTIPORT_NODE_MIN_HEIGHT = 300;
+export const MULTIPORT_X_GAP = 272;
 export const MULTIPORT_START_X = 56;
-export const MULTIPORT_START_Y = 36;
-export const MULTIPORT_ROW_TOP = 92;
-export const MULTIPORT_ROW_GAP = 68;
-export const MULTIPORT_ROW_HEIGHT = 54;
-export const MULTIPORT_STOCK_ROW_HEIGHT = 26;
-export const MULTIPORT_STOCK_FOOTER_GAP = 10;
+export const MULTIPORT_START_Y = 24;
+export const MULTIPORT_ROW_TOP = 70;
+export const MULTIPORT_ROW_GAP = 42;
+export const MULTIPORT_ROW_HEIGHT = 38;
+export const MULTIPORT_STOCK_ROW_HEIGHT = 20;
+export const MULTIPORT_STOCK_FOOTER_GAP = 6;
+export const MULTIPORT_STOCK_FOOTER_BOTTOM_PAD = 4;
+export const MULTIPORT_NODE_BOTTOM_PAD = 14;
 export type MultiportSide = "left" | "right";
 export type MultiportFlowClass = "real" | "capital" | "financial";
 
@@ -99,11 +101,16 @@ export function buildTransactionFlowMultiportLayout(
   );
   const stockFooterHeight =
     maxStockCount > 0
-      ? MULTIPORT_STOCK_FOOTER_GAP + maxStockCount * MULTIPORT_STOCK_ROW_HEIGHT + 8
+      ? MULTIPORT_STOCK_FOOTER_GAP +
+        maxStockCount * MULTIPORT_STOCK_ROW_HEIGHT +
+        MULTIPORT_STOCK_FOOTER_BOTTOM_PAD
       : 0;
   const nodeHeight = Math.max(
     MULTIPORT_NODE_MIN_HEIGHT,
-    MULTIPORT_ROW_TOP + (maxRowIndex + 1) * MULTIPORT_ROW_GAP + stockFooterHeight + 28
+    MULTIPORT_ROW_TOP +
+      (maxRowIndex + 1) * MULTIPORT_ROW_GAP +
+      stockFooterHeight +
+      MULTIPORT_NODE_BOTTOM_PAD
   );
   const participantOrderById = new Map(
     diagram.participants.map((participant) => [participant.id, participant.order])

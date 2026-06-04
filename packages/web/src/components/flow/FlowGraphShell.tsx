@@ -22,13 +22,22 @@ import {
 
 const proOptions: ProOptions = { hideAttribution: true };
 
-const FIT_VIEW_OPTIONS = {
-  padding: FLOW_GRAPH_FIT_PADDING,
+const FIT_VIEW_OPTIONS_BASE = {
   duration: 0,
   maxZoom: 1.25,
   minZoom: 0.08
 } as const;
 const MIN_VIEWPORT_SIZE = 280;
+
+function isMacOs(): boolean {
+  return (
+    typeof navigator !== "undefined" &&
+    navigator.userAgent.includes("Mac")
+  );
+}
+
+/** Wheel scroll passes to the notebook; hold Ctrl/Cmd to zoom the canvas. */
+const FLOW_GRAPH_ZOOM_ACTIVATION_KEY_CODE = isMacOs() ? "Meta" : "Control";
 
 function readHorizontalInsets(element: HTMLElement | null): number {
   if (!element) {
@@ -59,6 +68,7 @@ function FlowGraphViewport({
   fitViewKey,
   fitViewRequest = 0,
   fitViewPriority = "both",
+  fitPadding = FLOW_GRAPH_FIT_PADDING,
   nodes,
   nodeTypes,
   onNodeClick,
@@ -87,6 +97,7 @@ function FlowGraphViewport({
   fitViewKey: string;
   fitViewRequest?: number;
   fitViewPriority?: "both" | "width";
+  fitPadding?: number;
   nodes: Node[];
   nodeTypes?: NodeTypes;
   onNodeClick?: (event: React.MouseEvent, node: Node) => void;
@@ -108,7 +119,7 @@ function FlowGraphViewport({
 
   const runFitView = useCallback(() => {
     if (fitViewPriority === "width") {
-      const zoom = computeFlowGraphWidthFitZoom(canvasWidth, viewportWidth);
+      const zoom = computeFlowGraphWidthFitZoom(canvasWidth, viewportWidth, fitPadding);
       const contentWidth = canvasWidth * zoom;
       const contentHeight = canvasHeight * zoom;
       setViewport(
@@ -122,10 +133,11 @@ function FlowGraphViewport({
       return;
     }
 
-    fitView(FIT_VIEW_OPTIONS);
+    fitView({ ...FIT_VIEW_OPTIONS_BASE, padding: fitPadding });
   }, [
     canvasHeight,
     canvasWidth,
+    fitPadding,
     fitView,
     fitViewPriority,
     setViewport,
@@ -152,7 +164,7 @@ function FlowGraphViewport({
       edgeTypes={edgeTypes}
       elementsSelectable={elementsSelectable}
       fitView={fitViewPriority !== "width"}
-      fitViewOptions={{ includeHiddenNodes: false, padding: FLOW_GRAPH_FIT_PADDING }}
+      fitViewOptions={{ includeHiddenNodes: false, padding: fitPadding }}
       maxZoom={1.25}
       minZoom={0.08}
       nodes={nodes}
@@ -172,13 +184,13 @@ function FlowGraphViewport({
       onNodesChange={onNodesChange}
       panOnDrag={panOnDrag}
       panOnScroll={false}
-      preventScrolling
+      preventScrolling={false}
       proOptions={proOptions}
       style={{ width: viewportWidth, height: viewportHeight }}
-      zoomActivationKeyCode={null}
+      zoomActivationKeyCode={FLOW_GRAPH_ZOOM_ACTIVATION_KEY_CODE}
       zoomOnDoubleClick={false}
       zoomOnPinch
-      zoomOnScroll
+      zoomOnScroll={false}
     >
       <Background gap={18} size={1} color="rgba(148, 163, 184, 0.18)" />
       {children}
@@ -195,6 +207,7 @@ export interface FlowGraphShellProps {
   fitViewKey: string;
   fitViewRequest?: number;
   fitViewPriority?: "both" | "width";
+  fitPadding?: number;
   minViewportWidth?: number;
   nodes: Node[];
   nodeTypes?: NodeTypes;
@@ -224,6 +237,7 @@ export function FlowGraphShell({
   fitViewKey,
   fitViewRequest = 0,
   fitViewPriority = "both",
+  fitPadding = FLOW_GRAPH_FIT_PADDING,
   minViewportWidth = 360,
   nodes,
   nodeTypes,
@@ -272,13 +286,18 @@ export function FlowGraphShell({
 
     window.addEventListener("resize", updateViewportSize);
     return () => window.removeEventListener("resize", updateViewportSize);
-  }, [canvasHeight, canvasWidth, fitViewPriority, minViewportWidth, updateViewportSize]);
+  }, [canvasHeight, canvasWidth, fitPadding, fitViewPriority, minViewportWidth, updateViewportSize]);
 
   const shellHeight =
     fitViewPriority === "width"
       ? Math.max(
           MIN_VIEWPORT_SIZE,
-          computeFlowGraphShellHeightForWidthFit(canvasWidth, canvasHeight, viewportSize.width)
+          computeFlowGraphShellHeightForWidthFit(
+            canvasWidth,
+            canvasHeight,
+            viewportSize.width,
+            fitPadding
+          )
         )
       : Math.max(MIN_VIEWPORT_SIZE, canvasHeight);
 
@@ -305,6 +324,7 @@ export function FlowGraphShell({
             fitViewKey={fitViewKey}
             fitViewRequest={fitViewRequest}
             fitViewPriority={fitViewPriority}
+            fitPadding={fitPadding}
             nodes={nodes}
             nodeTypes={nodeTypes}
             onNodeClick={onNodeClick}

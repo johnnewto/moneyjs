@@ -6675,6 +6675,7 @@ button.notebook-matrix-tree-badge-toggle:hover {
   box-sizing: border-box;
   max-width: 100%;
   overflow: hidden;
+  padding: 0.35rem;
   width: 100%;
 }
 
@@ -6833,13 +6834,13 @@ button.notebook-matrix-tree-badge-toggle:hover {
 .matrix-multiport {
   background: rgba(255, 255, 255, 0.9);
   border: 2px solid rgba(15, 23, 42, 0.22);
-  border-radius: 18px;
-  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
+  border-radius: 14px;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
   box-sizing: border-box;
   height: 100%;
   overflow: visible;
   position: relative;
-  width: 210px;
+  width: 200px;
 }
 
 .flow-graph-shell .react-flow__node.is-reorderable .matrix-multiport {
@@ -6860,12 +6861,12 @@ button.notebook-matrix-tree-badge-toggle:hover {
 .matrix-multiport__header {
   align-items: center;
   border-bottom: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: 15px 15px 0 0;
+  border-radius: 11px 11px 0 0;
   display: grid;
-  gap: 0.35rem;
-  grid-template-columns: 1.1rem 1fr;
+  gap: 0.15rem;
+  grid-template-columns: 1rem 1fr;
   justify-items: center;
-  padding: 0.75rem 0.55rem 0.65rem 0.45rem;
+  padding: 0.42rem 0.38rem 0.38rem 0.32rem;
   position: relative;
   text-align: center;
 }
@@ -6882,10 +6883,10 @@ button.notebook-matrix-tree-badge-toggle:hover {
   border-radius: 2px;
   grid-column: 1;
   grid-row: 1 / span 2;
-  height: 1.35rem;
+  height: 1.1rem;
   justify-self: center;
   opacity: 0.72;
-  width: 0.5rem;
+  width: 0.45rem;
 }
 
 .flow-graph-shell .react-flow__node.is-reorderable .matrix-multiport__drag-handle:hover .matrix-multiport__drag-grip,
@@ -6909,19 +6910,19 @@ button.notebook-matrix-tree-badge-toggle:hover {
   border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: 999px;
   display: flex;
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   font-weight: 800;
-  height: 2.25rem;
+  height: 1.75rem;
   justify-content: center;
   letter-spacing: 0.03em;
-  width: 2.25rem;
+  width: 1.75rem;
 }
 
 .matrix-multiport__title {
   color: #0f172a;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   font-weight: 750;
-  line-height: 1.25;
+  line-height: 1.2;
   overflow-wrap: anywhere;
 }
 
@@ -6939,10 +6940,10 @@ button.notebook-matrix-tree-badge-toggle:hover {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.08rem;
   height: var(--multiport-stocks-height, auto);
   left: 0;
-  padding: 0.45rem 0.5rem 0.55rem;
+  padding: 0.28rem 0.38rem 0.32rem;
   position: absolute;
   right: 0;
 }
@@ -6952,16 +6953,16 @@ button.notebook-matrix-tree-badge-toggle:hover {
   color: #334155;
   display: flex;
   font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
-  font-size: 0.78rem;
-  gap: 0.25rem;
-  line-height: 1.3;
+  font-size: 0.72rem;
+  gap: 0.18rem;
+  line-height: 1.2;
   min-width: 0;
 }
 
 .matrix-multiport__stock-role {
   flex: 0 0 auto;
-  font-size: 0.72rem;
-  padding: 0.08rem 0.32rem;
+  font-size: 0.66rem;
+  padding: 0.04rem 0.24rem;
 }
 
 .matrix-multiport__stock-name {
@@ -7004,24 +7005,24 @@ button.matrix-multiport__stock-name:hover {
 .matrix-multiport__port-card {
   background: rgba(255, 255, 255, 0.88);
   border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+  border-radius: 8px;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
   box-sizing: border-box;
   color: #334155;
   display: grid;
-  gap: 0.1rem;
-  line-height: 1.22;
-  margin: 0 1.1rem;
-  min-height: 50px;
-  padding: 0.4rem 0.55rem;
+  gap: 0.04rem;
+  line-height: 1.18;
+  margin: 0 0.75rem;
+  min-height: 34px;
+  padding: 0.24rem 0.38rem;
   pointer-events: auto;
-  width: calc(100% - 2.2rem);
+  width: calc(100% - 1.5rem);
 }
 
 .matrix-multiport__port-formula {
   display: inline;
-  font-size: 0.8rem;
-  line-height: 1.3;
+  font-size: 0.74rem;
+  line-height: 1.22;
 }
 
 .matrix-multiport__port-formula .formula-token,
@@ -7045,7 +7046,7 @@ button.matrix-multiport__stock-name:hover {
 
 .matrix-multiport__port-label {
   color: #0f172a;
-  font-size: 0.8rem;
+  font-size: 0.74rem;
   font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -7053,8 +7054,8 @@ button.matrix-multiport__stock-name:hover {
 }
 
 .matrix-multiport__port-entry {
-  font-size: 0.8rem;
-  line-height: 1.3;
+  font-size: 0.74rem;
+  line-height: 1.22;
   overflow-wrap: anywhere;
 }
 
@@ -7089,12 +7090,12 @@ button.matrix-multiport__stock-name:hover {
 .matrix-multiport-note {
   background: #fff7ed;
   border: 1px solid #fdba74;
-  border-radius: 10px;
+  border-radius: 8px;
   color: #9a3412;
-  font-size: 0.85rem;
-  line-height: 1.35;
-  max-width: 320px;
-  padding: 0.5rem 0.65rem;
+  font-size: 0.78rem;
+  line-height: 1.28;
+  max-width: 300px;
+  padding: 0.32rem 0.48rem;
 }
 
 .matrix-multiport--green {
@@ -7159,6 +7160,10 @@ button.matrix-multiport__stock-name:hover {
 
 .multiport-flow-animation-shell {
   width: 100%;
+}
+
+.multiport-flow-animation-shell .flow-graph-shell.sequence-canvas-shell {
+  padding: 0.15rem;
 }
 
 .multiport-flow-edge path {

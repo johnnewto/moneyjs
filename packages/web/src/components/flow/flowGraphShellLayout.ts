@@ -1,4 +1,5 @@
-export const FLOW_GRAPH_FIT_PADDING = 0.12;
+export const FLOW_GRAPH_FIT_PADDING = 0.04;
+export const FLOW_GRAPH_MULTIPORT_FIT_PADDING = 0.01;
 
 /** Viewport height so React Flow fitView is width-limited and columns span the shell. */
 export function computeFlowGraphShellHeightForWidthFit(
