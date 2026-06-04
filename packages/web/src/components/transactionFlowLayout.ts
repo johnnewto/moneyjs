@@ -6,6 +6,11 @@ import type {
   SequenceNoteStep,
   SequenceStep
 } from "../notebook/sequence";
+import {
+  computeTransactionFlowMarkerSize,
+  computeTransactionFlowStrokeWidth,
+  SWIMLANE_FLOW_STROKE_PRESET
+} from "./transactionFlowStroke";
 
 export const TRANSACTION_FLOW_COLUMN_WIDTH = 190;
 export const TRANSACTION_FLOW_LEFT_MARGIN = 120;
@@ -148,7 +153,11 @@ export function buildTransactionFlowLayout(
           color: step.color ?? "#334155",
           lineStyle: step.lineStyle,
           magnitude: step.magnitude,
-          strokeWidth: computeFlowStrokeWidth(step.magnitude, maxMagnitude),
+          strokeWidth: computeTransactionFlowStrokeWidth(
+            step.magnitude,
+            maxMagnitude,
+            SWIMLANE_FLOW_STROKE_PRESET
+          ),
           highlighted: highlightedStepIndex === stepIndex,
           laneOffset,
           rowY: rowYForIndex(rowIndex),
@@ -261,23 +270,24 @@ function spanForParticipants(
   return { left, width: Math.max(160, right - left) };
 }
 
-const FLOW_STROKE_MIN = 2.5;
-const FLOW_STROKE_MAX = 9;
-export const FLOW_ARROW_MARKER_MIN = 8;
-export const FLOW_ARROW_MARKER_STROKE_FACTOR = 4;
+const FLOW_STROKE_MIN = SWIMLANE_FLOW_STROKE_PRESET.strokeMin;
+const FLOW_STROKE_MAX = SWIMLANE_FLOW_STROKE_PRESET.strokeMax;
+export const FLOW_ARROW_MARKER_MIN = SWIMLANE_FLOW_STROKE_PRESET.markerMin;
+export const FLOW_ARROW_MARKER_STROKE_FACTOR = SWIMLANE_FLOW_STROKE_PRESET.markerFactor;
 
-/** Log-scaled line weight so dominant flows read thicker without huge arrows (markers are fixed size). */
-export function computeFlowStrokeWidth(magnitude: number | undefined, maxMagnitude: number): number {
-  if (magnitude == null || !Number.isFinite(magnitude) || maxMagnitude <= 0) {
-    return FLOW_STROKE_MIN;
-  }
-  const normalized = Math.min(
-    1,
-    Math.log1p(Math.abs(magnitude)) / Math.log1p(maxMagnitude)
-  );
-  return FLOW_STROKE_MIN + normalized * (FLOW_STROKE_MAX - FLOW_STROKE_MIN);
+/** @deprecated Use computeTransactionFlowStrokeWidth with SWIMLANE_FLOW_STROKE_PRESET. */
+export function computeFlowStrokeWidth(
+  magnitude: number | undefined,
+  maxMagnitude: number,
+  strokeMax: number = FLOW_STROKE_MAX
+): number {
+  return computeTransactionFlowStrokeWidth(magnitude, maxMagnitude, {
+    ...SWIMLANE_FLOW_STROKE_PRESET,
+    strokeMax
+  });
 }
 
+/** @deprecated Use computeTransactionFlowMarkerSize with SWIMLANE_FLOW_STROKE_PRESET. */
 export function computeFlowArrowMarkerSize(strokeWidth: number): number {
-  return Math.max(FLOW_ARROW_MARKER_MIN, FLOW_ARROW_MARKER_STROKE_FACTOR * strokeWidth);
+  return computeTransactionFlowMarkerSize(strokeWidth, SWIMLANE_FLOW_STROKE_PRESET);
 }

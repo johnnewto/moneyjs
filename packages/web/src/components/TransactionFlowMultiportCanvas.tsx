@@ -298,6 +298,7 @@ export function TransactionFlowMultiportCanvas({
           canvasWidth={baseLayout.width}
           edges={edges}
           fitViewKey={`multiport-${baseLayout.width}-${baseLayout.height}-${visibleStepCount}-${highlightedStepIndex ?? "none"}-${columnOrder.join(",")}`}
+          fitViewPriority="width"
           fitViewRequest={fitViewRequest}
           minViewportWidth={360}
           nodeExtent={canReorder ? nodeExtent : undefined}

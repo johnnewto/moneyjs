@@ -1,6 +1,11 @@
 import { MarkerType, type Edge, type Node } from "@xyflow/react";
 
 import type { MultiportParticipantStock } from "./multiportParticipantStocks";
+import {
+  computeReactFlowClosedMarkerSize,
+  computeTransactionFlowStrokeWidth,
+  MULTIPORT_FLOW_STROKE_PRESET
+} from "./transactionFlowStroke";
 import type {
   ParsedDiagram,
   SequenceMessageStep,
@@ -47,6 +52,8 @@ export interface MatrixMultiportEdgeData {
   flowClass: MultiportFlowClass;
   highlighted: boolean;
   rowIndex: number;
+  magnitude?: number;
+  strokeWidth: number;
 }
 
 export interface TransactionFlowMultiportLayout {
@@ -102,6 +109,16 @@ export function buildTransactionFlowMultiportLayout(
     diagram.participants.map((participant) => [participant.id, participant.order])
   );
   const rowLabelByIndex = buildRowLabelByIndex(diagram.steps);
+  const messageSteps = visibleSteps.filter(
+    (step): step is SequenceMessageStep => step.type === "message"
+  );
+  const maxMagnitude = messageSteps.reduce((currentMax, step) => {
+    if (step.magnitude == null || !Number.isFinite(step.magnitude)) {
+      return currentMax;
+    }
+    return Math.max(currentMax, Math.abs(step.magnitude));
+  }, 0);
+
   const transactions = visibleSteps.flatMap((step, stepIndex) => {
     if (step.type !== "message") {
       return [];
@@ -206,40 +223,49 @@ export function buildTransactionFlowMultiportLayout(
     ];
   });
 
-  const edges: Edge[] = transactions.map((transaction) => ({
-    id: transaction.id,
-    source: transaction.step.senderId,
-    target: transaction.step.receiverId,
-    sourceHandle: transaction.sourceHandle,
-    targetHandle: transaction.targetHandle,
-    type: "smoothstep",
-    animated: animateEdges,
-    markerEnd: {
-      type: MarkerType.ArrowClosed,
-      width: transaction.highlighted ? 20 : 16,
-      height: transaction.highlighted ? 20 : 16,
-      color: edgeColor(transaction.flowClass, transaction.highlighted)
-    },
-    className: [
-      "multiport-flow-edge",
-      `multiport-flow-edge--${transaction.flowClass}`,
-      transaction.highlighted ? "is-highlighted" : ""
-    ]
-      .filter(Boolean)
-      .join(" "),
-    style: {
-      stroke: edgeColor(transaction.flowClass, transaction.highlighted),
-      strokeWidth: transaction.highlighted ? 3.5 : transaction.flowClass === "financial" ? 3 : 2.5,
-      strokeDasharray: transaction.flowClass === "capital" ? "8 5" : undefined
-    },
-    data: {
-      flowClass: transaction.flowClass,
-      highlighted: transaction.highlighted,
-      rowIndex: transaction.rowIndex
-    } satisfies MatrixMultiportEdgeData,
-    selectable: false,
-    zIndex: transaction.highlighted ? 5 : 4
-  }));
+  const edges: Edge[] = transactions
+    .map((transaction) => ({
+      transaction,
+      metrics: multiportEdgeMetrics(transaction, maxMagnitude)
+    }))
+    .sort((left, right) => left.metrics.strokeWidth - right.metrics.strokeWidth)
+    .map(({ transaction, metrics }) => ({
+      id: transaction.id,
+      source: transaction.step.senderId,
+      target: transaction.step.receiverId,
+      sourceHandle: transaction.sourceHandle,
+      targetHandle: transaction.targetHandle,
+      type: "smoothstep",
+      animated: animateEdges,
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        width: metrics.markerSize,
+        height: metrics.markerSize,
+        markerUnits: "userSpaceOnUse",
+        color: edgeColor(transaction.flowClass, transaction.highlighted)
+      },
+      className: [
+        "multiport-flow-edge",
+        `multiport-flow-edge--${transaction.flowClass}`,
+        transaction.highlighted ? "is-highlighted" : ""
+      ]
+        .filter(Boolean)
+        .join(" "),
+      style: {
+        stroke: edgeColor(transaction.flowClass, transaction.highlighted),
+        strokeWidth: metrics.strokeWidth,
+        strokeDasharray: metrics.strokeDasharray
+      },
+      data: {
+        flowClass: transaction.flowClass,
+        highlighted: transaction.highlighted,
+        rowIndex: transaction.rowIndex,
+        magnitude: transaction.step.magnitude,
+        strokeWidth: metrics.strokeWidth
+      } satisfies MatrixMultiportEdgeData,
+      selectable: false,
+      zIndex: transaction.highlighted ? 5 : 4
+    }));
 
   const width =
     MULTIPORT_START_X * 2 +
@@ -343,6 +369,29 @@ function classifyFlow(label: string): MultiportFlowClass {
     return "capital";
   }
   return "real";
+}
+
+function multiportEdgeMetrics(
+  transaction: MultiportTransaction,
+  maxMagnitude: number
+): { markerSize: number; strokeDasharray?: string; strokeWidth: number } {
+  const baseStrokeWidth = computeTransactionFlowStrokeWidth(
+    transaction.step.magnitude,
+    maxMagnitude,
+    MULTIPORT_FLOW_STROKE_PRESET
+  );
+  const strokeWidth = transaction.highlighted ? baseStrokeWidth + 1 : baseStrokeWidth;
+  const markerSize = computeReactFlowClosedMarkerSize(strokeWidth, MULTIPORT_FLOW_STROKE_PRESET);
+  const strokeDasharray =
+    transaction.flowClass === "capital"
+      ? scaleCapitalDashArray(strokeWidth, MULTIPORT_FLOW_STROKE_PRESET.strokeMin)
+      : undefined;
+  return { markerSize, strokeDasharray, strokeWidth };
+}
+
+function scaleCapitalDashArray(strokeWidth: number, baselineStroke: number): string {
+  const scale = strokeWidth / baselineStroke;
+  return `${Math.round(8 * scale)} ${Math.round(5 * scale)}`;
 }
 
 function edgeColor(flowClass: MultiportFlowClass, highlighted: boolean): string {

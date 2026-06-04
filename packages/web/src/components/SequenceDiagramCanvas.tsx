@@ -10,6 +10,11 @@ import type {
   SequenceParticipant,
   SequenceStep
 } from "../notebook/sequence";
+import {
+  computeTransactionFlowMarkerSize,
+  computeTransactionFlowStrokeWidth,
+  LIFELINES_FLOW_STROKE_PRESET
+} from "./transactionFlowStroke";
 
 interface SequenceDiagramCanvasProps {
   diagram: ParsedDiagram;
@@ -301,8 +306,12 @@ function MessageShape({
   }
 
   const color = step.color ?? "#4f46e5";
-  const strokeWidth = computeMessageWidth(step.magnitude, maxMagnitude);
-  const arrowSize = Math.max(7, strokeWidth * 2.1);
+  const strokeWidth = computeTransactionFlowStrokeWidth(
+    step.magnitude,
+    maxMagnitude,
+    LIFELINES_FLOW_STROKE_PRESET
+  );
+  const arrowSize = computeTransactionFlowMarkerSize(strokeWidth, LIFELINES_FLOW_STROKE_PRESET);
   const isSelfMessage = sender.id === receiver.id;
   const labelX = isSelfMessage ? sender.x + 34 : (sender.x + receiver.x) / 2;
   const labelY = isSelfMessage ? y - 12 : y - 13;
@@ -538,14 +547,6 @@ function buildArrowHeadPoints(x: number, y: number, angle: number, size: number)
   const rightX = x - size * Math.cos(angle + Math.PI / 6);
   const rightY = y - size * Math.sin(angle + Math.PI / 6);
   return `${x},${y} ${leftX},${leftY} ${rightX},${rightY}`;
-}
-
-function computeMessageWidth(magnitude: number | undefined, maxMagnitude: number): number {
-  if (magnitude == null || !Number.isFinite(magnitude) || maxMagnitude <= 0) {
-    return 3;
-  }
-  const normalized = Math.abs(magnitude) / maxMagnitude;
-  return 2.5 + normalized * 8.5;
 }
 
 function wrapText(text: string, maxWidth: number, fontSize: number): string[] {

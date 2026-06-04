@@ -7,6 +7,10 @@ import {
   FLOW_ARROW_MARKER_MIN,
   FLOW_ARROW_MARKER_STROKE_FACTOR
 } from "../src/components/transactionFlowLayout";
+import {
+  computeTransactionFlowStrokeWidth,
+  SWIMLANE_FLOW_STROKE_PRESET
+} from "../src/components/transactionFlowStroke";
 import { buildSequenceDiagramFromMatrix } from "../src/notebook/sequence";
 import type { MatrixCell } from "../src/notebook/types";
 
@@ -17,6 +21,7 @@ describe("transactionFlowLayout", () => {
     expect(computeFlowStrokeWidth(1, 100)).toBeLessThan(computeFlowStrokeWidth(100, 100));
     expect(computeFlowStrokeWidth(100, 100)).toBe(9);
     expect(computeFlowStrokeWidth(1000, 100)).toBe(9);
+    expect(computeTransactionFlowStrokeWidth(100, 100, SWIMLANE_FLOW_STROKE_PRESET)).toBe(9);
   });
 
   it("sizes arrowheads as max(8px, 4× stroke width)", () => {

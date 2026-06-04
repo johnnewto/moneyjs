@@ -14,9 +14,20 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
+import {
+  computeFlowGraphShellHeightForWidthFit,
+  computeFlowGraphWidthFitZoom,
+  FLOW_GRAPH_FIT_PADDING
+} from "./flowGraphShellLayout";
+
 const proOptions: ProOptions = { hideAttribution: true };
 
-const FIT_VIEW_OPTIONS = { padding: 0.12, duration: 0, maxZoom: 1, minZoom: 0.08 } as const;
+const FIT_VIEW_OPTIONS = {
+  padding: FLOW_GRAPH_FIT_PADDING,
+  duration: 0,
+  maxZoom: 1.25,
+  minZoom: 0.08
+} as const;
 const MIN_VIEWPORT_SIZE = 280;
 
 function readHorizontalInsets(element: HTMLElement | null): number {
@@ -47,6 +58,7 @@ function FlowGraphViewport({
   edgeTypes,
   fitViewKey,
   fitViewRequest = 0,
+  fitViewPriority = "both",
   nodes,
   nodeTypes,
   onNodeClick,
@@ -74,6 +86,7 @@ function FlowGraphViewport({
   elementsSelectable?: boolean;
   fitViewKey: string;
   fitViewRequest?: number;
+  fitViewPriority?: "both" | "width";
   nodes: Node[];
   nodeTypes?: NodeTypes;
   onNodeClick?: (event: React.MouseEvent, node: Node) => void;
@@ -91,11 +104,34 @@ function FlowGraphViewport({
   viewportHeight: number;
   viewportWidth: number;
 }) {
-  const { fitView } = useReactFlow();
+  const { fitView, setViewport } = useReactFlow();
 
   const runFitView = useCallback(() => {
+    if (fitViewPriority === "width") {
+      const zoom = computeFlowGraphWidthFitZoom(canvasWidth, viewportWidth);
+      const contentWidth = canvasWidth * zoom;
+      const contentHeight = canvasHeight * zoom;
+      setViewport(
+        {
+          x: (viewportWidth - contentWidth) / 2,
+          y: Math.max(0, (viewportHeight - contentHeight) / 2),
+          zoom
+        },
+        { duration: 0 }
+      );
+      return;
+    }
+
     fitView(FIT_VIEW_OPTIONS);
-  }, [fitView]);
+  }, [
+    canvasHeight,
+    canvasWidth,
+    fitView,
+    fitViewPriority,
+    setViewport,
+    viewportHeight,
+    viewportWidth
+  ]);
 
   useEffect(() => {
     runFitView();
@@ -115,8 +151,8 @@ function FlowGraphViewport({
       edges={edges}
       edgeTypes={edgeTypes}
       elementsSelectable={elementsSelectable}
-      fitView
-      fitViewOptions={{ includeHiddenNodes: false, padding: 0.12 }}
+      fitView={fitViewPriority !== "width"}
+      fitViewOptions={{ includeHiddenNodes: false, padding: FLOW_GRAPH_FIT_PADDING }}
       maxZoom={1.25}
       minZoom={0.08}
       nodes={nodes}
@@ -158,6 +194,7 @@ export interface FlowGraphShellProps {
   edgeTypes?: EdgeTypes;
   fitViewKey: string;
   fitViewRequest?: number;
+  fitViewPriority?: "both" | "width";
   minViewportWidth?: number;
   nodes: Node[];
   nodeTypes?: NodeTypes;
@@ -186,6 +223,7 @@ export function FlowGraphShell({
   edgeTypes,
   fitViewKey,
   fitViewRequest = 0,
+  fitViewPriority = "both",
   minViewportWidth = 360,
   nodes,
   nodeTypes,
@@ -234,7 +272,15 @@ export function FlowGraphShell({
 
     window.addEventListener("resize", updateViewportSize);
     return () => window.removeEventListener("resize", updateViewportSize);
-  }, [canvasHeight, minViewportWidth, updateViewportSize]);
+  }, [canvasHeight, canvasWidth, fitViewPriority, minViewportWidth, updateViewportSize]);
+
+  const shellHeight =
+    fitViewPriority === "width"
+      ? Math.max(
+          MIN_VIEWPORT_SIZE,
+          computeFlowGraphShellHeightForWidthFit(canvasWidth, canvasHeight, viewportSize.width)
+        )
+      : Math.max(MIN_VIEWPORT_SIZE, canvasHeight);
 
   return (
     <div
@@ -243,8 +289,8 @@ export function FlowGraphShell({
       role="region"
       aria-label={ariaLabel}
       style={{
-        height: canvasHeight,
-        maxHeight: "75vh",
+        height: shellHeight,
+        maxHeight: fitViewPriority === "width" ? undefined : "75vh",
         width: "100%"
       }}
     >
@@ -258,6 +304,7 @@ export function FlowGraphShell({
             edgeTypes={edgeTypes}
             fitViewKey={fitViewKey}
             fitViewRequest={fitViewRequest}
+            fitViewPriority={fitViewPriority}
             nodes={nodes}
             nodeTypes={nodeTypes}
             onNodeClick={onNodeClick}
