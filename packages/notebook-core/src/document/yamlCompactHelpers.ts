@@ -149,7 +149,10 @@ export function buildCompactInitialValueListRow(item: InitialValueListItem, inde
 }
 
 export function buildCompactInitialValueRow(initialValue: InitialValueRow, index: number): unknown[] {
-  const row = [initialValue.name, scalarFromValueText(initialValue.valueText)];
+  const row: unknown[] = [initialValue.name, scalarFromValueText(initialValue.valueText)];
+  if (initialValue.desc?.trim()) {
+    row.push(initialValue.desc);
+  }
   const fallbackId = `init-${index}-${slugifyIdentifier(initialValue.name)}`;
   return initialValue.id === fallbackId ? row : [...row, initialValue.id];
 }
@@ -557,11 +560,26 @@ export function parseCompactInitialValueRows(rows: unknown[]): InitialValueListI
     }
 
     if (Array.isArray(row)) {
-      const [rawName, rawValue, rawId] = row;
+      const [rawName, rawValue, ...rest] = row;
       const name = stringValue(rawName, "");
+      let desc: string | undefined;
+      let id: string | undefined;
+      if (rest.length === 1) {
+        const trailing = rest[0];
+        const trailingText = stringValue(trailing, "");
+        if (trailingText.startsWith("init-")) {
+          id = trailingText;
+        } else {
+          desc = trailingText;
+        }
+      } else if (rest.length >= 2) {
+        desc = stringValue(rest[0], "");
+        id = stringValue(rest[rest.length - 1], "");
+      }
       return {
-        id: stringValue(rawId, `init-${index}-${slugifyIdentifier(name)}`),
+        id: id ?? `init-${index}-${slugifyIdentifier(name)}`,
         name,
+        ...(desc?.trim() ? { desc: desc.trim() } : {}),
         valueText: String(rawValue)
       };
     }
@@ -571,6 +589,11 @@ export function parseCompactInitialValueRows(rows: unknown[]): InitialValueListI
       return {
         id: stringValue(row.id, `init-${index}-${slugifyIdentifier(name)}`),
         name,
+        ...(typeof row.desc === "string" && row.desc.trim()
+          ? { desc: row.desc.trim() }
+          : typeof row.description === "string" && row.description.trim()
+            ? { desc: row.description.trim() }
+            : {}),
         valueText: stringValue(row.value ?? row.valueText, "")
       };
     }

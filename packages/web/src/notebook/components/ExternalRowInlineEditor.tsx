@@ -225,6 +225,9 @@ export function NotebookExternalReadRow({
       >
         {external.valueText || " "}
       </span>
+      <span className="notebook-model-view-description" role="cell">
+        {external.desc?.trim() || " "}
+      </span>
       <span className="notebook-model-view-current" role="cell">
         {formatNotebookCurrentValue(
           external.name,

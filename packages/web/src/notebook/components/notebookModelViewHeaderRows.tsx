@@ -1,8 +1,8 @@
 import type { JSX, Ref } from "react";
 
-import { useEquationGridColumnResize } from "../../hooks/useEquationGridColumnResize";
+import type { useEquationGridColumnResize } from "../../hooks/useEquationGridColumnResize";
 
-type EquationViewColumnResize = Pick<
+type ModelViewColumnResize = Pick<
   ReturnType<typeof useEquationGridColumnResize>,
   | "variableHeaderRef"
   | "expressionHeaderRef"
@@ -11,8 +11,10 @@ type EquationViewColumnResize = Pick<
 >;
 
 export function ExternalsModelViewHeaderRow({
+  columnResize,
   headerRowRef
 }: {
+  columnResize: ModelViewColumnResize;
   headerRowRef?: Ref<HTMLDivElement>;
 }): JSX.Element {
   return (
@@ -21,17 +23,45 @@ export function ExternalsModelViewHeaderRow({
       className="notebook-model-view-row notebook-model-view-row-header notebook-model-view-row-external"
       role="row"
     >
+      <span ref={columnResize.variableHeaderRef} role="columnheader">
+        Name
+      </span>
+      <span ref={columnResize.expressionHeaderRef} role="columnheader">
+        Value
+      </span>
+      <span role="columnheader">Description</span>
+      <span role="columnheader">Current</span>
+      <span className="notebook-model-view-kind" role="columnheader">
+        Kind
+      </span>
+      <div {...columnResize.variableResizeHandleProps} />
+      <div {...columnResize.expressionResizeHandleProps} />
+    </div>
+  );
+}
+
+export function ExternalsModelViewHeaderRowStatic(): JSX.Element {
+  return (
+    <div
+      className="notebook-model-view-row notebook-model-view-row-header notebook-model-view-row-external"
+      role="row"
+    >
       <span role="columnheader">Name</span>
       <span role="columnheader">Value</span>
+      <span role="columnheader">Description</span>
       <span role="columnheader">Current</span>
-      <span role="columnheader">Kind</span>
+      <span className="notebook-model-view-kind" role="columnheader">
+        Kind
+      </span>
     </div>
   );
 }
 
 export function InitialValuesModelViewHeaderRow({
+  columnResize,
   headerRowRef
 }: {
+  columnResize: ModelViewColumnResize;
   headerRowRef?: Ref<HTMLDivElement>;
 }): JSX.Element {
   return (
@@ -40,10 +70,36 @@ export function InitialValuesModelViewHeaderRow({
       className="notebook-model-view-row notebook-model-view-row-header notebook-model-view-row-initial"
       role="row"
     >
+      <span ref={columnResize.variableHeaderRef} role="columnheader">
+        Name
+      </span>
+      <span ref={columnResize.expressionHeaderRef} role="columnheader">
+        Initial
+      </span>
+      <span role="columnheader">Description</span>
+      <span role="columnheader">Current</span>
+      <span className="notebook-model-view-kind" role="columnheader">
+        Status
+      </span>
+      <div {...columnResize.variableResizeHandleProps} />
+      <div {...columnResize.expressionResizeHandleProps} />
+    </div>
+  );
+}
+
+export function InitialValuesModelViewHeaderRowStatic(): JSX.Element {
+  return (
+    <div
+      className="notebook-model-view-row notebook-model-view-row-header notebook-model-view-row-initial"
+      role="row"
+    >
       <span role="columnheader">Name</span>
       <span role="columnheader">Initial</span>
+      <span role="columnheader">Description</span>
       <span role="columnheader">Current</span>
-      <span role="columnheader">Status</span>
+      <span className="notebook-model-view-kind" role="columnheader">
+        Status
+      </span>
     </div>
   );
 }
@@ -52,7 +108,7 @@ export function EquationsModelViewHeaderRow({
   columnResize,
   headerRowRef
 }: {
-  columnResize: EquationViewColumnResize;
+  columnResize: ModelViewColumnResize;
   headerRowRef?: Ref<HTMLDivElement>;
 }): JSX.Element {
   return (

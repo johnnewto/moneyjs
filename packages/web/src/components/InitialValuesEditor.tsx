@@ -5,6 +5,7 @@ import { NotebookRowComment } from "../notebook/components/NotebookRowComment";
 import { newRowComment, patchCommentInRows } from "../notebook/rowCommentHelpers";
 import type { VariableUnitMetadata } from "../lib/unitMeta";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
+import { resolveStoredOrDerivedDescription } from "../lib/resolveRowDescription";
 import { NumericValueText } from "./NumericValueText";
 import { documentHighlightClassName } from "../lib/variableHighlight";
 import { VariableLabel } from "./VariableLabel";
@@ -61,6 +62,7 @@ export function InitialValuesEditor({
           <span>#</span>
           <span>Name</span>
           <span>Initial</span>
+          <span>Description</span>
           <span>Current</span>
           <span>Status</span>
           <span />
@@ -110,6 +112,20 @@ export function InitialValuesEditor({
                 updateRow(initialValues, index, { valueText: event.target.value }, onChange)
               }
               placeholder="Value"
+            />
+            <input
+              aria-label={`Initial ${index + 1} description`}
+              className="initial-grid-description"
+              value={initialValue.desc ?? ""}
+              onChange={(event) =>
+                updateRow(initialValues, index, { desc: event.target.value }, onChange)
+              }
+              placeholder={resolveStoredOrDerivedDescription(
+                undefined,
+                initialValue.name,
+                variableDescriptions ?? new Map()
+              ) || "Description"}
+              spellCheck={false}
             />
             <span className="initial-grid-current">
               {renderCurrentValue(
@@ -200,6 +216,7 @@ function newInitialValueRow(): InitialValueRow {
   return {
     id: `init-${crypto.randomUUID()}`,
     name: "",
+    desc: "",
     valueText: ""
   };
 }

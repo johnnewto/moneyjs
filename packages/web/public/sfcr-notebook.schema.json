@@ -146,6 +146,7 @@
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
+        "desc": { "type": "string" },
         "valueText": { "type": "string" }
       }
     },

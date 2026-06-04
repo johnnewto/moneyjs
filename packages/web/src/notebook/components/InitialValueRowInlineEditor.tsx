@@ -6,6 +6,7 @@ import type { VariableDescriptions } from "../../lib/variableDescriptions";
 import type { VariableUnitMetadata } from "../../lib/unitMeta";
 import { documentHighlightClassName } from "../../lib/variableHighlight";
 import { formatNotebookCurrentValue } from "./NotebookCurrentValue";
+import { resolveStoredOrDerivedDescription } from "../../lib/resolveRowDescription";
 
 export type InitialValueRowEditFocus = "name" | "value";
 
@@ -224,6 +225,13 @@ export function NotebookInitialValueReadRow({
         onDoubleClick={(event) => handleBeginEdit("value", event)}
       >
         {initialValue.valueText || " "}
+      </span>
+      <span className="notebook-model-view-description" role="cell">
+        {resolveStoredOrDerivedDescription(
+          initialValue.desc,
+          initialValue.name,
+          variableDescriptions
+        ) || " "}
       </span>
       <span className="notebook-model-view-current" role="cell">
         {formatNotebookCurrentValue(

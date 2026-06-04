@@ -38,27 +38,32 @@ import { VariableRenameDialog } from "./EquationRowInlineEditor";
 import { NotebookExternalReadRow } from "./ExternalRowInlineEditor";
 import { NotebookInitialValueReadRow } from "./InitialValueRowInlineEditor";
 import { NotebookFloatingHeaderOverlay } from "./NotebookFloatingHeaderOverlay";
+import { NotebookModelViewTable } from "./NotebookModelViewTable";
 import {
-  ExternalsModelViewHeaderRow,
-  InitialValuesModelViewHeaderRow
+  ExternalsModelViewHeaderRowStatic,
+  InitialValuesModelViewHeaderRowStatic
 } from "./notebookModelViewHeaderRows";
 import { useNotebookFloatingHeaderRow } from "../useNotebookFloatingHeaderRow";
 
 export function SolverCellView({
   cell,
   issueMap,
+  isPinnedInPanel = false,
   onEditingChange,
   onHelpRequest,
   title,
   onChange,
+  onPinCellRequest,
   onToggleCollapsed
 }: {
   cell: SolverCell;
   issueMap: Record<string, string | undefined>;
+  isPinnedInPanel?: boolean;
   onEditingChange?(isEditing: boolean): void;
   onHelpRequest?: (() => void) | null;
   title: string;
   onChange(options: EditorState["options"]): void;
+  onPinCellRequest?: (() => void) | null;
   onToggleCollapsed(): void;
 }) {
   const solverViewDragScroll = useDragScroll<HTMLElement>();
@@ -103,10 +108,12 @@ export function SolverCellView({
             cell={cell}
             hasDraftEdits={hasDraftEdits}
             isEditing={isEditingSolver}
+            isPinnedInPanel={isPinnedInPanel}
             onApply={handleApply}
             onCancel={handleCancel}
             onEditToggle={handleEditToggle}
             onHelpRequest={onHelpRequest}
+            onPinCellRequest={onPinCellRequest}
             onToggleCollapsed={onToggleCollapsed}
             title={title}
           />
@@ -231,6 +238,7 @@ export function ExternalsCellView({
   currentValues,
   editor,
   issueMap,
+  isPinnedInPanel = false,
   onEditingChange,
   onHelpRequest,
   onReplaceCells,
@@ -238,6 +246,7 @@ export function ExternalsCellView({
   highlightedVariable = null,
   title,
   onChange,
+  onPinCellRequest,
   onToggleCollapsed,
   viewportRoot = null
 }: {
@@ -246,11 +255,13 @@ export function ExternalsCellView({
   currentValues: Record<string, number | undefined>;
   editor: EditorState;
   issueMap: Record<string, string | undefined>;
+  isPinnedInPanel?: boolean;
   highlightedVariable?: string | null;
   onEditingChange?(isEditing: boolean): void;
   onHelpRequest?: (() => void) | null;
   onReplaceCells(nextCells: NotebookCell[]): void;
   onVariableInspectRequest(args: VariableInspectRequest): void;
+  onPinCellRequest?: (() => void) | null;
   title: string;
   viewportRoot?: Element | null;
   onChange(externals: EditorState["externals"]): void;
@@ -261,6 +272,7 @@ export function ExternalsCellView({
   const cellRootRef = useRef<HTMLDivElement | null>(null);
   const sectionWrapRef = useRef<HTMLElement | null>(null);
   const headerRowRef = useRef<HTMLDivElement | null>(null);
+  const tableShellRef = useRef<HTMLDivElement | null>(null);
   const issuePaths = Object.keys(issueMap);
   const seriesExternalCount = cell.externals.filter(
     (external) => !isRowComment(external) && external.kind === "series"
@@ -340,10 +352,12 @@ export function ExternalsCellView({
             cell={cell}
             hasDraftEdits={hasDraftEdits}
             isEditing={isEditingExternals}
+            isPinnedInPanel={isPinnedInPanel}
             onApply={handleApply}
             onCancel={handleCancel}
             onEditToggle={handleEditToggle}
             onHelpRequest={onHelpRequest}
+            onPinCellRequest={onPinCellRequest}
             onToggleCollapsed={onToggleCollapsed}
             title={title}
           />
@@ -389,8 +403,12 @@ export function ExternalsCellView({
           onClickCapture={externalsViewDragScroll.dragScrollProps.onClickCapture}
           onMouseDown={externalsViewDragScroll.dragScrollProps.onMouseDown}
         >
-          <div className="notebook-model-view-table" role="table" aria-label="Externals">
-            <ExternalsModelViewHeaderRow headerRowRef={headerRowRef} />
+          <NotebookModelViewTable
+            ariaLabel="Externals"
+            headerRowRef={headerRowRef}
+            layout="external-view"
+            tableShellRef={tableShellRef}
+          >
             {cell.externals.map((row, index) => {
               if (isRowComment(row)) {
                 return (
@@ -455,7 +473,7 @@ export function ExternalsCellView({
                 />
               );
             })}
-          </div>
+          </NotebookModelViewTable>
           {externalRowMenu.rowContextMenu ? (
             <GridRowContextMenu
               addCommentLabel="Add section comment"
@@ -500,8 +518,9 @@ export function ExternalsCellView({
         visible={floatingHeaderVisible}
         anchor={floatingHeaderAnchor}
         horizontalScrollSourceRef={sectionWrapRef}
+        resizableTableSourceRef={tableShellRef}
       >
-        <ExternalsModelViewHeaderRow />
+        <ExternalsModelViewHeaderRowStatic />
       </NotebookFloatingHeaderOverlay>
       <VariableRenameDialog
         cellCount={inlineEdit.renameReferenceCount.cellCount}
@@ -522,6 +541,7 @@ export function InitialValuesCellView({
   currentValues,
   editor,
   issueMap,
+  isPinnedInPanel = false,
   onEditingChange,
   onHelpRequest,
   onVariableInspectRequest,
@@ -530,6 +550,7 @@ export function InitialValuesCellView({
   variableDescriptions,
   variableUnitMetadata,
   onChange,
+  onPinCellRequest,
   onToggleCollapsed,
   viewportRoot = null
 }: {
@@ -537,10 +558,12 @@ export function InitialValuesCellView({
   currentValues: Record<string, number | undefined>;
   editor: EditorState;
   issueMap: Record<string, string | undefined>;
+  isPinnedInPanel?: boolean;
   highlightedVariable?: string | null;
   onEditingChange?(isEditing: boolean): void;
   onHelpRequest?: (() => void) | null;
   onVariableInspectRequest(args: VariableInspectRequest): void;
+  onPinCellRequest?: (() => void) | null;
   title: string;
   variableDescriptions: VariableDescriptions;
   variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
@@ -553,6 +576,7 @@ export function InitialValuesCellView({
   const cellRootRef = useRef<HTMLDivElement | null>(null);
   const sectionWrapRef = useRef<HTMLElement | null>(null);
   const headerRowRef = useRef<HTMLDivElement | null>(null);
+  const tableShellRef = useRef<HTMLDivElement | null>(null);
   const issuePaths = Object.keys(issueMap);
   const [isEditingInitialValues, setIsEditingInitialValues] = useState(false);
   const [draftInitialValues, setDraftInitialValues] = useState(cell.initialValues);
@@ -619,10 +643,12 @@ export function InitialValuesCellView({
             cell={cell}
             hasDraftEdits={hasDraftEdits}
             isEditing={isEditingInitialValues}
+            isPinnedInPanel={isPinnedInPanel}
             onApply={handleApply}
             onCancel={handleCancel}
             onEditToggle={handleEditToggle}
             onHelpRequest={onHelpRequest}
+            onPinCellRequest={onPinCellRequest}
             onToggleCollapsed={onToggleCollapsed}
             title={title}
           />
@@ -689,8 +715,12 @@ export function InitialValuesCellView({
           onClickCapture={initialValuesViewDragScroll.dragScrollProps.onClickCapture}
           onMouseDown={initialValuesViewDragScroll.dragScrollProps.onMouseDown}
         >
-          <div className="notebook-model-view-table" role="table" aria-label="Initial values">
-            <InitialValuesModelViewHeaderRow headerRowRef={headerRowRef} />
+          <NotebookModelViewTable
+            ariaLabel="Initial values"
+            headerRowRef={headerRowRef}
+            layout="initial-view"
+            tableShellRef={tableShellRef}
+          >
             {cell.initialValues.map((row, index) => {
               if (isRowComment(row)) {
                 return (
@@ -754,7 +784,7 @@ export function InitialValuesCellView({
                 />
               );
             })}
-          </div>
+          </NotebookModelViewTable>
           {initialValueRowMenu.rowContextMenu ? (
             <GridRowContextMenu
               addCommentLabel="Add section comment"
@@ -808,8 +838,9 @@ export function InitialValuesCellView({
         visible={floatingHeaderVisible}
         anchor={floatingHeaderAnchor}
         horizontalScrollSourceRef={sectionWrapRef}
+        resizableTableSourceRef={tableShellRef}
       >
-        <InitialValuesModelViewHeaderRow />
+        <InitialValuesModelViewHeaderRowStatic />
       </NotebookFloatingHeaderOverlay>
     </div>
   );
@@ -854,6 +885,7 @@ function newInitialValueRow() {
   return {
     id: `init-${crypto.randomUUID()}`,
     name: "",
+    desc: "",
     valueText: ""
   };
 }

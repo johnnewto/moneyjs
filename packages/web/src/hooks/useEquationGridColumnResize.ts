@@ -50,15 +50,57 @@ const MAX_EXPRESSION_WIDTH_PX = {
 
 const MIN_TRAILING_WIDTH_PX = 160;
 const EQUATION_VIEW_ROLE_WIDTH_PX = 68;
+const MODEL_VIEW_CURRENT_WIDTH_PX = 120;
+const MODEL_VIEW_KIND_WIDTH_PX = 110;
+const MODEL_VIEW_STATUS_WIDTH_PX = 110;
 const KEYBOARD_STEP_PX = 8;
 const RESIZE_HANDLE_HALF_WIDTH_PX = 6;
 
-type EquationColumnResizeLayout = "equation-grid" | "equation-view";
+export type ModelViewTableLayout = "equation-grid" | "equation-view" | "external-view" | "initial-view";
+type EquationColumnResizeLayout = ModelViewTableLayout;
 type ResizableEquationColumn = "variable" | "expression";
 
 interface UseEquationGridColumnResizeOptions {
   isEmbedded?: boolean;
   layout?: EquationColumnResizeLayout;
+}
+
+function layoutStorageSuffix(layout: EquationColumnResizeLayout): string {
+  switch (layout) {
+    case "equation-grid":
+    case "equation-view":
+      return "equation";
+    case "external-view":
+      return "external";
+    case "initial-view":
+      return "initial";
+  }
+}
+
+function variableStorageKeyForLayout(layout: EquationColumnResizeLayout, isEmbedded: boolean): string {
+  const suffix = layoutStorageSuffix(layout);
+  return isEmbedded
+    ? `sfcr.model-view.name-column-px.${suffix}.embedded`
+    : `sfcr.model-view.name-column-px.${suffix}`;
+}
+
+function expressionStorageKeyForLayout(layout: EquationColumnResizeLayout, isEmbedded: boolean): string {
+  const suffix = layoutStorageSuffix(layout);
+  return isEmbedded
+    ? `sfcr.model-view.value-column-px.${suffix}.embedded`
+    : `sfcr.model-view.value-column-px.${suffix}`;
+}
+
+function legacyVariableStorageKey(isEmbedded: boolean): string {
+  return isEmbedded
+    ? EQUATION_GRID_VARIABLE_WIDTH_STORAGE_KEY.embedded
+    : EQUATION_GRID_VARIABLE_WIDTH_STORAGE_KEY.workspace;
+}
+
+function legacyExpressionStorageKey(isEmbedded: boolean): string {
+  return isEmbedded
+    ? EQUATION_GRID_EXPRESSION_WIDTH_STORAGE_KEY.embedded
+    : EQUATION_GRID_EXPRESSION_WIDTH_STORAGE_KEY.workspace;
 }
 
 function getStoredWidthPx(storageKey: string, fallback: number) {
@@ -93,6 +135,16 @@ function getTrailingReservedWidthPx(layout: EquationColumnResizeLayout) {
       EQUATION_VIEW_ROLE_WIDTH_PX +
       MIN_TRAILING_WIDTH_PX +
       0.6 * 3 * 16 +
+      0.75 * 16 +
+      0.35 * 16
+    );
+  }
+
+  if (layout === "external-view" || layout === "initial-view") {
+    return (
+      MODEL_VIEW_CURRENT_WIDTH_PX +
+      (layout === "external-view" ? MODEL_VIEW_KIND_WIDTH_PX : MODEL_VIEW_STATUS_WIDTH_PX) +
+      0.6 * 2 * 16 +
       0.75 * 16 +
       0.35 * 16
     );
@@ -137,12 +189,14 @@ export function useEquationGridColumnResize({
   isEmbedded = false,
   layout = "equation-grid"
 }: UseEquationGridColumnResizeOptions = {}) {
-  const variableStorageKey = isEmbedded
-    ? EQUATION_GRID_VARIABLE_WIDTH_STORAGE_KEY.embedded
-    : EQUATION_GRID_VARIABLE_WIDTH_STORAGE_KEY.workspace;
-  const expressionStorageKey = isEmbedded
-    ? EQUATION_GRID_EXPRESSION_WIDTH_STORAGE_KEY.embedded
-    : EQUATION_GRID_EXPRESSION_WIDTH_STORAGE_KEY.workspace;
+  const variableStorageKey =
+    layout === "equation-grid" || layout === "equation-view"
+      ? legacyVariableStorageKey(isEmbedded)
+      : variableStorageKeyForLayout(layout, isEmbedded);
+  const expressionStorageKey =
+    layout === "equation-grid" || layout === "equation-view"
+      ? legacyExpressionStorageKey(isEmbedded)
+      : expressionStorageKeyForLayout(layout, isEmbedded);
   const defaultVariableWidthPx = isEmbedded
     ? DEFAULT_VARIABLE_WIDTH_PX.embedded
     : DEFAULT_VARIABLE_WIDTH_PX.workspace;
@@ -425,12 +479,23 @@ export function useEquationGridColumnResize({
     []
   );
 
+  const variableResizeLabel =
+    layout === "external-view" || layout === "initial-view"
+      ? "Resize name column"
+      : "Resize variable column";
+  const expressionResizeLabel =
+    layout === "external-view"
+      ? "Resize value column"
+      : layout === "initial-view"
+        ? "Resize initial column"
+        : "Resize expression column";
+
   return {
     shellRef,
     variableHeaderRef,
     expressionHeaderRef,
     variableResizeHandleProps: {
-      "aria-label": "Resize variable column",
+      "aria-label": variableResizeLabel,
       "aria-orientation": "vertical" as const,
       "aria-valuemax": maxVariableWidthPx,
       "aria-valuemin": minVariableWidthPx,
@@ -451,7 +516,7 @@ export function useEquationGridColumnResize({
       tabIndex: 0
     },
     expressionResizeHandleProps: {
-      "aria-label": "Resize expression column",
+      "aria-label": expressionResizeLabel,
       "aria-orientation": "vertical" as const,
       "aria-valuemax": maxExpressionWidthPx,
       "aria-valuemin": minExpressionWidthPx,
@@ -473,7 +538,7 @@ export function useEquationGridColumnResize({
     },
     // Backward-compatible alias for callers that only expose one handle.
     resizeHandleProps: {
-      "aria-label": "Resize variable column",
+      "aria-label": variableResizeLabel,
       "aria-orientation": "vertical" as const,
       "aria-valuemax": maxVariableWidthPx,
       "aria-valuemin": minVariableWidthPx,

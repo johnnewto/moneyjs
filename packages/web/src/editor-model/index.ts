@@ -55,6 +55,7 @@ export interface ExternalRow {
 export interface InitialValueRow {
   id: string;
   name: string;
+  desc?: string;
   valueText: string;
 }
 
