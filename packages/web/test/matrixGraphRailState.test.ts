@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  addMatrixGraphChartSeries,
   applyMatrixGraphRequest,
   removeMatrixGraphChart,
+  removeMatrixGraphChartSeries,
   toggleMatrixGraphChartLegendMode,
   toggleMatrixGraphChartPin,
   type MatrixGraphChartEntry
@@ -87,5 +89,33 @@ describe("matrixGraphRailState", () => {
       toggleMatrixGraphChartLegendMode(toggleMatrixGraphChartLegendMode(current, "chart-1"), "chart-1")[0]
         ?.legendMode
     ).toBe("expression");
+  });
+
+  it("adds a trace to an existing chart", () => {
+    const current = [entry("chart-1")];
+    const next = addMatrixGraphChartSeries(current, "chart-1", {
+      crossLabel: "Households",
+      label: "Cd",
+      source: "Cd",
+      values: [4, 5, 6]
+    });
+
+    expect(next[0]?.series).toHaveLength(2);
+    expect(next[0]?.series[1]?.source).toBe("Cd");
+  });
+
+  it("removes a trace but keeps at least one series", () => {
+    const current = [
+      entry("chart-1", {
+        series: [
+          { crossLabel: "Firms", label: "-Ld", source: "-Ld", values: [1, 2, 3] },
+          { crossLabel: "Households", label: "Cd", source: "Cd", values: [4, 5, 6] }
+        ]
+      })
+    ];
+
+    expect(removeMatrixGraphChartSeries(current, "chart-1", "Cd")[0]?.series).toHaveLength(1);
+    expect(removeMatrixGraphChartSeries(current, "chart-1", "-Ld")[0]?.series).toHaveLength(1);
+    expect(removeMatrixGraphChartSeries([entry("chart-1")], "chart-1", "-Ld")[0]?.series).toHaveLength(1);
   });
 });

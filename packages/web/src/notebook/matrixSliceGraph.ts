@@ -204,3 +204,22 @@ export function resolveMatrixGraphChartSeries(
 export function matrixGraphCrossLegendHint(kind: MatrixGraphSliceKind): string {
   return kind === "row" ? "column labels" : "row labels";
 }
+
+export function collectMatrixGraphSliceSeries(
+  cell: MatrixCell,
+  kind: MatrixGraphSliceKind,
+  index: number,
+  result: SimulationResult
+): MatrixGraphSeriesEntry[] {
+  return kind === "row"
+    ? collectMatrixRowGraphSeries(cell, index, result)
+    : collectMatrixColumnGraphSeries(cell, index, result);
+}
+
+export function listAddableMatrixGraphSeries(
+  chartSeries: MatrixGraphSeriesEntry[],
+  sliceSeries: MatrixGraphSeriesEntry[]
+): MatrixGraphSeriesEntry[] {
+  const activeSources = new Set(chartSeries.map((entry) => entry.source));
+  return sliceSeries.filter((entry) => !activeSources.has(entry.source));
+}

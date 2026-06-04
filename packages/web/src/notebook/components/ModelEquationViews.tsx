@@ -39,9 +39,11 @@ export function ModelCellView({
   cell,
   cells,
   currentValues,
+  isPinnedInPanel = false,
   onEditingChange,
   onHelpRequest,
   onChange,
+  onPinCellRequest,
   onReplaceCells,
   onToggleCollapsed,
   onVariableInspectRequest,
@@ -51,10 +53,12 @@ export function ModelCellView({
   cell: ModelCell;
   cells: NotebookCell[];
   currentValues: Record<string, number | undefined>;
+  isPinnedInPanel?: boolean;
   highlightedVariable?: string | null;
   onEditingChange?(isEditing: boolean): void;
   onHelpRequest?: (() => void) | null;
   onChange(editor: EditorState): void;
+  onPinCellRequest?: (() => void) | null;
   onReplaceCells(nextCells: NotebookCell[]): void;
   onToggleCollapsed(): void;
   onVariableInspectRequest(args: VariableInspectRequest): void;
@@ -159,10 +163,12 @@ export function ModelCellView({
             cell={cell}
             hasDraftEdits={hasDraftEdits}
             isEditing={isEditingEquations}
+            isPinnedInPanel={isPinnedInPanel}
             onApply={handleApply}
             onCancel={handleCancel}
             onEditToggle={handleEditToggle}
             onHelpRequest={onHelpRequest}
+            onPinCellRequest={onPinCellRequest}
             onToggleCollapsed={onToggleCollapsed}
             title={title}
           />
@@ -376,10 +382,12 @@ export function EquationsCellView({
   currentValues,
   externals,
   initialValuesCount,
+  isPinnedInPanel = false,
   onEditingChange,
   onHelpRequest,
   onVariableInspectRequest,
   highlightedVariable = null,
+  onPinCellRequest,
   onReplaceCells,
   selectedPeriodIndex,
   solverCell,
@@ -393,10 +401,12 @@ export function EquationsCellView({
   currentValues: Record<string, number | undefined>;
   externals: ExternalsCell["externals"];
   initialValuesCount: number;
+  isPinnedInPanel?: boolean;
   onEditingChange?(isEditing: boolean): void;
   onHelpRequest?: (() => void) | null;
   highlightedVariable?: string | null;
   onVariableInspectRequest(args: VariableInspectRequest): void;
+  onPinCellRequest?: (() => void) | null;
   onReplaceCells(nextCells: NotebookCell[]): void;
   selectedPeriodIndex: number;
   solverCell: SolverCell | null;
@@ -548,10 +558,12 @@ export function EquationsCellView({
             }
             hasDraftEdits={hasDraftEdits}
             isEditing={isEditingEquations}
+            isPinnedInPanel={isPinnedInPanel}
             onApply={handleApply}
             onCancel={handleCancel}
             onEditToggle={handleEditToggle}
             onHelpRequest={onHelpRequest}
+            onPinCellRequest={onPinCellRequest}
             onToggleCollapsed={onToggleCollapsed}
             title={title}
           />

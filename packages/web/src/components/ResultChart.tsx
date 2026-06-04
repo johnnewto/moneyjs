@@ -256,7 +256,8 @@ export function ResultChart({
         )
       : null;
   const selectableVariableNames = (addVariableOptions ?? []).filter(
-    (name) => !normalizedSeries.some((entry) => entry.name === name)
+    (name) =>
+      !normalizedSeries.some((entry) => entry.name === name || entry.highlightKey === name)
   );
   const canAddVariable = onAddVariable != null && selectableVariableNames.length > 0;
   const hasLegendContextMenu = onMoveVariable != null || onRemoveVariable != null;
@@ -502,6 +503,7 @@ export function ResultChart({
                   }
 
                   event.preventDefault();
+                  event.stopPropagation();
                   setIsAddVariableMenuOpen(false);
                   setOpenLegendMenuSeriesName((current) =>
                     current === entry.name ? null : entry.name

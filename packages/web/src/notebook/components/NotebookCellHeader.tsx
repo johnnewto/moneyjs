@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { AssistantMarkdown } from "../../components/AssistantMarkdown";
+import { PinToggleIcon } from "../../components/PinToggleIcon";
 import { useDragScroll } from "../../hooks/useDragScroll";
 import { buildNotebookCellHelpText } from "../sourceEditing";
 import type {
@@ -221,15 +222,38 @@ export function NotebookCellHeaderActions({
   );
 }
 
+export function NotebookCellPinButton({
+  isPinnedInPanel,
+  onPinCellRequest
+}: {
+  isPinnedInPanel: boolean;
+  onPinCellRequest(): void;
+}) {
+  return (
+    <button
+      type="button"
+      className="result-chart-pin-button"
+      aria-label={isPinnedInPanel ? "Unpin floating panel" : "Pin in floating panel"}
+      aria-pressed={isPinnedInPanel}
+      title={isPinnedInPanel ? "Unpin floating panel" : "Pin in floating panel"}
+      onClick={onPinCellRequest}
+    >
+      <PinToggleIcon pinned={isPinnedInPanel} />
+    </button>
+  );
+}
+
 export function NotebookLinkedEditorActions({
   cell,
   extraActions,
   hasDraftEdits,
   isEditing,
+  isPinnedInPanel = false,
   onApply,
   onCancel,
   onEditToggle,
   onHelpRequest,
+  onPinCellRequest,
   onToggleCollapsed,
   title
 }: {
@@ -237,10 +261,12 @@ export function NotebookLinkedEditorActions({
   extraActions?: ReactNode;
   hasDraftEdits: boolean;
   isEditing: boolean;
+  isPinnedInPanel?: boolean;
   onApply(): void;
   onCancel(): void;
   onEditToggle(): void;
   onHelpRequest?: (() => void) | null;
+  onPinCellRequest?: (() => void) | null;
   onToggleCollapsed(): void;
   title: string;
 }) {
@@ -265,6 +291,12 @@ export function NotebookLinkedEditorActions({
       title={title}
       trailingActions={
         <>
+          {!isEditing && onPinCellRequest ? (
+            <NotebookCellPinButton
+              isPinnedInPanel={isPinnedInPanel}
+              onPinCellRequest={onPinCellRequest}
+            />
+          ) : null}
           {!isEditing ? extraActions ?? null : null}
           {isEditing ? (
             <>

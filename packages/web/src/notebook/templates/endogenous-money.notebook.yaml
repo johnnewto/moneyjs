@@ -105,28 +105,31 @@ cells:
       title: Endogenous money model
       modelId: endogenous-money-model
       rows:
-        - [Int_Bonds, Gov_Bonds * Interest_rate, "Bond interest.", $/year, flow, definition]
-        - [Deficit, Spend_Govt - Tax, "Deficit.", $/year, flow, identity]
+        - ======================= Workers ======================= 
+        - [Con_W, Workers_eq * Workers_spendrate, "Worker consumption.", $/year, flow, behavioral, eq-12-Con_W]
+        - [Workers_eq, lag(Workers_eq) + Wages - Con_W - Tax, "Workers account.", $, stock, accumulation, eq-15-Workers_eq]
+        - ======================= Government ======================= 
         - [Spend_Govt, GDP * Spend_frac, "", "", "", "", eq-437d2cc1-8540-4574-90f5-71b53de8b2d5]
         - [Bonds, Int_Bonds + Deficit, "Bonds.", $/year, flow, identity, eq-2-Bonds]
-        - [Gov_Bonds, lag(Gov_Bonds) + Bonds, "Government bonds.", $, stock, accumulation, eq-3-Gov_Bonds]
-        - [Money, Workers_eq + Firms_eq + Banks_eq, "Money.", $, stock, identity, eq-4-Money]
-        - [GDP, Money * Velocity, "GDP.", $/year, flow, identity, eq-5-GDP]
-        - [Lend, GDP * lend_rate, "Lend.", $/year, flow, behavioral, eq-6-Lend]
-        - [Loans, Lend, "Loans.", $/year, flow, definition, eq-7-Loans]
+        - [Deficit, Spend_Govt - Tax, "Deficit.", $/year, flow, identity]
+        - [Int_Bonds, Gov_Bonds * Interest_rate, "Bond interest.", $/year, flow, definition]
+        - [Loans, GDP * lend_rate, "Loans.", $/year, flow, behavioral, eq-6-Lend]
         - [Debt, lag(Debt) + Loans, "Private debt.", $, stock, accumulation, eq-8-Debt]
+        - [Tax, GDP * Tax_frac, "Taxes.", $/year, flow, policy]
+        - [Gov_Bonds, lag(Gov_Bonds) + Bonds, "Government bonds.", $, stock, accumulation, eq-3-Gov_Bonds]
+        - =======================  Banks ======================= 
         - [Interest, Debt * Interest_rate, "Interest.", $/year, flow, definition, eq-9-Interest]
         - [Fee, Interest * Fee_rate, "Fee.", $/year, flow, definition, eq-10-Fee]
         - [Spend_banks, Banks_eq * Spend_rate, "Bank spending.", $/year, flow, behavioral, eq-11-Spend_banks]
-        - [Con_W, Workers_eq * Workers_spendrate, "Worker consumption.", $/year, flow, behavioral, eq-12-Con_W]
-        - [Wages, GDP * Wage_rate, "Wages.", $/year, flow, definition, eq-13-Wages]
-        - [Tax, GDP * Tax_frac, "Taxes.", $/year, flow, policy, eq-14-Tax]
-        - [Workers_eq, lag(Workers_eq) + Wages - Con_W - Tax, "Workers account.", $, stock, accumulation, eq-15-Workers_eq]
-        - [Firms_eq, lag(Firms_eq) + Con_W + Loans + Spend_Govt + Spend_banks - Wages - Interest - Fee, "Firms account.", $, stock, accumulation, eq-16-Firms_eq]
         - [Banks_eq, lag(Banks_eq) + Interest + Fee + Int_Bonds - Spend_banks, "Banks account.", $, stock, accumulation, eq-17-Banks_eq]
+        - =======================  Firms =======================  
+        - [Wages, GDP * Wage_rate, "Wages.", $/year, flow, definition, eq-13-Wages]
+        - [Firms_eq, lag(Firms_eq) + Con_W + Loans + Spend_Govt + Spend_banks - Wages - Interest - Fee, "Firms account.", $, stock, accumulation, eq-16-Firms_eq]
+        - =======================  Definitions ======================= 
+        - [GDP, Money * Velocity, "GDP.", $/year, flow, identity, eq-5-GDP]
+        - [Money, Workers_eq + Firms_eq + Banks_eq, "Money.", $, stock, identity, eq-4-Money]
         - [Govt_Debt_GDP, Gov_Bonds / GDP, "Government debt to GDP.", "", aux, definition, eq-18-Govt_Debt_GDP]
         - [Private_Debt_GDP, Debt / GDP, "Private debt to GDP.", "", aux, definition, eq-19-Private_Debt_GDP]
-        - [BankAssets, Gov_Bonds + Debt, "Bank assets.", $, stock, identity, eq-20-BankAssets]
         - [NominalGrowth, (GDP - lag(GDP)) / lag(GDP), "GDP growth.", "", aux, definition, eq-21-NominalGrowth]
   - solver:
       id: endogenous-money-solver
@@ -225,7 +228,7 @@ cells:
               - 10
               - 80
             variables:
-              Spend_Govt:
+              Spend_frac:
                 kind: constant
                 value: 45
             startPeriodInclusive: 10

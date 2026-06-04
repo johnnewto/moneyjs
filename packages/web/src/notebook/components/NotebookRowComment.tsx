@@ -55,37 +55,39 @@ export function NotebookRowComment({
   if (isEditing) {
     return (
       <div
-        className="notebook-model-view-row notebook-model-view-row-comment notebook-model-view-row-comment-editing"
+        className="notebook-model-view-row notebook-model-view-row-comment notebook-model-view-row-editing"
         role="row"
       >
-        <div className="notebook-model-view-row-comment-editor-cell" role="cell">
-          <input
-            aria-label="Section comment"
-            autoFocus
-            className="notebook-model-view-row-comment-input"
-            placeholder="Section note (**bold**, `code`)"
-            value={draftText ?? ""}
-            onChange={(event) => onDraftTextChange?.(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                onApplyEdit?.();
-              }
-              if (event.key === "Escape") {
-                event.preventDefault();
-                onCancelEdit?.();
-              }
-            }}
-          />
-          <div className="notebook-model-view-row-comment-actions">
-            <button type="button" className="secondary-button" onClick={onCancelEdit}>
-              Cancel
-            </button>
-            <button type="button" onClick={onApplyEdit}>
-              Apply
-            </button>
+        <div className="notebook-model-view-row-editor-cell" role="cell">
+          <div className="notebook-equation-row-editor">
+            <input
+              aria-label="Section comment"
+              autoFocus
+              className="notebook-equation-row-expression-input"
+              placeholder="Section note (**bold**, `code`)"
+              value={draftText ?? ""}
+              onChange={(event) => onDraftTextChange?.(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  onApplyEdit?.();
+                }
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  onCancelEdit?.();
+                }
+              }}
+            />
+            {validationError ? <div className="error-text">{validationError}</div> : null}
+            <div className="notebook-equation-row-editor-actions">
+              <button disabled={false} onClick={onApplyEdit} type="button">
+                Apply
+              </button>
+              <button className="secondary-button" onClick={onCancelEdit} type="button">
+                Cancel
+              </button>
+            </div>
           </div>
-          {validationError ? <div className="error-text">{validationError}</div> : null}
         </div>
       </div>
     );

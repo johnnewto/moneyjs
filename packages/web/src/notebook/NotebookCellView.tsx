@@ -1,7 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 
 import { AssistantMarkdown } from "../components/AssistantMarkdown";
-import { PinToggleIcon } from "../components/PinToggleIcon";
 import type { EditorState } from "../lib/editorModel";
 import {
   buildVariableDescriptions,
@@ -56,6 +55,7 @@ import {
 } from "./sourceEditing";
 import {
   NotebookCellHeaderActions,
+  NotebookCellPinButton,
   NotebookLinkedEditorHeader
 } from "./components/NotebookCellHeader";
 import {
@@ -383,6 +383,13 @@ function NotebookCellViewComponent({
       cellType: cell.type,
       title: cell.title
     });
+  const linkedEditorPinProps =
+    presentation === "canvas" && onPinCellRequest
+      ? {
+          isPinnedInPanel,
+          onPinCellRequest: () => onPinCellRequest(cell.id)
+        }
+      : {};
   const [isLinkedEditorEditing, setIsLinkedEditorEditing] = useState(false);
   const [matrixSequenceViewState, setMatrixSequenceViewState] = useState<MatrixSequenceViewState | null>(null);
   const isActivelyEditing = isEditingSource || isLinkedEditorEditing;
@@ -695,12 +702,26 @@ function NotebookCellViewComponent({
     const target = event.target;
     if (
       target instanceof Element &&
-      target.closest("input, select, textarea, [contenteditable='true']")
+      target.closest(
+        [
+          "input",
+          "select",
+          "textarea",
+          "[contenteditable='true']",
+          ".chart-legend",
+          ".chart-legend-context-menu",
+          ".result-chart",
+          ".notebook-model-view-row",
+          ".notebook-matrix-table",
+          ".notebook-cell-context-menu"
+        ].join(", ")
+      )
     ) {
       return;
     }
 
     event.preventDefault();
+    event.stopPropagation();
     onSelectedCellIdChange(cell.id);
     setCellContextMenu({ x: event.clientX, y: event.clientY });
   }
@@ -768,9 +789,11 @@ function NotebookCellViewComponent({
           activeEditorCellId === cell.id ? " notebook-cell-is-active-editor" : ""
         }`}
         onClick={presentation === "canvas" ? handleCellClick : undefined}
-        onContextMenu={presentation === "canvas" ? handleCellContextMenu : undefined}
       >
-        <div className="notebook-cell-content">
+        <div
+          className="notebook-cell-content"
+          onContextMenu={presentation === "canvas" ? handleCellContextMenu : undefined}
+        >
         <div className="notebook-cell-toolbar">
           <NotebookLinkedEditorHeader
             actions={
@@ -829,16 +852,10 @@ function NotebookCellViewComponent({
                 trailingActions={
                   <>
                     {presentation === "canvas" && onPinCellRequest ? (
-                      <button
-                        type="button"
-                        className="result-chart-pin-button"
-                        aria-label={isPinnedInPanel ? "Unpin floating panel" : "Pin in floating panel"}
-                        aria-pressed={isPinnedInPanel}
-                        title={isPinnedInPanel ? "Unpin floating panel" : "Pin in floating panel"}
-                        onClick={() => onPinCellRequest(cell.id)}
-                      >
-                        <PinToggleIcon pinned={isPinnedInPanel} />
-                      </button>
+                      <NotebookCellPinButton
+                        isPinnedInPanel={isPinnedInPanel}
+                        onPinCellRequest={() => onPinCellRequest(cell.id)}
+                      />
                     ) : null}
                     {cell.type === "matrix" && !isEditingSource && cell.collapsed !== true ? (
                       <MatrixEntryDisplayModeToggle
@@ -1115,6 +1132,7 @@ function NotebookCellViewComponent({
             initialValuesCount={
               findInitialValuesCell(cells, cell.modelId)?.initialValues.length ?? 0
             }
+            {...linkedEditorPinProps}
             onEditingChange={setIsLinkedEditorEditing}
             onHelpRequest={requestCellHelp}
             onVariableInspectRequest={onVariableInspectRequest}
@@ -1143,6 +1161,7 @@ function NotebookCellViewComponent({
             cell={cell}
             cells={cells}
             currentValues={getModelCurrentValues({ sourceModelCellId: cell.id })}
+            {...linkedEditorPinProps}
             onEditingChange={setIsLinkedEditorEditing}
             onHelpRequest={requestCellHelp}
             onChange={(editor) => onModelChange(cell.id, editor)}
@@ -1161,6 +1180,7 @@ function NotebookCellViewComponent({
           <SolverCellView
             cell={cell}
             issueMap={buildIssueMapForStandaloneModelSections(cells, cell.modelId)}
+            {...linkedEditorPinProps}
             onEditingChange={setIsLinkedEditorEditing}
             onHelpRequest={requestCellHelp}
             title={cell.title}
@@ -1183,6 +1203,7 @@ function NotebookCellViewComponent({
             currentValues={getModelCurrentValues({ modelId: cell.modelId })}
             editor={buildEditorStateForStandaloneModelSections(cells, cell.modelId)}
             issueMap={buildIssueMapForStandaloneModelSections(cells, cell.modelId)}
+            {...linkedEditorPinProps}
             onEditingChange={setIsLinkedEditorEditing}
             onHelpRequest={requestCellHelp}
             onReplaceCells={onReplaceCells}
@@ -1210,6 +1231,7 @@ function NotebookCellViewComponent({
             currentValues={getModelCurrentValues({ modelId: cell.modelId })}
             editor={buildEditorStateForStandaloneModelSections(cells, cell.modelId)}
             issueMap={buildIssueMapForStandaloneModelSections(cells, cell.modelId)}
+            {...linkedEditorPinProps}
             onEditingChange={setIsLinkedEditorEditing}
             onHelpRequest={requestCellHelp}
             onVariableInspectRequest={onVariableInspectRequest}

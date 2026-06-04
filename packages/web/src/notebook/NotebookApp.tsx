@@ -131,6 +131,7 @@ import {
   type NotebookVariantIndexEntry
 } from "./notebookVariants";
 import type {
+  MatrixCell,
   NotebookCell,
   NotebookDocument,
   NotebookCellInsertType,
@@ -153,11 +154,14 @@ import { matrixGraphSliceHighlightsEqual } from "./graphDocumentHighlight";
 import { MatrixGraphRailPanel } from "./components/MatrixGraphRailPanel";
 import {
   applyMatrixGraphRequest,
+  addMatrixGraphChartSeries,
   removeMatrixGraphChart,
+  removeMatrixGraphChartSeries,
   toggleMatrixGraphChartLegendMode,
   toggleMatrixGraphChartPin,
   type MatrixGraphChartEntry
 } from "./matrixGraphRailState";
+import { collectMatrixGraphSliceSeries } from "./matrixSliceGraph";
 import { VariableMathLabel } from "../components/VariableMathLabel";
 import { useDragScroll } from "../hooks/useDragScroll";
 import { useInspectorVariableHistory } from "../hooks/useInspectorVariableHistory";
@@ -1445,6 +1449,36 @@ export function NotebookApp() {
 
   function handleDismissMatrixGraphChart(chartId: string): void {
     setMatrixGraphCharts((current) => removeMatrixGraphChart(current, chartId));
+  }
+
+  function handleAddMatrixGraphChartSeries(chartId: string, source: string): void {
+    setMatrixGraphCharts((charts) => {
+      const chart = charts.find((entry) => entry.id === chartId);
+      if (!chart) {
+        return charts;
+      }
+
+      const matrixCell = notebookDocument.cells.find(
+        (cell): cell is MatrixCell => cell.type === "matrix" && cell.id === chart.matrixCellId
+      );
+      const result = runner.getResult(chart.sourceRunCellId);
+      if (!matrixCell || !result) {
+        return charts;
+      }
+
+      const sliceEntry = collectMatrixGraphSliceSeries(matrixCell, chart.kind, chart.index, result).find(
+        (entry) => entry.source === source
+      );
+      if (!sliceEntry) {
+        return charts;
+      }
+
+      return addMatrixGraphChartSeries(charts, chartId, sliceEntry);
+    });
+  }
+
+  function handleRemoveMatrixGraphChartSeries(chartId: string, source: string): void {
+    setMatrixGraphCharts((current) => removeMatrixGraphChartSeries(current, chartId, source));
   }
 
   function handleCatalogRowSelect(row: VariableCatalogRow): void {
@@ -3602,10 +3636,14 @@ export function NotebookApp() {
 
           {activeRailTab === "graph" ? (
             <MatrixGraphRailPanel
+              cells={notebookDocument.cells}
               charts={matrixGraphCharts}
+              getResult={(runCellId) => runner.getResult(runCellId)}
+              onAddChartSeries={handleAddMatrixGraphChartSeries}
               onDismissChart={handleDismissMatrixGraphChart}
               onGraphExpressionHighlightChange={handleGraphExpressionHighlightChange}
               onGraphSliceHighlightChange={handleGraphSliceHighlightChange}
+              onRemoveChartSeries={handleRemoveMatrixGraphChartSeries}
               onToggleChartLegendMode={handleToggleMatrixGraphChartLegendMode}
               onToggleChartPin={handleToggleMatrixGraphChartPin}
               selectedPeriodIndex={selectedPeriodIndex}

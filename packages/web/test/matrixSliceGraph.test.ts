@@ -8,6 +8,7 @@ import {
   buildMatrixEntryTimeSeries,
   collectMatrixColumnGraphSeries,
   collectMatrixRowGraphSeries,
+  listAddableMatrixGraphSeries,
   resolveMatrixGraphChartSeries
 } from "../src/notebook/matrixSliceGraph";
 import { NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
@@ -136,5 +137,24 @@ describe("matrixSliceGraph", () => {
       (row) => row.label.trim().toLowerCase() === "sum"
     );
     expect(collectMatrixRowGraphSeries(transactionFlowMatrix, sumRowIndex, baselineResult)).toEqual([]);
+  });
+
+  it("lists slice entries that are not already on the chart", () => {
+    const consumptionRowIndex = transactionFlowMatrix.rows.findIndex(
+      (row) => row.label.trim() === "Consumption"
+    );
+    const sliceSeries = collectMatrixRowGraphSeries(
+      transactionFlowMatrix,
+      consumptionRowIndex,
+      baselineResult
+    );
+    const [firstEntry, ...remainingEntries] = sliceSeries;
+    expect(firstEntry).toBeDefined();
+    expect(remainingEntries.length).toBeGreaterThan(0);
+
+    const addable = listAddableMatrixGraphSeries(firstEntry ? [firstEntry] : [], sliceSeries);
+    expect(addable.map((entry) => entry.source)).toEqual(
+      remainingEntries.map((entry) => entry.source)
+    );
   });
 });

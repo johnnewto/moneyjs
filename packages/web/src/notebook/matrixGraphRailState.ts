@@ -56,3 +56,27 @@ export function removeMatrixGraphChart(
 ): MatrixGraphChartEntry[] {
   return charts.filter((chart) => chart.id !== chartId);
 }
+
+export function addMatrixGraphChartSeries(
+  charts: MatrixGraphChartEntry[],
+  chartId: string,
+  entry: MatrixGraphChartEntry["series"][number]
+): MatrixGraphChartEntry[] {
+  return charts.map((chart) =>
+    chart.id === chartId && !chart.series.some((series) => series.source === entry.source)
+      ? { ...chart, series: [...chart.series, entry] }
+      : chart
+  );
+}
+
+export function removeMatrixGraphChartSeries(
+  charts: MatrixGraphChartEntry[],
+  chartId: string,
+  source: string
+): MatrixGraphChartEntry[] {
+  return charts.map((chart) =>
+    chart.id === chartId && chart.series.length > 1
+      ? { ...chart, series: chart.series.filter((entry) => entry.source !== source) }
+      : chart
+  );
+}
