@@ -3,8 +3,9 @@ import { describe, expect, it } from "vitest";
 import { runBaseline, runScenario } from "@sfcr/core";
 
 import { buildRuntimeConfig } from "../src/lib/editorModel";
-import { buildEditorStateForNotebookModel } from "../src/notebook/modelSections";
+import { buildEditorStateForNotebookModel, resolveRunCellModelKey } from "../src/notebook/modelSections";
 import { NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
+import { resolveModelIdFromRunCellKey } from "../src/notebook/useNotebookRunner";
 
 interface RegressionFixture {
   templateId: keyof typeof NOTEBOOK_TEMPLATES;
@@ -41,7 +42,12 @@ export function runNotebookTemplateRegressionFixtures(
             throw new Error(`Source model missing for run cell ${cellId} in template ${fixture.templateId}`);
           }
 
-          const runtime = buildRuntimeConfig(editor);
+          const modelKey = resolveRunCellModelKey(document.cells, runCell);
+          const runtime = buildRuntimeConfig(editor, {
+            notebookCells: document.cells,
+            modelId: resolveModelIdFromRunCellKey(modelKey) ?? undefined,
+            runCellId: runCell.id
+          });
           const runOptions =
             runCell.periods == null ? runtime.options : { ...runtime.options, periods: runCell.periods };
 

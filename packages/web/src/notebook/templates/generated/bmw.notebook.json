@@ -101,6 +101,7 @@
       ],
       "collapsed": false
     },
+    { "id": "sequence-cld", "type": "sequence", "title": "Causal loop diagram", "source": { "kind": "cld", "modelId": "equations-newton" }, "collapsed": false },
     { "id": "solver-newton", "type": "solver", "title": "Solver options", "modelId": "equations-newton", "options": { "solverMethod": "NEWTON", "toleranceText": "1e-10", "maxIterations": 100, "defaultInitialValueText": "1e-15", "hiddenLeftVariable": "Ms", "hiddenRightVariable": "Mh", "hiddenToleranceText": "0.00001", "relativeHiddenTolerance": false }, "collapsed": true },
     {
       "id": "externals-equations-newton",

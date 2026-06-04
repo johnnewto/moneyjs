@@ -20,8 +20,34 @@ import {
 } from "../src/notebook/notebookAssistantTools";
 import { previewNotebookPatch } from "../src/notebook/notebookPatch";
 import { createNotebookFromTemplate } from "../src/notebook/templates";
+import type { EquationsCell } from "../src/notebook/types";
 
 const bmwResult = runBaseline(bmwBaselineModel, bmwBaselineOptions);
+const BMW_MODEL_ID = "equations-newton";
+
+function findBmwEquationsCell(snapshot: NotebookAssistantSnapshot): EquationsCell {
+  const cell = snapshot.document.cells.find(
+    (entry): entry is EquationsCell => entry.type === "equations" && entry.modelId === BMW_MODEL_ID
+  );
+  if (!cell) {
+    throw new Error("BMW equations cell missing.");
+  }
+  return cell;
+}
+
+function bmwEquationPathIndex(snapshot: NotebookAssistantSnapshot, variableName: string): number {
+  const index = findBmwEquationsCell(snapshot).equations.findIndex(
+    (row) => "name" in row && row.name === variableName
+  );
+  if (index < 0) {
+    throw new Error(`Equation '${variableName}' missing from BMW template.`);
+  }
+  return index;
+}
+
+function bmwEquationAppendPathIndex(snapshot: NotebookAssistantSnapshot): number {
+  return findBmwEquationsCell(snapshot).equations.length;
+}
 
 function buildSnapshot(): NotebookAssistantSnapshot {
   return {
@@ -584,12 +610,15 @@ describe("notebook assistant tools", () => {
 
   it("creates equation helper patches and blocks dependent removals by default", () => {
     const snapshot = buildSnapshot();
+    const insertAfterYIndex = bmwEquationPathIndex(snapshot, "Y") + 1;
+    const cdIndex = bmwEquationPathIndex(snapshot, "Cd");
+    const yIndex = bmwEquationPathIndex(snapshot, "Y");
 
     expect(
       dispatchNotebookAssistantTool(snapshot, {
         name: "createAddEquationPatch",
         args: {
-          modelId: "equations-newton",
+          modelId: BMW_MODEL_ID,
           name: "wage_share_pct",
           expression: "100 * WBd / Y",
           description: "Wage share as a percent of income",
@@ -605,7 +634,7 @@ describe("notebook assistant tools", () => {
             operations: [
               expect.objectContaining({
                 op: "add",
-                path: "/cells/by-id/equations-newton/equations/5",
+                path: `/cells/by-id/${BMW_MODEL_ID}/equations/${insertAfterYIndex}`,
                 value: expect.objectContaining({
                   name: "wage_share_pct",
                   expression: "100 * WBd / Y",
@@ -655,7 +684,7 @@ describe("notebook assistant tools", () => {
       dispatchNotebookAssistantTool(snapshot, {
         name: "createUpdateEquationPatch",
         args: {
-          modelId: "equations-newton",
+          modelId: BMW_MODEL_ID,
           variable: "Cd",
           expression: "alpha0 + alpha1 * YD + alpha2 * lag(Mh) + 1",
           description: "Updated household consumption rule"
@@ -669,7 +698,7 @@ describe("notebook assistant tools", () => {
             operations: [
               expect.objectContaining({
                 op: "replace",
-                path: "/cells/by-id/equations-newton/equations/15",
+                path: `/cells/by-id/${BMW_MODEL_ID}/equations/${cdIndex}`,
                 value: expect.objectContaining({
                   name: "Cd",
                   desc: "Updated household consumption rule",
@@ -701,7 +730,7 @@ describe("notebook assistant tools", () => {
       dispatchNotebookAssistantTool(snapshot, {
         name: "createRemoveEquationPatch",
         args: {
-          modelId: "equations-newton",
+          modelId: BMW_MODEL_ID,
           variable: "Y",
           allowDependents: true
         }
@@ -714,7 +743,7 @@ describe("notebook assistant tools", () => {
             operations: [
               expect.objectContaining({
                 op: "remove",
-                path: "/cells/by-id/equations-newton/equations/4"
+                path: `/cells/by-id/${BMW_MODEL_ID}/equations/${yIndex}`
               })
             ]
           })
@@ -989,6 +1018,7 @@ describe("notebook assistant tools", () => {
 
   it("dispatches helper batches against an evolving draft notebook", () => {
     const snapshot = buildSnapshot();
+    const firstAppendIndex = bmwEquationAppendPathIndex(snapshot);
     const batch = dispatchNotebookAssistantToolRequests(snapshot, [
       {
         name: "createAddEquationPatch",
@@ -1024,8 +1054,8 @@ describe("notebook assistant tools", () => {
     expect(batch.proposedPatch).toEqual(
       expect.objectContaining({
         operations: [
-          expect.objectContaining({ path: "/cells/by-id/equations-newton/equations/20" }),
-          expect.objectContaining({ path: "/cells/by-id/equations-newton/equations/21" }),
+          expect.objectContaining({ path: `/cells/by-id/${BMW_MODEL_ID}/equations/${firstAppendIndex}` }),
+          expect.objectContaining({ path: `/cells/by-id/${BMW_MODEL_ID}/equations/${firstAppendIndex + 1}` }),
           expect.objectContaining({ path: "/cells/by-id/initial-values-equations-newton/initialValues/0" })
         ]
       })

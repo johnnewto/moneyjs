@@ -16,7 +16,9 @@ import type { MatrixCell } from "../types";
 
 import {
   formatStockRoleLabel,
-  formatStockRoleTitle
+  formatStockRoleTitle,
+  resolveMatrixCornerLabel,
+  type MatrixTableKind
 } from "../matrixSemantics";
 import type { MatrixGraphSliceHighlight } from "../graphDocumentHighlight";
 import { matrixSliceHeaderClassName } from "../graphDocumentHighlight";
@@ -101,6 +103,7 @@ export function MatrixColumnTreeHeader({
   editorLinked,
   accountColumnLayout = false,
   sectorGroupedColumns = accountColumnLayout,
+  matrixKind = "flows",
   variant = "full",
   columnRowRef,
   onToggleNode,
@@ -119,6 +122,7 @@ export function MatrixColumnTreeHeader({
   editorLinked: boolean;
   accountColumnLayout?: boolean;
   sectorGroupedColumns?: boolean;
+  matrixKind?: MatrixTableKind;
   /** Full sector+column header, or a single column-label row (for floating headers). */
   variant?: "full" | "column-row";
   columnRowRef?: Ref<HTMLTableRowElement>;
@@ -134,7 +138,7 @@ export function MatrixColumnTreeHeader({
   onInspectVariable?(variableName: string): void;
 }): JSX.Element {
   const cornerRowSpan = Math.max(headerRows.length, 1);
-  const cornerLabel = accountColumnLayout ? "Flow / account" : "Transaction";
+  const cornerLabel = resolveMatrixCornerLabel(accountColumnLayout, matrixKind);
   const sumColumnHeaderLabel = sumColumnIndex >= 0 ? columns[sumColumnIndex] : "";
   const renderedRows =
     variant === "column-row"

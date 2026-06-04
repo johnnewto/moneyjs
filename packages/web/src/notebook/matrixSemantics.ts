@@ -71,6 +71,19 @@ export function inferMatrixTableKind(
   return stockScore > flowScore ? "stocks" : "flows";
 }
 
+export function resolveMatrixCornerLabel(
+  accountColumnLayout: boolean,
+  matrixKind: MatrixTableKind
+): string {
+  if (accountColumnLayout) {
+    return "Flow / account";
+  }
+  if (matrixKind === "stocks") {
+    return "Asset / Liability";
+  }
+  return "Transaction";
+}
+
 export type MatrixStockRole = "asset" | "liability" | "equity";
 
 export function formatStockRoleLabel(role: MatrixStockRole): string {

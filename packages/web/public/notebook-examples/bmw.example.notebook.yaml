@@ -108,6 +108,13 @@ cells:
         - [Id, gamma * (KT - lag(K)) + DA, "Demand for investment goods", $/year, flow, behavioral]
         - [Mf, Mf' + sum(Firms.Deposits) * dt, "Stock accumulation from Firms.Deposits (Mf)", $, stock, accumulation, eq-mf]
         - [Vh, Vh' + sum(Households.Net_Worth) * dt, "Stock accumulation from Households.Net_Worth (Vh)", $, stock, accumulation, eq-vh]
+  - sequence:
+      id: sequence-cld
+      title: Causal loop diagram
+      source:
+        kind: cld
+        modelId: bmw
+      collapsed: false
   - solver:
       id: solver-bmw
       title: Solver options

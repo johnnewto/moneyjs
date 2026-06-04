@@ -24,6 +24,7 @@ import {
   classifyMatrixStockRole,
   formatStockRoleLabel,
   formatStockRoleTitle,
+  resolveMatrixCornerLabel,
   resolveMatrixTableKind
 } from "../matrixSemantics";
 import { resolveInspectorModelSource, type VariableInspectRequest } from "../../lib/variableInspect";
@@ -516,6 +517,7 @@ export function MatrixCellView({
     editorLinked: editor != null,
     accountColumnLayout,
     sectorGroupedColumns,
+    matrixKind,
     onToggleNode: toggleColumnTreeNode,
     graphLinked: canGraphMatrix,
     graphSliceHighlight,
@@ -528,13 +530,7 @@ export function MatrixCellView({
   ) : (
     <tr ref={matrixColumnRowRef}>
       <th scope="col">
-        {accountColumnLayout
-          ? "Flow / account"
-          : matrixKind === "stocks"
-            ? "Asset / Liability"
-            : matrixKind === "flows"
-              ? "Transaction"
-              : null}
+        {resolveMatrixCornerLabel(accountColumnLayout, matrixKind)}
       </th>
       {cell.columns.map((column, columnIndex) => (
         <th

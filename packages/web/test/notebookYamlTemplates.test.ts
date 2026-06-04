@@ -102,7 +102,7 @@ describe("canonical YAML notebook templates", () => {
     expect(compactYaml).toContain("  - matrix:");
     expect(compactYaml).toContain("      columns: [Households, Firms_current, Firms_capital, Banks_current, Banks_capital, Sum]");
     expect(compactYaml).toContain(
-      "columnBadges: [asset, equity, asset, liability, equity, asset, liability, liability, equity, \"\"]"
+      'columnBadges: [asset, equity, asset, asset, liability, equity, asset, liability, liability, equity, ""]'
     );
     expect(compactYaml).toContain("        - [Consumption, Consumption, -Cs, +Cd,");
     expect(compactYaml).toContain("  - sequence:");
