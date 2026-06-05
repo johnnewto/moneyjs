@@ -186,6 +186,8 @@ cells:
       return;
     }
 
+    // BMW keeps [Is, Id, ...] inside Production Firms (after the section comment),
+    // so Is is defined in-section and Id is only consumed within the same section.
     expect(
       resolveInferredSectionBoundary({
         comment: productionComment,
@@ -194,8 +196,8 @@ cells:
       })
     ).toEqual({
       functionName: "Production_Firms",
-      inputs: ["Cs", "Is"],
-      outputs: ["Id", "Ld", "WBd", "Y"]
+      inputs: ["Cs"],
+      outputs: ["Ld", "WBd", "Y"]
     });
   });
 
