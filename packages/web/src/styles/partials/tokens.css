@@ -1,0 +1,55 @@
+/* Design tokens — colors, typography, spacing, shadows */
+
+:root {
+  /* Text */
+  --color-text: #14213d;
+  --color-text-strong: #0f172a;
+  --color-text-muted: #4b5563;
+  --color-text-secondary: #475569;
+  --color-text-subtle: #64748b;
+  --color-muted-fg: #6b7280;
+  --color-accent: #8d5b16;
+  --color-link-active: #1d4ed8;
+
+  /* Surfaces */
+  --color-surface-soft: rgba(255, 255, 255, 0.82);
+  --color-surface: rgba(255, 255, 255, 0.92);
+  --color-surface-strong: rgba(255, 255, 255, 0.94);
+  --color-surface-elevated: rgba(255, 255, 255, 0.98);
+  --color-grid-header-bg: #e2e8f0;
+  --color-scrollbar-track: rgba(226, 232, 240, 0.9);
+  --color-scrollbar-thumb: rgba(71, 85, 105, 0.72);
+  --color-scrollbar-thumb-hover: rgba(51, 65, 85, 0.82);
+
+  /* Borders */
+  --color-border: rgba(20, 33, 61, 0.12);
+  --color-border-faint: rgba(20, 33, 61, 0.08);
+  --color-border-subtle: rgba(148, 163, 184, 0.28);
+  --color-border-grid: rgba(148, 163, 184, 0.18);
+  --color-border-accent: rgba(141, 91, 22, 0.18);
+
+  /* Shadows */
+  --shadow-header: 0 18px 50px rgba(20, 33, 61, 0.08);
+  --shadow-panel: 0 16px 40px rgba(20, 33, 61, 0.06);
+  --shadow-popover: 0 18px 36px rgba(15, 23, 42, 0.14);
+  --shadow-floating: 0 8px 20px rgba(15, 23, 42, 0.1);
+
+  /* Typography */
+  --font-sans: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --font-serif: "IBM Plex Serif", Georgia, serif;
+  --font-mono: ui-monospace, monospace;
+
+  /* Radii */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+
+  /* Layout (dynamic — set inline where needed) */
+  --panel-left-width: 57%;
+  --eq-col-variable-width: 140px;
+  --eq-col-expression-width: 320px;
+  --eq-col-role-width: 4.25rem;
+  --notebook-sticky-surface-top: 0px;
+}

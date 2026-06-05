@@ -1,0 +1,20 @@
+/* Global base styles */
+
+:root {
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  background:
+    radial-gradient(circle at top left, rgba(253, 224, 71, 0.2), transparent 28%),
+    linear-gradient(180deg, #f7f4ea 0%, #edf2f7 100%);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+}

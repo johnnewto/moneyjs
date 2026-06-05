@@ -1,0 +1,142 @@
+/* Scenario styles */
+
+.scenario-source-editor {
+  display: grid;
+  gap: 0.75rem;
+}
+.scenario-source-editor-invalid,
+.scenario-source-empty {
+  background: rgba(248, 250, 252, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  border-radius: 8px;
+  color: var(--color-text-subtle);
+  font-size: 0.84rem;
+  padding: 0.65rem 0.75rem;
+}
+.scenario-source-meta-grid {
+  align-items: end;
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: minmax(6.5rem, 0.7fr) minmax(9rem, 1.35fr) repeat(2, minmax(6rem, 0.75fr));
+}
+.scenario-source-field {
+  display: grid;
+  gap: 0.22rem;
+  min-width: 0;
+}
+.scenario-source-field > span {
+  color: var(--color-text-subtle);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.scenario-pill-input {
+  background: rgba(248, 250, 252, 0.96);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-pill);
+  box-sizing: border-box;
+  color: #334155;
+  font: inherit;
+  height: 2.05rem;
+  line-height: 1.2;
+  min-width: 0;
+  padding: 0 0.72rem;
+  width: 100%;
+}
+.scenario-pill-input:focus {
+  border-color: rgba(59, 130, 246, 0.52);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.14);
+  outline: none;
+}
+.scenario-pill-input-mono,
+.scenario-pill-input-number {
+  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+  font-size: 0.82rem;
+}
+.scenario-source-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+.scenario-source-editor .secondary-button,
+.scenario-source-remove {
+  align-items: center;
+  box-sizing: border-box;
+  display: inline-flex;
+  height: 2.05rem;
+  justify-content: center;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.scenario-source-editor .secondary-button {
+  border-radius: var(--radius-pill);
+  font-size: 0.78rem;
+  padding: 0 0.78rem;
+}
+.scenario-source-shocks {
+  display: grid;
+  gap: 0.6rem;
+}
+.scenario-source-shock {
+  background: rgba(248, 250, 252, 0.84);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 8px;
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.65rem;
+}
+.scenario-source-shock-header {
+  align-items: center;
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: minmax(5.75rem, max-content) minmax(9rem, 1fr) minmax(5.25rem, max-content);
+}
+.scenario-source-shock-header > span {
+  color: #334155;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+.scenario-source-range {
+  align-items: center;
+  display: inline-grid;
+  gap: 0.35rem;
+  grid-template-columns: auto minmax(4.75rem, 6rem) auto auto minmax(4.75rem, 6rem);
+  justify-content: start;
+  min-width: 0;
+}
+.scenario-source-range > span {
+  color: var(--color-text-subtle);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.scenario-source-variable-table {
+  display: grid;
+  gap: 0.4rem;
+}
+.scenario-source-variable-row {
+  align-items: center;
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: minmax(7rem, 0.9fr) minmax(6.5rem, 0.58fr) minmax(8rem, 1fr) minmax(5.25rem, max-content);
+  min-width: 0;
+}
+.scenario-source-value-input {
+  min-width: 7rem;
+}
+.scenario-source-remove {
+  background: rgba(254, 242, 242, 0.74);
+  border: 1px solid rgba(248, 113, 113, 0.2);
+  border-radius: var(--radius-pill);
+  color: var(--color-text-subtle);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0 0.7rem;
+}
+.scenario-source-remove:hover {
+  background: rgba(254, 226, 226, 0.92);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #b91c1c;
+}
+.scenario-source-add-variable {
+  justify-self: start;
+}

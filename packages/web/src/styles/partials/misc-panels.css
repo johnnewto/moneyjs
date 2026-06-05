@@ -1,0 +1,9 @@
+/* Misc Panels styles */
+
+.validation-list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+}
+.error-text {
+  color: #b91c1c;
+}

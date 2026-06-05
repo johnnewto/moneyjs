@@ -1,0 +1,535 @@
+/* Grids styles */
+
+.equation-grid-shell {
+  --eq-col-expression-width: 320px;
+  --eq-col-variable-width: 140px;
+  border: 1px solid rgba(148, 163, 184, 0.36);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.grid-editor-embedded,
+.equation-grid-editor-embedded {
+  display: grid;
+  gap: 0.7rem;
+}
+.grid-editor-footer,
+.equation-grid-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  justify-content: flex-end;
+  padding-top: 0.7rem;
+}
+.grid-editor-embedded .equation-grid-header,
+.grid-editor-embedded .equation-grid-row,
+.equation-grid-editor-embedded .equation-grid-header,
+.equation-grid-editor-embedded .equation-grid-row,
+.grid-editor-embedded .external-grid-header,
+.grid-editor-embedded .external-grid-row,
+.grid-editor-embedded .initial-grid-header,
+.grid-editor-embedded .initial-grid-row {
+  gap: 0.45rem;
+  padding: 0.1rem 0.35rem;
+}
+.grid-editor-embedded .equation-grid-header > :not(:first-child),
+.grid-editor-embedded .equation-grid-row > :not(:first-child),
+.equation-grid-editor-embedded .equation-grid-header > :not(:first-child),
+.equation-grid-editor-embedded .equation-grid-row > :not(:first-child),
+.grid-editor-embedded .external-grid-header > :not(:first-child),
+.grid-editor-embedded .external-grid-row > :not(:first-child),
+.grid-editor-embedded .initial-grid-header > :not(:first-child),
+.grid-editor-embedded .initial-grid-row > :not(:first-child) {
+  padding-left: 0.35rem;
+}
+.grid-editor-embedded .equation-grid-row input,
+.grid-editor-embedded .external-grid-row input,
+.grid-editor-embedded .external-grid-row select,
+.grid-editor-embedded .initial-grid-row input,
+.grid-editor-embedded .highlighted-formula-preview,
+.grid-editor-embedded .highlighted-formula-control,
+.equation-grid-editor-embedded .equation-grid-row input,
+.equation-grid-editor-embedded .highlighted-formula-preview,
+.equation-grid-editor-embedded .highlighted-formula-control {
+  font-size: 0.86rem;
+  line-height: 1.25;
+}
+.grid-editor-embedded .equation-grid-row input,
+.grid-editor-embedded .external-grid-row input,
+.grid-editor-embedded .external-grid-row select,
+.grid-editor-embedded .initial-grid-row input,
+.equation-grid-editor-embedded .equation-grid-row input {
+  padding: 0.04rem 0.1rem;
+}
+.grid-editor-embedded .highlighted-formula-preview,
+.grid-editor-embedded .highlighted-formula-control,
+.equation-grid-editor-embedded .highlighted-formula-preview,
+.equation-grid-editor-embedded .highlighted-formula-control {
+  min-height: 1.05rem;
+  padding: 0.02rem 0.1rem;
+}
+.grid-editor-embedded .equation-grid-index,
+.grid-editor-embedded .equation-grid-status,
+.grid-editor-embedded .external-grid-index,
+.grid-editor-embedded .external-grid-status,
+.grid-editor-embedded .initial-grid-index,
+.grid-editor-embedded .initial-grid-status,
+.grid-editor-embedded .external-grid-units,
+.grid-editor-embedded .initial-grid-current,
+.equation-grid-editor-embedded .equation-grid-index,
+.equation-grid-editor-embedded .equation-grid-status {
+  font-size: 0.78rem;
+}
+.grid-editor-embedded .equation-grid-row button,
+.grid-editor-embedded .external-grid-row button,
+.grid-editor-embedded .initial-grid-row button,
+.equation-grid-editor-embedded .equation-grid-row button {
+  min-width: 1.6rem;
+  padding: 0.1rem 0.25rem;
+}
+.grid-editor-embedded .equation-grid-remove-button,
+.grid-editor-embedded .external-grid-remove-button,
+.equation-grid-editor-embedded .equation-grid-remove-button {
+  height: 1.5rem;
+  min-width: 1.5rem;
+}
+.equation-grid-editor-embedded .equation-grid-header,
+.equation-grid-editor-embedded .equation-grid-row,
+.grid-editor-embedded .equation-grid-header,
+.grid-editor-embedded .equation-grid-row {
+  grid-template-columns:
+    18px
+    var(--eq-col-variable-width, 160px)
+    var(--eq-col-expression-width, 280px)
+    minmax(68px, 78px)
+    minmax(0, 1fr)
+    minmax(34px, 42px)
+    28px;
+}
+.equation-grid-editor-embedded .equation-grid-shell,
+.grid-editor-embedded .equation-grid-shell {
+  --eq-col-expression-width: 280px;
+  --eq-col-variable-width: 160px;
+}
+.equation-grid-header,
+.equation-grid-row {
+  align-items: center;
+  display: grid;
+  gap: 0.32rem;
+  grid-template-columns:
+    18px
+    var(--eq-col-variable-width, 140px)
+    var(--eq-col-expression-width, 320px)
+    minmax(72px, 84px)
+    minmax(0, 1fr)
+    minmax(34px, 42px)
+    28px;
+  padding: 0.12rem 0.24rem;
+}
+.equation-grid-header {
+  position: relative;
+}
+
+.equation-grid-column-resize {
+  bottom: 0;
+  cursor: col-resize;
+  position: absolute;
+  top: 0;
+  touch-action: none;
+  width: 12px;
+  z-index: 2;
+}
+.equation-grid-column-resize::before {
+  background: #2563eb;
+  border-radius: 2px;
+  bottom: 4px;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.2);
+  content: "";
+  left: 50%;
+  position: absolute;
+  top: 4px;
+  transform: translateX(-50%);
+  width: 4px;
+}
+.equation-grid-column-resize:hover::before,
+.equation-grid-column-resize:focus-visible::before,
+.equation-grid-column-resize.is-active::before {
+  background: var(--color-link-active);
+  box-shadow: 0 0 0 1px rgba(29, 78, 216, 0.35);
+  width: 5px;
+}
+.equation-grid-column-resize.is-active::before {
+  width: 6px;
+}
+.equation-grid-column-resize:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+.equation-grid-is-resizing-columns {
+  user-select: none;
+}
+.equation-grid-is-resizing-columns .equation-grid-row,
+.equation-grid-is-resizing-columns
+  .notebook-model-view-table-resizable
+  .notebook-model-view-row:not(.notebook-model-view-row-header) {
+  pointer-events: none;
+}
+.equation-grid-header > span,
+.equation-grid-row > span,
+.equation-grid-row > label,
+.equation-grid-row > button {
+  min-height: 100%;
+  position: relative;
+}
+.equation-grid-header > :not(:first-child),
+.equation-grid-row > :not(:first-child) {
+  border-left: 1px solid var(--color-border-grid);
+  padding-left: 0.28rem;
+}
+.equation-grid-row-group {
+  display: grid;
+}
+.equation-grid-row {
+  background: var(--color-surface);
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+}
+.equation-grid-row:nth-child(even) {
+  background: rgba(248, 250, 252, 0.96);
+}
+.equation-grid-row.has-issue {
+  background: rgba(254, 242, 242, 0.8);
+}
+.equation-grid-row.is-hovered {
+  background: rgba(241, 245, 249, 0.96);
+}
+.equation-grid-row.trace-root {
+  background: rgba(219, 234, 254, 0.78);
+}
+.equation-grid-row.trace-input {
+  background: rgba(220, 252, 231, 0.7);
+}
+.equation-grid-row.trace-output {
+  background: rgba(254, 249, 195, 0.82);
+}
+.equation-grid-row.trace-both {
+  background: rgba(255, 237, 213, 0.82);
+}
+.equation-grid-row input {
+  background: #fff;
+  border: 0;
+  border-radius: 0;
+  padding: 0.12rem 0.15rem;
+}
+.equation-grid-description {
+  color: #334155;
+  min-width: 0;
+  width: 100%;
+}
+.equation-grid-description:focus {
+  outline: none;
+}
+.equation-grid-row-group:nth-last-child(-n + 5) .input-unit-badge .equation-badge-popover-panel {
+  bottom: calc(100% + 0.28rem);
+  top: auto;
+}
+.equation-grid-shell:has(.input-unit-badge.is-open) {
+  overflow: visible;
+}
+.equation-grid-role-cell {
+  display: flex;
+  min-width: 0;
+  position: relative;
+}
+.equation-grid-role-select {
+  min-width: 0;
+  text-align: center;
+  width: 100%;
+}
+.equation-grid-index {
+  align-self: start;
+  color: #94a3b8;
+  font-size: 0.58rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  padding-top: 0.14rem;
+  text-align: center;
+}
+.equation-grid-status {
+  color: #0f766e;
+  font-size: 0.62rem;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+.equation-grid-current,
+.external-grid-current,
+.initial-grid-current {
+  color: #334155;
+  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+.equation-grid-status.has-issue {
+  color: #b91c1c;
+}
+.equation-grid-status.is-warning {
+  color: #b45309;
+}
+.equation-grid-warning-row {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  padding: 0.45rem 0.75rem 0.5rem 3.7rem;
+}
+.equation-grid-warning-row.is-warning {
+  background: rgba(255, 251, 235, 0.96);
+  border-top: 1px solid rgba(245, 158, 11, 0.22);
+  color: #92400e;
+}
+.equation-grid-warning-row.is-error {
+  background: rgba(254, 242, 242, 0.96);
+  border-top: 1px solid rgba(239, 68, 68, 0.18);
+  color: #991b1b;
+}
+.equation-grid-row button {
+  justify-self: start;
+  min-height: 0;
+  min-width: 1.4rem;
+  padding: 0.08rem 0.18rem;
+  text-align: center;
+}
+.equation-grid-remove-button {
+  align-items: center;
+  background: linear-gradient(180deg, var(--color-surface-elevated), rgba(241, 245, 249, 0.96));
+  border: 1px solid rgba(148, 163, 184, 0.42);
+  border-radius: var(--radius-pill);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  font-size: 0.82rem;
+  font-weight: 600;
+  height: 1.28rem;
+  justify-content: center;
+  line-height: 1;
+  min-width: 1.28rem;
+  padding: 0;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease,
+    box-shadow 140ms ease;
+}
+.equation-grid-remove-button:hover {
+  background: linear-gradient(180deg, rgba(254, 242, 242, 0.98), rgba(255, 228, 230, 0.98));
+  border-color: rgba(248, 113, 113, 0.5);
+  box-shadow: 0 4px 10px rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+  transform: translateY(-1px);
+}
+.equation-grid-remove-button:focus-visible {
+  outline: 2px solid rgba(239, 68, 68, 0.35);
+  outline-offset: 2px;
+}
+.equation-grid-banner {
+  margin-bottom: 0.6rem;
+}
+.external-grid-shell {
+  border: 1px solid rgba(148, 163, 184, 0.36);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.external-grid-header,
+.external-grid-row {
+  align-items: center;
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns:
+    42px
+    minmax(96px, 132px)
+    minmax(130px, 220px)
+    minmax(180px, 320px)
+    minmax(92px, 132px)
+    minmax(92px, 118px)
+    minmax(48px, 72px)
+    42px;
+  padding: 0.18rem 0.45rem;
+}
+.external-grid-header > span,
+.external-grid-row > span,
+.external-grid-row > input,
+.external-grid-row > select,
+.external-grid-row > button {
+  min-height: 100%;
+  position: relative;
+}
+.external-grid-header > :not(:first-child),
+.external-grid-row > :not(:first-child) {
+  border-left: 1px solid var(--color-border-grid);
+  padding-left: 0.45rem;
+}
+.external-grid-row {
+  background: var(--color-surface);
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+}
+.external-grid-row:nth-child(even) {
+  background: rgba(248, 250, 252, 0.96);
+}
+.external-grid-row.has-issue {
+  background: rgba(254, 242, 242, 0.8);
+}
+.external-grid-row input,
+.external-grid-row select {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0.12rem 0.15rem;
+}
+.external-grid-description {
+  color: #334155;
+  min-width: 0;
+  width: 100%;
+}
+.external-grid-row input:focus,
+.external-grid-row select:focus {
+  outline: none;
+}
+.external-grid-index {
+  color: var(--color-text-subtle);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.external-grid-status {
+  color: #0f766e;
+  font-size: 0.72rem;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+.external-grid-units {
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.external-grid-status.has-issue {
+  color: #b91c1c;
+}
+.external-grid-row button {
+  justify-self: start;
+  min-height: 0;
+  min-width: 1.8rem;
+  padding: 0.2rem 0.35rem;
+  text-align: center;
+}
+.external-grid-remove-button {
+  align-items: center;
+  background: linear-gradient(180deg, var(--color-surface-elevated), rgba(241, 245, 249, 0.96));
+  border: 1px solid rgba(148, 163, 184, 0.42);
+  border-radius: var(--radius-pill);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  font-size: 1rem;
+  font-weight: 600;
+  height: 1.7rem;
+  justify-content: center;
+  line-height: 1;
+  min-width: 1.7rem;
+  padding: 0;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease,
+    box-shadow 140ms ease;
+}
+.external-grid-remove-button:hover {
+  background: linear-gradient(180deg, rgba(254, 242, 242, 0.98), rgba(255, 228, 230, 0.98));
+  border-color: rgba(248, 113, 113, 0.5);
+  box-shadow: 0 4px 10px rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+  transform: translateY(-1px);
+}
+.external-grid-remove-button:focus-visible {
+  outline: 2px solid rgba(239, 68, 68, 0.35);
+  outline-offset: 2px;
+}
+.external-grid-empty {
+  color: var(--color-text-subtle);
+  padding: 0.8rem;
+}
+.initial-grid-shell {
+  border: 1px solid rgba(148, 163, 184, 0.36);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.initial-grid-header,
+.initial-grid-row {
+  align-items: center;
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns:
+    48px
+    minmax(120px, 180px)
+    minmax(120px, 180px)
+    minmax(160px, 1fr)
+    minmax(140px, 220px)
+    minmax(120px, 180px)
+    auto;
+  padding: 0.3rem 0.55rem;
+}
+.initial-grid-header > span,
+.initial-grid-row > span,
+.initial-grid-row > input,
+.initial-grid-row > button {
+  min-height: 100%;
+  position: relative;
+}
+.initial-grid-header > :not(:first-child),
+.initial-grid-row > :not(:first-child) {
+  border-left: 1px solid var(--color-border-grid);
+  padding-left: 0.45rem;
+}
+.initial-grid-row {
+  background: var(--color-surface);
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+}
+.initial-grid-row:nth-child(even) {
+  background: rgba(248, 250, 252, 0.96);
+}
+.initial-grid-row.has-issue {
+  background: rgba(254, 242, 242, 0.8);
+}
+.initial-grid-row input {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0.2rem 0.15rem;
+}
+.initial-grid-row input:focus {
+  outline: none;
+}
+.initial-grid-index {
+  color: var(--color-text-subtle);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.initial-grid-status {
+  color: #0f766e;
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+.initial-grid-status.has-issue {
+  color: #b91c1c;
+}
+.initial-grid-row button {
+  justify-self: start;
+  min-height: 0;
+}
+.equation-grid-body > .notebook-model-view-row-comment,
+.external-grid-body > .notebook-model-view-row-comment,
+.initial-grid-body > .notebook-model-view-row-comment {
+  grid-column: 1 / -1;
+  width: 100%;
+}

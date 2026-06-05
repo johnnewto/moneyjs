@@ -1,0 +1,203 @@
+/* Chat Assistant styles */
+
+.chat-panel,
+.chat-preview-panel {
+  align-content: start;
+  min-height: 100%;
+}
+.chat-thread {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 1rem;
+}
+.chat-message {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 0.9rem 1rem;
+}
+.chat-message-assistant {
+  background: rgba(255, 255, 255, 0.9);
+}
+.chat-message-user {
+  background: rgba(15, 118, 110, 0.1);
+}
+.chat-message-role {
+  color: var(--color-muted-fg);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.35rem;
+  text-transform: uppercase;
+}
+.chat-message p {
+  margin: 0;
+}
+.assistant-markdown {
+  color: #1f2937;
+  display: grid;
+  gap: 0.55rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.assistant-markdown-inline {
+  display: inline;
+  gap: 0;
+}
+.assistant-markdown > * {
+  margin: 0;
+}
+.assistant-markdown-inline > * {
+  display: inline;
+}
+.assistant-markdown ul,
+.assistant-markdown ol {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+.assistant-markdown code {
+  background: rgba(15, 23, 42, 0.08);
+  border-radius: 5px;
+  font-size: 0.92em;
+  padding: 0.08rem 0.24rem;
+}
+.assistant-markdown pre {
+  background: var(--color-text-strong);
+  border-radius: var(--radius-sm);
+  color: var(--color-grid-header-bg);
+  margin: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 0.75rem;
+}
+.assistant-markdown pre code {
+  background: transparent;
+  border-radius: 0;
+  color: inherit;
+  padding: 0;
+}
+.assistant-markdown pre:has(> .assistant-equation-code) {
+  background: transparent;
+  border-radius: 0;
+  color: inherit;
+  margin: 0.35rem 0;
+  overflow: visible;
+  padding: 0;
+}
+.assistant-markdown .assistant-equation-code {
+  background: transparent;
+  border-radius: 0;
+  color: inherit;
+  font-family: inherit;
+  padding: 0;
+  white-space: normal;
+}
+.assistant-variable-code .variable-label-inline {
+  color: #2563eb;
+  font-family: inherit;
+  gap: 0.2rem;
+}
+.assistant-markdown .assistant-variable-code {
+  background: transparent;
+  border-radius: 0;
+  color: #2563eb;
+  padding: 0;
+}
+.assistant-markdown .assistant-variable-button {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+.assistant-markdown .assistant-variable-code .variable-label-inline {
+  text-decoration: underline;
+  text-decoration-color: rgba(37, 99, 235, 0.28);
+  text-underline-offset: 0.08em;
+}
+.assistant-markdown .assistant-variable-button:hover .variable-label-inline {
+  text-decoration-color: rgba(37, 99, 235, 0.42);
+}
+.assistant-markdown table {
+  border-collapse: collapse;
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.assistant-markdown th,
+.assistant-markdown td {
+  border: 1px solid var(--color-border-subtle);
+  padding: 0.32rem 0.45rem;
+  text-align: left;
+  vertical-align: top;
+}
+.assistant-markdown th {
+  background: rgba(226, 232, 240, 0.55);
+  color: var(--color-text-strong);
+  font-weight: 700;
+}
+.assistant-markdown a {
+  color: #2563eb;
+  font-weight: 650;
+}
+.chat-composer {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+.chat-composer textarea {
+  min-height: 8rem;
+  resize: vertical;
+}
+.chat-preview-summary {
+  color: var(--color-text-secondary);
+  display: grid;
+  gap: 0.4rem;
+  margin: 0.25rem 0 1rem;
+}
+.chat-preview-list {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0 0 1rem;
+  padding-left: 1.35rem;
+}
+.chat-preview-meta {
+  margin: 0 0 1rem;
+}
+.chat-preview-meta p {
+  margin: 0.35rem 0 0;
+}
+.chat-preview-block {
+  margin: 0 0 1rem;
+}
+.chat-preview-detail-list {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0.45rem 0 0;
+  padding-left: 1.1rem;
+}
+.chat-preview-code {
+  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+}
+.chat-preview-option-grid {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.45rem;
+}
+.chat-preview-textarea {
+  background: #fffdf7;
+  border: 1px solid #bcc6d3;
+  border-radius: var(--radius-md);
+  color: inherit;
+  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+  margin-top: 0.45rem;
+  min-height: 16rem;
+  padding: 0.75rem 0.85rem;
+  resize: vertical;
+  width: 100%;
+}
+.chat-connection-actions {
+  grid-template-columns: minmax(0, 180px);
+}

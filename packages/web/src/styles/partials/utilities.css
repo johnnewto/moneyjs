@@ -1,0 +1,111 @@
+/* Shared utility patterns — grouped selectors for repeated UI structures */
+
+/* Scrollable panel columns */
+.workspace-main,
+.workspace-sidebar,
+.notebook-main-column,
+.notebook-outline {
+  height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.workspace-main,
+.notebook-main-column {
+  --notebook-sticky-surface-top: 0px;
+  min-width: 0;
+}
+
+.workspace-main::-webkit-scrollbar,
+.workspace-sidebar::-webkit-scrollbar,
+.notebook-main-column::-webkit-scrollbar,
+.notebook-outline::-webkit-scrollbar {
+  height: 12px;
+  width: 12px;
+}
+
+.workspace-main::-webkit-scrollbar-track,
+.workspace-sidebar::-webkit-scrollbar-track,
+.notebook-main-column::-webkit-scrollbar-track,
+.notebook-outline::-webkit-scrollbar-track {
+  background: var(--color-scrollbar-track);
+  border-radius: var(--radius-pill);
+}
+
+.workspace-main::-webkit-scrollbar-thumb,
+.workspace-sidebar::-webkit-scrollbar-thumb,
+.notebook-main-column::-webkit-scrollbar-thumb,
+.notebook-outline::-webkit-scrollbar-thumb {
+  background: var(--color-scrollbar-thumb);
+  border: 2px solid var(--color-scrollbar-track);
+  border-radius: var(--radius-pill);
+}
+
+.workspace-main::-webkit-scrollbar-thumb:hover,
+.workspace-sidebar::-webkit-scrollbar-thumb:hover,
+.notebook-main-column::-webkit-scrollbar-thumb:hover,
+.notebook-outline::-webkit-scrollbar-thumb:hover {
+  background: var(--color-scrollbar-thumb-hover);
+}
+
+/* Grid table headers (equation, external, initial value editors) */
+.equation-grid-header,
+.external-grid-header,
+.initial-grid-header {
+  background: var(--color-grid-header-bg);
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.equation-grid-body,
+.external-grid-body,
+.initial-grid-body {
+  display: grid;
+}
+
+/* Standard panel card shell */
+.control-panel,
+.status-panel,
+.result-panel,
+.editor-panel {
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-panel);
+  padding: 0.8rem;
+}
+
+/* Toolbar / mode links */
+.mode-switch-link,
+.notebook-toolbar-link,
+.notebook-toolbar-button {
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  color: var(--color-text);
+  cursor: pointer;
+  font: inherit;
+  padding: 0.45rem 0.9rem;
+  text-decoration: none;
+}
+
+/* Eyebrow / kicker labels */
+.app-kicker,
+.eyebrow {
+  color: var(--color-accent);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.app-header p,
+.panel-subtitle {
+  color: var(--color-text-muted);
+  margin: 0;
+}

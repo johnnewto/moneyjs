@@ -1,0 +1,1053 @@
+/* Notebook Matrix styles */
+
+.matrix-entry-source.is-document-highlighted {
+  background: rgba(253, 224, 71, 0.22);
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgba(217, 119, 6, 0.4);
+}
+.notebook-matrix-slice-label-button {
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-align: inherit;
+}
+.notebook-matrix-slice-label-button:not(.result-variable-button) {
+  background: transparent;
+  border: 0;
+  color: inherit;
+}
+.notebook-matrix-unit-meta-button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.matrix-unit-meta-dialog {
+  max-width: min(64rem, calc(100vw - 2rem));
+  width: min(64rem, calc(100vw - 2rem));
+}
+.matrix-unit-meta-dialog-explainer {
+  margin: 0 0 0.75rem;
+}
+.matrix-unit-meta-dialog-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.matrix-unit-meta-dialog-empty {
+  color: var(--color-text-subtle);
+  margin: 0 0 0.75rem;
+}
+.matrix-unit-meta-dialog-list {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 0.85rem;
+  max-height: min(20rem, 50vh);
+  overflow: auto;
+}
+.matrix-unit-meta-dialog-list-header,
+.matrix-unit-meta-dialog-row {
+  align-items: start;
+  column-gap: 0.75rem;
+  display: grid;
+  grid-template-columns: auto minmax(10rem, 14rem) minmax(6rem, 8.5rem) minmax(6rem, 8.5rem) minmax(16rem, 2.5fr);
+  padding: 0.45rem 0.65rem;
+}
+.matrix-unit-meta-dialog-list-header {
+  background: rgba(248, 250, 252, 0.95);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  color: var(--color-text-subtle);
+  font-size: 0.78rem;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.matrix-unit-meta-dialog-row {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.05);
+  cursor: pointer;
+  font-size: 0.86rem;
+}
+.matrix-unit-meta-dialog-row:last-child {
+  border-bottom: none;
+}
+.matrix-unit-meta-dialog-row:hover {
+  background: rgba(248, 250, 252, 0.7);
+}
+.matrix-unit-meta-dialog-variable {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding-right: 0.25rem;
+}
+.matrix-equation-proposal-dialog .matrix-unit-meta-dialog-list-header,
+.matrix-equation-proposal-dialog .matrix-unit-meta-dialog-row {
+  grid-template-columns: auto minmax(7rem, 10rem) minmax(14rem, 1.5fr) minmax(14rem, 1.5fr) minmax(12rem, 1fr);
+}
+.matrix-equation-proposal-action {
+  color: var(--color-text-subtle);
+  display: block;
+  font-family: var(--font-sans, var(--font-sans));
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-top: 0.15rem;
+}
+.matrix-equation-proposal-expression {
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+  line-height: 1.35;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.matrix-equation-proposal-input {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 8px;
+  box-sizing: border-box;
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+  line-height: 1.35;
+  min-height: 2.6rem;
+  min-width: 0;
+  padding: 0.35rem 0.45rem;
+  resize: vertical;
+  width: 100%;
+}
+.matrix-equation-proposal-input:focus {
+  border-color: rgba(37, 99, 235, 0.55);
+  outline: 2px solid rgba(37, 99, 235, 0.18);
+  outline-offset: 1px;
+}
+.matrix-unit-meta-dialog-sources {
+  color: var(--color-text-subtle);
+  font-size: 0.8rem;
+  line-height: 1.35;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.notebook-matrix-editor {
+  display: grid;
+  gap: 0.9rem;
+}
+.notebook-matrix-editor-note {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  margin: 0;
+}
+.notebook-matrix-editor-fields {
+  display: grid;
+  gap: 0.75rem;
+}
+.notebook-matrix-editor-metadata-lines {
+  gap: 0.35rem;
+}
+.notebook-matrix-editor-metadata-line {
+  align-items: center;
+  display: grid;
+  gap: 0.25rem;
+  grid-template-columns: 9.5rem minmax(0, 1fr);
+}
+.notebook-matrix-editor-metadata-line span {
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.notebook-matrix-editor-metadata-line input {
+  background: transparent;
+  border: 1px solid var(--color-border-grid);
+  border-radius: 8px;
+  box-shadow: none;
+  box-sizing: border-box;
+  color: inherit;
+  outline: none;
+  padding: 0.18rem 0.28rem;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+  width: 100%;
+}
+.notebook-matrix-editor-metadata-line .notebook-matrix-editor-field {
+  justify-self: start;
+  max-width: 100%;
+  width: auto;
+}
+.notebook-matrix-editor-metadata-line input:hover {
+  background: rgba(255, 255, 255, 0.34);
+  border-color: var(--color-border-subtle);
+}
+.notebook-matrix-editor-metadata-line input:focus {
+  background: rgba(255, 255, 255, 0.48);
+  border-color: rgba(245, 158, 11, 0.52);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.12);
+}
+.notebook-matrix-editor-section {
+  background: rgba(248, 250, 252, 0.88);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 16px;
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.6rem;
+}
+.notebook-matrix-editor-section-header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.notebook-matrix-editor-section-header strong {
+  font-size: 0.95rem;
+}
+.notebook-matrix-editor-section-header span {
+  color: var(--color-text-subtle);
+  flex: 1 1 180px;
+  font-size: 0.8rem;
+}
+.notebook-matrix-table-shell {
+  overflow-x: auto;
+}
+.notebook-matrix-editor-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 680px;
+  width: 100%;
+}
+.notebook-matrix-editor-table th,
+.notebook-matrix-editor-table td {
+  border-bottom: 1px solid var(--color-border-grid);
+  padding: 0.12rem 0.28rem;
+  vertical-align: top;
+}
+.notebook-matrix-editor-table thead th {
+  background: rgba(226, 232, 240, 0.88);
+  color: #334155;
+  font-size: 0.78rem;
+  text-align: left;
+}
+.notebook-matrix-editor-table thead tr:nth-child(-n + 2) th {
+  background: transparent;
+  color: inherit;
+}
+.notebook-matrix-editor-table thead tr.notebook-matrix-editor-dag-row th,
+.notebook-matrix-editor-table thead tr.notebook-matrix-editor-columns-row th {
+  background: rgba(241, 245, 249, 0.96);
+  color: var(--color-text-secondary);
+}
+.notebook-matrix-editor-table thead tr.notebook-matrix-editor-badge-row th.notebook-matrix-editor-sidehead {
+  background: rgba(254, 243, 199, 0.92);
+  color: #92400e;
+}
+.notebook-matrix-editor-table
+  thead
+  tr.notebook-matrix-editor-badge-row
+  th.notebook-matrix-editor-badge-cell:not(.notebook-godley-role) {
+  background: rgba(248, 250, 252, 0.92);
+  color: var(--color-text-subtle);
+}
+.notebook-matrix-editor-table
+  thead
+  tr.notebook-matrix-editor-badge-row
+  th.notebook-matrix-editor-badge-cell.notebook-godley-role {
+  border-radius: 0;
+  font-size: inherit;
+  padding: 0.12rem 0.28rem;
+}
+.notebook-matrix-editor-table
+  thead
+  tr.notebook-matrix-editor-badge-row
+  th.notebook-matrix-editor-badge-cell.notebook-godley-role-asset {
+  background: rgba(220, 252, 231, 0.9);
+  color: #166534;
+}
+.notebook-matrix-editor-table
+  thead
+  tr.notebook-matrix-editor-badge-row
+  th.notebook-matrix-editor-badge-cell.notebook-godley-role-liability {
+  background: rgba(254, 226, 226, 0.9);
+  color: #991b1b;
+}
+.notebook-matrix-editor-table
+  thead
+  tr.notebook-matrix-editor-badge-row
+  th.notebook-matrix-editor-badge-cell.notebook-godley-role-equity {
+  background: rgba(219, 234, 254, 0.92);
+  color: var(--color-link-active);
+}
+.notebook-matrix-editor-badge-row .notebook-matrix-editor-badge-select {
+  background: transparent;
+  color: inherit;
+}
+.notebook-matrix-editor-table tbody td:first-child {
+  background: rgba(220, 252, 231, 0.92);
+  color: #166534;
+}
+.notebook-matrix-editor-table input {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  box-shadow: none;
+  box-sizing: border-box;
+  color: inherit;
+  outline: none;
+  padding: 0.18rem 0.28rem;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+  width: 100%;
+}
+.notebook-matrix-editor-field {
+  field-sizing: content;
+  font-family: inherit;
+  max-width: 100%;
+  width: auto;
+}
+.notebook-matrix-editor-table .notebook-matrix-editor-field {
+  display: inline-block;
+  vertical-align: top;
+}
+.notebook-matrix-editor-badge-select {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  box-sizing: border-box;
+  color: inherit;
+  font: inherit;
+  max-width: 100%;
+  outline: none;
+  padding: 0.18rem 0.28rem;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+  width: auto;
+}
+.notebook-matrix-editor-badge-select:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.34);
+  border-color: var(--color-border-subtle);
+}
+.notebook-matrix-editor-badge-select:focus {
+  background: rgba(255, 255, 255, 0.48);
+  border-color: rgba(245, 158, 11, 0.52);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.12);
+}
+.notebook-matrix-editor-badge-select:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.notebook-matrix-editor-table input:hover {
+  background: rgba(255, 255, 255, 0.34);
+  border-color: var(--color-border-subtle);
+}
+.notebook-matrix-editor-table input:focus {
+  background: rgba(255, 255, 255, 0.48);
+  border-color: rgba(245, 158, 11, 0.52);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.12);
+}
+.notebook-matrix-editor-sidehead {
+  min-width: 7rem;
+  white-space: nowrap;
+}
+.notebook-matrix-editor-topcell {
+  min-width: 8.5rem;
+}
+.notebook-matrix-editor-table .notebook-matrix-editor-sum-column {
+  min-width: 3rem;
+  padding-left: 0.16rem;
+  padding-right: 0.16rem;
+  white-space: nowrap;
+}
+.notebook-matrix-editor-table .notebook-matrix-editor-sum-column .notebook-matrix-editor-field {
+  padding-left: 0.16rem;
+  padding-right: 0.16rem;
+  text-align: left;
+}
+.notebook-matrix-editor-controlcell {
+  padding-block: 0.2rem;
+}
+.notebook-matrix-editor-column-controls {
+  display: inline-grid;
+  gap: 0.2rem;
+  grid-template-columns: repeat(4, auto);
+}
+.notebook-matrix-editor-symbol-button {
+  align-items: center;
+  display: inline-flex;
+  font-size: 0.78rem;
+  justify-content: center;
+  min-height: 1.3rem;
+  min-width: 1.3rem;
+  padding: 0.04rem 0.14rem;
+}
+.notebook-matrix-editor-row-controls {
+  display: grid;
+  gap: 0.12rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.notebook-matrix-editor-action-head {
+  min-width: 4.5rem;
+}
+.notebook-matrix-editor-table tbody tr:last-child td,
+.notebook-matrix-editor-table tbody tr:last-child th {
+  border-bottom: 0;
+}
+.notebook-matrix {
+  display: grid;
+  gap: 0.75rem;
+}
+.notebook-matrix-tree-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.notebook-matrix-tree-toggle {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  gap: 0.25rem;
+  padding: 0;
+}
+.notebook-matrix-tree-toggle:hover {
+  color: var(--color-link-active);
+}
+.notebook-matrix-tree-toggle-icon {
+  display: inline-block;
+  font-size: 0.75rem;
+  line-height: 1;
+  width: 0.75rem;
+}
+.notebook-matrix-table thead th .notebook-matrix-tree-toggle {
+  font-weight: 600;
+}
+.notebook-matrix-table thead th .result-variable-button {
+  font-weight: 500;
+}
+.notebook-matrix-tree-collapsed-stub-header {
+  background: rgba(241, 245, 249, 0.95);
+  vertical-align: middle;
+}
+.notebook-matrix-tree-collapsed-stub-toggle {
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0 auto;
+  max-width: 100%;
+  text-align: center;
+  white-space: normal;
+}
+.notebook-matrix-tree-collapsed-stub-toggle .notebook-matrix-tree-toggle-icon {
+  margin: 0 auto;
+}
+.notebook-matrix-tree-collapsed-stub {
+  background: rgba(241, 245, 249, 0.65);
+  color: #94a3b8;
+  text-align: center;
+  vertical-align: middle;
+}
+.notebook-matrix-tree-leaf-header {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.35rem;
+  justify-content: center;
+}
+.notebook-matrix-tree-leaf-header.result-variable-button {
+  display: inline-flex;
+}
+.notebook-matrix-tree-leaf-label {
+  white-space: nowrap;
+}
+.notebook-matrix-tree-leaf-header-stacked {
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.notebook-matrix-tree-leaf-label-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  line-height: 1.15;
+}
+.notebook-matrix-tree-leaf-variable {
+  color: var(--color-text-subtle);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.notebook-matrix-tree-leaf-label-button {
+  font-weight: 500;
+}
+.notebook-matrix-tree-leaf-label-button .notebook-matrix-tree-leaf-label {
+  font-weight: 500;
+}
+.notebook-matrix-tree-leaf-header-hidden {
+  justify-content: center;
+}
+.notebook-matrix-tree-hidden-leaf-header {
+  background: rgba(241, 245, 249, 0.95);
+  padding-left: 0.3rem;
+  padding-right: 0.3rem;
+  vertical-align: middle;
+}
+.notebook-matrix-tree-hidden-leaf-stub {
+  background: rgba(241, 245, 249, 0.65);
+  color: #94a3b8;
+  padding-left: 0.3rem;
+  padding-right: 0.3rem;
+  text-align: center;
+  vertical-align: middle;
+}
+button.notebook-matrix-tree-badge-toggle {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+  padding: 0;
+}
+button.notebook-matrix-tree-badge-toggle:hover {
+  filter: brightness(0.95);
+}
+.notebook-matrix-wrap {
+  overflow-x: auto;
+}
+.notebook-matrix-thead-sticky tr {
+  background: var(--color-grid-header-bg);
+  box-shadow: 0 1px 0 rgba(148, 163, 184, 0.24);
+  position: sticky;
+  top: var(--notebook-sticky-surface-top, 0px);
+  z-index: 12;
+}
+.notebook-matrix-thead-sticky th {
+  background: var(--color-grid-header-bg);
+}
+.notebook-matrix-table {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: var(--radius-sm);
+  margin-top: 0;
+  min-width: 680px;
+  overflow: hidden;
+  table-layout: fixed;
+  width: 100%;
+}
+.notebook-matrix-row-header-col {
+  width: 16rem;
+}
+.notebook-matrix-value-col {
+  width: 9rem;
+}
+.notebook-matrix-value-col-sum {
+  width: 4rem;
+}
+.notebook-matrix-table col.notebook-matrix-hidden-leaf-col {
+  width: 2.125rem;
+}
+.notebook-matrix-table col.notebook-matrix-collapsed-stub-col {
+  width: 2.75rem;
+}
+.notebook-matrix-table th.notebook-matrix-tree-hidden-leaf-header,
+.notebook-matrix-table td.notebook-matrix-tree-hidden-leaf-stub {
+  box-sizing: border-box;
+  max-width: 2.125rem;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+  width: 2.125rem;
+}
+.notebook-matrix-table th,
+.notebook-matrix-table td {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  font-size: 0.92rem;
+  padding: 0.5rem 0.55rem;
+  white-space: nowrap;
+}
+.notebook-matrix-table thead th {
+  background: var(--color-grid-header-bg);
+  color: #334155;
+}
+.notebook-matrix-table tbody th {
+  background: rgba(248, 250, 252, 0.85);
+  font-weight: 600;
+}
+.notebook-matrix-table tbody tr.notebook-matrix-flow-start-row th,
+.notebook-matrix-table tbody tr.notebook-matrix-flow-start-row td,
+.notebook-matrix-table tbody tr.notebook-matrix-sum-row th,
+.notebook-matrix-table tbody tr.notebook-matrix-sum-row td {
+  border-top: 2px solid rgba(51, 65, 85, 0.55);
+}
+.notebook-matrix-table tbody td {
+  text-align: right;
+}
+.notebook-matrix-table tbody td.notebook-matrix-tree-collapsed-stub,
+.notebook-matrix-table tbody td.notebook-matrix-tree-hidden-leaf-stub {
+  text-align: center;
+}
+.notebook-matrix-table tbody td.notebook-matrix-cell-editable {
+  cursor: text;
+}
+.notebook-matrix-table .notebook-matrix-sum-column {
+  max-width: 4rem;
+  min-width: 4rem;
+  padding-left: 0.2rem;
+  padding-right: 0.2rem;
+  width: 4rem;
+}
+.notebook-matrix-table thead th.notebook-matrix-cell-asset,
+.notebook-matrix-table td.notebook-matrix-cell-asset:not(.matrix-balance-error) {
+  background: rgba(220, 252, 231, 0.35);
+}
+.notebook-matrix-table thead th.notebook-matrix-cell-liability,
+.notebook-matrix-table td.notebook-matrix-cell-liability:not(.matrix-balance-error) {
+  background: rgba(254, 226, 226, 0.35);
+}
+.notebook-matrix-table thead th.notebook-matrix-cell-equity,
+.notebook-matrix-table td.notebook-matrix-cell-equity:not(.matrix-balance-error) {
+  background: rgba(219, 234, 254, 0.35);
+}
+.notebook-matrix-table tr.notebook-matrix-slice-highlight-row > th,
+.notebook-matrix-table tr.notebook-matrix-slice-highlight-row > td {
+  box-shadow: inset 0 0 0 2px rgba(37, 99, 235, 0.62);
+}
+.notebook-matrix-table td.notebook-matrix-slice-highlight-column,
+.notebook-matrix-table th.notebook-matrix-slice-highlight-header {
+  box-shadow: inset 0 0 0 2px rgba(37, 99, 235, 0.62);
+}
+.notebook-matrix-table tr.notebook-matrix-slice-highlight-row > td.notebook-matrix-slice-highlight-column {
+  box-shadow:
+    inset 0 0 0 2px rgba(37, 99, 235, 0.72),
+    0 0 10px rgba(59, 130, 246, 0.18);
+}
+.notebook-matrix-table .matrix-entry-source.is-document-highlighted {
+  background: rgba(253, 224, 71, 0.24);
+  border-radius: 4px;
+  box-shadow:
+    inset 0 0 0 2px rgba(217, 119, 6, 0.88),
+    0 0 0 3px rgba(251, 191, 36, 0.42);
+}
+.notebook-matrix-table-account-columns th.notebook-matrix-sector-start,
+.notebook-matrix-table-account-columns td.notebook-matrix-sector-start {
+  border-left: 3px double rgba(71, 85, 105, 0.42);
+}
+.notebook-matrix-table-account-columns th.notebook-matrix-intra-sector-divider,
+.notebook-matrix-table-account-columns td.notebook-matrix-intra-sector-divider {
+  border-right: 1.5px solid rgba(100, 116, 139, 0.55);
+}
+.notebook-matrix-table-account-columns th.notebook-matrix-sum-column,
+.notebook-matrix-table-account-columns td.notebook-matrix-sum-column {
+  border-left: 2px solid rgba(51, 65, 85, 0.55);
+}
+.notebook-matrix-table-account-columns thead th {
+  text-align: center;
+  vertical-align: middle;
+}
+.notebook-matrix-table-account-columns thead tr th:first-child {
+  text-align: left;
+}
+.notebook-matrix-table-account-columns thead th .notebook-matrix-tree-toggle {
+  justify-content: center;
+  width: 100%;
+}
+.notebook-matrix-table-account-columns thead th .notebook-matrix-tree-leaf-header {
+  justify-content: center;
+  width: 100%;
+}
+.matrix-flow-column {
+  align-items: center;
+  border: 2px solid rgba(15, 23, 42, 0.2);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  height: 54px;
+  justify-content: center;
+  padding: 0.35rem 0.5rem;
+  position: relative;
+  text-align: center;
+  width: 144px;
+}
+.matrix-flow-column__label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: pre-line;
+}
+.matrix-flow-column__lifeline {
+  border-left: 2px dashed #cbd5e1;
+  bottom: -520px;
+  left: 50%;
+  position: absolute;
+  top: calc(100% + 8px);
+  transform: translateX(-50%);
+  width: 0;
+}
+.matrix-column--green {
+  background: #dcfce7;
+  border-color: #16a34a;
+}
+.matrix-column--sky {
+  background: #e0f2fe;
+  border-color: #0284c7;
+}
+.matrix-column--blue {
+  background: #dbeafe;
+  border-color: #2563eb;
+}
+.matrix-column--amber {
+  background: #fef3c7;
+  border-color: #d97706;
+}
+.matrix-column--orange {
+  background: #ffedd5;
+  border-color: #ea580c;
+}
+.matrix-column--slate {
+  background: #f1f5f9;
+  border-color: var(--color-text-subtle);
+}
+.matrix-flow-row-lane {
+  border-top: 1px solid var(--color-grid-header-bg);
+  box-sizing: border-box;
+  pointer-events: none;
+}
+.matrix-flow-row-lane__meta {
+  align-items: baseline;
+  display: flex;
+  gap: 0.45rem;
+  max-width: 280px;
+  padding: 0.35rem 0.65rem;
+}
+.matrix-flow-row-lane__index {
+  color: var(--color-text-subtle);
+  flex: 0 0 auto;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+.matrix-flow-row-lane__label {
+  color: var(--color-text-strong);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.matrix-flow-edge-label {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.68rem;
+  line-height: 1.25;
+  max-width: 164px;
+  padding: 0.2rem 0.45rem;
+  pointer-events: none;
+  text-align: center;
+}
+.matrix-flow-edge-label__title {
+  color: var(--color-text-strong);
+  font-weight: 600;
+}
+.matrix-flow-edge-label__expr {
+  color: var(--color-text-secondary);
+  font-size: 0.64rem;
+}
+.matrix-flow-note {
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  border-radius: var(--radius-sm);
+  color: #9a3412;
+  font-size: 0.72rem;
+  max-width: 320px;
+  padding: 0.45rem 0.6rem;
+}
+.matrix-multiport {
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid rgba(15, 23, 42, 0.22);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+  box-sizing: border-box;
+  height: 100%;
+  overflow: visible;
+  position: relative;
+  width: 200px;
+}
+.matrix-multiport__header {
+  align-items: center;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 11px 11px 0 0;
+  display: grid;
+  gap: 0.15rem;
+  grid-template-columns: 1rem 1fr;
+  justify-items: center;
+  padding: 0.42rem 0.38rem 0.38rem 0.32rem;
+  position: relative;
+  text-align: center;
+}
+.matrix-multiport__drag-grip {
+  align-self: center;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(15, 23, 42, 0.42) 0,
+    rgba(15, 23, 42, 0.42) 2px,
+    transparent 2px,
+    transparent 5px
+  );
+  border-radius: 2px;
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  height: 1.1rem;
+  justify-self: center;
+  opacity: 0.72;
+  width: 0.45rem;
+}
+.matrix-multiport__header .matrix-multiport__icon {
+  grid-column: 2;
+  grid-row: 1;
+}
+.matrix-multiport__header .matrix-multiport__title {
+  grid-column: 2;
+  grid-row: 2;
+}
+.matrix-multiport__icon {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.76);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: var(--radius-pill);
+  display: flex;
+  font-size: 0.7rem;
+  font-weight: 800;
+  height: 1.75rem;
+  justify-content: center;
+  letter-spacing: 0.03em;
+  width: 1.75rem;
+}
+.matrix-multiport__title {
+  color: var(--color-text-strong);
+  font-size: 0.82rem;
+  font-weight: 750;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.matrix-multiport__ports {
+  bottom: var(--multiport-stocks-height, 0px);
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+.matrix-multiport__stocks {
+  border-top: 1px solid rgba(15, 23, 42, 0.1);
+  bottom: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 0.08rem;
+  height: var(--multiport-stocks-height, auto);
+  left: 0;
+  padding: 0.28rem 0.38rem 0.32rem;
+  position: absolute;
+  right: 0;
+}
+.matrix-multiport__stock {
+  align-items: baseline;
+  color: #334155;
+  display: flex;
+  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+  font-size: 0.72rem;
+  gap: 0.18rem;
+  line-height: 1.2;
+  min-width: 0;
+}
+.matrix-multiport__stock-role {
+  flex: 0 0 auto;
+  font-size: 0.66rem;
+  padding: 0.04rem 0.24rem;
+}
+.matrix-multiport__stock-name {
+  color: var(--color-text-strong);
+  flex: 1 1 auto;
+  font-weight: 650;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.matrix-multiport__stock-separator {
+  flex: 0 0 auto;
+}
+.matrix-multiport__stock-value {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.matrix-multiport__port {
+  box-sizing: border-box;
+  left: 0;
+  position: absolute;
+}
+.matrix-multiport__port-card {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
+  box-sizing: border-box;
+  color: #334155;
+  display: grid;
+  gap: 0.04rem;
+  line-height: 1.18;
+  margin: 0 0.75rem;
+  min-height: 34px;
+  padding: 0.24rem 0.38rem;
+  pointer-events: auto;
+  width: calc(100% - 1.5rem);
+}
+.matrix-multiport__port-formula {
+  display: inline;
+  font-size: 0.74rem;
+  line-height: 1.22;
+}
+.matrix-multiport__port-formula .formula-token,
+.matrix-multiport__port-formula .formula-token.is-clickable {
+  cursor: pointer;
+  pointer-events: auto;
+}
+.matrix-multiport__port.is-source .matrix-multiport__port-card {
+  border-color: #fecaca;
+}
+.matrix-multiport__port.is-target .matrix-multiport__port-card {
+  border-color: #bbf7d0;
+}
+.matrix-multiport__port.is-highlighted .matrix-multiport__port-card {
+  border-color: var(--color-text-strong);
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.12);
+}
+.matrix-multiport__port-label {
+  color: var(--color-text-strong);
+  font-size: 0.74rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.matrix-multiport__port-entry {
+  font-size: 0.74rem;
+  line-height: 1.22;
+  overflow-wrap: anywhere;
+}
+.matrix-multiport__port.is-source .matrix-multiport__port-entry {
+  color: #b91c1c;
+}
+.matrix-multiport__port.is-target .matrix-multiport__port-entry {
+  color: #15803d;
+}
+.matrix-multiport__port .matrix-multiport__handle {
+  background: var(--color-text-strong);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.22);
+  height: 12px;
+  pointer-events: none;
+  top: 50%;
+  width: 12px;
+}
+.matrix-multiport__port .matrix-multiport__handle[data-handlepos="left"] {
+  left: 0;
+  transform: translate(-50%, -50%);
+}
+.matrix-multiport__port .matrix-multiport__handle[data-handlepos="right"] {
+  right: 0;
+  transform: translate(50%, -50%);
+}
+.matrix-multiport-note {
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  border-radius: 8px;
+  color: #9a3412;
+  font-size: 0.78rem;
+  line-height: 1.28;
+  max-width: 300px;
+  padding: 0.32rem 0.48rem;
+}
+.matrix-multiport--green {
+  background: #f0fdf4;
+  border-color: #16a34a;
+}
+.matrix-multiport--green .matrix-multiport__header {
+  background: #dcfce7;
+}
+.matrix-multiport--sky {
+  background: #f0f9ff;
+  border-color: #0284c7;
+}
+.matrix-multiport--sky .matrix-multiport__header {
+  background: #e0f2fe;
+}
+.matrix-multiport--amber {
+  background: #fffbeb;
+  border-color: #ca8a04;
+}
+.matrix-multiport--amber .matrix-multiport__header {
+  background: #fef3c7;
+}
+.matrix-multiport--purple {
+  background: #faf5ff;
+  border-color: #9333ea;
+}
+.matrix-multiport--purple .matrix-multiport__header {
+  background: #f3e8ff;
+}
+.matrix-multiport--orange {
+  background: #fff7ed;
+  border-color: #ea580c;
+}
+.matrix-multiport--orange .matrix-multiport__header {
+  background: #ffedd5;
+}
+.matrix-multiport--slate {
+  background: #f8fafc;
+  border-color: var(--color-text-subtle);
+}
+.matrix-multiport--slate .matrix-multiport__header {
+  background: #f1f5f9;
+}
+.matrix-entry-inline {
+  align-items: baseline;
+  display: flex;
+  gap: 0.35rem;
+  white-space: nowrap;
+  width: 100%;
+}
+.matrix-entry-source {
+  color: var(--color-text-strong);
+  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+  font-size: 0.86rem;
+  text-align: left;
+}
+.matrix-entry-source.is-editable {
+  cursor: text;
+}
+.matrix-entry-editor {
+  display: grid;
+  gap: 0.35rem;
+  min-width: min(18rem, 100%);
+}
+.matrix-entry-formula-input {
+  width: 100%;
+}
+.matrix-entry-editor-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+.matrix-entry-current {
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+  font-size: 0.76rem;
+  margin-left: auto;
+  text-align: right;
+}
+.matrix-entry-current.is-editable {
+  cursor: text;
+}
+.matrix-balance-error {
+  background: rgba(254, 243, 199, 0.92);
+  color: #92400e;
+  outline: 1px solid rgba(217, 119, 6, 0.45);
+}

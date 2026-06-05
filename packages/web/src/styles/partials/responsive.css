@@ -1,0 +1,237 @@
+/* Responsive styles */
+
+@media (max-width: 900px) {
+  .inspector-chip-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flow-graph-shell .react-flow__edge.animated path {
+    animation: none;
+  }
+}
+@media (hover: hover) {
+  .button-row button:hover,
+  .editor-row button:hover,
+  .panel-header button:hover,
+  .equation-detail-header button:hover,
+  .file-button:hover,
+  .equation-list-item:hover {
+    border-color: #f59e0b;
+    transform: translateY(-1px);
+  }
+
+  .notebook-cell:hover:not(.notebook-cell-is-active-editor) {
+    background: rgba(255, 251, 235, 0.58);
+    box-shadow:
+      inset 4px 0 0 rgba(141, 91, 22, 0.28),
+      inset 0 0 0 1px rgba(141, 91, 22, 0.12);
+  }
+
+  .notebook-cell:hover:not(.notebook-cell-is-active-editor) .notebook-cell-content {
+    background: rgba(255, 251, 235, 0.62);
+  }
+
+  .notebook-cell-model:hover:not(.notebook-cell-is-active-editor) .notebook-cell-content {
+    background:
+      linear-gradient(180deg, rgba(255, 251, 235, 0.94), rgba(255, 248, 235, 0.9));
+  }
+
+  .notebook-cell-run:hover:not(.notebook-cell-is-active-editor) .notebook-cell-content,
+  .notebook-cell-chart:hover:not(.notebook-cell-is-active-editor) .notebook-cell-content,
+  .notebook-cell-table:hover:not(.notebook-cell-is-active-editor) .notebook-cell-content {
+    background: rgba(255, 248, 235, 0.76);
+  }
+
+  .notebook-outline-list li:not(.notebook-outline-item-is-selected) button:hover {
+    background: rgba(255, 255, 255, 0.65);
+    border-radius: var(--radius-sm);
+  }
+}
+@media (max-width: 1100px) {
+  body {
+    overflow: auto;
+  }
+
+  .app-shell {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .workspace-layout,
+  .app-header,
+  .notebook-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .panel-splitter {
+    display: none;
+  }
+
+  .workspace-sidebar {
+    max-height: none;
+    overflow: visible;
+    position: static;
+  }
+
+  .workspace-main {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .notebook-outline {
+    max-height: none;
+    overflow: visible;
+    position: static;
+  }
+
+  .notebook-main-column {
+    max-height: none;
+    overflow: visible;
+  }
+
+}
+@media (max-width: 700px) {
+  .app-shell {
+    padding-top: 0.2rem;
+    padding-bottom: 0.2rem;
+    padding-left: 0.4rem;
+    padding-right: 0.4rem;
+  }
+
+  .notebook-main-column {
+    padding-right: 0;
+  }
+
+  .notebook-cell-content {
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+  }
+
+  .equation-workspace-body {
+    grid-template-columns: 1fr;
+  }
+
+  .equation-sidebar {
+    border-bottom: 1px solid var(--color-border-faint);
+    border-right: 0;
+  }
+
+  .editor-row {
+    grid-template-columns: 1fr;
+  }
+
+  .equation-grid-header,
+  .equation-grid-row,
+  .external-grid-header,
+  .external-grid-row {
+    grid-template-columns: 1fr;
+  }
+
+  .app-header-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .notebook-app-bar-main {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .notebook-app-bar-actions {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .notebook-action-desktop {
+    display: none;
+  }
+
+  .notebook-scrubber-slot .period-scrubber {
+    padding-top: 2.35rem;
+  }
+
+  .notebook-scrubber-slot .period-scrubber-bar {
+    grid-template-columns: 1fr;
+    padding-right: 0;
+  }
+
+  .notebook-command-tray-toggle {
+    right: 0.7rem;
+    top: 0.55rem;
+    transform: none;
+  }
+
+  .notebook-utility-topline {
+    grid-template-columns: 1fr;
+  }
+
+  .notebook-utility-actions {
+    justify-content: flex-start;
+  }
+
+  .notebook-cell-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .notebook-model-view {
+    overflow-x: auto;
+  }
+
+  .notebook-model-view-row {
+    min-width: 34rem;
+  }
+
+  .notebook-model-view-row-external,
+  .notebook-model-view-row-initial,
+  .notebook-model-view-row-solver {
+    min-width: 30rem;
+  }
+
+  .notebook-matrix-wrap,
+  .notebook-godley-table-wrap,
+  .sequence-canvas-shell {
+    max-width: 100%;
+  }
+
+  .notebook-matrix-table {
+    min-width: 560px;
+  }
+
+  .notebook-matrix-row-header-col {
+    width: 12rem;
+  }
+
+  .notebook-matrix-value-col {
+    width: 7.5rem;
+  }
+
+  .notebook-godley-table {
+    min-width: 40rem;
+  }
+
+  .sequence-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .sequence-toolbar-meta,
+  .sequence-toolbar-actions {
+    justify-content: flex-start;
+  }
+
+  .notebook-model-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .scenario-source-meta-grid,
+  .scenario-source-shock-header,
+  .scenario-source-variable-row {
+    grid-template-columns: 1fr;
+  }
+
+  .scenario-source-range {
+    grid-template-columns: auto minmax(0, 1fr) auto auto minmax(0, 1fr);
+  }
+}

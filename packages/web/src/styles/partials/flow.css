@@ -1,0 +1,49 @@
+/* Flow styles */
+
+.flow-graph-shell.sequence-canvas-shell {
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 0.35rem;
+  width: 100%;
+}
+.flow-graph-shell .flow-graph-viewport {
+  height: 100%;
+  position: relative;
+  width: 100%;
+}
+.flow-graph-shell .react-flow {
+  background: transparent;
+}
+.transaction-flow-svg-overlay {
+  pointer-events: none;
+}
+.transaction-flow-edge__path {
+  pointer-events: stroke;
+}
+.flow-graph-shell .react-flow__pane,
+.flow-graph-shell .react-flow__viewport {
+  cursor: grab;
+}
+.flow-graph-shell .react-flow__pane:active {
+  cursor: grabbing;
+}
+.flow-graph-shell .react-flow__edge-labels {
+  z-index: 6;
+}
+.flow-graph-shell .react-flow__node.is-reorderable .matrix-multiport {
+  cursor: grab;
+}
+.flow-graph-shell .react-flow__node.is-reorderable .matrix-multiport__drag-handle {
+  cursor: grab;
+  touch-action: none;
+}
+.flow-graph-shell .react-flow__node.is-reorderable.dragging .matrix-multiport,
+.flow-graph-shell .react-flow__node.is-reorderable .matrix-multiport__drag-handle:active,
+.flow-graph-shell .react-flow__node.is-reorderable.dragging .matrix-multiport__drag-handle {
+  cursor: grabbing;
+}
+.flow-graph-shell .react-flow__node.is-reorderable .matrix-multiport__drag-handle:hover .matrix-multiport__drag-grip,
+.flow-graph-shell .react-flow__node.is-reorderable.dragging .matrix-multiport__drag-grip {
+  opacity: 1;
+}

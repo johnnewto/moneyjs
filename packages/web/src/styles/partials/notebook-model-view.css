@@ -1,0 +1,317 @@
+/* Notebook Model View styles */
+
+.notebook-model-view {
+  background: rgba(248, 250, 252, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.notebook-model-view-header {
+  align-items: baseline;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  display: flex;
+  gap: 0.65rem;
+  justify-content: space-between;
+  padding: 0.55rem 0.75rem;
+}
+.notebook-model-view-header h3 {
+  font-size: 0.9rem;
+  margin: 0;
+}
+.notebook-model-view-table {
+  display: grid;
+}
+.notebook-model-view-table-resizable {
+  --eq-col-expression-width: 280px;
+  --eq-col-role-width: 4.25rem;
+  --eq-col-variable-width: 160px;
+}
+.notebook-model-view-table-resizable.layout-equation-view .notebook-model-view-row {
+  grid-template-columns:
+    var(--eq-col-variable-width, 160px)
+    var(--eq-col-expression-width, 280px)
+    minmax(0, 1fr)
+    var(--eq-col-role-width, 4.25rem);
+  padding: 0.38rem 0.35rem 0.38rem 0.75rem;
+}
+.notebook-model-view-table-resizable.layout-external-view .notebook-model-view-row,
+.notebook-model-view-table-resizable.layout-initial-view .notebook-model-view-row {
+  grid-template-columns:
+    var(--eq-col-variable-width, 160px)
+    var(--eq-col-expression-width, 280px)
+    minmax(0, 1fr)
+    minmax(92px, 120px)
+    minmax(72px, 110px);
+  padding: 0.38rem 0.35rem 0.38rem 0.75rem;
+}
+.notebook-model-view-table-resizable .notebook-model-view-row-header {
+  position: relative;
+}
+.notebook-model-view-table .notebook-model-view-row > [role="cell"],
+.notebook-model-view-table .notebook-model-view-row > [role="columnheader"] {
+  min-height: 100%;
+  position: relative;
+}
+.notebook-model-view-table .notebook-model-view-row > [role="cell"]:not(:first-child),
+.notebook-model-view-table .notebook-model-view-row > [role="columnheader"]:not(:first-child) {
+  border-left: 1px solid var(--color-border-grid);
+  padding-left: 0.28rem;
+}
+.notebook-model-view-row {
+  align-items: start;
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns:
+    minmax(110px, 160px)
+    minmax(0, 1fr)
+    minmax(92px, 120px)
+    minmax(96px, 128px);
+  padding: 0.38rem 0.75rem;
+}
+.notebook-model-view-table:not(.notebook-model-view-table-resizable) .notebook-model-view-row-external,
+.notebook-model-view-table:not(.notebook-model-view-table-resizable) .notebook-model-view-row-initial {
+  grid-template-columns:
+    minmax(110px, 160px)
+    minmax(0, 1fr)
+    minmax(92px, 120px)
+    minmax(72px, 110px);
+}
+.notebook-model-view-row-solver {
+  grid-template-columns: minmax(130px, 180px) minmax(0, 1fr) minmax(90px, 120px);
+}
+.notebook-model-view-row + .notebook-model-view-row {
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+}
+.notebook-model-view-row-comment {
+  background: rgba(226, 232, 240, 0.35);
+  cursor: default;
+  padding-block: 0.55rem;
+  width: 100%;
+}
+.notebook-model-view-row-comment.is-hovered,
+.notebook-model-view-row-comment:hover {
+  background: rgba(226, 232, 240, 0.35);
+}
+.notebook-model-view-row-comment .notebook-model-view-row-comment-text {
+  grid-column: 1 / -1;
+}
+.notebook-model-view-table-resizable.layout-equation-view
+  .notebook-model-view-row.notebook-model-view-row-comment {
+  grid-template-columns:
+    var(--eq-col-variable-width, 160px)
+    var(--eq-col-expression-width, 280px)
+    minmax(0, 1fr)
+    var(--eq-col-role-width, 4.25rem);
+}
+.notebook-model-view-table-resizable.layout-external-view
+  .notebook-model-view-row.notebook-model-view-row-comment,
+.notebook-model-view-table-resizable.layout-initial-view
+  .notebook-model-view-row.notebook-model-view-row-comment {
+  grid-template-columns:
+    var(--eq-col-variable-width, 160px)
+    var(--eq-col-expression-width, 280px)
+    minmax(0, 1fr)
+    minmax(92px, 120px)
+    minmax(72px, 110px);
+}
+.notebook-model-view-row-comment-text {
+  color: #334155;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.35;
+  width: 100%;
+}
+.row-comment-markdown {
+  display: inline;
+  width: 100%;
+}
+.row-comment-markdown p {
+  display: inline;
+  margin: 0;
+}
+.row-comment-markdown .row-comment-code,
+.row-comment-markdown code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  font-weight: 500;
+}
+.notebook-model-view-row-comment:not(.notebook-model-view-row-comment-editing):not(
+    .notebook-model-view-row-comment-grid
+  ) {
+  cursor: text;
+}
+.notebook-model-view-row-comment-editing .notebook-model-view-row-comment-editor-cell {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  width: 100%;
+}
+.notebook-model-view-row-comment-input {
+  font: inherit;
+  width: 100%;
+}
+.notebook-model-view-row-comment-grid .notebook-model-view-row-comment-editor {
+  align-items: center;
+  display: grid;
+  gap: 0.55rem;
+  grid-column: 1 / -1;
+  grid-template-columns: auto minmax(0, 1fr);
+  width: 100%;
+}
+.notebook-model-view-row-comment-editor-label {
+  color: var(--color-text-subtle);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.notebook-model-view-row-comment-actions {
+  display: flex;
+  gap: 0.45rem;
+}
+.notebook-model-view-row-header {
+  background: rgba(226, 232, 240, 0.55);
+  color: var(--color-text-subtle);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.notebook-model-view-row:not(.notebook-model-view-row-header) {
+  cursor: pointer;
+}
+.notebook-model-view-row.is-hovered {
+  background: rgba(241, 245, 249, 0.96);
+}
+.notebook-model-view-row.trace-root {
+  background: rgba(219, 234, 254, 0.78);
+}
+.notebook-model-view-row.trace-input {
+  background: rgba(220, 252, 231, 0.7);
+}
+.notebook-model-view-row.trace-output {
+  background: rgba(254, 249, 195, 0.82);
+}
+.notebook-model-view-row.trace-both {
+  background: rgba(255, 237, 213, 0.82);
+}
+.notebook-model-view-row.has-issue {
+  background: rgba(254, 242, 242, 0.72);
+}
+.notebook-model-view-name,
+.notebook-model-view-expression,
+.notebook-model-view-description,
+.notebook-model-view-current {
+  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+.notebook-model-view-name {
+  color: var(--color-text-strong);
+}
+.notebook-model-view-expression {
+  color: #334155;
+  overflow-wrap: anywhere;
+}
+.notebook-model-view-description {
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+.notebook-model-view-current {
+  color: var(--color-text-secondary);
+  text-align: right;
+  white-space: nowrap;
+}
+.notebook-model-view-name.is-editable,
+.notebook-model-view-expression.is-editable {
+  cursor: text;
+}
+.notebook-model-view-row-editing {
+  cursor: default;
+}
+.notebook-model-view-row-editor-cell {
+  display: grid;
+  gap: 0.35rem;
+  grid-column: 1 / -1;
+}
+.notebook-model-view-kind {
+  color: var(--color-text-subtle);
+  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  text-align: right;
+  white-space: nowrap;
+}
+.notebook-model-view-table-resizable .notebook-model-view-role,
+.notebook-model-view-table-resizable .notebook-model-view-row > .notebook-model-view-kind {
+  justify-self: end;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.notebook-linked-editor-cell {
+  display: grid;
+  gap: 0.3rem;
+}
+.notebook-linked-editor-topline {
+  align-items: start;
+  display: grid;
+  gap: 0.3rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+  width: 100%;
+}
+.notebook-linked-editor-topline.is-compact {
+  align-items: start;
+  gap: 0.75rem;
+}
+.notebook-linked-editor-meta {
+  display: grid;
+  gap: 0.24rem;
+  min-width: 0;
+}
+.notebook-linked-editor-topline.is-compact .notebook-linked-editor-meta {
+  gap: 0.35rem;
+}
+.notebook-linked-editor-titleline {
+  align-items: start;
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-width: 0;
+}
+.notebook-linked-editor-titlecontent {
+  display: grid;
+  gap: 0.28rem;
+  min-width: 0;
+}
+.notebook-linked-editor-titlerow {
+  align-items: center;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  min-width: 0;
+}
+.notebook-linked-editor-titleline h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0;
+}
+.notebook-linked-editor-topline.is-compact .notebook-model-summary {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+.notebook-linked-editor-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.24rem;
+  justify-content: flex-end;
+  text-align: right;
+  width: fit-content;
+}
