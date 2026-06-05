@@ -63,6 +63,7 @@ cells:
       modelId: equations
       collapsed: true
       rows:
+        - Production decision
         - [y, s_E + inv_E - lag(inv), "Output determined by expected sales and inventory adjustment."]
         - [inv_T, sigma_T * s_E, "Target inventory stock as a ratio of expected sales."]
         - [inv_E, lag(inv) + gamma * (inv_T - lag(inv)), "Expected inventory stock adjusts toward the target."]
@@ -73,15 +74,18 @@ cells:
         - [WB, N * W, "Wage bill."]
         - [UC, WB / y, "Unit cost."]
         - [INV, inv * UC, "Nominal inventories."]
+        - Pricing decision
         - [S, p * s, "Nominal sales."]
         - [p, (1 + phi) * NHUC, "Price level."]
         - [NHUC, (1 - sigma_T) * UC + sigma_T * (1 + lag(rl)) * lag(UC), "Normalized historic unit cost."]
         - [EF, S - WB + (INV - lag(INV)) - lag(rl) * lag(INV), "Entrepreneurial profits."]
+        - Banking system
         - [Ld, INV, "Demand for loans."]
         - [Ls, Ld, "Supply of loans."]
         - [Ms, Ls, "Supply of deposits."]
         - [rm, rl - add, "Deposit rate."]
         - [EFb, lag(rl) * lag(Ls) - lag(rm) * lag(Mh), "Bank profits."]
+        - Consumption decision
         - [YD, WB + EF + EFb + lag(rm) * lag(Mh), "Disposable income."]
         - [Mh, lag(Mh) + YD - C, "Household deposits."]
         - [ydhs, c + (mh - lag(mh)), "Haig-Simons real disposable income."]
