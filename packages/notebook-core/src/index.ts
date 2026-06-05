@@ -8,6 +8,7 @@ export * from "./validation";
 export * from "./jsonFormat";
 export * from "./unitMetaAliases";
 export * from "./rowComments";
+export * from "./sectionBoundary";
 export {
   buildCompactEquationListRow,
   parseCompactEquationRows,

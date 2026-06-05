@@ -82,9 +82,8 @@ cells:
       rows:
         - Equalize supply to demand.
         - [Cs, Cd, "Consumption goods supply", $/year, flow, definition]
-        - [Is, Id, "Supply of investment goods", $/year, flow, definition]
-        - [Ns, Nd, "Supply of labor", items/year, flow, definition]
         - Production Firms
+        - [Is, Id, "Supply of investment goods", $/year, flow, definition]
         - [Y, Cs + Is, "Income = GDP", $/year, flow, identity, eq-5-Y]
         - [WBd, Y - lag(rl) * lag(Ld) - AF, "Wage bill - demand", $/year, flow, identity, eq-6-WBd]
         - [AF, delta * lag(K), "Amortization funds", $/year, flow, definition, eq-7-AF]
@@ -95,6 +94,7 @@ cells:
         - [Id, gamma * (KT - lag(K)) + DA, "Demand for investment goods", $/year, flow, behavioral, eq-20-Id]
         - [Mf, Mf' + sum(Firms.Deposits) * dt, "Stock accumulation from Firms.Deposits (Mf)", $, stock, accumulation, eq-mf]
         - Wage bill
+        - [Ns, Nd, "Supply of labor", items/year, flow, definition]
         - [WBs, W * Ns, "Wage bill - supply", $/year, flow, identity, eq-13-WBs]
         - [Nd, Y / pr, "Demand for labor", items/year, flow, definition, eq-14-Nd]
         - [W, WBd / Nd, "Wage rate", $/item, aux, definition, eq-15-W]

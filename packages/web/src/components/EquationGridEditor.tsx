@@ -5,7 +5,13 @@ import {
   isDerivativeBalanceTarget,
   type EquationRole
 } from "@sfcr/core";
-import { isRowComment, normalizeRowCommentText, type EquationListItem } from "@sfcr/notebook-core";
+import {
+  isRowComment,
+  normalizeRowCommentText,
+  resolveInferredSectionBoundary,
+  type EquationListItem,
+  type ExternalListItem
+} from "@sfcr/notebook-core";
 
 import type { EquationRow, ValidationIssue } from "../lib/editorModel";
 import { NotebookRowComment } from "../notebook/components/NotebookRowComment";
@@ -63,6 +69,7 @@ interface EquationGridEditorProps {
   buildError?: string | null;
   currentValues?: Record<string, number | undefined>;
   equations: EquationListItem[];
+  externals?: ExternalListItem[];
   issues: Record<string, string | ValidationIssue | undefined>;
   isEmbedded?: boolean;
   onChange(next: EquationListItem[]): void;
@@ -79,6 +86,7 @@ export function EquationGridEditor({
   buildError = null,
   currentValues = {},
   equations,
+  externals = [],
   issues,
   isEmbedded = false,
   onChange,
@@ -181,9 +189,19 @@ export function EquationGridEditor({
               return (
                 <NotebookRowComment
                   key={row.id}
+                  currentValues={currentValues}
+                  highlightedVariable={documentHighlightedVariable}
+                  inferredBoundary={resolveInferredSectionBoundary({
+                    comment: row,
+                    equations,
+                    externals
+                  })}
                   mode="grid"
                   text={row.text}
+                  variableDescriptions={variableDescriptions}
+                  variableUnitMetadata={variableUnitMetadata}
                   onContextMenu={(event) => handleRowContextMenu(event, index)}
+                  onInspectVariable={onSelectVariable}
                   onTextChange={(text) => onChange(patchCommentInRows(equations, row.id, text))}
                 />
               );

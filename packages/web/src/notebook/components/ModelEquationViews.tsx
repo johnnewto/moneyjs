@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { analyzeParsedEquation, parseEquation, type EquationRole } from "@sfcr/core";
-import { countDataRows, externalRowsOnly, formatCompactRowCommentText, isRowComment, type EquationListItem } from "@sfcr/notebook-core";
+import {
+  countDataRows,
+  externalRowsOnly,
+  formatCompactRowCommentText,
+  inferEquationSectionBoundaries,
+  isRowComment,
+  type EquationListItem
+} from "@sfcr/notebook-core";
 
 import { EquationGridEditor } from "../../components/EquationGridEditor";
 import { buildActiveTrace, buildTraceModel, type PinnedTrace } from "../../components/EquationGridEditor";
@@ -98,6 +105,14 @@ export function ModelCellView({
         externals: draftEditor.externals
       }),
     [draftEditor.equations, draftEditor.externals]
+  );
+  const sectionBoundaries = useMemo(
+    () =>
+      inferEquationSectionBoundaries({
+        equations: cell.editor.equations,
+        externals: cell.editor.externals
+      }),
+    [cell.editor.equations, cell.editor.externals]
   );
   const traceModel = useMemo(() => buildTraceModel(draftEditor.equations), [draftEditor.equations]);
   const activeTrace = pinnedTrace
@@ -207,6 +222,7 @@ export function ModelCellView({
             buildError={buildDiagnostics.modelError}
             currentValues={currentValues}
             equations={draftEditor.equations}
+            externals={draftEditor.externals}
             isEmbedded
             issues={equationIssueMap}
             onChange={(equations) => setDraftEditor((current) => ({ ...current, equations }))}
@@ -244,10 +260,27 @@ export function ModelCellView({
                   <CommentRowReadView
                     key={row.id}
                     commentEdit={commentEdit}
+                    currentValues={currentValues}
+                    equations={cell.editor.equations}
+                    externals={cell.editor.externals}
+                    highlightedVariable={highlightedVariable}
                     index={index}
+                    inferredBoundary={sectionBoundaries.get(row.id) ?? null}
                     row={row}
+                    variableDescriptions={variableDescriptions}
+                    variableUnitMetadata={variableUnitMetadata}
                     onCancelDataRowEdit={inlineEdit.cancelRowEdit}
                     onContextMenu={equationRowMenu.handleRowContextMenu}
+                    onInspectVariable={(selectedVariable) =>
+                      onVariableInspectRequest({
+                        currentValues,
+                        editor: cell.editor,
+                        modelSource,
+                        selectedVariable,
+                        variableDescriptions,
+                        variableUnitMetadata
+                      })
+                    }
                   />
                 );
               }
@@ -468,6 +501,10 @@ export function EquationsCellView({
       }),
     [draftEquations, externals]
   );
+  const sectionBoundaries = useMemo(
+    () => inferEquationSectionBoundaries({ equations: cell.equations, externals }),
+    [cell.equations, externals]
+  );
   const traceModel = useMemo(() => buildTraceModel(draftEquations), [draftEquations]);
   const activeTrace = pinnedTrace
     ? buildActiveTrace(traceModel, pinnedTrace.rowId, pinnedTrace.mode)
@@ -601,6 +638,7 @@ export function EquationsCellView({
             buildError={buildDiagnostics.modelError}
             currentValues={currentValues}
             equations={draftEquations}
+            externals={externals}
             isEmbedded
             issues={equationIssueMap}
             onChange={setDraftEquations}
@@ -645,10 +683,27 @@ export function EquationsCellView({
                   <CommentRowReadView
                     key={row.id}
                     commentEdit={commentEdit}
+                    currentValues={currentValues}
+                    equations={cell.equations}
+                    externals={externals}
+                    highlightedVariable={highlightedVariable}
                     index={index}
+                    inferredBoundary={sectionBoundaries.get(row.id) ?? null}
                     row={row}
+                    variableDescriptions={variableDescriptions}
+                    variableUnitMetadata={variableUnitMetadata}
                     onCancelDataRowEdit={inlineEdit.cancelRowEdit}
                     onContextMenu={equationRowMenu.handleRowContextMenu}
+                    onInspectVariable={(selectedVariable) =>
+                      onVariableInspectRequest({
+                        currentValues,
+                        editor,
+                        modelSource,
+                        selectedVariable,
+                        variableDescriptions,
+                        variableUnitMetadata
+                      })
+                    }
                   />
                 );
               }

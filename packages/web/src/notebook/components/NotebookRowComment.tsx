@@ -1,7 +1,15 @@
-import { normalizeRowCommentText } from "@sfcr/notebook-core";
+import {
+  normalizeRowCommentText,
+  parseSectionCommentText,
+  type SectionBoundarySignature
+} from "@sfcr/notebook-core";
+
+import type { VariableDescriptions } from "../../lib/variableDescriptions";
+import type { VariableUnitMetadata } from "../../lib/unitMeta";
 
 import { CommentRowInlineEditor } from "./CommentRowInlineEditor";
 import { RowCommentMarkdown } from "./RowCommentMarkdown";
+import { SectionBoundarySignatureView } from "./SectionBoundarySignatureView";
 
 export function NotebookRowComment({
   draftText,
@@ -14,18 +22,30 @@ export function NotebookRowComment({
   onCancelEdit,
   onContextMenu,
   onDraftTextChange,
-  onTextChange
+  inferredBoundary = null,
+  onInspectVariable,
+  onTextChange,
+  currentValues,
+  highlightedVariable = null,
+  variableDescriptions,
+  variableUnitMetadata
 }: {
+  currentValues?: Record<string, number | undefined>;
   draftText?: string;
+  inferredBoundary?: SectionBoundarySignature | null;
+  highlightedVariable?: string | null;
   isEditing?: boolean;
   mode?: "grid" | "read";
   text: string;
   validationError?: string | null;
+  variableDescriptions?: VariableDescriptions;
+  variableUnitMetadata?: VariableUnitMetadata;
   onApplyEdit?(): void;
   onBeginEdit?(): void;
   onCancelEdit?(): void;
   onContextMenu?(event: React.MouseEvent<HTMLDivElement>): void;
   onDraftTextChange?(value: string): void;
+  onInspectVariable?(variableName: string): void;
   onTextChange?(value: string): void;
 }) {
   if (mode === "grid") {
@@ -35,22 +55,34 @@ export function NotebookRowComment({
         role="row"
         onContextMenu={onContextMenu}
       >
-        <label className="notebook-model-view-row-comment-editor" role="cell">
-          <span className="notebook-model-view-row-comment-editor-label">Section</span>
-          <input
-            aria-label="Section comment"
-            className="notebook-model-view-row-comment-input"
-            placeholder="Section note (**bold**, `code`)"
-            value={text}
-            onChange={(event) => onTextChange?.(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                event.preventDefault();
-                onTextChange?.(text);
-              }
-            }}
-          />
-        </label>
+        <div className="notebook-model-view-row-comment-grid-body" role="cell">
+          <label className="notebook-model-view-row-comment-editor">
+            <span className="notebook-model-view-row-comment-editor-label">Section</span>
+            <input
+              aria-label="Section comment"
+              className="notebook-model-view-row-comment-input"
+              placeholder="Section title"
+              value={text}
+              onChange={(event) => onTextChange?.(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  onTextChange?.(text);
+                }
+              }}
+            />
+          </label>
+          {inferredBoundary ? (
+            <SectionBoundarySignatureView
+              boundary={inferredBoundary}
+              currentValues={currentValues}
+              highlightedVariable={highlightedVariable}
+              variableDescriptions={variableDescriptions}
+              variableUnitMetadata={variableUnitMetadata}
+              onInspectVariable={onInspectVariable}
+            />
+          ) : null}
+        </div>
       </div>
     );
   }
@@ -91,8 +123,55 @@ export function NotebookRowComment({
       }}
     >
       <div className="notebook-model-view-row-comment-text" role="cell">
-        <RowCommentMarkdown text={text} />
+        <SectionCommentReadView
+          currentValues={currentValues}
+          highlightedVariable={highlightedVariable}
+          inferredBoundary={inferredBoundary}
+          text={text}
+          variableDescriptions={variableDescriptions}
+          variableUnitMetadata={variableUnitMetadata}
+          onInspectVariable={onInspectVariable}
+        />
       </div>
+    </div>
+  );
+}
+
+function SectionCommentReadView({
+  currentValues,
+  highlightedVariable = null,
+  inferredBoundary = null,
+  onInspectVariable,
+  text,
+  variableDescriptions,
+  variableUnitMetadata
+}: {
+  currentValues?: Record<string, number | undefined>;
+  highlightedVariable?: string | null;
+  inferredBoundary?: SectionBoundarySignature | null;
+  onInspectVariable?(variableName: string): void;
+  text: string;
+  variableDescriptions?: VariableDescriptions;
+  variableUnitMetadata?: VariableUnitMetadata;
+}) {
+  const title = parseSectionCommentText(text).title;
+  if (!title && !inferredBoundary) {
+    return null;
+  }
+
+  return (
+    <div className="section-comment-read-view">
+      {title ? <RowCommentMarkdown text={title} /> : null}
+      {inferredBoundary ? (
+        <SectionBoundarySignatureView
+          boundary={inferredBoundary}
+          currentValues={currentValues}
+          highlightedVariable={highlightedVariable}
+          variableDescriptions={variableDescriptions}
+          variableUnitMetadata={variableUnitMetadata}
+          onInspectVariable={onInspectVariable}
+        />
+      ) : null}
     </div>
   );
 }

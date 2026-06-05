@@ -415,10 +415,24 @@ export function ExternalsCellView({
                   <CommentRowReadView
                     key={row.id}
                     commentEdit={commentEdit}
+                    currentValues={currentValues}
+                    highlightedVariable={highlightedVariable}
                     index={index}
                     row={row}
+                    variableDescriptions={variableDescriptions}
+                    variableUnitMetadata={variableUnitMetadata}
                     onCancelDataRowEdit={inlineEdit.cancelRowEdit}
                     onContextMenu={externalRowMenu.handleRowContextMenu}
+                    onInspectVariable={(selectedVariable) =>
+                      onVariableInspectRequest({
+                        currentValues,
+                        editor,
+                        modelSource,
+                        selectedVariable,
+                        variableDescriptions,
+                        variableUnitMetadata
+                      })
+                    }
                   />
                 );
               }
@@ -727,10 +741,24 @@ export function InitialValuesCellView({
                   <CommentRowReadView
                     key={row.id}
                     commentEdit={commentEdit}
+                    currentValues={currentValues}
+                    highlightedVariable={highlightedVariable}
                     index={index}
                     row={row}
+                    variableDescriptions={variableDescriptions}
+                    variableUnitMetadata={variableUnitMetadata}
                     onCancelDataRowEdit={inlineEdit.cancelRowEdit}
                     onContextMenu={initialValueRowMenu.handleRowContextMenu}
+                    onInspectVariable={(selectedVariable) =>
+                      onVariableInspectRequest({
+                        currentValues,
+                        editor,
+                        modelSource,
+                        selectedVariable,
+                        variableDescriptions,
+                        variableUnitMetadata
+                      })
+                    }
                   />
                 );
               }

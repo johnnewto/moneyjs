@@ -1,4 +1,5 @@
 import { isRecord, slugifyIdentifier, stringValue } from "./document/documentUtils";
+import { sectionCommentSlugSource } from "./sectionBoundary";
 import type { RowComment } from "./types";
 
 export type { RowComment } from "./types";
@@ -27,7 +28,7 @@ function rowCommentId(idPrefix: string, index: number, text: string, explicitId?
   if (explicitId?.trim()) {
     return explicitId.trim();
   }
-  const slug = slugifyIdentifier(text) || "section";
+  const slug = slugifyIdentifier(sectionCommentSlugSource(text)) || "section";
   return `${idPrefix}-${index}-${slug}`;
 }
 

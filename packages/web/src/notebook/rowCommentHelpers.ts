@@ -1,4 +1,11 @@
-import { isRowComment, normalizeRowCommentText, type RowComment } from "@sfcr/notebook-core";
+import {
+  isRowComment,
+  normalizeRowCommentText,
+  normalizeSectionCommentText,
+  parseSectionCommentText,
+  type RowComment,
+  validateSectionCommentText
+} from "@sfcr/notebook-core";
 
 export function newRowComment(): RowComment {
   return {
@@ -14,7 +21,9 @@ export function patchCommentInRows<TRow>(
   text: string
 ): (TRow | RowComment)[] {
   return rows.map((row) =>
-    isRowComment(row) && row.id === commentId ? { ...row, text: normalizeRowCommentText(text) } : row
+    isRowComment(row) && row.id === commentId
+      ? { ...row, text: normalizeSectionCommentText(normalizeRowCommentText(text)) }
+      : row
   );
 }
 
@@ -22,12 +31,10 @@ export function formatCommentDeleteLabel(row: RowComment | undefined, rowIndex: 
   if (!row) {
     return `Row ${rowIndex + 1}`;
   }
-  return normalizeRowCommentText(row.text) || `Section ${rowIndex + 1}`;
+  const title = parseSectionCommentText(row.text).title;
+  return title || `Section ${rowIndex + 1}`;
 }
 
 export function validateCommentDraftText(text: string): string | null {
-  if (!normalizeRowCommentText(text)) {
-    return "Section title is required.";
-  }
-  return null;
+  return validateSectionCommentText(text);
 }

@@ -36,7 +36,7 @@ export function CommentRowInlineEditor({
         ref={inputRef}
         aria-label="Section comment"
         className="notebook-equation-row-expression-input"
-        placeholder="Section note (**bold**, `code`)"
+        placeholder="Section title"
         spellCheck={false}
         value={draftText}
         onChange={(event) => onDraftTextChange(event.target.value)}
