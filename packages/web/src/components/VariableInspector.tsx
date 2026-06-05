@@ -513,12 +513,61 @@ function InspectorDefiningEquation({
         </>
       )}
       {generatedEquationExplanation ? (
-        <details className="inspector-generated-explanation">
-          <summary>Generated explanation</summary>
-          <p>{generatedEquationExplanation}</p>
-        </details>
+        <GeneratedExplanationCollapsible text={generatedEquationExplanation} />
       ) : null}
     </>
+  );
+}
+
+function GeneratedExplanationCollapsible({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const [truncated, setTruncated] = useState(false);
+
+  useEffect(() => {
+    setOpen(false);
+  }, [text]);
+
+  useEffect(() => {
+    const preview = previewRef.current;
+    if (!preview || open) {
+      return;
+    }
+
+    const updateTruncated = () => {
+      setTruncated(preview.scrollHeight > preview.clientHeight + 1);
+    };
+
+    updateTruncated();
+    const observer = new ResizeObserver(updateTruncated);
+    observer.observe(preview);
+    return () => observer.disconnect();
+  }, [open, text]);
+
+  return (
+    <div
+      aria-expanded={open}
+      aria-label="Generated explanation"
+      className={`inspector-generated-explanation${open ? " is-open" : ""}`.trim()}
+      onClick={() => setOpen((value) => !value)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          setOpen((value) => !value);
+        }
+      }}
+      role="button"
+      tabIndex={0}
+    >
+      {open ? (
+        <p>{text}</p>
+      ) : (
+        <div ref={previewRef} className="inspector-generated-explanation-preview">
+          {text}
+          {truncated ? <span className="inspector-generated-explanation-more">...more</span> : null}
+        </div>
+      )}
+    </div>
   );
 }
 

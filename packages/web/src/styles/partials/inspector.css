@@ -215,20 +215,38 @@
   background: rgba(255, 248, 220, 0.45);
   border: 1px solid rgba(245, 158, 11, 0.24);
   border-radius: 12px;
+  cursor: pointer;
   padding: 0.42rem 0.52rem;
 }
-.inspector-generated-explanation summary {
-  color: #334155;
-  cursor: pointer;
-  font-size: 0.82rem;
-  font-weight: 650;
-  list-style: none;
+.inspector-generated-explanation-preview {
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  max-height: calc(1.45em * 2);
+  overflow: hidden;
+  position: relative;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 calc(1.45em * 0.9),
+    rgba(0, 0, 0, 0.35) calc(1.45em * 1.35),
+    transparent calc(1.45em * 2)
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 calc(1.45em * 0.9),
+    rgba(0, 0, 0, 0.35) calc(1.45em * 1.35),
+    transparent calc(1.45em * 2)
+  );
 }
-.inspector-generated-explanation summary::-webkit-details-marker {
-  display: none;
-}
-.inspector-generated-explanation[open] summary {
-  margin-bottom: 0.2rem;
+.inspector-generated-explanation-more {
+  background: linear-gradient(to right, transparent, rgba(255, 248, 220, 1) 1.2em);
+  bottom: 0;
+  color: var(--color-text-subtle);
+  padding-left: 2.5em;
+  position: absolute;
+  right: 0;
 }
 .inspector-generated-explanation p {
   color: var(--color-text-secondary);
