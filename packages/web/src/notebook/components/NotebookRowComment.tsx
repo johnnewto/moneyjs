@@ -60,7 +60,10 @@ export function NotebookRowComment({
       normalizeRowCommentText(draftText ?? "") !== normalizeRowCommentText(text);
 
     return (
-      <div className="notebook-model-view-row notebook-model-view-row-editing" role="row">
+      <div
+        className="notebook-model-view-row notebook-model-view-row-editing notebook-model-view-row-section"
+        role="row"
+      >
         <div className="notebook-model-view-row-editor-cell" role="cell">
           <CommentRowInlineEditor
             draftText={draftText ?? ""}
@@ -77,7 +80,7 @@ export function NotebookRowComment({
 
   return (
     <div
-      className="notebook-model-view-row notebook-model-view-row-comment"
+      className="notebook-model-view-row notebook-model-view-row-comment notebook-model-view-row-section"
       role="row"
       title="Double-click to edit"
       onContextMenu={onContextMenu}
