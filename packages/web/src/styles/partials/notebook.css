@@ -1398,9 +1398,14 @@
 .notebook-equation-row-editor {
   display: grid;
   gap: 0.35rem;
+  max-width: 100%;
+  min-width: 0;
 }
 .notebook-equation-row-name-input,
 .notebook-equation-row-expression-input {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
   width: 100%;
 }
 .notebook-equation-row-editor-actions {

@@ -95,10 +95,10 @@ cells:
         - [Y, Cs + Is, "Income = GDP", $/year, flow, identity, eq-5-Y]
         - [WBd, Y - lag(rl) * lag(Ld) - AF, "Wage bill - demand", $/year, flow, identity, eq-6-WBd]
         - [AF, delta * lag(K), "Amortization funds", $/year, flow, definition, eq-7-AF]
-        - [Ld, lag(Ld) + (Id - AF) * dt, "Demand for bank loans", $, stock, accumulation, eq-8-Ld]
-        - [K, K' + (Id - DA) • dt, "Stock of capital", $, stock, accumulation, eq-17-K]
         - [DA, delta * lag(K), "Depreciation allowance", $/year, flow, definition, eq-18-DA]
+        - [Ld, lag(Ld) + (Id - AF) * dt, "Demand for bank loans", $, stock, accumulation, eq-8-Ld]
         - [KT, kappa * lag(Y), "Target stock of capital", $, stock, target, eq-19-KT]
+        - [K, K' + (Id - DA) • dt, "Stock of capital", $, stock, accumulation, eq-17-K]
         - [Id, gamma * (KT - lag(K)) + DA, "Demand for investment goods", $/year, flow, behavioral, eq-20-Id]
         - Households.
         - [YD, WBs + lag(rm) * lag(Mh), "Disposable income of households", $/year, flow, identity, eq-9-YD]

@@ -20,6 +20,8 @@
 }
 .notebook-model-view-table {
   display: grid;
+  min-width: 0;
+  width: 100%;
 }
 .notebook-model-view-table-resizable {
   --eq-col-expression-width: 280px;
@@ -234,6 +236,9 @@
   display: grid;
   gap: 0.35rem;
   grid-column: 1 / -1;
+  max-width: 100%;
+  min-width: 0;
+  width: 100%;
 }
 .notebook-model-view-kind {
   color: var(--color-text-subtle);

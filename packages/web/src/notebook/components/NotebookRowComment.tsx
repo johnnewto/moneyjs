@@ -1,3 +1,6 @@
+import { normalizeRowCommentText } from "@sfcr/notebook-core";
+
+import { CommentRowInlineEditor } from "./CommentRowInlineEditor";
 import { RowCommentMarkdown } from "./RowCommentMarkdown";
 
 export function NotebookRowComment({
@@ -53,41 +56,20 @@ export function NotebookRowComment({
   }
 
   if (isEditing) {
+    const hasDraftChanges =
+      normalizeRowCommentText(draftText ?? "") !== normalizeRowCommentText(text);
+
     return (
-      <div
-        className="notebook-model-view-row notebook-model-view-row-comment notebook-model-view-row-editing"
-        role="row"
-      >
+      <div className="notebook-model-view-row notebook-model-view-row-editing" role="row">
         <div className="notebook-model-view-row-editor-cell" role="cell">
-          <div className="notebook-equation-row-editor">
-            <input
-              aria-label="Section comment"
-              autoFocus
-              className="notebook-equation-row-expression-input"
-              placeholder="Section note (**bold**, `code`)"
-              value={draftText ?? ""}
-              onChange={(event) => onDraftTextChange?.(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  onApplyEdit?.();
-                }
-                if (event.key === "Escape") {
-                  event.preventDefault();
-                  onCancelEdit?.();
-                }
-              }}
-            />
-            {validationError ? <div className="error-text">{validationError}</div> : null}
-            <div className="notebook-equation-row-editor-actions">
-              <button disabled={false} onClick={onApplyEdit} type="button">
-                Apply
-              </button>
-              <button className="secondary-button" onClick={onCancelEdit} type="button">
-                Cancel
-              </button>
-            </div>
-          </div>
+          <CommentRowInlineEditor
+            draftText={draftText ?? ""}
+            hasDraftChanges={hasDraftChanges}
+            validationError={validationError}
+            onApply={() => onApplyEdit?.()}
+            onCancel={() => onCancelEdit?.()}
+            onDraftTextChange={(value) => onDraftTextChange?.(value)}
+          />
         </div>
       </div>
     );
