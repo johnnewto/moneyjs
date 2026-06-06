@@ -22,7 +22,11 @@ export function CommentRowReadView({
   onCancelDataRowEdit,
   onContextMenu,
   onInspectVariable,
+  onToggleSectionCollapse,
+  parameterNames,
   row,
+  sectionCollapsible = false,
+  sectionCollapsed = false,
   variableDescriptions,
   variableUnitMetadata
 }: {
@@ -36,6 +40,10 @@ export function CommentRowReadView({
   onCancelDataRowEdit(): void;
   onContextMenu(event: React.MouseEvent<HTMLDivElement>, rowIndex: number): void;
   onInspectVariable?(variableName: string): void;
+  onToggleSectionCollapse?(): void;
+  parameterNames?: Set<string>;
+  sectionCollapsible?: boolean;
+  sectionCollapsed?: boolean;
   row: RowComment;
   variableDescriptions?: VariableDescriptions;
   variableUnitMetadata?: VariableUnitMetadata;
@@ -56,6 +64,9 @@ export function CommentRowReadView({
       inferredBoundary={resolvedBoundary}
       highlightedVariable={highlightedVariable}
       isEditing={commentEdit.editingCommentId === row.id}
+      parameterNames={parameterNames}
+      sectionCollapsible={sectionCollapsible}
+      sectionCollapsed={sectionCollapsed}
       text={row.text}
       validationError={commentEdit.validationError}
       variableDescriptions={variableDescriptions}
@@ -74,6 +85,7 @@ export function CommentRowReadView({
       }}
       onDraftTextChange={commentEdit.setDraftText}
       onInspectVariable={onInspectVariable}
+      onToggleSectionCollapse={onToggleSectionCollapse}
     />
   );
 }

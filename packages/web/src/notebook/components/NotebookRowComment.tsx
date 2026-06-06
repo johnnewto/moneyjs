@@ -25,8 +25,12 @@ export function NotebookRowComment({
   inferredBoundary = null,
   onInspectVariable,
   onTextChange,
+  onToggleSectionCollapse,
   currentValues,
   highlightedVariable = null,
+  parameterNames,
+  sectionCollapsible = false,
+  sectionCollapsed = false,
   variableDescriptions,
   variableUnitMetadata
 }: {
@@ -36,6 +40,9 @@ export function NotebookRowComment({
   highlightedVariable?: string | null;
   isEditing?: boolean;
   mode?: "grid" | "read";
+  parameterNames?: Set<string>;
+  sectionCollapsible?: boolean;
+  sectionCollapsed?: boolean;
   text: string;
   validationError?: string | null;
   variableDescriptions?: VariableDescriptions;
@@ -47,6 +54,7 @@ export function NotebookRowComment({
   onDraftTextChange?(value: string): void;
   onInspectVariable?(variableName: string): void;
   onTextChange?(value: string): void;
+  onToggleSectionCollapse?(): void;
 }) {
   if (mode === "grid") {
     return (
@@ -77,6 +85,7 @@ export function NotebookRowComment({
               boundary={inferredBoundary}
               currentValues={currentValues}
               highlightedVariable={highlightedVariable}
+              parameterNames={parameterNames}
               variableDescriptions={variableDescriptions}
               variableUnitMetadata={variableUnitMetadata}
               onInspectVariable={onInspectVariable}
@@ -127,10 +136,14 @@ export function NotebookRowComment({
           currentValues={currentValues}
           highlightedVariable={highlightedVariable}
           inferredBoundary={inferredBoundary}
+          parameterNames={parameterNames}
+          sectionCollapsible={sectionCollapsible}
+          sectionCollapsed={sectionCollapsed}
           text={text}
           variableDescriptions={variableDescriptions}
           variableUnitMetadata={variableUnitMetadata}
           onInspectVariable={onInspectVariable}
+          onToggleSectionCollapse={onToggleSectionCollapse}
         />
       </div>
     </div>
@@ -142,6 +155,10 @@ function SectionCommentReadView({
   highlightedVariable = null,
   inferredBoundary = null,
   onInspectVariable,
+  onToggleSectionCollapse,
+  parameterNames,
+  sectionCollapsible = false,
+  sectionCollapsed = false,
   text,
   variableDescriptions,
   variableUnitMetadata
@@ -150,6 +167,10 @@ function SectionCommentReadView({
   highlightedVariable?: string | null;
   inferredBoundary?: SectionBoundarySignature | null;
   onInspectVariable?(variableName: string): void;
+  onToggleSectionCollapse?(): void;
+  parameterNames?: Set<string>;
+  sectionCollapsible?: boolean;
+  sectionCollapsed?: boolean;
   text: string;
   variableDescriptions?: VariableDescriptions;
   variableUnitMetadata?: VariableUnitMetadata;
@@ -165,11 +186,15 @@ function SectionCommentReadView({
       {inferredBoundary ? (
         <SectionBoundarySignatureView
           boundary={inferredBoundary}
+          collapsible={sectionCollapsible}
           currentValues={currentValues}
           highlightedVariable={highlightedVariable}
+          isCollapsed={sectionCollapsed}
+          parameterNames={parameterNames}
           variableDescriptions={variableDescriptions}
           variableUnitMetadata={variableUnitMetadata}
           onInspectVariable={onInspectVariable}
+          onToggleCollapse={onToggleSectionCollapse}
         />
       ) : null}
     </div>

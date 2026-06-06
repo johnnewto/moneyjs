@@ -1,9 +1,15 @@
 // @vitest-environment jsdom
 
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import "@testing-library/jest-dom/vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+afterEach(() => {
+  cleanup();
+});
 
 import { NotebookRowComment } from "../src/notebook/components/NotebookRowComment";
+import { SectionBoundarySignatureView } from "../src/notebook/components/SectionBoundarySignatureView";
 import { NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
 import { resolveInferredSectionBoundary } from "@sfcr/notebook-core";
 
@@ -40,8 +46,50 @@ describe("section boundary display", () => {
     );
 
     expect(screen.getByText("Production Firms")).toBeTruthy();
-    expect(screen.getByText(/Production_Firms/)).toBeTruthy();
-    expect(screen.getByText("Y")).toBeTruthy();
-    expect(screen.getByText("Cs")).toBeTruthy();
+    expect(screen.getByText(/Production_Firms/)).toHaveClass("formula-function");
+    expect(screen.getByText("Y").closest(".formula-uppercase")).toBeTruthy();
+    expect(screen.getByText("Cs").closest(".formula-uppercase")).toBeTruthy();
+  });
+
+  it("shows a collapse triangle and toggles when the boundary signature is clicked", () => {
+    const onToggleSectionCollapse = vi.fn();
+
+    render(
+      <SectionBoundarySignatureView
+        boundary={{
+          functionName: "Household_credit",
+          inputs: ["P", "rl"],
+          outputs: ["Lhd", "nl"]
+        }}
+        collapsible
+        isCollapsed={false}
+        onToggleCollapse={onToggleSectionCollapse}
+      />
+    );
+
+    const signature = screen.getByTitle("Collapse section equations");
+    expect(signature).toHaveAttribute("aria-expanded", "true");
+    expect(signature.querySelector(".section-boundary-toggle-icon")).toHaveTextContent("▾");
+
+    fireEvent.click(signature);
+    expect(onToggleSectionCollapse).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a collapsed triangle when the section is collapsed", () => {
+    render(
+      <SectionBoundarySignatureView
+        boundary={{
+          functionName: "Household_credit",
+          inputs: ["P"],
+          outputs: ["Lhd"]
+        }}
+        collapsible
+        isCollapsed
+      />
+    );
+
+    const signature = screen.getByTitle("Expand section equations");
+    expect(signature).toHaveAttribute("aria-expanded", "false");
+    expect(signature.querySelector(".section-boundary-toggle-icon")).toHaveTextContent("▸");
   });
 });

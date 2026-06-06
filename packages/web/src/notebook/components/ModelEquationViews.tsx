@@ -41,6 +41,13 @@ import { NotebookFloatingHeaderOverlay } from "./NotebookFloatingHeaderOverlay";
 import { NotebookEquationViewTable } from "./NotebookEquationViewTable";
 import { EquationsModelViewHeaderRowStatic } from "./notebookModelViewHeaderRows";
 import { useNotebookFloatingHeaderRow } from "../useNotebookFloatingHeaderRow";
+import {
+  collectCollapsibleSectionCommentIds,
+  isEquationRowHiddenBySectionCollapse,
+  sectionCommentHasEquations,
+  useEquationSectionCollapseState
+} from "../equationSectionCollapse";
+import { EquationSectionCollapseControls } from "./EquationSectionCollapseControls";
 
 export function ModelCellView({
   cell,
@@ -114,6 +121,10 @@ export function ModelCellView({
       }),
     [cell.editor.equations, cell.editor.externals]
   );
+  const collapsibleSectionIds = useMemo(
+    () => collectCollapsibleSectionCommentIds(cell.editor.equations, sectionBoundaries),
+    [cell.editor.equations, sectionBoundaries]
+  );
   const traceModel = useMemo(() => buildTraceModel(draftEditor.equations), [draftEditor.equations]);
   const activeTrace = pinnedTrace
     ? buildActiveTrace(traceModel, pinnedTrace.rowId, pinnedTrace.mode)
@@ -169,6 +180,11 @@ export function ModelCellView({
     rows: cell.editor.equations
   });
   const { scheduleDeferredAction } = useDeferredAction();
+  const sectionCollapse = useEquationSectionCollapseState(
+    cell.id,
+    cell.editor.equations,
+    collapsibleSectionIds
+  );
 
   return (
     <div className="notebook-model-stack">
@@ -176,6 +192,14 @@ export function ModelCellView({
         actions={
           <NotebookLinkedEditorActions
             cell={cell}
+            extraActions={
+              !isEditingEquations && sectionCollapse.hasCollapsibleSections ? (
+                <EquationSectionCollapseControls
+                  onCollapseAll={sectionCollapse.collapseAllSections}
+                  onExpandAll={sectionCollapse.expandAllSections}
+                />
+              ) : null
+            }
             hasDraftEdits={hasDraftEdits}
             isEditing={isEditingEquations}
             isPinnedInPanel={isPinnedInPanel}
@@ -256,6 +280,7 @@ export function ModelCellView({
           <NotebookEquationViewTable ariaLabel="Model equations">
             {cell.editor.equations.map((row, index) => {
               if (isRowComment(row)) {
+                const inferredBoundary = sectionBoundaries.get(row.id) ?? null;
                 return (
                   <CommentRowReadView
                     key={row.id}
@@ -265,8 +290,13 @@ export function ModelCellView({
                     externals={cell.editor.externals}
                     highlightedVariable={highlightedVariable}
                     index={index}
-                    inferredBoundary={sectionBoundaries.get(row.id) ?? null}
+                    inferredBoundary={inferredBoundary}
+                    parameterNames={parameterNameSet}
                     row={row}
+                    sectionCollapsible={Boolean(
+                      inferredBoundary && sectionCommentHasEquations(cell.editor.equations, index)
+                    )}
+                    sectionCollapsed={sectionCollapse.isSectionCollapsed(row.id)}
                     variableDescriptions={variableDescriptions}
                     variableUnitMetadata={variableUnitMetadata}
                     onCancelDataRowEdit={inlineEdit.cancelRowEdit}
@@ -281,8 +311,19 @@ export function ModelCellView({
                         variableUnitMetadata
                       })
                     }
+                    onToggleSectionCollapse={() => sectionCollapse.toggleSectionCollapse(row.id)}
                   />
                 );
+              }
+
+              if (
+                isEquationRowHiddenBySectionCollapse(
+                  cell.editor.equations,
+                  sectionCollapse.collapsedSectionIds,
+                  index
+                )
+              ) {
+                return null;
               }
 
               const equation = row;
@@ -504,6 +545,10 @@ export function EquationsCellView({
     () => inferEquationSectionBoundaries({ equations: cell.equations, externals }),
     [cell.equations, externals]
   );
+  const collapsibleSectionIds = useMemo(
+    () => collectCollapsibleSectionCommentIds(cell.equations, sectionBoundaries),
+    [cell.equations, sectionBoundaries]
+  );
   const traceModel = useMemo(() => buildTraceModel(draftEquations), [draftEquations]);
   const activeTrace = pinnedTrace
     ? buildActiveTrace(traceModel, pinnedTrace.rowId, pinnedTrace.mode)
@@ -573,6 +618,7 @@ export function EquationsCellView({
     rows: cell.equations
   });
   const { scheduleDeferredAction } = useDeferredAction();
+  const sectionCollapse = useEquationSectionCollapseState(cell.id, cell.equations, collapsibleSectionIds);
 
   return (
     <div ref={cellRootRef} className="notebook-model-stack">
@@ -582,14 +628,22 @@ export function EquationsCellView({
             cell={cell}
             extraActions={
               !isEditingEquations && cell.collapsed !== true ? (
-                <button
-                  type="button"
-                  className="notebook-run-button"
-                  aria-pressed={showExternalValues ? "true" : "false"}
-                  onClick={() => setShowExternalValues((current) => !current)}
-                >
-                  {showExternalValues ? "Show external names" : "Show external values"}
-                </button>
+                <>
+                  {sectionCollapse.hasCollapsibleSections ? (
+                    <EquationSectionCollapseControls
+                      onCollapseAll={sectionCollapse.collapseAllSections}
+                      onExpandAll={sectionCollapse.expandAllSections}
+                    />
+                  ) : null}
+                  <button
+                    type="button"
+                    className="notebook-run-button"
+                    aria-pressed={showExternalValues ? "true" : "false"}
+                    onClick={() => setShowExternalValues((current) => !current)}
+                  >
+                    {showExternalValues ? "Show external names" : "Show external values"}
+                  </button>
+                </>
               ) : null
             }
             hasDraftEdits={hasDraftEdits}
@@ -678,6 +732,7 @@ export function EquationsCellView({
           >
             {cell.equations.map((row, index) => {
               if (isRowComment(row)) {
+                const inferredBoundary = sectionBoundaries.get(row.id) ?? null;
                 return (
                   <CommentRowReadView
                     key={row.id}
@@ -687,8 +742,13 @@ export function EquationsCellView({
                     externals={externals}
                     highlightedVariable={highlightedVariable}
                     index={index}
-                    inferredBoundary={sectionBoundaries.get(row.id) ?? null}
+                    inferredBoundary={inferredBoundary}
+                    parameterNames={parameterNameSet}
                     row={row}
+                    sectionCollapsible={Boolean(
+                      inferredBoundary && sectionCommentHasEquations(cell.equations, index)
+                    )}
+                    sectionCollapsed={sectionCollapse.isSectionCollapsed(row.id)}
                     variableDescriptions={variableDescriptions}
                     variableUnitMetadata={variableUnitMetadata}
                     onCancelDataRowEdit={inlineEdit.cancelRowEdit}
@@ -703,8 +763,15 @@ export function EquationsCellView({
                         variableUnitMetadata
                       })
                     }
+                    onToggleSectionCollapse={() => sectionCollapse.toggleSectionCollapse(row.id)}
                   />
                 );
+              }
+
+              if (
+                isEquationRowHiddenBySectionCollapse(cell.equations, sectionCollapse.collapsedSectionIds, index)
+              ) {
+                return null;
               }
 
               const equation = row;

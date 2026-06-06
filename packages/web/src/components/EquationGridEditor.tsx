@@ -53,6 +53,7 @@ import {
   useGridRowContextMenu
 } from "./GridRowContextMenu";
 import { renderVariableMathLabel } from "./VariableMathLabel";
+import { classifyVariableToken } from "../lib/formulaTokenClass";
 import { documentHighlightClassName } from "../lib/variableHighlight";
 
 export {
@@ -197,6 +198,7 @@ export function EquationGridEditor({
                     externals
                   })}
                   mode="grid"
+                  parameterNames={parameterNameSet}
                   text={row.text}
                   variableDescriptions={variableDescriptions}
                   variableUnitMetadata={variableUnitMetadata}
@@ -976,19 +978,6 @@ function renderLaggedVariableMathLabel(name: string): ReactNode[] {
       '
     </sup>
   ];
-}
-
-function classifyVariableToken(token: string, parameterNames: Set<string>): string {
-  if (parameterNames.has(token)) {
-    return "formula-parameter";
-  }
-  if (/^[A-Z]/.test(token)) {
-    return "formula-uppercase";
-  }
-  if (/^[a-z]/.test(token)) {
-    return "formula-lowercase";
-  }
-  return "formula-default";
 }
 
 function classifyToken(
