@@ -64,7 +64,6 @@ File order is UI order:
 - Duplicate cell `id` values
 - Mismatched `modelId` across equations / solver / externals / initial-values / runs
 - Hand-editing `packages/web/src/notebook/templates/generated/*.json`
-- Treating `packages/web/src/notebook/templates/legacy_json/` as source of truth
 
 ## Pilot templates
 

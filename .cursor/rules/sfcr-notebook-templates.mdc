@@ -27,5 +27,3 @@ Adding a template requires:
 1. YAML file (underscores in filename, e.g. `werner_quantity_theory_credit.notebook.yaml`)
 2. Entry in `templates.ts` (`?raw` import + `NOTEBOOK_TEMPLATES`; TS id uses hyphens, e.g. `"werner-quantity-theory-credit"`)
 3. Relevant smoke/regression tests
-
-Do not treat `templates/legacy_json/` as source of truth.

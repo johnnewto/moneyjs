@@ -57,8 +57,6 @@ pnpm --filter @sfcr/web compile:notebook-yaml -- --write --write-public-examples
 
 Adding a template requires the YAML file, an entry in `packages/web/src/notebook/templates.ts` (`?raw` import + `NOTEBOOK_TEMPLATES`), and relevant tests. File names use underscores; TypeScript `NotebookTemplateId` values use hyphens (e.g. file `werner_quantity_theory_credit.notebook.yaml` → id `"werner-quantity-theory-credit"`).
 
-Do not treat `packages/web/src/notebook/templates/legacy_json/` as source of truth.
-
 ## Notebook Schema
 Canonical schema for validation: `packages/notebook-core/src/sfcr-notebook.schema.json`.
 

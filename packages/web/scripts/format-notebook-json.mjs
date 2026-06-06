@@ -1,27 +1,12 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const webRoot = path.resolve(__dirname, "..");
-
-const defaultFiles = [
-  "src/notebook/templates/legacy_json/bmw.notebook.json",
-  "src/notebook/templates/legacy_json/gl2-pc.notebook.json",
-  "src/notebook/templates/legacy_json/gl6-dis.notebook.json",
-  "src/notebook/templates/legacy_json/gl7-insout.notebook.json",
-  "src/notebook/templates/legacy_json/gl8-growth.notebook.json",
-  "src/notebook/templates/legacy_json/opensimplest-levy.notebook.json",
-  "src/notebook/templates/legacy_json/opensimplest.notebook.json",
-  "src/notebook/templates/legacy_json/sim.notebook.json",
-  "src/notebook/templates/legacy_json/simple-epidemic.notebook.json"
-].map((relativePath) => path.resolve(webRoot, relativePath));
+import { listGeneratedNotebookJsonFiles } from "./notebook-template-json-paths.mjs";
 
 const requestedFiles = process.argv.slice(2);
 const files = requestedFiles.length
   ? requestedFiles.map((inputPath) => path.resolve(process.cwd(), inputPath))
-  : defaultFiles;
+  : await listGeneratedNotebookJsonFiles();
 
 await Promise.all(
   files.map(async (filePath) => {
