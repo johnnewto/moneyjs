@@ -5,6 +5,7 @@ export interface ChartAxisRange {
 }
 
 export const DEFAULT_AXIS_TICK_COUNT = 5;
+export const TIME_RANGE_MIN_WINDOW = 2;
 
 const AUTO_AXIS_EDGE_PADDING_RATIO = 0.04;
 
@@ -263,6 +264,92 @@ export function toPolylinePoints(
 export function toX(index: number, leftPadding: number, plotWidth: number, length: number): number {
   const xStep = plotWidth / Math.max(length - 1, 1);
   return leftPadding + index * xStep;
+}
+
+export function periodFromSvgX(
+  svgX: number,
+  leftPadding: number,
+  plotWidth: number,
+  seriesLength: number
+): number {
+  const relativeX = svgX - leftPadding;
+  const index = Math.round((relativeX / Math.max(plotWidth, 1)) * Math.max(seriesLength - 1, 0));
+  return Math.min(Math.max(index + 1, 1), seriesLength);
+}
+
+export function clampInteractiveTimeRange(
+  range: { endPeriodInclusive: number; startPeriodInclusive: number },
+  seriesLength: number
+): { endPeriodInclusive: number; startPeriodInclusive: number } {
+  const boundedStart = Math.min(Math.max(Math.round(range.startPeriodInclusive), 1), seriesLength);
+  const boundedEnd = Math.min(Math.max(Math.round(range.endPeriodInclusive), 1), seriesLength);
+  const startPeriodInclusive = Math.min(boundedStart, boundedEnd);
+  let endPeriodInclusive = Math.max(boundedStart, boundedEnd);
+  endPeriodInclusive = Math.max(endPeriodInclusive, startPeriodInclusive + TIME_RANGE_MIN_WINDOW - 1);
+  endPeriodInclusive = Math.min(endPeriodInclusive, seriesLength);
+
+  return { startPeriodInclusive, endPeriodInclusive };
+}
+
+export function applyTimeRangeDrag({
+  leftPadding,
+  mode,
+  nextX,
+  originEnd,
+  originStart,
+  originX,
+  plotWidth,
+  seriesLength
+}: {
+  leftPadding: number;
+  mode: "end" | "pan" | "start";
+  nextX: number;
+  originEnd: number;
+  originStart: number;
+  originX: number;
+  plotWidth: number;
+  seriesLength: number;
+}): { endPeriodInclusive: number; startPeriodInclusive: number } {
+  if (mode === "start") {
+    const nextStart = Math.min(
+      periodFromSvgX(nextX, leftPadding, plotWidth, seriesLength),
+      originEnd - TIME_RANGE_MIN_WINDOW + 1
+    );
+    return clampInteractiveTimeRange(
+      { startPeriodInclusive: nextStart, endPeriodInclusive: originEnd },
+      seriesLength
+    );
+  }
+
+  if (mode === "end") {
+    const nextEnd = Math.max(
+      periodFromSvgX(nextX, leftPadding, plotWidth, seriesLength),
+      originStart + TIME_RANGE_MIN_WINDOW - 1
+    );
+    return clampInteractiveTimeRange(
+      { startPeriodInclusive: originStart, endPeriodInclusive: nextEnd },
+      seriesLength
+    );
+  }
+
+  const originPeriod = periodFromSvgX(originX, leftPadding, plotWidth, seriesLength);
+  const nextPeriod = periodFromSvgX(nextX, leftPadding, plotWidth, seriesLength);
+  const delta = nextPeriod - originPeriod;
+  const windowSize = originEnd - originStart;
+  let startPeriodInclusive = originStart + delta;
+  let endPeriodInclusive = originEnd + delta;
+
+  if (startPeriodInclusive < 1) {
+    startPeriodInclusive = 1;
+    endPeriodInclusive = startPeriodInclusive + windowSize;
+  }
+
+  if (endPeriodInclusive > seriesLength) {
+    endPeriodInclusive = seriesLength;
+    startPeriodInclusive = endPeriodInclusive - windowSize;
+  }
+
+  return clampInteractiveTimeRange({ startPeriodInclusive, endPeriodInclusive }, seriesLength);
 }
 
 export function toY(

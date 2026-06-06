@@ -560,4 +560,97 @@ describe("ResultChart", () => {
     fireEvent.mouseEnter(screen.getAllByText("C")[0]!);
     expect(screen.getByRole("tooltip")).toHaveTextContent("Consumption");
   });
+
+  it("shows an ephemeral time range slider for long series by default", () => {
+    render(
+      <ResultChart
+        series={[
+          {
+            name: "A",
+            values: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+          }
+        ]}
+      />
+    );
+
+    expect(
+      screen.getByRole("img", { name: /simulation result chart with shared left axis and time range slider/i })
+    ).toBeInTheDocument();
+    expect(document.querySelector(".chart-time-range-slider")).not.toBeNull();
+    expect(screen.getByText(/Time axis: 1 to 12/i)).toBeInTheDocument();
+  });
+
+  it("hides the time range slider for short series and when disabled", () => {
+    const { rerender } = render(
+      <ResultChart
+        series={[{ name: "A", values: [10, 11, 12, 13, 14, 15, 16, 17, 18] }]}
+      />
+    );
+
+    expect(document.querySelector(".chart-time-range-slider")).toBeNull();
+
+    rerender(
+      <ResultChart
+        series={[
+          {
+            name: "A",
+            values: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+          }
+        ]}
+        timeRangeSlider={false}
+      />
+    );
+
+    expect(document.querySelector(".chart-time-range-slider")).toBeNull();
+    expect(
+      screen.getByRole("img", { name: /simulation result chart with shared left axis(?! and time range slider)/i })
+    ).toBeInTheDocument();
+  });
+
+  it("initializes the slider window from timeRangeInclusive", () => {
+    render(
+      <ResultChart
+        series={[
+          {
+            name: "A",
+            values: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+          }
+        ]}
+        timeRangeInclusive={[3, 8]}
+      />
+    );
+
+    expect(screen.getByText(/Time axis: 3 to 8/i)).toBeInTheDocument();
+  });
+
+  it("does not reset the slider range when the parent re-renders with a fresh defaults object", () => {
+    const longSeries = [
+      {
+        name: "A",
+        values: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+      }
+    ];
+
+    const { rerender } = render(
+      <ResultChart
+        series={longSeries}
+        timeRangeInclusive={[4, 12]}
+        timeRangeDefaults={{ startPeriodInclusive: 1, endPeriodInclusive: 12 }}
+        title="Chart 0"
+      />
+    );
+
+    expect(screen.getByText(/Time axis: 4 to 12/i)).toBeInTheDocument();
+
+    rerender(
+      <ResultChart
+        series={longSeries}
+        timeRangeInclusive={[4, 12]}
+        timeRangeDefaults={{ startPeriodInclusive: 1, endPeriodInclusive: 12 }}
+        title="Chart 1"
+      />
+    );
+
+    expect(screen.getByText(/Time axis: 4 to 12/i)).toBeInTheDocument();
+  });
 });

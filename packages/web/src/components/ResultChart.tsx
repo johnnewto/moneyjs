@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import type { MouseEvent as ReactMouseEvent } from "react";
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import { formatVariableTooltip, type VariableUnitMetadata } from "../lib/unitMeta";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
 import { getVariableUnitLabel } from "../lib/units";
@@ -9,8 +9,10 @@ import { PinToggleIcon } from "./PinToggleIcon";
 import type { MatrixGraphSliceHighlight } from "../notebook/graphDocumentHighlight";
 import {
   DEFAULT_AXIS_TICK_COUNT,
+  applyTimeRangeDrag,
   buildAxisMetrics,
   buildIntegerTicks,
+  clampInteractiveTimeRange,
   formatAxisValue,
   resolveTimeRange,
   snapAxisMetrics,
@@ -47,6 +49,8 @@ interface ResultChartProps {
   sharedRange?: ChartAxisRange;
   timeRangeDefaults?: { endPeriodInclusive: number; startPeriodInclusive: number };
   timeRangeInclusive?: [number, number];
+  /** `"auto"` shows a brush when the run is long enough; drags stay in local state only. */
+  timeRangeSlider?: boolean | "auto";
   graphSlice?: MatrixGraphSliceHighlight | null;
   highlightedVariable?: string | null;
   isPinned?: boolean;
@@ -66,6 +70,12 @@ interface ResultChartProps {
 
 const SERIES_COLORS = ["#111827", "#ec4899", "#ea580c", "#6366f1", "#059669", "#0284c7"];
 const X_TICK_LABEL_OFFSET = 16;
+const CHART_VIEWBOX_WIDTH = 900;
+const CHART_MAIN_HEIGHT = 360;
+const TIME_RANGE_SLIDER_MIN_PERIODS = 10;
+const TIME_RANGE_SLIDER_GAP = 8;
+const TIME_RANGE_SLIDER_SECTION_HEIGHT = 48;
+const TIME_RANGE_SLIDER_HANDLE_WIDTH = 10;
 
 export function ResultChart({
   addVariableOptions,
@@ -82,6 +92,7 @@ export function ResultChart({
   sharedRange,
   timeRangeDefaults,
   timeRangeInclusive,
+  timeRangeSlider = "auto",
   highlightedVariable = null,
   graphSlice = null,
   isPinned = false,
@@ -104,6 +115,8 @@ export function ResultChart({
   const [isAddVariableMenuOpen, setIsAddVariableMenuOpen] = useState(false);
   const [openLegendMenuSeriesName, setOpenLegendMenuSeriesName] = useState<string | null>(null);
   const addVariableMenuRef = useRef<HTMLDivElement | null>(null);
+  const chartSvgRef = useRef<SVGSVGElement | null>(null);
+  const syncedTimeRangeSourceKeyRef = useRef<string | null>(null);
   const addVariableMenuId = useId();
   const normalizedSeries = series
     .map((entry, index) => ({
@@ -168,6 +181,32 @@ export function ResultChart({
     );
   }
 
+  const provisionalSeriesLength =
+    normalizedSeries.length > 0
+      ? Math.max(...normalizedSeries.map((entry) => entry.values.length))
+      : 1;
+  const timeRangeSourceKey = [
+    timeRangeInclusive?.[0] ?? "",
+    timeRangeInclusive?.[1] ?? "",
+    timeRangeDefaults?.startPeriodInclusive ?? "",
+    timeRangeDefaults?.endPeriodInclusive ?? "",
+    provisionalSeriesLength
+  ].join("|");
+  const [interactiveTimeRange, setInteractiveTimeRange] = useState(() =>
+    resolveTimeRange(timeRangeInclusive, timeRangeDefaults, provisionalSeriesLength)
+  );
+
+  useEffect(() => {
+    if (syncedTimeRangeSourceKeyRef.current === timeRangeSourceKey) {
+      return;
+    }
+
+    syncedTimeRangeSourceKeyRef.current = timeRangeSourceKey;
+    setInteractiveTimeRange(
+      resolveTimeRange(timeRangeInclusive, timeRangeDefaults, provisionalSeriesLength)
+    );
+  }, [timeRangeSourceKey, timeRangeInclusive, timeRangeDefaults, provisionalSeriesLength]);
+
   if (normalizedSeries.length === 0) {
     return null;
   }
@@ -176,8 +215,17 @@ export function ResultChart({
   const visibleSeriesNames = new Set(visibleSeries.map((entry) => entry.name));
   const visibleOverlaySeries = normalizedOverlaySeries.filter((entry) => visibleSeriesNames.has(entry.name));
 
-  const width = 900;
-  const height = 360;
+  const width = CHART_VIEWBOX_WIDTH;
+  const seriesLength = Math.max(...visibleSeries.map((entry) => entry.values.length));
+  const showTimeRangeSlider =
+    timeRangeSlider !== false &&
+    (timeRangeSlider === true || timeRangeSlider === "auto") &&
+    seriesLength >= TIME_RANGE_SLIDER_MIN_PERIODS;
+  const height = showTimeRangeSlider
+    ? CHART_MAIN_HEIGHT + TIME_RANGE_SLIDER_GAP + TIME_RANGE_SLIDER_SECTION_HEIGHT
+    : CHART_MAIN_HEIGHT;
+  const sliderTop = CHART_MAIN_HEIGHT + TIME_RANGE_SLIDER_GAP;
+  const sliderHeight = TIME_RANGE_SLIDER_SECTION_HEIGHT;
   const topPadding = 26;
   const bottomPadding = 42;
   const rightPadding = 20;
@@ -186,9 +234,11 @@ export function ResultChart({
   const axisCount = axisMode === "separate" ? normalizedSeries.length : 1;
   const leftPadding = primaryAxisWidth + axisSpacing * Math.max(axisCount - 1, 0);
   const plotWidth = width - leftPadding - rightPadding;
-  const plotHeight = height - topPadding - bottomPadding;
-  const seriesLength = Math.max(...visibleSeries.map((entry) => entry.values.length));
-  const resolvedTimeRange = resolveTimeRange(timeRangeInclusive, timeRangeDefaults, seriesLength);
+  const plotHeight = CHART_MAIN_HEIGHT - topPadding - bottomPadding;
+  const staticTimeRange = resolveTimeRange(timeRangeInclusive, timeRangeDefaults, seriesLength);
+  const resolvedTimeRange = showTimeRangeSlider
+    ? clampInteractiveTimeRange(interactiveTimeRange, seriesLength)
+    : staticTimeRange;
   const visibleStartIndex = resolvedTimeRange.startPeriodInclusive - 1;
   const visibleEndIndex = resolvedTimeRange.endPeriodInclusive - 1;
   const visibleLength = visibleEndIndex - visibleStartIndex + 1;
@@ -202,14 +252,16 @@ export function ResultChart({
     const visibleReferenceValues = visibleOverlaySeries
       .filter((overlay) => overlay.name === entry.name)
       .flatMap((overlay) => overlay.values.slice(visibleStartIndex, visibleEndIndex + 1));
+    const scaleValues = [...visibleValues, ...visibleReferenceValues].filter(Number.isFinite);
+    const fallbackScaleValues = entry.values.filter(Number.isFinite);
 
     return {
       ...entry,
       visibleValues,
-      visibleScaleValues: [...visibleValues, ...visibleReferenceValues],
+      visibleScaleValues: scaleValues.length > 0 ? scaleValues : fallbackScaleValues,
       axisRangeConfig: seriesRanges?.[entry.name],
       ...buildAxisMetrics(
-        [...visibleValues, ...visibleReferenceValues].filter(Number.isFinite),
+        scaleValues.length > 0 ? scaleValues : fallbackScaleValues,
         seriesRanges?.[entry.name],
         yAxisTickCount,
         { exactTickCount: axisMode === "separate", niceScale }
@@ -235,8 +287,12 @@ export function ResultChart({
       : fallbackHoverVisibleIndex;
   const ariaLabel =
     axisMode === "shared"
-      ? "Simulation result chart with shared left axis"
-      : "Simulation result chart with multiple left axes";
+      ? showTimeRangeSlider
+        ? "Simulation result chart with shared left axis and time range slider"
+        : "Simulation result chart with shared left axis"
+      : showTimeRangeSlider
+        ? "Simulation result chart with multiple left axes and time range slider"
+        : "Simulation result chart with multiple left axes";
   const hoverTooltip =
     hoveredDatum && hoveredMetric
       ? buildHoverTooltip(
@@ -326,6 +382,73 @@ export function ResultChart({
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [openLegendMenuSeriesName]);
+
+  function beginTimeRangeDrag(
+    mode: "end" | "pan" | "start",
+    event: ReactPointerEvent<SVGElement>
+  ): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const svgElement = chartSvgRef.current;
+    if (!svgElement) {
+      return;
+    }
+
+    const originX = pointerEventToSvgX(event, svgElement, width);
+    const originRange = resolvedTimeRange;
+
+    function handlePointerMove(moveEvent: PointerEvent): void {
+      const svg = chartSvgRef.current;
+      if (!svg) {
+        return;
+      }
+
+      const nextX = pointerEventToSvgX(moveEvent, svg, width);
+      setInteractiveTimeRange(
+        applyTimeRangeDrag({
+          leftPadding,
+          mode,
+          nextX,
+          originEnd: originRange.endPeriodInclusive,
+          originStart: originRange.startPeriodInclusive,
+          originX,
+          plotWidth,
+          seriesLength
+        })
+      );
+    }
+
+    function handlePointerUp(upEvent: PointerEvent): void {
+      if (upEvent.pointerId === event.pointerId) {
+        window.removeEventListener("pointermove", handlePointerMove);
+        window.removeEventListener("pointerup", handlePointerUp);
+      }
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+  }
+
+  const overviewFiniteValues = visibleSeries.flatMap((entry) => entry.values.filter(Number.isFinite));
+  const overviewMetrics = buildAxisMetrics(overviewFiniteValues, sharedRange, 3, { niceScale: false });
+  const rangeSliderWindowLeft = toX(
+    resolvedTimeRange.startPeriodInclusive - 1,
+    leftPadding,
+    plotWidth,
+    seriesLength
+  );
+  const rangeSliderWindowRight = toX(
+    resolvedTimeRange.endPeriodInclusive - 1,
+    leftPadding,
+    plotWidth,
+    seriesLength
+  );
+  const rangeSliderPanLeft = rangeSliderWindowLeft + TIME_RANGE_SLIDER_HANDLE_WIDTH / 2;
+  const rangeSliderPanWidth = Math.max(
+    rangeSliderWindowRight - rangeSliderWindowLeft - TIME_RANGE_SLIDER_HANDLE_WIDTH,
+    0
+  );
 
   function toggleSeriesVisibility(seriesName: string): void {
     setHiddenSeriesNames((current) => {
@@ -612,6 +735,7 @@ export function ResultChart({
         </div>
 
         <svg
+        ref={chartSvgRef}
         className="result-chart"
         viewBox={`0 0 ${width} ${height}`}
         role="img"
@@ -627,7 +751,9 @@ export function ResultChart({
             plotHeight,
             axisMode,
             sharedMetrics,
-            visibleLength
+            visibleLength,
+            width,
+            height
           );
           if (nextHover) {
             updateHoveredDatum(nextHover);
@@ -921,13 +1047,126 @@ export function ResultChart({
 
         <text
           x={leftPadding + plotWidth / 2}
-          y={height - 2}
+          y={CHART_MAIN_HEIGHT - 2}
           fill="#111827"
           fontSize="12"
           textAnchor="middle"
         >
           Period
         </text>
+
+        {showTimeRangeSlider ? (
+          <g className="chart-time-range-slider" aria-label="Time range slider">
+            <rect
+              x={leftPadding}
+              y={sliderTop}
+              width={plotWidth}
+              height={sliderHeight}
+              fill="#f8fafc"
+              rx="4"
+              stroke="#cbd5e1"
+              strokeWidth="1"
+            />
+
+            {visibleSeries.map((entry, index) => (
+              <polyline
+                key={`range-slider-${entry.name}`}
+                fill="none"
+                points={toPolylinePoints(
+                  entry.values,
+                  leftPadding,
+                  sliderTop + 4,
+                  plotWidth,
+                  sliderHeight - 8,
+                  overviewMetrics.min,
+                  overviewMetrics.range
+                )}
+                pointerEvents="none"
+                stroke={entry.color}
+                strokeOpacity={0.45}
+                strokeWidth={index === 0 ? 1.75 : 1.25}
+              />
+            ))}
+
+            <rect
+              x={leftPadding}
+              y={sliderTop}
+              width={Math.max(rangeSliderWindowLeft - leftPadding, 0)}
+              height={sliderHeight}
+              fill="rgba(255, 255, 255, 0.72)"
+              pointerEvents="none"
+            />
+            <rect
+              x={rangeSliderWindowRight}
+              y={sliderTop}
+              width={Math.max(leftPadding + plotWidth - rangeSliderWindowRight, 0)}
+              height={sliderHeight}
+              fill="rgba(255, 255, 255, 0.72)"
+              pointerEvents="none"
+            />
+
+            <rect
+              x={rangeSliderWindowLeft}
+              y={sliderTop}
+              width={Math.max(rangeSliderWindowRight - rangeSliderWindowLeft, 0)}
+              height={sliderHeight}
+              fill="rgba(148, 163, 184, 0.12)"
+              pointerEvents="none"
+              stroke="#64748b"
+              strokeWidth="1"
+            />
+
+            {rangeSliderPanWidth > 0 ? (
+              <rect
+                className="chart-time-range-slider-pan"
+                x={rangeSliderPanLeft}
+                y={sliderTop}
+                width={rangeSliderPanWidth}
+                height={sliderHeight}
+                fill="transparent"
+                onPointerDown={(event) => beginTimeRangeDrag("pan", event)}
+              />
+            ) : null}
+
+            <rect
+              className="chart-time-range-slider-handle chart-time-range-slider-handle-start"
+              x={rangeSliderWindowLeft - TIME_RANGE_SLIDER_HANDLE_WIDTH / 2}
+              y={sliderTop}
+              width={TIME_RANGE_SLIDER_HANDLE_WIDTH}
+              height={sliderHeight}
+              fill="transparent"
+              onPointerDown={(event) => beginTimeRangeDrag("start", event)}
+            />
+            <line
+              x1={rangeSliderWindowLeft}
+              x2={rangeSliderWindowLeft}
+              y1={sliderTop + 6}
+              y2={sliderTop + sliderHeight - 6}
+              pointerEvents="none"
+              stroke="#475569"
+              strokeWidth="2"
+            />
+
+            <rect
+              className="chart-time-range-slider-handle chart-time-range-slider-handle-end"
+              x={rangeSliderWindowRight - TIME_RANGE_SLIDER_HANDLE_WIDTH / 2}
+              y={sliderTop}
+              width={TIME_RANGE_SLIDER_HANDLE_WIDTH}
+              height={sliderHeight}
+              fill="transparent"
+              onPointerDown={(event) => beginTimeRangeDrag("end", event)}
+            />
+            <line
+              x1={rangeSliderWindowRight}
+              x2={rangeSliderWindowRight}
+              y1={sliderTop + 6}
+              y2={sliderTop + sliderHeight - 6}
+              pointerEvents="none"
+              stroke="#475569"
+              strokeWidth="2"
+            />
+          </g>
+        ) : null}
       </svg>
       </div>
 
@@ -1030,15 +1269,17 @@ function resolveHoveredDatum(
   plotHeight: number,
   axisMode: ChartAxisMode,
   sharedMetrics: { min: number; range: number },
-  visibleLength: number
+  visibleLength: number,
+  svgWidth: number,
+  svgHeight: number
 ): { index: number; seriesName: string } | null {
   const rect = event.currentTarget.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) {
     return null;
   }
 
-  const scaleX = 900 / rect.width;
-  const scaleY = 360 / rect.height;
+  const scaleX = svgWidth / rect.width;
+  const scaleY = svgHeight / rect.height;
   const svgX = (event.clientX - rect.left) * scaleX;
   const svgY = (event.clientY - rect.top) * scaleY;
 
@@ -1079,5 +1320,18 @@ function resolveHoveredDatum(
   });
 
   return closest ? { index: hoveredIndex, seriesName: closest.seriesName } : null;
+}
+
+function pointerEventToSvgX(
+  event: { clientX: number },
+  svg: SVGSVGElement,
+  svgWidth: number
+): number {
+  const rect = svg.getBoundingClientRect();
+  if (rect.width <= 0 || !Number.isFinite(event.clientX)) {
+    return 0;
+  }
+
+  return ((event.clientX - rect.left) / rect.width) * svgWidth;
 }
 

@@ -259,3 +259,13 @@
 .chart-axis {
   transition: opacity 140ms ease;
 }
+.chart-time-range-slider-handle-start,
+.chart-time-range-slider-handle-end {
+  cursor: ew-resize;
+}
+.chart-time-range-slider-pan {
+  cursor: grab;
+}
+.chart-time-range-slider-pan:active {
+  cursor: grabbing;
+}
