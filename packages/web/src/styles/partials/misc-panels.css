@@ -6,4 +6,5 @@
 }
 .error-text {
   color: #b91c1c;
+  white-space: pre-wrap;
 }

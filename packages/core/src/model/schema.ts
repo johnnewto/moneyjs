@@ -9,12 +9,35 @@ export class ParseError extends Error {
   }
 }
 
+export interface ConvergenceVariableDiagnostic {
+  name: string;
+  value: number;
+  previous?: number;
+  relativeChange?: number;
+  residual?: number;
+  finite: boolean;
+}
+
+export interface ConvergenceFailureDetails {
+  period: number;
+  blockId: number;
+  blockVariables: string[];
+  solverMethod: string;
+  tolerance: number;
+  maxIterations: number;
+  iterationsUsed: number;
+  variables: ConvergenceVariableDiagnostic[];
+  nonFiniteVariables: string[];
+  worstVariables: Array<{
+    name: string;
+    value: number;
+    relativeChange?: number;
+    residual?: number;
+  }>;
+}
+
 export class ConvergenceError extends Error {
-  constructor(
-    message: string,
-    public readonly period: number,
-    public readonly blockId: number
-  ) {
+  constructor(message: string, public readonly details: ConvergenceFailureDetails) {
     super(message);
     this.name = "ConvergenceError";
   }

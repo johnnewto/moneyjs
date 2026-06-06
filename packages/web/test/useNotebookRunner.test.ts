@@ -6,7 +6,9 @@ import {
   buildNotebookRunnerResetKey,
   buildRunHistorySignatures,
   resolveRunCellOptions,
-  resolvePreviousRunResult
+  resolvePreviousRunResult,
+  resolveRunErrorPinCellId,
+  shouldStopRunAllAfterCell
 } from "../src/notebook/useNotebookRunner";
 import type { NotebookDocument, RunCell } from "../src/notebook/types";
 
@@ -89,6 +91,70 @@ const previousTestResult: SimulationResult = {
     C: new Float64Array([3, 4])
   }
 };
+
+describe("shouldStopRunAllAfterCell", () => {
+  it("stops after a baseline run fails", () => {
+    expect(
+      shouldStopRunAllAfterCell(
+        { id: "baseline-run", mode: "baseline" },
+        { "baseline-run": "error" },
+        null
+      )
+    ).toBe(true);
+  });
+
+  it("stops after a scenario run when its baseline failed", () => {
+    expect(
+      shouldStopRunAllAfterCell(
+        { id: "scenario-run", mode: "scenario" },
+        { "baseline-run": "error", "scenario-run": "error" },
+        "baseline-run"
+      )
+    ).toBe(true);
+  });
+
+  it("continues after a scenario run fails on its own", () => {
+    expect(
+      shouldStopRunAllAfterCell(
+        { id: "scenario-run", mode: "scenario" },
+        { "baseline-run": "success", "scenario-run": "error" },
+        "baseline-run"
+      )
+    ).toBe(false);
+  });
+});
+
+describe("resolveRunErrorPinCellId", () => {
+  it("pins the baseline run when a scenario fails because baseline is in error", () => {
+    expect(
+      resolveRunErrorPinCellId(
+        { id: "scenario-run", mode: "scenario" },
+        { "baseline-run": "error", "scenario-run": "error" },
+        "baseline-run"
+      )
+    ).toBe("baseline-run");
+  });
+
+  it("pins the scenario run when baseline succeeded", () => {
+    expect(
+      resolveRunErrorPinCellId(
+        { id: "scenario-run", mode: "scenario" },
+        { "baseline-run": "success", "scenario-run": "error" },
+        "baseline-run"
+      )
+    ).toBe("scenario-run");
+  });
+
+  it("pins the baseline run cell when it fails directly", () => {
+    expect(
+      resolveRunErrorPinCellId(
+        { id: "baseline-run", mode: "baseline" },
+        { "baseline-run": "error" },
+        null
+      )
+    ).toBe("baseline-run");
+  });
+});
 
 describe("buildNotebookRunnerResetKey", () => {
   it("ignores UI-only cell changes such as collapsed and title edits", () => {

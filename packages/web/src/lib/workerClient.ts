@@ -58,7 +58,12 @@ class BrowserWorkerClient implements SolverClient {
 
       if (response.type === "error") {
         this.pending.delete(response.id);
-        pending.reject(new Error(response.payload.message));
+        const error = new Error(response.payload.message);
+        error.name = response.payload.name;
+        if (response.payload.details) {
+          Object.assign(error, { details: response.payload.details });
+        }
+        pending.reject(error);
         return;
       }
 

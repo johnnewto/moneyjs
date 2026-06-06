@@ -107,4 +107,46 @@ describe("core worker handler", () => {
     expect(response.payload.spectralRadius).toBeCloseTo(0.8, 5);
     expect(response.payload.classification).toBe("stable");
   });
+
+  it("includes structured details for ConvergenceError", () => {
+    const model = {
+      equations: [
+        { name: "x", expression: "y + 1" },
+        { name: "y", expression: "x + 1" }
+      ],
+      externals: {},
+      initialValues: { x: 1, y: 1 }
+    };
+
+    const response = handleWorkerRequest({
+      id: "run-1",
+      type: "runBaseline",
+      payload: {
+        model,
+        options: {
+          periods: 2,
+          solverMethod: "GAUSS_SEIDEL",
+          tolerance: 1e-8,
+          maxIterations: 3
+        }
+      }
+    });
+
+    expect(response).toMatchObject({
+      id: "run-1",
+      type: "error",
+      payload: {
+        name: "ConvergenceError",
+        details: {
+          period: 1,
+          iterationsUsed: 3,
+          blockVariables: ["x", "y"]
+        }
+      }
+    });
+    if (response.type !== "error") {
+      return;
+    }
+    expect(response.payload.message).toContain("Slowest to converge:");
+  });
 });

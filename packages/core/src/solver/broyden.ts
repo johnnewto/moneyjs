@@ -1,5 +1,6 @@
 import { evaluateExpression } from "../parser/dependencies";
 
+import { throwConvergenceError, type ConvergenceVariableDiagnostic } from "./convergenceFailure";
 import type { BlockSolver } from "./types";
 import { solveLinearSystem } from "./linearSolve";
 
@@ -20,6 +21,8 @@ export const broydenSolver: BlockSolver = {
 
     const variables = block.equationNames;
     const x0 = variables.map((variable) => context.lagValue(variable));
+    let iterationsUsed = 0;
+    let lastDiagnostics: ConvergenceVariableDiagnostic[] = [];
 
     setCurrentValues(context, variables, x0);
     const g0 = residuals(variables, equationsByName, context);
@@ -27,6 +30,7 @@ export const broydenSolver: BlockSolver = {
     let currentInv = invert(d0);
     let currentStep = multiplyMatrixVector(currentInv, negate(g0));
     let current = add(x0, currentStep);
+    lastDiagnostics = buildStepDiagnostics(variables, x0, current);
 
     if (converged(x0, current, options.tolerance)) {
       setCurrentValues(context, variables, current);
@@ -34,6 +38,7 @@ export const broydenSolver: BlockSolver = {
     }
 
     for (let iteration = 1; iteration < options.maxIterations; iteration += 1) {
+      iterationsUsed = iteration + 1;
       setCurrentValues(context, variables, current);
       const g = residuals(variables, equationsByName, context);
       const u = multiplyMatrixVector(currentInv, g);
@@ -50,6 +55,7 @@ export const broydenSolver: BlockSolver = {
 
       const step = multiplyMatrixVector(currentInv, negate(g));
       const candidate = add(current, step);
+      lastDiagnostics = buildStepDiagnostics(variables, current, candidate);
 
       if (converged(current, candidate, options.tolerance)) {
         setCurrentValues(context, variables, candidate);
@@ -60,11 +66,36 @@ export const broydenSolver: BlockSolver = {
       currentStep = step;
     }
 
-    throw new Error(
-      `Broyden algorithm failed to converge for block ${block.equationNames.join(", ")} at period ${period}`
-    );
+    throwConvergenceError({
+      solverMethod: "Broyden",
+      period,
+      block,
+      options,
+      iterationsUsed: iterationsUsed || 1,
+      variables: lastDiagnostics
+    });
   }
 };
+
+function buildStepDiagnostics(
+  variables: string[],
+  previous: number[],
+  next: number[]
+): ConvergenceVariableDiagnostic[] {
+  return variables.map((name, index) => {
+    const previousValue = previous[index] ?? NaN;
+    const nextValue = next[index] ?? NaN;
+    const relative =
+      Math.abs(previousValue - nextValue) / (Math.abs(nextValue) + 1e-15);
+    return {
+      name,
+      value: nextValue,
+      previous: previousValue,
+      relativeChange: relative,
+      finite: Number.isFinite(previousValue) && Number.isFinite(nextValue) && Number.isFinite(relative)
+    };
+  });
+}
 
 function residuals(
   variables: string[],

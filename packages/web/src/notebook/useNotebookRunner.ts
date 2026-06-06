@@ -16,7 +16,7 @@ import type { NotebookCellOutput, NotebookDocument, NotebookRuntimeState, RunCel
 export interface NotebookRunnerApi extends NotebookRuntimeState {
   getPreviousResult(cellId: string): SimulationResult | null;
   getResult(cellId: string): SimulationResult | null;
-  runCell(cellId: string): Promise<void>;
+  runCell(cellId: string): Promise<boolean>;
   runAll(): Promise<void>;
 }
 
@@ -124,8 +124,34 @@ export function buildRunHistorySignatures(document: NotebookDocument): Record<st
   );
 }
 
+export function shouldStopRunAllAfterCell(
+  cell: Pick<RunCell, "id" | "mode">,
+  status: Record<string, string | undefined>,
+  baselineRunCellId: string | null
+): boolean {
+  if (cell.mode === "baseline" && status[cell.id] === "error") {
+    return true;
+  }
+  if (cell.mode === "scenario" && baselineRunCellId && status[baselineRunCellId] === "error") {
+    return true;
+  }
+  return false;
+}
+
+export function resolveRunErrorPinCellId(
+  cell: Pick<RunCell, "id" | "mode">,
+  status: Record<string, string | undefined>,
+  baselineRunCellId: string | null
+): string {
+  if (cell.mode === "scenario" && baselineRunCellId && status[baselineRunCellId] === "error") {
+    return baselineRunCellId;
+  }
+  return cell.id;
+}
+
 export interface UseNotebookRunnerOptions {
   constantExternalOverrides?: ConstantExternalOverrides;
+  onRunError?: (cellId: string) => void;
 }
 
 export function useNotebookRunner(
@@ -140,6 +166,8 @@ export function useNotebookRunner(
   const historyUpdateSequenceRef = useRef(0);
   const constantExternalOverridesRef = useRef<ConstantExternalOverrides>({});
   constantExternalOverridesRef.current = options.constantExternalOverrides ?? {};
+  const onRunErrorRef = useRef(options.onRunError);
+  onRunErrorRef.current = options.onRunError;
   const resetKey = useMemo(() => buildNotebookRunnerResetKey(document), [document]);
   const runHistorySignatures = useMemo(() => buildRunHistorySignatures(document), [document]);
   const previousRunHistorySignaturesRef = useRef<Record<string, string> | null>(null);
@@ -260,10 +288,10 @@ export function useNotebookRunner(
     };
   }
 
-  async function runCell(cellId: string): Promise<void> {
+  async function runCell(cellId: string): Promise<boolean> {
     const cell = document.cells.find((entry) => entry.id === cellId);
     if (!cell || cell.type !== "run") {
-      return;
+      return true;
     }
 
     const editor = buildEditorForRunCell(cell);
@@ -278,7 +306,8 @@ export function useNotebookRunner(
         stateRef.current = next;
         return next;
       });
-      return;
+      onRunErrorRef.current?.(cellId);
+      return false;
     }
 
     setState((current) => {
@@ -378,6 +407,7 @@ export function useNotebookRunner(
         stateRef.current = next;
         return next;
       });
+      return true;
     } catch (error) {
       setState((current) => {
         const next: NotebookRuntimeState = {
@@ -391,12 +421,21 @@ export function useNotebookRunner(
         stateRef.current = next;
         return next;
       });
+      const baselineCell = cell.mode === "scenario" ? resolveBaselineRunCell(cell) : null;
+      onRunErrorRef.current?.(
+        resolveRunErrorPinCellId(cell, stateRef.current.status, baselineCell?.id ?? null)
+      );
+      return false;
     }
   }
 
   async function runAll(): Promise<void> {
     for (const cell of runCells) {
       await runCell(cell.id);
+      const baselineCell = cell.mode === "scenario" ? resolveBaselineRunCell(cell) : null;
+      if (shouldStopRunAllAfterCell(cell, stateRef.current.status, baselineCell?.id ?? null)) {
+        break;
+      }
     }
   }
 

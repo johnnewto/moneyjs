@@ -713,7 +713,13 @@ export function NotebookApp() {
     document: NotebookDocument;
     source: NotebookSourceFormat;
   } | null>(null);
-  const runner = useNotebookRunner(notebookDocument, { constantExternalOverrides: parameterOverrides });
+  const handleRunError = useCallback((cellId: string) => {
+    setPinnedCellId(cellId);
+  }, []);
+  const runner = useNotebookRunner(notebookDocument, {
+    constantExternalOverrides: parameterOverrides,
+    onRunError: handleRunError
+  });
   const hasPendingParameterOverrides = useMemo(
     () => hasParameterOverrides(parameterOverrides),
     [parameterOverrides]

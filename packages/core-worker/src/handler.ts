@@ -86,7 +86,7 @@ function toErrorResponse(id: string, error: unknown): WorkerResponse {
       payload: {
         name: error.name,
         message: error.message,
-        details: { period: error.period, blockId: error.blockId }
+        details: error.details as unknown as Record<string, unknown>
       }
     };
   }

@@ -1,5 +1,6 @@
 import { evaluateExpression } from "../parser/dependencies";
 
+import { throwConvergenceError, type ConvergenceVariableDiagnostic } from "./convergenceFailure";
 import type { BlockSolver } from "./types";
 
 export const gaussSeidelSolver: BlockSolver = {
@@ -17,8 +18,11 @@ export const gaussSeidelSolver: BlockSolver = {
       return;
     }
 
+    let lastDiagnostics: ConvergenceVariableDiagnostic[] = [];
+
     for (let iteration = 0; iteration < options.maxIterations; iteration += 1) {
       let converged = true;
+      const iterationDiagnostics: ConvergenceVariableDiagnostic[] = [];
 
       for (const variable of block.equationNames) {
         const equation = equationsByName.get(variable);
@@ -29,18 +33,33 @@ export const gaussSeidelSolver: BlockSolver = {
         const next = evaluateExpression(equation.expression, context);
         context.setCurrentValue(variable, next);
         const relative = Math.abs(next - previous) / (Math.abs(previous) + 1e-15);
-        if (!Number.isFinite(relative) || relative >= options.tolerance) {
+        const finite = Number.isFinite(next) && Number.isFinite(previous) && Number.isFinite(relative);
+        iterationDiagnostics.push({
+          name: variable,
+          value: next,
+          previous,
+          relativeChange: relative,
+          finite
+        });
+        if (!finite || relative >= options.tolerance) {
           converged = false;
         }
       }
+
+      lastDiagnostics = iterationDiagnostics;
 
       if (converged) {
         return;
       }
     }
 
-    throw new Error(
-      `Gauss-Seidel algorithm failed to converge for block ${block.equationNames.join(", ")} at period ${period}`
-    );
+    throwConvergenceError({
+      solverMethod: "Gauss-Seidel",
+      period,
+      block,
+      options,
+      iterationsUsed: options.maxIterations,
+      variables: lastDiagnostics
+    });
   }
 };

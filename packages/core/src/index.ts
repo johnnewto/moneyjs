@@ -17,6 +17,7 @@ export * from "./solver/types";
 export * from "./solver/gaussSeidel";
 export * from "./solver/newton";
 export * from "./solver/broyden";
+export * from "./solver/convergenceFailure";
 export * from "./solver/linearSolve";
 export * from "./result/result";
 export * from "./analysis/transitionMatrix";

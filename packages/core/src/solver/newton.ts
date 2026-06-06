@@ -1,5 +1,6 @@
 import { evaluateExpression } from "../parser/dependencies";
 
+import { throwConvergenceError, type ConvergenceVariableDiagnostic } from "./convergenceFailure";
 import type { BlockSolver } from "./types";
 import { solveLinearSystem } from "./linearSolve";
 
@@ -20,10 +21,14 @@ export const newtonSolver: BlockSolver = {
 
     const variables = block.equationNames;
     const x = variables.map((variable) => context.lagValue(variable));
+    let iterationsUsed = 0;
+    let lastDiagnostics: ConvergenceVariableDiagnostic[] = [];
 
     for (let iteration = 0; iteration < options.maxIterations; iteration += 1) {
+      iterationsUsed = iteration + 1;
       setCurrentValues(context, variables, x);
       const residual = residuals(variables, equationsByName, context);
+      lastDiagnostics = buildResidualDiagnostics(variables, x, residual);
 
       if (maxAbs(residual) < options.tolerance) {
         return;
@@ -48,11 +53,33 @@ export const newtonSolver: BlockSolver = {
       }
     }
 
-    throw new Error(
-      `Newton-Raphson algorithm failed to converge for block ${block.equationNames.join(", ")} at period ${period}`
-    );
+    throwConvergenceError({
+      solverMethod: "Newton-Raphson",
+      period,
+      block,
+      options,
+      iterationsUsed,
+      variables: lastDiagnostics
+    });
   }
 };
+
+function buildResidualDiagnostics(
+  variables: string[],
+  values: number[],
+  residual: number[]
+): ConvergenceVariableDiagnostic[] {
+  return variables.map((name, index) => {
+    const value = values[index] ?? NaN;
+    const residualValue = residual[index] ?? NaN;
+    return {
+      name,
+      value,
+      residual: residualValue,
+      finite: Number.isFinite(value) && Number.isFinite(residualValue)
+    };
+  });
+}
 
 function residuals(
   variables: string[],
