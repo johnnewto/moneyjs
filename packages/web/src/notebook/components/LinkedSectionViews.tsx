@@ -19,8 +19,8 @@ import type { VariableInspectRequest } from "../../lib/variableInspect";
 import { countModelSectionIssues } from "../modelSections";
 import { newRowComment } from "../rowCommentHelpers";
 import { useInlineCommentRowEdit } from "../useInlineCommentRowEdit";
-import { useInlineExternalRowEdit } from "../useInlineExternalRowEdit";
-import { useInlineInitialValueRowEdit } from "../useInlineInitialValueRowEdit";
+import { useInlineExternalRowEdit, useExternalBatchRename } from "../useInlineExternalRowEdit";
+import { useInlineInitialValueRowEdit, useInitialValueBatchRename } from "../useInlineInitialValueRowEdit";
 import { CommentRowReadView } from "./CommentRowReadView";
 import type { ExternalsCell, InitialValuesCell, NotebookCell, SolverCell } from "../types";
 import {
@@ -287,6 +287,7 @@ export function ExternalsCellView({
   );
   const [isEditingExternals, setIsEditingExternals] = useState(false);
   const [draftExternals, setDraftExternals] = useState(cell.externals);
+  const [batchValidationError, setBatchValidationError] = useState<string | null>(null);
   const hasDraftEdits = JSON.stringify(draftExternals) !== JSON.stringify(cell.externals);
   const floatingEnabled = cell.collapsed !== true && !isEditingExternals && viewportRoot != null;
   const { visible: floatingHeaderVisible, anchor: floatingHeaderAnchor } =
@@ -314,8 +315,14 @@ export function ExternalsCellView({
   }
 
   function handleApply(): void {
-    onChange(draftExternals);
-    setIsEditingExternals(false);
+    setBatchValidationError(null);
+    try {
+      batchRename.requestBatchApply(cell.externals, draftExternals);
+    } catch (error) {
+      setBatchValidationError(
+        error instanceof Error ? error.message : "Unable to apply externals."
+      );
+    }
   }
 
   function handleCancel(): void {
@@ -334,6 +341,20 @@ export function ExternalsCellView({
     onReplaceCells,
     scope: { kind: "modelId", modelId: cell.modelId }
   });
+  const batchRename = useExternalBatchRename({
+    cellId: cell.id,
+    cells,
+    onApplyDraft: (externals) => {
+      onChange(externals);
+      setIsEditingExternals(false);
+    },
+    onReplaceCells,
+    scope: { kind: "modelId", modelId: cell.modelId }
+  });
+  const activeRenameDialog = inlineEdit.renameDialog ?? batchRename.renameDialog;
+  const activeRenameReferenceCount = inlineEdit.renameDialog
+    ? inlineEdit.renameReferenceCount
+    : batchRename.renameReferenceCount;
   const externalRowMenu = useGridRowContextMenu({
     ignoredSelector: "select",
     onChangeRows: (externals) => {
@@ -382,6 +403,11 @@ export function ExternalsCellView({
       </NotebookLinkedEditorHeader>
       {cell.collapsed ? null : isEditingExternals ? (
         <div className="notebook-model-editor-body">
+          {batchValidationError ? (
+            <div className="notebook-inline-edit-error" role="alert">
+              {batchValidationError}
+            </div>
+          ) : null}
           <ExternalEditor
             currentValues={currentValues}
             externals={draftExternals}
@@ -537,14 +563,31 @@ export function ExternalsCellView({
         <ExternalsModelViewHeaderRowStatic />
       </NotebookFloatingHeaderOverlay>
       <VariableRenameDialog
-        cellCount={inlineEdit.renameReferenceCount.cellCount}
-        isOpen={inlineEdit.renameDialog != null}
-        newName={inlineEdit.renameDialog?.name ?? ""}
-        oldName={inlineEdit.renameDialog?.oldName ?? ""}
-        referenceCount={inlineEdit.renameReferenceCount.referenceCount}
-        onCancel={inlineEdit.cancelRowEdit}
-        onConfirmNo={inlineEdit.confirmRenameNo}
-        onConfirmYes={inlineEdit.confirmRenameYes}
+        impact={activeRenameReferenceCount}
+        isOpen={activeRenameDialog != null}
+        newName={activeRenameDialog?.newName ?? ""}
+        oldName={activeRenameDialog?.oldName ?? ""}
+        onCancel={() => {
+          if (inlineEdit.renameDialog) {
+            inlineEdit.cancelRowEdit();
+            return;
+          }
+          batchRename.cancelBatchRename();
+        }}
+        onConfirmNo={() => {
+          if (inlineEdit.renameDialog) {
+            inlineEdit.confirmRenameNo();
+            return;
+          }
+          batchRename.confirmRenameNo();
+        }}
+        onConfirmYes={() => {
+          if (inlineEdit.renameDialog) {
+            inlineEdit.confirmRenameYes();
+            return;
+          }
+          batchRename.confirmRenameYes();
+        }}
       />
     </div>
   );
@@ -552,12 +595,14 @@ export function ExternalsCellView({
 
 export function InitialValuesCellView({
   cell,
+  cells,
   currentValues,
   editor,
   issueMap,
   isPinnedInPanel = false,
   onEditingChange,
   onHelpRequest,
+  onReplaceCells,
   onVariableInspectRequest,
   highlightedVariable = null,
   title,
@@ -569,6 +614,7 @@ export function InitialValuesCellView({
   viewportRoot = null
 }: {
   cell: InitialValuesCell;
+  cells: NotebookCell[];
   currentValues: Record<string, number | undefined>;
   editor: EditorState;
   issueMap: Record<string, string | undefined>;
@@ -576,6 +622,7 @@ export function InitialValuesCellView({
   highlightedVariable?: string | null;
   onEditingChange?(isEditing: boolean): void;
   onHelpRequest?: (() => void) | null;
+  onReplaceCells(nextCells: NotebookCell[]): void;
   onVariableInspectRequest(args: VariableInspectRequest): void;
   onPinCellRequest?: (() => void) | null;
   title: string;
@@ -594,6 +641,7 @@ export function InitialValuesCellView({
   const issuePaths = Object.keys(issueMap);
   const [isEditingInitialValues, setIsEditingInitialValues] = useState(false);
   const [draftInitialValues, setDraftInitialValues] = useState(cell.initialValues);
+  const [batchValidationError, setBatchValidationError] = useState<string | null>(null);
   const hasDraftEdits =
     JSON.stringify(draftInitialValues) !== JSON.stringify(cell.initialValues);
   const floatingEnabled = cell.collapsed !== true && !isEditingInitialValues && viewportRoot != null;
@@ -622,8 +670,14 @@ export function InitialValuesCellView({
   }
 
   function handleApply(): void {
-    onChange(draftInitialValues);
-    setIsEditingInitialValues(false);
+    setBatchValidationError(null);
+    try {
+      batchRename.requestBatchApply(cell.initialValues, draftInitialValues);
+    } catch (error) {
+      setBatchValidationError(
+        error instanceof Error ? error.message : "Unable to apply initial values."
+      );
+    }
   }
 
   function handleCancel(): void {
@@ -636,9 +690,26 @@ export function InitialValuesCellView({
     rows: cell.initialValues
   });
   const inlineEdit = useInlineInitialValueRowEdit({
+    cells,
     initialValues: cell.initialValues,
-    onChangeInitialValues: onChange
+    onChangeInitialValues: onChange,
+    onReplaceCells,
+    scope: { kind: "modelId", modelId: cell.modelId }
   });
+  const batchRename = useInitialValueBatchRename({
+    cellId: cell.id,
+    cells,
+    onApplyDraft: (initialValues) => {
+      onChange(initialValues);
+      setIsEditingInitialValues(false);
+    },
+    onReplaceCells,
+    scope: { kind: "modelId", modelId: cell.modelId }
+  });
+  const activeRenameDialog = inlineEdit.renameDialog ?? batchRename.renameDialog;
+  const activeRenameReferenceCount = inlineEdit.renameDialog
+    ? inlineEdit.renameReferenceCount
+    : batchRename.renameReferenceCount;
   const initialValueRowMenu = useGridRowContextMenu({
     ignoredSelector: "select",
     onChangeRows: (initialValues) => {
@@ -695,6 +766,11 @@ export function InitialValuesCellView({
       </NotebookLinkedEditorHeader>
       {cell.collapsed ? null : isEditingInitialValues ? (
         <div className="notebook-model-editor-body">
+          {batchValidationError ? (
+            <div className="notebook-inline-edit-error" role="alert">
+              {batchValidationError}
+            </div>
+          ) : null}
           <InitialValuesEditor
             currentValues={currentValues}
             highlightedVariable={highlightedVariable}
@@ -870,6 +946,33 @@ export function InitialValuesCellView({
       >
         <InitialValuesModelViewHeaderRowStatic />
       </NotebookFloatingHeaderOverlay>
+      <VariableRenameDialog
+        impact={activeRenameReferenceCount}
+        isOpen={activeRenameDialog != null}
+        newName={activeRenameDialog?.newName ?? ""}
+        oldName={activeRenameDialog?.oldName ?? ""}
+        onCancel={() => {
+          if (inlineEdit.renameDialog) {
+            inlineEdit.cancelRowEdit();
+            return;
+          }
+          batchRename.cancelBatchRename();
+        }}
+        onConfirmNo={() => {
+          if (inlineEdit.renameDialog) {
+            inlineEdit.confirmRenameNo();
+            return;
+          }
+          batchRename.confirmRenameNo();
+        }}
+        onConfirmYes={() => {
+          if (inlineEdit.renameDialog) {
+            inlineEdit.confirmRenameYes();
+            return;
+          }
+          batchRename.confirmRenameYes();
+        }}
+      />
     </div>
   );
 }

@@ -161,7 +161,7 @@ export function useMatrixEntryEdit({
 
   const renameReferenceCount = renameDialog
     ? countVariableReferences(cells, renameScope!, renameDialog.oldName)
-    : { cellCount: 0, referenceCount: 0 };
+    : { affectedCells: [], cellCount: 0, referenceCount: 0 };
 
   return {
     applyEntryEdit,

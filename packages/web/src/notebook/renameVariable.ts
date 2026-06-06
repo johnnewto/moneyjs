@@ -1,7 +1,7 @@
 import { derivativeBalanceStockName, type ShockVariableDef } from "@sfcr/core";
 import { isRowComment } from "@sfcr/notebook-core";
 
-import type { EquationRow, ExternalRow } from "../lib/editorModel";
+import type { EquationRow, ExternalRow, InitialValueRow } from "../lib/editorModel";
 import { resolveNearestNotebookContextCell } from "./notebookContext";
 import { resolveRunCellModelKey } from "./modelSections";
 import type {
@@ -24,7 +24,15 @@ export type ModelRenameScope =
   | { kind: "modelId"; modelId: string }
   | { kind: "legacyModelCell"; cellId: string };
 
+export interface VariableReferenceCell {
+  cellId: string;
+  cellTitle: string;
+  cellType: NotebookCell["type"];
+  referenceCount: number;
+}
+
 export interface VariableReferenceCount {
+  affectedCells: VariableReferenceCell[];
   cellCount: number;
   referenceCount: number;
 }
@@ -41,7 +49,11 @@ export function isModelVariableNameAvailable(
   cells: NotebookCell[],
   scope: ModelRenameScope,
   variable: string,
-  options?: { excludeEquationId?: string; excludeExternalId?: string }
+  options?: {
+    excludeEquationId?: string;
+    excludeExternalId?: string;
+    excludeInitialValueId?: string;
+  }
 ): boolean {
   const normalizedVariable = variable.trim();
   if (!normalizedVariable) {
@@ -79,6 +91,19 @@ export function isModelVariableNameAvailable(
       }
     }
 
+    if (cell.type === "initial-values") {
+      if (
+        cell.initialValues.some(
+          (row) =>
+            !isRowComment(row) &&
+            row.name.trim() === normalizedVariable &&
+            row.id !== options?.excludeInitialValueId
+        )
+      ) {
+        return false;
+      }
+    }
+
     if (cell.type === "model") {
       if (
         cell.editor.equations.some(
@@ -100,6 +125,16 @@ export function isModelVariableNameAvailable(
       ) {
         return false;
       }
+      if (
+        cell.editor.initialValues.some(
+          (row) =>
+            !isRowComment(row) &&
+            row.name.trim() === normalizedVariable &&
+            row.id !== options?.excludeInitialValueId
+        )
+      ) {
+        return false;
+      }
     }
   }
 
@@ -113,21 +148,26 @@ export function countVariableReferences(
 ): VariableReferenceCount {
   const normalizedVariable = variable.trim();
   if (!normalizedVariable) {
-    return { cellCount: 0, referenceCount: 0 };
+    return { affectedCells: [], cellCount: 0, referenceCount: 0 };
   }
 
-  let cellCount = 0;
+  const affectedCells: VariableReferenceCell[] = [];
   let referenceCount = 0;
 
   for (const cell of cells) {
     const cellReferences = countReferencesInCell(cell, cells, scope, normalizedVariable);
     if (cellReferences > 0) {
-      cellCount += 1;
+      affectedCells.push({
+        cellId: cell.id,
+        cellTitle: cell.title.trim() || cell.id,
+        cellType: cell.type,
+        referenceCount: cellReferences
+      });
       referenceCount += cellReferences;
     }
   }
 
-  return { cellCount, referenceCount };
+  return { affectedCells, cellCount: affectedCells.length, referenceCount };
 }
 
 export function renameVariableInNotebook(
@@ -180,6 +220,50 @@ export function patchEquationInNotebook(
                   expression: patch.expression
                 }
               : equation
+          )
+        }
+      };
+    }
+
+    return cell;
+  });
+}
+
+export function patchInitialValueInNotebook(
+  cells: NotebookCell[],
+  scope: ModelRenameScope,
+  initialValueId: string,
+  patch: Pick<InitialValueRow, "name" | "valueText">
+): NotebookCell[] {
+  return cells.map((cell) => {
+    if (cell.type === "initial-values" && cellMatchesScope(cell, cells, scope)) {
+      return {
+        ...cell,
+        initialValues: cell.initialValues.map((row) =>
+          !isRowComment(row) && row.id === initialValueId
+            ? {
+                ...row,
+                name: patch.name,
+                valueText: patch.valueText
+              }
+            : row
+        )
+      };
+    }
+
+    if (cell.type === "model" && scope.kind === "legacyModelCell" && cell.id === scope.cellId) {
+      return {
+        ...cell,
+        editor: {
+          ...cell.editor,
+          initialValues: cell.editor.initialValues.map((row) =>
+            !isRowComment(row) && row.id === initialValueId
+              ? {
+                  ...row,
+                  name: patch.name,
+                  valueText: patch.valueText
+                }
+              : row
           )
         }
       };
@@ -449,25 +533,25 @@ function countReferencesInCell(
         }
         return (
           total +
-          countNameMatch(equation.name, variable) +
+          countEquationNameMatch(equation.name, variable) +
           countIdentifierOccurrences(equation.expression, variable)
         );
       }, 0);
     case "externals":
       return cell.externals.reduce(
         (total, external) =>
-          isRowComment(external) ? total : total + countNameMatch(external.name, variable),
+          isRowComment(external) ? total : total + countExactNameMatch(external.name, variable),
         0
       );
     case "initial-values":
       return cell.initialValues.reduce(
-        (total, row) => (isRowComment(row) ? total : total + countNameMatch(row.name, variable)),
+        (total, row) => (isRowComment(row) ? total : total + countExactNameMatch(row.name, variable)),
         0
       );
     case "solver":
       return (
-        countNameMatch(cell.options.hiddenLeftVariable, variable) +
-        countNameMatch(cell.options.hiddenRightVariable, variable)
+        countExactNameMatch(cell.options.hiddenLeftVariable, variable) +
+        countExactNameMatch(cell.options.hiddenRightVariable, variable)
       );
     case "model":
       return (
@@ -477,21 +561,21 @@ function countReferencesInCell(
           }
           return (
             total +
-            countNameMatch(equation.name, variable) +
+            countEquationNameMatch(equation.name, variable) +
             countIdentifierOccurrences(equation.expression, variable)
           );
         }, 0) +
         cell.editor.externals.reduce(
           (total, external) =>
-            isRowComment(external) ? total : total + countNameMatch(external.name, variable),
+            isRowComment(external) ? total : total + countExactNameMatch(external.name, variable),
           0
         ) +
         cell.editor.initialValues.reduce(
-          (total, row) => (isRowComment(row) ? total : total + countNameMatch(row.name, variable)),
+          (total, row) => (isRowComment(row) ? total : total + countExactNameMatch(row.name, variable)),
           0
         ) +
-        countNameMatch(cell.editor.options.hiddenLeftVariable, variable) +
-        countNameMatch(cell.editor.options.hiddenRightVariable, variable)
+        countExactNameMatch(cell.editor.options.hiddenLeftVariable, variable) +
+        countExactNameMatch(cell.editor.options.hiddenRightVariable, variable)
       );
     case "matrix":
       return cell.rows.reduce(
@@ -500,12 +584,12 @@ function countReferencesInCell(
         0
       );
     case "table":
-      return cell.variables.reduce((total, name) => total + countNameMatch(name, variable), 0);
+      return cell.variables.reduce((total, name) => total + countExactNameMatch(name, variable), 0);
     case "chart":
       return (
-        cell.variables.reduce((total, name) => total + countNameMatch(name, variable), 0) +
+        cell.variables.reduce((total, name) => total + countExactNameMatch(name, variable), 0) +
         Object.keys(cell.seriesRanges ?? {}).reduce(
-          (total, key) => total + countNameMatch(key, variable),
+          (total, key) => total + countExactNameMatch(key, variable),
           0
         )
       );
@@ -514,7 +598,12 @@ function countReferencesInCell(
         return 0;
       }
       return cell.scenario.shocks.reduce(
-        (total, shock) => total + Object.keys(shock.variables).reduce((shockTotal, key) => shockTotal + countNameMatch(key, variable), 0),
+        (total, shock) =>
+          total +
+          Object.keys(shock.variables).reduce(
+            (shockTotal, key) => shockTotal + countExactNameMatch(key, variable),
+            0
+          ),
         0
       );
     case "sequence":
@@ -522,7 +611,7 @@ function countReferencesInCell(
         return 0;
       }
       return Object.values(cell.source.aliases).reduce(
-        (total, aliasVariable) => total + countNameMatch(aliasVariable, variable),
+        (total, aliasVariable) => total + countExactNameMatch(aliasVariable, variable),
         0
       );
     case "markdown":
@@ -548,8 +637,12 @@ function renameEquationTargetName(equationName: string, oldName: string, newName
   return equationName.trim() === oldName ? newName : equationName;
 }
 
-function countNameMatch(name: string, variable: string): number {
+function countEquationNameMatch(name: string, variable: string): number {
   return equationNameDefinesVariable(name, variable) ? 1 : 0;
+}
+
+function countExactNameMatch(name: string, variable: string): number {
+  return name.trim() === variable ? 1 : 0;
 }
 
 function countIdentifierOccurrences(source: string, variable: string): number {

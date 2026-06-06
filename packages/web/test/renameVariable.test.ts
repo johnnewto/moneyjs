@@ -2,10 +2,22 @@ import { describe, expect, it } from "vitest";
 
 import {
   countVariableReferences,
+  patchEquationInNotebook,
   renameVariableInNotebook,
   replaceIdentifierInSource
 } from "../src/notebook/renameVariable";
-import type { EquationsCell, MarkdownCell, MatrixCell, NotebookCell } from "../src/notebook/types";
+import type {
+  ChartCell,
+  EquationsCell,
+  ExternalsCell,
+  InitialValuesCell,
+  MarkdownCell,
+  MatrixCell,
+  NotebookCell,
+  RunCell,
+  SolverCell,
+  TableCell
+} from "../src/notebook/types";
 
 describe("renameVariable", () => {
   it("replaces whole identifiers without touching longer names", () => {
@@ -87,7 +99,12 @@ describe("renameVariable", () => {
     ] satisfies NotebookCell[];
 
     const introCount = countVariableReferences(cells, { kind: "modelId", modelId: "model-a" }, "Y");
-    expect(introCount).toEqual({ cellCount: 2, referenceCount: 2 });
+    expect(introCount.cellCount).toBe(2);
+    expect(introCount.referenceCount).toBe(2);
+    expect(introCount.affectedCells).toEqual([
+      expect.objectContaining({ cellId: "intro", cellType: "markdown", referenceCount: 1 }),
+      expect.objectContaining({ cellId: "equations", cellType: "equations", referenceCount: 1 })
+    ]);
 
     const next = renameVariableInNotebook(cells, { kind: "modelId", modelId: "model-a" }, "Y", "Y2");
     const intro = next.find((cell): cell is MarkdownCell => cell.id === "intro");
@@ -98,6 +115,196 @@ describe("renameVariable", () => {
     expect(intro?.source).not.toMatch(/`Y`/);
     expect(equations?.equations[0]?.name).toBe("Y2");
     expect(farMarkdown?.source).toBe("Unrelated mention of Y.");
+  });
+
+  it("renames lag() references across equations", () => {
+    const cells: NotebookCell[] = [
+      {
+        id: "equations",
+        type: "equations",
+        title: "Equations",
+        modelId: "model-a",
+        equations: [
+          { id: "eq-y", name: "Y", expression: "lag(Y) + C" },
+          { id: "eq-c", name: "C", expression: "alpha * lag(Y)" }
+        ]
+      }
+    ] satisfies NotebookCell[];
+
+    const next = renameVariableInNotebook(cells, { kind: "modelId", modelId: "model-a" }, "Y", "Y2");
+    const equations = next.find((cell): cell is EquationsCell => cell.type === "equations");
+
+    expect(equations?.equations.find((row) => row.id === "eq-y")?.expression).toBe("lag(Y2) + C");
+    expect(equations?.equations.find((row) => row.id === "eq-c")?.expression).toBe("alpha * lag(Y2)");
+  });
+
+  it("keeps lag() renames when patching the edited equation draft", () => {
+    const cells: NotebookCell[] = [
+      {
+        id: "equations",
+        type: "equations",
+        title: "Equations",
+        modelId: "model-a",
+        equations: [
+          { id: "eq-y", name: "Y", expression: "lag(Y) + C" },
+          { id: "eq-c", name: "C", expression: "alpha * lag(Y)" }
+        ]
+      }
+    ] satisfies NotebookCell[];
+
+    const renameDialog = {
+      equationId: "eq-y",
+      oldName: "Y",
+      name: "Y2",
+      expression: "lag(Y) + C"
+    };
+
+    let nextCells = renameVariableInNotebook(
+      cells,
+      { kind: "modelId", modelId: "model-a" },
+      renameDialog.oldName,
+      renameDialog.name
+    );
+    nextCells = patchEquationInNotebook(nextCells, { kind: "modelId", modelId: "model-a" }, renameDialog.equationId, {
+      name: renameDialog.name,
+      expression: replaceIdentifierInSource(
+        renameDialog.expression,
+        renameDialog.oldName,
+        renameDialog.name
+      )
+    });
+
+    const equations = nextCells.find((cell): cell is EquationsCell => cell.type === "equations");
+    expect(equations?.equations.find((row) => row.id === "eq-y")?.expression).toBe("lag(Y2) + C");
+    expect(equations?.equations.find((row) => row.id === "eq-c")?.expression).toBe("alpha * lag(Y2)");
+  });
+
+  it("renames across initial values, solver, charts, tables, and scenario shocks", () => {
+    const cells: NotebookCell[] = [
+      {
+        id: "equations",
+        type: "equations",
+        title: "Equations",
+        modelId: "model-a",
+        equations: [
+          { id: "eq-se", name: "s^e", expression: "beta * s + lag(s^e)" },
+          { id: "eq-s", name: "s", expression: "c + g" }
+        ]
+      },
+      {
+        id: "initial-values",
+        type: "initial-values",
+        title: "Initial values",
+        modelId: "model-a",
+        initialValues: [
+          { id: "iv-se", name: "s^e", valueText: "120" },
+          { id: "iv-s", name: "s", valueText: "100" }
+        ]
+      },
+      {
+        id: "externals",
+        type: "externals",
+        title: "Externals",
+        modelId: "model-a",
+        externals: [{ id: "ext-beta", name: "beta", kind: "constant", valueText: "0.5" }]
+      },
+      {
+        id: "solver",
+        type: "solver",
+        title: "Solver",
+        modelId: "model-a",
+        options: {
+          solverMethod: "GAUSS_SEIDEL",
+          toleranceText: "1e-15",
+          maxIterations: 200,
+          defaultInitialValueText: "1e-15",
+          hiddenLeftVariable: "s^e",
+          hiddenRightVariable: "s",
+          hiddenToleranceText: "0.001",
+          relativeHiddenTolerance: false,
+          periods: 10
+        }
+      },
+      {
+        id: "run-a",
+        type: "run",
+        title: "Baseline",
+        mode: "baseline",
+        periods: 10,
+        resultKey: "baseline",
+        sourceModelId: "model-a"
+      },
+      {
+        id: "chart",
+        type: "chart",
+        title: "Chart",
+        sourceRunCellId: "run-a",
+        variables: ["s^e", "s"],
+        axisMode: "shared",
+        seriesRanges: {
+          "s^e": { includeZero: true }
+        }
+      },
+      {
+        id: "table",
+        type: "table",
+        title: "Table",
+        sourceRunCellId: "run-a",
+        variables: ["s^e"]
+      },
+      {
+        id: "run-scenario",
+        type: "run",
+        title: "Scenario",
+        mode: "scenario",
+        periods: 10,
+        resultKey: "scenario",
+        sourceModelId: "model-a",
+        baselineRunCellId: "run-a",
+        scenario: {
+          shocks: [
+            {
+              rangeInclusive: [1, 2],
+              variables: {
+                "s^e": { kind: "constant", value: 999 }
+              }
+            }
+          ]
+        }
+      }
+    ] satisfies NotebookCell[];
+
+    expect(countVariableReferences(cells, { kind: "modelId", modelId: "model-a" }, "s^e")).toEqual({
+      affectedCells: [
+        { cellId: "equations", cellTitle: "Equations", cellType: "equations", referenceCount: 2 },
+        { cellId: "initial-values", cellTitle: "Initial values", cellType: "initial-values", referenceCount: 1 },
+        { cellId: "solver", cellTitle: "Solver", cellType: "solver", referenceCount: 1 },
+        { cellId: "chart", cellTitle: "Chart", cellType: "chart", referenceCount: 2 },
+        { cellId: "table", cellTitle: "Table", cellType: "table", referenceCount: 1 },
+        { cellId: "run-scenario", cellTitle: "Scenario", cellType: "run", referenceCount: 1 }
+      ],
+      cellCount: 6,
+      referenceCount: 8
+    });
+
+    const next = renameVariableInNotebook(cells, { kind: "modelId", modelId: "model-a" }, "s^e", "s2^e");
+    const equations = next.find((cell): cell is EquationsCell => cell.type === "equations");
+    const initialValues = next.find((cell): cell is InitialValuesCell => cell.type === "initial-values");
+    const solver = next.find((cell): cell is SolverCell => cell.type === "solver");
+    const chart = next.find((cell): cell is ChartCell => cell.type === "chart");
+    const table = next.find((cell): cell is TableCell => cell.type === "table");
+    const scenarioRun = next.find((cell): cell is RunCell => cell.id === "run-scenario");
+
+    expect(equations?.equations.find((row) => row.id === "eq-se")?.name).toBe("s2^e");
+    expect(equations?.equations.find((row) => row.id === "eq-se")?.expression).toBe(
+      "beta * s + lag(s2^e)"
+    );
+    expect(initialValues?.initialValues.find((row) => row.id === "iv-se")?.name).toBe("s2^e");
+    expect(solver?.options.hiddenLeftVariable).toBe("s2^e");
+    expect(chart?.variables).toEqual(["s2^e", "s"]);
+    expect(chart?.seriesRanges).toEqual({ "s2^e": { includeZero: true } });
+    expect(table?.variables).toEqual(["s2^e"]);
+    expect(Object.keys(scenarioRun?.scenario?.shocks[0]?.variables ?? {})).toEqual(["s2^e"]);
   });
 
   it("renames derivative-balance equation targets when the underlying stock is renamed", () => {

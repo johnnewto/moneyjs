@@ -44,7 +44,8 @@ const notebookCells: NotebookCell[] = [
     periods: 50,
     resultKey: "baseline_result",
     sourceModelId: "main"
-  }
+  },
+  JSON.parse(scenarioRunSource) as NotebookCell
 ];
 
 describe("RunSourceEditor", () => {
@@ -95,5 +96,34 @@ describe("RunSourceEditor", () => {
     const nextSource = onChange.mock.calls[0]?.[0];
     expect(nextSource).toEqual(expect.any(String));
     expect(JSON.parse(nextSource).baselineStartPeriod).toBe(50);
+  });
+
+  it("offers notebook-wide rename when a scenario shock variable is renamed", () => {
+    const onChange = vi.fn();
+    const onReplaceCells = vi.fn();
+
+    render(
+      <RunSourceEditor
+        cells={notebookCells}
+        runCellId="scenario-run"
+        value={scenarioRunSource}
+        onChange={onChange}
+        onReplaceCells={onReplaceCells}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText(/shock variable Gd/i), { target: { value: "G_d" } });
+
+    expect(screen.getByRole("dialog", { name: /rename variable across notebook/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Yes" }));
+
+    expect(onReplaceCells).toHaveBeenCalledTimes(1);
+    const nextCells = onReplaceCells.mock.calls[0]?.[0] as NotebookCell[];
+    const scenarioRun = nextCells.find(
+      (cell): cell is Extract<NotebookCell, { type: "run" }> =>
+        cell.type === "run" && cell.id === "scenario-run"
+    );
+    expect(scenarioRun?.scenario?.shocks[0]?.variables).toHaveProperty("G_d");
+    expect(scenarioRun?.scenario?.shocks[0]?.variables).not.toHaveProperty("Gd");
   });
 });

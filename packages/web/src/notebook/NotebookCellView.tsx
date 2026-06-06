@@ -1042,7 +1042,13 @@ function NotebookCellViewComponent({
               </label>
             ) : null}
             {cell.type === "run" && sourceLayoutMode === "run" ? (
-              <RunSourceEditor cells={cells} value={sourceDraft} onChange={setSourceDraft} />
+              <RunSourceEditor
+                cells={cells}
+                runCellId={cell.id}
+                value={sourceDraft}
+                onChange={setSourceDraft}
+                onReplaceCells={onReplaceCells}
+              />
             ) : cell.type === "matrix" && sourceLayoutMode === "grid" ? (
               <MatrixSourceEditor value={sourceDraft} onChange={setSourceDraft} />
             ) : (
@@ -1228,12 +1234,14 @@ function NotebookCellViewComponent({
         {isCollapsed ? null : cell.type === "initial-values" ? (
           <InitialValuesCellView
             cell={cell}
+            cells={cells}
             currentValues={getModelCurrentValues({ modelId: cell.modelId })}
             editor={buildEditorStateForStandaloneModelSections(cells, cell.modelId)}
             issueMap={buildIssueMapForStandaloneModelSections(cells, cell.modelId)}
             {...linkedEditorPinProps}
             onEditingChange={setIsLinkedEditorEditing}
             onHelpRequest={requestCellHelp}
+            onReplaceCells={onReplaceCells}
             onVariableInspectRequest={onVariableInspectRequest}
             highlightedVariable={highlightedVariable}
             viewportRoot={viewportRoot}

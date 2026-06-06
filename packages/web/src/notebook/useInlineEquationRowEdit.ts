@@ -4,14 +4,14 @@ import { isRowComment, type EquationListItem } from "@sfcr/notebook-core";
 
 import type { EquationRow } from "../lib/editorModel";
 import {
-  countVariableReferences,
   isModelVariableNameAvailable,
   patchEquationInNotebook,
-  renameVariableInNotebook,
+  replaceIdentifierInSource,
   type ModelRenameScope
 } from "./renameVariable";
 import type { EquationRowEditFocus } from "./components/EquationRowInlineEditor";
 import type { NotebookCell } from "./types";
+import { useVariableRenameConfirm } from "./useVariableRenameConfirm";
 
 export interface PendingRowApply {
   equationId: string;
@@ -38,15 +38,17 @@ export function useInlineEquationRowEdit({
   const [draftExpression, setDraftExpression] = useState("");
   const [editFocus, setEditFocus] = useState<EquationRowEditFocus>("expression");
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [renameDialog, setRenameDialog] = useState<PendingRowApply | null>(null);
+  const [pendingApply, setPendingApply] = useState<PendingRowApply | null>(null);
+  const renameConfirm = useVariableRenameConfirm({ cells, onReplaceCells, scope });
 
   const cancelRowEdit = useCallback(() => {
     setEditingEquationId(null);
     setDraftName("");
     setDraftExpression("");
     setValidationError(null);
-    setRenameDialog(null);
-  }, []);
+    setPendingApply(null);
+    renameConfirm.clearRenameDialog();
+  }, [renameConfirm]);
 
   const beginRowEdit = useCallback(
     (equationId: string, focus: EquationRowEditFocus) => {
@@ -60,9 +62,10 @@ export function useInlineEquationRowEdit({
       setDraftExpression(equation.expression);
       setEditFocus(focus);
       setValidationError(null);
-      setRenameDialog(null);
+      setPendingApply(null);
+      renameConfirm.clearRenameDialog();
     },
-    [equations]
+    [equations, renameConfirm]
   );
 
   const commitRowOnly = useCallback(
@@ -130,12 +133,14 @@ export function useInlineEquationRowEdit({
     }
 
     setValidationError(null);
-    setRenameDialog({
+    const nextPendingApply = {
       equationId: editingEquationId,
       expression: trimmedExpression,
       name: trimmedName,
       oldName
-    });
+    };
+    setPendingApply(nextPendingApply);
+    renameConfirm.openRenameDialog(oldName, trimmedName);
   }, [
     cancelRowEdit,
     cells,
@@ -144,39 +149,36 @@ export function useInlineEquationRowEdit({
     draftName,
     editingEquationId,
     equations,
+    renameConfirm,
     scope
   ]);
 
   const confirmRenameNo = useCallback(() => {
-    if (!renameDialog) {
+    if (!pendingApply) {
       return;
     }
 
-    commitRowOnly(renameDialog);
-  }, [commitRowOnly, renameDialog]);
+    renameConfirm.confirmRenameNo(() => commitRowOnly(pendingApply));
+  }, [commitRowOnly, pendingApply, renameConfirm]);
 
   const confirmRenameYes = useCallback(() => {
-    if (!renameDialog) {
+    if (!pendingApply) {
       return;
     }
 
-    let nextCells = renameVariableInNotebook(
-      cells,
-      scope,
-      renameDialog.oldName,
-      renameDialog.name
-    );
-    nextCells = patchEquationInNotebook(nextCells, scope, renameDialog.equationId, {
-      name: renameDialog.name,
-      expression: renameDialog.expression
+    renameConfirm.confirmRenameYes({
+      onComplete: cancelRowEdit,
+      patch: (nextCells) =>
+        patchEquationInNotebook(nextCells, scope, pendingApply.equationId, {
+          name: pendingApply.name,
+          expression: replaceIdentifierInSource(
+            pendingApply.expression,
+            pendingApply.oldName,
+            pendingApply.name
+          )
+        })
     });
-    onReplaceCells(nextCells);
-    cancelRowEdit();
-  }, [cancelRowEdit, cells, onReplaceCells, renameDialog, scope]);
-
-  const renameReferenceCount = renameDialog
-    ? countVariableReferences(cells, scope, renameDialog.oldName)
-    : { cellCount: 0, referenceCount: 0 };
+  }, [cancelRowEdit, pendingApply, renameConfirm, scope]);
 
   return {
     applyRowEdit,
@@ -188,8 +190,8 @@ export function useInlineEquationRowEdit({
     draftName,
     editFocus,
     editingEquationId,
-    renameDialog,
-    renameReferenceCount,
+    renameDialog: renameConfirm.renameDialog,
+    renameReferenceCount: renameConfirm.renameReferenceCount,
     setDraftExpression,
     setDraftName,
     validationError

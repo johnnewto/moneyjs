@@ -1,9 +1,15 @@
 import type { ScenarioDefinition, ShockVariableDef } from "@sfcr/core";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 import { formatCellBody } from "./sourceEditing";
 import type { NotebookCell, RunCell } from "./types";
+import {
+  applyShockVariableRenameToRunCell,
+  resolveRunCellRenameScope,
+  useRunShockVariableRename
+} from "./useRunShockVariableRename";
+import { VariableRenameDialog } from "./components/EquationRowInlineEditor";
 
 type ScenarioShockDraft = ScenarioDefinition["shocks"][number] & {
   rangeInclusive?: [number, number];
@@ -15,12 +21,31 @@ type RunCellSourceDraft = Omit<RunCell, "scenario"> & {
 
 interface RunSourceEditorProps {
   cells?: NotebookCell[];
+  runCellId?: string;
   value: string;
   onChange(next: string): void;
+  onReplaceCells?(nextCells: NotebookCell[]): void;
 }
 
-export function RunSourceEditor({ cells = [], value, onChange }: RunSourceEditorProps) {
-  const parsed = parseRunCellSource(value);
+export function RunSourceEditor({
+  cells = [],
+  runCellId,
+  value,
+  onChange,
+  onReplaceCells
+}: RunSourceEditorProps) {
+  const parsed = useMemo(() => parseRunCellSource(value), [value]);
+  const scope = useMemo(
+    () => (parsed ? resolveRunCellRenameScope(parsed) : null),
+    [parsed]
+  );
+  const shockRename = useRunShockVariableRename({
+    cells,
+    onReplaceCells,
+    runCellId: runCellId ?? parsed?.id,
+    scope,
+    value
+  });
 
   if (!parsed) {
     return (
@@ -90,10 +115,23 @@ export function RunSourceEditor({ cells = [], value, onChange }: RunSourceEditor
       return;
     }
 
-    const nextVariables = { ...shock.variables };
-    delete nextVariables[variableName];
-    nextVariables[trimmedName] = nextValue;
-    updateShock(shockIndex, { variables: nextVariables });
+    shockRename.requestShockVariableRename(
+      shockIndex,
+      variableName,
+      trimmedName,
+      nextValue,
+      () => {
+        commit(
+          applyShockVariableRenameToRunCell(
+            runCell,
+            shockIndex,
+            variableName,
+            trimmedName,
+            nextValue
+          ) as RunCellSourceDraft
+        );
+      }
+    );
   }
 
   function updateBaselineStartPeriod(nextValueText: string): void {
@@ -284,6 +322,15 @@ export function RunSourceEditor({ cells = [], value, onChange }: RunSourceEditor
           </div>
         </>
       ) : null}
+      <VariableRenameDialog
+        impact={shockRename.renameReferenceCount}
+        isOpen={shockRename.renameDialog != null}
+        newName={shockRename.renameDialog?.newName ?? ""}
+        oldName={shockRename.renameDialog?.oldName ?? ""}
+        onCancel={shockRename.cancelRename}
+        onConfirmNo={shockRename.confirmRenameNo}
+        onConfirmYes={shockRename.confirmRenameYes}
+      />
     </div>
   );
 }

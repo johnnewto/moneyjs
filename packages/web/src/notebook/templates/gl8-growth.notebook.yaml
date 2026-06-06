@@ -22,14 +22,14 @@ cells:
       rows:
         - [Inventories, Inventories, "", +IN, "", "", "", +IN]
         - [Money, Fixed capital, "", +K, "", "", "", +K]
-        - [Money, HPM, +Hhd, "", "", -Hs, +Hbd, "0"]
-        - [Money, Money, +Mh, "", "", "", -Ms, "0"]
-        - [Bills, Bills, +Bhd, "", -Bs, +Bcbd, +Bbd, "0"]
-        - [Bonds, Bonds, +BLd * Pbl, "", -BLs * Pbl, "", "", "0"]
-        - [Loans, Loans, -Lhd, -Lfd, "", "", +Ls, "0"]
-        - [Equities, Equities, +Ekd * Pe, -Eks * Pe, "", "", "", "0"]
-        - [Liabilities, Bank capital, +OFb, "", "", "", -OFb, "0"]
-        - [Balance, Balance, -V, -Vf, GD, "", "", -(IN + K)]
+        - [Money, HPM, +Hhd, "", "", -H_s, +H_bd, "0"]
+        - [Money, Money, +M_h, "", "", "", -Ms, "0"]
+        - [Bills, Bills, +B_hd, "", -B_s, +B_cbd, +B_bd, "0"]
+        - [Bonds, Bonds, +BL_d * P_bl, "", -BL_s * P_bl, "", "", "0"]
+        - [Loans, Loans, -L_hd, -L_fd, "", "", +L_s, "0"]
+        - [Equities, Equities, +e_d * Pe, -e_s * Pe, "", "", "", "0"]
+        - [Liabilities, Bank capital, +OF_b, "", "", "", -OF_b, "0"]
+        - [Balance, Balance, -V, -V_f, GD, "", "", -(IN + K)]
         - [Sum, Sum, "0", "0", "0", "0", "0", "0"]
   - matrix:
       id: transaction-flow
@@ -41,25 +41,25 @@ cells:
       columns: [Households, Firms curr., Firms cap., Govt., CB curr., CB cap., Banks curr., Banks cap., Sum]
       sectors: [Households, Firms, Firms, Govt, Central Bank, Central Bank, Banks, Banks, ""]
       rows:
-        - [Consumption, Consumption, -CONS, +CONS, "", "", "", "", "", "", "0"]
+        - [Consumption, Consumption, -C, +C, "", "", "", "", "", "", "0"]
         - [Government, Govt. exp., "", +G, "", -G, "", "", "", "", "0"]
         - [Investment, Investment, "", +INV, -INV, "", "", "", "", "", "0"]
         - [Inventories, Inventories, "", "+(IN - IN[-1])", "-(IN - IN[-1])", "", "", "", "", "", "0"]
         - [Taxes, Taxes, -TX, "", "", +TX, "", "", "", "", "0"]
         - [Wages, Wages, +WB, -WB, "", "", "", "", "", "", "0"]
-        - [Inventories, Inventory financing cost, "", "-Rl[-1] * IN[-1]", "", "", "", "", "+Rl[-1] * IN[-1]", "", "0"]
-        - [Profits, Entrepreneurial profits, +FDf, -Ff, +FUf, "", "", "", "+Rl[-1] * (Lfs[-1] - IN[-1] - NPL)", "", "0"]
-        - [Profits, Banks profits, +FDb, "", "", "", "", "", -Fb, +FUb, "0"]
-        - [Loans, Int. hh loans, "-Rl[-1] * Lhd[-1]", "", "", "", "", "", "+Rl[-1] * Lhs[-1]", "", "0"]
-        - [Deposits, Int. deposits, "+Rm[-1] * Mh[-1]", "", "", "", "", "", "-Rm[-1] * Ms[-1]", "", "0"]
-        - [Bills, Int. bills, "+Rb[-1] * Bhd[-1]", "", "", "-Rb[-1] * Bs[-1]", "+Rb[-1] * Bcbd[-1]", "", "+Rb[-1] * Bbd[-1]", "", "0"]
-        - [Bonds, Int. bonds, "+BLd[-1]", "", "", "-BLd[-1]", "", "", "", "", "0"]
-        - [Loans, Ch. loans, "+(Lhd - Lhd[-1])", "", "+(Lfd - Lfd[-1])", "", "", "", "", "-(Ls - Ls[-1])", "0"]
-        - [Cash, Ch. cash, "-(Hhd - Hhd[-1])", "", "", "", "", "+(Hs - Hs[-1])", "", "-(Hbd - Hbd[-1])", "0"]
-        - [Deposits, Ch. deposits, "-(Mh - Mh[-1])", "", "", "", "", "", "", "+(Ms - Ms[-1])", "0"]
-        - [Bills, Ch. bills, "-(Bhd - Bhd[-1])", "", "", "+(Bs - Bs[-1])", "", "-(Bcbd - Bcbd[-1])", "", "-(Bbd - Bbd[-1])", "0"]
-        - [Bonds, Ch. bonds, "-(BLd - BLd[-1]) * Pbl", "", "", "+(BLs - BLs[-1]) * Pbl", "", "", "", "", "0"]
-        - [Equities, Ch. equities, "-(Ekd - Ekd[-1]) * Pe", "", "+(Eks - Eks[-1]) * Pe", "", "", "", "", "", "0"]
+        - [Inventories, Inventory financing cost, "", "-r_l[-1] * IN[-1]", "", "", "", "", "+r_l[-1] * IN[-1]", "", "0"]
+        - [Profits, Entrepreneurial profits, +FD_f, -F_f, +FU_f, "", "", "", "+r_l[-1] * (L_fs[-1] - IN[-1] - NPL)", "", "0"]
+        - [Profits, Banks profits, +FD_b, "", "", "", "", "", -F_b, +FU_b, "0"]
+        - [Loans, Int. hh loans, "-r_l[-1] * L_hd[-1]", "", "", "", "", "", "+r_l[-1] * L_hs[-1]", "", "0"]
+        - [Deposits, Int. deposits, "+r_m[-1] * M_h[-1]", "", "", "", "", "", "-r_m[-1] * Ms[-1]", "", "0"]
+        - [Bills, Int. bills, "+R_b[-1] * B_hd[-1]", "", "", "-R_b[-1] * B_s[-1]", "+R_b[-1] * B_cbd[-1]", "", "+R_b[-1] * B_bd[-1]", "", "0"]
+        - [Bonds, Int. bonds, "+BL_d[-1]", "", "", "-BL_d[-1]", "", "", "", "", "0"]
+        - [Loans, Ch. loans, "+(L_hd - L_hd[-1])", "", "+(L_fd - L_fd[-1])", "", "", "", "", "-(L_s - L_s[-1])", "0"]
+        - [Cash, Ch. cash, "-(Hhd - Hhd[-1])", "", "", "", "", "+(H_s - H_s[-1])", "", "-(H_bd - H_bd[-1])", "0"]
+        - [Deposits, Ch. deposits, "-(M_h - M_h[-1])", "", "", "", "", "", "", "+(Ms - Ms[-1])", "0"]
+        - [Bills, Ch. bills, "-(B_hd - B_hd[-1])", "", "", "+(B_s - B_s[-1])", "", "-(B_cbd - B_cbd[-1])", "", "-(B_bd - B_bd[-1])", "0"]
+        - [Bonds, Ch. bonds, "-(BL_d - BL_d[-1]) * P_bl", "", "", "+(BL_s - BL_s[-1]) * P_bl", "", "", "", "", "0"]
+        - [Equities, Ch. equities, "-(e_d - e_d[-1]) * Pe", "", "+(e_s - e_s[-1]) * Pe", "", "", "", "", "", "0"]
         - [Loans, Loan defaults, "", "", +NPL, "", "", "", "", -NPL, "0"]
         - [Sum, Sum, "0", "0", "0", "0", "0", "0", "0", "0", "0"]
   - sequence:
@@ -75,23 +75,26 @@ cells:
       modelId: equations
       collapsed: true
       rows:
-        - [Yk, "Ske + INke - INk[-1]", "Real output"]
-        - [Ske, "beta * Sk + (1 - beta) * Sk[-1] * (1 + (GRpr + RA))", "Expected real sales"]
-        - [INke, "INk[-1] + gamma * (INkt - INk[-1])", "Expected real inventories"]
-        - [INkt, sigmat * Ske, "Target level of real inventories"]
-        - [INk, "INk[-1] + Yk - Sk - NPL / UC", "Real inventories"]
-        - [Kk, "Kk[-1] * (1 + GRk)", "Real capital stock"]
-        - [GRk, "gamma0 + gammau * U[-1] - gammar * RRl", "growth_mod of real capital stock"]
-        - [U, "Yk / Kk[-1]", "Capital utilization proxy"]
-        - [RRl, ((1 + Rl) / (1 + PI)) - 1, "Real interest rate on loans"]
+        - Production and capital
+        - [y, "s^e + in^e - in[-1]", "Real output"]
+        - [s^e, "beta * s + (1 - beta) * s[-1] * (1 + (GRpr + RA))", "Expected real sales", "", "", "", eq-2-se]
+        - [in^e, "in[-1] + gamma * (in^T - in[-1])", "Expected real inventories", "", "", "", eq-3-ine]
+        - [in^T, sigmat * s^e, "Target level of real inventories", "", "", "", eq-4-int]
+        - [in, "in[-1] + y - s - NPL / UC", "Real inventories"]
+        - [k, "k[-1] * (1 + gr)", "Real capital stock"]
+        - [gr, "gamma0 + gammau * U[-1] - gammar * RRl", "growth_mod of real capital stock"]
+        - [U, "y / k[-1]", "Capital utilization proxy"]
+        - [RRl, ((1 + r_l) / (1 + PI)) - 1, "Real interest rate on loans"]
         - [PI, "(P - P[-1]) / P[-1]", "Price inflation"]
-        - [Ik, "(Kk - Kk[-1]) + delta * Kk[-1]", "Gross investment in real terms"]
-        - [Sk, Ck + Gk + Ik, "Real sales"]
-        - [S, Sk * P, "Sales at current prices"]
-        - [IN, INk * UC, "Stock of inventories at current costs"]
-        - [INV, Ik * P, "Gross investment"]
-        - [K, Kk * P, "Capital stock"]
-        - [Y, "Sk * P + (INk - INk[-1]) * UC", "Output at current prices (nominal GDP "]
+        - [i, "(k - k[-1]) + delta * k[-1]", "Gross investment in real terms"]
+        - Sales and nominal GDP
+        - [s, c + g + i, "Real sales"]
+        - [S, s * P, "Sales at current prices"]
+        - [IN, in * UC, "Stock of inventories at current costs"]
+        - [INV, i * P, "Gross investment"]
+        - [K, k * P, "Capital stock"]
+        - [Y, "s * P + (in - in[-1]) * UC", "Output at current prices (nominal GDP "]
+        - Wages and unit costs
         - [omegat, exp(omega0 + omega1 * log(PR) + omega2 * log(ER + z3 * (1 - ER) - z4 * BANDt + z5 * BANDb)), "Target real wage for workers"]
         - [ER, "N[-1] / Nfe[-1]", "Employment rate"]
         - [z3a, "if (ER > (1 - BANDb)) {1} else {0}"]
@@ -101,96 +104,105 @@ cells:
         - [z5, "if (ER < (1 - BANDb)) {1} else {0}", "Parameter in wage aspiration equation"]
         - [W, "W[-1] + omega3 * (omegat * P[-1] - W[-1])", "Wage rate"]
         - [PR, "PR[-1] * (1 + GRpr)", "Lobor productivity"]
-        - [Nt, Yk / PR, "Desired employment level"]
+        - [Nt, y / PR, "Desired employment level"]
         - [N, "N[-1] + etan * (Nt - N[-1])", "Employment level"]
         - [WB, N * W, "The wage bill"]
-        - [UC, WB / Yk, "Unit costs"]
+        - [UC, WB / y, "Unit costs"]
         - [NUC, W / PR, "Normal unit cost"]
         - [NHUC, "(1 - sigman) * NUC + sigman * (1 + Rln[-1]) * NUC[-1]", "Normal historic unit cost"]
+        - Pricing and mark-ups
         - [P, (1 + phi) * NHUC, "Price level"]
         - [phi, "phi[-1] + eps2 * (phit[-1] - phi[-1])", "Mark-up on unit costs"]
-        - [phit, "(FUft + FDf + Rl[-1] * (Lfd[-1] - IN[-1])) / ((1 - sigmase) * Ske * UC + (1 + Rl[-1]) * sigmase * Ske * UC[-1])", "Ideal mark-up on unit costs"]
-        - [HCe, "(1 - sigmase) * Ske * UC + (1 + Rl[-1]) * sigmase * Ske * UC[-1]", "Expected historical costs"]
-        - [sigmase, "INk[-1] / Ske", "Opening inventories to expected sales ratio"]
-        - [Fft, "FUft + FDf + Rl[-1] * (Lfd[-1] - IN[-1])", "Planned entrepreneurial profits"]
-        - [FUft, "psiu * INV[-1]", "Planned retained earnings of firms"]
-        - [FDf, "psid * Ff[-1]", "Dividends of firms"]
-        - [Ff, "S - WB + (IN - IN[-1]) - Rl[-1] * IN[-1]", "Realized entrepreneurial profits"]
-        - [FUf, "Ff - FDf - Rl[-1] * (Lfd[-1] - IN[-1]) + Rl[-1] * NPL", "Retained earnings of firms"]
-        - [Lfd, "Lfd[-1] + INV + (IN - IN[-1]) - FUf - (Eks - Eks[-1]) * Pe - NPL", "Demand for loans by firms"]
-        - [NPL, "NPLk * Lfs[-1]", "Non-Performing loans"]
-        - [Eks, "Eks[-1] + ((1 - psiu) * INV[-1]) / Pe", "Number of equities supplied by firms"]
-        - [Rk, "FDf / (Pe[-1] * Ekd[-1])", "Dividend yield of firms"]
-        - [PE, "Pe / (Ff / Eks[-1])", "Price earnings ratio"]
-        - [Q, (Eks * Pe + Lfd) / (K + IN), "Tobin's Q"]
-        - [YP, "WB + FDf + FDb + Rm[-1] * Mh[-1] + Rb[-1] * Bhd[-1] + BLs[-1]", "Personal income"]
+        - [phit, "(FU_f^T + FD_f + r_l[-1] * (L_fd[-1] - IN[-1])) / ((1 - sigmas^e) * s^e * UC + (1 + r_l[-1]) * sigmas^e * s^e * UC[-1])", "Ideal mark-up on unit costs"]
+        - [HCe, "(1 - sigmas^e) * s^e * UC + (1 + r_l[-1]) * sigmas^e * s^e * UC[-1]", "Expected historical costs"]
+        - [sigmas^e, "in[-1] / s^e", "Opening inventories to expected sales ratio", "", "", "", eq-40-sigmase]
+        - [F_f^T, "FU_f^T + FD_f + r_l[-1] * (L_fd[-1] - IN[-1])", "Planned entrepreneurial profits", "", "", "", eq-41-Fft]
+        - [FU_f^T, "psiu * INV[-1]", "Planned retained earnings of firms", "", "", "", eq-42-FUft]
+        - [FD_f, "psid * F_f[-1]", "Dividends of firms", "", "", "", eq-43-FDf]
+        - Profits and firm finance
+        - [F_f, "S - WB + (IN - IN[-1]) - r_l[-1] * IN[-1]", "Realized entrepreneurial profits", "", "", "", eq-45-Ff]
+        - [FU_f, "F_f - FD_f - r_l[-1] * (L_fd[-1] - IN[-1]) + r_l[-1] * NPL", "Retained earnings of firms", "", "", "", eq-46-FUf]
+        - [L_fd, "L_fd[-1] + INV + (IN - IN[-1]) - FU_f - (e_s - e_s[-1]) * Pe - NPL", "Demand for loans by firms", "", "", "", eq-47-Lfd]
+        - [NPL, "npl * L_fs[-1]", "Non-Performing loans"]
+        - [e_s, "e_s[-1] + ((1 - psiu) * INV[-1]) / Pe", "Number of equities supplied by firms", "", "", "", eq-49-Eks]
+        - [Rk, "FD_f / (Pe[-1] * e_d[-1])", "Dividend yield of firms"]
+        - [PE, "Pe / (F_f / e_s[-1])", "Price earnings ratio"]
+        - [Q, (e_s * Pe + L_fd) / (K + IN), "Tobin's Q"]
+        - Households
+        - [YP, "WB + FD_f + FD_b + r_m[-1] * M_h[-1] + R_b[-1] * B_hd[-1] + BL_s[-1]", "Personal income"]
         - [TX, theta * YP, "Taxes"]
-        - [YDr, "YP - TX - Rl[-1] * Lhd[-1]", "Regular disposable income"]
-        - [YDhs, YDr + CG, "Haig-Simons measure of disposable income"]
-        - [CG, "(Pbl - Pbl[-1]) * BLd[-1] + (Pe - Pe[-1]) * Ekd[-1] + (OFb - OFb[-1])", "Capital gains on government bonds"]
-        - [V, "V[-1] + YDr - CONS + (Pbl - Pbl[-1]) * BLd[-1] + (Pe - Pe[-1]) * Ekd[-1] + (OFb - OFb[-1])", "Wealth of households"]
-        - [Vk, V / P, "Real wealth of households"]
-        - [CONS, Ck * P, "Consumption at current prices"]
-        - [Ck, "alpha1 * (YDkre + NLk) + alpha2 * Vk[-1]", "Real consumption"]
-        - [YDkre, "eps * YDkr + (1 - eps) * (YDkr[-1] * (1 + GRpr))", "Expected regular real disposable income"]
-        - [YDkr, "YDr / P - ((P - P[-1]) * Vk[-1]) / P", "Regular real disposable income"]
-        - [GL, eta * YDr, "Gross amount of new personal loans"]
+        - [YD_r, "YP - TX - r_l[-1] * L_hd[-1]", "Regular disposable income", "", "", "", eq-56-YDr]
+        - [YD_hs, YD_r + CG, "Haig-Simons measure of disposable income", "", "", "", eq-57-YDhs]
+        - [CG, "(P_bl - P_bl[-1]) * BL_d[-1] + (Pe - Pe[-1]) * e_d[-1] + (OF_b - OF_b[-1])", "Capital gains on government bonds"]
+        - [V, "V[-1] + YD_r - C + (P_bl - P_bl[-1]) * BL_d[-1] + (Pe - Pe[-1]) * e_d[-1] + (OF_b - OF_b[-1])", "Wealth of households"]
+        - [v, V / P, "Real wealth of households"]
+        - [C, c * P, "Consumption at current prices", "", "", "", eq-61-CONS]
+        - [c, "alpha1 * (ydr^e + nl) + alpha2 * v[-1]", "Real consumption"]
+        - [ydr^e, "eps * ydr + (1 - eps) * (ydr[-1] * (1 + GRpr))", "Expected regular real disposable income", "", "", "", eq-63-ydre]
+        - [ydr, "YD_r / P - ((P - P[-1]) * v[-1]) / P", "Regular real disposable income"]
+        - Household credit
+        - [GL, eta * YD_r, "Gross amount of new personal loans"]
         - [eta, eta0 - etar * RRl, "Ratio of new loans to personal income"]
         - [NL, GL - REP, "Net flow of new loans to the household sector"]
-        - [REP, "deltarep * Lhd[-1]", "Personal loans repayments"]
-        - [Lhd, "Lhd[-1] + GL - REP", "Demand for loans by households"]
-        - [NLk, NL / P, "Real flow of new loans to the household sector"]
-        - [BUR, "(REP + Rl[-1] * Lhd[-1]) / YDr[-1]", "Burden of personal debt"]
-        - [Bhd, "Vfma[-1] * (lambda20 + lambda22 * Rb[-1] - lambda21 * Rm[-1] - lambda24 * Rk[-1] - lambda23 * Rbl[-1] - lambda25 * (YDr / V))", "Demand for government bills from households"]
-        - [BLd, "Vfma[-1] * (lambda30 - lambda32 * Rb[-1] - lambda31 * Rm[-1] - lambda34 * Rk[-1] + lambda33 * Rbl[-1] - lambda35 * (YDr / V)) / Pbl", "Demand for government bonds"]
-        - [Pe, "Vfma[-1] * (lambda40 - lambda42 * Rb[-1] - lambda41 * Rm[-1] + lambda44 * Rk[-1] - lambda43 * Rbl[-1] - lambda45 * (YDr / V)) / Ekd", "Price of equities"]
-        - [Mh, Vfma - Bhd - Pe * Ekd - Pbl * BLd + Lhd, "Deposits demanded by households"]
-        - [Vfma, V - Hhd - OFb, "Investible wealth of households"]
-        - [VfmaA, Mh + Bhd + Pbl * BLd + Pe * Ekd]
-        - [Hhd, lambdac * CONS, "Households demand for cash"]
-        - [Ekd, Eks, "Number of equities demanded"]
-        - [G, Gk * P, "Government expenditures"]
-        - [Gk, "Gk[-1] * (1 + GRg)", "Real government expenditures"]
-        - [PSBR, "G + BLs[-1] + Rb[-1] * (Bbs[-1] + Bhs[-1]) - TX", "Government deficit"]
-        - [Bs, "Bs[-1] + G - TX - (BLs - BLs[-1]) * Pbl + Rb[-1] * (Bhs[-1] + Bbs[-1]) + BLs[-1]", "Supply of government bills"]
-        - [GD, Bbs + Bhs + BLs * Pbl + Hs, "Government debt"]
-        - [Fcb, "Rb[-1] * Bcbd[-1]", "Central bank \"profits\""]
-        - [BLs, BLd, "Supply of government bonds"]
-        - [Bhs, Bhd, "Government bills supplied to households"]
-        - [Hhs, Hhd, "Cash supplied to households"]
-        - [Hbs, Hbd, "Cash supplied to banks"]
-        - [Hs, Hbs + Hhs, "Total supply of cash"]
-        - [Bcbd, Hs, "Government bills demanded by Central bank"]
-        - [Bcbs, Bcbd, "Government bills supplied by Central bank"]
-        - [Rb, Rbbar, "Interest rate on government bills"]
-        - [Rbl, Rb + ADDbl, "Interest rate on bonds"]
-        - [Pbl, 1 / Rbl, "Price of government bonds"]
-        - [Ms, Mh, "Deposits supplied by banks"]
-        - [Lfs, Lfd, "Supply of loans to firms"]
-        - [Lhs, Lhd, "Loans supplied to households"]
-        - [Hbd, ro * Ms, "Cash required by banks"]
-        - [Bbs, "Bbs[-1] + (Bs - Bs[-1]) - (Bhs - Bhs[-1]) - (Bcbs - Bcbs[-1])", "Government bills supplied to commercial banks"]
-        - [Bbd, Ms + OFb - Lfs - Lhs - Hbd, "Government bills demanded by commercial banks"]
-        - [BLR, Bbd / Ms, "Gross bank liquidity ratio"]
-        - [Rm, "Rm[-1] + z1a * xim1 + z1b * xim2 - z2a * xim1 - z2b * xim2", "Interest rate on deposits"]
+        - [REP, "deltarep * L_hd[-1]", "Personal loans repayments"]
+        - [L_hd, "L_hd[-1] + GL - REP", "Demand for loans by households", "", "", "", eq-70-Lhd]
+        - [nl, NL / P, "Real flow of new loans to the household sector"]
+        - [BUR, "(REP + r_l[-1] * L_hd[-1]) / YD_r[-1]", "Burden of personal debt"]
+        - Portfolio decisions
+        - [B_hd, "V_fma[-1] * (lambda20 + lambda22 * R_b[-1] - lambda21 * r_m[-1] - lambda24 * Rk[-1] - lambda23 * R_bl[-1] - lambda25 * (YD_r / V))", "Demand for government bills from households", "", "", "", eq-74-Bhd]
+        - [BL_d, "V_fma[-1] * (lambda30 - lambda32 * R_b[-1] - lambda31 * r_m[-1] - lambda34 * Rk[-1] + lambda33 * R_bl[-1] - lambda35 * (YD_r / V)) / P_bl", "Demand for government bonds", "", "", "", eq-75-BLd]
+        - [Pe, "V_fma[-1] * (lambda40 - lambda42 * R_b[-1] - lambda41 * r_m[-1] + lambda44 * Rk[-1] - lambda43 * R_bl[-1] - lambda45 * (YD_r / V)) / e_d", "Price of equities"]
+        - [M_h, V_fma - B_hd - Pe * e_d - P_bl * BL_d + L_hd, "Deposits demanded by households", "", "", "", eq-77-Mh]
+        - [V_fma, V - Hhd - OF_b, "Investible wealth of households", "", "", "", eq-78-Vfma]
+        - [VfmaA, M_h + B_hd + P_bl * BL_d + Pe * e_d]
+        - [Hhd, lambdac * C, "Households demand for cash"]
+        - [e_d, e_s, "Number of equities demanded", "", "", "", eq-81-Ekd]
+        - Government
+        - [G, g * P, "Government expenditures"]
+        - [g, "g[-1] * (1 + GRg)", "Real government expenditures"]
+        - [PSBR, "G + BL_s[-1] + R_b[-1] * (B_bs[-1] + B_hs[-1]) - TX", "Government deficit"]
+        - [B_s, "B_s[-1] + G - TX - (BL_s - BL_s[-1]) * P_bl + R_b[-1] * (B_hs[-1] + B_bs[-1]) + BL_s[-1]", "Supply of government bills", "", "", "", eq-86-Bs]
+        - [GD, B_bs + B_hs + BL_s * P_bl + H_s, "Government debt"]
+        - Central bank
+        - [F_cb, "R_b[-1] * B_cbd[-1]", "Central bank \"profits\"", "", "", "", eq-89-Fcb]
+        - [BL_s, BL_d, "Supply of government bonds", "", "", "", eq-90-BLs]
+        - [B_hs, B_hd, "Government bills supplied to households", "", "", "", eq-91-Bhs]
+        - [H_hs, Hhd, "Cash supplied to households", "", "", "", eq-92-Hhs]
+        - [H_bs, H_bd, "Cash supplied to banks", "", "", "", eq-93-Hbs]
+        - [H_s, H_bs + H_hs, "Total supply of cash", "", "", "", eq-94-Hs]
+        - [B_cbd, H_s, "Government bills demanded by Central bank", "", "", "", eq-95-Bcbd]
+        - [B_cbs, B_cbd, "Government bills supplied by Central bank", "", "", "", eq-96-Bcbs]
+        - [R_b, Rbbar, "Interest rate on government bills", "", "", "", eq-97-Rb]
+        - [R_bl, R_b + ADDbl, "Interest rate on bonds", "", "", "", eq-98-Rbl]
+        - [P_bl, 1 / R_bl, "Price of government bonds", "", "", "", eq-99-Pbl]
+        - Commercial banks
+        - [Ms, M_h, "Deposits supplied by banks"]
+        - [L_fs, L_fd, "Supply of loans to firms", "", "", "", eq-102-Lfs]
+        - [L_hs, L_hd, "Loans supplied to households", "", "", "", eq-103-Lhs]
+        - [H_bd, ro * Ms, "Cash required by banks", "", "", "", eq-104-Hbd]
+        - [B_bs, "B_bs[-1] + (B_s - B_s[-1]) - (B_hs - B_hs[-1]) - (B_cbs - B_cbs[-1])", "Government bills supplied to commercial banks", "", "", "", eq-105-Bbs]
+        - [B_bd, Ms + OF_b - L_fs - L_hs - H_bd, "Government bills demanded by commercial banks", "", "", "", eq-106-Bbd]
+        - [BLR, B_bd / Ms, "Gross bank liquidity ratio"]
+        - [r_m, "r_m[-1] + z1a * xim1 + z1b * xim2 - z2a * xim1 - z2b * xim2", "Interest rate on deposits", "", "", "", eq-108-Rm]
         - [z2a, "if (BLR[-1] > (top + 0.05)) {1} else {0}", "Is one if bank liquidity ratio is above top range"]
         - [z2b, "if (BLR[-1] > top) {1} else {0}", "Is one if bank liquidity ratio is above top range"]
         - [z1a, "if (BLR[-1] <= bot) {1} else {0}", "Is one if bank liquidity ratio is below bottom range"]
         - [z1b, "if (BLR[-1] <= (bot - 0.05)) {1} else {0}", "Is one if bank liquidity ratio is below bottom range"]
-        - [Rl, Rm + ADDl, "Interest rate on loans"]
-        - [OFbt, "NCAR * (Lfs[-1] + Lhs[-1])", "Long-run target for banks own funds"]
-        - [OFbe, "OFb[-1] + betab * (OFbt - OFb[-1])", "Short-run target for banks own funds"]
-        - [FUbt, "OFbe - OFb[-1] + NPLke * Lfs[-1]", "Targt retained earnings of banks"]
-        - [NPLke, "epsb * NPLke[-1] + (1 - epsb) * NPLk[-1]", "Expected proportion of Non-Performing Loans"]
-        - [FDb, Fb - FUb, "Dividends of banks"]
-        - [Fbt, "lambdab * Y[-1] + (OFbe - OFb[-1] + NPLke * Lfs[-1])", "Target profits of banks"]
-        - [Fb, "Rl[-1] * (Lfs[-1] + Lhs[-1] - NPL) + Rb[-1] * Bbd[-1] - Rm[-1] * Ms[-1]", "Realized banks profits"]
-        - [ADDl, "(Fbt - Rb[-1] * Bbd[-1] + Rm[-1] * (Ms[-1] - (1 - NPLke) * Lfs[-1] - Lhs[-1])) / ((1 - NPLke) * Lfs[-1] + Lhs[-1])", "Spread between interest rate on loans and rate on deposits"]
-        - [FUb, "Fb - lambdab * Y[-1]", "Retained earnings of banks"]
-        - [OFb, "OFb[-1] + FUb - NPL", "Own funds of banks"]
-        - [CAR, OFb / (Lfs + Lhs), "Capital adequacy ratio of banks"]
-        - [Vf, IN + K - Lfd - Ekd * Pe]
-        - [Ls, Lfs + Lhs]
+        - Bank profits and capital
+        - [r_l, r_m + ADDl, "Interest rate on loans", "", "", "", eq-114-Rl]
+        - [OFb^T, "NCAR * (L_fs[-1] + L_hs[-1])", "Long-run target for banks own funds", "", "", "", eq-115-OFbt]
+        - [OFb^e, "OF_b[-1] + betab * (OFb^T - OF_b[-1])", "Short-run target for banks own funds", "", "", "", eq-116-OFbe]
+        - [FU_b^T, "OFb^e - OF_b[-1] + npl^e * L_fs[-1]", "Targt retained earnings of banks", "", "", "", eq-117-FUbt]
+        - [npl^e, "epsb * npl^e[-1] + (1 - epsb) * npl[-1]", "Expected proportion of Non-Performing Loans", "", "", "", eq-118-nple]
+        - [FD_b, F_b - FU_b, "Dividends of banks", "", "", "", eq-119-FDb]
+        - [Fb^T, "lambdab * Y[-1] + (OFb^e - OF_b[-1] + npl^e * L_fs[-1])", "Target profits of banks", "", "", "", eq-120-Fbt]
+        - [F_b, "r_l[-1] * (L_fs[-1] + L_hs[-1] - NPL) + R_b[-1] * B_bd[-1] - r_m[-1] * Ms[-1]", "Realized banks profits", "", "", "", eq-121-Fb]
+        - [ADDl, "(Fb^T - R_b[-1] * B_bd[-1] + r_m[-1] * (Ms[-1] - (1 - npl^e) * L_fs[-1] - L_hs[-1])) / ((1 - npl^e) * L_fs[-1] + L_hs[-1])", "Spread between interest rate on loans and rate on deposits"]
+        - [FU_b, "F_b - lambdab * Y[-1]", "Retained earnings of banks", "", "", "", eq-123-FUb]
+        - [OF_b, "OF_b[-1] + FU_b - NPL", "Own funds of banks", "", "", "", eq-124-OFb]
+        - [CAR, OF_b / (L_fs + L_hs), "Capital adequacy ratio of banks"]
+        - [V_f, IN + K - L_fd - e_d * Pe, "", "", "", "", eq-126-Vf]
+        - [L_s, L_fs + L_hs, "", "", "", "", eq-127-Ls]
   - solver:
       id: solver
       title: Solver
@@ -200,8 +212,8 @@ cells:
       tolerance: "1e-15"
       maxIterations: 350
       defaultInitialValue: "1e-15"
-      hiddenLeftVariable: Bbs
-      hiddenRightVariable: Bbd
+      hiddenLeftVariable: B_bs
+      hiddenRightVariable: B_bd
       hiddenTolerance: "0.000001"
       relativeHiddenTolerance: true
   - externals:
@@ -267,7 +279,7 @@ cells:
         - [GRpr, 0.03, "growth_mod rate of productivity"]
         - [Nfe, 87.181, "Full employment level"]
         - [NCAR, 0.1, "Normal capital adequacy ratio of banks"]
-        - [NPLk, 0.02, "Proportion of Non-Performing loans"]
+        - [npl, 0.02, "Proportion of Non-Performing loans"]
         - [Rbbar, 0.035, "Interest rate on bills, set exogenously"]
         - [Rln, 0.07, "Normal interest rate on loans"]
         - [RA, 0, "Random shock to expectations on real sales"]
@@ -278,7 +290,7 @@ cells:
       modelId: equations
       collapsed: true
       rows:
-        - [sigmase, 0.16667]
+        - [sigmas^e, 0.16667]
         - [eta, 0.04918]
         - [phi, 0.26417]
         - [phit, 0.26417]
@@ -290,7 +302,7 @@ cells:
         - [GRpr, 0.03]
         - [Nfe, 87.181]
         - [NCAR, 0.1]
-        - [NPLk, 0.02]
+        - [npl, 0.02]
         - [Rbbar, 0.035]
         - [Rln, 0.07]
         - [RA, 0]
@@ -298,108 +310,108 @@ cells:
         - [ADDl, 0.04592]
         - [BLR, 0.1091]
         - [BUR, 0.06324]
-        - [Ck, 7334240]
+        - [c, 7334240]
         - [CAR, 0.09245]
-        - [CONS, 52603100]
+        - [C, 52603100]
         - [ER, 1]
-        - [Fb, 1744130]
-        - [Fbt, 1744140]
-        - [Ff, 18081100]
-        - [Fft, 18013600]
-        - [FDb, 1325090]
-        - [FDf, 2670970]
-        - [FUb, 419039]
-        - [FUf, 15153800]
-        - [FUft, 15066200]
+        - [F_b, 1744130]
+        - [Fb^T, 1744140]
+        - [F_f, 18081100]
+        - [F_f^T, 18013600]
+        - [FD_b, 1325090]
+        - [FD_f, 2670970]
+        - [FU_b, 419039]
+        - [FU_f, 15153800]
+        - [FU_f^T, 15066200]
         - [G, 16755600]
-        - [Gk, 2336160]
+        - [g, 2336160]
         - [GL, 2775900]
-        - [GRk, 0.03001]
+        - [gr, 0.03001]
         - [INV, 16911600]
-        - [Ik, 2357910]
+        - [i, 2357910]
         - [N, 87.181]
         - [Nt, 87.181]
         - [NHUC, 5.6735]
         - [NL, 683593]
-        - [NLk, 95311]
+        - [nl, 95311]
         - [NPL, 309158]
-        - [NPLke, 0.02]
+        - [npl^e, 0.02]
         - [NUC, 5.6106]
         - [omegat, 112852]
         - [P, 7.1723]
-        - [Pbl, 18.182]
+        - [P_bl, 18.182]
         - [Pe, 17937]
         - [PE, 5.07185]
         - [PI, 0.0026]
         - [PR, 138659]
         - [PSBR, 1894780]
         - [Q, 0.77443]
-        - [Rb, 0.035]
-        - [Rbl, 0.055]
+        - [R_b, 0.035]
+        - [R_bl, 0.055]
         - [Rk, 0.03008]
-        - [Rl, 0.06522]
-        - [Rm, 0.0193]
+        - [r_l, 0.06522]
+        - [r_m, 0.0193]
         - [REP, 2092310]
         - [RRl, 0.06246]
         - [S, 86270300]
-        - [Sk, 12028300]
-        - [Ske, 12028300]
+        - [s, 12028300]
+        - [s^e, 12028300]
         - [TX, 17024100]
         - [U, 0.70073]
         - [UC, 5.6106]
         - [W, 777968]
         - [WB, 67824000]
         - [Y, 86607700]
-        - [Yk, 12088400]
-        - [YDr, 56446400]
-        - [YDkr, 7813270]
-        - [YDkre, 7813290]
+        - [y, 12088400]
+        - [YD_r, 56446400]
+        - [ydr, 7813270]
+        - [ydr^e, 7813290]
         - [YP, 73158700]
         - [z1a, 0]
         - [z1b, 0]
         - [z2a, 0]
         - [z2b, 0]
-        - [Bbd, 4389790]
-        - [Bbs, 4389790]
-        - [Bcbd, 4655690]
-        - [Bcbs, 4655690]
-        - [Bhd, 33439320]
-        - [Bhs, 33439320]
-        - [Bs, 42484800]
-        - [BLd, 840742]
-        - [BLs, 840742]
+        - [B_bd, 4389790]
+        - [B_bs, 4389790]
+        - [B_cbd, 4655690]
+        - [B_cbs, 4655690]
+        - [B_hd, 33439320]
+        - [B_hs, 33439320]
+        - [B_s, 42484800]
+        - [BL_d, 840742]
+        - [BL_s, 840742]
         - [GD, 57728700]
-        - [Ekd, 5112.6001]
-        - [Eks, 5112.6001]
-        - [Hbd, 2025540]
-        - [Hbs, 2025540]
+        - [e_d, 5112.6001]
+        - [e_s, 5112.6001]
+        - [H_bd, 2025540]
+        - [H_bs, 2025540]
         - [Hhd, 2630150]
-        - [Hhs, 2630150]
-        - [Hs, 4655690]
+        - [H_hs, 2630150]
+        - [H_s, 4655690]
         - [IN, 11585400]
-        - [INk, 2064890]
-        - [INke, 2405660]
-        - [INkt, 2064890]
+        - [in, 2064890]
+        - [in^e, 2405660]
+        - [in^T, 2064890]
         - [K, 127486471]
-        - [Kk, 17774838]
-        - [Lfd, 15962900]
-        - [Lfs, 15962900]
-        - [Lhd, 21606600]
-        - [Lhs, 21606600]
-        - [Ls, 37569500]
-        - [Mh, 40510800]
+        - [k, 17774838]
+        - [L_fd, 15962900]
+        - [L_fs, 15962900]
+        - [L_hd, 21606600]
+        - [L_hs, 21606600]
+        - [L_s, 37569500]
+        - [M_h, 40510800]
         - [Ms, 40510800]
-        - [OFb, 3474030]
-        - [OFbe, 3474030]
-        - [OFbt, 3638100]
+        - [OF_b, 3474030]
+        - [OFb^e, 3474030]
+        - [OFb^T, 3638100]
         - [V, 165438779]
-        - [Vfma, 159334599]
-        - [Vk, 23066350]
-        - [Vf, 31361792]
+        - [V_fma, 159334599]
+        - [v, 23066350]
+        - [V_f, 31361792]
   - run:
       id: baseline-run
       title: Baseline run
-      description: Baseline GROWTH simulation with the relative hidden-equation condition Bbs = Bbd.
+      description: Baseline GROWTH simulation with the relative hidden-equation condition B_bs = B_bd.
       mode: baseline
       periods: 350
       resultKey: gl8_growth_baseline
@@ -408,9 +420,9 @@ cells:
       id: baseline-chart
       title: Baseline steady-state checks
       variables:
-        - Yk
+        - y
         - PI
-        - GRk
+        - gr
         - BLR
         - CAR
       axisMode: separate
@@ -418,7 +430,7 @@ cells:
       seriesRanges:
         PI:
           includeZero: true
-        GRk:
+        gr:
           includeZero: true
         BLR:
           includeZero: true
@@ -429,9 +441,9 @@ cells:
       id: baseline-table
       title: Baseline variable summary
       variables:
-        - Yk
-        - Ck
-        - Ik
+        - y
+        - c
+        - i
         - P
         - Rl
         - BLR
@@ -470,8 +482,8 @@ cells:
       variables:
         - PI
         - W
-        - Yk
-        - Ck
+        - y
+        - c
       axisMode: separate
       axisSnapTolarance: 0.5
       seriesRanges:
@@ -503,8 +515,8 @@ cells:
       id: scenario-2-chart
       title: Scenario 2 output, deficit, and debt
       variables:
-        - Gk
-        - Yk
+        - g
+        - y
         - PSBR
         - GD
       axisMode: separate
@@ -513,7 +525,7 @@ cells:
   - markdown:
       id: scenario-10-note
       title: Scenario 10
-      source: "Scenario 10 raises non-performing loans as in the article: `NPLk` rises from `0.02` to `0.05` from periods 10 to 150."
+      source: "Scenario 10 raises non-performing loans as in the article: `npl` rises from `0.02` to `0.05` from periods 10 to 150."
   - run:
       id: scenario-10-run
       title: "Scenario 10: higher non-performing loans"
@@ -521,7 +533,7 @@ cells:
       scenario:
         shocks:
           - variables:
-              NPLk:
+              npl:
                 kind: constant
                 value: 0.05
             rangeInclusive:

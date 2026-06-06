@@ -396,11 +396,10 @@ export function ModelCellView({
         </section>
       )}
       <VariableRenameDialog
-        cellCount={inlineEdit.renameReferenceCount.cellCount}
+        impact={inlineEdit.renameReferenceCount}
         isOpen={inlineEdit.renameDialog != null}
-        newName={inlineEdit.renameDialog?.name ?? ""}
+        newName={inlineEdit.renameDialog?.newName ?? ""}
         oldName={inlineEdit.renameDialog?.oldName ?? ""}
-        referenceCount={inlineEdit.renameReferenceCount.referenceCount}
         onCancel={inlineEdit.cancelRowEdit}
         onConfirmNo={inlineEdit.confirmRenameNo}
         onConfirmYes={inlineEdit.confirmRenameYes}
@@ -828,11 +827,10 @@ export function EquationsCellView({
         <EquationsModelViewHeaderRowStatic />
       </NotebookFloatingHeaderOverlay>
       <VariableRenameDialog
-        cellCount={inlineEdit.renameReferenceCount.cellCount}
+        impact={inlineEdit.renameReferenceCount}
         isOpen={inlineEdit.renameDialog != null}
-        newName={inlineEdit.renameDialog?.name ?? ""}
+        newName={inlineEdit.renameDialog?.newName ?? ""}
         oldName={inlineEdit.renameDialog?.oldName ?? ""}
-        referenceCount={inlineEdit.renameReferenceCount.referenceCount}
         onCancel={inlineEdit.cancelRowEdit}
         onConfirmNo={inlineEdit.confirmRenameNo}
         onConfirmYes={inlineEdit.confirmRenameYes}

@@ -4,14 +4,14 @@ import { isRowComment, type ExternalListItem } from "@sfcr/notebook-core";
 
 import type { ExternalRow } from "../lib/editorModel";
 import {
-  countVariableReferences,
   isModelVariableNameAvailable,
   patchExternalInNotebook,
-  renameVariableInNotebook,
   type ModelRenameScope
 } from "./renameVariable";
 import type { ExternalRowEditFocus } from "./components/ExternalRowInlineEditor";
 import type { NotebookCell } from "./types";
+import { useVariableRenameConfirm } from "./useVariableRenameConfirm";
+import { findFirstRowNameChange } from "./variableRenameHelpers";
 
 export interface PendingExternalRowApply {
   externalId: string;
@@ -38,15 +38,17 @@ export function useInlineExternalRowEdit({
   const [draftValueText, setDraftValueText] = useState("");
   const [editFocus, setEditFocus] = useState<ExternalRowEditFocus>("value");
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [renameDialog, setRenameDialog] = useState<PendingExternalRowApply | null>(null);
+  const [pendingApply, setPendingApply] = useState<PendingExternalRowApply | null>(null);
+  const renameConfirm = useVariableRenameConfirm({ cells, onReplaceCells, scope });
 
   const cancelRowEdit = useCallback(() => {
     setEditingExternalId(null);
     setDraftName("");
     setDraftValueText("");
     setValidationError(null);
-    setRenameDialog(null);
-  }, []);
+    setPendingApply(null);
+    renameConfirm.clearRenameDialog();
+  }, [renameConfirm]);
 
   const beginRowEdit = useCallback(
     (externalId: string, focus: ExternalRowEditFocus) => {
@@ -60,9 +62,10 @@ export function useInlineExternalRowEdit({
       setDraftValueText(external.valueText);
       setEditFocus(focus);
       setValidationError(null);
-      setRenameDialog(null);
+      setPendingApply(null);
+      renameConfirm.clearRenameDialog();
     },
-    [externals]
+    [externals, renameConfirm]
   );
 
   const commitRowOnly = useCallback(
@@ -130,12 +133,14 @@ export function useInlineExternalRowEdit({
     }
 
     setValidationError(null);
-    setRenameDialog({
+    const nextPendingApply = {
       externalId: editingExternalId,
       name: trimmedName,
       oldName,
       valueText: trimmedValueText
-    });
+    };
+    setPendingApply(nextPendingApply);
+    renameConfirm.openRenameDialog(oldName, trimmedName);
   }, [
     cancelRowEdit,
     cells,
@@ -144,39 +149,34 @@ export function useInlineExternalRowEdit({
     draftValueText,
     editingExternalId,
     externals,
+    renameConfirm,
     scope
   ]);
 
   const confirmRenameNo = useCallback(() => {
-    if (!renameDialog) {
+    if (!pendingApply) {
       return;
     }
 
-    commitRowOnly(renameDialog);
-  }, [commitRowOnly, renameDialog]);
+    renameConfirm.confirmRenameNo(() => commitRowOnly(pendingApply));
+  }, [commitRowOnly, pendingApply, renameConfirm]);
 
   const confirmRenameYes = useCallback(() => {
-    if (!renameDialog) {
+    if (!pendingApply) {
       return;
     }
 
-    let nextCells = renameVariableInNotebook(
-      cells,
-      scope,
-      renameDialog.oldName,
-      renameDialog.name
-    );
-    nextCells = patchExternalInNotebook(nextCells, scope, renameDialog.externalId, {
-      name: renameDialog.name,
-      valueText: renameDialog.valueText
+    renameConfirm.confirmRenameYes({
+      onComplete: cancelRowEdit,
+      patch: (nextCells) =>
+        patchExternalInNotebook(nextCells, scope, pendingApply.externalId, {
+          name: pendingApply.name,
+          valueText: pendingApply.valueText
+        })
     });
-    onReplaceCells(nextCells);
-    cancelRowEdit();
-  }, [cancelRowEdit, cells, onReplaceCells, renameDialog, scope]);
+  }, [cancelRowEdit, pendingApply, renameConfirm, scope]);
 
-  const renameReferenceCount = renameDialog
-    ? countVariableReferences(cells, scope, renameDialog.oldName)
-    : { cellCount: 0, referenceCount: 0 };
+  const renameReferenceCount = renameConfirm.renameReferenceCount;
 
   return {
     applyRowEdit,
@@ -188,10 +188,94 @@ export function useInlineExternalRowEdit({
     draftValueText,
     editFocus,
     editingExternalId,
-    renameDialog,
+    renameDialog: renameConfirm.renameDialog,
     renameReferenceCount,
     setDraftName,
     setDraftValueText,
     validationError
+  };
+}
+
+export function useExternalBatchRename({
+  cellId,
+  cells,
+  onApplyDraft,
+  onReplaceCells,
+  scope
+}: {
+  cellId: string;
+  cells: NotebookCell[];
+  onApplyDraft(externals: ExternalListItem[]): void;
+  onReplaceCells(nextCells: NotebookCell[]): void;
+  scope: ModelRenameScope;
+}) {
+  const [pendingDraft, setPendingDraft] = useState<ExternalListItem[] | null>(null);
+  const renameConfirm = useVariableRenameConfirm({ cells, onReplaceCells, scope });
+
+  const cancelBatchRename = useCallback(() => {
+    setPendingDraft(null);
+    renameConfirm.clearRenameDialog();
+  }, [renameConfirm]);
+
+  const requestBatchApply = useCallback(
+    (previousExternals: ExternalListItem[], draftExternals: ExternalListItem[]): boolean => {
+      const nameChange = findFirstRowNameChange(previousExternals, draftExternals);
+      if (!nameChange) {
+        onApplyDraft(draftExternals);
+        return false;
+      }
+
+      if (
+        !isModelVariableNameAvailable(cells, scope, nameChange.newName, {
+          excludeExternalId: nameChange.id
+        })
+      ) {
+        throw new Error(`Variable '${nameChange.newName}' is already defined in this model.`);
+      }
+
+      setPendingDraft(draftExternals);
+      renameConfirm.openRenameDialog(nameChange.oldName, nameChange.newName);
+      return true;
+    },
+    [cells, onApplyDraft, renameConfirm, scope]
+  );
+
+  const confirmRenameNo = useCallback(() => {
+    if (!pendingDraft) {
+      return;
+    }
+
+    renameConfirm.confirmRenameNo(() => {
+      onApplyDraft(pendingDraft);
+      cancelBatchRename();
+    });
+  }, [cancelBatchRename, onApplyDraft, pendingDraft, renameConfirm]);
+
+  const confirmRenameYes = useCallback(() => {
+    if (!pendingDraft) {
+      return;
+    }
+
+    renameConfirm.confirmRenameYes({
+      onComplete: () => {
+        onApplyDraft(pendingDraft);
+        cancelBatchRename();
+      },
+      patch: (nextCells) =>
+        nextCells.map((entry) =>
+          entry.id === cellId && entry.type === "externals"
+            ? { ...entry, externals: pendingDraft }
+            : entry
+        )
+    });
+  }, [cancelBatchRename, cellId, onApplyDraft, pendingDraft, renameConfirm]);
+
+  return {
+    cancelBatchRename,
+    confirmRenameNo,
+    confirmRenameYes,
+    renameDialog: renameConfirm.renameDialog,
+    renameReferenceCount: renameConfirm.renameReferenceCount,
+    requestBatchApply
   };
 }

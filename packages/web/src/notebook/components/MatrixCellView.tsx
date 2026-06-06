@@ -989,11 +989,10 @@ export function MatrixCellView({
         </div>
       ) : null}
       <VariableRenameDialog
-        cellCount={matrixEntryEdit.renameReferenceCount.cellCount}
+        impact={matrixEntryEdit.renameReferenceCount}
         isOpen={matrixEntryEdit.renameDialog != null}
         newName={matrixEntryEdit.renameDialog?.newName ?? ""}
         oldName={matrixEntryEdit.renameDialog?.oldName ?? ""}
-        referenceCount={matrixEntryEdit.renameReferenceCount.referenceCount}
         onCancel={matrixEntryEdit.cancelEntryEdit}
         onConfirmNo={matrixEntryEdit.confirmRenameNo}
         onConfirmYes={matrixEntryEdit.confirmRenameYes}

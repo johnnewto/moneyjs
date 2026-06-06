@@ -15,6 +15,8 @@ import type { VariableDescriptions } from "../../lib/variableDescriptions";
 import type { VariableUnitMetadata } from "../../lib/unitMeta";
 import { documentHighlightClassName } from "../../lib/variableHighlight";
 
+import type { VariableReferenceCount } from "../renameVariable";
+
 const DEFERRED_ACTION_DELAY_MS = 400;
 
 export type EquationRowEditFocus = "name" | "expression";
@@ -46,28 +48,27 @@ export function useDeferredAction(delayMs = DEFERRED_ACTION_DELAY_MS) {
 }
 
 export function VariableRenameDialog({
-  cellCount,
+  impact,
   isOpen,
   newName,
   oldName,
   onCancel,
   onConfirmNo,
-  onConfirmYes,
-  referenceCount
+  onConfirmYes
 }: {
-  cellCount: number;
+  impact: VariableReferenceCount;
   isOpen: boolean;
   newName: string;
   oldName: string;
   onCancel(): void;
   onConfirmNo(): void;
   onConfirmYes(): void;
-  referenceCount: number;
 }) {
   if (!isOpen) {
     return null;
   }
 
+  const { affectedCells, cellCount, referenceCount } = impact;
   const impactSummary =
     referenceCount > 0
       ? `${referenceCount} reference${referenceCount === 1 ? "" : "s"} in ${cellCount} cell${cellCount === 1 ? "" : "s"}.`
@@ -88,6 +89,19 @@ export function VariableRenameDialog({
           model&apos;s equations, externals, initial values, matrices, tables, charts, and runs?
         </p>
         <p className="notebook-confirm-dialog-summary">{impactSummary}</p>
+        {affectedCells.length > 0 ? (
+          <ul className="notebook-rename-impact-list" aria-label="Affected cells">
+            {affectedCells.map((entry) => (
+              <li key={entry.cellId} className="notebook-rename-impact-item">
+                <span className="notebook-rename-impact-type">{entry.cellType}</span>
+                <span className="notebook-rename-impact-title">{entry.cellTitle}</span>
+                <span className="notebook-rename-impact-count">
+                  {entry.referenceCount} reference{entry.referenceCount === 1 ? "" : "s"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <div className="notebook-cell-delete-dialog-actions notebook-confirm-dialog-actions">
           <button className="secondary-button" onClick={onCancel} type="button">
             Cancel
