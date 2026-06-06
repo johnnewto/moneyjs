@@ -34,6 +34,7 @@ export interface InitialValueRow {
   name: string;
   desc?: string;
   valueText: string;
+  enabled?: boolean;
 }
 
 export interface RowComment {

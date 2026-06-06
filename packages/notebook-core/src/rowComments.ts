@@ -91,6 +91,10 @@ export function initialValueRowsOnly<T extends { name: string }>(items: readonly
   return items.filter((item): item is T => !isRowComment(item));
 }
 
+export function isInitialValueEnabled(row: { enabled?: boolean }): boolean {
+  return row.enabled !== false;
+}
+
 export function countDataRows(items: readonly unknown[]): number {
   return items.filter((item) => !isRowComment(item)).length;
 }

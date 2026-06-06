@@ -1,5 +1,8 @@
 import { useEffect, useRef } from "react";
 
+import { isInitialValueEnabled } from "@sfcr/notebook-core";
+
+import { InitialValueEnableCheckbox } from "../../components/InitialValueEnableCheckbox";
 import { VariableLabel } from "../../components/VariableLabel";
 import type { InitialValueRow } from "../../lib/editorModel";
 import type { VariableDescriptions } from "../../lib/variableDescriptions";
@@ -113,6 +116,7 @@ export function NotebookInitialValueReadRow({
   onCancelRow,
   onDraftNameChange,
   onDraftValueTextChange,
+  onEnabledChange,
   onInspectVariable
 }: {
   currentValues: Record<string, number | undefined>;
@@ -132,8 +136,10 @@ export function NotebookInitialValueReadRow({
   onCancelRow(): void;
   onDraftNameChange(value: string): void;
   onDraftValueTextChange(value: string): void;
+  onEnabledChange?(enabled: boolean): void;
   onInspectVariable(variableName: string): void;
 }) {
+  const isEnabled = isInitialValueEnabled(initialValue);
   const hasDraftChanges =
     rowDraft.name.trim() !== initialValue.name.trim() ||
     rowDraft.valueText.trim() !== initialValue.valueText.trim();
@@ -151,13 +157,22 @@ export function NotebookInitialValueReadRow({
           "notebook-model-view-row",
           "notebook-model-view-row-initial",
           "notebook-model-view-row-editing",
-          issueMessage ? "has-issue" : ""
+          issueMessage ? "has-issue" : "",
+          isEnabled ? "" : "is-disabled"
         ]
           .filter(Boolean)
           .join(" ")}
         role="row"
       >
-        <div className="notebook-model-view-row-editor-cell" role="cell">
+        <span className="notebook-model-view-enable" role="cell">
+          <InitialValueEnableCheckbox
+            ariaLabel={`Enable initial value ${initialValueIndex + 1}`}
+            checked={isEnabled}
+            className="initial-grid-enable-checkbox"
+            onChange={(enabled) => onEnabledChange?.(enabled)}
+          />
+        </span>
+        <div className="notebook-model-view-row-editor-cell notebook-model-view-row-editor-cell-with-enable" role="cell">
           <InitialValueRowInlineEditor
             draftName={rowDraft.name}
             draftValueText={rowDraft.valueText}
@@ -180,7 +195,8 @@ export function NotebookInitialValueReadRow({
       className={[
         "notebook-model-view-row",
         "notebook-model-view-row-initial",
-        issueMessage ? "has-issue" : ""
+        issueMessage ? "has-issue" : "",
+        isEnabled ? "" : "is-disabled"
       ]
         .filter(Boolean)
         .join(" ")}
@@ -188,6 +204,14 @@ export function NotebookInitialValueReadRow({
       onContextMenu={onContextMenu}
       role="row"
     >
+      <span className="notebook-model-view-enable" role="cell">
+        <InitialValueEnableCheckbox
+          ariaLabel={`Enable initial value ${initialValueIndex + 1}`}
+          checked={isEnabled}
+          className="initial-grid-enable-checkbox"
+          onChange={(enabled) => onEnabledChange?.(enabled)}
+        />
+      </span>
       <span
         className="notebook-model-view-name is-editable"
         role="cell"
@@ -242,7 +266,7 @@ export function NotebookInitialValueReadRow({
         )}
       </span>
       <span className="notebook-model-view-kind" role="cell">
-        {issueMessage ?? "OK"}
+        {!isEnabled ? "Disabled" : (issueMessage ?? "OK")}
       </span>
     </div>
   );

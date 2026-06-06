@@ -8,7 +8,8 @@ import {
 import {
   EquationsModelViewHeaderRow,
   ExternalsModelViewHeaderRow,
-  InitialValuesModelViewHeaderRow
+  InitialValuesModelViewHeaderRow,
+  type InitialValueEnableControls
 } from "./notebookModelViewHeaderRows";
 
 function assignRef<T>(ref: Ref<T> | undefined, value: T | null): void {
@@ -39,12 +40,14 @@ function layoutClassName(layout: ModelViewTableLayout): string {
 export function NotebookModelViewTable({
   ariaLabel,
   headerRowRef,
+  initialValueEnableControls,
   layout,
   tableShellRef,
   children
 }: {
   ariaLabel: string;
   headerRowRef?: Ref<HTMLDivElement>;
+  initialValueEnableControls?: InitialValueEnableControls;
   layout: ModelViewTableLayout;
   tableShellRef?: Ref<HTMLDivElement>;
   children: ReactNode;
@@ -58,7 +61,11 @@ export function NotebookModelViewTable({
     layout === "external-view" ? (
       <ExternalsModelViewHeaderRow columnResize={columnResize} headerRowRef={headerRowRef} />
     ) : layout === "initial-view" ? (
-      <InitialValuesModelViewHeaderRow columnResize={columnResize} headerRowRef={headerRowRef} />
+      <InitialValuesModelViewHeaderRow
+        columnResize={columnResize}
+        enableControls={initialValueEnableControls}
+        headerRowRef={headerRowRef}
+      />
     ) : (
       <EquationsModelViewHeaderRow columnResize={columnResize} headerRowRef={headerRowRef} />
     );

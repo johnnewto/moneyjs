@@ -1,6 +1,14 @@
-import { formatCompactRowCommentText, isRowComment, type InitialValueListItem } from "@sfcr/notebook-core";
+import {
+  formatCompactRowCommentText,
+  initialValueRowsOnly,
+  isInitialValueEnabled,
+  isRowComment,
+  type InitialValueListItem
+} from "@sfcr/notebook-core";
 
+import { InitialValueEnableCheckbox } from "./InitialValueEnableCheckbox";
 import type { InitialValueRow } from "../lib/editorModel";
+import { summarizeInitialValueEnableState, withInitialValueEnabled } from "../lib/initialValueEnable";
 import { NotebookRowComment } from "../notebook/components/NotebookRowComment";
 import { newRowComment, patchCommentInRows } from "../notebook/rowCommentHelpers";
 import type { VariableUnitMetadata } from "../lib/unitMeta";
@@ -25,7 +33,9 @@ interface InitialValuesEditorProps {
   initialValues: InitialValueListItem[];
   issues: Record<string, string | undefined>;
   onChange(next: InitialValueListItem[]): void;
+  onEnableRecommended?(): void;
   onSelectVariable?(variableName: string): void;
+  recommendationMessage?: string | null;
   showHeading?: boolean;
   variableDescriptions?: VariableDescriptions;
   variableUnitMetadata?: VariableUnitMetadata;
@@ -38,16 +48,20 @@ export function InitialValuesEditor({
   initialValues,
   issues,
   onChange,
+  onEnableRecommended,
   onSelectVariable,
+  recommendationMessage = null,
   showHeading = true,
   variableDescriptions,
   variableUnitMetadata
 }: InitialValuesEditorProps) {
   const rowContextMenu = useGridRowContextMenu({
-    ignoredSelector: "button, select",
+    ignoredSelector: "button, input[type='checkbox'], select",
     onChangeRows: onChange,
     rows: initialValues
   });
+  const dataRows = initialValueRowsOnly(initialValues);
+  const { allEnabled, someEnabled } = summarizeInitialValueEnableState(dataRows);
 
   return (
     <section className={isEmbedded ? "grid-editor-embedded" : "editor-panel"}>
@@ -59,6 +73,21 @@ export function InitialValuesEditor({
 
       <div className="initial-grid-shell">
         <div className="initial-grid-header" role="row">
+          <span className="initial-grid-enable">
+            <InitialValueEnableCheckbox
+              ariaLabel="Enable or disable all initial values"
+              checked={allEnabled}
+              className="initial-grid-enable-checkbox"
+              indeterminate={someEnabled && !allEnabled}
+              onChange={(enabled) =>
+                onChange(
+                  initialValues.map((row) =>
+                    isRowComment(row) ? row : withInitialValueEnabled(row, enabled)
+                  )
+                )
+              }
+            />
+          </span>
           <span>#</span>
           <span>Name</span>
           <span>Initial</span>
@@ -83,17 +112,28 @@ export function InitialValuesEditor({
           }
 
           const initialValue = row;
+          const isEnabled = isInitialValueEnabled(initialValue);
           return (
           <div
             className={`initial-grid-row${
               issues[`initialValues.${index}.name`] || issues[`initialValues.${index}.valueText`]
                 ? " has-issue"
                 : ""
-            }`}
+            }${isEnabled ? "" : " is-disabled"}`}
             key={initialValue.id}
             onContextMenu={(event) => rowContextMenu.handleRowContextMenu(event, index)}
             role="row"
           >
+            <span className="initial-grid-enable">
+              <InitialValueEnableCheckbox
+                ariaLabel={`Enable initial value ${index + 1}`}
+                checked={isEnabled}
+                className="initial-grid-enable-checkbox"
+                onChange={(enabled) =>
+                  updateRow(initialValues, index, withInitialValueEnabled(initialValue, enabled), onChange)
+                }
+              />
+            </span>
             <span className="initial-grid-index">{index + 1}</span>
             <input
               aria-label={`Initial ${index + 1} name`}
@@ -144,7 +184,11 @@ export function InitialValuesEditor({
                   : ""
               }`}
             >
-              {issues[`initialValues.${index}.name`] ?? issues[`initialValues.${index}.valueText`] ?? "OK"}
+              {!isEnabled
+                ? "Disabled"
+                : (issues[`initialValues.${index}.name`] ??
+                  issues[`initialValues.${index}.valueText`] ??
+                  "OK")}
             </span>
             <button
               type="button"
@@ -160,7 +204,23 @@ export function InitialValuesEditor({
         </div>
       </div>
 
+      {recommendationMessage ? (
+        <p className="grid-editor-hint" role="status">
+          {recommendationMessage}
+        </p>
+      ) : null}
+
       <div className="grid-editor-footer">
+        {onEnableRecommended ? (
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onEnableRecommended}
+            title="Enable rows for lagged variables, stocks, denominators, and balance-sheet entries"
+          >
+            Enable needed
+          </button>
+        ) : null}
         <button type="button" onClick={() => onChange([...initialValues, newInitialValueRow()])}>
           Add initial
         </button>

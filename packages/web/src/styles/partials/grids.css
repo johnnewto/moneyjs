@@ -12,6 +12,48 @@
   display: grid;
   gap: 0.7rem;
 }
+.grid-editor-hint {
+  color: var(--color-text-secondary);
+  font-size: 0.84rem;
+  line-height: 1.35;
+  margin: 0;
+}
+.initial-value-enable-dialog {
+  max-width: 34rem;
+}
+.initial-value-enable-dialog-checklist {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0.85rem 0 0.65rem;
+}
+.initial-value-enable-dialog-item {
+  align-items: start;
+  cursor: pointer;
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: auto 1fr;
+}
+.initial-value-enable-dialog-item input {
+  margin-top: 0.2rem;
+}
+.initial-value-enable-dialog-item-copy {
+  display: grid;
+  gap: 0.15rem;
+}
+.initial-value-enable-dialog-item-copy strong {
+  font-size: 0.92rem;
+}
+.initial-value-enable-dialog-item-copy span {
+  color: var(--color-text-secondary);
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+.initial-value-enable-dialog-preview {
+  color: var(--color-text-secondary);
+  font-size: 0.84rem;
+  line-height: 1.35;
+  margin: 0;
+}
 .grid-editor-footer,
 .equation-grid-footer {
   display: flex;
@@ -469,6 +511,7 @@
   display: grid;
   gap: 0.6rem;
   grid-template-columns:
+    2rem
     48px
     minmax(120px, 180px)
     minmax(120px, 180px)
@@ -477,6 +520,16 @@
     minmax(120px, 180px)
     auto;
   padding: 0.3rem 0.55rem;
+}
+.initial-grid-enable {
+  display: flex;
+  justify-content: center;
+}
+.initial-grid-enable-checkbox {
+  margin: 0;
+}
+.initial-grid-row.is-disabled {
+  opacity: 0.58;
 }
 .initial-grid-header > span,
 .initial-grid-row > span,

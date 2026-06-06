@@ -77,4 +77,31 @@ describe("InitialValuesEditor", () => {
     expect(getDataRows()).toHaveLength(2);
     expect(screen.queryByDisplayValue("Hh")).not.toBeInTheDocument();
   });
+
+  it("supports enabling and disabling individual and all initial values", async () => {
+    const user = userEvent.setup();
+    const initialValues: InitialValueRow[] = [
+      { id: "init-hh", name: "Hh", valueText: "80" },
+      { id: "init-y", name: "Y", valueText: "100" }
+    ];
+    let latestRows = initialValues;
+
+    function StatefulInitialValuesEditor() {
+      const [rows, setRows] = useState(initialValues);
+      latestRows = rows;
+      return <InitialValuesEditor initialValues={rows} issues={{}} onChange={setRows} />;
+    }
+
+    render(<StatefulInitialValuesEditor />);
+
+    await user.click(screen.getByRole("checkbox", { name: /enable initial value 1/i }));
+    expect(latestRows.find((row) => row.id === "init-hh")?.enabled).toBe(false);
+    expect(screen.getByText("Disabled")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("checkbox", { name: /enable or disable all initial values/i }));
+    expect(latestRows.every((row) => row.enabled !== false)).toBe(true);
+
+    await user.click(screen.getByRole("checkbox", { name: /enable or disable all initial values/i }));
+    expect(latestRows.every((row) => row.enabled === false)).toBe(true);
+  });
 });

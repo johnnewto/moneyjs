@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   countDataRows,
   formatCompactRowCommentText,
+  initialValueRowsOnly,
+  isInitialValueEnabled,
   isRowComment,
   type ExternalListItem,
   type InitialValueListItem
@@ -12,6 +14,15 @@ import { ExternalEditor } from "../../components/ExternalEditor";
 import { InitialValuesEditor } from "../../components/InitialValuesEditor";
 import { SolverPanel } from "../../components/SolverPanel";
 import type { EditorState } from "../../lib/editorModel";
+import { summarizeInitialValueEnableState, withInitialValueEnabled } from "../../lib/initialValueEnable";
+import {
+  applyInitialValueRecommendations,
+  buildInitialValueRecommendations,
+  formatInitialValueRecommendationMessage,
+  type InitialValueRecommendationCriteria
+} from "../initialValueRecommendations";
+import { InitialValueEnableDialog } from "./InitialValueEnableDialog";
+import { findEquationsCell } from "../modelSections";
 import { buildVariableDescriptions, type VariableDescriptions } from "../../lib/variableDescriptions";
 import { buildVariableUnitMetadata } from "../../lib/units";
 import { useDragScroll } from "../../hooks/useDragScroll";
@@ -642,9 +653,12 @@ export function InitialValuesCellView({
   const [isEditingInitialValues, setIsEditingInitialValues] = useState(false);
   const [draftInitialValues, setDraftInitialValues] = useState(cell.initialValues);
   const [batchValidationError, setBatchValidationError] = useState<string | null>(null);
+  const [recommendationMessage, setRecommendationMessage] = useState<string | null>(null);
+  const [enableDialogOpen, setEnableDialogOpen] = useState(false);
   const hasDraftEdits =
     JSON.stringify(draftInitialValues) !== JSON.stringify(cell.initialValues);
   const floatingEnabled = cell.collapsed !== true && !isEditingInitialValues && viewportRoot != null;
+  const modelEquations = findEquationsCell(cells, cell.modelId)?.equations ?? editor.equations;
   const { visible: floatingHeaderVisible, anchor: floatingHeaderAnchor } =
     useNotebookFloatingHeaderRow({
       scrollRoot: viewportRoot,
@@ -666,7 +680,23 @@ export function InitialValuesCellView({
 
   function handleEditToggle(): void {
     setDraftInitialValues(cell.initialValues);
+    setRecommendationMessage(null);
     setIsEditingInitialValues(true);
+  }
+
+  function handleOpenEnableDialog(): void {
+    setEnableDialogOpen(true);
+  }
+
+  function handleConfirmEnableRecommended(criteria: InitialValueRecommendationCriteria): void {
+    const summary = buildInitialValueRecommendations({
+      equations: modelEquations,
+      cells,
+      criteria
+    });
+    setDraftInitialValues(applyInitialValueRecommendations(draftInitialValues, summary.recommendedNames));
+    setRecommendationMessage(formatInitialValueRecommendationMessage(summary));
+    setEnableDialogOpen(false);
   }
 
   function handleApply(): void {
@@ -682,6 +712,7 @@ export function InitialValuesCellView({
 
   function handleCancel(): void {
     setDraftInitialValues(cell.initialValues);
+    setRecommendationMessage(null);
     setIsEditingInitialValues(false);
   }
 
@@ -696,6 +727,28 @@ export function InitialValuesCellView({
     onReplaceCells,
     scope: { kind: "modelId", modelId: cell.modelId }
   });
+  const initialValueDataRows = initialValueRowsOnly(cell.initialValues);
+  const initialValueEnableSummary = summarizeInitialValueEnableState(initialValueDataRows);
+  const setAllInitialValuesEnabled = (enabled: boolean) => {
+    onChange(
+      cell.initialValues.map((row) =>
+        isRowComment(row) ? row : withInitialValueEnabled(row, enabled)
+      )
+    );
+  };
+  const setInitialValueEnabled = (initialValueId: string, enabled: boolean) => {
+    onChange(
+      cell.initialValues.map((row) =>
+        !isRowComment(row) && row.id === initialValueId ? withInitialValueEnabled(row, enabled) : row
+      )
+    );
+  };
+  const initialValueEnableControls = {
+    allEnabled: initialValueEnableSummary.allEnabled,
+    someEnabled: initialValueEnableSummary.someEnabled,
+    onSetAllEnabled: setAllInitialValuesEnabled
+  };
+
   const batchRename = useInitialValueBatchRename({
     cellId: cell.id,
     cells,
@@ -754,7 +807,9 @@ export function InitialValuesCellView({
               {
                 cell.initialValues.filter(
                   (initialValue) =>
-                    !isRowComment(initialValue) && initialValue.valueText.trim() !== ""
+                    !isRowComment(initialValue) &&
+                    isInitialValueEnabled(initialValue) &&
+                    initialValue.valueText.trim() !== ""
                 ).length
               }
             </strong>
@@ -778,6 +833,8 @@ export function InitialValuesCellView({
             isEmbedded
             issues={issueMap}
             onChange={setDraftInitialValues}
+            onEnableRecommended={handleOpenEnableDialog}
+            recommendationMessage={recommendationMessage}
             onSelectVariable={(selectedVariable) =>
               onVariableInspectRequest({
                 currentValues,
@@ -808,6 +865,7 @@ export function InitialValuesCellView({
           <NotebookModelViewTable
             ariaLabel="Initial values"
             headerRowRef={headerRowRef}
+            initialValueEnableControls={initialValueEnableControls}
             layout="initial-view"
             tableShellRef={tableShellRef}
           >
@@ -875,6 +933,7 @@ export function InitialValuesCellView({
                   onCancelRow={inlineEdit.cancelRowEdit}
                   onDraftNameChange={inlineEdit.setDraftName}
                   onDraftValueTextChange={inlineEdit.setDraftValueText}
+                  onEnabledChange={(enabled) => setInitialValueEnabled(initialValue.id, enabled)}
                   onInspectVariable={(selectedVariable) =>
                     onVariableInspectRequest({
                       currentValues,
@@ -944,7 +1003,7 @@ export function InitialValuesCellView({
         horizontalScrollSourceRef={sectionWrapRef}
         resizableTableSourceRef={tableShellRef}
       >
-        <InitialValuesModelViewHeaderRowStatic />
+        <InitialValuesModelViewHeaderRowStatic enableControls={initialValueEnableControls} />
       </NotebookFloatingHeaderOverlay>
       <VariableRenameDialog
         impact={activeRenameReferenceCount}
@@ -963,7 +1022,7 @@ export function InitialValuesCellView({
             inlineEdit.confirmRenameNo();
             return;
           }
-          batchRename.confirmRenameNo();
+          batchRename.cancelRenameNo();
         }}
         onConfirmYes={() => {
           if (inlineEdit.renameDialog) {
@@ -972,6 +1031,14 @@ export function InitialValuesCellView({
           }
           batchRename.confirmRenameYes();
         }}
+      />
+      <InitialValueEnableDialog
+        cells={cells}
+        equations={modelEquations}
+        initialValues={draftInitialValues}
+        isOpen={enableDialogOpen}
+        onApply={handleConfirmEnableRecommended}
+        onCancel={() => setEnableDialogOpen(false)}
       />
     </div>
   );

@@ -148,13 +148,19 @@ export function buildCompactInitialValueListRow(item: InitialValueListItem, inde
   return buildCompactInitialValueRow(item, index);
 }
 
-export function buildCompactInitialValueRow(initialValue: InitialValueRow, index: number): unknown[] {
+export function buildCompactInitialValueRow(initialValue: InitialValueRow, index: number): unknown {
+  const fallbackId = `init-${index}-${slugifyIdentifier(initialValue.name)}`;
   const row: unknown[] = [initialValue.name, scalarFromValueText(initialValue.valueText)];
   if (initialValue.desc?.trim()) {
     row.push(initialValue.desc);
   }
-  const fallbackId = `init-${index}-${slugifyIdentifier(initialValue.name)}`;
-  return initialValue.id === fallbackId ? row : [...row, initialValue.id];
+  if (initialValue.id !== fallbackId) {
+    row.push(initialValue.id);
+  }
+  if (initialValue.enabled === false) {
+    row.push(false);
+  }
+  return row;
 }
 
 export function buildCompactExternalVariables(
@@ -551,6 +557,41 @@ export function buildCompactInitialValues(initialValues: unknown): Extract<Noteb
   }));
 }
 
+function parseCompactInitialValueArrayRow(row: unknown[], index: number): InitialValueRow {
+  const [rawName, rawValue, ...rest] = row;
+  const name = stringValue(rawName, "");
+  let tail = rest;
+  let enabled: boolean | undefined;
+
+  if (rest.length > 0 && typeof rest[rest.length - 1] === "boolean") {
+    enabled = rest[rest.length - 1] as boolean;
+    tail = rest.slice(0, -1);
+  }
+
+  let desc: string | undefined;
+  let id: string | undefined;
+  if (tail.length === 1) {
+    const trailing = tail[0];
+    const trailingText = stringValue(trailing, "");
+    if (trailingText.startsWith("init-")) {
+      id = trailingText;
+    } else {
+      desc = trailingText;
+    }
+  } else if (tail.length >= 2) {
+    desc = stringValue(tail[0], "");
+    id = stringValue(tail[tail.length - 1], "");
+  }
+
+  return {
+    id: id ?? `init-${index}-${slugifyIdentifier(name)}`,
+    name,
+    ...(desc?.trim() ? { desc: desc.trim() } : {}),
+    valueText: String(rawValue),
+    ...(enabled === false ? { enabled: false as const } : {})
+  };
+}
+
 export function parseCompactInitialValueRows(rows: unknown[]): InitialValueListItem[] {
   return rows.map((row, index) => {
     assertCompactRowPresent(row, index, "Initial value");
@@ -560,28 +601,7 @@ export function parseCompactInitialValueRows(rows: unknown[]): InitialValueListI
     }
 
     if (Array.isArray(row)) {
-      const [rawName, rawValue, ...rest] = row;
-      const name = stringValue(rawName, "");
-      let desc: string | undefined;
-      let id: string | undefined;
-      if (rest.length === 1) {
-        const trailing = rest[0];
-        const trailingText = stringValue(trailing, "");
-        if (trailingText.startsWith("init-")) {
-          id = trailingText;
-        } else {
-          desc = trailingText;
-        }
-      } else if (rest.length >= 2) {
-        desc = stringValue(rest[0], "");
-        id = stringValue(rest[rest.length - 1], "");
-      }
-      return {
-        id: id ?? `init-${index}-${slugifyIdentifier(name)}`,
-        name,
-        ...(desc?.trim() ? { desc: desc.trim() } : {}),
-        valueText: String(rawValue)
-      };
+      return parseCompactInitialValueArrayRow(row, index);
     }
 
     if (isRecord(row)) {
@@ -594,7 +614,8 @@ export function parseCompactInitialValueRows(rows: unknown[]): InitialValueListI
           : typeof row.description === "string" && row.description.trim()
             ? { desc: row.description.trim() }
             : {}),
-        valueText: stringValue(row.value ?? row.valueText, "")
+        valueText: stringValue(row.value ?? row.valueText, ""),
+        ...(row.enabled === false ? { enabled: false as const } : {})
       };
     }
 

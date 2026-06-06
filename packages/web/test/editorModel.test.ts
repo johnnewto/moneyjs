@@ -64,6 +64,21 @@ describe("editor model validation", () => {
     expect(json).toMatch(/\{ "name": "[^"]+", "expression": "[^"]+" \}/);
   });
 
+  it("omits disabled initial values from runtime config", () => {
+    const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
+    editor.initialValues = [
+      { id: "init-hh", name: "Hh", valueText: "80" },
+      { id: "init-y", name: "Y", valueText: "100", enabled: false }
+    ];
+
+    const runtime = buildRuntimeConfig(editor);
+
+    expect(runtime.model.initialValues).toEqual({ Hh: 80 });
+    expect(validateEditorState(editor).some((issue) => issue.path.startsWith("initialValues."))).toBe(
+      false
+    );
+  });
+
   it("preserves explicit equation roles between editor and runtime config", () => {
     const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
     editor.equations[0] = {

@@ -15,6 +15,7 @@ import {
   equationRowsOnly,
   externalRowsOnly,
   initialValueRowsOnly,
+  isInitialValueEnabled,
   isRowComment,
   type EquationListItem,
   type ExternalListItem,
@@ -57,6 +58,7 @@ export interface InitialValueRow {
   name: string;
   desc?: string;
   valueText: string;
+  enabled?: boolean;
 }
 
 export interface ShockVariableRow {
@@ -201,7 +203,12 @@ export function buildRuntimeConfig(
 
   const initialValues = Object.fromEntries(
     initialValueRowsOnly(editor.initialValues)
-      .filter((initial) => initial.name.trim() !== "" && initial.valueText.trim() !== "")
+      .filter(
+        (initial) =>
+          isInitialValueEnabled(initial) &&
+          initial.name.trim() !== "" &&
+          initial.valueText.trim() !== ""
+      )
       .map((initial) => [initial.name.trim(), parseNumber(initial.valueText)])
   );
 
@@ -367,7 +374,7 @@ export function validateEditorState(editor: EditorState): ValidationIssue[] {
   });
 
   editor.initialValues.forEach((initial, index) => {
-    if (isRowComment(initial)) {
+    if (isRowComment(initial) || !isInitialValueEnabled(initial)) {
       return;
     }
     const name = initial.name.trim();
@@ -541,7 +548,7 @@ export function diagnoseBuildRuntime(editor: EditorState): BuildDiagnosticResult
   });
 
   editor.initialValues.forEach((initial, index) => {
-    if (isRowComment(initial)) {
+    if (isRowComment(initial) || !isInitialValueEnabled(initial)) {
       return;
     }
     if (!initial.name.trim() || !initial.valueText.trim()) {
