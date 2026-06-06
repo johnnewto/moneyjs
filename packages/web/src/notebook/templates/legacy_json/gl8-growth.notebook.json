@@ -536,44 +536,44 @@
       "modelId": "equations",
       "equations": [
         {
-          "id": "eq-0-Yk",
-          "name": "Yk",
+          "id": "eq-0-y",
+          "name": "y",
           "desc": "Real output",
-          "expression": "Ske + INke - INk[-1]"
+          "expression": "se + ine - in[-1]"
         },
         {
-          "id": "eq-1-Ske",
-          "name": "Ske",
+          "id": "eq-1-se",
+          "name": "se",
           "desc": "Expected real sales",
-          "expression": "beta * Sk + (1 - beta) * Sk[-1] * (1 + (GRpr + RA))"
+          "expression": "beta * s + (1 - beta) * s[-1] * (1 + (GRpr + RA))"
         },
         {
-          "id": "eq-2-INke",
-          "name": "INke",
+          "id": "eq-2-ine",
+          "name": "ine",
           "desc": "Expected real inventories",
-          "expression": "INk[-1] + gamma * (INkt - INk[-1])"
+          "expression": "in[-1] + gamma * (int - in[-1])"
         },
         {
-          "id": "eq-3-INkt",
-          "name": "INkt",
+          "id": "eq-3-int",
+          "name": "int",
           "desc": "Target level of real inventories",
-          "expression": "sigmat * Ske"
+          "expression": "sigmat * se"
         },
         {
-          "id": "eq-4-INk",
-          "name": "INk",
+          "id": "eq-4-in",
+          "name": "in",
           "desc": "Real inventories",
-          "expression": "INk[-1] + Yk - Sk - NPL / UC"
+          "expression": "in[-1] + y - s - NPL / UC"
         },
         {
-          "id": "eq-5-Kk",
-          "name": "Kk",
+          "id": "eq-5-k",
+          "name": "k",
           "desc": "Real capital stock",
-          "expression": "Kk[-1] * (1 + GRk)"
+          "expression": "k[-1] * (1 + gr)"
         },
         {
-          "id": "eq-6-GRk",
-          "name": "GRk",
+          "id": "eq-6-gr",
+          "name": "gr",
           "desc": "growth_mod of real capital stock",
           "expression": "gamma0 + gammau * U[-1] - gammar * RRl"
         },
@@ -581,7 +581,7 @@
           "id": "eq-7-U",
           "name": "U",
           "desc": "Capital utilization proxy",
-          "expression": "Yk / Kk[-1]"
+          "expression": "y / k[-1]"
         },
         {
           "id": "eq-8-RRl",
@@ -596,46 +596,46 @@
           "expression": "(P - P[-1]) / P[-1]"
         },
         {
-          "id": "eq-10-Ik",
-          "name": "Ik",
+          "id": "eq-10-i",
+          "name": "i",
           "desc": "Gross investment in real terms",
-          "expression": "(Kk - Kk[-1]) + delta * Kk[-1]"
+          "expression": "(k - k[-1]) + delta * k[-1]"
         },
         {
-          "id": "eq-11-Sk",
-          "name": "Sk",
+          "id": "eq-11-s",
+          "name": "s",
           "desc": "Real sales",
-          "expression": "Ck + Gk + Ik"
+          "expression": "c + g + i"
         },
         {
           "id": "eq-12-S",
           "name": "S",
           "desc": "Sales at current prices",
-          "expression": "Sk * P"
+          "expression": "s * P"
         },
         {
           "id": "eq-13-IN",
           "name": "IN",
           "desc": "Stock of inventories at current costs",
-          "expression": "INk * UC"
+          "expression": "in * UC"
         },
         {
           "id": "eq-14-INV",
           "name": "INV",
           "desc": "Gross investment",
-          "expression": "Ik * P"
+          "expression": "i * P"
         },
         {
           "id": "eq-15-K",
           "name": "K",
           "desc": "Capital stock",
-          "expression": "Kk * P"
+          "expression": "k * P"
         },
         {
           "id": "eq-16-Y",
           "name": "Y",
           "desc": "Output at current prices (nominal GDP ",
-          "expression": "Sk * P + (INk - INk[-1]) * UC"
+          "expression": "s * P + (in - in[-1]) * UC"
         },
         {
           "id": "eq-17-omegat",
@@ -695,7 +695,7 @@
           "id": "eq-26-Nt",
           "name": "Nt",
           "desc": "Desired employment level",
-          "expression": "Yk / PR"
+          "expression": "y / PR"
         },
         {
           "id": "eq-27-N",
@@ -713,7 +713,7 @@
           "id": "eq-29-UC",
           "name": "UC",
           "desc": "Unit costs",
-          "expression": "WB / Yk"
+          "expression": "WB / y"
         },
         {
           "id": "eq-30-NUC",
@@ -743,19 +743,19 @@
           "id": "eq-34-phit",
           "name": "phit",
           "desc": "Ideal mark-up on unit costs",
-          "expression": "(FUft + FDf + Rl[-1] * (Lfd[-1] - IN[-1])) / ((1 - sigmase) * Ske * UC + (1 + Rl[-1]) * sigmase * Ske * UC[-1])"
+          "expression": "(FUft + FDf + Rl[-1] * (Lfd[-1] - IN[-1])) / ((1 - sigmase) * se * UC + (1 + Rl[-1]) * sigmase * se * UC[-1])"
         },
         {
           "id": "eq-35-HCe",
           "name": "HCe",
           "desc": "Expected historical costs",
-          "expression": "(1 - sigmase) * Ske * UC + (1 + Rl[-1]) * sigmase * Ske * UC[-1]"
+          "expression": "(1 - sigmase) * se * UC + (1 + Rl[-1]) * sigmase * se * UC[-1]"
         },
         {
           "id": "eq-36-sigmase",
           "name": "sigmase",
           "desc": "Opening inventories to expected sales ratio",
-          "expression": "INk[-1] / Ske"
+          "expression": "in[-1] / se"
         },
         {
           "id": "eq-37-Fft",
@@ -797,7 +797,7 @@
           "id": "eq-43-NPL",
           "name": "NPL",
           "desc": "Non-Performing loans",
-          "expression": "NPLk * Lfs[-1]"
+          "expression": "npl * Lfs[-1]"
         },
         {
           "id": "eq-44-Eks",
@@ -860,8 +860,8 @@
           "expression": "V[-1] + YDr - CONS + (Pbl - Pbl[-1]) * BLd[-1] + (Pe - Pe[-1]) * Ekd[-1] + (OFb - OFb[-1])"
         },
         {
-          "id": "eq-54-Vk",
-          "name": "Vk",
+          "id": "eq-54-v",
+          "name": "v",
           "desc": "Real wealth of households",
           "expression": "V / P"
         },
@@ -869,25 +869,25 @@
           "id": "eq-55-CONS",
           "name": "CONS",
           "desc": "Consumption at current prices",
-          "expression": "Ck * P"
+          "expression": "c * P"
         },
         {
-          "id": "eq-56-Ck",
-          "name": "Ck",
+          "id": "eq-56-c",
+          "name": "c",
           "desc": "Real consumption",
-          "expression": "alpha1 * (YDkre + NLk) + alpha2 * Vk[-1]"
+          "expression": "alpha1 * (ydre + nl) + alpha2 * v[-1]"
         },
         {
-          "id": "eq-57-YDkre",
-          "name": "YDkre",
+          "id": "eq-57-ydre",
+          "name": "ydre",
           "desc": "Expected regular real disposable income",
-          "expression": "eps * YDkr + (1 - eps) * (YDkr[-1] * (1 + GRpr))"
+          "expression": "eps * ydr + (1 - eps) * (ydr[-1] * (1 + GRpr))"
         },
         {
-          "id": "eq-58-YDkr",
-          "name": "YDkr",
+          "id": "eq-58-ydr",
+          "name": "ydr",
           "desc": "Regular real disposable income",
-          "expression": "YDr / P - ((P - P[-1]) * Vk[-1]) / P"
+          "expression": "YDr / P - ((P - P[-1]) * v[-1]) / P"
         },
         {
           "id": "eq-59-GL",
@@ -920,8 +920,8 @@
           "expression": "Lhd[-1] + GL - REP"
         },
         {
-          "id": "eq-64-NLk",
-          "name": "NLk",
+          "id": "eq-64-nl",
+          "name": "nl",
           "desc": "Real flow of new loans to the household sector",
           "expression": "NL / P"
         },
@@ -983,13 +983,13 @@
           "id": "eq-74-G",
           "name": "G",
           "desc": "Government expenditures",
-          "expression": "Gk * P"
+          "expression": "g * P"
         },
         {
-          "id": "eq-75-Gk",
-          "name": "Gk",
+          "id": "eq-75-g",
+          "name": "g",
           "desc": "Real government expenditures",
-          "expression": "Gk[-1] * (1 + GRg)"
+          "expression": "g[-1] * (1 + GRg)"
         },
         {
           "id": "eq-76-PSBR",
@@ -1169,13 +1169,13 @@
           "id": "eq-105-FUbt",
           "name": "FUbt",
           "desc": "Targt retained earnings of banks",
-          "expression": "OFbe - OFb[-1] + NPLke * Lfs[-1]"
+          "expression": "OFbe - OFb[-1] + nple * Lfs[-1]"
         },
         {
-          "id": "eq-106-NPLke",
-          "name": "NPLke",
+          "id": "eq-106-nple",
+          "name": "nple",
           "desc": "Expected proportion of Non-Performing Loans",
-          "expression": "epsb * NPLke[-1] + (1 - epsb) * NPLk[-1]"
+          "expression": "epsb * nple[-1] + (1 - epsb) * npl[-1]"
         },
         {
           "id": "eq-107-FDb",
@@ -1187,7 +1187,7 @@
           "id": "eq-108-Fbt",
           "name": "Fbt",
           "desc": "Target profits of banks",
-          "expression": "lambdab * Y[-1] + (OFbe - OFb[-1] + NPLke * Lfs[-1])"
+          "expression": "lambdab * Y[-1] + (OFbe - OFb[-1] + nple * Lfs[-1])"
         },
         {
           "id": "eq-109-Fb",
@@ -1199,7 +1199,7 @@
           "id": "eq-110-ADDl",
           "name": "ADDl",
           "desc": "Spread between interest rate on loans and rate on deposits",
-          "expression": "(Fbt - Rb[-1] * Bbd[-1] + Rm[-1] * (Ms[-1] - (1 - NPLke) * Lfs[-1] - Lhs[-1])) / ((1 - NPLke) * Lfs[-1] + Lhs[-1])"
+          "expression": "(Fbt - Rb[-1] * Bbd[-1] + Rm[-1] * (Ms[-1] - (1 - nple) * Lfs[-1] - Lhs[-1])) / ((1 - nple) * Lfs[-1] + Lhs[-1])"
         },
         {
           "id": "eq-111-FUb",
@@ -1657,8 +1657,8 @@
           "valueText": "0.1"
         },
         {
-          "id": "ext-57-NPLk",
-          "name": "NPLk",
+          "id": "ext-57-npl",
+          "name": "npl",
           "desc": "Proportion of Non-Performing loans",
           "kind": "constant",
           "valueText": "0.02"
@@ -1761,8 +1761,8 @@
           "valueText": "0.1"
         },
         {
-          "id": "init-12-NPLk",
-          "name": "NPLk",
+          "id": "init-12-npl",
+          "name": "npl",
           "valueText": "0.02"
         },
         {
@@ -1801,8 +1801,8 @@
           "valueText": "0.06324"
         },
         {
-          "id": "init-20-Ck",
-          "name": "Ck",
+          "id": "init-20-c",
+          "name": "c",
           "valueText": "7334240"
         },
         {
@@ -1871,8 +1871,8 @@
           "valueText": "16755600"
         },
         {
-          "id": "init-34-Gk",
-          "name": "Gk",
+          "id": "init-34-g",
+          "name": "g",
           "valueText": "2336160"
         },
         {
@@ -1881,8 +1881,8 @@
           "valueText": "2775900"
         },
         {
-          "id": "init-36-GRk",
-          "name": "GRk",
+          "id": "init-36-gr",
+          "name": "gr",
           "valueText": "0.03001"
         },
         {
@@ -1891,8 +1891,8 @@
           "valueText": "16911600"
         },
         {
-          "id": "init-38-Ik",
-          "name": "Ik",
+          "id": "init-38-i",
+          "name": "i",
           "valueText": "2357910"
         },
         {
@@ -1916,8 +1916,8 @@
           "valueText": "683593"
         },
         {
-          "id": "init-43-NLk",
-          "name": "NLk",
+          "id": "init-43-nl",
+          "name": "nl",
           "valueText": "95311"
         },
         {
@@ -1926,8 +1926,8 @@
           "valueText": "309158"
         },
         {
-          "id": "init-45-NPLke",
-          "name": "NPLke",
+          "id": "init-45-nple",
+          "name": "nple",
           "valueText": "0.02"
         },
         {
@@ -2021,13 +2021,13 @@
           "valueText": "86270300"
         },
         {
-          "id": "init-64-Sk",
-          "name": "Sk",
+          "id": "init-64-s",
+          "name": "s",
           "valueText": "12028300"
         },
         {
-          "id": "init-65-Ske",
-          "name": "Ske",
+          "id": "init-65-se",
+          "name": "se",
           "valueText": "12028300"
         },
         {
@@ -2061,8 +2061,8 @@
           "valueText": "86607700"
         },
         {
-          "id": "init-72-Yk",
-          "name": "Yk",
+          "id": "init-72-y",
+          "name": "y",
           "valueText": "12088400"
         },
         {
@@ -2071,13 +2071,13 @@
           "valueText": "56446400"
         },
         {
-          "id": "init-74-YDkr",
-          "name": "YDkr",
+          "id": "init-74-ydr",
+          "name": "ydr",
           "valueText": "7813270"
         },
         {
-          "id": "init-75-YDkre",
-          "name": "YDkre",
+          "id": "init-75-ydre",
+          "name": "ydre",
           "valueText": "7813290"
         },
         {
@@ -2196,18 +2196,18 @@
           "valueText": "11585400"
         },
         {
-          "id": "init-99-INk",
-          "name": "INk",
+          "id": "init-99-in",
+          "name": "in",
           "valueText": "2064890"
         },
         {
-          "id": "init-100-INke",
-          "name": "INke",
+          "id": "init-100-ine",
+          "name": "ine",
           "valueText": "2405660"
         },
         {
-          "id": "init-101-INkt",
-          "name": "INkt",
+          "id": "init-101-int",
+          "name": "int",
           "valueText": "2064890"
         },
         {
@@ -2216,8 +2216,8 @@
           "valueText": "127486471"
         },
         {
-          "id": "init-103-Kk",
-          "name": "Kk",
+          "id": "init-103-k",
+          "name": "k",
           "valueText": "17774838"
         },
         {
@@ -2281,8 +2281,8 @@
           "valueText": "159334599"
         },
         {
-          "id": "init-116-Vk",
-          "name": "Vk",
+          "id": "init-116-v",
+          "name": "v",
           "valueText": "23066350"
         },
         {
@@ -2309,9 +2309,9 @@
       "title": "Baseline steady-state checks",
       "sourceRunCellId": "baseline-run",
       "variables": [
-        "Yk",
+        "y",
         "PI",
-        "GRk",
+        "gr",
         "BLR",
         "CAR"
       ],
@@ -2321,7 +2321,7 @@
         "PI": {
           "includeZero": true
         },
-        "GRk": {
+        "gr": {
           "includeZero": true
         },
         "BLR": {
@@ -2338,9 +2338,9 @@
       "title": "Baseline variable summary",
       "sourceRunCellId": "baseline-run",
       "variables": [
-        "Yk",
-        "Ck",
-        "Ik",
+        "y",
+        "c",
+        "i",
         "P",
         "Rl",
         "BLR",
@@ -2389,8 +2389,8 @@
       "variables": [
         "PI",
         "W",
-        "Yk",
-        "Ck"
+        "y",
+        "c"
       ],
       "axisMode": "separate",
       "axisSnapTolarance": 0.5,
@@ -2438,8 +2438,8 @@
       "title": "Scenario 2 output, deficit, and debt",
       "sourceRunCellId": "scenario-2-run",
       "variables": [
-        "Gk",
-        "Yk",
+        "g",
+        "y",
         "PSBR",
         "GD"
       ],
@@ -2450,7 +2450,7 @@
       "id": "scenario-10-note",
       "type": "markdown",
       "title": "Scenario 10",
-      "source": "Scenario 10 raises non-performing loans as in the article: `NPLk` rises from `0.02` to `0.05` from periods 10 to 150."
+      "source": "Scenario 10 raises non-performing loans as in the article: `npl` rises from `0.02` to `0.05` from periods 10 to 150."
     },
     {
       "id": "scenario-10-run",
@@ -2461,7 +2461,7 @@
         "shocks": [
           {
             "variables": {
-              "NPLk": {
+              "npl": {
                 "kind": "constant",
                 "value": 0.05
               }
