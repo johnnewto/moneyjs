@@ -48,6 +48,7 @@ import {
   useEquationSectionCollapseState
 } from "../equationSectionCollapse";
 import { EquationSectionCollapseControls } from "./EquationSectionCollapseControls";
+import { initialValueCellProps, useVariableInitialValueEdit } from "../useVariableInitialValueEdit";
 
 export function ModelCellView({
   cell,
@@ -175,9 +176,15 @@ export function ModelCellView({
     onChangeRows: (equations) => {
       inlineEdit.cancelRowEdit();
       commentEdit.cancelRowEdit();
+      initialValueEdit.cancelEdit();
       onChange({ ...cell.editor, equations });
     },
     rows: cell.editor.equations
+  });
+  const initialValueEdit = useVariableInitialValueEdit({
+    initialValues: cell.editor.initialValues,
+    onUpdateInitialValues: (nextInitialValues) =>
+      onChange({ ...cell.editor, initialValues: nextInitialValues })
   });
   const { scheduleDeferredAction } = useDeferredAction();
   const sectionCollapse = useEquationSectionCollapseState(
@@ -361,11 +368,17 @@ export function ModelCellView({
                   onApplyRow={inlineEdit.applyRowEdit}
                   onBeginRowEdit={(equationId, focus) => {
                     commentEdit.cancelRowEdit();
+                    initialValueEdit.cancelEdit();
                     inlineEdit.beginRowEdit(equationId, focus);
                   }}
                   onCancelRow={inlineEdit.cancelRowEdit}
                   onDraftExpressionChange={inlineEdit.setDraftExpression}
                   onDraftNameChange={inlineEdit.setDraftName}
+                  {...initialValueCellProps(
+                    equation.name,
+                    cell.editor.initialValues,
+                    initialValueEdit
+                  )}
                   onInspectVariable={(selectedVariable) =>
                     onVariableInspectRequest({
                       currentValues,
@@ -608,11 +621,31 @@ export function EquationsCellView({
     onReplaceCells,
     scope: { kind: "modelId", modelId: cell.modelId }
   });
+  const initialValuesCell = useMemo(
+    () => findInitialValuesCell(cells, cell.modelId),
+    [cells, cell.modelId]
+  );
+  const initialValueEdit = useVariableInitialValueEdit({
+    initialValues: initialValuesCell?.initialValues ?? [],
+    onUpdateInitialValues: (nextInitialValues) => {
+      if (!initialValuesCell) {
+        return;
+      }
+      onReplaceCells(
+        cells.map((entry) =>
+          entry.id === initialValuesCell.id && entry.type === "initial-values"
+            ? { ...entry, initialValues: nextInitialValues }
+            : entry
+        )
+      );
+    }
+  });
   const equationRowMenu = useGridRowContextMenu({
     ignoredSelector: "select",
     onChangeRows: (equations) => {
       inlineEdit.cancelRowEdit();
       commentEdit.cancelRowEdit();
+      initialValueEdit.cancelEdit();
       onChange(equations);
     },
     rows: cell.equations
@@ -810,11 +843,17 @@ export function EquationsCellView({
                   onApplyRow={inlineEdit.applyRowEdit}
                   onBeginRowEdit={(equationId, focus) => {
                     commentEdit.cancelRowEdit();
+                    initialValueEdit.cancelEdit();
                     inlineEdit.beginRowEdit(equationId, focus);
                   }}
                   onCancelRow={inlineEdit.cancelRowEdit}
                   onDraftExpressionChange={inlineEdit.setDraftExpression}
                   onDraftNameChange={inlineEdit.setDraftName}
+                  {...initialValueCellProps(
+                    equation.name,
+                    initialValuesCell?.initialValues ?? [],
+                    initialValueEdit
+                  )}
                   onInspectVariable={(selectedVariable) =>
                     onVariableInspectRequest({
                       currentValues,

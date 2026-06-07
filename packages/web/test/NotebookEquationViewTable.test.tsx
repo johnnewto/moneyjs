@@ -26,6 +26,12 @@ describe("NotebookEquationViewTable", () => {
           <span className="notebook-model-view-description" role="cell">
             Income = GDP
           </span>
+          <span className="notebook-model-view-initial" role="cell">
+            100
+          </span>
+          <span className="notebook-model-view-current" role="cell">
+            Y = 100
+          </span>
           <span className="notebook-model-view-kind" role="cell">
             Auto
           </span>
@@ -44,6 +50,8 @@ describe("NotebookEquationViewTable", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: /variable/i })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: /description/i })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /initial/i })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /current/i })).toBeInTheDocument();
   });
 
   it("renders resizable externals columns with description", () => {
@@ -58,6 +66,9 @@ describe("NotebookEquationViewTable", () => {
           </span>
           <span className="notebook-model-view-description" role="cell">
             Propensity to consume
+          </span>
+          <span className="notebook-model-view-initial" role="cell">
+            ---
           </span>
           <span className="notebook-model-view-current" role="cell">
             0.8

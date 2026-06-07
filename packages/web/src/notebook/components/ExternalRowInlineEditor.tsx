@@ -6,6 +6,7 @@ import type { VariableDescriptions } from "../../lib/variableDescriptions";
 import type { VariableUnitMetadata } from "../../lib/unitMeta";
 import { documentHighlightClassName } from "../../lib/variableHighlight";
 import { formatNotebookCurrentValue } from "./NotebookCurrentValue";
+import { ModelInitialValueCell } from "./ModelInitialValueCell";
 
 export type ExternalRowEditFocus = "name" | "value";
 
@@ -112,7 +113,15 @@ export function NotebookExternalReadRow({
   onCancelRow,
   onDraftNameChange,
   onDraftValueTextChange,
-  onInspectVariable
+  onInspectVariable,
+  initialValueText = null,
+  isEditingInitialValue = false,
+  draftInitialValueText = "",
+  initialValueValidationError = null,
+  onApplyInitialValue,
+  onBeginInitialValueEdit,
+  onCancelInitialValueEdit,
+  onDraftInitialValueTextChange
 }: {
   currentValues: Record<string, number | undefined>;
   external: ExternalRow;
@@ -132,6 +141,14 @@ export function NotebookExternalReadRow({
   onDraftNameChange(value: string): void;
   onDraftValueTextChange(value: string): void;
   onInspectVariable(variableName: string): void;
+  initialValueText?: string | null;
+  isEditingInitialValue?: boolean;
+  draftInitialValueText?: string;
+  initialValueValidationError?: string | null;
+  onApplyInitialValue?(): void;
+  onBeginInitialValueEdit?(): void;
+  onCancelInitialValueEdit?(): void;
+  onDraftInitialValueTextChange?(value: string): void;
 }) {
   const hasDraftChanges =
     rowDraft.name.trim() !== external.name.trim() ||
@@ -140,7 +157,13 @@ export function NotebookExternalReadRow({
   const handleBeginEdit = (focus: ExternalRowEditFocus, event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
+    onCancelInitialValueEdit?.();
     onBeginRowEdit(external.id, focus);
+  };
+
+  const handleBeginInitialValueEdit = () => {
+    onCancelRow();
+    onBeginInitialValueEdit?.();
   };
 
   if (isEditing) {
@@ -228,6 +251,17 @@ export function NotebookExternalReadRow({
       <span className="notebook-model-view-description" role="cell">
         {external.desc?.trim() || " "}
       </span>
+      <ModelInitialValueCell
+        draftValueText={draftInitialValueText}
+        initialValueText={initialValueText}
+        isEditing={isEditingInitialValue}
+        validationError={initialValueValidationError}
+        variableName={external.name}
+        onApply={() => onApplyInitialValue?.()}
+        onBeginEdit={handleBeginInitialValueEdit}
+        onCancel={() => onCancelInitialValueEdit?.()}
+        onDraftValueTextChange={(value) => onDraftInitialValueTextChange?.(value)}
+      />
       <span className="notebook-model-view-current" role="cell">
         {formatNotebookCurrentValue(
           external.name,

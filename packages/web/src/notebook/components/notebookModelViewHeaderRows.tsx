@@ -37,6 +37,7 @@ export function ExternalsModelViewHeaderRow({
         Value
       </span>
       <span role="columnheader">Description</span>
+      <span role="columnheader">Initial</span>
       <span role="columnheader">Current</span>
       <span className="notebook-model-view-kind" role="columnheader">
         Kind
@@ -56,6 +57,7 @@ export function ExternalsModelViewHeaderRowStatic(): JSX.Element {
       <span role="columnheader">Name</span>
       <span role="columnheader">Value</span>
       <span role="columnheader">Description</span>
+      <span role="columnheader">Initial</span>
       <span role="columnheader">Current</span>
       <span className="notebook-model-view-kind" role="columnheader">
         Kind
@@ -159,6 +161,8 @@ export function EquationsModelViewHeaderRow({
         Expression
       </span>
       <span role="columnheader">Description</span>
+      <span role="columnheader">Initial</span>
+      <span role="columnheader">Current</span>
       <span className="notebook-model-view-role" role="columnheader">
         Role
       </span>
@@ -174,6 +178,8 @@ export function EquationsModelViewHeaderRowStatic(): JSX.Element {
       <span role="columnheader">Variable</span>
       <span role="columnheader">Expression</span>
       <span role="columnheader">Description</span>
+      <span role="columnheader">Initial</span>
+      <span role="columnheader">Current</span>
       <span className="notebook-model-view-role" role="columnheader">
         Role
       </span>

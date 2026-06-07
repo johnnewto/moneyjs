@@ -33,6 +33,8 @@
     var(--eq-col-variable-width, 160px)
     var(--eq-col-expression-width, 280px)
     minmax(0, 1fr)
+    minmax(72px, 96px)
+    minmax(92px, 120px)
     var(--eq-col-role-width, 4.25rem);
   padding: 0.38rem 0.35rem 0.38rem 0.75rem;
 }
@@ -41,6 +43,7 @@
     var(--eq-col-variable-width, 160px)
     var(--eq-col-expression-width, 280px)
     minmax(0, 1fr)
+    minmax(72px, 96px)
     minmax(92px, 120px)
     minmax(72px, 110px);
   padding: 0.38rem 0.35rem 0.38rem 0.75rem;
@@ -75,6 +78,8 @@
   grid-template-columns:
     minmax(110px, 160px)
     minmax(0, 1fr)
+    minmax(0, 1fr)
+    minmax(72px, 96px)
     minmax(92px, 120px)
     minmax(96px, 128px);
   padding: 0.38rem 0.75rem;
@@ -83,6 +88,8 @@
   grid-template-columns:
     minmax(110px, 160px)
     minmax(0, 1fr)
+    minmax(0, 1fr)
+    minmax(72px, 96px)
     minmax(92px, 120px)
     minmax(72px, 110px);
 }
@@ -123,6 +130,7 @@
     var(--eq-col-variable-width, 160px)
     var(--eq-col-expression-width, 280px)
     minmax(0, 1fr)
+    minmax(92px, 120px)
     var(--eq-col-role-width, 4.25rem);
 }
 .notebook-model-view-table-resizable.layout-external-view
@@ -300,6 +308,7 @@
 .notebook-model-view-name,
 .notebook-model-view-expression,
 .notebook-model-view-description,
+.notebook-model-view-initial,
 .notebook-model-view-current {
   font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
   font-size: 0.82rem;
@@ -316,13 +325,31 @@
   color: var(--color-text-secondary);
   overflow-wrap: anywhere;
 }
+.notebook-model-view-initial {
+  color: var(--color-text-secondary);
+  text-align: right;
+  white-space: nowrap;
+}
+.notebook-model-view-initial.is-placeholder {
+  color: var(--color-text-subtle);
+}
+.notebook-model-view-initial.is-editing {
+  display: grid;
+  gap: 0.2rem;
+}
+.notebook-model-view-initial-input {
+  font: inherit;
+  text-align: right;
+  width: 100%;
+}
 .notebook-model-view-current {
   color: var(--color-text-secondary);
   text-align: right;
   white-space: nowrap;
 }
 .notebook-model-view-name.is-editable,
-.notebook-model-view-expression.is-editable {
+.notebook-model-view-expression.is-editable,
+.notebook-model-view-initial.is-editable {
   cursor: text;
 }
 .notebook-model-view-row-editing {

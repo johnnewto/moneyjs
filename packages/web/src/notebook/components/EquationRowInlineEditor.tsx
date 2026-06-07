@@ -10,12 +10,14 @@ import {
   type TraceTokenRole
 } from "../../components/EquationGridEditor";
 import { VariableLabel } from "../../components/VariableLabel";
+import { formatNotebookCurrentValue } from "./NotebookCurrentValue";
 import type { EquationRow } from "../../lib/editorModel";
 import type { VariableDescriptions } from "../../lib/variableDescriptions";
 import type { VariableUnitMetadata } from "../../lib/unitMeta";
 import { documentHighlightClassName } from "../../lib/variableHighlight";
 
 import type { VariableReferenceCount } from "../renameVariable";
+import { ModelInitialValueCell } from "./ModelInitialValueCell";
 
 const DEFERRED_ACTION_DELAY_MS = 400;
 
@@ -243,7 +245,15 @@ export function NotebookEquationReadRow({
   onRowClick,
   onRowMouseEnter,
   onRowMouseLeave,
-  onSelectVariableInExpression
+  onSelectVariableInExpression,
+  initialValueText = null,
+  isEditingInitialValue = false,
+  draftInitialValueText = "",
+  initialValueValidationError = null,
+  onApplyInitialValue,
+  onBeginInitialValueEdit,
+  onCancelInitialValueEdit,
+  onDraftInitialValueTextChange
 }: {
   activeTraceTokenStates?: Map<string, TraceTokenRole>;
   currentValues: Record<string, number | undefined>;
@@ -273,6 +283,14 @@ export function NotebookEquationReadRow({
   onRowMouseEnter(): void;
   onRowMouseLeave(): void;
   onSelectVariableInExpression?(variableName: string): void;
+  initialValueText?: string | null;
+  isEditingInitialValue?: boolean;
+  draftInitialValueText?: string;
+  initialValueValidationError?: string | null;
+  onApplyInitialValue?(): void;
+  onBeginInitialValueEdit?(): void;
+  onCancelInitialValueEdit?(): void;
+  onDraftInitialValueTextChange?(value: string): void;
 }) {
   const { clearDeferredAction, scheduleDeferredAction } = useDeferredAction();
   const hasDraftChanges =
@@ -283,7 +301,14 @@ export function NotebookEquationReadRow({
     event.preventDefault();
     event.stopPropagation();
     clearDeferredAction();
+    onCancelInitialValueEdit?.();
     onBeginRowEdit(equation.id, focus);
+  };
+
+  const handleBeginInitialValueEdit = () => {
+    clearDeferredAction();
+    onCancelRow();
+    onBeginInitialValueEdit?.();
   };
 
   if (isEditing) {
@@ -402,6 +427,25 @@ export function NotebookEquationReadRow({
       </span>
       <span className="notebook-model-view-description" role="cell">
         {equation.desc?.trim() || " "}
+      </span>
+      <ModelInitialValueCell
+        draftValueText={draftInitialValueText}
+        initialValueText={initialValueText}
+        isEditing={isEditingInitialValue}
+        validationError={initialValueValidationError}
+        variableName={equation.name}
+        onApply={() => onApplyInitialValue?.()}
+        onBeginEdit={handleBeginInitialValueEdit}
+        onCancel={() => onCancelInitialValueEdit?.()}
+        onDraftValueTextChange={(value) => onDraftInitialValueTextChange?.(value)}
+      />
+      <span className="notebook-model-view-current" role="cell">
+        {formatNotebookCurrentValue(
+          equation.name,
+          currentValues[equation.name.trim()],
+          variableDescriptions,
+          variableUnitMetadata
+        )}
       </span>
       <span className="notebook-model-view-kind" role="cell">
         {formatRoleLabel(equation)}

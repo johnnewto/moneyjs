@@ -22,7 +22,7 @@ import {
   type InitialValueRecommendationCriteria
 } from "../initialValueRecommendations";
 import { InitialValueEnableDialog } from "./InitialValueEnableDialog";
-import { findEquationsCell } from "../modelSections";
+import { findEquationsCell, findInitialValuesCell } from "../modelSections";
 import { buildVariableDescriptions, type VariableDescriptions } from "../../lib/variableDescriptions";
 import { buildVariableUnitMetadata } from "../../lib/units";
 import { useDragScroll } from "../../hooks/useDragScroll";
@@ -55,6 +55,7 @@ import {
   InitialValuesModelViewHeaderRowStatic
 } from "./notebookModelViewHeaderRows";
 import { useNotebookFloatingHeaderRow } from "../useNotebookFloatingHeaderRow";
+import { initialValueCellProps, useVariableInitialValueEdit } from "../useVariableInitialValueEdit";
 
 export function SolverCellView({
   cell,
@@ -362,6 +363,25 @@ export function ExternalsCellView({
     onReplaceCells,
     scope: { kind: "modelId", modelId: cell.modelId }
   });
+  const initialValuesCell = useMemo(
+    () => findInitialValuesCell(cells, cell.modelId),
+    [cells, cell.modelId]
+  );
+  const initialValueEdit = useVariableInitialValueEdit({
+    initialValues: initialValuesCell?.initialValues ?? editor.initialValues,
+    onUpdateInitialValues: (nextInitialValues) => {
+      if (!initialValuesCell) {
+        return;
+      }
+      onReplaceCells(
+        cells.map((entry) =>
+          entry.id === initialValuesCell.id && entry.type === "initial-values"
+            ? { ...entry, initialValues: nextInitialValues }
+            : entry
+        )
+      );
+    }
+  });
   const activeRenameDialog = inlineEdit.renameDialog ?? batchRename.renameDialog;
   const activeRenameReferenceCount = inlineEdit.renameDialog
     ? inlineEdit.renameReferenceCount
@@ -371,6 +391,7 @@ export function ExternalsCellView({
     onChangeRows: (externals) => {
       inlineEdit.cancelRowEdit();
       commentEdit.cancelRowEdit();
+      initialValueEdit.cancelEdit();
       onChange(externals);
     },
     rows: cell.externals
@@ -506,11 +527,17 @@ export function ExternalsCellView({
                   onApplyRow={inlineEdit.applyRowEdit}
                   onBeginRowEdit={(externalId, focus) => {
                     commentEdit.cancelRowEdit();
+                    initialValueEdit.cancelEdit();
                     inlineEdit.beginRowEdit(externalId, focus);
                   }}
                   onCancelRow={inlineEdit.cancelRowEdit}
                   onDraftNameChange={inlineEdit.setDraftName}
                   onDraftValueTextChange={inlineEdit.setDraftValueText}
+                  {...initialValueCellProps(
+                    external.name,
+                    initialValuesCell?.initialValues ?? editor.initialValues,
+                    initialValueEdit
+                  )}
                   onInspectVariable={(selectedVariable) =>
                     onVariableInspectRequest({
                       currentValues,
