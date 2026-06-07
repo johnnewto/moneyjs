@@ -181,7 +181,8 @@ cells:
         - GDP
         - Money
         - Loans
-        - BankAssets
+        - Gov_Bonds
+        - Debt
       axisMode: separate
       axisSnapTolarance: 0.1
       niceScale: true
@@ -230,7 +231,7 @@ cells:
             variables:
               Spend_frac:
                 kind: constant
-                value: 45
+                value: 0.45
             startPeriodInclusive: 10
             endPeriodInclusive: 80
       baselineRunCellId: baseline-run

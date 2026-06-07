@@ -208,6 +208,7 @@ function MatrixSequenceCellView({
     if (!inspectBundle) {
       return {
         currentValues: {},
+        laggedCurrentValues: {},
         highlightedVariable,
         parameterNames: new Set<string>(),
         variableDescriptions,
@@ -217,6 +218,8 @@ function MatrixSequenceCellView({
 
     return {
       currentValues: inspectBundle.currentValues,
+      laggedCurrentValues: inspectBundle.laggedCurrentValues,
+      laggedPeriodLabel: inspectBundle.laggedPeriodLabel,
       highlightedVariable,
       onSelectVariable: inspectBundle.editor
         ? (selectedVariable: string) => {

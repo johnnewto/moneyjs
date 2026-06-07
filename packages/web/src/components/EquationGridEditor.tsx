@@ -55,6 +55,11 @@ import {
 import { renderVariableMathLabel } from "./VariableMathLabel";
 import { classifyVariableToken } from "../lib/formulaTokenClass";
 import { documentHighlightClassName } from "../lib/variableHighlight";
+import {
+  collectEquationDenominatorVariables,
+  formatZeroDenominatorWarning,
+  isZeroDenominatorVariable
+} from "../lib/equationDivisionAnalysis";
 
 export {
   buildActiveTrace,
@@ -69,6 +74,8 @@ export {
 interface EquationGridEditorProps {
   buildError?: string | null;
   currentValues?: Record<string, number | undefined>;
+  laggedCurrentValues?: Record<string, number | undefined>;
+  laggedPeriodLabel?: string;
   equations: EquationListItem[];
   externals?: ExternalListItem[];
   issues: Record<string, string | ValidationIssue | undefined>;
@@ -86,6 +93,8 @@ interface EquationGridEditorProps {
 export function EquationGridEditor({
   buildError = null,
   currentValues = {},
+  laggedCurrentValues = {},
+  laggedPeriodLabel,
   equations,
   externals = [],
   issues,
@@ -275,6 +284,8 @@ export function EquationGridEditor({
                     placeholder="Y"
                     value={equation.name}
                     currentValues={currentValues}
+                    laggedCurrentValues={laggedCurrentValues}
+                    laggedPeriodLabel={laggedPeriodLabel}
                     onSelectVariable={onSelectVariable}
                     documentHighlightedVariable={documentHighlightedVariable}
                     variableDescriptions={variableDescriptions}
@@ -295,6 +306,9 @@ export function EquationGridEditor({
                     placeholder="Cs + Gs"
                     value={equation.expression}
                     currentValues={currentValues}
+                    laggedCurrentValues={laggedCurrentValues}
+                    laggedPeriodLabel={laggedPeriodLabel}
+                    denominatorVariableNames={collectEquationDenominatorVariables(equation.expression)}
                     onSelectVariable={onSelectVariable}
                     documentHighlightedVariable={documentHighlightedVariable}
                     variableDescriptions={variableDescriptions}
@@ -425,6 +439,9 @@ export interface HighlightedFormulaInputProps {
   ariaLabel: string;
   className?: string;
   currentValues?: Record<string, number | undefined>;
+  laggedCurrentValues?: Record<string, number | undefined>;
+  laggedPeriodLabel?: string;
+  denominatorVariableNames?: Set<string>;
   displayTokens?: Map<string, string>;
   footer?: ReactNode;
   highlightedTokens?: Map<string, TraceTokenRole>;
@@ -747,6 +764,9 @@ export function HighlightedFormulaInput({
   ariaLabel,
   className = "",
   currentValues,
+  laggedCurrentValues,
+  laggedPeriodLabel,
+  denominatorVariableNames,
   displayTokens,
   footer,
   highlightedTokens,
@@ -778,7 +798,11 @@ export function HighlightedFormulaInput({
               onSelectVariable,
               displayTokens,
               currentValues,
-              documentHighlightedVariable
+              documentHighlightedVariable,
+              false,
+              laggedCurrentValues,
+              laggedPeriodLabel,
+              denominatorVariableNames
             )
           : placeholder}
       </div>
@@ -868,7 +892,10 @@ export function highlightFormula(
   displayTokens?: Map<string, string>,
   currentValues?: Record<string, number | undefined>,
   documentHighlightedVariable?: string | null,
-  variableSelectOnClick = false
+  variableSelectOnClick = false,
+  laggedCurrentValues?: Record<string, number | undefined>,
+  laggedPeriodLabel?: string,
+  denominatorVariableNames?: Set<string>
 ): ReactNode[] {
   const parts: ReactNode[] = [];
   const tokenPattern =
@@ -903,9 +930,21 @@ export function highlightFormula(
           ? renderLaggedVariableMathLabel(String(renderedToken))
           : renderVariableMathLabel(String(renderedToken));
     const traceClass = highlightedTokens?.get(normalizedToken) ?? null;
+    const isLaggedToken = Boolean(laggedVariable);
+    const isZeroDenominator =
+      tokenClass !== "formula-function" &&
+      tokenClass !== "formula-number" &&
+      tokenClass !== "formula-default" &&
+      isZeroDenominatorVariable({
+        name: normalizedToken,
+        isLagged: isLaggedToken,
+        denominatorVariableNames,
+        currentValues,
+        laggedCurrentValues
+      });
     const hasVariableMetadata =
       variableDescriptions?.has(normalizedToken) || variableUnitMetadata?.has(normalizedToken);
-    const tokenDescription =
+    const baseTokenDescription =
       tokenClass !== "formula-function" &&
       tokenClass !== "formula-number" &&
       tokenClass !== "formula-default" &&
@@ -914,9 +953,26 @@ export function highlightFormula(
             name: normalizedToken,
             variableDescriptions,
             variableUnitMetadata,
+            valueReference: isLaggedToken ? "lagged" : "current",
+            laggedCurrentValues,
+            laggedPeriodLabel,
             currentValues
           })
         : undefined;
+    const zeroDenominatorValue = isZeroDenominator
+      ? isLaggedToken
+        ? laggedCurrentValues?.[normalizedToken]
+        : currentValues?.[normalizedToken]
+      : undefined;
+    const tokenDescription =
+      isZeroDenominator && typeof zeroDenominatorValue === "number"
+        ? [baseTokenDescription, formatZeroDenominatorWarning({
+            name: normalizedToken,
+            isLagged: isLaggedToken,
+            value: zeroDenominatorValue,
+            laggedPeriodLabel
+          })].filter(Boolean).join("\n")
+        : baseTokenDescription;
     const isInspectableVariable =
       Boolean(onSelectVariable) &&
       tokenClass !== "formula-function" &&
@@ -926,8 +982,8 @@ export function highlightFormula(
       normalizedToken,
       documentHighlightedVariable,
       `formula-token ${tokenClass}${traceClass ? ` trace-token-${traceClass}` : ""}${
-        isInspectableVariable ? " is-clickable" : ""
-      }`
+        isZeroDenominator ? " is-zero-denominator" : ""
+      }${isInspectableVariable ? " is-clickable" : ""}`
     );
     const selectVariableOnClick = variableSelectOnClick
       ? (event: MouseEvent<HTMLElement>) => {

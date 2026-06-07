@@ -267,6 +267,20 @@ export function WorkspaceApp() {
         ])
       )
     : {};
+  const laggedValueMap = solver.result
+    ? Object.fromEntries(
+        Object.entries(solver.result.series).map(([name, values]) => {
+          const lagPeriodIndex = selectedPeriodIndex - 1;
+          return [
+            name,
+            lagPeriodIndex >= 0
+              ? values[Math.min(lagPeriodIndex, Math.max(values.length - 1, 0))]
+              : undefined
+          ];
+        })
+      )
+    : {};
+  const laggedPeriodLabel = selectedPeriodIndex > 0 ? `period ${selectedPeriodIndex}` : undefined;
   const selectedVariableData = buildVariableInspectorData({
     currentValues: currentValueMap,
     editor,
@@ -475,6 +489,8 @@ export function WorkspaceApp() {
           <EquationGridEditor
             buildError={buildDiagnostics.modelError}
             currentValues={currentValueMap}
+            laggedCurrentValues={laggedValueMap}
+            laggedPeriodLabel={laggedPeriodLabel}
             equations={editor.equations}
             issues={equationIssueMap}
             onChange={(equations) => setEditor((current) => ({ ...current, equations }))}
@@ -540,6 +556,8 @@ export function WorkspaceApp() {
             canEditDefiningEquation={selectedVariableData?.definingEquation != null}
             commitStyle="immediate"
             currentValues={currentValueMap}
+            laggedCurrentValues={laggedValueMap}
+            laggedPeriodLabel={laggedPeriodLabel}
             data={selectedVariableData}
             selectedPeriodIndex={selectedPeriodIndex}
             seriesValues={inspectorSeriesValues}

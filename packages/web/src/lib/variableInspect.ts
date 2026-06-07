@@ -6,7 +6,7 @@ import { findEquationsCell, findExternalsCell, findInitialValuesCell, findLegacy
 import { buildVariableDescriptions } from "./variableDescriptions";
 import { buildVariableUnitMetadata } from "./units";
 import type { VariableCatalogRow } from "./variableCatalog";
-import { findPreferredRunForModelKey, listCatalogModelContexts } from "./variableCatalog";
+import { findPreferredRunForModelKey, listCatalogModelContexts, buildModelCurrentValues } from "./variableCatalog";
 import { resolveRunCellModelKey } from "../notebook/modelSections";
 
 export type InspectorModelSource = { sourceModelId: string } | { sourceModelCellId: string };
@@ -87,22 +87,16 @@ export function buildInspectorCurrentValues(args: {
   selectedPeriodIndex: number;
   sourceRunCellId?: string | null;
 }): Record<string, number | undefined> {
-  const runCell = resolvePreferredInspectorRunCell(args.document, args.modelSource);
-  if (!runCell) {
+  if (!args.modelSource) {
     return {};
   }
 
-  const result = args.getResult(runCell.id);
-  if (!result) {
-    return {};
-  }
-
-  return Object.fromEntries(
-    Object.entries(result.series).map(([name, values]) => [
-      name,
-      values[Math.min(args.selectedPeriodIndex, Math.max(values.length - 1, 0))]
-    ])
-  );
+  return buildModelCurrentValues({
+    document: args.document,
+    getResult: args.getResult,
+    modelRef: args.modelSource,
+    selectedPeriodIndex: args.selectedPeriodIndex
+  });
 }
 
 export function buildInspectorSeriesValues(args: {

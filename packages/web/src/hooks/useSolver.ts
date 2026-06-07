@@ -8,6 +8,7 @@ import type {
 } from "@sfcr/core";
 
 import { createWorkerClient } from "../lib/workerClient";
+import { extractPartialRunResult } from "../lib/partialRunResult";
 
 export interface UseSolverState {
   status: "idle" | "validating" | "running" | "success" | "error";
@@ -44,9 +45,10 @@ export function useSolver(): UseSolverApi {
         setState({ status: "success", result, error: null });
         return result;
       } catch (error) {
+        const partialResult = extractPartialRunResult(error);
         setState({
           status: "error",
-          result: null,
+          result: partialResult,
           error: error instanceof Error ? error : new Error("Unknown error")
         });
         throw error instanceof Error ? error : new Error("Unknown error");
@@ -59,9 +61,10 @@ export function useSolver(): UseSolverApi {
         setState({ status: "success", result, error: null });
         return result;
       } catch (error) {
+        const partialResult = extractPartialRunResult(error);
         setState({
           status: "error",
-          result: null,
+          result: partialResult,
           error: error instanceof Error ? error : new Error("Unknown error")
         });
         throw error instanceof Error ? error : new Error("Unknown error");

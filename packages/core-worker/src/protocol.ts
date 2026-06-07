@@ -55,5 +55,6 @@ export type WorkerResponse =
         name: string;
         message: string;
         details?: Record<string, unknown>;
+        partialResult?: SimulationResult;
       };
     };

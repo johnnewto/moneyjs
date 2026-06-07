@@ -41,7 +41,8 @@ const TEMPLATE_CASES: TemplateSmokeCase[] = [
       expect(Number.isFinite(result.series.GDP.at(-1) ?? NaN)).toBe(true);
       expect(Number.isFinite(result.series.Govt_Debt_GDP.at(-1) ?? NaN)).toBe(true);
       expect(Number.isFinite(result.series.Private_Debt_GDP.at(-1) ?? NaN)).toBe(true);
-      expect(Number.isFinite(result.series.BankAssets.at(-1) ?? NaN)).toBe(true);
+      expect(Number.isFinite(result.series.Gov_Bonds.at(-1) ?? NaN)).toBe(true);
+      expect(Number.isFinite(result.series.Debt.at(-1) ?? NaN)).toBe(true);
       expect(result.series.GDP.at(-1) ?? NaN).toBeGreaterThan(0);
     },
     scenarioExpectations(result, baselineResult) {
@@ -50,9 +51,10 @@ const TEMPLATE_CASES: TemplateSmokeCase[] = [
       expect(result.series.Govt_Debt_GDP.length).toBe(80);
       expect(Number.isFinite(result.series.GDP.at(-1) ?? NaN)).toBe(true);
       expect(Number.isFinite(result.series.Govt_Debt_GDP.at(-1) ?? NaN)).toBe(true);
-      expect(Number.isFinite(result.series.BankAssets.at(-1) ?? NaN)).toBe(true);
-      expect(result.series.BankAssets.at(-1) ?? NaN).toBeGreaterThan(
-        baselineResult.series.BankAssets.at(-1) ?? NaN
+      expect(Number.isFinite(result.series.Gov_Bonds.at(-1) ?? NaN)).toBe(true);
+      expect(Number.isFinite(result.series.Debt.at(-1) ?? NaN)).toBe(true);
+      expect(result.series.Gov_Bonds.at(-1) ?? NaN).toBeGreaterThan(
+        baselineResult.series.Gov_Bonds.at(-1) ?? NaN
       );
     }
   },

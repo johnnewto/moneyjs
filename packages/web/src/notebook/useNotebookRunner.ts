@@ -9,6 +9,7 @@ import {
 } from "../lib/externalParameterControls";
 import { buildRuntimeConfig } from "../lib/editorModel";
 import { createWorkerClient } from "../lib/workerClient";
+import { extractPartialRunResult } from "../lib/partialRunResult";
 import { normalizeScenarioFromNotebook } from "./document";
 import { buildEditorStateForNotebookModel, resolveRunCellModelKey } from "./modelSections";
 import type { NotebookCellOutput, NotebookDocument, NotebookRuntimeState, RunCell } from "./types";
@@ -151,7 +152,7 @@ export function resolveRunErrorPinCellId(
 
 export interface UseNotebookRunnerOptions {
   constantExternalOverrides?: ConstantExternalOverrides;
-  onRunError?: (cellId: string) => void;
+  onRunError?: (cellId: string, context?: { failurePeriodIndex?: number }) => void;
 }
 
 export function useNotebookRunner(
@@ -320,6 +321,11 @@ export function useNotebookRunner(
       return next;
     });
 
+    let runContext: {
+      runtime: ReturnType<typeof buildRuntimeConfig>;
+      runOptions: SimulationOptions;
+    } | null = null;
+
     try {
       const runtime = buildRuntimeConfig(editor, {
         notebookCells: document.cells,
@@ -327,6 +333,7 @@ export function useNotebookRunner(
         runCellId: cell.id
       });
       const runOptions = resolveRunCellOptions(runtime.options, cell);
+      runContext = { runtime, runOptions };
       let result: SimulationResult;
 
       if (cell.mode === "baseline") {
@@ -409,9 +416,36 @@ export function useNotebookRunner(
       });
       return true;
     } catch (error) {
+      const partialResult = extractPartialRunResult(error);
+      const failurePeriodIndex = partialResult?.runMetadata?.convergenceFailure?.period;
       setState((current) => {
+        const shouldCapturePrevious = historyCapturePendingRef.current[cellId] === true;
+        const previousResult = resolvePreviousRunResult(
+          current.outputs[cellId],
+          lastSuccessfulResultsRef.current[cellId],
+          shouldCapturePrevious
+        );
+        const outputs: NotebookRuntimeState["outputs"] =
+          partialResult && runContext
+            ? {
+                ...current.outputs,
+                [modelOutputKey]: {
+                  type: "model",
+                  runtime: {
+                    ...runContext.runtime,
+                    options: runContext.runOptions
+                  }
+                },
+                [cellId]: {
+                  type: "result",
+                  previousResult,
+                  result: partialResult
+                }
+              }
+            : current.outputs;
         const next: NotebookRuntimeState = {
           ...current,
+          outputs,
           status: { ...current.status, [cellId]: "error" },
           errors: {
             ...current.errors,
@@ -423,7 +457,8 @@ export function useNotebookRunner(
       });
       const baselineCell = cell.mode === "scenario" ? resolveBaselineRunCell(cell) : null;
       onRunErrorRef.current?.(
-        resolveRunErrorPinCellId(cell, stateRef.current.status, baselineCell?.id ?? null)
+        resolveRunErrorPinCellId(cell, stateRef.current.status, baselineCell?.id ?? null),
+        failurePeriodIndex == null ? undefined : { failurePeriodIndex }
       );
       return false;
     }

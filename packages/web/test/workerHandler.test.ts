@@ -148,5 +148,8 @@ describe("core worker handler", () => {
       return;
     }
     expect(response.payload.message).toContain("Slowest to converge:");
+    expect(response.payload.partialResult).toBeDefined();
+    expect(response.payload.partialResult?.runMetadata?.partial).toBe(true);
+    expect(response.payload.partialResult?.series.x?.length).toBe(2);
   });
 });

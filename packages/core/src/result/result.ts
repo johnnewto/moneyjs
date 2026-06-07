@@ -1,5 +1,11 @@
 import type { EquationBlock } from "../graph/blocks";
+import type { ConvergenceFailureDetails } from "../model/schema";
 import type { ModelDefinition, SimulationOptions } from "../model/types";
+
+export interface SimulationRunMetadata {
+  partial?: true;
+  convergenceFailure?: ConvergenceFailureDetails;
+}
 
 export interface SeriesMap {
   [name: string]: Float64Array;
@@ -16,6 +22,7 @@ export interface SimulationResult {
   blocks: EquationBlock[];
   model: ModelDefinition;
   options: SimulationOptions;
+  runMetadata?: SimulationRunMetadata;
   warnings?: SimulationWarning[];
 }
 

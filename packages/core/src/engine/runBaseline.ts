@@ -1,11 +1,13 @@
 import { buildOrderedBlocks } from "../graph/blocks";
 import type { ModelDefinition, SimulationOptions } from "../model/types";
+import { ConvergenceError } from "../model/schema";
 import { parseEquation } from "../parser/parse";
 import type { SimulationResult } from "../result/result";
 import { broydenSolver } from "../solver/broyden";
 import { gaussSeidelSolver } from "../solver/gaussSeidel";
 import { newtonSolver } from "../solver/newton";
 import { wrapContextWithMatrixColumnSums } from "./matrixColumnSum";
+import { buildPartialSimulationResult } from "./partialResult";
 import { SeriesStore } from "./seriesStore";
 import { validateHiddenEquation, validateModel, validateOptions } from "./validate";
 
@@ -53,17 +55,34 @@ export function runBaseline(
   }
 
   const solver = selectSolver(options);
-  for (let period = 1; period < options.periods; period += 1) {
-    const context = wrapContextWithMatrixColumnSums(
-      SeriesStore.forPeriod(series, period),
-      matrixColumnSums
-    );
-    for (const block of ordered.blocks) {
-      solver.solveBlock(period, block, equationsByName, context, {
-        tolerance: options.tolerance,
-        maxIterations: options.maxIterations
-      });
+  try {
+    for (let period = 1; period < options.periods; period += 1) {
+      const context = wrapContextWithMatrixColumnSums(
+        SeriesStore.forPeriod(series, period),
+        matrixColumnSums
+      );
+      for (const block of ordered.blocks) {
+        solver.solveBlock(period, block, equationsByName, context, {
+          tolerance: options.tolerance,
+          maxIterations: options.maxIterations
+        });
+      }
     }
+  } catch (error) {
+    if (error instanceof ConvergenceError) {
+      throw new ConvergenceError(
+        error.message,
+        error.details,
+        buildPartialSimulationResult({
+          series,
+          blocks: ordered.blocks,
+          model,
+          options,
+          failureDetails: error.details
+        })
+      );
+    }
+    throw error;
   }
 
   const result: SimulationResult = {

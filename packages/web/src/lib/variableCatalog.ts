@@ -1,11 +1,20 @@
 import { equationDefinesVariable, type EquationRole } from "@sfcr/core";
-import { isRowComment } from "@sfcr/notebook-core";
+import { isInitialValueEnabled, isRowComment } from "@sfcr/notebook-core";
 
 import { buildDependencyGraph, type VariableType } from "../notebook/dependencyGraph";
-import { buildEditorStateForNotebookModel, resolveRunCellModelKey } from "../notebook/modelSections";
+import {
+  buildEditorStateForNotebookModel,
+  buildEditorStateFromSections,
+  findEquationsCell,
+  findExternalsCell,
+  findInitialValuesCell,
+  findSolverCell,
+  resolveNotebookModelKey,
+  resolveRunCellModelKey
+} from "../notebook/modelSections";
 import { resolveModelTitle } from "../notebook/assistantTools/shared";
 import type { NotebookDocument, RunCell } from "../notebook/types";
-import type { EditorState } from "./editorModel";
+import type { EditorState, ExternalRow } from "./editorModel";
 import { buildVariableDescriptions } from "./variableDescriptions";
 import { buildVariableUnitMetadata, getVariableUnitText } from "./units";
 import type { SimulationResult } from "@sfcr/core";
@@ -21,7 +30,7 @@ export type VariableCatalogEndogenousExogenous =
   | "initial-only"
   | "unknown";
 
-export type VariableCatalogValueSource = "run" | "external" | "initial" | "none";
+export type VariableCatalogValueSource = "run" | "external" | "initial" | "default" | "none";
 
 export type VariableCatalogGroupBy =
   | "none"
@@ -126,9 +135,10 @@ export function buildVariableCatalogRows(args: {
       const unitMeta = unitMetadata.get(node.name);
       const { value, valueSource } = resolveCatalogValue({
         currentValues,
-        external,
-        initialValue,
-        name: node.name
+        editor: context.editor,
+        external: external && !isRowComment(external) ? external : null,
+        name: node.name,
+        selectedPeriodIndex: 0
       });
 
       rows.push({
@@ -226,6 +236,129 @@ export function buildCurrentValuesByModelFromSnapshot(
   });
 }
 
+export function buildModelDisplayCurrentValues(args: {
+  editor: EditorState;
+  runCurrentValues?: Record<string, number | undefined>;
+  selectedPeriodIndex?: number;
+}): Record<string, number | undefined> {
+  const selectedPeriodIndex = args.selectedPeriodIndex ?? 0;
+  const runCurrentValues = args.runCurrentValues ?? {};
+  const values: Record<string, number | undefined> = { ...runCurrentValues };
+
+  for (const name of collectModelDisplayVariableNames(args.editor)) {
+    if (values[name] !== undefined && Number.isFinite(values[name])) {
+      continue;
+    }
+
+    const external =
+      args.editor.externals.find(
+        (row) => !isRowComment(row) && row.name.trim() === name
+      ) ?? null;
+    const { value } = resolveCatalogValue({
+      currentValues: runCurrentValues,
+      editor: args.editor,
+      external: external && !isRowComment(external) ? external : null,
+      name,
+      selectedPeriodIndex
+    });
+
+    if (value != null) {
+      values[name] = value;
+    }
+  }
+
+  return values;
+}
+
+export function buildModelCurrentValues(args: {
+  document: NotebookDocument;
+  getResult: (runCellId: string) => SimulationResult | null;
+  modelRef: { modelId?: string; sourceModelId?: string; sourceModelCellId?: string };
+  selectedPeriodIndex: number;
+}): Record<string, number | undefined> {
+  const modelKey = resolveNotebookModelKey(args.document.cells, args.modelRef);
+  if (!modelKey) {
+    return {};
+  }
+
+  let runCurrentValues: Record<string, number | undefined> = {};
+  const sourceRunCell = findPreferredRunForModelKey(args.document, modelKey);
+  if (sourceRunCell) {
+    const result = args.getResult(sourceRunCell.id);
+    if (result) {
+      runCurrentValues = Object.fromEntries(
+        Object.entries(result.series).map(([name, values]) => [
+          name,
+          values[Math.min(args.selectedPeriodIndex, Math.max(values.length - 1, 0))]
+        ])
+      );
+    }
+  }
+
+  const modelId = args.modelRef.modelId ?? args.modelRef.sourceModelId;
+  const editor =
+    buildEditorStateForNotebookModel(args.document, args.modelRef) ??
+    (typeof modelId === "string" && modelId.trim() !== ""
+      ? buildEditorStateFromSections({
+          equations: findEquationsCell(args.document.cells, modelId)?.equations ?? [],
+          externals: findExternalsCell(args.document.cells, modelId)?.externals ?? [],
+          initialValues: findInitialValuesCell(args.document.cells, modelId)?.initialValues ?? [],
+          options:
+            findSolverCell(args.document.cells, modelId)?.options ?? defaultModelSectionOptions()
+        })
+      : null);
+  if (!editor) {
+    return runCurrentValues;
+  }
+
+  return buildModelDisplayCurrentValues({
+    editor,
+    runCurrentValues,
+    selectedPeriodIndex: args.selectedPeriodIndex
+  });
+}
+
+export function buildModelLaggedCurrentValues(args: {
+  document: NotebookDocument;
+  getResult: (runCellId: string) => SimulationResult | null;
+  modelRef: { modelId?: string; sourceModelId?: string; sourceModelCellId?: string };
+  selectedPeriodIndex: number;
+}): Record<string, number | undefined> {
+  if (args.selectedPeriodIndex <= 0) {
+    const modelKey = resolveNotebookModelKey(args.document.cells, args.modelRef);
+    if (!modelKey) {
+      return {};
+    }
+
+    const modelId = args.modelRef.modelId ?? args.modelRef.sourceModelId;
+    const editor =
+      buildEditorStateForNotebookModel(args.document, args.modelRef) ??
+      (typeof modelId === "string" && modelId.trim() !== ""
+        ? buildEditorStateFromSections({
+            equations: findEquationsCell(args.document.cells, modelId)?.equations ?? [],
+            externals: findExternalsCell(args.document.cells, modelId)?.externals ?? [],
+            initialValues: findInitialValuesCell(args.document.cells, modelId)?.initialValues ?? [],
+            options:
+              findSolverCell(args.document.cells, modelId)?.options ?? defaultModelSectionOptions()
+          })
+        : null);
+    if (!editor) {
+      return {};
+    }
+
+    return buildModelDisplayCurrentValues({
+      editor,
+      runCurrentValues: {},
+      selectedPeriodIndex: 0
+    });
+  }
+
+  return buildModelCurrentValues({
+    ...args,
+    selectedPeriodIndex: args.selectedPeriodIndex - 1
+  });
+}
+
 export function catalogRowToAssistantEntry(row: VariableCatalogRow, unitMeta: UnitMeta | undefined) {
   return {
     variable: row.name,
@@ -311,7 +444,7 @@ function parseInitialValue(editor: EditorState, name: string): number | null {
   const row = editor.initialValues.find(
     (entry) => !isRowComment(entry) && entry.name.trim() === name
   );
-  if (!row || isRowComment(row)) {
+  if (!row || isRowComment(row) || !isInitialValueEnabled(row)) {
     return null;
   }
 
@@ -319,29 +452,125 @@ function parseInitialValue(editor: EditorState, name: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function parseDefaultInitialValue(editor: EditorState): number | null {
+  const parsed = Number(editor.options.defaultInitialValueText.trim());
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function resolveInitialDisplayValue(
+  editor: EditorState,
+  name: string
+): { value: number | null; valueSource: "initial" | "default" | null } {
+  const row = editor.initialValues.find(
+    (entry) => !isRowComment(entry) && entry.name.trim() === name
+  );
+  if (row && !isRowComment(row)) {
+    if (isInitialValueEnabled(row)) {
+      const parsed = Number(row.valueText.trim());
+      if (Number.isFinite(parsed)) {
+        return { value: parsed, valueSource: "initial" };
+      }
+      return { value: null, valueSource: null };
+    }
+
+    const defaultValue = parseDefaultInitialValue(editor);
+    if (defaultValue != null) {
+      return { value: defaultValue, valueSource: "default" };
+    }
+    return { value: null, valueSource: null };
+  }
+
+  const hasDefiningEquation = editor.equations.some(
+    (equation) => !isRowComment(equation) && equationDefinesVariable(equation.name, name)
+  );
+  if (hasDefiningEquation) {
+    const defaultValue = parseDefaultInitialValue(editor);
+    if (defaultValue != null) {
+      return { value: defaultValue, valueSource: "default" };
+    }
+  }
+
+  return { value: null, valueSource: null };
+}
+
+function resolveExternalDisplayValue(
+  external: ExternalRow,
+  selectedPeriodIndex: number
+): number | null {
+  if (external.kind === "constant") {
+    const parsed = Number(external.valueText.trim());
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  const values = external.valueText
+    .split(",")
+    .map((part) => Number(part.trim()))
+    .filter((value) => Number.isFinite(value));
+  const value = values[Math.min(selectedPeriodIndex, Math.max(values.length - 1, 0))];
+  return Number.isFinite(value) ? value : null;
+}
+
 function resolveCatalogValue(args: {
   name: string;
+  editor: EditorState;
   currentValues?: Record<string, number | undefined>;
   external: EditorState["externals"][number] | null;
-  initialValue: number | null;
+  selectedPeriodIndex?: number;
 }): { value: number | null; valueSource: VariableCatalogValueSource } {
   const runValue = args.currentValues?.[args.name];
   if (runValue !== undefined && Number.isFinite(runValue)) {
     return { value: runValue, valueSource: "run" };
   }
 
-  if (args.external?.kind === "constant") {
-    const parsed = Number(args.external.valueText.trim());
-    if (Number.isFinite(parsed)) {
-      return { value: parsed, valueSource: "external" };
+  if (args.external && !isRowComment(args.external)) {
+    const externalValue = resolveExternalDisplayValue(
+      args.external,
+      args.selectedPeriodIndex ?? 0
+    );
+    if (externalValue != null) {
+      return { value: externalValue, valueSource: "external" };
     }
   }
 
-  if (args.initialValue != null) {
-    return { value: args.initialValue, valueSource: "initial" };
+  const initialDisplay = resolveInitialDisplayValue(args.editor, args.name);
+  if (initialDisplay.value != null && initialDisplay.valueSource != null) {
+    return { value: initialDisplay.value, valueSource: initialDisplay.valueSource };
   }
 
   return { value: null, valueSource: "none" };
+}
+
+function collectModelDisplayVariableNames(editor: EditorState): string[] {
+  const names = new Set<string>();
+
+  for (const row of editor.equations) {
+    if (!isRowComment(row)) {
+      const name = row.name.trim();
+      if (name) {
+        names.add(name);
+      }
+    }
+  }
+
+  for (const row of editor.externals) {
+    if (!isRowComment(row)) {
+      const name = row.name.trim();
+      if (name) {
+        names.add(name);
+      }
+    }
+  }
+
+  for (const row of editor.initialValues) {
+    if (!isRowComment(row)) {
+      const name = row.name.trim();
+      if (name) {
+        names.add(name);
+      }
+    }
+  }
+
+  return [...names];
 }
 
 function formatEndogenousExogenousLabel(value: VariableCatalogEndogenousExogenous): string {
@@ -355,4 +584,18 @@ function formatEndogenousExogenousLabel(value: VariableCatalogEndogenousExogenou
     default:
       return "Unknown";
   }
+}
+
+function defaultModelSectionOptions(): EditorState["options"] {
+  return {
+    periods: 100,
+    solverMethod: "GAUSS_SEIDEL",
+    toleranceText: "1e-15",
+    maxIterations: 200,
+    defaultInitialValueText: "1e-15",
+    hiddenLeftVariable: "",
+    hiddenRightVariable: "",
+    hiddenToleranceText: "0.00001",
+    relativeHiddenTolerance: false
+  };
 }

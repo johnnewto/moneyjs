@@ -17,6 +17,8 @@ const EMPTY_PARAMETER_NAMES = new Set<string>();
 
 export interface SequenceMatrixInspectBundle {
   currentValues: Record<string, number | undefined>;
+  laggedCurrentValues: Record<string, number | undefined>;
+  laggedPeriodLabel?: string;
   editor: EditorState | null;
   modelSource: InspectorModelSource | null;
   sourceRunCellId: string | null;
@@ -58,6 +60,8 @@ export function resolveSequenceMatrixInspectBundle(
   const editor = sourceRunCellId ? resolveEditorStateForRunCellId(cells, sourceRunCellId) : null;
   const result = sourceRunCellId ? runner.getResult(sourceRunCellId) : null;
   const currentValues = buildCurrentValues(result, selectedPeriodIndex);
+  const laggedCurrentValues = buildLaggedCurrentValues(result, selectedPeriodIndex);
+  const laggedPeriodLabel = selectedPeriodIndex > 0 ? `period ${selectedPeriodIndex}` : undefined;
   const modelSource = sourceRunCell ? resolveInspectorModelSource(sourceRunCell) : null;
   const parameterNames = editor
     ? new Set(externalRowsOnly(editor.externals).map((external) => external.name.trim()).filter(Boolean))
@@ -71,6 +75,8 @@ export function resolveSequenceMatrixInspectBundle(
 
   return {
     currentValues,
+    laggedCurrentValues,
+    laggedPeriodLabel,
     editor,
     modelSource,
     sourceRunCellId,
@@ -112,6 +118,25 @@ function buildCurrentValues(
     Object.entries(result.series).map(([name, values]) => [
       name,
       values[Math.min(selectedPeriodIndex, Math.max(values.length - 1, 0))]
+    ])
+  );
+}
+
+function buildLaggedCurrentValues(
+  result: SimulationResult | null,
+  selectedPeriodIndex: number
+): Record<string, number | undefined> {
+  if (!result) {
+    return {};
+  }
+
+  const lagPeriodIndex = selectedPeriodIndex - 1;
+  return Object.fromEntries(
+    Object.entries(result.series).map(([name, values]) => [
+      name,
+      lagPeriodIndex >= 0
+        ? values[Math.min(lagPeriodIndex, Math.max(values.length - 1, 0))]
+        : undefined
     ])
   );
 }

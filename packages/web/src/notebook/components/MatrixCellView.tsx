@@ -14,6 +14,7 @@ import {
 import type { MatrixEntryDisplayMode } from "../matrixEntryDisplay";
 
 import { HighlightedFormulaInput, highlightFormula } from "../../components/EquationGridEditor";
+import { collectEquationDenominatorVariables } from "../../lib/equationDivisionAnalysis";
 import { NumericValueText } from "../../components/NumericValueText";
 import { VariableLabel } from "../../components/VariableLabel";
 import type { EditorState } from "../../lib/editorModel";
@@ -150,6 +151,20 @@ export function MatrixCellView({
         ])
       )
     : {};
+  const laggedCurrentValues = result
+    ? Object.fromEntries(
+        Object.entries(result.series).map(([name, values]) => {
+          const lagPeriodIndex = selectedPeriodIndex - 1;
+          return [
+            name,
+            lagPeriodIndex >= 0
+              ? values[Math.min(lagPeriodIndex, Math.max(values.length - 1, 0))]
+              : undefined
+          ];
+        })
+      )
+    : {};
+  const laggedPeriodLabel = selectedPeriodIndex > 0 ? `period ${selectedPeriodIndex}` : undefined;
   const evaluatedMatrix = useMemo(
     () => buildEvaluatedMatrix(cell, result, selectedPeriodIndex),
     [cell, result, selectedPeriodIndex]
@@ -650,6 +665,8 @@ export function MatrixCellView({
         variableDescriptions,
         variableUnitMetadata,
         currentValues,
+        laggedCurrentValues,
+        laggedPeriodLabel,
         onColumnContextMenu: handleMatrixColumnContextMenu
       })}
     </tr>
@@ -1006,6 +1023,8 @@ function renderMatrixRowDataCells({
   sectorGroupedColumns,
   cell,
   currentValues,
+  laggedCurrentValues,
+  laggedPeriodLabel,
   displaySlots,
   entryDisplayMode,
   graphSliceHighlight,
@@ -1030,6 +1049,8 @@ function renderMatrixRowDataCells({
   sectorGroupedColumns: boolean;
   cell: MatrixCell;
   currentValues: Record<string, number | undefined>;
+  laggedCurrentValues?: Record<string, number | undefined>;
+  laggedPeriodLabel?: string;
   displaySlots: MatrixColumnDisplaySlot[];
   entryDisplayMode: MatrixEntryDisplayMode;
   graphSliceHighlight?: MatrixGraphSliceHighlight | null;
@@ -1115,6 +1136,8 @@ function renderMatrixRowDataCells({
         cell,
         columnIndex: slot.columnIndex,
         currentValues,
+        laggedCurrentValues,
+        laggedPeriodLabel,
         entryDisplayMode,
         graphSliceHighlight,
         highlightedVariable,
@@ -1144,6 +1167,8 @@ function renderMatrixRowDataCells({
         cell,
         columnIndex: sumColumnIndex,
         currentValues,
+        laggedCurrentValues,
+        laggedPeriodLabel,
         entryDisplayMode,
         graphSliceHighlight,
         highlightedVariable,
@@ -1174,6 +1199,8 @@ function renderMatrixLeafDataCell({
   cell,
   columnIndex,
   currentValues,
+  laggedCurrentValues,
+  laggedPeriodLabel,
   entryDisplayMode,
   graphSliceHighlight,
   highlightedVariable,
@@ -1197,6 +1224,8 @@ function renderMatrixLeafDataCell({
   cell: MatrixCell;
   columnIndex: number;
   currentValues: Record<string, number | undefined>;
+  laggedCurrentValues?: Record<string, number | undefined>;
+  laggedPeriodLabel?: string;
   entryDisplayMode: MatrixEntryDisplayMode;
   graphSliceHighlight?: MatrixGraphSliceHighlight | null;
   highlightedVariable?: string | null;
@@ -1320,6 +1349,8 @@ function renderMatrixLeafDataCell({
                   allowSumCellEdit={isEditableAccountSumRow}
                   columnIndex={columnIndex}
                   currentValues={currentValues}
+                  laggedCurrentValues={laggedCurrentValues}
+                  laggedPeriodLabel={laggedPeriodLabel}
                   draftSource={matrixEntryEdit.draftSource}
                   editingTarget={matrixEntryEdit.editingTarget}
                   isSumCell={entry.isSumCell}
@@ -1755,6 +1786,8 @@ function MatrixEntrySource({
   allowSumCellEdit = false,
   columnIndex,
   currentValues,
+  laggedCurrentValues,
+  laggedPeriodLabel,
   draftSource,
   editingTarget,
   isSumCell,
@@ -1774,6 +1807,8 @@ function MatrixEntrySource({
   allowSumCellEdit?: boolean;
   columnIndex: number;
   currentValues: Record<string, number | undefined>;
+  laggedCurrentValues?: Record<string, number | undefined>;
+  laggedPeriodLabel?: string;
   draftSource: string;
   editingTarget: MatrixEditingTarget | null;
   isSumCell: boolean;
@@ -1790,6 +1825,10 @@ function MatrixEntrySource({
   onCancel(): void;
   onDraftChange(value: string): void;
 }) {
+  const denominatorVariableNames = useMemo(
+    () => collectEquationDenominatorVariables(source),
+    [source]
+  );
   const expressionInputRef = useRef<HTMLTextAreaElement | null>(null);
   const isEditing =
     editingTarget?.rowIndex === rowIndex && editingTarget?.columnIndex === columnIndex;
@@ -1819,6 +1858,9 @@ function MatrixEntrySource({
           ariaLabel={`Matrix entry for row ${rowIndex + 1}, column ${columnIndex + 1}`}
           className="matrix-entry-formula-input"
           currentValues={currentValues}
+          laggedCurrentValues={laggedCurrentValues}
+          laggedPeriodLabel={laggedPeriodLabel}
+          denominatorVariableNames={denominatorVariableNames}
           inputRef={(node) => {
             expressionInputRef.current = node;
           }}
@@ -1863,7 +1905,10 @@ function MatrixEntrySource({
           undefined,
           currentValues,
           highlightedVariable,
-          true
+          true,
+          laggedCurrentValues,
+          laggedPeriodLabel,
+          denominatorVariableNames
         )}
       </span>
     );
@@ -1907,7 +1952,10 @@ function MatrixEntrySource({
         undefined,
         currentValues,
         highlightedVariable,
-        true
+        true,
+        laggedCurrentValues,
+        laggedPeriodLabel,
+        denominatorVariableNames
       )}
     </span>
   );

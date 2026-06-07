@@ -86,7 +86,8 @@ function toErrorResponse(id: string, error: unknown): WorkerResponse {
       payload: {
         name: error.name,
         message: error.message,
-        details: error.details as unknown as Record<string, unknown>
+        details: error.details as unknown as Record<string, unknown>,
+        ...(error.partialResult ? { partialResult: error.partialResult } : {})
       }
     };
   }

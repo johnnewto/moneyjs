@@ -7,6 +7,8 @@ import type {
 } from "@sfcr/core";
 import type { WorkerRequest, WorkerResponse } from "@sfcr/core-worker";
 
+import { normalizeSimulationResultSeries } from "./partialRunResult";
+
 export interface SolverClient {
   runBaseline(model: ModelDefinition, options: SimulationOptions): Promise<SimulationResult>;
   runScenario(
@@ -62,6 +64,11 @@ class BrowserWorkerClient implements SolverClient {
         error.name = response.payload.name;
         if (response.payload.details) {
           Object.assign(error, { details: response.payload.details });
+        }
+        if (response.payload.partialResult) {
+          Object.assign(error, {
+            partialResult: normalizeSimulationResultSeries(response.payload.partialResult)
+          });
         }
         pending.reject(error);
         return;

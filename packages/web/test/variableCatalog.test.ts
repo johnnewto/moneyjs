@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { editorStateFromModel, type EditorState } from "../src/lib/editorModel";
-import { buildVariableCatalogRows, catalogRowGroupKey, listCatalogModelContexts } from "../src/lib/variableCatalog";
+import { buildVariableCatalogRows, buildModelCurrentValues, buildModelLaggedCurrentValues, buildModelDisplayCurrentValues, catalogRowGroupKey, listCatalogModelContexts } from "../src/lib/variableCatalog";
 import { NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
 import { simBaselineModel, simBaselineOptions } from "../../core/src/fixtures/sim";
 import type { NotebookDocument } from "../src/notebook/types";
@@ -115,6 +115,123 @@ describe("variableCatalog", () => {
       })
     );
     expect(typeof externalRow?.value).toBe("number");
+  });
+
+  it("buildModelDisplayCurrentValues falls back to initial values without a run", () => {
+    const editor = buildSimEditor();
+    editor.initialValues = [{ id: "init-y", name: "Y", valueText: "80" }];
+
+    const values = buildModelDisplayCurrentValues({
+      editor,
+      runCurrentValues: {},
+      selectedPeriodIndex: 0
+    });
+
+    expect(values.Y).toBe(80);
+  });
+
+  it("buildModelCurrentValues prefers run values over initial values", () => {
+    const editor = buildSimEditor();
+    const document = buildNotebookDocument(editor);
+
+    const values = buildModelCurrentValues({
+      document,
+      getResult: () => ({
+        options: { periods: 3 },
+        series: {
+          Y: [1, 2, 3]
+        }
+      }),
+      modelRef: { sourceModelId: "sim" },
+      selectedPeriodIndex: 1
+    });
+
+    expect(values.Y).toBe(2);
+  });
+
+  it("buildModelLaggedCurrentValues reads the previous simulation period", () => {
+    const editor = buildSimEditor();
+    const document = buildNotebookDocument(editor);
+
+    const values = buildModelLaggedCurrentValues({
+      document,
+      getResult: () => ({
+        options: { periods: 3 },
+        series: {
+          Y: [1, 2, 3]
+        }
+      }),
+      modelRef: { sourceModelId: "sim" },
+      selectedPeriodIndex: 2
+    });
+
+    expect(values.Y).toBe(2);
+  });
+
+  it("buildModelCurrentValues returns initial values when no run result exists", () => {
+    const editor = buildSimEditor();
+    editor.initialValues = [{ id: "init-y", name: "Y", valueText: "80" }];
+    const document = buildNotebookDocument(editor);
+    document.cells = document.cells.map((cell) =>
+      cell.type === "initial-values"
+        ? { ...cell, initialValues: editor.initialValues }
+        : cell
+    );
+    document.cells = document.cells.filter((cell) => cell.type !== "run");
+
+    const values = buildModelCurrentValues({
+      document,
+      getResult: () => null,
+      modelRef: { sourceModelId: "sim" },
+      selectedPeriodIndex: 0
+    });
+
+    expect(values.Y).toBe(80);
+  });
+
+  it("buildModelCurrentValues uses default initial value when initial row is disabled", () => {
+    const editor = buildSimEditor();
+    editor.initialValues = [{ id: "init-y", name: "Y", valueText: "80", enabled: false }];
+    editor.options.defaultInitialValueText = "0.25";
+    const document = buildNotebookDocument(editor);
+    document.cells = document.cells.map((cell) => {
+      if (cell.type === "initial-values") {
+        return { ...cell, initialValues: editor.initialValues };
+      }
+      if (cell.type === "solver") {
+        return { ...cell, options: editor.options };
+      }
+      return cell;
+    });
+    document.cells = document.cells.filter((cell) => cell.type !== "run");
+
+    const values = buildModelCurrentValues({
+      document,
+      getResult: () => null,
+      modelRef: { sourceModelId: "sim" },
+      selectedPeriodIndex: 0
+    });
+
+    expect(values.Y).toBe(0.25);
+  });
+
+  it("buildModelCurrentValues uses default initial value for endogenous variables without an initial row", () => {
+    const editor = buildSimEditor();
+    editor.options.defaultInitialValueText = "0.5";
+    const document = buildNotebookDocument(editor);
+    document.cells = document.cells.map((cell) =>
+      cell.type === "solver" ? { ...cell, options: editor.options } : cell
+    );
+    document.cells = document.cells.filter((cell) => cell.type !== "run");
+
+    const values = buildModelCurrentValues({
+      document,
+      getResult: () => null,
+      modelRef: { sourceModelId: "sim" },
+      selectedPeriodIndex: 0
+    });
+
+    expect(values.Y).toBe(0.5);
   });
 
   it("dedupes variables by name across repeated model contexts", () => {

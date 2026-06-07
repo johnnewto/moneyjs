@@ -191,6 +191,8 @@ import {
 } from "../lib/variableInspect";
 import {
   buildCurrentValuesByModel,
+  buildModelCurrentValues,
+  buildModelLaggedCurrentValues,
   buildVariableCatalogRows,
   findPreferredRunForModelKey,
   listCatalogModelContexts,
@@ -200,6 +202,11 @@ import {
   hasParameterOverrides,
   type ConstantExternalOverrides
 } from "../lib/externalParameterControls";
+import {
+  isPartialSimulationResult,
+  partialResultFailurePeriodIndex,
+  resolvePartialRunMaxPeriodIndex
+} from "../lib/partialRunResult";
 import type { MatrixGraphRequest } from "./matrixSliceGraph";
 
 type NotebookRailTab =
@@ -713,8 +720,11 @@ export function NotebookApp() {
     document: NotebookDocument;
     source: NotebookSourceFormat;
   } | null>(null);
-  const handleRunError = useCallback((cellId: string) => {
+  const handleRunError = useCallback((cellId: string, context?: { failurePeriodIndex?: number }) => {
     setPinnedCellId(cellId);
+    if (context?.failurePeriodIndex != null) {
+      setSelectedPeriodIndex(context.failurePeriodIndex);
+    }
   }, []);
   const runner = useNotebookRunner(notebookDocument, {
     constantExternalOverrides: parameterOverrides,
@@ -854,9 +864,17 @@ export function NotebookApp() {
           : []
       )
     );
+    const partialRunMaxPeriodIndex = resolvePartialRunMaxPeriodIndex({
+      outputs: runner.outputs,
+      status: runner.status
+    });
+
+    if (partialRunMaxPeriodIndex != null) {
+      return partialRunMaxPeriodIndex;
+    }
 
     return Math.max(configuredMaxPeriodIndex, outputMaxPeriodIndex);
-  }, [notebookDocument, runner.outputs]);
+  }, [notebookDocument, runner.outputs, runner.status]);
   const inspectorCurrentValues = useMemo(
     () =>
       inspectorContext
@@ -875,6 +893,25 @@ export function NotebookApp() {
       selectedPeriodIndex
     ]
   );
+  const inspectorLaggedCurrentValues = useMemo(
+    () =>
+      inspectorContext?.modelSource
+        ? buildModelLaggedCurrentValues({
+            document: notebookDocument,
+            getResult: (runCellId) => runner.getResult(runCellId),
+            modelRef: inspectorContext.modelSource,
+            selectedPeriodIndex
+          })
+        : {},
+    [
+      inspectorContext?.modelSource,
+      notebookDocument.cells,
+      runner.outputs,
+      selectedPeriodIndex
+    ]
+  );
+  const inspectorLaggedPeriodLabel =
+    selectedPeriodIndex > 0 ? `period ${selectedPeriodIndex}` : undefined;
   const selectedVariableData = inspectorContext
     ? buildVariableInspectorData({
         currentValues: inspectorCurrentValues,
@@ -2932,27 +2969,25 @@ export function NotebookApp() {
     sourceModelId?: string;
     sourceModelCellId?: string;
   }): Record<string, number | undefined> {
-    const modelKey = resolveNotebookModelKey(notebookDocument.cells, ref);
-    if (!modelKey) {
-      return {};
-    }
+    return buildModelCurrentValues({
+      document: notebookDocument,
+      getResult: (runCellId) => runner.getResult(runCellId),
+      modelRef: ref,
+      selectedPeriodIndex
+    });
+  }
 
-    const sourceRunCell = findPreferredRunForModelKey(notebookDocument, modelKey);
-    if (!sourceRunCell) {
-      return {};
-    }
-
-    const result = runner.getResult(sourceRunCell.id);
-    if (!result) {
-      return {};
-    }
-
-    return Object.fromEntries(
-      Object.entries(result.series).map(([name, values]) => [
-        name,
-        values[Math.min(selectedPeriodIndex, Math.max(values.length - 1, 0))]
-      ])
-    );
+  function getLaggedValueMapForModelRef(ref: {
+    modelId?: string;
+    sourceModelId?: string;
+    sourceModelCellId?: string;
+  }): Record<string, number | undefined> {
+    return buildModelLaggedCurrentValues({
+      document: notebookDocument,
+      getResult: (runCellId) => runner.getResult(runCellId),
+      modelRef: ref,
+      selectedPeriodIndex
+    });
   }
 
   function scrollToCell(cellId: string): void {
@@ -3022,6 +3057,7 @@ export function NotebookApp() {
         cells: notebookDocument.cells,
         notebookScopeId,
         getModelCurrentValues: getCurrentValueMapForModelRef,
+        getModelLaggedCurrentValues: getLaggedValueMapForModelRef,
         maxPeriodIndex: maxResultPeriodIndex,
         onPinCellRequest: handlePinCellRequest,
         onSelectedCellIdChange: selectNotebookCell,
@@ -3053,6 +3089,7 @@ export function NotebookApp() {
       activeEditorCellId,
       deleteCell,
       getCurrentValueMapForModelRef,
+      getLaggedValueMapForModelRef,
       graphExpressionHighlight,
       graphSliceHighlight,
       handleCellHelpRequest,
@@ -3605,6 +3642,8 @@ export function NotebookApp() {
               canGoForward={inspectorVariableHistory.canGoForward}
               commitStyle="draft"
               currentValues={inspectorCurrentValues}
+              laggedCurrentValues={inspectorLaggedCurrentValues}
+              laggedPeriodLabel={inspectorLaggedPeriodLabel}
               data={selectedVariableData}
               onApplyDefiningExpression={handleInspectorDefiningExpressionApply}
               onGoBack={handleInspectorGoBack}

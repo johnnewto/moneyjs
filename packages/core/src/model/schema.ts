@@ -1,3 +1,5 @@
+import type { SimulationResult } from "../result/result";
+
 export class ParseError extends Error {
   constructor(
     message: string,
@@ -37,7 +39,11 @@ export interface ConvergenceFailureDetails {
 }
 
 export class ConvergenceError extends Error {
-  constructor(message: string, public readonly details: ConvergenceFailureDetails) {
+  constructor(
+    message: string,
+    public readonly details: ConvergenceFailureDetails,
+    public readonly partialResult?: SimulationResult
+  ) {
     super(message);
     this.name = "ConvergenceError";
   }

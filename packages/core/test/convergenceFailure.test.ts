@@ -41,6 +41,43 @@ describe("convergence failure diagnostics", () => {
       expect(error.message).toContain("Gauss-Seidel failed to converge at period 1");
       expect(error.message).toContain("Slowest to converge:");
       expect(error.message).toContain("x=");
+      expect(error.partialResult).toBeDefined();
+      expect(error.partialResult?.runMetadata?.partial).toBe(true);
+      expect(error.partialResult?.runMetadata?.convergenceFailure?.period).toBe(1);
+      expect(error.partialResult?.series.x?.length).toBe(2);
+      expect(error.partialResult?.series.y?.length).toBe(2);
+    }
+  });
+
+  it("includes converged periods before the failure period in partial results", () => {
+    const model = {
+      equations: [
+        { name: "a", expression: "1" },
+        { name: "x", expression: "y + 1" },
+        { name: "y", expression: "x + 1" }
+      ],
+      externals: {},
+      initialValues: { a: 5, x: 1, y: 1 }
+    };
+    const options = {
+      periods: 4,
+      solverMethod: "GAUSS_SEIDEL" as const,
+      tolerance: 1e-8,
+      maxIterations: 3
+    };
+
+    try {
+      runBaseline(model, options);
+    } catch (error) {
+      expect(error).toBeInstanceOf(ConvergenceError);
+      if (!(error instanceof ConvergenceError)) {
+        return;
+      }
+
+      expect(error.details.period).toBe(1);
+      expect(error.partialResult?.series.a).toEqual(new Float64Array([5, 1]));
+      expect(error.partialResult?.series.x?.[0]).toBe(1);
+      expect(error.partialResult?.series.x?.[1]).toBeDefined();
     }
   });
 

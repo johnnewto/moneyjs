@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import type { EquationRole } from "@sfcr/core";
 
@@ -12,6 +12,7 @@ import {
 import { VariableLabel } from "../../components/VariableLabel";
 import { formatNotebookCurrentValue } from "./NotebookCurrentValue";
 import type { EquationRow } from "../../lib/editorModel";
+import { collectEquationDenominatorVariables } from "../../lib/equationDivisionAnalysis";
 import type { VariableDescriptions } from "../../lib/variableDescriptions";
 import type { VariableUnitMetadata } from "../../lib/unitMeta";
 import { documentHighlightClassName } from "../../lib/variableHighlight";
@@ -220,6 +221,8 @@ export function EquationRowInlineEditor({
 export function NotebookEquationReadRow({
   activeTraceTokenStates,
   currentValues,
+  laggedCurrentValues,
+  laggedPeriodLabel,
   displayTokens,
   equation,
   equationIndex,
@@ -257,6 +260,8 @@ export function NotebookEquationReadRow({
 }: {
   activeTraceTokenStates?: Map<string, TraceTokenRole>;
   currentValues: Record<string, number | undefined>;
+  laggedCurrentValues?: Record<string, number | undefined>;
+  laggedPeriodLabel?: string;
   displayTokens?: Map<string, string>;
   equation: EquationRow;
   equationIndex: number;
@@ -296,6 +301,10 @@ export function NotebookEquationReadRow({
   const hasDraftChanges =
     rowDraft.name.trim() !== equation.name.trim() ||
     rowDraft.expression.trim() !== equation.expression.trim();
+  const denominatorVariableNames = useMemo(
+    () => collectEquationDenominatorVariables(equation.expression),
+    [equation.expression]
+  );
 
   const handleBeginEdit = (focus: EquationRowEditFocus, event: React.MouseEvent) => {
     event.preventDefault();
@@ -421,7 +430,10 @@ export function NotebookEquationReadRow({
               displayTokens,
               currentValues,
               highlightedVariable,
-              true
+              true,
+              laggedCurrentValues,
+              laggedPeriodLabel,
+              denominatorVariableNames
             )
           : " "}
       </span>

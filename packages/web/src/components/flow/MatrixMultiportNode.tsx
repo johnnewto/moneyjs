@@ -1,8 +1,9 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import type { CSSProperties } from "react";
+import { useMemo, type CSSProperties } from "react";
 
 import { NumericValueText } from "../NumericValueText";
 import { highlightFormula } from "../EquationGridEditor";
+import { collectEquationDenominatorVariables } from "../../lib/equationDivisionAnalysis";
 import { formatStockRoleLabel } from "../../notebook/matrixSemantics";
 import {
   MULTIPORT_NODE_WIDTH,
@@ -136,6 +137,10 @@ function MatrixMultiportPortView({ port }: { port: MatrixMultiportPort }) {
   const isSource = port.sign < 0;
   const isTarget = port.sign > 0;
   const entrySource = port.entry.trim();
+  const denominatorVariableNames = useMemo(
+    () => collectEquationDenominatorVariables(entrySource),
+    [entrySource]
+  );
 
   return (
     <div
@@ -183,7 +188,10 @@ function MatrixMultiportPortView({ port }: { port: MatrixMultiportPort }) {
                   undefined,
                   inspect.currentValues,
                   inspect.highlightedVariable,
-                  true
+                  true,
+                  inspect.laggedCurrentValues,
+                  inspect.laggedPeriodLabel,
+                  denominatorVariableNames
                 )}
               </span>
             ) : (

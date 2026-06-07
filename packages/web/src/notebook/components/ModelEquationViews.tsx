@@ -54,6 +54,8 @@ export function ModelCellView({
   cell,
   cells,
   currentValues,
+  laggedCurrentValues,
+  laggedPeriodLabel,
   isPinnedInPanel = false,
   onEditingChange,
   onHelpRequest,
@@ -68,6 +70,8 @@ export function ModelCellView({
   cell: ModelCell;
   cells: NotebookCell[];
   currentValues: Record<string, number | undefined>;
+  laggedCurrentValues?: Record<string, number | undefined>;
+  laggedPeriodLabel?: string;
   isPinnedInPanel?: boolean;
   highlightedVariable?: string | null;
   onEditingChange?(isEditing: boolean): void;
@@ -342,6 +346,8 @@ export function ModelCellView({
                   key={equation.id}
                   activeTraceTokenStates={activeTrace?.tokenStates}
                   currentValues={currentValues}
+                  laggedCurrentValues={laggedCurrentValues}
+                  laggedPeriodLabel={laggedPeriodLabel}
                   equation={equation}
                   equationIndex={index}
                   formatRoleLabel={formatEquationRoleLabel}
@@ -466,6 +472,8 @@ export function EquationsCellView({
   cell,
   cells,
   currentValues,
+  laggedCurrentValues,
+  laggedPeriodLabel,
   externals,
   initialValuesCount,
   isPinnedInPanel = false,
@@ -485,6 +493,8 @@ export function EquationsCellView({
   cell: EquationsCell;
   cells: NotebookCell[];
   currentValues: Record<string, number | undefined>;
+  laggedCurrentValues?: Record<string, number | undefined>;
+  laggedPeriodLabel?: string;
   externals: ExternalsCell["externals"];
   initialValuesCount: number;
   isPinnedInPanel?: boolean;
@@ -816,6 +826,8 @@ export function EquationsCellView({
                   key={equation.id}
                   activeTraceTokenStates={activeTrace?.tokenStates}
                   currentValues={currentValues}
+                  laggedCurrentValues={laggedCurrentValues}
+                  laggedPeriodLabel={laggedPeriodLabel}
                   displayTokens={showExternalValues ? externalDisplayValues : undefined}
                   equation={equation}
                   equationIndex={index}

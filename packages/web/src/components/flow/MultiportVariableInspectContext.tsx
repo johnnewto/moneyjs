@@ -5,6 +5,8 @@ import type { VariableDescriptions } from "../../lib/variableDescriptions";
 
 export interface MultiportVariableInspectContextValue {
   currentValues: Record<string, number | undefined>;
+  laggedCurrentValues?: Record<string, number | undefined>;
+  laggedPeriodLabel?: string;
   highlightedVariable: string | null;
   onSelectVariable?: (variableName: string) => void;
   parameterNames: Set<string>;

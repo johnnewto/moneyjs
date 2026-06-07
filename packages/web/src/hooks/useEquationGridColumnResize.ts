@@ -132,6 +132,7 @@ function clampWidthPx(nextWidth: number, minWidthPx: number, maxWidthPx: number)
 function getTrailingReservedWidthPx(layout: EquationColumnResizeLayout) {
   if (layout === "equation-view") {
     return (
+      MODEL_VIEW_CURRENT_WIDTH_PX +
       EQUATION_VIEW_ROLE_WIDTH_PX +
       MIN_TRAILING_WIDTH_PX +
       0.6 * 3 * 16 +

@@ -64,6 +64,15 @@
 .formula-token.is-document-highlighted {
   border-radius: 3px;
 }
+.formula-token.is-zero-denominator {
+  background: rgba(254, 226, 226, 0.72);
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.28);
+  color: #991b1b;
+}
+.formula-token.is-zero-denominator.is-clickable:hover {
+  background: rgba(254, 202, 202, 0.82);
+}
 .unit-badge {
   color: var(--color-text-subtle);
   display: inline;

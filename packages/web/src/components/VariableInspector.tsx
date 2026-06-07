@@ -8,6 +8,7 @@ import {
   type ConstantExternalOverrides
 } from "../lib/externalParameterControls";
 import type { VariableInspectorData } from "../lib/variableInspector";
+import { collectEquationDenominatorVariables } from "../lib/equationDivisionAnalysis";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
 import type { VariableUnitMetadata } from "../lib/unitMeta";
 import { HighlightedFormulaInput, highlightFormula } from "./EquationGridEditor";
@@ -25,6 +26,8 @@ interface VariableInspectorProps {
   canGoForward?: boolean;
   commitStyle?: "draft" | "immediate";
   currentValues?: Record<string, number | undefined>;
+  laggedCurrentValues?: Record<string, number | undefined>;
+  laggedPeriodLabel?: string;
   data: VariableInspectorData | null;
   onApplyDefiningExpression?: (expression: string) => void;
   onEditingChange?: (isEditing: boolean) => void;
@@ -50,6 +53,8 @@ export function VariableInspector({
   canGoForward = false,
   commitStyle = "draft",
   currentValues,
+  laggedCurrentValues,
+  laggedPeriodLabel,
   data,
   onApplyDefiningExpression,
   onEditingChange,
@@ -144,6 +149,8 @@ export function VariableInspector({
                 canEdit={canEditDefiningEquation}
                 commitStyle={commitStyle}
                 currentValues={currentValues}
+                laggedCurrentValues={laggedCurrentValues}
+                laggedPeriodLabel={laggedPeriodLabel}
                 definingEquation={data.definingEquation}
                 generatedEquationExplanation={data.generatedEquationExplanation}
                 onApplyExpression={onApplyDefiningExpression}
@@ -275,7 +282,12 @@ export function VariableInspector({
                         variableUnitMetadata,
                         onSelectVariable,
                         undefined,
-                        currentValues
+                        currentValues,
+                        null,
+                        false,
+                        laggedCurrentValues,
+                        laggedPeriodLabel,
+                        collectEquationDenominatorVariables(entry.equation.expression)
                       )}
                     </code>
                   </article>
@@ -365,6 +377,8 @@ function InspectorDefiningEquation({
   canEdit,
   commitStyle,
   currentValues,
+  laggedCurrentValues,
+  laggedPeriodLabel,
   definingEquation,
   generatedEquationExplanation,
   onApplyExpression,
@@ -376,6 +390,8 @@ function InspectorDefiningEquation({
   canEdit: boolean;
   commitStyle: "draft" | "immediate";
   currentValues?: Record<string, number | undefined>;
+  laggedCurrentValues?: Record<string, number | undefined>;
+  laggedPeriodLabel?: string;
   definingEquation: EquationRow;
   generatedEquationExplanation: string | null;
   onApplyExpression?: (expression: string) => void;
@@ -388,6 +404,10 @@ function InspectorDefiningEquation({
   const [isEditing, setIsEditing] = useState(false);
   const [draftExpression, setDraftExpression] = useState(definingEquation.expression);
   const parameterNameSet = useMemo(() => new Set(parameterNames), [parameterNames]);
+  const denominatorVariableNames = useMemo(
+    () => collectEquationDenominatorVariables(definingEquation.expression),
+    [definingEquation.expression]
+  );
   const hasDraftChanges = draftExpression !== definingEquation.expression;
 
   useEffect(() => {
@@ -450,6 +470,9 @@ function InspectorDefiningEquation({
             ariaLabel={`Expression for ${definingEquation.name.trim()}`}
             className="inspector-equation-formula-input"
             currentValues={currentValues}
+            laggedCurrentValues={laggedCurrentValues}
+            laggedPeriodLabel={laggedPeriodLabel}
+            denominatorVariableNames={denominatorVariableNames}
             inputRef={(node) => {
               expressionInputRef.current = node;
             }}
@@ -507,7 +530,12 @@ function InspectorDefiningEquation({
               variableUnitMetadata,
               undefined,
               undefined,
-              currentValues
+              currentValues,
+              null,
+              false,
+              laggedCurrentValues,
+              laggedPeriodLabel,
+              denominatorVariableNames
             )}
           </code>
         </>

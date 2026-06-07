@@ -1,12 +1,8 @@
-import {
-  collectCurrentDependencies,
-  collectLagDependencies,
-  parseEquation,
-  type Expr
-} from "@sfcr/core";
+import { parseEquation } from "@sfcr/core";
 import { equationRowsOnly, isRowComment, type EquationListItem, type InitialValueListItem } from "@sfcr/notebook-core";
 
 import type { EquationRow } from "../lib/editorModel";
+import { collectDivisionDenominatorNames } from "../lib/equationDivisionAnalysis";
 import { withInitialValueEnabled } from "../lib/initialValueEnable";
 import { classifyMatrixEntrySource } from "./matrixVariableReference";
 import type { MatrixCell, NotebookCell } from "./types";
@@ -206,48 +202,6 @@ function isStockEquation(
   return (
     parsed.sourceExpression.type === "Integral" || parsed.lagDependencies.includes(parsed.name)
   );
-}
-
-function collectDivisionDenominatorNames(expression: Expr): Set<string> {
-  const names = new Set<string>();
-
-  function visit(expr: Expr): void {
-    switch (expr.type) {
-      case "Binary":
-        if (expr.op === "/") {
-          for (const name of collectCurrentDependencies(expr.right)) {
-            names.add(name);
-          }
-          for (const name of collectLagDependencies(expr.right)) {
-            names.add(name);
-          }
-        }
-        visit(expr.left);
-        visit(expr.right);
-        break;
-      case "Unary":
-        visit(expr.expr);
-        break;
-      case "If":
-        visit(expr.condition);
-        visit(expr.whenTrue);
-        visit(expr.whenFalse);
-        break;
-      case "Function":
-        for (const arg of expr.args) {
-          visit(arg);
-        }
-        break;
-      case "Integral":
-        visit(expr.expr);
-        break;
-      default:
-        break;
-    }
-  }
-
-  visit(expression);
-  return names;
 }
 
 function collectBalanceSheetVariables(cells: NotebookCell[]): Set<string> {

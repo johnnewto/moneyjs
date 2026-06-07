@@ -299,21 +299,29 @@ export function resolveVariableTooltip(args: {
   variableUnitMetadata?: VariableUnitMetadata;
   currentValue?: number;
   currentValues?: Record<string, number | undefined>;
+  laggedCurrentValues?: Record<string, number | undefined>;
+  valueReference?: "current" | "lagged";
+  laggedPeriodLabel?: string;
 }): string | undefined {
   const normalizedName = args.name.trim();
+  const useLagged = args.valueReference === "lagged";
   const resolvedDescription =
     args.description ??
     (normalizedName ? args.variableDescriptions?.get(normalizedName) : undefined);
   const unitMeta = normalizedName ? args.variableUnitMetadata?.get(normalizedName) : undefined;
-  const resolvedValue =
-    args.currentValue ?? (normalizedName ? args.currentValues?.[normalizedName] : undefined);
+  const resolvedValue = useLagged
+    ? args.laggedCurrentValues?.[normalizedName]
+    : args.currentValue ?? (normalizedName ? args.currentValues?.[normalizedName] : undefined);
 
   if (typeof resolvedValue === "number" && Number.isFinite(resolvedValue)) {
     const formattedValue = formatValueWithUnits(resolvedValue, unitMeta);
+    const periodHint =
+      useLagged && args.laggedPeriodLabel ? ` (${args.laggedPeriodLabel})` : "";
+    const valueName = useLagged && normalizedName ? `${normalizedName}'` : normalizedName;
     if (resolvedDescription) {
-      return `${resolvedDescription} : ${formattedValue}`;
+      return `${resolvedDescription} : ${formattedValue}${periodHint}`;
     }
-    return normalizedName ? `${normalizedName} = ${formattedValue}` : formattedValue;
+    return valueName ? `${valueName} = ${formattedValue}${periodHint}` : `${formattedValue}${periodHint}`;
   }
 
   return formatVariableTooltip(resolvedDescription, unitMeta, normalizedName);

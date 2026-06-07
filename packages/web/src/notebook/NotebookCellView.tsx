@@ -2,6 +2,7 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 
 import { AssistantMarkdown } from "../components/AssistantMarkdown";
 import type { EditorState } from "../lib/editorModel";
+import { isPartialSimulationResult, partialResultFailurePeriodIndex } from "../lib/partialRunResult";
 import {
   buildVariableDescriptions,
   type VariableDescriptions
@@ -174,6 +175,11 @@ export interface NotebookCellViewProps {
     sourceModelId?: string;
     sourceModelCellId?: string;
   }): Record<string, number | undefined>;
+  getModelLaggedCurrentValues(ref: {
+    modelId?: string;
+    sourceModelId?: string;
+    sourceModelCellId?: string;
+  }): Record<string, number | undefined>;
   isPinnedInPanel?: boolean;
   maxPeriodIndex: number;
   onPinCellRequest?(cellId: string): void;
@@ -209,6 +215,7 @@ function NotebookCellViewComponent({
   cells,
   notebookScopeId,
   getModelCurrentValues,
+  getModelLaggedCurrentValues,
   isPinnedInPanel = false,
   maxPeriodIndex,
   onPinCellRequest,
@@ -235,6 +242,12 @@ function NotebookCellViewComponent({
 }: NotebookCellViewProps) {
   const status = runner.status[cell.id] ?? "idle";
   const error = runner.errors[cell.id];
+  const runResult = cell.type === "run" ? runner.getResult(cell.id) : null;
+  const partialRunPeriodIndex =
+    runResult && isPartialSimulationResult(runResult)
+      ? partialResultFailurePeriodIndex(runResult)
+      : null;
+  const laggedPeriodLabel = selectedPeriodIndex > 0 ? `period ${selectedPeriodIndex}` : undefined;
   const [isEditingSource, setIsEditingSource] = useState(false);
   const [titleDraft, setTitleDraft] = useState(() => cell.title);
   const [sourceDraft, setSourceDraft] = useState(() => serializeCellBody(cell));
@@ -940,6 +953,12 @@ function NotebookCellViewComponent({
         </div>
 
         {!isCollapsed && error ? <div className="error-text">Error: {error}</div> : null}
+        {!isCollapsed && partialRunPeriodIndex != null ? (
+          <div className="status-hint">
+            Partial results through period {partialRunPeriodIndex + 1} are available for inspection. Values at
+            the failure period reflect the last solver iteration and may not be converged.
+          </div>
+        ) : null}
         {!isCollapsed && sourceError ? <div className="error-text">Source error: {sourceError}</div> : null}
 
         {isEditingSource ? (
@@ -1134,6 +1153,8 @@ function NotebookCellViewComponent({
             cell={cell}
             cells={cells}
             currentValues={getModelCurrentValues({ modelId: cell.modelId })}
+            laggedCurrentValues={getModelLaggedCurrentValues({ modelId: cell.modelId })}
+            laggedPeriodLabel={laggedPeriodLabel}
             externals={findExternalsCell(cells, cell.modelId)?.externals ?? []}
             initialValuesCount={
               findInitialValuesCell(cells, cell.modelId)?.initialValues.length ?? 0
@@ -1167,6 +1188,8 @@ function NotebookCellViewComponent({
             cell={cell}
             cells={cells}
             currentValues={getModelCurrentValues({ sourceModelCellId: cell.id })}
+            laggedCurrentValues={getModelLaggedCurrentValues({ sourceModelCellId: cell.id })}
+            laggedPeriodLabel={laggedPeriodLabel}
             {...linkedEditorPinProps}
             onEditingChange={setIsLinkedEditorEditing}
             onHelpRequest={requestCellHelp}
