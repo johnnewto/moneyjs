@@ -370,6 +370,45 @@
 .stability-clear-button:hover {
   color: var(--color-text-strong);
 }
+.stability-inspector-heading-actions {
+  align-items: center;
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.65rem;
+}
+.stability-raw-data-link {
+  align-items: center;
+  background: transparent;
+  border: none;
+  color: var(--color-text-subtle);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.78rem;
+  gap: 0.2rem;
+  line-height: 1.2;
+  padding: 0;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+.stability-raw-data-link:hover:not(:disabled) {
+  color: var(--color-text-strong);
+}
+.stability-raw-data-link:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  text-decoration: none;
+}
+.stability-raw-data-link-icon {
+  font-size: 0.85rem;
+  line-height: 1;
+  text-decoration: none;
+}
+.stability-inspector-actions-primary {
+  align-items: center;
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 0.55rem;
+}
 .stability-inspector-actions {
   align-items: center;
   display: flex;
