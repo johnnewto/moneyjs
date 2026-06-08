@@ -1,4 +1,8 @@
 import type {
+  BlockConvergenceOptions,
+  BlockConvergenceReport,
+  InitialValueProbeCandidate,
+  InitialValueProbeResult,
   ModelDefinition,
   ScenarioDefinition,
   SimulationOptions,
@@ -18,6 +22,18 @@ export interface SolverClient {
   ): Promise<SimulationResult>;
   validateRunnable(model: ModelDefinition, options: SimulationOptions): Promise<void>;
   computeStabilityMetrics(result: SimulationResult, period: number): Promise<StabilityAnalysis>;
+  analyzeAllBlockConvergence(
+    model: ModelDefinition,
+    options: SimulationOptions,
+    period: number,
+    analysisOptions?: BlockConvergenceOptions
+  ): Promise<BlockConvergenceReport>;
+  probeInitialValuesForPeriod1(
+    model: ModelDefinition,
+    options: SimulationOptions,
+    candidates: InitialValueProbeCandidate[],
+    analysisOptions?: BlockConvergenceOptions
+  ): Promise<InitialValueProbeResult[]>;
   dispose(): void;
 }
 
@@ -35,6 +51,16 @@ type PendingRequest =
   | {
       type: "validationSuccess";
       resolve: () => void;
+      reject: (error: Error) => void;
+    }
+  | {
+      type: "blockConvergenceSuccess";
+      resolve: (report: BlockConvergenceReport) => void;
+      reject: (error: Error) => void;
+    }
+  | {
+      type: "initialValueProbeSuccess";
+      resolve: (results: InitialValueProbeResult[]) => void;
       reject: (error: Error) => void;
     };
 
@@ -91,6 +117,16 @@ class BrowserWorkerClient implements SolverClient {
         return;
       }
 
+      if (response.type === "blockConvergenceSuccess" && pending.type === "blockConvergenceSuccess") {
+        pending.resolve(response.payload);
+        return;
+      }
+
+      if (response.type === "initialValueProbeSuccess" && pending.type === "initialValueProbeSuccess") {
+        pending.resolve(response.payload);
+        return;
+      }
+
       pending.reject(
         new Error(`Unexpected worker response type "${response.type}" for pending "${pending.type}" request.`)
       );
@@ -143,6 +179,30 @@ class BrowserWorkerClient implements SolverClient {
     });
   }
 
+  async analyzeAllBlockConvergence(
+    model: ModelDefinition,
+    options: SimulationOptions,
+    period: number,
+    analysisOptions?: BlockConvergenceOptions
+  ): Promise<BlockConvergenceReport> {
+    return this.requestBlockConvergence({
+      type: "analyzeAllBlockConvergence",
+      payload: { model, options, period, analysisOptions }
+    });
+  }
+
+  async probeInitialValuesForPeriod1(
+    model: ModelDefinition,
+    options: SimulationOptions,
+    candidates: InitialValueProbeCandidate[],
+    analysisOptions?: BlockConvergenceOptions
+  ): Promise<InitialValueProbeResult[]> {
+    return this.requestInitialValueProbe({
+      type: "probeInitialValuesForPeriod1",
+      payload: { model, options, candidates, analysisOptions }
+    });
+  }
+
   dispose(): void {
     this.worker?.terminate();
     this.worker = null;
@@ -182,6 +242,26 @@ class BrowserWorkerClient implements SolverClient {
     const id = crypto.randomUUID();
     return new Promise<StabilityAnalysis>((resolve, reject) => {
       this.pending.set(id, { type: "stabilitySuccess", resolve, reject });
+      this.ensureWorker().postMessage({ id, ...message });
+    });
+  }
+
+  private requestBlockConvergence(
+    message: Omit<Extract<WorkerRequest, { type: "analyzeAllBlockConvergence" }>, "id">
+  ): Promise<BlockConvergenceReport> {
+    const id = crypto.randomUUID();
+    return new Promise<BlockConvergenceReport>((resolve, reject) => {
+      this.pending.set(id, { type: "blockConvergenceSuccess", resolve, reject });
+      this.ensureWorker().postMessage({ id, ...message });
+    });
+  }
+
+  private requestInitialValueProbe(
+    message: Omit<Extract<WorkerRequest, { type: "probeInitialValuesForPeriod1" }>, "id">
+  ): Promise<InitialValueProbeResult[]> {
+    const id = crypto.randomUUID();
+    return new Promise<InitialValueProbeResult[]>((resolve, reject) => {
+      this.pending.set(id, { type: "initialValueProbeSuccess", resolve, reject });
       this.ensureWorker().postMessage({ id, ...message });
     });
   }

@@ -649,6 +649,8 @@ export function InitialValuesCellView({
   onChange,
   onPinCellRequest,
   onToggleCollapsed,
+  onTestBlockConvergence,
+  blockConvergenceComputing = false,
   viewportRoot = null
 }: {
   cell: InitialValuesCell;
@@ -669,6 +671,8 @@ export function InitialValuesCellView({
   viewportRoot?: Element | null;
   onChange(initialValues: EditorState["initialValues"]): void;
   onToggleCollapsed(): void;
+  onTestBlockConvergence?(initialValues: EditorState["initialValues"]): void;
+  blockConvergenceComputing?: boolean;
 }) {
   const modelSource = { sourceModelId: cell.modelId };
   const initialValuesViewDragScroll = useDragScroll<HTMLElement>();
@@ -806,6 +810,30 @@ export function InitialValuesCellView({
         actions={
           <NotebookLinkedEditorActions
             cell={cell}
+            editingExtraActions={
+              onTestBlockConvergence ? (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  disabled={blockConvergenceComputing}
+                  onClick={() => onTestBlockConvergence(draftInitialValues)}
+                >
+                  {blockConvergenceComputing ? "Testing…" : "Test convergence at period 1"}
+                </button>
+              ) : null
+            }
+            extraActions={
+              onTestBlockConvergence ? (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  disabled={blockConvergenceComputing}
+                  onClick={() => onTestBlockConvergence(cell.initialValues)}
+                >
+                  {blockConvergenceComputing ? "Testing…" : "Test convergence at period 1"}
+                </button>
+              ) : null
+            }
             hasDraftEdits={hasDraftEdits}
             isEditing={isEditingInitialValues}
             isPinnedInPanel={isPinnedInPanel}

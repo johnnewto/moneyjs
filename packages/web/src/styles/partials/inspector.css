@@ -493,6 +493,17 @@
   margin-top: 0.35rem;
   padding-top: 0;
 }
+.block-convergence-variable-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.4rem;
+  margin-top: 0.2rem;
+}
+.block-convergence-variable-button {
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0;
+}
 .stability-eigenpair-relative {
   color: var(--color-text-subtle);
   font-size: 0.78rem;

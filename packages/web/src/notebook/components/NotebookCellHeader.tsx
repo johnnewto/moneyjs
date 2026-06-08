@@ -245,6 +245,7 @@ export function NotebookCellPinButton({
 
 export function NotebookLinkedEditorActions({
   cell,
+  editingExtraActions,
   extraActions,
   hasDraftEdits,
   isEditing,
@@ -258,6 +259,7 @@ export function NotebookLinkedEditorActions({
   title
 }: {
   cell: ModelCell | EquationsCell | SolverCell | ExternalsCell | InitialValuesCell;
+  editingExtraActions?: ReactNode;
   extraActions?: ReactNode;
   hasDraftEdits: boolean;
   isEditing: boolean;
@@ -300,6 +302,7 @@ export function NotebookLinkedEditorActions({
           {!isEditing ? extraActions ?? null : null}
           {isEditing ? (
             <>
+              {editingExtraActions ?? null}
               <button
                 type="button"
                 className="notebook-run-button notebook-source-toggle"

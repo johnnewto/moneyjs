@@ -152,4 +152,59 @@ describe("core worker handler", () => {
     expect(response.payload.partialResult?.runMetadata?.partial).toBe(true);
     expect(response.payload.partialResult?.series.x?.length).toBe(2);
   });
+
+  it("returns blockConvergenceSuccess for analyzeAllBlockConvergence", () => {
+    const model: ModelDefinition = {
+      equations: [{ name: "Y", expression: "Gd" }],
+      externals: { Gd: { kind: "constant", value: 20 } },
+      initialValues: {}
+    };
+
+    const response = handleWorkerRequest({
+      id: "block-convergence-1",
+      type: "analyzeAllBlockConvergence",
+      payload: { model, options, period: 1 }
+    });
+
+    expect(response).toMatchObject({
+      id: "block-convergence-1",
+      type: "blockConvergenceSuccess"
+    });
+    if (response.type !== "blockConvergenceSuccess") {
+      return;
+    }
+
+    expect(response.payload.period).toBe(1);
+    expect(response.payload.blocks.length).toBeGreaterThan(0);
+  });
+
+  it("returns initialValueProbeSuccess for probeInitialValuesForPeriod1", () => {
+    const model: ModelDefinition = {
+      equations: [{ name: "Y", expression: "Gd" }],
+      externals: { Gd: { kind: "constant", value: 20 } },
+      initialValues: {}
+    };
+
+    const response = handleWorkerRequest({
+      id: "initial-value-probe-1",
+      type: "probeInitialValuesForPeriod1",
+      payload: {
+        model,
+        options,
+        candidates: [{ label: "empty", initialValues: {} }]
+      }
+    });
+
+    expect(response).toMatchObject({
+      id: "initial-value-probe-1",
+      type: "initialValueProbeSuccess"
+    });
+    if (response.type !== "initialValueProbeSuccess") {
+      return;
+    }
+
+    expect(response.payload).toHaveLength(1);
+    expect(response.payload[0]?.label).toBe("empty");
+    expect(response.payload[0]?.report.period).toBe(1);
+  });
 });

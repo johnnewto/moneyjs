@@ -1,4 +1,8 @@
 import type {
+  BlockConvergenceOptions,
+  BlockConvergenceReport,
+  InitialValueProbeCandidate,
+  InitialValueProbeResult,
   ModelDefinition,
   ScenarioDefinition,
   SimulationOptions,
@@ -31,6 +35,26 @@ export type WorkerRequest =
       id: string;
       type: "computeStabilityMetrics";
       payload: { result: SimulationResult; period: number };
+    }
+  | {
+      id: string;
+      type: "analyzeAllBlockConvergence";
+      payload: {
+        model: ModelDefinition;
+        options: SimulationOptions;
+        period: number;
+        analysisOptions?: BlockConvergenceOptions;
+      };
+    }
+  | {
+      id: string;
+      type: "probeInitialValuesForPeriod1";
+      payload: {
+        model: ModelDefinition;
+        options: SimulationOptions;
+        candidates: InitialValueProbeCandidate[];
+        analysisOptions?: BlockConvergenceOptions;
+      };
     };
 
 export type WorkerResponse =
@@ -43,6 +67,16 @@ export type WorkerResponse =
       id: string;
       type: "stabilitySuccess";
       payload: StabilityAnalysis;
+    }
+  | {
+      id: string;
+      type: "blockConvergenceSuccess";
+      payload: BlockConvergenceReport;
+    }
+  | {
+      id: string;
+      type: "initialValueProbeSuccess";
+      payload: InitialValueProbeResult[];
     }
   | {
       id: string;

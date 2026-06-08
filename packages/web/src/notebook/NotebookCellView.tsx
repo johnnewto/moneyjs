@@ -202,6 +202,12 @@ export interface NotebookCellViewProps {
   }): void;
   onMatrixGraphRequest?(request: MatrixGraphRequest): void;
   onVariableInspectRequest(args: VariableInspectRequest): void;
+  onDiagnoseBlockConvergence?(runCell: RunCell): void;
+  onTestBlockConvergence?(args: {
+    modelId: string;
+    initialValues: InitialValuesCell["initialValues"];
+  }): void;
+  blockConvergenceComputing?: boolean;
   highlightedVariable?: string | null;
   graphSliceHighlight?: MatrixGraphSliceHighlight | null;
   runner: ReturnType<typeof useNotebookRunner>;
@@ -237,6 +243,9 @@ function NotebookCellViewComponent({
   onCellHelpRequest,
   onMatrixGraphRequest,
   onVariableInspectRequest,
+  onDiagnoseBlockConvergence,
+  onTestBlockConvergence,
+  blockConvergenceComputing = false,
   highlightedVariable = null,
   graphSliceHighlight = null
 }: NotebookCellViewProps) {
@@ -955,8 +964,20 @@ function NotebookCellViewComponent({
         {!isCollapsed && error ? <div className="error-text">Error: {error}</div> : null}
         {!isCollapsed && partialRunPeriodIndex != null ? (
           <div className="status-hint">
-            Partial results through period {partialRunPeriodIndex + 1} are available for inspection. Values at
-            the failure period reflect the last solver iteration and may not be converged.
+            <p>
+              Partial results through period {partialRunPeriodIndex + 1} are available for inspection. Values at
+              the failure period reflect the last solver iteration and may not be converged.
+            </p>
+            {cell.type === "run" && onDiagnoseBlockConvergence ? (
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={blockConvergenceComputing}
+                onClick={() => onDiagnoseBlockConvergence(cell)}
+              >
+                {blockConvergenceComputing ? "Diagnosing…" : "Diagnose block convergence"}
+              </button>
+            ) : null}
           </div>
         ) : null}
         {!isCollapsed && sourceError ? <div className="error-text">Source error: {sourceError}</div> : null}
@@ -1283,6 +1304,12 @@ function NotebookCellViewComponent({
                   : current
               )
             }
+            onTestBlockConvergence={
+              onTestBlockConvergence
+                ? (initialValues) => onTestBlockConvergence({ modelId: cell.modelId, initialValues })
+                : undefined
+            }
+            blockConvergenceComputing={blockConvergenceComputing}
           />
         ) : null}
         {isCollapsed ? null : cell.type === "run" ? (
@@ -1649,6 +1676,18 @@ function areNotebookCellViewPropsEqual(
   }
 
   if (previousProps.graphSliceHighlight !== nextProps.graphSliceHighlight) {
+    return false;
+  }
+
+  if (previousProps.blockConvergenceComputing !== nextProps.blockConvergenceComputing) {
+    return false;
+  }
+
+  if (previousProps.onTestBlockConvergence !== nextProps.onTestBlockConvergence) {
+    return false;
+  }
+
+  if (previousProps.onDiagnoseBlockConvergence !== nextProps.onDiagnoseBlockConvergence) {
     return false;
   }
 

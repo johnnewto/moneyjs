@@ -25,6 +25,8 @@ export * from "./analysis/transitionMatrix";
 export * from "./analysis/transitionGraph";
 export * from "./analysis/transitionLoops";
 export * from "./analysis/stability";
+export * from "./analysis/blockConvergence";
+export * from "./solver/blockProbe";
 export {
   computeEigenpair,
   type ComplexValue,

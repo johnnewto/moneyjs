@@ -2,7 +2,9 @@ import {
   ConvergenceError,
   ModelValidationError,
   ParseError,
+  analyzeAllBlockConvergence,
   computeStabilityMetrics,
+  probeInitialValuesForPeriod1,
   runBaseline,
   runScenario,
   validateRunnable
@@ -40,6 +42,28 @@ export function handleWorkerRequest(request: WorkerRequest): WorkerResponse {
           id: request.id,
           type: "stabilitySuccess",
           payload: computeStabilityMetrics(request.payload.result, request.payload.period)
+        };
+      case "analyzeAllBlockConvergence":
+        return {
+          id: request.id,
+          type: "blockConvergenceSuccess",
+          payload: analyzeAllBlockConvergence(
+            request.payload.model,
+            request.payload.options,
+            request.payload.period,
+            request.payload.analysisOptions
+          )
+        };
+      case "probeInitialValuesForPeriod1":
+        return {
+          id: request.id,
+          type: "initialValueProbeSuccess",
+          payload: probeInitialValuesForPeriod1(
+            request.payload.model,
+            request.payload.options,
+            request.payload.candidates,
+            request.payload.analysisOptions
+          )
         };
     }
   } catch (error) {

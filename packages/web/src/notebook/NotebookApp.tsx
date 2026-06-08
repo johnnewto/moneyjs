@@ -135,15 +135,17 @@ import type {
   NotebookCell,
   NotebookDocument,
   NotebookCellInsertType,
+  InitialValueListItem,
   RunCell
 } from "./types";
-import { useNotebookRunner } from "./useNotebookRunner";
+import { resolveModelIdFromRunCellKey, useNotebookRunner } from "./useNotebookRunner";
 import { validateNotebookDocument } from "./validation";
 import { buildRuntimeConfig, type EditorState } from "../lib/editorModel";
 import { PeriodScrubber } from "../components/PeriodScrubber";
 import { AssistantMarkdown } from "../components/AssistantMarkdown";
 import { formatAssistantTokenUsage, mergeAssistantTokenUsage, type AssistantTokenUsage } from "../assistant/sse";
 import { VariableInspector } from "../components/VariableInspector";
+import { BlockConvergencePanel } from "../components/BlockConvergencePanel";
 import {
   StabilityRawDataDialog,
   STABILITY_RAW_PANEL_DEBOUNCE_MS
@@ -165,10 +167,16 @@ import { collectMatrixGraphSliceSeries } from "./matrixSliceGraph";
 import { VariableMathLabel } from "../components/VariableMathLabel";
 import { useDragScroll } from "../hooks/useDragScroll";
 import { useInspectorVariableHistory } from "../hooks/useInspectorVariableHistory";
+import { useBlockConvergence } from "../hooks/useBlockConvergence";
 import {
   stabilityTargetCacheKey,
   useStabilityMetrics
 } from "../hooks/useStabilityMetrics";
+import {
+  buildNotebookBlockConvergenceRuntime,
+  buildNotebookModelVariableInspectRequest
+} from "../lib/notebookBlockConvergence";
+import { buildEditorStateForInspectorModelSource } from "../lib/variableInspect";
 import { resolveNotebookStabilityTarget } from "../lib/stabilityAtPeriod";
 import { usePanelSplitter } from "../hooks/usePanelSplitter";
 import { useNotebookStickySurfaceTop } from "./useNotebookStickySurfaceTop";
@@ -963,6 +971,173 @@ export function NotebookApp() {
       enabled: stabilityAnalysisEnabled,
       debounceMs: showStabilityRawPanel ? STABILITY_RAW_PANEL_DEBOUNCE_MS : 0
     }
+  );
+  const [showBlockConvergencePanel, setShowBlockConvergencePanel] = useState(false);
+  const [blockConvergencePeriod, setBlockConvergencePeriod] = useState(1);
+  const [blockConvergenceModelId, setBlockConvergenceModelId] = useState<string | null>(null);
+  const [blockConvergenceLocalError, setBlockConvergenceLocalError] = useState<string | null>(null);
+  const {
+    activeLabel: blockConvergenceActiveLabel,
+    analyze: analyzeBlockConvergence,
+    clear: clearBlockConvergence,
+    errorMessage: blockConvergenceErrorMessage,
+    isComputing: blockConvergenceIsComputing,
+    probeInitialValues: probeBlockConvergenceInitialValues,
+    probeResults: blockConvergenceProbeResults,
+    report: blockConvergenceReport
+  } = useBlockConvergence();
+  const blockConvergenceInspectMetadata = useMemo(() => {
+    if (!blockConvergenceModelId) {
+      return null;
+    }
+
+    const editor = buildEditorStateForInspectorModelSource(notebookDocument, {
+      sourceModelId: blockConvergenceModelId
+    });
+    if (!editor) {
+      return null;
+    }
+
+    return {
+      variableDescriptions: buildVariableDescriptions({
+        equations: editor.equations,
+        externals: editor.externals
+      }),
+      variableUnitMetadata: buildVariableUnitMetadata({
+        equations: editor.equations,
+        externals: editor.externals
+      })
+    };
+  }, [blockConvergenceModelId, notebookDocument.cells]);
+  const blockConvergenceHighlightedVariable =
+    blockConvergenceModelId &&
+    inspectorContext?.modelSource &&
+    "sourceModelId" in inspectorContext.modelSource &&
+    inspectorContext.modelSource.sourceModelId === blockConvergenceModelId
+      ? inspectorContext.selectedVariable
+      : null;
+  const handleBlockConvergenceVariableInspect = useCallback(
+    (variableName: string) => {
+      if (!blockConvergenceModelId) {
+        return;
+      }
+
+      const request = buildNotebookModelVariableInspectRequest(notebookDocument, {
+        modelId: blockConvergenceModelId,
+        selectedVariable: variableName,
+        currentValues: getCurrentValueMapForModelRef({ sourceModelId: blockConvergenceModelId })
+      });
+      if (!request) {
+        return;
+      }
+
+      handleVariableInspectRequest(request);
+    },
+    [blockConvergenceModelId, getCurrentValueMapForModelRef, handleVariableInspectRequest, notebookDocument]
+  );
+  const handleDiagnoseBlockConvergence = useCallback(
+    (runCell: RunCell) => {
+      const modelKey = resolveRunCellModelKey(notebookDocument.cells, runCell);
+      const modelId = resolveModelIdFromRunCellKey(modelKey);
+      if (!modelId) {
+        return;
+      }
+
+      setBlockConvergenceModelId(modelId);
+      setShowBlockConvergencePanel(true);
+
+      let runtime: ReturnType<typeof buildNotebookBlockConvergenceRuntime>;
+      try {
+        runtime = buildNotebookBlockConvergenceRuntime(notebookDocument, {
+          modelId,
+          runCell
+        });
+      } catch (error) {
+        clearBlockConvergence();
+        setBlockConvergenceLocalError(
+          error instanceof Error
+            ? error.message
+            : "Block convergence analysis could not build the model."
+        );
+        return;
+      }
+
+      if (!runtime) {
+        clearBlockConvergence();
+        setBlockConvergenceLocalError(
+          "Block convergence needs equations and solver cells for this model."
+        );
+        return;
+      }
+
+      const partialResult = runner.getResult(runCell.id);
+      const failure = partialResult?.runMetadata?.convergenceFailure;
+      const period = failure?.period ?? 1;
+
+      setBlockConvergenceLocalError(null);
+      setBlockConvergencePeriod(period);
+      setShowBlockConvergencePanel(true);
+      void analyzeBlockConvergence({
+        model: runtime.model,
+        options: runtime.options,
+        period,
+        label: runCell.title || "Run",
+        analysisOptions: {
+          blocks: partialResult?.blocks,
+          recordIterations: true
+        }
+      });
+    },
+    [analyzeBlockConvergence, clearBlockConvergence, notebookDocument, runner]
+  );
+  const handleTestBlockConvergence = useCallback(
+    (args: { modelId: string; initialValues: InitialValueListItem[] }) => {
+      setBlockConvergenceModelId(args.modelId);
+      setBlockConvergencePeriod(1);
+      setShowBlockConvergencePanel(true);
+
+      let runtime: ReturnType<typeof buildNotebookBlockConvergenceRuntime>;
+      try {
+        runtime = buildNotebookBlockConvergenceRuntime(notebookDocument, {
+          modelId: args.modelId,
+          initialValuesOverride: args.initialValues,
+          periodsMin: 2
+        });
+      } catch (error) {
+        clearBlockConvergence();
+        setBlockConvergenceLocalError(
+          error instanceof Error
+            ? error.message
+            : "Initial value probe could not build the model."
+        );
+        return;
+      }
+
+      if (!runtime) {
+        clearBlockConvergence();
+        setBlockConvergenceLocalError(
+          "Block convergence needs equations and solver cells for this model."
+        );
+        return;
+      }
+
+      setBlockConvergenceLocalError(null);
+      void probeBlockConvergenceInitialValues({
+        model: runtime.model,
+        options: runtime.options,
+        candidates: [
+          {
+            label: "Current initial values",
+            initialValues: runtime.model.initialValues
+          }
+        ],
+        label: `Initial values (${args.modelId})`,
+        analysisOptions: {
+          recordIterations: true
+        }
+      });
+    },
+    [clearBlockConvergence, notebookDocument, probeBlockConvergenceInitialValues]
   );
   const notebookMainDragScroll = useDragScroll<HTMLDivElement>();
   const notebookRailDragScroll = useDragScroll<HTMLElement>();
@@ -3074,6 +3249,9 @@ export function NotebookApp() {
         onCellHelpRequest: handleCellHelpRequest,
         onMatrixGraphRequest: handleMatrixGraphRequest,
         onVariableInspectRequest: handleVariableInspectRequest,
+        onDiagnoseBlockConvergence: handleDiagnoseBlockConvergence,
+        onTestBlockConvergence: handleTestBlockConvergence,
+        blockConvergenceComputing: blockConvergenceIsComputing,
         highlightedVariable:
           cell.id === graphSliceHighlight?.matrixCellId
             ? graphExpressionHighlight
@@ -3093,8 +3271,11 @@ export function NotebookApp() {
       graphExpressionHighlight,
       graphSliceHighlight,
       handleCellHelpRequest,
+      blockConvergenceIsComputing,
+      handleDiagnoseBlockConvergence,
       handleMatrixGraphRequest,
       handlePinCellRequest,
+      handleTestBlockConvergence,
       handleVariableInspectRequest,
       insertCell,
       inspectorContext?.selectedVariable,
@@ -4102,6 +4283,28 @@ export function NotebookApp() {
           runLabel={stabilityTarget?.modelLabel ?? stabilityDisplay.modelLabel}
           simulationResult={stabilityTarget?.result ?? null}
           onClose={() => setShowStabilityRawPanel(false)}
+        />
+      ) : null}
+      {showBlockConvergencePanel ? (
+        <BlockConvergencePanel
+          errorMessage={blockConvergenceLocalError ?? blockConvergenceErrorMessage}
+          highlightedVariable={blockConvergenceHighlightedVariable}
+          isComputing={blockConvergenceIsComputing}
+          label={blockConvergenceActiveLabel ?? "Block convergence"}
+          period={blockConvergenceReport?.period ?? blockConvergencePeriod}
+          probeResults={blockConvergenceProbeResults}
+          report={blockConvergenceReport}
+          variableDescriptions={blockConvergenceInspectMetadata?.variableDescriptions}
+          variableUnitMetadata={blockConvergenceInspectMetadata?.variableUnitMetadata}
+          onVariableInspect={
+            blockConvergenceModelId ? handleBlockConvergenceVariableInspect : undefined
+          }
+          onClose={() => {
+            setShowBlockConvergencePanel(false);
+            setBlockConvergenceModelId(null);
+            setBlockConvergenceLocalError(null);
+            clearBlockConvergence();
+          }}
         />
       ) : null}
       {pinnedCell ? (
