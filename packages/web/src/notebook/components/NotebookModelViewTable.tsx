@@ -1,9 +1,10 @@
-import type { ReactNode, Ref } from "react";
+import { useRef, type ReactNode, type Ref } from "react";
 
 import {
   useEquationGridColumnResize,
   type ModelViewTableLayout
 } from "../../hooks/useEquationGridColumnResize";
+import { useEquationValueColumnsCollapse } from "../../hooks/useEquationValueColumnsCollapse";
 
 import {
   EquationsModelViewHeaderRow,
@@ -52,9 +53,20 @@ export function NotebookModelViewTable({
   tableShellRef?: Ref<HTMLDivElement>;
   children: ReactNode;
 }) {
+  const shellRef = useRef<HTMLDivElement | null>(null);
+  const valueColumnsCollapse = useEquationValueColumnsCollapse(shellRef);
+  const isEquationView = layout === "equation-view";
   const columnResize = useEquationGridColumnResize({
     isEmbedded: true,
-    layout
+    layout,
+    valueColumnCollapse: isEquationView
+      ? {
+          initialCollapsed: valueColumnsCollapse.initialColumnCollapsed,
+          currentCollapsed: valueColumnsCollapse.currentColumnCollapsed,
+          gainCollapsed: valueColumnsCollapse.gainColumnCollapsed,
+          roleCollapsed: valueColumnsCollapse.roleColumnCollapsed
+        }
+      : undefined
   });
 
   const header =
@@ -67,12 +79,40 @@ export function NotebookModelViewTable({
         headerRowRef={headerRowRef}
       />
     ) : (
-      <EquationsModelViewHeaderRow columnResize={columnResize} headerRowRef={headerRowRef} />
+      <EquationsModelViewHeaderRow
+        columnResize={columnResize}
+        headerRowRef={headerRowRef}
+        initialColumnCollapsed={
+          isEquationView ? valueColumnsCollapse.initialColumnCollapsed : false
+        }
+        currentColumnCollapsed={
+          isEquationView ? valueColumnsCollapse.currentColumnCollapsed : false
+        }
+        gainColumnCollapsed={
+          isEquationView ? valueColumnsCollapse.gainColumnCollapsed : false
+        }
+        onToggleInitialColumn={
+          isEquationView ? valueColumnsCollapse.toggleInitialColumn : undefined
+        }
+        onToggleCurrentColumn={
+          isEquationView ? valueColumnsCollapse.toggleCurrentColumn : undefined
+        }
+        onToggleGainColumn={
+          isEquationView ? valueColumnsCollapse.toggleGainColumn : undefined
+        }
+        roleColumnCollapsed={
+          isEquationView ? valueColumnsCollapse.roleColumnCollapsed : false
+        }
+        onToggleRoleColumn={
+          isEquationView ? valueColumnsCollapse.toggleRoleColumn : undefined
+        }
+      />
     );
 
   return (
     <div
       ref={(node) => {
+        shellRef.current = node;
         columnResize.shellRef.current = node;
         assignRef(tableShellRef, node);
       }}
@@ -80,7 +120,11 @@ export function NotebookModelViewTable({
         "notebook-model-view-table",
         "notebook-model-view-table-resizable",
         layoutClassName(layout),
-        columnResize.shellClassName
+        columnResize.shellClassName,
+        isEquationView && valueColumnsCollapse.initialColumnCollapsed ? "initial-column-collapsed" : "",
+        isEquationView && valueColumnsCollapse.currentColumnCollapsed ? "current-column-collapsed" : "",
+        isEquationView && valueColumnsCollapse.gainColumnCollapsed ? "gain-column-collapsed" : "",
+        isEquationView && valueColumnsCollapse.roleColumnCollapsed ? "role-column-collapsed" : ""
       ]
         .filter(Boolean)
         .join(" ")}

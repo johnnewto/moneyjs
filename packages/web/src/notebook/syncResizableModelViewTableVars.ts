@@ -25,4 +25,9 @@ export function syncResizableModelViewTableVars(source: HTMLElement, target: HTM
       break;
     }
   }
+
+  target.classList.toggle("initial-column-collapsed", source.classList.contains("initial-column-collapsed"));
+  target.classList.toggle("current-column-collapsed", source.classList.contains("current-column-collapsed"));
+  target.classList.toggle("gain-column-collapsed", source.classList.contains("gain-column-collapsed"));
+  target.classList.toggle("role-column-collapsed", source.classList.contains("role-column-collapsed"));
 }

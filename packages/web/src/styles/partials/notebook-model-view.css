@@ -27,14 +27,168 @@
   --eq-col-expression-width: 280px;
   --eq-col-role-width: 4.25rem;
   --eq-col-variable-width: 160px;
+  --eq-col-column-toggle-width: max-content;
+  --eq-col-initial-width: minmax(72px, 96px);
+  --eq-col-current-width: minmax(92px, 120px);
+  --eq-col-gain-width: minmax(88px, 112px);
+}
+.notebook-model-view-table-resizable.layout-equation-view.initial-column-collapsed {
+  --eq-col-initial-width: var(--eq-col-column-toggle-width);
+}
+.notebook-model-view-table-resizable.layout-equation-view.current-column-collapsed {
+  --eq-col-current-width: var(--eq-col-column-toggle-width);
+}
+.notebook-model-view-table-resizable.layout-equation-view.gain-column-collapsed {
+  --eq-col-gain-width: var(--eq-col-column-toggle-width);
+}
+.notebook-model-view-table-resizable.layout-equation-view.role-column-collapsed {
+  --eq-col-role-width: var(--eq-col-column-toggle-width);
+}
+.notebook-model-view-table-resizable.layout-equation-view.initial-column-collapsed
+  .notebook-model-view-initial-header,
+.notebook-model-view-table-resizable.layout-equation-view.current-column-collapsed
+  .notebook-model-view-current-header,
+.notebook-model-view-table-resizable.layout-equation-view.gain-column-collapsed
+  .notebook-model-view-gain-header,
+.notebook-model-view-table-resizable.layout-equation-view.role-column-collapsed
+  .notebook-model-view-role-header {
+  gap: 0;
+  justify-self: start;
+  padding-left: 0.12rem;
+  width: max-content;
+}
+.notebook-model-view-table-resizable.layout-equation-view.initial-column-collapsed
+  .notebook-model-view-initial-header
+  .notebook-model-view-column-toggle,
+.notebook-model-view-table-resizable.layout-equation-view.current-column-collapsed
+  .notebook-model-view-current-header
+  .notebook-model-view-column-toggle,
+.notebook-model-view-table-resizable.layout-equation-view.gain-column-collapsed
+  .notebook-model-view-gain-header
+  .notebook-model-view-column-toggle,
+.notebook-model-view-table-resizable.layout-equation-view.role-column-collapsed
+  .notebook-model-view-role-header
+  .notebook-model-view-column-toggle {
+  min-height: 1rem;
+  min-width: 0;
+}
+.notebook-model-view-table-resizable.layout-equation-view.initial-column-collapsed
+  .notebook-model-view-initial-header
+  .notebook-model-view-column-toggle-icon,
+.notebook-model-view-table-resizable.layout-equation-view.current-column-collapsed
+  .notebook-model-view-current-header
+  .notebook-model-view-column-toggle-icon,
+.notebook-model-view-table-resizable.layout-equation-view.gain-column-collapsed
+  .notebook-model-view-gain-header
+  .notebook-model-view-column-toggle-icon,
+.notebook-model-view-table-resizable.layout-equation-view.role-column-collapsed
+  .notebook-model-view-role-header
+  .notebook-model-view-column-toggle-icon {
+  font-size: 0.95rem;
+  width: 0.75rem;
+}
+.notebook-model-view-table-resizable.layout-equation-view.initial-column-collapsed
+  .notebook-model-view-initial,
+.notebook-model-view-table-resizable.layout-equation-view.initial-column-collapsed
+  .notebook-model-view-initial-expanded-only {
+  display: none;
+}
+.notebook-model-view-table-resizable.layout-equation-view.current-column-collapsed
+  .notebook-model-view-current,
+.notebook-model-view-table-resizable.layout-equation-view.current-column-collapsed
+  .notebook-model-view-current-expanded-only {
+  display: none;
+}
+.notebook-model-view-table-resizable.layout-equation-view.gain-column-collapsed
+  .notebook-model-view-gain,
+.notebook-model-view-table-resizable.layout-equation-view.gain-column-collapsed
+  .notebook-model-view-gain-expanded-only {
+  display: none;
+}
+.notebook-model-view-table-resizable.layout-equation-view.role-column-collapsed
+  .notebook-model-view-kind,
+.notebook-model-view-table-resizable.layout-equation-view.role-column-collapsed
+  .notebook-model-view-role-expanded-only {
+  display: none;
+}
+.notebook-model-view-table-resizable.layout-equation-view .notebook-model-view-row:not(.notebook-model-view-row-header)
+  > .notebook-model-view-name {
+  grid-column: 1;
+}
+.notebook-model-view-table-resizable.layout-equation-view .notebook-model-view-row:not(.notebook-model-view-row-header)
+  > .notebook-model-view-expression {
+  grid-column: 2;
+}
+.notebook-model-view-table-resizable.layout-equation-view .notebook-model-view-row:not(.notebook-model-view-row-header)
+  > .notebook-model-view-description {
+  grid-column: 3;
+}
+.notebook-model-view-table-resizable.layout-equation-view .notebook-model-view-row:not(.notebook-model-view-row-header)
+  > .notebook-model-view-initial {
+  grid-column: 4;
+}
+.notebook-model-view-table-resizable.layout-equation-view .notebook-model-view-row:not(.notebook-model-view-row-header)
+  > .notebook-model-view-current {
+  grid-column: 5;
+}
+.notebook-model-view-table-resizable.layout-equation-view .notebook-model-view-row:not(.notebook-model-view-row-header)
+  > .notebook-model-view-gain {
+  grid-column: 6;
+}
+.notebook-model-view-table-resizable.layout-equation-view
+  .notebook-model-view-row:not(.notebook-model-view-row-header)
+  > .notebook-model-view-kind {
+  grid-column: 7;
+}
+.notebook-model-view-initial-header,
+.notebook-model-view-current-header,
+.notebook-model-view-gain-header,
+.notebook-model-view-role-header {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.25rem;
+  justify-content: flex-start;
+  min-width: 0;
+}
+.notebook-model-view-column-header-label {
+  min-width: 0;
+}
+.notebook-model-view-column-toggle {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--color-text-subtle);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  gap: 0.25rem;
+  line-height: 1;
+  padding: 0;
+}
+.notebook-model-view-column-toggle.is-static {
+  cursor: default;
+}
+.notebook-model-view-column-toggle:hover,
+.notebook-model-view-column-toggle:focus-visible {
+  color: var(--color-link-active);
+}
+.notebook-model-view-column-toggle-icon {
+  display: inline-block;
+  flex: 0 0 auto;
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
+  width: 1rem;
 }
 .notebook-model-view-table-resizable.layout-equation-view .notebook-model-view-row {
+  column-gap: 0.35rem;
   grid-template-columns:
     var(--eq-col-variable-width, 160px)
     var(--eq-col-expression-width, 280px)
     minmax(0, 1fr)
-    minmax(72px, 96px)
-    minmax(92px, 120px)
+    var(--eq-col-initial-width)
+    var(--eq-col-current-width)
+    var(--eq-col-gain-width)
     var(--eq-col-role-width, 4.25rem);
   padding: 0.38rem 0.35rem 0.38rem 0.75rem;
 }
@@ -130,7 +284,9 @@
     var(--eq-col-variable-width, 160px)
     var(--eq-col-expression-width, 280px)
     minmax(0, 1fr)
-    minmax(92px, 120px)
+    var(--eq-col-initial-width)
+    var(--eq-col-current-width)
+    var(--eq-col-gain-width)
     var(--eq-col-role-width, 4.25rem);
 }
 .notebook-model-view-table-resizable.layout-external-view
@@ -309,7 +465,8 @@
 .notebook-model-view-expression,
 .notebook-model-view-description,
 .notebook-model-view-initial,
-.notebook-model-view-current {
+.notebook-model-view-current,
+.notebook-model-view-gain {
   font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
   font-size: 0.82rem;
   line-height: 1.35;
@@ -343,6 +500,11 @@
   width: 100%;
 }
 .notebook-model-view-current {
+  color: var(--color-text-secondary);
+  text-align: right;
+  white-space: nowrap;
+}
+.notebook-model-view-gain {
   color: var(--color-text-secondary);
   text-align: right;
   white-space: nowrap;

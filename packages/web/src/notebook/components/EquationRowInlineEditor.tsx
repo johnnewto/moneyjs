@@ -11,6 +11,10 @@ import {
 } from "../../components/EquationGridEditor";
 import { VariableLabel } from "../../components/VariableLabel";
 import { formatNotebookCurrentValue } from "./NotebookCurrentValue";
+import {
+  computeEquationVariableGain,
+  formatEquationVariableGain
+} from "../../lib/equationVariableGain";
 import type { EquationRow } from "../../lib/editorModel";
 import { collectEquationDenominatorVariables } from "../../lib/equationDivisionAnalysis";
 import type { VariableDescriptions } from "../../lib/variableDescriptions";
@@ -456,7 +460,16 @@ export function NotebookEquationReadRow({
           equation.name,
           currentValues[equation.name.trim()],
           variableDescriptions,
-          variableUnitMetadata
+          variableUnitMetadata,
+          false
+        )}
+      </span>
+      <span className="notebook-model-view-gain" role="cell">
+        {formatEquationVariableGain(
+          computeEquationVariableGain(
+            currentValues[equation.name.trim()],
+            laggedCurrentValues?.[equation.name.trim()]
+          )
         )}
       </span>
       <span className="notebook-model-view-kind" role="cell">

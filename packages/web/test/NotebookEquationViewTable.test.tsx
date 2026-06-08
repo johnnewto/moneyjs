@@ -30,7 +30,10 @@ describe("NotebookEquationViewTable", () => {
             100
           </span>
           <span className="notebook-model-view-current" role="cell">
-            Y = 100
+            100
+          </span>
+          <span className="notebook-model-view-gain" role="cell">
+            —
           </span>
           <span className="notebook-model-view-kind" role="cell">
             Auto
@@ -52,6 +55,7 @@ describe("NotebookEquationViewTable", () => {
     expect(screen.getByRole("columnheader", { name: /description/i })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: /initial/i })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: /current/i })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /gain/i })).toBeInTheDocument();
   });
 
   it("renders resizable externals columns with description", () => {

@@ -32,4 +32,19 @@ describe("syncResizableModelViewTableVars", () => {
 
     expect(target.classList.contains("layout-external-view")).toBe(true);
   });
+
+  it("copies column collapse classes to the floating table shell", () => {
+    const source = document.createElement("div");
+    source.className =
+      "notebook-model-view-table-resizable layout-equation-view initial-column-collapsed current-column-collapsed gain-column-collapsed role-column-collapsed";
+
+    const target = document.createElement("div");
+
+    syncResizableModelViewTableVars(source, target);
+
+    expect(target.classList.contains("initial-column-collapsed")).toBe(true);
+    expect(target.classList.contains("current-column-collapsed")).toBe(true);
+    expect(target.classList.contains("gain-column-collapsed")).toBe(true);
+    expect(target.classList.contains("role-column-collapsed")).toBe(true);
+  });
 });

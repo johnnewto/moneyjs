@@ -8,6 +8,11 @@ import {
   type MouseEvent as ReactMouseEvent
 } from "react";
 
+import {
+  getEquationViewTrailingReservedWidthPx,
+  type EquationViewColumnCollapseState
+} from "./useEquationValueColumnsCollapse";
+
 export const EQUATION_GRID_VARIABLE_WIDTH_STORAGE_KEY = {
   embedded: "sfcr.equation-grid.variable-column-px.embedded",
   workspace: "sfcr.equation-grid.variable-column-px"
@@ -63,6 +68,7 @@ type ResizableEquationColumn = "variable" | "expression";
 interface UseEquationGridColumnResizeOptions {
   isEmbedded?: boolean;
   layout?: EquationColumnResizeLayout;
+  valueColumnCollapse?: EquationViewColumnCollapseState;
 }
 
 function layoutStorageSuffix(layout: EquationColumnResizeLayout): string {
@@ -129,15 +135,18 @@ function clampWidthPx(nextWidth: number, minWidthPx: number, maxWidthPx: number)
   return Math.min(Math.max(nextWidth, minWidthPx), maxWidthPx);
 }
 
-function getTrailingReservedWidthPx(layout: EquationColumnResizeLayout) {
+function getTrailingReservedWidthPx(
+  layout: EquationColumnResizeLayout,
+  valueColumnCollapse?: EquationViewColumnCollapseState
+) {
   if (layout === "equation-view") {
-    return (
-      MODEL_VIEW_CURRENT_WIDTH_PX +
-      EQUATION_VIEW_ROLE_WIDTH_PX +
-      MIN_TRAILING_WIDTH_PX +
-      0.6 * 3 * 16 +
-      0.75 * 16 +
-      0.35 * 16
+    return getEquationViewTrailingReservedWidthPx(
+      valueColumnCollapse ?? {
+        initialCollapsed: false,
+        currentCollapsed: false,
+        gainCollapsed: false,
+        roleCollapsed: false
+      }
     );
   }
 
@@ -168,7 +177,8 @@ function getMaxColumnWidthPx(
   minWidthPx: number,
   staticMaxWidthPx: number,
   otherColumnWidthPx: number,
-  layout: EquationColumnResizeLayout
+  layout: EquationColumnResizeLayout,
+  valueColumnCollapse?: EquationViewColumnCollapseState
 ) {
   if (shellWidth < 320) {
     return staticMaxWidthPx;
@@ -176,7 +186,9 @@ function getMaxColumnWidthPx(
 
   return Math.max(
     minWidthPx,
-    shellWidth - otherColumnWidthPx - getTrailingReservedWidthPx(layout)
+    shellWidth -
+      otherColumnWidthPx -
+      getTrailingReservedWidthPx(layout, valueColumnCollapse)
   );
 }
 
@@ -188,7 +200,8 @@ function buildResizeHandleStyle(leftPx: number): CSSProperties {
 
 export function useEquationGridColumnResize({
   isEmbedded = false,
-  layout = "equation-grid"
+  layout = "equation-grid",
+  valueColumnCollapse
 }: UseEquationGridColumnResizeOptions = {}) {
   const variableStorageKey =
     layout === "equation-grid" || layout === "equation-view"
@@ -282,7 +295,8 @@ export function useEquationGridColumnResize({
           minVariableWidthPx,
           staticMaxVariableWidthPx,
           expressionWidthPx,
-          layout
+          layout,
+          valueColumnCollapse
         )
       )
     );
@@ -294,7 +308,8 @@ export function useEquationGridColumnResize({
           minExpressionWidthPx,
           staticMaxExpressionWidthPx,
           variableWidthPx,
-          layout
+          layout,
+          valueColumnCollapse
         )
       )
     );
@@ -305,6 +320,7 @@ export function useEquationGridColumnResize({
     minVariableWidthPx,
     staticMaxExpressionWidthPx,
     staticMaxVariableWidthPx,
+    valueColumnCollapse,
     variableWidthPx
   ]);
 

@@ -2,6 +2,7 @@ import type { JSX, Ref } from "react";
 
 import { InitialValueEnableCheckbox } from "../../components/InitialValueEnableCheckbox";
 import type { useEquationGridColumnResize } from "../../hooks/useEquationGridColumnResize";
+import { EquationColumnToggle } from "./EquationValueColumnsToggle";
 
 export interface InitialValueEnableControls {
   allEnabled: boolean;
@@ -143,10 +144,26 @@ export function InitialValuesModelViewHeaderRowStatic({
 
 export function EquationsModelViewHeaderRow({
   columnResize,
-  headerRowRef
+  headerRowRef,
+  initialColumnCollapsed = false,
+  currentColumnCollapsed = false,
+  gainColumnCollapsed = false,
+  roleColumnCollapsed = false,
+  onToggleInitialColumn,
+  onToggleCurrentColumn,
+  onToggleGainColumn,
+  onToggleRoleColumn
 }: {
   columnResize: ModelViewColumnResize;
   headerRowRef?: Ref<HTMLDivElement>;
+  initialColumnCollapsed?: boolean;
+  currentColumnCollapsed?: boolean;
+  gainColumnCollapsed?: boolean;
+  roleColumnCollapsed?: boolean;
+  onToggleInitialColumn?(): void;
+  onToggleCurrentColumn?(): void;
+  onToggleGainColumn?(): void;
+  onToggleRoleColumn?(): void;
 }): JSX.Element {
   return (
     <div
@@ -161,10 +178,49 @@ export function EquationsModelViewHeaderRow({
         Expression
       </span>
       <span role="columnheader">Description</span>
-      <span role="columnheader">Initial</span>
-      <span role="columnheader">Current</span>
-      <span className="notebook-model-view-role" role="columnheader">
-        Role
+      <span className="notebook-model-view-initial-header" role="columnheader">
+        <EquationColumnToggle
+          column="Initial"
+          collapsed={initialColumnCollapsed}
+          onToggle={onToggleInitialColumn}
+        />
+        <span className="notebook-model-view-column-header-label notebook-model-view-initial-expanded-only">
+          Initial
+        </span>
+      </span>
+      <span className="notebook-model-view-current-header" role="columnheader">
+        <EquationColumnToggle
+          column="Current"
+          collapsed={currentColumnCollapsed}
+          onToggle={onToggleCurrentColumn}
+        />
+        <span className="notebook-model-view-column-header-label notebook-model-view-current-expanded-only">
+          Current
+        </span>
+      </span>
+      <span
+        className="notebook-model-view-gain-header"
+        role="columnheader"
+        title="d(x)/x'"
+      >
+        <EquationColumnToggle
+          column="Gain"
+          collapsed={gainColumnCollapsed}
+          onToggle={onToggleGainColumn}
+        />
+        <span className="notebook-model-view-column-header-label notebook-model-view-gain-expanded-only">
+          Gain
+        </span>
+      </span>
+      <span className="notebook-model-view-role-header notebook-model-view-role" role="columnheader">
+        <EquationColumnToggle
+          column="Role"
+          collapsed={roleColumnCollapsed}
+          onToggle={onToggleRoleColumn}
+        />
+        <span className="notebook-model-view-column-header-label notebook-model-view-role-expanded-only">
+          Role
+        </span>
       </span>
       <div {...columnResize.variableResizeHandleProps} />
       <div {...columnResize.expressionResizeHandleProps} />
@@ -178,10 +234,29 @@ export function EquationsModelViewHeaderRowStatic(): JSX.Element {
       <span role="columnheader">Variable</span>
       <span role="columnheader">Expression</span>
       <span role="columnheader">Description</span>
-      <span role="columnheader">Initial</span>
-      <span role="columnheader">Current</span>
-      <span className="notebook-model-view-role" role="columnheader">
-        Role
+      <span className="notebook-model-view-initial-header" role="columnheader">
+        <EquationColumnToggle column="Initial" collapsed={false} interactive={false} />
+        <span className="notebook-model-view-column-header-label notebook-model-view-initial-expanded-only">
+          Initial
+        </span>
+      </span>
+      <span className="notebook-model-view-current-header" role="columnheader">
+        <EquationColumnToggle column="Current" collapsed={false} interactive={false} />
+        <span className="notebook-model-view-column-header-label notebook-model-view-current-expanded-only">
+          Current
+        </span>
+      </span>
+      <span className="notebook-model-view-gain-header" role="columnheader" title="d(x)/x'">
+        <EquationColumnToggle column="Gain" collapsed={false} interactive={false} />
+        <span className="notebook-model-view-column-header-label notebook-model-view-gain-expanded-only">
+          Gain
+        </span>
+      </span>
+      <span className="notebook-model-view-role-header notebook-model-view-role" role="columnheader">
+        <EquationColumnToggle column="Role" collapsed={false} interactive={false} />
+        <span className="notebook-model-view-column-header-label notebook-model-view-role-expanded-only">
+          Role
+        </span>
       </span>
     </div>
   );

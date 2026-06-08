@@ -9,11 +9,23 @@ export function formatNotebookCurrentValue(
   name: string,
   value: number | undefined,
   variableDescriptions?: VariableDescriptions,
-  variableUnitMetadata?: ReturnType<typeof buildVariableUnitMetadata>
+  variableUnitMetadata?: ReturnType<typeof buildVariableUnitMetadata>,
+  includeVariablePrefix = true
 ): JSX.Element | string {
   const trimmedName = name.trim();
   if (!trimmedName) {
     return "";
+  }
+
+  if (!includeVariablePrefix) {
+    return (
+      <NumericValueText
+        fallback="--"
+        unitMeta={variableUnitMetadata?.get(trimmedName)}
+        value={value}
+        options={{ maximumFractionDigits: 6 }}
+      />
+    );
   }
 
   return (
