@@ -154,9 +154,7 @@ function resolveAutoColumnCollapse(
   return current;
 }
 
-export function useEquationValueColumnsCollapse(
-  shellRef: RefObject<HTMLElement | null>
-): {
+export type EquationValueColumnsCollapseControls = {
   initialColumnCollapsed: boolean;
   currentColumnCollapsed: boolean;
   gainColumnCollapsed: boolean;
@@ -165,7 +163,11 @@ export function useEquationValueColumnsCollapse(
   toggleCurrentColumn(): void;
   toggleGainColumn(): void;
   toggleRoleColumn(): void;
-} {
+};
+
+export function useEquationValueColumnsCollapse(
+  shellRef: RefObject<HTMLElement | null>
+): EquationValueColumnsCollapseControls {
   const [userInitialCollapsed, setUserInitialCollapsed] = useState<boolean | null>(() =>
     readStoredColumnCollapsed(EQUATION_INITIAL_COLUMN_COLLAPSED_STORAGE_KEY)
   );

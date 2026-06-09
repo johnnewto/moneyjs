@@ -228,32 +228,70 @@ export function EquationsModelViewHeaderRow({
   );
 }
 
-export function EquationsModelViewHeaderRowStatic(): JSX.Element {
+export function EquationsModelViewHeaderRowStatic({
+  initialColumnCollapsed = false,
+  currentColumnCollapsed = false,
+  gainColumnCollapsed = false,
+  roleColumnCollapsed = false,
+  onToggleInitialColumn,
+  onToggleCurrentColumn,
+  onToggleGainColumn,
+  onToggleRoleColumn
+}: {
+  initialColumnCollapsed?: boolean;
+  currentColumnCollapsed?: boolean;
+  gainColumnCollapsed?: boolean;
+  roleColumnCollapsed?: boolean;
+  onToggleInitialColumn?(): void;
+  onToggleCurrentColumn?(): void;
+  onToggleGainColumn?(): void;
+  onToggleRoleColumn?(): void;
+} = {}): JSX.Element {
   return (
     <div className="notebook-model-view-row notebook-model-view-row-header" role="row">
       <span role="columnheader">Variable</span>
       <span role="columnheader">Expression</span>
       <span role="columnheader">Description</span>
       <span className="notebook-model-view-initial-header" role="columnheader">
-        <EquationColumnToggle column="Initial" collapsed={false} interactive={false} />
+        <EquationColumnToggle
+          column="Initial"
+          collapsed={initialColumnCollapsed}
+          interactive={onToggleInitialColumn != null}
+          onToggle={onToggleInitialColumn}
+        />
         <span className="notebook-model-view-column-header-label notebook-model-view-initial-expanded-only">
           Initial
         </span>
       </span>
       <span className="notebook-model-view-current-header" role="columnheader">
-        <EquationColumnToggle column="Current" collapsed={false} interactive={false} />
+        <EquationColumnToggle
+          column="Current"
+          collapsed={currentColumnCollapsed}
+          interactive={onToggleCurrentColumn != null}
+          onToggle={onToggleCurrentColumn}
+        />
         <span className="notebook-model-view-column-header-label notebook-model-view-current-expanded-only">
           Current
         </span>
       </span>
       <span className="notebook-model-view-gain-header" role="columnheader" title="d(x)/x'">
-        <EquationColumnToggle column="Gain" collapsed={false} interactive={false} />
+        <EquationColumnToggle
+          column="Gain"
+          collapsed={gainColumnCollapsed}
+          interactive={onToggleGainColumn != null}
+          onToggle={onToggleGainColumn}
+        />
         <span className="notebook-model-view-column-header-label notebook-model-view-gain-expanded-only">
           Gain
         </span>
       </span>
       <span className="notebook-model-view-role-header notebook-model-view-role" role="columnheader">
-        <EquationColumnToggle column="Role" collapsed={false} interactive={false} />
+        <EquationColumnToggle
+          column="Role"
+          collapsed={roleColumnCollapsed}
+          interactive={onToggleRoleColumn != null}
+          onToggle={onToggleRoleColumn}
+        />
         <span className="notebook-model-view-column-header-label notebook-model-view-role-expanded-only">
           Role
         </span>

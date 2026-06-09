@@ -8,12 +8,17 @@ export function NotebookFloatingHeaderOverlay({
   anchor,
   horizontalScrollSourceRef,
   resizableTableSourceRef,
+  tableSyncKey,
+  interactive = false,
   children
 }: {
   visible: boolean;
   anchor: { left: number; width: number; top: number };
   horizontalScrollSourceRef: RefObject<HTMLElement | null>;
   resizableTableSourceRef?: RefObject<HTMLElement | null>;
+  /** Re-sync floating shell classes/vars when table layout state changes (e.g. column collapse). */
+  tableSyncKey?: string;
+  interactive?: boolean;
   children: ReactNode;
 }): JSX.Element | null {
   const floatingScrollRef = useRef<HTMLDivElement | null>(null);
@@ -46,7 +51,7 @@ export function NotebookFloatingHeaderOverlay({
     return () => {
       resizeObserver?.disconnect();
     };
-  }, [resizableTableSourceRef, visible]);
+  }, [resizableTableSourceRef, tableSyncKey, visible]);
 
   if (!visible) {
     return null;
@@ -60,7 +65,7 @@ export function NotebookFloatingHeaderOverlay({
         left: `${anchor.left}px`,
         width: `${anchor.width}px`
       }}
-      aria-hidden="true"
+      aria-hidden={interactive ? undefined : "true"}
     >
       <div ref={floatingScrollRef} className="notebook-floating-header-scroll">
         <div
@@ -70,7 +75,7 @@ export function NotebookFloatingHeaderOverlay({
               ? "notebook-model-view-table notebook-model-view-table-resizable"
               : "notebook-model-view-table"
           }
-          role="presentation"
+          role={interactive ? "table" : "presentation"}
         >
           {children}
         </div>

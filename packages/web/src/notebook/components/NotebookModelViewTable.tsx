@@ -4,7 +4,10 @@ import {
   useEquationGridColumnResize,
   type ModelViewTableLayout
 } from "../../hooks/useEquationGridColumnResize";
-import { useEquationValueColumnsCollapse } from "../../hooks/useEquationValueColumnsCollapse";
+import {
+  useEquationValueColumnsCollapse,
+  type EquationValueColumnsCollapseControls
+} from "../../hooks/useEquationValueColumnsCollapse";
 
 import {
   EquationsModelViewHeaderRow,
@@ -44,6 +47,7 @@ export function NotebookModelViewTable({
   initialValueEnableControls,
   layout,
   tableShellRef,
+  valueColumnsCollapse: valueColumnsCollapseProp,
   children
 }: {
   ariaLabel: string;
@@ -51,10 +55,15 @@ export function NotebookModelViewTable({
   initialValueEnableControls?: InitialValueEnableControls;
   layout: ModelViewTableLayout;
   tableShellRef?: Ref<HTMLDivElement>;
+  valueColumnsCollapse?: EquationValueColumnsCollapseControls;
   children: ReactNode;
 }) {
   const shellRef = useRef<HTMLDivElement | null>(null);
-  const valueColumnsCollapse = useEquationValueColumnsCollapse(shellRef);
+  const detachedShellRef = useRef<HTMLDivElement | null>(null);
+  const internalValueColumnsCollapse = useEquationValueColumnsCollapse(
+    valueColumnsCollapseProp ? detachedShellRef : shellRef
+  );
+  const valueColumnsCollapse = valueColumnsCollapseProp ?? internalValueColumnsCollapse;
   const isEquationView = layout === "equation-view";
   const columnResize = useEquationGridColumnResize({
     isEmbedded: true,
@@ -141,11 +150,13 @@ export function NotebookEquationViewTable({
   ariaLabel,
   headerRowRef,
   tableShellRef,
+  valueColumnsCollapse,
   children
 }: {
   ariaLabel: string;
   headerRowRef?: Ref<HTMLDivElement>;
   tableShellRef?: Ref<HTMLDivElement>;
+  valueColumnsCollapse?: EquationValueColumnsCollapseControls;
   children: ReactNode;
 }) {
   return (
@@ -154,6 +165,7 @@ export function NotebookEquationViewTable({
       headerRowRef={headerRowRef}
       layout="equation-view"
       tableShellRef={tableShellRef}
+      valueColumnsCollapse={valueColumnsCollapse}
     >
       {children}
     </NotebookModelViewTable>

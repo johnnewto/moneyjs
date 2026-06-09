@@ -33,6 +33,7 @@ import { buildRuntimeConfig, diagnoseBuildRuntime, validateEditorState, type Edi
 import { buildVariableDescriptions, type VariableDescriptions } from "../../lib/variableDescriptions";
 import { buildVariableUnitMetadata } from "../../lib/units";
 import { useDragScroll } from "../../hooks/useDragScroll";
+import { useEquationValueColumnsCollapse } from "../../hooks/useEquationValueColumnsCollapse";
 import { buildEditorStateFromSections, countModelSectionIssues, findEquationsCell, findExternalsCell, findInitialValuesCell, findSolverCell } from "../modelSections";
 import type { VariableInspectRequest } from "../../lib/variableInspect";
 import type { EquationsCell, ExternalsCell, ModelCell, NotebookCell, SolverCell } from "../types";
@@ -517,6 +518,7 @@ export function EquationsCellView({
   const sectionWrapRef = useRef<HTMLElement | null>(null);
   const headerRowRef = useRef<HTMLDivElement | null>(null);
   const tableShellRef = useRef<HTMLDivElement | null>(null);
+  const valueColumnsCollapse = useEquationValueColumnsCollapse(tableShellRef);
   const [draftEquations, setDraftEquations] = useState(cell.equations);
   const editor = buildEditorStateFromSections({
     equations: draftEquations,
@@ -772,6 +774,7 @@ export function EquationsCellView({
             ariaLabel="Model equations"
             headerRowRef={headerRowRef}
             tableShellRef={tableShellRef}
+            valueColumnsCollapse={valueColumnsCollapse}
           >
             {cell.equations.map((row, index) => {
               if (isRowComment(row)) {
@@ -941,8 +944,26 @@ export function EquationsCellView({
         anchor={floatingHeaderAnchor}
         horizontalScrollSourceRef={sectionWrapRef}
         resizableTableSourceRef={tableShellRef}
+        tableSyncKey={[
+          valueColumnsCollapse.initialColumnCollapsed,
+          valueColumnsCollapse.currentColumnCollapsed,
+          valueColumnsCollapse.gainColumnCollapsed,
+          valueColumnsCollapse.roleColumnCollapsed
+        ]
+          .map(String)
+          .join(":")}
+        interactive
       >
-        <EquationsModelViewHeaderRowStatic />
+        <EquationsModelViewHeaderRowStatic
+          initialColumnCollapsed={valueColumnsCollapse.initialColumnCollapsed}
+          currentColumnCollapsed={valueColumnsCollapse.currentColumnCollapsed}
+          gainColumnCollapsed={valueColumnsCollapse.gainColumnCollapsed}
+          roleColumnCollapsed={valueColumnsCollapse.roleColumnCollapsed}
+          onToggleInitialColumn={valueColumnsCollapse.toggleInitialColumn}
+          onToggleCurrentColumn={valueColumnsCollapse.toggleCurrentColumn}
+          onToggleGainColumn={valueColumnsCollapse.toggleGainColumn}
+          onToggleRoleColumn={valueColumnsCollapse.toggleRoleColumn}
+        />
       </NotebookFloatingHeaderOverlay>
       <VariableRenameDialog
         impact={inlineEdit.renameReferenceCount}
