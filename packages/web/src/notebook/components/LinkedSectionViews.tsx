@@ -16,13 +16,19 @@ import { SolverPanel } from "../../components/SolverPanel";
 import type { EditorState } from "../../lib/editorModel";
 import { summarizeInitialValueEnableState, withInitialValueEnabled } from "../../lib/initialValueEnable";
 import {
+  buildInitialValueExternalOverlapSummary,
+  formatInitialValueExternalOverlapRemovalMessage,
+  removeInitialValuesOverlappingExternals
+} from "../../lib/initialValueExternalOverlap";
+import {
   applyInitialValueRecommendations,
   buildInitialValueRecommendations,
   formatInitialValueRecommendationMessage,
   type InitialValueRecommendationCriteria
 } from "../initialValueRecommendations";
 import { InitialValueEnableDialog } from "./InitialValueEnableDialog";
-import { findEquationsCell, findInitialValuesCell } from "../modelSections";
+import { RemoveInitialValueExternalOverlapDialog } from "./RemoveInitialValueExternalOverlapDialog";
+import { findEquationsCell, findExternalsCell, findInitialValuesCell } from "../modelSections";
 import { buildVariableDescriptions, type VariableDescriptions } from "../../lib/variableDescriptions";
 import { buildVariableUnitMetadata } from "../../lib/units";
 import { useDragScroll } from "../../hooks/useDragScroll";
@@ -686,10 +692,12 @@ export function InitialValuesCellView({
   const [batchValidationError, setBatchValidationError] = useState<string | null>(null);
   const [recommendationMessage, setRecommendationMessage] = useState<string | null>(null);
   const [enableDialogOpen, setEnableDialogOpen] = useState(false);
+  const [removeOverlapDialogOpen, setRemoveOverlapDialogOpen] = useState(false);
   const hasDraftEdits =
     JSON.stringify(draftInitialValues) !== JSON.stringify(cell.initialValues);
   const floatingEnabled = cell.collapsed !== true && !isEditingInitialValues && viewportRoot != null;
   const modelEquations = findEquationsCell(cells, cell.modelId)?.equations ?? editor.equations;
+  const modelExternals = findExternalsCell(cells, cell.modelId)?.externals ?? editor.externals;
   const { visible: floatingHeaderVisible, anchor: floatingHeaderAnchor } =
     useNotebookFloatingHeaderRow({
       scrollRoot: viewportRoot,
@@ -717,6 +725,20 @@ export function InitialValuesCellView({
 
   function handleOpenEnableDialog(): void {
     setEnableDialogOpen(true);
+  }
+
+  function handleOpenRemoveOverlapDialog(): void {
+    setRemoveOverlapDialogOpen(true);
+  }
+
+  function handleConfirmRemoveExternalOverlaps(
+    summary: ReturnType<typeof buildInitialValueExternalOverlapSummary>
+  ): void {
+    setDraftInitialValues(
+      removeInitialValuesOverlappingExternals(draftInitialValues, modelExternals)
+    );
+    setRecommendationMessage(formatInitialValueExternalOverlapRemovalMessage(summary));
+    setRemoveOverlapDialogOpen(false);
   }
 
   function handleConfirmEnableRecommended(criteria: InitialValueRecommendationCriteria): void {
@@ -883,12 +905,14 @@ export function InitialValuesCellView({
           ) : null}
           <InitialValuesEditor
             currentValues={currentValues}
+            externals={modelExternals}
             highlightedVariable={highlightedVariable}
             initialValues={draftInitialValues}
             isEmbedded
             issues={issueMap}
             onChange={setDraftInitialValues}
             onEnableRecommended={handleOpenEnableDialog}
+            onRemoveExternalOverlaps={handleOpenRemoveOverlapDialog}
             recommendationMessage={recommendationMessage}
             onSelectVariable={(selectedVariable) =>
               onVariableInspectRequest({
@@ -1094,6 +1118,13 @@ export function InitialValuesCellView({
         isOpen={enableDialogOpen}
         onApply={handleConfirmEnableRecommended}
         onCancel={() => setEnableDialogOpen(false)}
+      />
+      <RemoveInitialValueExternalOverlapDialog
+        externals={modelExternals}
+        initialValues={draftInitialValues}
+        isOpen={removeOverlapDialogOpen}
+        onApply={handleConfirmRemoveExternalOverlaps}
+        onCancel={() => setRemoveOverlapDialogOpen(false)}
       />
     </div>
   );

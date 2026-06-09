@@ -104,4 +104,39 @@ describe("InitialValuesEditor", () => {
     await user.click(screen.getByRole("checkbox", { name: /enable or disable all initial values/i }));
     expect(latestRows.every((row) => row.enabled === false)).toBe(true);
   });
+
+  it("shows remove external overlaps when externals are provided", () => {
+    render(
+      <InitialValuesEditor
+        externals={[{ id: "ext-y", name: "Y", kind: "constant", valueText: "0" }]}
+        initialValues={[
+          { id: "init-y", name: "Y", valueText: "100" },
+          { id: "init-h", name: "H", valueText: "50" }
+        ]}
+        issues={{}}
+        onChange={() => undefined}
+        onRemoveExternalOverlaps={() => undefined}
+      />
+    );
+
+    expect(
+      screen.getByRole("button", { name: /remove external overlaps/i })
+    ).toBeEnabled();
+  });
+
+  it("disables remove external overlaps when there are no overlaps", () => {
+    render(
+      <InitialValuesEditor
+        externals={[{ id: "ext-alpha", name: "alpha1", kind: "constant", valueText: "0.8" }]}
+        initialValues={[{ id: "init-h", name: "H", valueText: "50" }]}
+        issues={{}}
+        onChange={() => undefined}
+        onRemoveExternalOverlaps={() => undefined}
+      />
+    );
+
+    expect(
+      screen.getByRole("button", { name: /remove external overlaps/i })
+    ).toBeDisabled();
+  });
 });

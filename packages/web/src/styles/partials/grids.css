@@ -54,6 +54,30 @@
   line-height: 1.35;
   margin: 0;
 }
+.initial-value-overlap-dialog-list {
+  display: grid;
+  gap: 0.55rem;
+  list-style: none;
+  margin: 0.65rem 0 0;
+  max-height: 14rem;
+  overflow: auto;
+  padding: 0;
+}
+.initial-value-overlap-dialog-list li {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.55rem 0.65rem;
+}
+.initial-value-overlap-dialog-list li strong {
+  font-size: 0.92rem;
+}
+.initial-value-overlap-dialog-list li span {
+  color: var(--color-text-secondary);
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
 .grid-editor-footer,
 .equation-grid-footer {
   display: flex;

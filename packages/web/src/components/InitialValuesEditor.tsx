@@ -3,12 +3,14 @@ import {
   initialValueRowsOnly,
   isInitialValueEnabled,
   isRowComment,
+  type ExternalListItem,
   type InitialValueListItem
 } from "@sfcr/notebook-core";
 
 import { InitialValueEnableCheckbox } from "./InitialValueEnableCheckbox";
 import type { InitialValueRow } from "../lib/editorModel";
 import { summarizeInitialValueEnableState, withInitialValueEnabled } from "../lib/initialValueEnable";
+import { buildInitialValueExternalOverlapSummary } from "../lib/initialValueExternalOverlap";
 import { NotebookRowComment } from "../notebook/components/NotebookRowComment";
 import { newRowComment, patchCommentInRows } from "../notebook/rowCommentHelpers";
 import type { VariableUnitMetadata } from "../lib/unitMeta";
@@ -28,12 +30,14 @@ import {
 
 interface InitialValuesEditorProps {
   currentValues?: Record<string, number | undefined>;
+  externals?: ExternalListItem[];
   highlightedVariable?: string | null;
   isEmbedded?: boolean;
   initialValues: InitialValueListItem[];
   issues: Record<string, string | undefined>;
   onChange(next: InitialValueListItem[]): void;
   onEnableRecommended?(): void;
+  onRemoveExternalOverlaps?(): void;
   onSelectVariable?(variableName: string): void;
   recommendationMessage?: string | null;
   showHeading?: boolean;
@@ -43,12 +47,14 @@ interface InitialValuesEditorProps {
 
 export function InitialValuesEditor({
   currentValues = {},
+  externals,
   highlightedVariable = null,
   isEmbedded = false,
   initialValues,
   issues,
   onChange,
   onEnableRecommended,
+  onRemoveExternalOverlaps,
   onSelectVariable,
   recommendationMessage = null,
   showHeading = true,
@@ -62,6 +68,10 @@ export function InitialValuesEditor({
   });
   const dataRows = initialValueRowsOnly(initialValues);
   const { allEnabled, someEnabled } = summarizeInitialValueEnableState(dataRows);
+  const externalOverlapCount =
+    externals && onRemoveExternalOverlaps
+      ? buildInitialValueExternalOverlapSummary(initialValues, externals).overlaps.length
+      : 0;
 
   return (
     <section className={isEmbedded ? "grid-editor-embedded" : "editor-panel"}>
@@ -219,6 +229,17 @@ export function InitialValuesEditor({
             title="Enable rows for lagged variables, stocks, denominators, and balance-sheet entries"
           >
             Enable needed
+          </button>
+        ) : null}
+        {onRemoveExternalOverlaps && externals ? (
+          <button
+            type="button"
+            className="secondary-button"
+            disabled={externalOverlapCount === 0}
+            onClick={onRemoveExternalOverlaps}
+            title="Remove initial value rows whose names match an external parameter"
+          >
+            Remove external overlaps
           </button>
         ) : null}
         <button type="button" onClick={() => onChange([...initialValues, newInitialValueRow()])}>
