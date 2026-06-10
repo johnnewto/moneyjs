@@ -216,6 +216,8 @@ import {
   resolvePartialRunMaxPeriodIndex
 } from "../lib/partialRunResult";
 import type { MatrixGraphRequest } from "./matrixSliceGraph";
+import { NotebookTourMenu } from "./NotebookTourMenu";
+import { maybeStartNotebookTourOnFirstLoad, startNotebookTour } from "./notebookTour";
 
 type NotebookRailTab =
   | "editor"
@@ -662,6 +664,7 @@ export function NotebookApp() {
     listNotebookVariants()
   );
   const [isVariantManagerOpen, setIsVariantManagerOpen] = useState(false);
+  const [isTourMenuOpen, setIsTourMenuOpen] = useState(false);
   const [uiMessage, setUiMessage] = useState<string | null>(null);
   const [sourceFormat, setSourceFormat] = useState<NotebookSourceFormat>("yaml");
   const [importText, setImportText] = useState(() =>
@@ -1404,6 +1407,23 @@ export function NotebookApp() {
   useEffect(() => {
     setSelectedPeriodIndex((current) => Math.min(current, maxResultPeriodIndex));
   }, [maxResultPeriodIndex]);
+
+  const notebookTourHandlers = useMemo(
+    () => ({
+      openRailTab: setActiveRailTab,
+      openHelpPanel: () => {
+        setSelectedHelpTopicId("introduction");
+        setHelpContext(null);
+        setIsHelpContentsVisible(true);
+        setActiveRailTab("help");
+      }
+    }),
+    []
+  );
+
+  useEffect(() => {
+    maybeStartNotebookTourOnFirstLoad(notebookTourHandlers);
+  }, [notebookTourHandlers]);
 
   useEffect(() => {
     if (!isNotebookCommandTrayOpen) {
@@ -3224,6 +3244,15 @@ export function NotebookApp() {
     [notebookDocument.cells, pinnedCellId]
   );
 
+  const firstMarkdownCellId = useMemo(
+    () => notebookDocument.cells.find((entry) => entry.type === "markdown")?.id ?? null,
+    [notebookDocument.cells]
+  );
+
+  const handleRunTourRequest = useCallback(() => {
+    setIsTourMenuOpen(true);
+  }, []);
+
   const buildNotebookCellViewProps = useCallback(
     (cell: (typeof notebookDocument.cells)[number], overrides: Partial<NotebookCellViewProps> = {}) =>
       ({
@@ -3261,11 +3290,15 @@ export function NotebookApp() {
         selectedCellId,
         selectedPeriodIndex,
         viewportRoot: mainColumnElement,
+        onRunTourRequest: handleRunTourRequest,
+        showRunTourButton: cell.id === firstMarkdownCellId,
         ...overrides
       }) satisfies NotebookCellViewProps,
     [
       activeEditorCellId,
       deleteCell,
+      firstMarkdownCellId,
+      handleRunTourRequest,
       getCurrentValueMapForModelRef,
       getLaggedValueMapForModelRef,
       graphExpressionHighlight,
@@ -3452,7 +3485,12 @@ export function NotebookApp() {
                   >
                     Redo
                   </button>
-                  <button type="button" className="notebook-run-button" onClick={() => void handleRunAll()}>
+                  <button
+                    type="button"
+                    id="notebook-run-all"
+                    className="notebook-run-button"
+                    onClick={() => void handleRunAll()}
+                  >
                     Run all
                   </button>
                   <button
@@ -3502,18 +3540,17 @@ export function NotebookApp() {
                   >
                     AI guide
                   </a>
-                  <a
-                    className="notebook-toolbar-link notebook-run-button notebook-action-desktop"
-                    href="#/workspace"
+                  <button
+                    type="button"
+                    id="notebook-tour-launcher"
+                    className="notebook-run-button notebook-tour-launcher"
+                    aria-label="Choose tour step"
+                    aria-haspopup="dialog"
+                    title="Tour"
+                    onClick={() => setIsTourMenuOpen(true)}
                   >
-                    Workspace
-                  </a>
-                  <a
-                    className="notebook-toolbar-link notebook-run-button notebook-action-desktop"
-                    href="#/chat-builder"
-                  >
-                    Chat builder
-                  </a>
+                    Tour
+                  </button>
                 </div>
               </div>
             </section>
@@ -3528,6 +3565,7 @@ export function NotebookApp() {
             }}
           >
             <section
+              id="NotebookCanvas"
               className={`notebook-canvas${
                 activeEditorCellId ? " notebook-has-active-editor" : ""
               }`}
@@ -3561,6 +3599,7 @@ export function NotebookApp() {
                 <label className="notebook-rail-template-picker">
                   <span className="notebook-rail-template-label">Notebook template</span>
                   <select
+                    id="notebook-template-picker"
                     aria-label="Notebook template"
                     value={notebookPickerValue}
                     onChange={(event) => handleNotebookPickerChange(event.target.value)}
@@ -3616,9 +3655,15 @@ export function NotebookApp() {
               </div>
             </div>
 
-            <div className="notebook-rail-tabs" role="tablist" aria-label="Notebook sidebar panels">
+            <div
+              id="notebook-rail-tabs"
+              className="notebook-rail-tabs"
+              role="tablist"
+              aria-label="Notebook sidebar panels"
+            >
               <button
                 type="button"
+                id="notebook-rail-tab-contents"
                 role="tab"
                 {...{ "aria-selected": activeRailTab === "contents" }}
                 className={`notebook-rail-tab${activeRailTab === "contents" ? " is-active" : ""}`}
@@ -3628,6 +3673,7 @@ export function NotebookApp() {
               </button>
               <button
                 type="button"
+                id="notebook-rail-tab-variables"
                 role="tab"
                 {...{ "aria-selected": activeRailTab === "variables" }}
                 className={`notebook-rail-tab${activeRailTab === "variables" ? " is-active" : ""}`}
@@ -3637,6 +3683,7 @@ export function NotebookApp() {
               </button>
               <button
                 type="button"
+                id="notebook-rail-tab-inspect"
                 role="tab"
                 {...{ "aria-selected": activeRailTab === "inspect" }}
                 className={`notebook-rail-tab${activeRailTab === "inspect" ? " is-active" : ""}`}
@@ -3646,6 +3693,7 @@ export function NotebookApp() {
               </button>
               <button
                 type="button"
+                id="notebook-rail-tab-graph"
                 role="tab"
                 {...{ "aria-selected": activeRailTab === "graph" }}
                 className={`notebook-rail-tab${activeRailTab === "graph" ? " is-active" : ""}`}
@@ -3664,6 +3712,7 @@ export function NotebookApp() {
               </button>
               <button
                 type="button"
+                id="notebook-rail-tab-help"
                 role="tab"
                 {...{ "aria-selected": activeRailTab === "help" }}
                 className={`notebook-rail-tab${activeRailTab === "help" ? " is-active" : ""}`}
@@ -3904,7 +3953,11 @@ export function NotebookApp() {
           ) : null}
 
           {activeRailTab === "help" ? (
-            <section className="notebook-sidebar-panel notebook-help-panel" role="tabpanel">
+            <section
+              id="notebook-help-panel"
+              className="notebook-sidebar-panel notebook-help-panel"
+              role="tabpanel"
+            >
               <div className="panel-header">
                 <div>
                   <h2>{selectedHelpTopic.title}</h2>
@@ -3919,6 +3972,15 @@ export function NotebookApp() {
                   onClick={() => setIsHelpContentsVisible((current) => !current)}
                 >
                   More Help
+                </button>
+              </div>
+              <div className="notebook-help-tour-row">
+                <button
+                  type="button"
+                  className="notebook-markdown-tour-button"
+                  onClick={handleRunTourRequest}
+                >
+                  Run Tour
                 </button>
               </div>
               {isHelpContentsVisible ? (
@@ -4274,6 +4336,15 @@ export function NotebookApp() {
         onOpenVariant={handleOpenVariant}
         onRename={handleRenameVariant}
       />
+      {isTourMenuOpen ? (
+        <NotebookTourMenu
+          onClose={() => setIsTourMenuOpen(false)}
+          onSelectStep={(startIndex) => {
+            setIsTourMenuOpen(false);
+            startNotebookTour(notebookTourHandlers, startIndex);
+          }}
+        />
+      ) : null}
       {showStabilityRawPanel ? (
         <StabilityRawDataDialog
           display={stabilityDisplay}

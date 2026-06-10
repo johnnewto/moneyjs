@@ -133,12 +133,14 @@ export function NotebookLinkedEditorHeader({
   children,
   descriptionContent,
   title,
+  titleRowTrailing,
   typeLabel
 }: {
   actions: ReactNode;
   children?: ReactNode;
   descriptionContent?: ReactNode;
   title: string;
+  titleRowTrailing?: ReactNode;
   typeLabel: string;
 }) {
   return (
@@ -149,6 +151,9 @@ export function NotebookLinkedEditorHeader({
           <div className="notebook-linked-editor-titlecontent">
             <div className="notebook-linked-editor-titlerow">
               <h2>{title}</h2>
+              {titleRowTrailing ? (
+                <div className="notebook-linked-editor-titlerow-trailing">{titleRowTrailing}</div>
+              ) : null}
             </div>
             {descriptionContent ? (
               <div className="notebook-cell-description-block">{descriptionContent}</div>

@@ -408,7 +408,11 @@ export function VariableCatalogPanel({
   );
 
   return (
-    <section className="control-panel variable-catalog-panel notebook-sidebar-panel" role="tabpanel">
+    <section
+      id="notebook-variables-panel"
+      className="control-panel variable-catalog-panel notebook-sidebar-panel"
+      role="tabpanel"
+    >
       <VariableCatalogViewToggle viewMode={viewMode} onViewModeChange={setViewMode} />
 
       {viewMode === "parameters" ? (
@@ -624,7 +628,7 @@ function VariableCatalogTableShell<T extends VariableCatalogTableRow>({
 
   return (
     <CatalogTableScrollShell handleTableKeyDown={handleTableKeyDown} tableShellRef={tableShellRef}>
-      <table className="variable-catalog-table">
+      <table id="notebook-variable-catalog-table" className="variable-catalog-table">
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>

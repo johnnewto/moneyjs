@@ -74,7 +74,7 @@ export function VariableInspector({
   variableUnitMetadata
 }: VariableInspectorProps) {
   return (
-    <section className="control-panel variable-inspector-panel">
+    <section id="notebook-inspect-panel" className="control-panel variable-inspector-panel" role="tabpanel">
       {stability ? (
         <StabilityInspectorSection
           display={stability.display}

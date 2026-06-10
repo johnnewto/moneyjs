@@ -837,6 +837,10 @@
   background: rgba(219, 234, 254, 0.72);
   border-color: rgba(37, 99, 235, 0.42);
 }
+.notebook-help-tour-row {
+  display: flex;
+  justify-content: flex-start;
+}
 .notebook-help-topic-nav {
   display: grid;
   gap: 0.35rem;
@@ -1356,6 +1360,91 @@
   box-shadow: none;
   color: var(--color-text-subtle);
   cursor: wait;
+}
+.notebook-tour-launcher {
+  font-weight: 600;
+}
+.notebook-tour-menu {
+  display: grid;
+  gap: 0.75rem;
+  max-height: min(80vh, 42rem);
+  max-width: min(28rem, 100%);
+  overflow: hidden;
+}
+.notebook-tour-menu-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+.notebook-tour-menu-steps {
+  display: grid;
+  gap: 0.35rem;
+  list-style: none;
+  margin: 0;
+  max-height: min(52vh, 28rem);
+  overflow: auto;
+  padding: 0;
+}
+.notebook-tour-menu-step-button {
+  align-items: center;
+  background: rgba(248, 250, 252, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 6px;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: 0.55rem;
+  padding: 0.45rem 0.55rem;
+  text-align: left;
+  width: 100%;
+}
+.notebook-tour-menu-step-button:hover,
+.notebook-tour-menu-step-button:focus-visible {
+  background: #ffffff;
+  border-color: rgba(71, 85, 105, 0.34);
+  outline: none;
+}
+.notebook-tour-menu-step-index {
+  color: var(--color-text-subtle);
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+  font-weight: 700;
+  min-width: 1.4rem;
+}
+.notebook-tour-menu-step-title {
+  flex: 1 1 auto;
+  font-size: 0.88rem;
+}
+.notebook-markdown-tour-button {
+  background: linear-gradient(180deg, #0f766e, #0d9488);
+  border: 1px solid rgba(15, 118, 110, 0.45);
+  border-radius: 999px;
+  box-shadow: 0 8px 18px rgba(15, 118, 110, 0.2);
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  padding: 0.2rem 1.3rem;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    background-color 140ms ease;
+  white-space: nowrap;
+}
+.notebook-markdown-tour-button:hover,
+.notebook-markdown-tour-button:focus-visible {
+  background: linear-gradient(180deg, #0d9488, #14b8a6);
+  box-shadow: 0 10px 22px rgba(15, 118, 110, 0.26);
+  outline: 2px solid rgba(45, 212, 191, 0.45);
+  outline-offset: 2px;
+  transform: translateY(-1px);
+}
+.notebook-markdown-tour-button:active {
+  box-shadow: 0 5px 12px rgba(15, 118, 110, 0.18);
+  transform: translateY(0);
 }
 .notebook-markdown {
   color: #334155;

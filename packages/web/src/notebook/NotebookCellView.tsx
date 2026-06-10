@@ -213,6 +213,8 @@ export interface NotebookCellViewProps {
   runner: ReturnType<typeof useNotebookRunner>;
   selectedCellId: string | null;
   selectedPeriodIndex: number;
+  onRunTourRequest?(): void;
+  showRunTourButton?: boolean;
 }
 
 function NotebookCellViewComponent({
@@ -247,7 +249,9 @@ function NotebookCellViewComponent({
   onTestBlockConvergence,
   blockConvergenceComputing = false,
   highlightedVariable = null,
-  graphSliceHighlight = null
+  graphSliceHighlight = null,
+  onRunTourRequest,
+  showRunTourButton = false
 }: NotebookCellViewProps) {
   const status = runner.status[cell.id] ?? "idle";
   const error = runner.errors[cell.id];
@@ -957,6 +961,17 @@ function NotebookCellViewComponent({
               ) : null
             }
             title={cell.title}
+            titleRowTrailing={
+              showRunTourButton && onRunTourRequest && !isEditingSource ? (
+                <button
+                  type="button"
+                  className="notebook-markdown-tour-button"
+                  onClick={onRunTourRequest}
+                >
+                  Run Tour
+                </button>
+              ) : null
+            }
             typeLabel={cell.type}
           />
         </div>

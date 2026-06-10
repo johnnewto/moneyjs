@@ -59,7 +59,7 @@ export function MatrixGraphRailPanel({
 }) {
   if (charts.length === 0) {
     return (
-      <section className="notebook-sidebar-panel notebook-graph-rail-panel" role="tabpanel">
+      <section id="notebook-graph-panel" className="notebook-sidebar-panel notebook-graph-rail-panel" role="tabpanel">
         <div className="panel-header">
           <h2>Graph</h2>
           <p className="panel-subtitle">
@@ -72,7 +72,7 @@ export function MatrixGraphRailPanel({
   }
 
   return (
-    <section className="notebook-sidebar-panel notebook-graph-rail-panel" role="tabpanel">
+    <section id="notebook-graph-panel" className="notebook-sidebar-panel notebook-graph-rail-panel" role="tabpanel">
       <div className="notebook-graph-rail-chart-stack">
         {charts.map((chart) => {
           const legendMode = chart.legendMode ?? "expression";

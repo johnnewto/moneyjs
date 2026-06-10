@@ -616,10 +616,16 @@
 }
 .notebook-linked-editor-titlerow {
   align-items: center;
-  display: inline-flex;
+  display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
+  justify-content: space-between;
   min-width: 0;
+  width: 100%;
+}
+.notebook-linked-editor-titlerow-trailing {
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 .notebook-linked-editor-titleline h2 {
   font-size: 1rem;
