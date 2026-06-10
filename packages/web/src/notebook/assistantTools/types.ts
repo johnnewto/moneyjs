@@ -11,7 +11,7 @@ interface NotebookAssistantToolRegistryEntry {
 }
 
 const EQUATION_ROLE_SCHEMA = "'accumulation' | 'identity' | 'target' | 'definition' | 'behavioral'";
-const UNIT_META_SCHEMA = "{ stockFlow?: 'stock' | 'flow' | 'aux', signature?: { money?: number, items?: number, time?: number }, displayUnit?: string }";
+const UNIT_META_SCHEMA = "{ stockFlow?: 'stock' | 'flow' | 'aux', signature?: { money?: number, items?: number, mass?: number, energy?: number, pp?: number, carbon?: number, time?: number }, displayUnit?: string }";
 
 const NOTEBOOK_EQUATION_EXPRESSION_SYNTAX = [
   "Use RHS expressions in equation/expression fields, e.g. YD - C.",

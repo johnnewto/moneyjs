@@ -30,7 +30,7 @@ describe("matrixUnitValidation", () => {
     expect(diagnostics).toEqual([
       expect.objectContaining({
         severity: "error",
-        message: expect.stringContaining("expects $ or items")
+        message: expect.stringContaining("expects $, items, kg, J, pp, °C, or yr")
       })
     ]);
     expect(hasMatrixEntryUnitErrors(diagnostics)).toBe(true);
@@ -47,7 +47,7 @@ describe("matrixUnitValidation", () => {
     expect(diagnostics).toEqual([
       expect.objectContaining({
         severity: "error",
-        message: expect.stringContaining("expects $/yr or items/yr")
+        message: expect.stringContaining("expects $/yr, items/yr, kg/yr, J/yr, pp/yr, or °C/yr")
       })
     ]);
   });

@@ -141,7 +141,7 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .equation-unit-picker-panel {
-  min-width: 14rem;
+  min-width: 24rem;
 }
 .equation-unit-picker-header {
   display: flex;

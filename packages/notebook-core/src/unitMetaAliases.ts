@@ -1,7 +1,7 @@
-export type BaseDimension = "money" | "items" | "time";
+export type BaseDimension = "money" | "items" | "mass" | "energy" | "pp" | "carbon" | "time";
 export type StockFlowKind = "stock" | "flow" | "aux";
 export type UnitSignature = Partial<Record<BaseDimension, number>>;
-type UnitSignatureAlias = "$" | "yr";
+type UnitSignatureAlias = "$" | "kg" | "J" | "°C" | "yr";
 type UnitSignatureInput = UnitSignature & Partial<Record<UnitSignatureAlias, number>>;
 
 export interface UnitMeta {
@@ -23,7 +23,7 @@ interface SerializedUnitMeta {
   units?: Partial<Record<BaseDimension | UnitSignatureAlias, number>>;
 }
 
-const DIMENSION_ORDER: BaseDimension[] = ["money", "items", "time"];
+const DIMENSION_ORDER: BaseDimension[] = ["money", "items", "mass", "energy", "pp", "carbon", "time"];
 
 export function normalizeSignature(signature?: UnitSignature): UnitSignature {
   const normalized: UnitSignature = {};
@@ -98,6 +98,10 @@ export function serializeUnitMetaAliases(unitMeta?: UnitMeta): SerializedUnitMet
   const signature = normalizeSignature(normalized.signature);
   const money = signature.money;
   const items = signature.items;
+  const mass = signature.mass;
+  const energy = signature.energy;
+  const pp = signature.pp;
+  const carbon = signature.carbon;
   const time = signature.time;
 
   if (money !== undefined) {
@@ -105,6 +109,18 @@ export function serializeUnitMetaAliases(unitMeta?: UnitMeta): SerializedUnitMet
   }
   if (items !== undefined) {
     units.items = items;
+  }
+  if (mass !== undefined) {
+    units.kg = mass;
+  }
+  if (energy !== undefined) {
+    units.J = energy;
+  }
+  if (pp !== undefined) {
+    units.pp = pp;
+  }
+  if (carbon !== undefined) {
+    units["°C"] = carbon;
   }
   if (time !== undefined) {
     units.yr = time;
@@ -129,6 +145,10 @@ function normalizeSignatureInput(
 
     const money = signature.money ?? signature["$"];
     const items = signature.items;
+    const mass = signature.mass ?? signature.kg;
+    const energy = signature.energy ?? signature.J;
+    const pp = signature.pp;
+    const carbon = signature.carbon ?? signature["°C"];
     const time = signature.time ?? signature.yr;
 
     if (money !== undefined) {
@@ -136,6 +156,18 @@ function normalizeSignatureInput(
     }
     if (items !== undefined) {
       merged.items = items;
+    }
+    if (mass !== undefined) {
+      merged.mass = mass;
+    }
+    if (energy !== undefined) {
+      merged.energy = energy;
+    }
+    if (pp !== undefined) {
+      merged.pp = pp;
+    }
+    if (carbon !== undefined) {
+      merged.carbon = carbon;
     }
     if (time !== undefined) {
       merged.time = time;

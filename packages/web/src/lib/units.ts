@@ -692,6 +692,10 @@ function inferFunctionUnits(
       const sqrtSignature = normalizeSignature({
         money: (argument.signature.money ?? 0) / 2,
         items: (argument.signature.items ?? 0) / 2,
+        mass: (argument.signature.mass ?? 0) / 2,
+        energy: (argument.signature.energy ?? 0) / 2,
+        pp: (argument.signature.pp ?? 0) / 2,
+        carbon: (argument.signature.carbon ?? 0) / 2,
         time: (argument.signature.time ?? 0) / 2
       });
 
@@ -729,7 +733,11 @@ function isInverseTimeOnlySignature(signature?: UnitSignature): boolean {
   return (
     (normalized.time ?? 0) === -1 &&
     normalized.money == null &&
-    normalized.items == null
+    normalized.items == null &&
+    normalized.mass == null &&
+    normalized.energy == null &&
+    normalized.pp == null &&
+    normalized.carbon == null
   );
 }
 

@@ -2,10 +2,10 @@ import { isDerivativeBalanceTarget } from "@sfcr/core";
 
 import type { VariableDescriptions } from "./variableDescriptions";
 
-export type BaseDimension = "money" | "items" | "time";
+export type BaseDimension = "money" | "items" | "mass" | "energy" | "pp" | "carbon" | "time";
 export type StockFlowKind = "stock" | "flow" | "aux";
 export type UnitSignature = Partial<Record<BaseDimension, number>>;
-type UnitSignatureAlias = "$" | "yr";
+type UnitSignatureAlias = "$" | "kg" | "J" | "°C" | "yr";
 type UnitSignatureInput = UnitSignature & Partial<Record<UnitSignatureAlias, number>>;
 
 export interface UnitMeta {
@@ -29,12 +29,39 @@ interface SerializedUnitMeta {
 
 export type VariableUnitMetadata = Map<string, UnitMeta>;
 
-const DIMENSION_ORDER: BaseDimension[] = ["money", "items", "time"];
+const DIMENSION_ORDER: BaseDimension[] = ["money", "items", "mass", "energy", "pp", "carbon", "time"];
 const DIMENSION_LABELS: Record<BaseDimension, string> = {
   money: "$",
   items: "items",
+  mass: "kg",
+  energy: "J",
+  pp: "pp",
+  carbon: "°C",
   time: "yr"
 };
+const QUANTITY_DIMENSIONS: BaseDimension[] = ["money", "items", "mass", "energy", "pp", "carbon"];
+
+function isSingleQuantityUnit(
+  signature: UnitSignature,
+  active: BaseDimension,
+  timeExponent: number
+): boolean {
+  if ((signature.time ?? 0) !== timeExponent) {
+    return false;
+  }
+
+  return QUANTITY_DIMENSIONS.every(
+    (dimension) => (signature[dimension] ?? 0) === (dimension === active ? 1 : 0)
+  );
+}
+
+function isQuantitylessTimeSignature(signature: UnitSignature, timeExponent: number): boolean {
+  if ((signature.time ?? 0) !== timeExponent) {
+    return false;
+  }
+
+  return QUANTITY_DIMENSIONS.every((dimension) => (signature[dimension] ?? 0) === 0);
+}
 
 export function normalizeSignature(signature?: UnitSignature): UnitSignature {
   const normalized: UnitSignature = {};
@@ -109,6 +136,10 @@ export function serializeUnitMetaAliases(unitMeta?: UnitMeta): SerializedUnitMet
   const signature = normalizeSignature(normalized.signature);
   const money = signature.money;
   const items = signature.items;
+  const mass = signature.mass;
+  const energy = signature.energy;
+  const pp = signature.pp;
+  const carbon = signature.carbon;
   const time = signature.time;
 
   if (money !== undefined) {
@@ -116,6 +147,18 @@ export function serializeUnitMetaAliases(unitMeta?: UnitMeta): SerializedUnitMet
   }
   if (items !== undefined) {
     units.items = items;
+  }
+  if (mass !== undefined) {
+    units.kg = mass;
+  }
+  if (energy !== undefined) {
+    units.J = energy;
+  }
+  if (pp !== undefined) {
+    units.pp = pp;
+  }
+  if (carbon !== undefined) {
+    units["°C"] = carbon;
   }
   if (time !== undefined) {
     units.yr = time;
@@ -140,6 +183,10 @@ function normalizeSignatureInput(
 
     const money = signature.money ?? signature["$"];
     const items = signature.items;
+    const mass = signature.mass ?? signature.kg;
+    const energy = signature.energy ?? signature.J;
+    const pp = signature.pp;
+    const carbon = signature.carbon ?? signature["°C"];
     const time = signature.time ?? signature.yr;
 
     if (money !== undefined) {
@@ -147,6 +194,18 @@ function normalizeSignatureInput(
     }
     if (items !== undefined) {
       merged.items = items;
+    }
+    if (mass !== undefined) {
+      merged.mass = mass;
+    }
+    if (energy !== undefined) {
+      merged.energy = energy;
+    }
+    if (pp !== undefined) {
+      merged.pp = pp;
+    }
+    if (carbon !== undefined) {
+      merged.carbon = carbon;
     }
     if (time !== undefined) {
       merged.time = time;
@@ -173,6 +232,10 @@ export function multiplySignatures(a?: UnitSignature, b?: UnitSignature): UnitSi
   return normalizeSignature({
     money: (a?.money ?? 0) + (b?.money ?? 0),
     items: (a?.items ?? 0) + (b?.items ?? 0),
+    mass: (a?.mass ?? 0) + (b?.mass ?? 0),
+    energy: (a?.energy ?? 0) + (b?.energy ?? 0),
+    pp: (a?.pp ?? 0) + (b?.pp ?? 0),
+    carbon: (a?.carbon ?? 0) + (b?.carbon ?? 0),
     time: (a?.time ?? 0) + (b?.time ?? 0)
   });
 }
@@ -181,6 +244,10 @@ export function divideSignatures(a?: UnitSignature, b?: UnitSignature): UnitSign
   return normalizeSignature({
     money: (a?.money ?? 0) - (b?.money ?? 0),
     items: (a?.items ?? 0) - (b?.items ?? 0),
+    mass: (a?.mass ?? 0) - (b?.mass ?? 0),
+    energy: (a?.energy ?? 0) - (b?.energy ?? 0),
+    pp: (a?.pp ?? 0) - (b?.pp ?? 0),
+    carbon: (a?.carbon ?? 0) - (b?.carbon ?? 0),
     time: (a?.time ?? 0) - (b?.time ?? 0)
   });
 }
@@ -251,25 +318,46 @@ export function formatUnitText(unitMeta?: UnitMeta): string | null {
     return null;
   }
 
-  if ((signature.money ?? 0) === 1 && (signature.items ?? 0) === 0) {
-    if ((signature.time ?? 0) === 0) {
-      return "$";
-    }
-    if ((signature.time ?? 0) === -1) {
-      return "$/yr";
-    }
+  if (isSingleQuantityUnit(signature, "money", 0)) {
+    return "$";
   }
-
-  if ((signature.items ?? 0) === 1 && (signature.money ?? 0) === 0) {
-    if ((signature.time ?? 0) === 0) {
-      return "items";
-    }
-    if ((signature.time ?? 0) === -1) {
-      return "items/yr";
-    }
+  if (isSingleQuantityUnit(signature, "money", -1)) {
+    return "$/yr";
   }
-
-  if ((signature.time ?? 0) === -1 && (signature.money ?? 0) === 0 && (signature.items ?? 0) === 0) {
+  if (isSingleQuantityUnit(signature, "items", 0)) {
+    return "items";
+  }
+  if (isSingleQuantityUnit(signature, "items", -1)) {
+    return "items/yr";
+  }
+  if (isSingleQuantityUnit(signature, "mass", 0)) {
+    return "kg";
+  }
+  if (isSingleQuantityUnit(signature, "mass", -1)) {
+    return "kg/yr";
+  }
+  if (isSingleQuantityUnit(signature, "energy", 0)) {
+    return "J";
+  }
+  if (isSingleQuantityUnit(signature, "energy", -1)) {
+    return "J/yr";
+  }
+  if (isSingleQuantityUnit(signature, "pp", 0)) {
+    return "pp";
+  }
+  if (isSingleQuantityUnit(signature, "pp", -1)) {
+    return "pp/yr";
+  }
+  if (isSingleQuantityUnit(signature, "carbon", 0)) {
+    return "°C";
+  }
+  if (isSingleQuantityUnit(signature, "carbon", -1)) {
+    return "°C/yr";
+  }
+  if (isQuantitylessTimeSignature(signature, 1)) {
+    return "yr";
+  }
+  if (isQuantitylessTimeSignature(signature, -1)) {
     return "1/yr";
   }
 

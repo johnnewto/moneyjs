@@ -39,7 +39,7 @@ describe("notebook assistant flow", () => {
       "role?: 'accumulation' | 'identity' | 'target' | 'definition' | 'behavioral'"
     );
     expect(summarizeNotebookAssistantToolSyntax("edit")).toContain(
-      "unitMeta?: { stockFlow?: 'stock' | 'flow' | 'aux', signature?: { money?: number, items?: number, time?: number }, displayUnit?: string }"
+      "unitMeta?: { stockFlow?: 'stock' | 'flow' | 'aux', signature?: { money?: number, items?: number, mass?: number, energy?: number, pp?: number, carbon?: number, time?: number }, displayUnit?: string }"
     );
     expect(getNotebookAssistantToolSyntax("createAddExternalPatch")).toContain("Use name, not variable");
     expect(getNotebookAssistantToolSyntax("createAddEquationPatch")).toContain("Do not use role values like 'constraint'");

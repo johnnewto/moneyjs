@@ -12,10 +12,22 @@ import {
 import { resolveAccountingMatrixKind, type AccountingMatrixKind } from "./validation";
 import type { MatrixCell } from "./types";
 
-const BALANCE_SHEET_SIGNATURES: UnitSignature[] = [{ money: 1 }, { items: 1 }];
+const BALANCE_SHEET_SIGNATURES: UnitSignature[] = [
+  { money: 1 },
+  { items: 1 },
+  { mass: 1 },
+  { energy: 1 },
+  { pp: 1 },
+  { carbon: 1 },
+  { time: 1 }
+];
 const TRANSACTION_FLOW_SIGNATURES: UnitSignature[] = [
   { money: 1, time: -1 },
-  { items: 1, time: -1 }
+  { items: 1, time: -1 },
+  { mass: 1, time: -1 },
+  { energy: 1, time: -1 },
+  { pp: 1, time: -1 },
+  { carbon: 1, time: -1 }
 ];
 
 export interface MatrixEntryUnitContext {
@@ -36,7 +48,9 @@ function expectedSignaturesForKind(kind: AccountingMatrixKind): UnitSignature[] 
 }
 
 function expectedUnitLabelsForKind(kind: AccountingMatrixKind): string {
-  return kind === "balance-sheet" ? "$ or items" : "$/yr or items/yr";
+  return kind === "balance-sheet"
+    ? "$, items, kg, J, pp, °C, or yr"
+    : "$/yr, items/yr, kg/yr, J/yr, pp/yr, or °C/yr";
 }
 
 function matrixKindLabel(kind: AccountingMatrixKind): string {

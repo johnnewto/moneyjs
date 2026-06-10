@@ -764,12 +764,28 @@ function normalizeUnitSignatureArg(value: unknown): Record<string, number> | und
   const signature: Record<string, number> = {};
   const money = record.money ?? record.$ ?? record.currency;
   const items = record.items ?? record.item ?? record.quantity;
+  const mass = record.mass ?? record.kg;
+  const energy = record.energy ?? record.J;
+  const pp = record.pp;
+  const carbon = record.carbon ?? record["°C"];
   const time = record.time ?? record.yr ?? record.year;
   if (typeof money === "number" && Number.isFinite(money) && money !== 0) {
     signature.money = money;
   }
   if (typeof items === "number" && Number.isFinite(items) && items !== 0) {
     signature.items = items;
+  }
+  if (typeof mass === "number" && Number.isFinite(mass) && mass !== 0) {
+    signature.mass = mass;
+  }
+  if (typeof energy === "number" && Number.isFinite(energy) && energy !== 0) {
+    signature.energy = energy;
+  }
+  if (typeof pp === "number" && Number.isFinite(pp) && pp !== 0) {
+    signature.pp = pp;
+  }
+  if (typeof carbon === "number" && Number.isFinite(carbon) && carbon !== 0) {
+    signature.carbon = carbon;
   }
   if (typeof time === "number" && Number.isFinite(time) && time !== 0) {
     signature.time = time;

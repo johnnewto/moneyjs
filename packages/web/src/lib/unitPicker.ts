@@ -25,6 +25,10 @@ export interface UnitPickerForm {
 export const BASE_DIMENSION_OPTIONS: Array<{ value: BaseDimension; label: string }> = [
   { value: "money", label: "$" },
   { value: "items", label: "items" },
+  { value: "mass", label: "kg" },
+  { value: "energy", label: "J" },
+  { value: "pp", label: "pp" },
+  { value: "carbon", label: "°C" },
   { value: "time", label: "yr" }
 ];
 
@@ -199,14 +203,39 @@ export interface EquationUnitPresetOption {
   unitMeta?: UnitMeta;
 }
 
-export const EQUATION_UNIT_PRESET_OPTIONS: EquationUnitPresetOption[] = [
+export const ECONOMIC_UNIT_PRESET_OPTIONS: EquationUnitPresetOption[] = [
   { label: "None" },
   { label: "$", unitMeta: { stockFlow: "stock", signature: { money: 1 } } },
   { label: "$/yr", unitMeta: { stockFlow: "flow", signature: { money: 1, time: -1 } } },
   { label: "items", unitMeta: { stockFlow: "stock", signature: { items: 1 } } },
   { label: "items/yr", unitMeta: { stockFlow: "flow", signature: { items: 1, time: -1 } } },
   { label: "$/items", unitMeta: { stockFlow: "aux", signature: { money: 1, items: -1 } } },
+  { label: "yr", unitMeta: { stockFlow: "stock", signature: { time: 1 } } },
   { label: "1/yr", unitMeta: { stockFlow: "aux", signature: { time: -1 } } }
+];
+
+export const OTHER_UNIT_PRESET_OPTIONS: EquationUnitPresetOption[] = [
+  { label: "kg", unitMeta: { stockFlow: "stock", signature: { mass: 1 } } },
+  { label: "kg/yr", unitMeta: { stockFlow: "flow", signature: { mass: 1, time: -1 } } },
+  { label: "$/kg", unitMeta: { stockFlow: "aux", signature: { money: 1, mass: -1 } } },
+  { label: "J", unitMeta: { stockFlow: "stock", signature: { energy: 1 } } },
+  { label: "J/yr", unitMeta: { stockFlow: "flow", signature: { energy: 1, time: -1 } } },
+  { label: "$/J", unitMeta: { stockFlow: "aux", signature: { money: 1, energy: -1 } } },
+  { label: "pp", unitMeta: { stockFlow: "stock", signature: { pp: 1 } } },
+  { label: "pp/yr", unitMeta: { stockFlow: "flow", signature: { pp: 1, time: -1 } } },
+  { label: "$/pp", unitMeta: { stockFlow: "aux", signature: { money: 1, pp: -1 } } }
+];
+
+export const CARBON_UNIT_PRESET_OPTIONS: EquationUnitPresetOption[] = [
+  { label: "°C", unitMeta: { stockFlow: "stock", signature: { carbon: 1 } } },
+  { label: "°C/yr", unitMeta: { stockFlow: "flow", signature: { carbon: 1, time: -1 } } },
+  { label: "$/°C", unitMeta: { stockFlow: "aux", signature: { money: 1, carbon: -1 } } }
+];
+
+export const EQUATION_UNIT_PRESET_OPTIONS: EquationUnitPresetOption[] = [
+  ...ECONOMIC_UNIT_PRESET_OPTIONS,
+  ...OTHER_UNIT_PRESET_OPTIONS,
+  ...CARBON_UNIT_PRESET_OPTIONS
 ];
 
 export function unitMetasEqual(left?: UnitMeta, right?: UnitMeta): boolean {

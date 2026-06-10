@@ -250,7 +250,7 @@ function migrateLegacyUnitMeta(unitMeta) {
 
 function normalizeSignature(signature) {
   const normalized = {};
-  for (const key of ["money", "items", "time"]) {
+  for (const key of ["money", "items", "mass", "energy", "pp", "carbon", "time"]) {
     const value = signature?.[key] ?? 0;
     if (value !== 0) {
       normalized[key] = value;

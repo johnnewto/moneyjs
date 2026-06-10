@@ -84,8 +84,8 @@ export function MatrixUnitMetaDialog({
           Update model variable units using single-variable references from <strong>{matrixTitle}</strong>.
         </p>
         <ul className="notebook-help-list matrix-unit-meta-dialog-explainer">
-          <li>Balance sheet → stock + $/items on referenced variables.</li>
-          <li>Transaction flow → flow + $/yr or items/yr on plain/lag refs.</li>
+          <li>Balance sheet → stock + $/items, $/kg, $/J, $/pp, or $/°C on referenced variables.</li>
+          <li>Transaction flow → flow + $/yr, items/yr, kg/yr, J/yr, pp/yr, or °C/yr on plain/lag refs.</li>
           <li>
             <strong>d(Name)</strong> cells validate as flow-sized terms, but <strong>Name</strong> stays stock.
           </li>

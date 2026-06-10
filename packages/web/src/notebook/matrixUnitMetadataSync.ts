@@ -2,6 +2,7 @@ import {
   coerceUnitMeta,
   normalizeSignature,
   signaturesEqual,
+  type BaseDimension,
   type StockFlowKind,
   type UnitMeta,
   type UnitSignature,
@@ -102,15 +103,17 @@ function resolveVariableTarget(
 function resolveBaseStockSignature(current?: UnitMeta): UnitSignature {
   const normalized = coerceUnitMeta(current);
   const signature = normalizeSignature(normalized?.signature);
-  if ((signature.items ?? 0) === 1 && (signature.money ?? 0) === 0) {
-    return { items: 1 };
+  const stockDimensions: BaseDimension[] = ["items", "mass", "energy", "pp", "carbon", "money", "time"];
+
+  for (const dimension of stockDimensions) {
+    if ((signature[dimension] ?? 0) === 1) {
+      return { [dimension]: 1 };
+    }
+    if ((signature[dimension] ?? 0) !== 0 && dimension !== "money" && dimension !== "time") {
+      return { [dimension]: 1 };
+    }
   }
-  if ((signature.money ?? 0) === 1 && (signature.items ?? 0) === 0) {
-    return { money: 1 };
-  }
-  if ((signature.items ?? 0) !== 0 && (signature.money ?? 0) === 0) {
-    return { items: 1 };
-  }
+
   return { money: 1 };
 }
 

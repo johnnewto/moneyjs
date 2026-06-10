@@ -24,10 +24,13 @@ import {
   type VariableUnitMetadata
 } from "../lib/unitMeta";
 import {
-  EQUATION_UNIT_PRESET_OPTIONS,
+  ECONOMIC_UNIT_PRESET_OPTIONS,
+  OTHER_UNIT_PRESET_OPTIONS,
+  CARBON_UNIT_PRESET_OPTIONS,
   equationUnitMetaToPresetMeta,
   presetToEquationUnitMeta,
-  unitMetasEqual
+  unitMetasEqual,
+  type EquationUnitPresetOption
 } from "../lib/unitPicker";
 import {
   applyMirroredEquationUnitSuggestions,
@@ -578,22 +581,58 @@ function EquationUnitsPopover({
               shows the per-year change.
             </p>
           ) : null}
-          <div className="equation-unit-popover-options" role="listbox" aria-label="Unit options">
-            {EQUATION_UNIT_PRESET_OPTIONS.map((option) => (
-              <button
-                key={option.label}
-                className={`equation-unit-option${
-                  unitMetasEqual(activePresetMeta, option.unitMeta) ? " is-active" : ""
-                }`.trim()}
-                onClick={() => handleSelectPreset(option.unitMeta)}
-                type="button"
-              >
-                {option.label}
-              </button>
-            ))}
+          <div className="equation-unit-popover-columns" role="group" aria-label="Unit options">
+            <EquationUnitPresetColumn
+              activePresetMeta={activePresetMeta}
+              label="Economic"
+              onSelect={handleSelectPreset}
+              options={ECONOMIC_UNIT_PRESET_OPTIONS}
+            />
+            <EquationUnitPresetColumn
+              activePresetMeta={activePresetMeta}
+              label="Other"
+              onSelect={handleSelectPreset}
+              options={OTHER_UNIT_PRESET_OPTIONS}
+            />
+            <EquationUnitPresetColumn
+              activePresetMeta={activePresetMeta}
+              label="°C"
+              onSelect={handleSelectPreset}
+              options={CARBON_UNIT_PRESET_OPTIONS}
+            />
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function EquationUnitPresetColumn({
+  activePresetMeta,
+  label,
+  onSelect,
+  options
+}: {
+  activePresetMeta: UnitMeta | undefined;
+  label: string;
+  onSelect: (preset?: UnitMeta) => void;
+  options: EquationUnitPresetOption[];
+}) {
+  return (
+    <div className="equation-unit-popover-column" role="listbox" aria-label={`${label} unit options`}>
+      <div className="equation-unit-popover-column-label">{label}</div>
+      {options.map((option) => (
+        <button
+          key={option.label}
+          className={`equation-unit-option${
+            unitMetasEqual(activePresetMeta, option.unitMeta) ? " is-active" : ""
+          }`.trim()}
+          onClick={() => onSelect(option.unitMeta)}
+          type="button"
+        >
+          {option.label}
+        </button>
+      ))}
     </div>
   );
 }

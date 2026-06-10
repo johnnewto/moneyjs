@@ -323,18 +323,46 @@ export function formatCompactUnit(unitMeta: EquationRow["unitMeta"]): string | u
   if (!signature) {
     return undefined;
   }
-  const money = signature.money;
-  const time = signature.time;
-  const items = signature.items;
   if (Object.keys(signature).length === 0) return "1";
-  if (money === 1 && time === -1 && items == null) return "$/year";
-  if (money === 1 && time == null && items == null) return "$";
-  if (time === -1 && money == null && items == null) return "1/year";
-  if (items === 1 && time === -1 && money == null) return "items/year";
-  if (items === 1 && time == null && money == null) return "items";
-  if (money === 1 && items === -1 && time == null) return "$/item";
-  if (time === 1 && money == null && items == null) return "year";
+  if (compactUnitMatches(signature, { money: 1, time: -1 })) return "$/year";
+  if (compactUnitMatches(signature, { money: 1 })) return "$";
+  if (compactUnitMatches(signature, { time: -1 })) return "1/year";
+  if (compactUnitMatches(signature, { items: 1, time: -1 })) return "items/year";
+  if (compactUnitMatches(signature, { items: 1 })) return "items";
+  if (compactUnitMatches(signature, { mass: 1, time: -1 })) return "kg/year";
+  if (compactUnitMatches(signature, { mass: 1 })) return "kg";
+  if (compactUnitMatches(signature, { energy: 1, time: -1 })) return "J/year";
+  if (compactUnitMatches(signature, { energy: 1 })) return "J";
+  if (compactUnitMatches(signature, { pp: 1, time: -1 })) return "pp/year";
+  if (compactUnitMatches(signature, { pp: 1 })) return "pp";
+  if (compactUnitMatches(signature, { carbon: 1, time: -1 })) return "°C/year";
+  if (compactUnitMatches(signature, { carbon: 1 })) return "°C";
+  if (compactUnitMatches(signature, { money: 1, items: -1 })) return "$/item";
+  if (compactUnitMatches(signature, { money: 1, mass: -1 })) return "$/kg";
+  if (compactUnitMatches(signature, { money: 1, energy: -1 })) return "$/J";
+  if (compactUnitMatches(signature, { money: 1, pp: -1 })) return "$/pp";
+  if (compactUnitMatches(signature, { money: 1, carbon: -1 })) return "$/°C";
+  if (compactUnitMatches(signature, { time: 1 })) return "year";
   return undefined;
+}
+
+function compactUnitMatches(
+  signature: Record<string, number>,
+  expected: Partial<Record<"money" | "items" | "mass" | "energy" | "pp" | "carbon" | "time", number>>
+): boolean {
+  const keys = ["money", "items", "mass", "energy", "pp", "carbon", "time"] as const;
+  for (const key of keys) {
+    const value = signature[key];
+    const wanted = expected[key];
+    if (wanted === undefined) {
+      if (value != null) {
+        return false;
+      }
+    } else if (value !== wanted) {
+      return false;
+    }
+  }
+  return true;
 }
 
 export function compactUnitSignature(unitMeta: unknown): Record<string, number> | undefined {
@@ -353,7 +381,14 @@ export function compactUnitSignature(unitMeta: unknown): Record<string, number> 
     ...(typeof units.money === "number" ? { money: units.money } : {}),
     ...(typeof units.yr === "number" ? { time: units.yr } : {}),
     ...(typeof units.time === "number" ? { time: units.time } : {}),
-    ...(typeof units.items === "number" ? { items: units.items } : {})
+    ...(typeof units.items === "number" ? { items: units.items } : {}),
+    ...(typeof units.kg === "number" ? { mass: units.kg } : {}),
+    ...(typeof units.mass === "number" ? { mass: units.mass } : {}),
+    ...(typeof units.J === "number" ? { energy: units.J } : {}),
+    ...(typeof units.energy === "number" ? { energy: units.energy } : {}),
+    ...(typeof units.pp === "number" ? { pp: units.pp } : {}),
+    ...(typeof units["°C"] === "number" ? { carbon: units["°C"] } : {}),
+    ...(typeof units.carbon === "number" ? { carbon: units.carbon } : {})
   };
 }
 
@@ -783,8 +818,44 @@ export function parseCompactUnit(unit: string): Record<string, number> | undefin
   if (normalized === "items") {
     return { items: 1 };
   }
+  if (normalized === "kg/year" || normalized === "kg/yr") {
+    return { mass: 1, time: -1 };
+  }
+  if (normalized === "kg") {
+    return { mass: 1 };
+  }
   if (normalized === "$/item" || normalized === "$/items") {
     return { money: 1, items: -1 };
+  }
+  if (normalized === "$/kg") {
+    return { money: 1, mass: -1 };
+  }
+  if (normalized === "J/year" || normalized === "J/yr") {
+    return { energy: 1, time: -1 };
+  }
+  if (normalized === "J") {
+    return { energy: 1 };
+  }
+  if (normalized === "pp/year" || normalized === "pp/yr") {
+    return { pp: 1, time: -1 };
+  }
+  if (normalized === "pp") {
+    return { pp: 1 };
+  }
+  if (normalized === "$/J") {
+    return { money: 1, energy: -1 };
+  }
+  if (normalized === "$/pp") {
+    return { money: 1, pp: -1 };
+  }
+  if (normalized === "°C/year" || normalized === "°C/yr") {
+    return { carbon: 1, time: -1 };
+  }
+  if (normalized === "°C") {
+    return { carbon: 1 };
+  }
+  if (normalized === "$/°C") {
+    return { money: 1, carbon: -1 };
   }
   if (normalized === "year" || normalized === "yr") {
     return { time: 1 };

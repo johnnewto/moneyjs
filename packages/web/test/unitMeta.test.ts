@@ -1,6 +1,34 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveVariableTooltip } from "../src/lib/unitMeta";
+import { formatUnitText, resolveVariableTooltip } from "../src/lib/unitMeta";
+
+describe("mass unit formatting", () => {
+  it("formats kg stock and flow presets", () => {
+    expect(formatUnitText({ stockFlow: "stock", signature: { mass: 1 } })).toBe("kg");
+    expect(formatUnitText({ stockFlow: "flow", signature: { mass: 1, time: -1 } })).toBe("kg/yr");
+    expect(formatUnitText({ stockFlow: "aux", signature: { money: 1, mass: -1 } })).toBe("$/kg");
+  });
+});
+
+describe("energy and pp unit formatting", () => {
+  it("formats J and pp stock, flow, and price presets", () => {
+    expect(formatUnitText({ stockFlow: "stock", signature: { time: 1 } })).toBe("yr");
+    expect(formatUnitText({ stockFlow: "stock", signature: { energy: 1 } })).toBe("J");
+    expect(formatUnitText({ stockFlow: "flow", signature: { energy: 1, time: -1 } })).toBe("J/yr");
+    expect(formatUnitText({ stockFlow: "aux", signature: { money: 1, energy: -1 } })).toBe("$/J");
+    expect(formatUnitText({ stockFlow: "stock", signature: { pp: 1 } })).toBe("pp");
+    expect(formatUnitText({ stockFlow: "flow", signature: { pp: 1, time: -1 } })).toBe("pp/yr");
+    expect(formatUnitText({ stockFlow: "aux", signature: { money: 1, pp: -1 } })).toBe("$/pp");
+  });
+});
+
+describe("carbon unit formatting", () => {
+  it("formats °C stock and flow presets", () => {
+    expect(formatUnitText({ stockFlow: "stock", signature: { carbon: 1 } })).toBe("°C");
+    expect(formatUnitText({ stockFlow: "flow", signature: { carbon: 1, time: -1 } })).toBe("°C/yr");
+    expect(formatUnitText({ stockFlow: "aux", signature: { money: 1, carbon: -1 } })).toBe("$/°C");
+  });
+});
 
 describe("resolveVariableTooltip", () => {
   it("shows lagged values for lagged variable references", () => {
