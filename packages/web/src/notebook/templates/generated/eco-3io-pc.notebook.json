@@ -86,17 +86,22 @@
         { "id": "eq-33-ren", "name": "ren", "desc": "Renewable energy use.", "expression": "eps_en1 * eta_en1 * x1 + eps_en2 * eta_en2 * x2 + eps_en3 * eta_en3 * x3", "role": "identity", "unitMeta": { "stockFlow": "flow" } },
         { "id": "eq-34-nen", "name": "nen", "desc": "Non-renewable energy use.", "expression": "en - ren", "role": "identity", "unitMeta": { "stockFlow": "flow" } },
         { "id": "eq-35-emis", "name": "emis", "desc": "Annual CO2 emissions.", "expression": "beta_e * nen", "role": "identity", "unitMeta": { "stockFlow": "flow" } },
-        { "id": "eq-36-beta_e", "name": "beta_e", "desc": "CO2 intensity of non-renewable energy.", "expression": "lag(beta_e) * (1 - g_beta_e)", "role": "identity", "unitMeta": { "stockFlow": "aux" } },
-        { "id": "eq-37-co2_cum", "name": "co2_cum", "desc": "Cumulative CO2 emissions.", "expression": "I(emis)", "role": "accumulation", "unitMeta": { "stockFlow": "stock" } },
-        { "id": "eq-38-temp", "name": "temp", "desc": "Atmospheric temperature response.", "expression": "(tcre / (1 - fnc)) * co2_cum", "role": "identity", "unitMeta": { "stockFlow": "flow" } },
-        { "id": "eq-39-k_m", "name": "k_m", "desc": "Matter reserves.", "expression": "I(conv_m - mat)", "role": "accumulation", "unitMeta": { "stockFlow": "stock" } },
-        { "id": "eq-40-conv_m", "name": "conv_m", "desc": "Matter resources converted to reserves.", "expression": "sigma_m * res_m", "role": "identity", "unitMeta": { "stockFlow": "flow" } },
-        { "id": "eq-41-res_m", "name": "res_m", "desc": "Matter resource stock.", "expression": "lag(res_m) - conv_m", "role": "accumulation", "unitMeta": { "stockFlow": "stock" } },
-        { "id": "eq-42-cen", "name": "cen", "desc": "Carbon mass of energy use.", "expression": "emis / car", "role": "identity", "unitMeta": { "stockFlow": "flow" } },
-        { "id": "eq-43-o2", "name": "o2", "desc": "Oxygen mass flow.", "expression": "emis - cen", "role": "identity", "unitMeta": { "stockFlow": "flow" } },
-        { "id": "eq-44-k_e", "name": "k_e", "desc": "Energy reserves.", "expression": "I(conv_e - nen)", "role": "accumulation", "unitMeta": { "stockFlow": "stock" } },
-        { "id": "eq-45-conv_e", "name": "conv_e", "desc": "Energy resources converted to reserves.", "expression": "sigma_e * res_e", "role": "identity", "unitMeta": { "stockFlow": "flow" } },
-        { "id": "eq-46-res_e", "name": "res_e", "desc": "Energy resource stock.", "expression": "lag(res_e) - conv_e", "role": "accumulation", "unitMeta": { "stockFlow": "stock" } }
+        { "id": "eq-36-emis1", "name": "emis1", "desc": "CO2 emissions from agriculture.", "expression": "eps_en1 * (1 - eta_en1) * x1 * beta_e", "role": "identity", "unitMeta": { "stockFlow": "flow" } },
+        { "id": "eq-37-emis2", "name": "emis2", "desc": "CO2 emissions from manufacturing.", "expression": "eps_en2 * (1 - eta_en2) * x2 * beta_e", "role": "identity", "unitMeta": { "stockFlow": "flow" } },
+        { "id": "eq-38-emis3", "name": "emis3", "desc": "CO2 emissions from services.", "expression": "eps_en3 * (1 - eta_en3) * x3 * beta_e", "role": "identity", "unitMeta": { "stockFlow": "flow" } },
+        { "id": "eq-39-depl_m_pct", "name": "depl_m_pct", "desc": "Matter reserves depletion rate.", "expression": "100 * mat / lag(k_m)", "role": "identity", "unitMeta": { "stockFlow": "aux" } },
+        { "id": "eq-40-depl_e_pct", "name": "depl_e_pct", "desc": "Energy reserves depletion rate.", "expression": "100 * nen / lag(k_e)", "role": "identity", "unitMeta": { "stockFlow": "aux" } },
+        { "id": "eq-41-beta_e", "name": "beta_e", "desc": "CO2 intensity of non-renewable energy.", "expression": "lag(beta_e) * (1 - g_beta_e)", "role": "identity", "unitMeta": { "stockFlow": "aux" } },
+        { "id": "eq-42-co2_cum", "name": "co2_cum", "desc": "Cumulative CO2 emissions.", "expression": "I(emis)", "role": "accumulation", "unitMeta": { "stockFlow": "stock" } },
+        { "id": "eq-43-temp", "name": "temp", "desc": "Atmospheric temperature response.", "expression": "(tcre / (1 - fnc)) * co2_cum", "role": "identity", "unitMeta": { "stockFlow": "flow" } },
+        { "id": "eq-44-k_m", "name": "k_m", "desc": "Matter reserves.", "expression": "I(conv_m - mat)", "role": "accumulation", "unitMeta": { "stockFlow": "stock" } },
+        { "id": "eq-45-conv_m", "name": "conv_m", "desc": "Matter resources converted to reserves.", "expression": "sigma_m * res_m", "role": "identity", "unitMeta": { "stockFlow": "flow" } },
+        { "id": "eq-46-res_m", "name": "res_m", "desc": "Matter resource stock.", "expression": "lag(res_m) - conv_m", "role": "accumulation", "unitMeta": { "stockFlow": "stock" } },
+        { "id": "eq-47-cen", "name": "cen", "desc": "Carbon mass of energy use.", "expression": "emis / car", "role": "identity", "unitMeta": { "stockFlow": "flow" } },
+        { "id": "eq-48-o2", "name": "o2", "desc": "Oxygen mass flow.", "expression": "emis - cen", "role": "identity", "unitMeta": { "stockFlow": "flow" } },
+        { "id": "eq-49-k_e", "name": "k_e", "desc": "Energy reserves.", "expression": "I(conv_e - nen)", "role": "accumulation", "unitMeta": { "stockFlow": "stock" } },
+        { "id": "eq-50-conv_e", "name": "conv_e", "desc": "Energy resources converted to reserves.", "expression": "sigma_e * res_e", "role": "identity", "unitMeta": { "stockFlow": "flow" } },
+        { "id": "eq-51-res_e", "name": "res_e", "desc": "Energy resource stock.", "expression": "lag(res_e) - conv_e", "role": "accumulation", "unitMeta": { "stockFlow": "stock" } }
       ],
       "collapsed": true
     },
@@ -197,6 +202,55 @@
       "resultKey": "eco_3io_pc_s1",
       "sourceModelId": "eco-3io-pc"
     },
-    { "id": "scenario-1-chart", "type": "chart", "title": "Scenario 1 macro and climate feedback", "sourceRunCellId": "scenario-1-run", "variables": ["y", "yd", "cons", "v", "alpha1", "temp"], "axisMode": "separate", "axisSnapTolarance": 0.5 }
+    { "id": "scenario-1-chart", "type": "chart", "title": "Scenario 1 macro and climate feedback", "sourceRunCellId": "scenario-1-run", "variables": ["y", "yd", "cons", "v", "alpha1", "temp"], "axisMode": "separate", "axisSnapTolarance": 0.5 },
+    { "id": "appendix-mat-en-note", "type": "markdown", "title": "Appendix: physical matter and energy accounting", "source": "This appendix follows `8_Mat_En_Tables.R` (Tables 4–5) and the ecological figures in `1_ECO-3IO-PC-Model.R` (Figures 7–10). Matrices are evaluated at the selected simulation period; charts trace reserves, emissions, and temperature over time." },
+    {
+      "id": "physical-flow-matrix",
+      "type": "matrix",
+      "title": "Physical flow matrix (Table 4)",
+      "sourceRunCellId": "baseline-run",
+      "columns": ["Matter", "Energy"],
+      "sectors": ["Matter", "Energy"],
+      "rows": [
+        { "band": "Inputs", "label": "Inputs", "values": ["", ""] },
+        { "band": "Inputs", "label": "Extracted matter", "values": ["+mat", ""] },
+        { "band": "Inputs", "label": "Recycled socio-economic stock", "values": ["+rec", ""] },
+        { "band": "Inputs", "label": "Renewable energy", "values": ["", "+ren"] },
+        { "band": "Inputs", "label": "Non-renewable energy", "values": ["+cen", "+nen"] },
+        { "band": "Inputs", "label": "Oxygen", "values": ["+o2", ""] },
+        { "band": "Outputs", "label": "Outputs", "values": ["", ""] },
+        { "band": "Outputs", "label": "Industrial CO2 emissions", "values": ["-emis", ""] },
+        { "band": "Outputs", "label": "Discarded socio-economic stock", "values": ["-dis", ""] },
+        { "band": "Outputs", "label": "Dissipated energy", "values": ["", "-en"] },
+        { "band": "Outputs", "label": "Change in socio-economic stock", "values": ["-(kh - lag(kh))", ""] }
+      ],
+      "description": "Physical flow matrix for matter and energy inputs and outputs, following the Florence keynote Table 4.",
+      "note": "Matter column uses carbon mass `cen` for non-renewable energy inputs; energy column tracks renewable and non-renewable use and dissipation."
+    },
+    {
+      "id": "physical-stock-flow-matrix",
+      "type": "matrix",
+      "title": "Physical stock-flow matrix (Table 5)",
+      "sourceRunCellId": "baseline-run",
+      "columns": ["Material reserves", "Energy reserves", "CO2 concentration", "Socio-economic stock"],
+      "sectors": ["Matter", "Energy", "CO2", "SES"],
+      "rows": [
+        { "band": "Stock", "label": "Initial stock", "values": ["+lag(k_m)", "+lag(k_e)", "+lag(co2_cum)", "+lag(kh)"] },
+        { "band": "Flows", "label": "Resources converted into reserves", "values": ["+conv_m", "+conv_e", "", ""] },
+        { "band": "Flows", "label": "CO2 emissions", "values": ["", "", "+emis", ""] },
+        { "band": "Flows", "label": "Production of material goods", "values": ["", "", "", "+x_mat"] },
+        { "band": "Flows", "label": "Extraction of matter / use of energy", "values": ["-mat", "-nen", "", ""] },
+        { "band": "Flows", "label": "Destruction of socio-economic stock", "values": ["", "", "", "-dis"] },
+        { "band": "Stock", "label": "Final stock", "values": ["+k_m", "+k_e", "+co2_cum", "+kh"] }
+      ],
+      "description": "Physical stock-flow matrix for material reserves, energy reserves, cumulative CO2, and socioeconomic stock, following the Florence keynote Table 5.",
+      "note": "Initial-stock rows use lagged values; final-stock rows use end-of-period levels from the baseline simulation."
+    },
+    { "id": "appendix-figure-7-reserves-chart", "type": "chart", "title": "Figure 7: matter and energy reserves", "description": "Matter reserves `k_m` and energy reserves `k_e` (Gt and EJ).", "sourceRunCellId": "baseline-run", "variables": ["k_m", "k_e"], "axisMode": "separate", "axisSnapTolarance": 0.5 },
+    { "id": "appendix-figure-7-depletion-chart", "type": "chart", "title": "Figure 7: reserves depletion rates", "description": "Depletion rates as percentages of lagged reserves (`100 * mat / lag(k_m)` and `100 * nen / lag(k_e)`).", "sourceRunCellId": "baseline-run", "variables": ["depl_m_pct", "depl_e_pct"], "axisMode": "shared", "axisSnapTolarance": 0.5 },
+    { "id": "appendix-figure-8-chart", "type": "chart", "title": "Figure 8: annual CO2 emissions by industry", "description": "Industry-specific emissions from non-renewable energy use by agriculture, manufacturing, and services.", "sourceRunCellId": "baseline-run", "variables": ["emis1", "emis2", "emis3"], "axisMode": "shared", "axisSnapTolarance": 0.5 },
+    { "id": "appendix-figure-9-chart", "type": "chart", "title": "Figure 9: total CO2 emissions", "description": "Annual emissions `emis` and cumulative stock `co2_cum` (separate scales, matching the dual-axis layout in the R keynote plot).", "sourceRunCellId": "baseline-run", "variables": ["emis", "co2_cum"], "axisMode": "separate", "axisSnapTolarance": 0.5 },
+    { "id": "appendix-figure-10-chart", "type": "chart", "title": "Figure 10: atmospheric temperature", "description": "Temperature response driven by cumulative CO2 emissions.", "sourceRunCellId": "baseline-run", "variables": ["temp"], "axisMode": "separate", "axisSnapTolarance": 0.5 },
+    { "id": "appendix-physical-table", "type": "table", "title": "Physical accounting summary", "description": "Key physical variables for cross-checking Tables 4–5 at the selected period.", "sourceRunCellId": "baseline-run", "variables": ["mat", "rec", "dis", "x_mat", "kh", "en", "ren", "nen", "emis", "emis1", "emis2", "emis3", "co2_cum", "temp", "depl_m_pct", "depl_e_pct", "conv_m", "conv_e", "k_m", "k_e", "cen", "o2", "wa"] }
   ]
 }
