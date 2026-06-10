@@ -93,7 +93,7 @@ Use the smallest `pnpm` command that proves the change.
 1. **One file** — `pnpm --filter @sfcr/web exec vitest run test/<file>.test.ts(x)` (add `--reporter=dot` for DOM-heavy output).
 2. **Most `packages/web` work** — `pnpm web:test:fast` (skips four `App.notebook-*` integration tests and five template smoke/regression suites).
 3. **Notebook UI flows** — `pnpm web:test:integration` when touching source import/export, cell editors, navigation, or assistant UI.
-4. **Templates / model smoke** — `pnpm web:test:templates` when changing notebook templates, fixtures, or broad solver-over-template behavior.
+4. **Templates / model smoke** — `pnpm web:test:templates` when changing notebook templates, fixtures, or broad solver-over-template behavior. Regenerating R regression JSON: see `devdocs/r-regression-fixtures.md`.
 5. **Cross-package or pre-handoff** — `pnpm typecheck` then `pnpm test` (Turbo across packages).
 
 Package-specific: `pnpm --filter @sfcr/core test`, `pnpm --filter @sfcr/chat-api test`. `@sfcr/core-worker` and `@sfcr/notebook-core` use compile-only `test`; run `check:boundaries` after notebook-core edits. Worker protocol is covered from `packages/web/test/workerHandler.test.ts`.

@@ -1,4 +1,5 @@
 import bmwNotebookYaml from "./templates/bmw.notebook.yaml?raw";
+import eco3IoPcNotebookYaml from "./templates/eco-3io-pc.notebook.yaml?raw";
 import endogenousMoneyNotebookYaml from "./templates/endogenous-money.notebook.yaml?raw";
 import gl2PcNotebookYaml from "./templates/gl2-pc.notebook.yaml?raw";
 import gl6DisNotebookYaml from "./templates/gl6-dis.notebook.yaml?raw";
@@ -20,6 +21,7 @@ import type { NotebookDocument } from "./types";
 
 export type NotebookTemplateId =
   | "bmw"
+  | "eco-3io-pc"
   | "endogenous-money"
   | "gl2-pc"
   | "gl6-dis"
@@ -58,6 +60,13 @@ export const NOTEBOOK_TEMPLATES: Record<NotebookTemplateId, NotebookTemplateDefi
     label: "BMW",
     description: "BMW browser notebook with a baseline run, two scenarios, and accounting views.",
     document: notebookFromYaml(bmwNotebookYaml)
+  },
+  "eco-3io-pc": {
+    id: "eco-3io-pc",
+    label: "ECO-3IO-PC",
+    description:
+      "Florence keynote ECO-3IO-PC notebook with three-industry IO structure, ecological stocks and flows, and a temperature-feedback scenario.",
+    document: notebookFromYaml(eco3IoPcNotebookYaml)
   },
   "endogenous-money": {
     id: "endogenous-money",
