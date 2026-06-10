@@ -331,6 +331,7 @@ export function formatCompactUnit(unitMeta: EquationRow["unitMeta"]): string | u
   if (money === 1 && time == null && items == null) return "$";
   if (time === -1 && money == null && items == null) return "1/year";
   if (items === 1 && time === -1 && money == null) return "items/year";
+  if (items === 1 && time == null && money == null) return "items";
   if (money === 1 && items === -1 && time == null) return "$/item";
   if (time === 1 && money == null && items == null) return "year";
   return undefined;
@@ -459,7 +460,8 @@ export function parseCompactEquationRows(rows: unknown[], variables: unknown): E
         ...(typeof row.description === "string" ? { description: row.description } : {}),
         ...(row.unit == null ? {} : { unit: String(row.unit) }),
         ...(row.type == null ? {} : { type: String(row.type) }),
-        ...(row.role == null ? {} : { role: String(row.role) })
+        ...(row.role == null ? {} : { role: String(row.role) }),
+        ...(isRecord(row.unitMeta) ? { unitMeta: row.unitMeta } : {})
       };
       return {
         id: stringValue(row.id, `eq-${index}-${slugifyIdentifier(name)}`),
@@ -529,7 +531,8 @@ export function parseCompactExternalRows(rows: unknown[], variables: unknown): E
         ...(typeof row.desc === "string" ? { description: row.desc } : {}),
         ...(typeof row.description === "string" ? { description: row.description } : {}),
         ...(row.unit == null ? {} : { unit: String(row.unit) }),
-        ...(row.type == null ? {} : { type: String(row.type) })
+        ...(row.type == null ? {} : { type: String(row.type) }),
+        ...(isRecord(row.unitMeta) ? { unitMeta: row.unitMeta } : {})
       };
       return {
         id: stringValue(row.id, `ext-${index}-${slugifyIdentifier(name)}`),
@@ -776,6 +779,9 @@ export function parseCompactUnit(unit: string): Record<string, number> | undefin
   }
   if (normalized === "items/year" || normalized === "items/yr") {
     return { items: 1, time: -1 };
+  }
+  if (normalized === "items") {
+    return { items: 1 };
   }
   if (normalized === "$/item" || normalized === "$/items") {
     return { money: 1, items: -1 };
