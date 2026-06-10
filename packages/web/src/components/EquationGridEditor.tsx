@@ -20,21 +20,23 @@ import type { VariableDescriptions } from "../lib/variableDescriptions";
 import {
   normalizeSignature,
   resolveVariableTooltip,
-  type StockFlowKind,
   type UnitMeta,
   type VariableUnitMetadata
 } from "../lib/unitMeta";
 import {
-  BASE_DIMENSION_OPTIONS,
-  applyStockFlowToUnitDraft,
-  normalizeUnitPickerForm,
-  signatureToUnitPickerForm,
-  unitPickerFormToSignature,
-  type UnitPickerForm,
-  type UnitPickerOperand,
-  type UnitPickerShape
+  EQUATION_UNIT_PRESET_OPTIONS,
+  equationUnitMetaToPresetMeta,
+  presetToEquationUnitMeta,
+  unitMetasEqual
 } from "../lib/unitPicker";
-import { getEquationRowUnitLabel, getVariableUnitLabel, suggestEquationUnitMeta } from "../lib/units";
+import {
+  applyMirroredEquationUnitSuggestions,
+  buildVariableUnitMetadata,
+  getEquationRowUnitLabel,
+  getVariableUnitLabel,
+  suggestEquationUnitMeta,
+  type MirroredEquationUnitChange
+} from "../lib/units";
 import {
   buildActiveTrace,
   buildTraceModel,
@@ -44,6 +46,7 @@ import {
 } from "./EquationTrace";
 import { useEquationGridColumnResize } from "../hooks/useEquationGridColumnResize";
 import { InstantTooltip } from "./InstantTooltip";
+import { MirroredEquationUnitSummaryDialog } from "./MirroredEquationUnitSummaryDialog";
 import {
   canMoveRowDown,
   canMoveRowUp,
@@ -109,6 +112,10 @@ export function EquationGridEditor({
   variableUnitMetadata
 }: EquationGridEditorProps) {
   const parameterNameSet = useMemo(() => new Set(parameterNames), [parameterNames]);
+  const resolvedUnitMetadata = useMemo(
+    () => variableUnitMetadata ?? buildVariableUnitMetadata({ equations, externals }),
+    [variableUnitMetadata, equations, externals]
+  );
   const traceModel = useMemo(() => buildTraceModel(equations), [equations]);
   const variableRefs = useRef<Array<HTMLTextAreaElement | null>>([]);
   const descRefs = useRef<Array<HTMLInputElement | null>>([]);
@@ -118,9 +125,12 @@ export function EquationGridEditor({
   const [openPopover, setOpenPopover] = useState<{ kind: "unit" | "role"; rowId: string } | null>(
     null
   );
+  const [unitSuggestionSummary, setUnitSuggestionSummary] = useState<MirroredEquationUnitChange[] | null>(
+    null
+  );
   const rowContextMenu = useGridRowContextMenu({
     ignoredSelector:
-      "button, select, .input-badge-popover, .equation-grid-role-cell, .equation-badge-popover-panel",
+      "button, select, .equation-grid-unit-cell, .equation-grid-role-cell, .equation-badge-popover-panel",
     onChangeRows: onChange,
     rows: equations
   });
@@ -144,7 +154,7 @@ export function EquationGridEditor({
         return;
       }
 
-      if (event.target.closest(".input-badge-popover, .equation-grid-role-cell")) {
+      if (event.target.closest(".equation-grid-unit-cell, .equation-grid-role-cell")) {
         return;
       }
 
@@ -186,6 +196,7 @@ export function EquationGridEditor({
           <span ref={columnResize.variableHeaderRef}>Variable</span>
           <span ref={columnResize.expressionHeaderRef}>Expression</span>
           <span>Role</span>
+          <span>Units</span>
           <span>Description</span>
           <span>Status</span>
           <span />
@@ -255,23 +266,6 @@ export function EquationGridEditor({
                   <HighlightedFormulaInput
                     ariaLabel={`Equation ${index + 1} variable`}
                     className={issues[`equations.${index}.name`] ? "input-error" : ""}
-                    footer={
-                      <EquationUnitsPopover
-                        expression={equation.expression}
-                        isOpen={openPopover?.kind === "unit" && openPopover.rowId === equation.id}
-                        onChange={(unitMeta) => updateRow(equations, index, { unitMeta }, onChange)}
-                        onToggle={() =>
-                          setOpenPopover((current) =>
-                            current?.kind === "unit" && current.rowId === equation.id
-                              ? null
-                              : { kind: "unit", rowId: equation.id }
-                          )
-                        }
-                        unitMeta={equation.unitMeta ?? variableUnitMetadata?.get(equation.name.trim())}
-                        variableName={equation.name}
-                        variableUnitMetadata={variableUnitMetadata}
-                      />
-                    }
                     highlightedTokens={traceRole ? activeTrace?.tokenStates : undefined}
                     inputRef={(node) => {
                       variableRefs.current[index] = node;
@@ -326,6 +320,21 @@ export function EquationGridEditor({
                     }
                     role={equation.role}
                   />
+                  <EquationUnitsPopover
+                    expression={equation.expression}
+                    isOpen={openPopover?.kind === "unit" && openPopover.rowId === equation.id}
+                    onChange={(unitMeta) => updateRow(equations, index, { unitMeta }, onChange)}
+                    onToggle={() =>
+                      setOpenPopover((current) =>
+                        current?.kind === "unit" && current.rowId === equation.id
+                          ? null
+                          : { kind: "unit", rowId: equation.id }
+                      )
+                    }
+                    unitMeta={equation.unitMeta ?? variableUnitMetadata?.get(equation.name.trim())}
+                    variableName={equation.name}
+                    variableUnitMetadata={variableUnitMetadata}
+                  />
                   <input
                     aria-label={`Equation ${index + 1} description`}
                     className="equation-grid-description"
@@ -379,6 +388,21 @@ export function EquationGridEditor({
       </div>
 
       <div className="equation-grid-footer">
+        <button
+          aria-label="Suggest units from additive or subtractive RHS operands"
+          className="secondary-button"
+          onClick={() => {
+            const result = applyMirroredEquationUnitSuggestions({
+              equations,
+              variableUnitMetadata: resolvedUnitMetadata
+            });
+            onChange(result.equations);
+            setUnitSuggestionSummary(result.changes);
+          }}
+          type="button"
+        >
+          Suggest units
+        </button>
         <button type="button" onClick={() => onChange([...equations, newEquationRow()])}>
           Add equation
         </button>
@@ -386,6 +410,14 @@ export function EquationGridEditor({
           Add section comment
         </button>
       </div>
+
+      {unitSuggestionSummary != null ? (
+        <MirroredEquationUnitSummaryDialog
+          changes={unitSuggestionSummary}
+          isOpen
+          onClose={() => setUnitSuggestionSummary(null)}
+        />
+      ) : null}
 
       {rowContextMenu.rowContextMenu ? (
         <GridRowContextMenu
@@ -478,9 +510,7 @@ function EquationUnitsPopover({
   const normalized = unitMeta ? { ...unitMeta, signature: normalizeSignature(unitMeta.signature) } : undefined;
   const unitLabel = getEquationRowUnitLabel(variableName, normalized) ?? "Set units";
   const derivativeBalanceStock = derivativeBalanceStockName(variableName);
-  const [draft, setDraft] = useState(() => createUnitDialogDraft(normalized));
-  const draftSignatureKey = JSON.stringify(normalized?.signature ?? null);
-  const draftStockFlow = normalized?.stockFlow ?? null;
+  const activePresetMeta = equationUnitMetaToPresetMeta(variableName, normalized);
   const suggestion = useMemo(
     () =>
       suggestEquationUnitMeta({
@@ -492,33 +522,9 @@ function EquationUnitsPopover({
   );
   const canSuggest = suggestion != null;
 
-  useEffect(() => {
-    if (isOpen) {
-      setDraft(createUnitDialogDraft(normalized));
-    }
-  }, [isOpen, draftSignatureKey, draftStockFlow]);
-
-  const applyPickerChange = (nextForm: UnitPickerForm) => {
-    setDraft((current) => ({
-      ...current,
-      pickerForm: normalizeUnitPickerForm(nextForm)
-    }));
-  };
-
-  const handleApply = () => {
-    onChange(buildUnitMetaFromPicker(undefined, draft.pickerForm, draft.stockFlow));
+  const handleSelectPreset = (preset?: UnitMeta) => {
+    onChange(presetToEquationUnitMeta(variableName, preset));
     onToggle();
-  };
-
-  const handleCancel = () => {
-    onToggle();
-  };
-
-  const handleClearUnit = () => {
-    setDraft((current) => ({
-      ...current,
-      pickerForm: { ...current.pickerForm, shape: "none" }
-    }));
   };
 
   const handleSuggest = () => {
@@ -526,16 +532,15 @@ function EquationUnitsPopover({
       return;
     }
 
-    setDraft((current) => ({
-      stockFlow: suggestion.stockFlow ?? current.stockFlow,
-      pickerForm: normalizeUnitPickerForm(signatureToUnitPickerForm(suggestion.signature))
-    }));
+    onChange(presetToEquationUnitMeta(variableName, suggestion));
+    onToggle();
   };
 
   return (
-    <span className={`input-badge-popover input-unit-badge${isOpen ? " is-open" : ""}`.trim()}>
+    <div className={`equation-grid-unit-cell${isOpen ? " is-open" : ""}`.trim()}>
       <button
         aria-expanded={isOpen ? "true" : "false"}
+        aria-haspopup="dialog"
         aria-label={`Edit units for ${variableName.trim() || "equation variable"}`}
         className="equation-badge-button unit-badge"
         onClick={(event) => {
@@ -543,14 +548,17 @@ function EquationUnitsPopover({
           event.stopPropagation();
           onToggle();
         }}
+        title="Click to edit units"
         type="button"
       >
         {unitLabel}
       </button>
       {isOpen ? (
         <div
+          aria-label={`Unit options for ${variableName.trim() || "equation variable"}`}
           className="equation-badge-popover-panel equation-unit-picker-panel"
           onClick={(event) => event.stopPropagation()}
+          role="dialog"
         >
           <div className="equation-unit-picker-header">
             <button
@@ -570,137 +578,23 @@ function EquationUnitsPopover({
               shows the per-year change.
             </p>
           ) : null}
-          <label className="equation-badge-popover-field">
-            <span>Kind</span>
-            <select
-              aria-label="Unit stock-flow kind"
-              onChange={(event) => {
-                const stockFlow = normalizeStockFlowKind(event.target.value);
-                setDraft((current) => ({
-                  ...current,
-                  stockFlow,
-                  pickerForm: applyStockFlowToUnitDraft({
-                    currentPickerForm: current.pickerForm,
-                    stockFlow
-                  })
-                }));
-              }}
-              value={draft.stockFlow ?? ""}
-            >
-              <option value="">None</option>
-              <option value="stock">Stock</option>
-              <option value="flow">Flow</option>
-              <option value="aux">Aux</option>
-            </select>
-          </label>
-          <label className="equation-badge-popover-field">
-            <span>Unit</span>
-            <select
-              aria-label="Unit structure"
-              onChange={(event) =>
-                applyPickerChange({
-                  ...draft.pickerForm,
-                  shape: event.target.value as UnitPickerShape
-                })
-              }
-              value={draft.pickerForm.shape}
-            >
-              <option value="none">None</option>
-              <option value="single">Single</option>
-              <option value="multiply">Multiply</option>
-              <option value="divide">Divide</option>
-            </select>
-          </label>
-          {draft.pickerForm.shape === "single" ? (
-            <label className="equation-badge-popover-field">
-              <span>Dimension</span>
-              <select
-                aria-label="Single unit dimension"
-                onChange={(event) =>
-                  applyPickerChange({
-                    ...draft.pickerForm,
-                    singleDimension: event.target.value as UnitPickerForm["singleDimension"]
-                  })
-                }
-                value={draft.pickerForm.singleDimension}
+          <div className="equation-unit-popover-options" role="listbox" aria-label="Unit options">
+            {EQUATION_UNIT_PRESET_OPTIONS.map((option) => (
+              <button
+                key={option.label}
+                className={`equation-unit-option${
+                  unitMetasEqual(activePresetMeta, option.unitMeta) ? " is-active" : ""
+                }`.trim()}
+                onClick={() => handleSelectPreset(option.unitMeta)}
+                type="button"
               >
-                {BASE_DIMENSION_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-          {draft.pickerForm.shape === "multiply" || draft.pickerForm.shape === "divide" ? (
-            <div className="equation-unit-picker-operands">
-              <label className="equation-badge-popover-field">
-                <span>{draft.pickerForm.shape === "divide" ? "Numerator" : "Left"}</span>
-                <select
-                  aria-label={draft.pickerForm.shape === "divide" ? "Unit numerator" : "Unit left operand"}
-                  onChange={(event) =>
-                    applyPickerChange({
-                      ...draft.pickerForm,
-                      leftOperand: event.target.value as UnitPickerOperand
-                    })
-                  }
-                  value={draft.pickerForm.leftOperand}
-                >
-                  {draft.pickerForm.shape === "divide" ? <option value="none">1</option> : null}
-                  {BASE_DIMENSION_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <span aria-hidden="true" className="equation-unit-picker-operator">
-                {draft.pickerForm.shape === "multiply" ? "×" : "÷"}
-              </span>
-              <label className="equation-badge-popover-field">
-                <span>{draft.pickerForm.shape === "divide" ? "Denominator" : "Right"}</span>
-                <select
-                  aria-label={draft.pickerForm.shape === "divide" ? "Unit denominator" : "Unit right operand"}
-                  onChange={(event) =>
-                    applyPickerChange({
-                      ...draft.pickerForm,
-                      rightOperand: event.target.value as UnitPickerForm["rightOperand"]
-                    })
-                  }
-                  value={draft.pickerForm.rightOperand}
-                >
-                  {(draft.pickerForm.shape === "multiply"
-                    ? BASE_DIMENSION_OPTIONS.filter((option) => option.value !== draft.pickerForm.leftOperand)
-                    : draft.pickerForm.leftOperand === "none"
-                      ? BASE_DIMENSION_OPTIONS
-                      : BASE_DIMENSION_OPTIONS.filter((option) => option.value !== draft.pickerForm.leftOperand)
-                  ).map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          ) : null}
-          <div className="equation-unit-picker-actions">
-            <button className="equation-unit-picker-action" onClick={handleApply} type="button">
-              Apply
-            </button>
-            <button className="equation-unit-picker-action secondary-button" onClick={handleCancel} type="button">
-              Cancel
-            </button>
-            <button
-              className="equation-unit-picker-action equation-unit-picker-clear"
-              onClick={handleClearUnit}
-              type="button"
-            >
-              Clear unit
-            </button>
+                {option.label}
+              </button>
+            ))}
           </div>
         </div>
       ) : null}
-    </span>
+    </div>
   );
 }
 
@@ -831,46 +725,6 @@ export function HighlightedFormulaInput({
         ) : null)}
     </label>
   );
-}
-
-function createUnitDialogDraft(unitMeta?: UnitMeta): {
-  pickerForm: UnitPickerForm;
-  stockFlow: StockFlowKind | undefined;
-} {
-  const normalized = unitMeta ? { ...unitMeta, signature: normalizeSignature(unitMeta.signature) } : undefined;
-  return {
-    pickerForm: signatureToUnitPickerForm(normalized?.signature),
-    stockFlow: normalized?.stockFlow
-  };
-}
-
-function buildUnitMetaFromPicker(
-  unitMeta: UnitMeta | undefined,
-  pickerForm: UnitPickerForm,
-  stockFlow?: StockFlowKind | undefined
-): UnitMeta | undefined {
-  const nextSignature = normalizeSignature(unitPickerFormToSignature(pickerForm));
-  const nextStockFlow = stockFlow !== undefined ? stockFlow : unitMeta?.stockFlow;
-
-  if (Object.keys(nextSignature).length === 0 && nextStockFlow == null) {
-    return undefined;
-  }
-
-  return {
-    ...(nextStockFlow ? { stockFlow: nextStockFlow } : {}),
-    ...(Object.keys(nextSignature).length > 0 ? { signature: nextSignature } : {})
-  };
-}
-
-function normalizeStockFlowKind(value: string): StockFlowKind | undefined {
-  switch (value) {
-    case "stock":
-    case "flow":
-    case "aux":
-      return value;
-    default:
-      return undefined;
-  }
 }
 
 function getEquationRoleLabel(role?: EquationRole): string {

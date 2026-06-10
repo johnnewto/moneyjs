@@ -437,7 +437,7 @@ describe("EquationGridEditor", () => {
     expect(screen.getByRole("button", { name: /edit units for mh/i })).toHaveTextContent("$");
   });
 
-  it("edits equation units from the LHS unit badge popover", () => {
+  it("edits equation units from the units badge preset dialog", () => {
     const onChange = vi.fn();
 
     render(
@@ -458,10 +458,7 @@ describe("EquationGridEditor", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /edit units for mh/i }));
-    fireEvent.change(screen.getByLabelText(/unit structure/i), {
-      target: { value: "divide" }
-    });
-    fireEvent.click(screen.getByRole("button", { name: /^apply$/i }));
+    fireEvent.click(screen.getByRole("button", { name: "$/yr" }));
 
     expect(onChange).toHaveBeenLastCalledWith([
       {
@@ -469,12 +466,12 @@ describe("EquationGridEditor", () => {
         name: "Mh",
         desc: "Bank deposits held by households",
         expression: "lag(Mh) + YD - C",
-        unitMeta: { stockFlow: "stock", signature: { money: 1, time: -1 } }
+        unitMeta: { stockFlow: "flow", signature: { money: 1, time: -1 } }
       }
     ]);
   });
 
-  it("auto-fills money flow units when kind is flow and units are unset", () => {
+  it("applies money flow units from the preset list", () => {
     const onChange = vi.fn();
 
     render(
@@ -493,10 +490,7 @@ describe("EquationGridEditor", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /edit units for y/i }));
-    fireEvent.change(screen.getByLabelText(/unit stock-flow kind/i), {
-      target: { value: "flow" }
-    });
-    fireEvent.click(screen.getByRole("button", { name: /^apply$/i }));
+    fireEvent.click(screen.getByRole("button", { name: "$/yr" }));
 
     expect(onChange).toHaveBeenLastCalledWith([
       {
@@ -508,7 +502,7 @@ describe("EquationGridEditor", () => {
     ]);
   });
 
-  it("does not overwrite explicit units when kind changes", () => {
+  it("applies stock item units from the preset list", () => {
     const onChange = vi.fn();
 
     render(
@@ -528,17 +522,14 @@ describe("EquationGridEditor", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /edit units for nd/i }));
-    fireEvent.change(screen.getByLabelText(/unit stock-flow kind/i), {
-      target: { value: "stock" }
-    });
-    fireEvent.click(screen.getByRole("button", { name: /^apply$/i }));
+    fireEvent.click(screen.getByRole("button", { name: "items" }));
 
     expect(onChange).toHaveBeenLastCalledWith([
       {
         id: "eq-nd",
         name: "Nd",
         expression: "1",
-        unitMeta: { stockFlow: "stock", signature: { items: 1, time: -1 } }
+        unitMeta: { stockFlow: "stock", signature: { items: 1 } }
       }
     ]);
   });
@@ -558,7 +549,7 @@ describe("EquationGridEditor", () => {
     expect(screen.getByRole("button", { name: /suggest units from expression/i })).toBeDisabled();
   });
 
-  it("suggests units from the expression RHS into the unit picker draft", () => {
+  it("suggests units from the expression RHS via the unit preset dialog", () => {
     const onChange = vi.fn();
     const variableUnitMetadata = new Map([
       ["C", { stockFlow: "flow" as const, signature: { money: 1, time: -1 } }],
@@ -580,8 +571,6 @@ describe("EquationGridEditor", () => {
     expect(suggestButton).toBeEnabled();
 
     fireEvent.click(suggestButton);
-    expect(screen.getByLabelText(/unit structure/i)).toHaveValue("divide");
-    fireEvent.click(screen.getByRole("button", { name: /^apply$/i }));
 
     expect(onChange).toHaveBeenLastCalledWith([
       {
@@ -606,6 +595,90 @@ describe("EquationGridEditor", () => {
     fireEvent.click(screen.getByRole("button", { name: /edit units for y/i }));
 
     expect(screen.getByRole("button", { name: /suggest units from expression/i })).toBeDisabled();
+  });
+
+  it("mirrors units from additive RHS operands via the footer Suggest units button", () => {
+    const onChange = vi.fn();
+    const variableUnitMetadata = new Map([
+      ["C", { stockFlow: "flow" as const, signature: { money: 1, time: -1 } }],
+      ["I", { stockFlow: "flow" as const, signature: { money: 1, time: -1 } }]
+    ]);
+
+    render(
+      <EquationGridEditor
+        equations={[{ id: "eq-y", name: "Y", expression: "C + I" }]}
+        issues={{}}
+        onChange={onChange}
+        parameterNames={[]}
+        variableUnitMetadata={variableUnitMetadata}
+      />
+    );
+
+    const footerSuggestButton = screen.getByRole("button", {
+      name: /suggest units from additive or subtractive rhs operands/i
+    });
+    expect(footerSuggestButton).toBeEnabled();
+
+    fireEvent.click(footerSuggestButton);
+
+    expect(onChange).toHaveBeenCalledWith([
+      {
+        id: "eq-y",
+        name: "Y",
+        expression: "C + I",
+        unitMeta: { stockFlow: "flow", signature: { money: 1, time: -1 } }
+      }
+    ]);
+    expect(screen.getByRole("dialog", { name: /suggested equation unit summary/i })).toBeInTheDocument();
+    expect(screen.getByText("Y", { selector: ".matrix-unit-meta-dialog-variable" })).toBeInTheDocument();
+    expect(screen.getByText("flow · $/yr")).toBeInTheDocument();
+    expect(screen.getByText("C + I", { selector: ".matrix-unit-meta-dialog-sources" })).toBeInTheDocument();
+  });
+
+  it("shows an empty summary dialog when no mirrored unit updates are available", () => {
+    render(
+      <EquationGridEditor
+        equations={[{ id: "eq-y", name: "Y", expression: "C + I" }]}
+        issues={{}}
+        onChange={vi.fn()}
+        parameterNames={[]}
+      />
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /suggest units from additive or subtractive rhs operands/i
+      })
+    );
+
+    expect(
+      screen.getByText(/no additive or subtractive equations had unit updates from tagged operands/i)
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the footer Suggest units button enabled after applying mirrored updates", () => {
+    const onChange = vi.fn();
+    const variableUnitMetadata = new Map([
+      ["C", { stockFlow: "flow" as const, signature: { money: 1, time: -1 } }],
+      ["I", { stockFlow: "flow" as const, signature: { money: 1, time: -1 } }]
+    ]);
+
+    render(
+      <EquationGridEditor
+        equations={[{ id: "eq-y", name: "Y", expression: "C + I" }]}
+        issues={{}}
+        onChange={onChange}
+        parameterNames={[]}
+        variableUnitMetadata={variableUnitMetadata}
+      />
+    );
+
+    const footerSuggestButton = screen.getByRole("button", {
+      name: /suggest units from additive or subtractive rhs operands/i
+    });
+
+    fireEvent.click(footerSuggestButton);
+    expect(footerSuggestButton).toBeEnabled();
   });
 
   it("closes the unit popover when clicking outside", () => {
@@ -633,6 +706,25 @@ describe("EquationGridEditor", () => {
     fireEvent.pointerDown(document.body);
 
     expect(trigger).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("renders a Units column header before Description", () => {
+    render(
+      <EquationGridEditor
+        equations={[{ id: "eq-y", name: "Y", expression: "C + I" }]}
+        issues={{}}
+        onChange={vi.fn()}
+        parameterNames={[]}
+      />
+    );
+
+    const header = document.querySelector(".equation-grid-header");
+    expect(header).toHaveTextContent("Role");
+    expect(header).toHaveTextContent("Units");
+    expect(header).toHaveTextContent("Description");
+    const headerText = header?.textContent ?? "";
+    expect(headerText.indexOf("Units")).toBeGreaterThan(headerText.indexOf("Role"));
+    expect(headerText.indexOf("Description")).toBeGreaterThan(headerText.indexOf("Units"));
   });
 
   it("edits equation roles from the role badge popover", () => {

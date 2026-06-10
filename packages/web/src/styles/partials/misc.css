@@ -29,6 +29,27 @@
   border-color: rgba(96, 165, 250, 0.4);
   color: var(--color-link-active);
 }
+.equation-unit-popover-options {
+  display: grid;
+  gap: 0.28rem;
+}
+.equation-unit-option {
+  background: rgba(248, 250, 252, 0.94);
+  border: 1px solid var(--color-border-grid);
+  border-radius: 0.55rem;
+  color: #334155;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 0.34rem 0.5rem;
+  text-align: left;
+}
+.equation-unit-option.is-active {
+  background: rgba(219, 234, 254, 0.82);
+  border-color: rgba(96, 165, 250, 0.4);
+  color: var(--color-link-active);
+}
 .trace-token-root {
   font-weight: 700;
   text-decoration: underline;

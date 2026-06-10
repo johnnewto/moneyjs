@@ -1,9 +1,14 @@
+import { isDerivativeBalanceTarget } from "@sfcr/core";
+
 import {
+  coerceUnitMeta,
   divideSignatures,
   multiplySignatures,
   normalizeSignature,
+  signaturesEqual,
   type BaseDimension,
   type StockFlowKind,
+  type UnitMeta,
   type UnitSignature
 } from "./unitMeta";
 
@@ -187,4 +192,79 @@ export function applyStockFlowToUnitDraft(args: {
   }
 
   return defaultPickerFormForKind(args.stockFlow) ?? args.currentPickerForm;
+}
+
+export interface EquationUnitPresetOption {
+  label: string;
+  unitMeta?: UnitMeta;
+}
+
+export const EQUATION_UNIT_PRESET_OPTIONS: EquationUnitPresetOption[] = [
+  { label: "None" },
+  { label: "$", unitMeta: { stockFlow: "stock", signature: { money: 1 } } },
+  { label: "$/yr", unitMeta: { stockFlow: "flow", signature: { money: 1, time: -1 } } },
+  { label: "items", unitMeta: { stockFlow: "stock", signature: { items: 1 } } },
+  { label: "items/yr", unitMeta: { stockFlow: "flow", signature: { items: 1, time: -1 } } },
+  { label: "$/items", unitMeta: { stockFlow: "aux", signature: { money: 1, items: -1 } } },
+  { label: "1/yr", unitMeta: { stockFlow: "aux", signature: { time: -1 } } }
+];
+
+export function unitMetasEqual(left?: UnitMeta, right?: UnitMeta): boolean {
+  const normalizedLeft = coerceUnitMeta(left);
+  const normalizedRight = coerceUnitMeta(right);
+
+  if (!normalizedLeft && !normalizedRight) {
+    return true;
+  }
+  if (!normalizedLeft || !normalizedRight) {
+    return false;
+  }
+
+  if (normalizedLeft.stockFlow !== normalizedRight.stockFlow) {
+    return false;
+  }
+
+  return signaturesEqual(normalizedLeft.signature, normalizedRight.signature);
+}
+
+export function equationUnitMetaToPresetMeta(
+  variableName: string,
+  unitMeta?: UnitMeta
+): UnitMeta | undefined {
+  const normalized = coerceUnitMeta(unitMeta);
+  if (!normalized) {
+    return undefined;
+  }
+
+  if (isDerivativeBalanceTarget(variableName) && normalized.signature) {
+    return {
+      ...normalized,
+      stockFlow: "flow",
+      signature: divideSignatures(normalized.signature, { time: 1 })
+    };
+  }
+
+  return normalized;
+}
+
+export function presetToEquationUnitMeta(
+  variableName: string,
+  preset?: UnitMeta
+): UnitMeta | undefined {
+  if (!preset) {
+    return undefined;
+  }
+
+  if (!isDerivativeBalanceTarget(variableName)) {
+    return preset;
+  }
+
+  if (preset.stockFlow === "flow" && preset.signature) {
+    return {
+      stockFlow: "stock",
+      signature: multiplySignatures(preset.signature, { time: 1 })
+    };
+  }
+
+  return preset;
 }

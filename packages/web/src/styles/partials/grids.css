@@ -167,6 +167,7 @@
     var(--eq-col-variable-width, 160px)
     var(--eq-col-expression-width, 280px)
     minmax(68px, 78px)
+    minmax(52px, 72px)
     minmax(0, 1fr)
     minmax(34px, 42px)
     28px;
@@ -186,6 +187,7 @@
     var(--eq-col-variable-width, 140px)
     var(--eq-col-expression-width, 320px)
     minmax(72px, 84px)
+    minmax(52px, 72px)
     minmax(0, 1fr)
     minmax(34px, 42px)
     28px;
@@ -293,12 +295,27 @@
 .equation-grid-description:focus {
   outline: none;
 }
-.equation-grid-row-group:nth-last-child(-n + 5) .input-unit-badge .equation-badge-popover-panel {
+.equation-grid-row-group:nth-last-child(-n + 5) .equation-grid-unit-cell .equation-badge-popover-panel {
   bottom: calc(100% + 0.28rem);
   top: auto;
 }
-.equation-grid-shell:has(.input-unit-badge.is-open) {
+.equation-grid-shell:has(.equation-grid-unit-cell.is-open) {
   overflow: visible;
+}
+.equation-grid-unit-cell {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+  position: relative;
+}
+.equation-grid-unit-cell .equation-badge-button {
+  min-width: 0;
+  text-align: center;
+  width: 100%;
+}
+.equation-grid-unit-cell .equation-badge-popover-panel {
+  left: 0;
+  right: auto;
 }
 .equation-grid-role-cell {
   display: flex;

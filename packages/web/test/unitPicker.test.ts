@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   applyStockFlowToUnitDraft,
   defaultPickerFormForKind,
+  equationUnitMetaToPresetMeta,
+  presetToEquationUnitMeta,
   signatureToUnitPickerForm,
+  unitMetasEqual,
   unitPickerFormToSignature
 } from "../src/lib/unitPicker";
 
@@ -70,6 +73,42 @@ describe("unitPicker", () => {
     });
     expect(defaultPickerFormForKind("aux")).toBeNull();
     expect(defaultPickerFormForKind(undefined)).toBeNull();
+  });
+
+  it("maps derivative-balance flow presets to stock storage", () => {
+    expect(
+      presetToEquationUnitMeta("d(Ls)", {
+        stockFlow: "flow",
+        signature: { money: 1, time: -1 }
+      })
+    ).toEqual({
+      stockFlow: "stock",
+      signature: { money: 1 }
+    });
+    expect(
+      equationUnitMetaToPresetMeta("d(Ls)", {
+        stockFlow: "stock",
+        signature: { money: 1 }
+      })
+    ).toEqual({
+      stockFlow: "flow",
+      signature: { money: 1, time: -1 }
+    });
+  });
+
+  it("compares preset unit metadata", () => {
+    expect(
+      unitMetasEqual(
+        { stockFlow: "flow", signature: { money: 1, time: -1 } },
+        { stockFlow: "flow", signature: { money: 1, time: -1 } }
+      )
+    ).toBe(true);
+    expect(
+      unitMetasEqual(
+        { stockFlow: "stock", signature: { money: 1 } },
+        { stockFlow: "flow", signature: { money: 1, time: -1 } }
+      )
+    ).toBe(false);
   });
 
   it("applies kind defaults only when units are unset", () => {

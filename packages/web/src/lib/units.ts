@@ -2,6 +2,7 @@ import {
   derivativeBalanceStockName,
   isAccumulationEquation,
   isDerivativeBalanceTarget,
+  isIdentityLike,
   parseEquation,
   parseExpression,
   type Expr
@@ -157,6 +158,355 @@ export function suggestEquationUnitMeta(args: {
     };
   } catch {
     return null;
+  }
+}
+
+function collectIdentityLikeOperandNames(expr: Expr): string[] {
+  const names = new Set<string>();
+
+  function walk(node: Expr): void {
+    switch (node.type) {
+      case "Variable":
+        if (node.name !== DT_VARIABLE) {
+          names.add(node.name);
+        }
+        break;
+      case "Lag":
+      case "Diff":
+        if (node.name !== DT_VARIABLE) {
+          names.add(node.name);
+        }
+        break;
+      case "Unary":
+        walk(node.expr);
+        break;
+      case "Binary":
+        if (node.op === "+" || node.op === "-") {
+          walk(node.left);
+          walk(node.right);
+        }
+        break;
+    }
+  }
+
+  walk(expr);
+  return [...names];
+}
+
+function hasMirrorableUnitSignature(
+  unitMeta: UnitMeta | undefined
+): unitMeta is UnitMeta & { signature: UnitSignature } {
+  const normalized = coerceUnitMeta(unitMeta);
+  if (!normalized?.signature) {
+    return false;
+  }
+  return Object.keys(normalizeSignature(normalized.signature)).length > 0;
+}
+
+function resolveAgreeingStockFlow(metas: UnitMeta[]): StockFlowKind | undefined {
+  const stockFlows = metas
+    .map((meta) => meta.stockFlow)
+    .filter((stockFlow): stockFlow is StockFlowKind => stockFlow != null);
+  if (stockFlows.length === 0) {
+    return undefined;
+  }
+
+  const first = stockFlows[0]!;
+  return stockFlows.every((stockFlow) => stockFlow === first) ? first : undefined;
+}
+
+function unitMetaMatchesSuggestion(
+  current: UnitMeta | undefined,
+  proposed: SuggestedEquationUnitMeta
+): boolean {
+  const normalizedCurrent = coerceUnitMeta(current);
+  if (!normalizedCurrent?.signature || !proposed.signature) {
+    return false;
+  }
+  if (!signaturesEqual(normalizedCurrent.signature, proposed.signature)) {
+    return false;
+  }
+  if (normalizedCurrent.stockFlow && proposed.stockFlow) {
+    return normalizedCurrent.stockFlow === proposed.stockFlow;
+  }
+
+  return true;
+}
+
+export function suggestMirroredAdditiveUnitMeta(args: {
+  variableName: string;
+  expression: string;
+  variableUnitMetadata: VariableUnitMetadata;
+}): SuggestedEquationUnitMeta | null {
+  const expression = args.expression.trim();
+  const variableName = args.variableName.trim();
+  if (!expression || !variableName) {
+    return null;
+  }
+
+  if (isDerivativeBalanceTarget(variableName)) {
+    return null;
+  }
+
+  try {
+    const parsed = parseEquation(variableName, expression);
+    if (isAccumulationEquation(parsed)) {
+      return null;
+    }
+    if (!isIdentityLike(parsed.sourceExpression)) {
+      return null;
+    }
+
+    const taggedOperands = collectIdentityLikeOperandNames(parsed.sourceExpression)
+      .filter((name) => name !== variableName)
+      .map((name) => coerceUnitMeta(args.variableUnitMetadata.get(name)))
+      .filter(hasMirrorableUnitSignature);
+
+    if (taggedOperands.length === 0) {
+      return null;
+    }
+
+    const signature = normalizeSignature(taggedOperands[0]!.signature);
+    for (const meta of taggedOperands.slice(1)) {
+      if (!signaturesEqual(signature, normalizeSignature(meta.signature!))) {
+        return null;
+      }
+    }
+
+    const stockFlow = resolveAgreeingStockFlow(taggedOperands);
+    const definedStockFlows = taggedOperands
+      .map((meta) => meta.stockFlow)
+      .filter((value): value is StockFlowKind => value != null);
+    if (definedStockFlows.length > 0 && !stockFlow) {
+      return null;
+    }
+
+    return {
+      signature,
+      ...(stockFlow ? { stockFlow } : {})
+    };
+  } catch {
+    return null;
+  }
+}
+
+export interface MirroredAdditiveUnitTargets {
+  proposed: SuggestedEquationUnitMeta;
+  operandNames: string[];
+  untaggedOperandNames: string[];
+}
+
+export function collectMirroredAdditiveUnitTargets(args: {
+  variableName: string;
+  expression: string;
+  variableUnitMetadata: VariableUnitMetadata;
+}): MirroredAdditiveUnitTargets | null {
+  const proposed = suggestMirroredAdditiveUnitMeta(args);
+  if (!proposed?.signature) {
+    return null;
+  }
+
+  try {
+    const parsed = parseEquation(args.variableName.trim(), args.expression.trim());
+    const operandNames = collectIdentityLikeOperandNames(parsed.sourceExpression).filter(
+      (name) => name !== args.variableName.trim()
+    );
+    const untaggedOperandNames = operandNames.filter((name) => {
+      const current = coerceUnitMeta(args.variableUnitMetadata.get(name));
+      return !unitMetaMatchesSuggestion(current, proposed);
+    });
+
+    return {
+      proposed,
+      operandNames,
+      untaggedOperandNames
+    };
+  } catch {
+    return null;
+  }
+}
+
+function resolveMirroredUnitChangeExpression(
+  equation: EquationListItem,
+  sourceEquation: EquationListItem
+): string {
+  if (isRowComment(equation) || isRowComment(sourceEquation)) {
+    return "";
+  }
+
+  if (equation.id === sourceEquation.id) {
+    return equation.expression.trim();
+  }
+
+  return `${sourceEquation.name.trim()} = ${sourceEquation.expression.trim()}`;
+}
+
+function queueMirroredUnitUpdate(args: {
+  changes: Map<string, MirroredEquationUnitChange>;
+  equation: EquationListItem;
+  initialEquations: readonly EquationListItem[];
+  pending: Map<string, UnitMeta>;
+  proposed: SuggestedEquationUnitMeta;
+  sourceEquation: EquationListItem;
+}): boolean {
+  if (isRowComment(args.equation)) {
+    return false;
+  }
+  if (unitMetaMatchesSuggestion(args.equation.unitMeta, args.proposed)) {
+    return false;
+  }
+
+  const pendingMeta = args.proposed as UnitMeta;
+  const existingPending = args.pending.get(args.equation.id);
+  if (existingPending && !unitMetaMatchesSuggestion(existingPending, args.proposed)) {
+    return false;
+  }
+
+  args.pending.set(args.equation.id, pendingMeta);
+  if (!args.changes.has(args.equation.id)) {
+    const original = args.initialEquations.find((entry) => entry.id === args.equation.id);
+    args.changes.set(args.equation.id, {
+      variable: args.equation.name.trim(),
+      expression: resolveMirroredUnitChangeExpression(args.equation, args.sourceEquation),
+      previous: original && !isRowComment(original) ? original.unitMeta : undefined,
+      proposed: pendingMeta
+    });
+  } else {
+    args.changes.get(args.equation.id)!.proposed = pendingMeta;
+  }
+
+  return true;
+}
+
+export function countMirroredEquationUnitSuggestions(args: {
+  equations: readonly EquationListItem[];
+  variableUnitMetadata: VariableUnitMetadata;
+}): number {
+  const pending = new Set<string>();
+
+  for (const equation of args.equations) {
+    if (isRowComment(equation)) {
+      continue;
+    }
+
+    const targets = collectMirroredAdditiveUnitTargets({
+      variableName: equation.name,
+      expression: equation.expression,
+      variableUnitMetadata: args.variableUnitMetadata
+    });
+    if (!targets) {
+      continue;
+    }
+
+    if (!unitMetaMatchesSuggestion(equation.unitMeta, targets.proposed)) {
+      pending.add(equation.id);
+    }
+
+    for (const operandName of targets.untaggedOperandNames) {
+      const operandEquation = args.equations.find(
+        (entry) => !isRowComment(entry) && entry.name.trim() === operandName
+      );
+      if (
+        operandEquation &&
+        !isRowComment(operandEquation) &&
+        !unitMetaMatchesSuggestion(operandEquation.unitMeta, targets.proposed)
+      ) {
+        pending.add(operandEquation.id);
+      }
+    }
+  }
+
+  return pending.size;
+}
+
+export interface MirroredEquationUnitChange {
+  variable: string;
+  expression: string;
+  previous?: UnitMeta;
+  proposed: UnitMeta;
+}
+
+export interface MirroredEquationUnitApplyResult {
+  equations: EquationListItem[];
+  changes: MirroredEquationUnitChange[];
+}
+
+export function applyMirroredEquationUnitSuggestions(args: {
+  equations: EquationListItem[];
+  variableUnitMetadata: VariableUnitMetadata;
+}): MirroredEquationUnitApplyResult {
+  const initialEquations = args.equations;
+  const changes = new Map<string, MirroredEquationUnitChange>();
+  let current = args.equations;
+  let metadata = args.variableUnitMetadata;
+  let anyChanged = false;
+
+  while (true) {
+    const pending = new Map<string, UnitMeta>();
+    let passChanged = false;
+
+    for (const equation of current) {
+      if (isRowComment(equation)) {
+        continue;
+      }
+
+      const targets = collectMirroredAdditiveUnitTargets({
+        variableName: equation.name,
+        expression: equation.expression,
+        variableUnitMetadata: metadata
+      });
+      if (!targets) {
+        continue;
+      }
+
+      if (
+        queueMirroredUnitUpdate({
+          changes,
+          equation,
+          initialEquations,
+          pending,
+          proposed: targets.proposed,
+          sourceEquation: equation
+        })
+      ) {
+        passChanged = true;
+      }
+
+      for (const operandName of targets.untaggedOperandNames) {
+        const operandEquation = current.find(
+          (entry) => !isRowComment(entry) && entry.name.trim() === operandName
+        );
+        if (!operandEquation || isRowComment(operandEquation)) {
+          continue;
+        }
+
+        if (
+          queueMirroredUnitUpdate({
+            changes,
+            equation: operandEquation,
+            initialEquations,
+            pending,
+            proposed: targets.proposed,
+            sourceEquation: equation
+          })
+        ) {
+          passChanged = true;
+        }
+      }
+    }
+
+    if (!passChanged) {
+      return {
+        equations: anyChanged ? current : args.equations,
+        changes: [...changes.values()].sort((left, right) => left.variable.localeCompare(right.variable))
+      };
+    }
+
+    anyChanged = true;
+    current = current.map((equation) =>
+      pending.has(equation.id) ? { ...equation, unitMeta: pending.get(equation.id) } : equation
+    );
+    metadata = buildVariableUnitMetadata({ equations: current });
   }
 }
 
@@ -370,6 +720,37 @@ function inferFunctionUnits(
   }
 }
 
+function isDimensionlessSignature(signature?: UnitSignature): boolean {
+  return Object.keys(normalizeSignature(signature)).length === 0;
+}
+
+function isInverseTimeOnlySignature(signature?: UnitSignature): boolean {
+  const normalized = normalizeSignature(signature);
+  return (
+    (normalized.time ?? 0) === -1 &&
+    normalized.money == null &&
+    normalized.items == null
+  );
+}
+
+function resolveAdditiveUnitSignature(
+  left: UnitSignature,
+  right: UnitSignature
+): UnitSignature | null {
+  if (signaturesEqual(left, right)) {
+    return left;
+  }
+
+  if (
+    (isDimensionlessSignature(left) && isInverseTimeOnlySignature(right)) ||
+    (isInverseTimeOnlySignature(left) && isDimensionlessSignature(right))
+  ) {
+    return DIMENSIONLESS;
+  }
+
+  return null;
+}
+
 function inferBinaryUnits(
   expr: Extract<Expr, { type: "Binary" }>,
   variableUnits: VariableUnitMetadata
@@ -389,14 +770,15 @@ function inferBinaryUnits(
       if (left.signature == null || right.signature == null) {
         return { signature: null, diagnostics };
       }
-      if (!signaturesEqual(left.signature, right.signature)) {
+      const additiveSignature = resolveAdditiveUnitSignature(left.signature, right.signature);
+      if (additiveSignature == null) {
         diagnostics.push({
           severity: UNIT_CHECK_SEVERITY,
           message: `Cannot combine ${formatSignature(left.signature)} with ${formatSignature(right.signature)} using '${expr.op}'.`
         });
         return { signature: null, diagnostics };
       }
-      return { signature: left.signature, diagnostics };
+      return { signature: additiveSignature, diagnostics };
     case "*":
       if (left.signature == null || right.signature == null) {
         return { signature: null, diagnostics };
