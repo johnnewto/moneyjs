@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Opening SFCR Notebook...</title>
+    <script>
+      (function () {
+        var pagesBasePath = "/moneyjs/";
+        var pathname = window.location.pathname;
+        var search = window.location.search;
+        var extraHash = window.location.hash;
+        var basePath = pathname.startsWith(pagesBasePath) ? pagesBasePath : "/";
+        var baseWithoutTrailingSlash = basePath === "/" ? "" : basePath.slice(0, -1);
+        var routePath = basePath === "/" ? pathname : pathname.slice(baseWithoutTrailingSlash.length);
+
+        if (!routePath || routePath === "/") {
+          window.location.replace(basePath + search + extraHash);
+          return;
+        }
+
+        window.location.replace(basePath + search + "#" + routePath + extraHash);
+      })();
+    </script>
+  </head>
+  <body>
+    Opening SFCR Notebook...
+  </body>
+</html>
