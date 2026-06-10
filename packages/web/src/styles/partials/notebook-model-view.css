@@ -29,7 +29,7 @@
   --eq-col-variable-width: 160px;
   --eq-col-column-toggle-width: max-content;
   --eq-col-initial-width: minmax(72px, 96px);
-  --eq-col-current-width: minmax(92px, 120px);
+  --eq-col-current-width: minmax(132px, 168px);
   --eq-col-gain-width: minmax(88px, 112px);
 }
 .notebook-model-view-table-resizable.layout-equation-view.initial-column-collapsed {
@@ -503,6 +503,43 @@
   color: var(--color-text-secondary);
   text-align: right;
   white-space: nowrap;
+}
+.notebook-model-view-table-resizable.layout-equation-view .notebook-model-view-current .notebook-current-value-tooltip-anchor {
+  display: block;
+  width: 100%;
+}
+.notebook-model-view-table-resizable.layout-equation-view .notebook-model-view-current .variable-label-inline {
+  display: block;
+  width: 100%;
+}
+.notebook-model-view-table-resizable.layout-equation-view .notebook-model-view-current .notebook-current-value {
+  align-items: baseline;
+  column-gap: 0;
+  display: grid;
+  grid-template-columns: 2ch minmax(0, 1fr) auto 2.25ch minmax(3.75rem, 4.75rem);
+  width: 100%;
+}
+.notebook-model-view-table-resizable.layout-equation-view .notebook-model-view-current .notebook-current-value-leading {
+  text-align: right;
+}
+.notebook-model-view-table-resizable.layout-equation-view .notebook-model-view-current .notebook-current-value-integer {
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+}
+.notebook-model-view-table-resizable.layout-equation-view .notebook-model-view-current .notebook-current-value-separator {
+  text-align: center;
+}
+.notebook-model-view-table-resizable.layout-equation-view .notebook-model-view-current .notebook-current-value-fraction {
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+}
+.notebook-model-view-table-resizable.layout-equation-view .notebook-model-view-current .notebook-current-value-unit {
+  color: var(--color-text-subtle);
+  padding-left: 0.35rem;
+  text-align: left;
 }
 .notebook-model-view-gain {
   color: var(--color-text-secondary);

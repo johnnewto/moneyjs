@@ -42,7 +42,7 @@ export function VariableLabel({
     <InstantTooltip className={className} tooltip={tooltip}>
       <span className="variable-label-inline">
         <span>{children ?? <VariableMathLabel name={name} />}</span>
-        {unitLabel ? <span className="unit-badge">{unitLabel}</span> : null}
+        {unitLabel && children == null ? <span className="unit-badge">{unitLabel}</span> : null}
       </span>
     </InstantTooltip>
   );

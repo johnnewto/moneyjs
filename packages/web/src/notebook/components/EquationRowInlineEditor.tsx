@@ -456,13 +456,23 @@ export function NotebookEquationReadRow({
         onDraftValueTextChange={(value) => onDraftInitialValueTextChange?.(value)}
       />
       <span className="notebook-model-view-current" role="cell">
-        {formatNotebookCurrentValue(
-          equation.name,
-          currentValues[equation.name.trim()],
-          variableDescriptions,
-          variableUnitMetadata,
-          false
-        )}
+        <VariableLabel
+          className="notebook-current-value-tooltip-anchor"
+          currentValue={currentValues[equation.name.trim()]}
+          name={equation.name}
+          variableDescriptions={variableDescriptions}
+          variableUnitMetadata={variableUnitMetadata}
+        >
+          {formatNotebookCurrentValue(
+            equation.name,
+            currentValues[equation.name.trim()],
+            variableDescriptions,
+            variableUnitMetadata,
+            false,
+            2,
+            true
+          )}
+        </VariableLabel>
       </span>
       <span className="notebook-model-view-gain" role="cell">
         {formatEquationVariableGain(

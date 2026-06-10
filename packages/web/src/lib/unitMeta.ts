@@ -415,6 +415,79 @@ export function resolveVariableTooltip(args: {
   return formatVariableTooltip(resolvedDescription, unitMeta, normalizedName);
 }
 
+export interface NumericValueParts {
+  leadingSymbol: string;
+  integerPart: string;
+  decimalSeparator: string | null;
+  fractionPart: string | null;
+  unitSuffix: string;
+}
+
+function formatNumericUnitSuffix(unitText: string | null): string {
+  if (!unitText) {
+    return "";
+  }
+  if (unitText.startsWith("$")) {
+    return unitText.slice(1);
+  }
+  return unitText;
+}
+
+function formatNumericLeadingSymbol(sign: string, unitText: string | null): string {
+  if (unitText?.startsWith("$")) {
+    return `${sign}$`;
+  }
+  return sign;
+}
+
+function formatNumericAmountParts(
+  absoluteValue: number,
+  options?: { maximumFractionDigits?: number; minimumFractionDigits?: number }
+): Pick<NumericValueParts, "integerPart" | "decimalSeparator" | "fractionPart"> {
+  const parts = new Intl.NumberFormat(undefined, {
+    maximumFractionDigits: options?.maximumFractionDigits ?? 6,
+    minimumFractionDigits: options?.minimumFractionDigits,
+    useGrouping: true
+  }).formatToParts(absoluteValue);
+
+  let integerPart = "";
+  let decimalSeparator: string | null = null;
+  let fractionPart: string | null = null;
+
+  for (const part of parts) {
+    if (part.type === "integer" || part.type === "group") {
+      integerPart += part.value;
+    } else if (part.type === "decimal") {
+      decimalSeparator = part.value;
+    } else if (part.type === "fraction") {
+      fractionPart = part.value;
+    }
+  }
+
+  return { integerPart, decimalSeparator, fractionPart };
+}
+
+export function formatNumericValueParts(
+  value: number,
+  unitMeta?: UnitMeta,
+  options?: { maximumFractionDigits?: number; minimumFractionDigits?: number }
+): NumericValueParts | null {
+  if (!Number.isFinite(value)) {
+    return null;
+  }
+
+  const absoluteValue = Math.abs(Number(value));
+  const sign = value < 0 ? "-" : "";
+  const unitText = formatUnitText(unitMeta);
+  const amountParts = formatNumericAmountParts(absoluteValue, options);
+
+  return {
+    leadingSymbol: formatNumericLeadingSymbol(sign, unitText),
+    ...amountParts,
+    unitSuffix: formatNumericUnitSuffix(unitText)
+  };
+}
+
 export function formatValueWithUnits(
   value: number,
   unitMeta?: UnitMeta,

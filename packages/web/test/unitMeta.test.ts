@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatUnitText, resolveVariableTooltip } from "../src/lib/unitMeta";
+import { formatNumericValueParts, formatUnitText, resolveVariableTooltip } from "../src/lib/unitMeta";
 
 describe("mass unit formatting", () => {
   it("formats kg stock and flow presets", () => {
@@ -19,6 +19,38 @@ describe("energy and pp unit formatting", () => {
     expect(formatUnitText({ stockFlow: "stock", signature: { pp: 1 } })).toBe("pp");
     expect(formatUnitText({ stockFlow: "flow", signature: { pp: 1, time: -1 } })).toBe("pp/yr");
     expect(formatUnitText({ stockFlow: "aux", signature: { money: 1, pp: -1 } })).toBe("$/pp");
+  });
+});
+
+describe("formatNumericValueParts", () => {
+  it("splits money flow values into leading symbol, amount, and suffix", () => {
+    expect(
+      formatNumericValueParts(-14.511085, { stockFlow: "flow", signature: { money: 1, time: -1 } }, {
+        maximumFractionDigits: 2,
+        minimumFractionDigits: 2
+      })
+    ).toEqual({
+      leadingSymbol: "-$",
+      integerPart: "14",
+      decimalSeparator: ".",
+      fractionPart: "51",
+      unitSuffix: "/yr"
+    });
+  });
+
+  it("keeps non-money units in a separate suffix without shifting the amount", () => {
+    expect(
+      formatNumericValueParts(80.67, { stockFlow: "flow", signature: { items: 1, time: -1 } }, {
+        maximumFractionDigits: 2,
+        minimumFractionDigits: 2
+      })
+    ).toEqual({
+      leadingSymbol: "",
+      integerPart: "80",
+      decimalSeparator: ".",
+      fractionPart: "67",
+      unitSuffix: "items/yr"
+    });
   });
 });
 

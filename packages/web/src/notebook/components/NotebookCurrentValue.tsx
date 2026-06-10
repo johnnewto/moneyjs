@@ -10,26 +10,34 @@ export function formatNotebookCurrentValue(
   value: number | undefined,
   variableDescriptions?: VariableDescriptions,
   variableUnitMetadata?: ReturnType<typeof buildVariableUnitMetadata>,
-  includeVariablePrefix = true
+  includeVariablePrefix = true,
+  maximumFractionDigits = 6,
+  decimalAligned = false
 ): JSX.Element | string {
   const trimmedName = name.trim();
   if (!trimmedName) {
     return "";
   }
 
+  const formatOptions = decimalAligned
+    ? { maximumFractionDigits, minimumFractionDigits: maximumFractionDigits }
+    : { maximumFractionDigits };
+
   if (!includeVariablePrefix) {
     return (
       <NumericValueText
+        decimalAligned={decimalAligned}
         fallback="--"
         unitMeta={variableUnitMetadata?.get(trimmedName)}
         value={value}
-        options={{ maximumFractionDigits: 6 }}
+        options={formatOptions}
       />
     );
   }
 
   return (
     <NumericValueText
+      decimalAligned={decimalAligned}
       prefix={
         <>
           <VariableLabel
@@ -43,7 +51,7 @@ export function formatNotebookCurrentValue(
       fallback="--"
       unitMeta={variableUnitMetadata?.get(trimmedName)}
       value={value}
-      options={{ maximumFractionDigits: 6 }}
+      options={formatOptions}
     />
   );
 }
