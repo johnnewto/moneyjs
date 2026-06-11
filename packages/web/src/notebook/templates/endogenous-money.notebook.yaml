@@ -28,11 +28,10 @@ cells:
         - Government debt to GDP and private debt to GDP are shown as chart variables.
   - matrix:
       id: balance-sheet
-      accountingKind: balance-sheet
+      sourceRunCellId: baseline-run
       title: Endogenous money balance sheet
       description: BOMD balance sheet.
       note: Loans and government bonds are private-bank assets.
-      sourceRunCellId: baseline-run
       columns: [Firms, Workers, Government, Private_banks, Sum]
       sectors: [Firms, Households, Government, Banks, ""]
       rows:
@@ -44,11 +43,10 @@ cells:
         - [Sum, Sum, "0", "0", "0", "0", "0"]
   - matrix:
       id: transaction-flow
-      accountingKind: transaction-flow
+      sourceRunCellId: baseline-run
       title: Endogenous money transaction-flow matrix
       description: BOMD transaction flows.
       note: Compact accounting display of the executable model.
-      sourceRunCellId: baseline-run
       columns: [Firms, Workers, Government, Private_banks, Sum]
       sectors: [Firms, Households, Government, Banks, ""]
       rows:
@@ -63,29 +61,6 @@ cells:
         - [Interest, Bond interest, "", "", -Int_Bonds, +Int_Bonds, "0"]
         - [Bank spending, Bank spending, +Spend_banks, "", "", -Spend_banks, "0"]
         - [Sum, Sum, "0", "0", "0", "0", "0"]
-  - matrix:
-      id: account-transactions
-      collapsed: false
-      sourceRunCellId: baseline-run
-      title: Endogenous money account transactions
-      description: Account-level transaction matrix with deposit, debt, and bond columns by sector.
-      note: Columns group balance-sheet accounts by sector. Use Expand all / Collapse all or click sector headers to show or hide account columns.
-      columns: [Deposits (Workers_eq), Deposits (Firms_eq), Private debt (Debt), Gov bonds (Gov_Bonds), Worker deposits, Firm deposits, Private debt, Gov bonds, Bank account (Banks_eq), Sum]
-      sectors: [Households, Firms, Firms, Government, Banks, Banks, Banks, Banks, Banks, ""]
-      columnBadges: [asset, asset, liability, liability, liability, liability, asset, asset, equity, ""]
-      accountingKind: account-transactions
-      rows:
-        - [Loans, New loans, "", +Loans, -Loans, "", "", -Loans, +Loans, "", "", "0"]
-        - [Consumption, Worker consumption, -Con_W, +Con_W, "", "", -Con_W, +Con_W, "", "", "", "0"]
-        - [Wages, Wages, +Wages, -Wages, "", "", +Wages, -Wages, "", "", "", "0"]
-        - [Taxes, Taxes, -Tax, "", "", +Tax, "", "", "", "", "", "0"]
-        - [Government, Government spending, "", +Spend_Govt, "", -Spend_Govt, "", "", "", "", "", "0"]
-        - [Bonds, Government bonds, "", "", "", +Bonds, "", -Bonds, "", "", "", "0"]
-        - [Interest, Private debt interest, "", -Interest, "", "", "", "", "", "", +Interest, "0"]
-        - [Fees, Bank fees, "", -Fee, "", "", "", "", "", "", +Fee, "0"]
-        - [Interest, Bond interest, "", "", "", -Int_Bonds, "", "", "", "", +Int_Bonds, "0"]
-        - [Bank spending, Bank spending, "", +Spend_banks, "", "", "", "", "", "", -Spend_banks, "0"]
-        - [Sum, Sum, Workers_eq, Firms_eq, Debt, Gov_Bonds, Workers_eq, Firms_eq, Debt, Gov_Bonds, Banks_eq, "0"]
   - sequence:
       id: transaction-sequence
       title: Endogenous money transaction sequence
@@ -105,31 +80,28 @@ cells:
       title: Endogenous money model
       modelId: endogenous-money-model
       rows:
-        - ======================= Workers ======================= 
-        - [Con_W, Workers_eq * Workers_spendrate, "Worker consumption.", $/year, flow, behavioral, eq-12-Con_W]
-        - [Workers_eq, lag(Workers_eq) + Wages - Con_W - Tax, "Workers account.", $, stock, accumulation, eq-15-Workers_eq]
-        - ======================= Government ======================= 
+        - [Int_Bonds, Gov_Bonds * Interest_rate, "Bond interest.", $/year, flow, definition]
+        - [Deficit, Spend_Govt - Tax, "Deficit.", $/year, flow, identity]
         - [Spend_Govt, GDP * Spend_frac, "", "", "", "", eq-437d2cc1-8540-4574-90f5-71b53de8b2d5]
         - [Bonds, Int_Bonds + Deficit, "Bonds.", $/year, flow, identity, eq-2-Bonds]
-        - [Deficit, Spend_Govt - Tax, "Deficit.", $/year, flow, identity]
-        - [Int_Bonds, Gov_Bonds * Interest_rate, "Bond interest.", $/year, flow, definition]
-        - [Loans, GDP * lend_rate, "Loans.", $/year, flow, behavioral, eq-6-Lend]
-        - [Debt, lag(Debt) + Loans, "Private debt.", $, stock, accumulation, eq-8-Debt]
-        - [Tax, GDP * Tax_frac, "Taxes.", $/year, flow, policy]
-        - [Gov_Bonds, lag(Gov_Bonds) + Bonds, "Government bonds.", $, stock, accumulation, eq-3-Gov_Bonds]
-        - =======================  Banks ======================= 
+        - [Gov_Bonds, I(Bonds), "Government bonds.", $, stock, accumulation, eq-3-Gov_Bonds]
+        - [Money, Workers_eq + Firms_eq + Banks_eq, "Money.", $, stock, identity, eq-4-Money]
+        - [GDP, Money * Velocity, "GDP.", $/year, flow, identity, eq-5-GDP]
+        - [Lend, GDP * lend_rate, "Lend.", $/year, flow, behavioral, eq-6-Lend]
+        - [Loans, Lend, "Loans.", $/year, flow, definition, eq-7-Loans]
+        - [Debt, I(Loans), "Private debt.", $, stock, accumulation, eq-8-Debt]
         - [Interest, Debt * Interest_rate, "Interest.", $/year, flow, definition, eq-9-Interest]
         - [Fee, Interest * Fee_rate, "Fee.", $/year, flow, definition, eq-10-Fee]
         - [Spend_banks, Banks_eq * Spend_rate, "Bank spending.", $/year, flow, behavioral, eq-11-Spend_banks]
-        - [Banks_eq, lag(Banks_eq) + Interest + Fee + Int_Bonds - Spend_banks, "Banks account.", $, stock, accumulation, eq-17-Banks_eq]
-        - =======================  Firms =======================  
+        - [Con_W, Workers_eq * Workers_spendrate, "Worker consumption.", $/year, flow, behavioral, eq-12-Con_W]
         - [Wages, GDP * Wage_rate, "Wages.", $/year, flow, definition, eq-13-Wages]
-        - [Firms_eq, lag(Firms_eq) + Con_W + Loans + Spend_Govt + Spend_banks - Wages - Interest - Fee, "Firms account.", $, stock, accumulation, eq-16-Firms_eq]
-        - =======================  Definitions ======================= 
-        - [GDP, Money * Velocity, "GDP.", $/year, flow, identity, eq-5-GDP]
-        - [Money, Workers_eq + Firms_eq + Banks_eq, "Money.", $, stock, identity, eq-4-Money]
+        - [Tax, GDP * Tax_frac, "Taxes.", $/year, flow, policy, eq-14-Tax]
+        - [Workers_eq, I(Wages - Con_W - Tax), "Workers account.", $, stock, accumulation, eq-15-Workers_eq]
+        - [Firms_eq, I(Con_W + Loans + Spend_Govt + Spend_banks - Wages - Interest - Fee), "Firms account.", $, stock, accumulation, eq-16-Firms_eq]
+        - [Banks_eq, I(Interest + Fee + Int_Bonds - Spend_banks), "Banks account.", $, stock, accumulation, eq-17-Banks_eq]
         - [Govt_Debt_GDP, Gov_Bonds / GDP, "Government debt to GDP.", "", aux, definition, eq-18-Govt_Debt_GDP]
         - [Private_Debt_GDP, Debt / GDP, "Private debt to GDP.", "", aux, definition, eq-19-Private_Debt_GDP]
+        - [BankAssets, Gov_Bonds + Debt, "Bank assets.", $, stock, identity, eq-20-BankAssets]
         - [NominalGrowth, (GDP - lag(GDP)) / lag(GDP), "GDP growth.", "", aux, definition, eq-21-NominalGrowth]
   - solver:
       id: endogenous-money-solver
@@ -181,8 +153,7 @@ cells:
         - GDP
         - Money
         - Loans
-        - Gov_Bonds
-        - Debt
+        - BankAssets
       axisMode: separate
       axisSnapTolarance: 0.1
       niceScale: true

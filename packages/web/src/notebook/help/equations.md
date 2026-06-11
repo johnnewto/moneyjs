@@ -60,7 +60,7 @@ SFC equations should respect stock-flow units:
 
 - Stocks have units like `$`.
 - Flows have units like `$/yr`.
-- A stock update usually has the form `stock = stock' + flow * dt`.
+- A stock update usually has the form `stock = stock' + flow * dt` or alternatively `stock = I(flow)`
 - Do not add a flow directly to a stock without multiplying by `dt`.
 
 Examples:
