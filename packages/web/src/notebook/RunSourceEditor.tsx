@@ -1,5 +1,5 @@
 import type { ScenarioDefinition, ShockVariableDef } from "@sfcr/core";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import { formatCellBody } from "./sourceEditing";
@@ -288,6 +288,8 @@ export function RunSourceEditor({
                       <ScenarioVariableRow
                         key={name}
                         name={name}
+                        renameDialogOldName={shockRename.renameDialog?.oldName ?? null}
+                        renameDialogOpen={shockRename.renameDialog != null}
                         variable={variable}
                         onChange={(nextName, nextValue) =>
                           updateShockVariable(shockIndex, name, nextName, nextValue)
@@ -346,24 +348,53 @@ function RunField({ label, children }: { label: string; children: ReactNode }) {
 
 function ScenarioVariableRow({
   name,
+  renameDialogOldName,
+  renameDialogOpen,
   variable,
   onChange,
   onRemove
 }: {
   name: string;
+  renameDialogOldName: string | null;
+  renameDialogOpen: boolean;
   variable: ShockVariableDef;
   onChange(nextName: string, nextValue: ShockVariableDef): void;
   onRemove(): void;
 }) {
   const valueText = variable.kind === "constant" ? String(variable.value) : variable.values.join(", ");
+  const [nameDraft, setNameDraft] = useState(name);
   const [valueDraft, setValueDraft] = useState(valueText);
   const [isValueFocused, setIsValueFocused] = useState(false);
+  const wasRenameDialogOpen = useRef(false);
+
+  useEffect(() => {
+    if (!renameDialogOpen && wasRenameDialogOpen.current && renameDialogOldName === name) {
+      setNameDraft(name);
+    }
+    wasRenameDialogOpen.current = renameDialogOpen;
+  }, [name, renameDialogOldName, renameDialogOpen]);
+
+  useEffect(() => {
+    if (nameDraft.trim() === name.trim()) {
+      setNameDraft(name);
+    }
+  }, [name, nameDraft]);
 
   useEffect(() => {
     if (!isValueFocused) {
       setValueDraft(valueText);
     }
   }, [isValueFocused, valueText]);
+
+  function commitName(): void {
+    const trimmedName = nameDraft.trim();
+    if (!trimmedName || trimmedName === name.trim()) {
+      setNameDraft(name);
+      return;
+    }
+
+    onChange(trimmedName, variable);
+  }
 
   function updateKind(nextKind: ShockVariableDef["kind"]): void {
     if (nextKind === variable.kind) {
@@ -406,8 +437,15 @@ function ScenarioVariableRow({
     <div className="scenario-source-variable-row">
       <input
         className="scenario-pill-input scenario-pill-input-mono"
-        value={name}
-        onChange={(event) => onChange(event.target.value, variable)}
+        value={nameDraft}
+        onBlur={commitName}
+        onChange={(event) => setNameDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            event.currentTarget.blur();
+          }
+        }}
         aria-label={`Shock variable ${name}`}
       />
       <select

@@ -112,7 +112,13 @@ describe("RunSourceEditor", () => {
       />
     );
 
-    fireEvent.change(screen.getByLabelText(/shock variable Gd/i), { target: { value: "G_d" } });
+    const nameInput = screen.getByLabelText(/shock variable Gd/i);
+    fireEvent.change(nameInput, { target: { value: "G_d" } });
+    expect(
+      screen.queryByRole("dialog", { name: /rename variable across notebook/i })
+    ).not.toBeInTheDocument();
+
+    fireEvent.blur(nameInput);
 
     expect(screen.getByRole("dialog", { name: /rename variable across notebook/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Yes" }));
