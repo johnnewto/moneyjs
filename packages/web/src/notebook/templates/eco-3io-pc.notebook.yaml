@@ -66,12 +66,12 @@ cells:
         - [p1, (w / pr1) + (p1 * a11 + p2 * a21 + p3 * a31) * (1 + mu), "Unit price in agriculture.", $/item, aux, identity]
         - [p2, (w / pr2) + (p1 * a12 + p2 * a22 + p3 * a32) * (1 + mu), "Unit price in manufacturing.", $/item, aux, identity]
         - [p3, (w / pr3) + (p1 * a13 + p2 * a23 + p3 * a33) * (1 + mu), "Unit price in services.", $/item, aux, identity]
-        - [p_c, p1 * beta1_c + p2 * beta2_c + p3 * beta3_c, "Consumer price index.", "", flow, identity]
+        - [p_c, p1 * beta1_c + p2 * beta2_c + p3 * beta3_c, "Consumer price index.", $/item, aux, identity]
         - [p_g, p1 * beta1_g + p2 * beta2_g + p3 * beta3_g, "Government purchase price index.", "", flow, identity]
         - [yd, y - t + lag(r) * lag(b_h), "Household disposable income.", $/year, flow, identity]
         - [v, I(yd - p_c * cons), "Household wealth.", $, stock, accumulation]
-        - [infl, ((p_c - lag(p_c)) / lag(p_c)) * (lag(v) / p_c), "Inflation tax on lagged wealth.", $/year, flow, identity]
-        - [cons, alpha1 * ((yd / p_c) - infl) + alpha2 * lag(v) / p_c, "Real consumption without monetary illusion.", "", flow, identity]
+        - [infl, (d(p_c) / p_c') * (v' / p_c), "Inflation tax on lagged wealth.", items/year, flow, identity]
+        - [cons, alpha1 * ((yd / p_c) - infl) + alpha2 * lag(v) / p_c, "Real consumption without monetary illusion.", items/year, flow, identity]
         - [alpha1, alpha10 - alpha11 * lag(r) - alpha12 * (temp - lag(temp)), "Endogenous propensity to consume out of income.", "", aux, identity]
         - [h_h, v - b_h, "Household cash holdings.", $, stock, accumulation]
         - [b_h, v * (lambda0 + lambda1 * r - lambda2 * (yd / v)), "Household bill holdings.", $, stock, accumulation]
@@ -128,11 +128,11 @@ cells:
       collapsed: true
       rows:
         - [r, 0.025, "Interest rate on government bills.", 1/year, aux]
-        - [g, 20, "Real government expenditure.", "", aux]
+        - [g, 20, "Real government expenditure.", items/year, flow]
         - [alpha10, 0.8, "Autonomous propensity to consume out of income.", "", aux]
         - [alpha11, 8, "Interest-rate elasticity of consumption propensity.", year, aux]
         - [alpha12, 0, "Temperature-change elasticity of consumption propensity.", "", aux]
-        - [alpha2, 0.4, "Propensity to consume out of lagged wealth.", 1/year, aux]
+        - [alpha2, 0.4, "Propensity to consume out of lagged wealth."]
         - [w, 0.4, "Uniform wage rate.", "", aux]
         - [mu, 0.875, "Uniform markup.", "", aux]
         - [pr1, 3.5, "Labour productivity in agriculture.", "", aux]
@@ -204,6 +204,7 @@ cells:
       id: baseline-chart
       title: Baseline macro and ecological variables
       variables:
+        - infl
         - y
         - yd
         - cons
