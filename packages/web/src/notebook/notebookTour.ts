@@ -422,17 +422,25 @@ export function startNotebookTour(handlers: NotebookTourHandlers, startIndex = 0
   tour.drive(boundedStartIndex);
 }
 
-export function maybeStartNotebookTourOnFirstLoad(handlers: NotebookTourHandlers): void {
+export function maybeStartNotebookTourOnFirstLoad(handlers: NotebookTourHandlers): () => void {
   if (hasSeenNotebookTour()) {
-    return;
+    return () => {};
   }
 
-  window.requestAnimationFrame(() => {
-    window.setTimeout(() => {
+  let timeoutId: number | null = null;
+  const animationFrameId = window.requestAnimationFrame(() => {
+    timeoutId = window.setTimeout(() => {
       if (hasSeenNotebookTour()) {
         return;
       }
       startNotebookTour(handlers, 0);
     }, 400);
   });
+
+  return () => {
+    window.cancelAnimationFrame(animationFrameId);
+    if (timeoutId !== null) {
+      window.clearTimeout(timeoutId);
+    }
+  };
 }

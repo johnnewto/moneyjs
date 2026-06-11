@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { render, within } from "@testing-library/react";
+import { render, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -15,6 +15,36 @@ import {
 } from "./appTestUtils";
 
 setupAppTestEnv();
+
+async function expandEquationsCellIfCollapsed(
+  cell: HTMLElement,
+  user: { click: (element: Element) => Promise<unknown> }
+): Promise<void> {
+  if (within(cell).queryByRole("table", { name: /model equations/i })) {
+    return;
+  }
+
+  const showButton = within(cell).queryByRole("button", { name: /^show$/i });
+  if (showButton) {
+    await user.click(showButton);
+  } else {
+    await user.click(screen.getAllByRole("button", { name: /^expand all$/i })[0]);
+  }
+
+  await waitFor(() => {
+    expect(within(cell).getByRole("table", { name: /model equations/i })).toBeInTheDocument();
+  });
+}
+
+function getFirstEquationVariableInput(cell: HTMLElement): HTMLTextAreaElement {
+  const input = within(cell)
+    .getAllByRole("textbox", { name: /equation \d+ variable/i })
+    .find((candidate): candidate is HTMLTextAreaElement => candidate instanceof HTMLTextAreaElement);
+  if (!input) {
+    throw new Error("Expected at least one editable equation variable.");
+  }
+  return input;
+}
 
 describe("App per-cell source editors", () => {
   it("edits a markdown cell through the per-cell source editor", async () => {
@@ -305,12 +335,10 @@ describe("App per-cell source editors", () => {
       throw new Error("Expected equations cell article.");
     }
 
-    await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+    await expandEquationsCellIfCollapsed(equationsCell, user);
     await user.click(within(equationsCell).getByRole("button", { name: /^edit$/i }));
 
-    const firstVariableInput = within(equationsCell).getByRole("textbox", {
-      name: /equation 1 variable/i
-    }) as HTMLTextAreaElement;
+    const firstVariableInput = getFirstEquationVariableInput(equationsCell);
     const originalValue = firstVariableInput.value;
     const draftValue = `${originalValue}Draft`;
 
@@ -334,12 +362,10 @@ describe("App per-cell source editors", () => {
       throw new Error("Expected equations cell article.");
     }
 
-    await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+    await expandEquationsCellIfCollapsed(equationsCell, user);
     await user.click(within(equationsCell).getByRole("button", { name: /^edit$/i }));
 
-    const firstVariableInput = within(equationsCell).getByRole("textbox", {
-      name: /equation 1 variable/i
-    }) as HTMLTextAreaElement;
+    const firstVariableInput = getFirstEquationVariableInput(equationsCell);
     const originalValue = firstVariableInput.value;
     const draftValue = `${originalValue}Draft`;
 
@@ -349,9 +375,7 @@ describe("App per-cell source editors", () => {
     await user.click(within(equationsCell).getByRole("button", { name: /^edit$/i }));
 
     expect(
-      (within(equationsCell).getByRole("textbox", {
-        name: /equation 1 variable/i
-      }) as HTMLTextAreaElement).value
+      getFirstEquationVariableInput(equationsCell).value
     ).toBe(originalValue);
   }, 15000);
 
@@ -367,17 +391,13 @@ describe("App per-cell source editors", () => {
       throw new Error("Expected equations cell article.");
     }
 
-    await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+    await expandEquationsCellIfCollapsed(equationsCell, user);
     await user.click(within(equationsCell).getByRole("button", { name: /^edit$/i }));
 
-    const firstVariableInput = within(equationsCell).getByRole("textbox", {
-      name: /equation 1 variable/i
-    }) as HTMLTextAreaElement;
+    const firstVariableInput = getFirstEquationVariableInput(equationsCell);
     const draftValue = `${firstVariableInput.value}Draft`;
 
-    fireEvent.change(within(equationsCell).getByRole("textbox", { name: /equation 1 variable/i }), {
-      target: { value: draftValue }
-    });
+    fireEvent.change(firstVariableInput, { target: { value: draftValue } });
     await user.click(within(equationsCell).getByRole("button", { name: /^apply$/i }));
 
     await setNotebookSourceFormat(user, "json");
@@ -396,19 +416,20 @@ describe("App per-cell source editors", () => {
       throw new Error("Expected equations cell article.");
     }
 
-    await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+    await expandEquationsCellIfCollapsed(equationsCell, user);
     await user.click(within(equationsCell).getByRole("button", { name: /^edit$/i }));
 
-    fireEvent.contextMenu(
-      within(equationsCell).getByRole("textbox", { name: /equation 1 variable/i })
-    );
+    const equationVariableInputsBefore = within(equationsCell).getAllByRole("textbox", {
+      name: /equation \d+ variable/i
+    });
+    fireEvent.contextMenu(equationVariableInputsBefore[0]);
 
-    const menu = within(equationsCell).getByRole("menu", { name: /equation actions for row 1/i });
+    const menu = within(equationsCell).getByRole("menu", { name: /equation actions for row \d+/i });
     await user.click(within(menu).getByRole("menuitem", { name: /^add equation$/i }));
 
-    expect(
-      within(equationsCell).getByRole("textbox", { name: /equation 2 variable/i })
-    ).toBeInTheDocument();
+    expect(within(equationsCell).getAllByRole("textbox", { name: /equation \d+ variable/i })).toHaveLength(
+      equationVariableInputsBefore.length + 1
+    );
     expect(screen.queryByRole("menu", { name: /cell actions for/i })).not.toBeInTheDocument();
   }, 15000);
 

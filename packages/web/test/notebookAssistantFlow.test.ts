@@ -73,276 +73,263 @@ describe("notebook assistant flow", () => {
     ]);
   });
 
-  it("normalizes chart cell ids in assistant tool request envelopes", () => {
-    expect(
-      extractNotebookAssistantToolRequests(
-        '```json\n{"notebookAssistantToolRequests":[{"name":"createUpdateChartVariablesPatch","args":{"chartCellId":"baseline-chart","variables":["Y","Cd","W"]}}]}\n```'
-      ).requests
-    ).toEqual([
+  describe("normalizes assistant tool request envelopes", () => {
+    it.each([
       {
-        name: "createUpdateChartVariablesPatch",
-        args: {
-          chartCellId: "baseline-chart",
-          chartId: "baseline-chart",
-          variables: ["Y", "Cd", "W"]
-        }
-      }
-    ]);
-  });
-
-  it("normalizes stale chart update helper names in assistant tool request envelopes", () => {
-    expect(
-      extractNotebookAssistantToolRequests(
-        '```json\n{"notebookAssistantToolRequests":[{"name":"createUpdateChartPatch","args":{"chartId":"baseline-chart","variables":["Y","Cd","Mh","W","Ld"]}}]}\n```'
-      ).requests
-    ).toEqual([
-      {
-        name: "createUpdateChartVariablesPatch",
-        args: {
-          chartId: "baseline-chart",
-          variables: ["Y", "Cd", "Mh", "W", "Ld"]
-        }
-      }
-    ]);
-  });
-
-  it("normalizes series window index aliases and expands variable arrays", () => {
-    expect(
-      extractNotebookAssistantToolRequests(
-        '```json\n{"notebookAssistantToolRequests":[{"name":"getSeriesWindow","args":{"runId":"baseline-newton","variables":["Ms","Mh"],"startIndex":0,"endIndex":5}}]}\n```'
-      ).requests
-    ).toEqual([
-      {
-        name: "getSeriesWindow",
-        args: {
-          runId: "baseline-newton",
-          variables: ["Ms", "Mh"],
-          startIndex: 0,
-          endIndex: 5,
-          start: 0,
-          end: 5,
-          variable: "Ms"
-        }
-      },
-      {
-        name: "getSeriesWindow",
-        args: {
-          runId: "baseline-newton",
-          variables: ["Ms", "Mh"],
-          startIndex: 0,
-          endIndex: 5,
-          start: 0,
-          end: 5,
-          variable: "Mh"
-        }
-      }
-    ]);
-  });
-
-  it("normalizes stale equation helper arg names in assistant tool request envelopes", () => {
-    expect(
-      extractNotebookAssistantToolRequests(
-        '```json\n{"notebookAssistantToolRequests":[{"name":"createUpdateEquationPatch","args":{"modelId":"equations-newton","equationName":"Ld","expression":"lag(Ld) + Id * dt"}}]}\n```'
-      ).requests
-    ).toEqual([
-      {
-        name: "createUpdateEquationPatch",
-        args: {
-          modelId: "equations-newton",
-          equationName: "Ld",
-          variable: "Ld",
-          expression: "lag(Ld) + Id * dt"
-        }
-      }
-    ]);
-  });
-
-  it("normalizes common equation role aliases in assistant tool request envelopes", () => {
-    expect(
-      extractNotebookAssistantToolRequests(
-        '```json\n{"notebookAssistantToolRequests":[{"name":"createAddEquationPatch","args":{"modelId":"equations-newton","equation":"Lmax = phi * lag(K)","role":"constraint"}}]}\n```'
-      ).requests
-    ).toEqual([
-      {
-        name: "createAddEquationPatch",
-        args: {
-          modelId: "equations-newton",
-          equation: "Lmax = phi * lag(K)",
-          role: "definition"
-        }
-      }
-    ]);
-  });
-
-  it("normalizes parameter helper value aliases in assistant tool request envelopes", () => {
-    expect(
-      extractNotebookAssistantToolRequests(
-        '```json\n{"notebookAssistantToolRequests":[{"name":"createUpdateParameterPatch","args":{"modelId":"equations-newton","variable":"alpha0","from":20,"to":10}}]}\n```'
-      ).requests
-    ).toEqual([
-      {
-        name: "createUpdateParameterPatch",
-        args: {
-          modelId: "equations-newton",
-          from: 20,
-          to: 10,
-          value: 10,
-          variable: "alpha0"
-        }
-      }
-    ]);
-
-    expect(
-      extractNotebookAssistantToolRequests(
-        '{"patchKind":"updateParameter","modelId":"equations-newton","variable":"alpha0","newValue":10}'
-      ).requests
-    ).toEqual([
-      {
-        name: "createUpdateParameterPatch",
-        args: {
-          modelId: "equations-newton",
-          value: 10,
-          variable: "alpha0"
-        }
-      }
-    ]);
-  });
-
-  it("normalizes external helper name and value aliases in assistant tool request envelopes", () => {
-    expect(
-      extractNotebookAssistantToolRequests(
-        '```json\n{"notebookAssistantToolRequests":[{"name":"createAddExternalPatch","args":{"modelId":"equations-newton","variable":"theta","kind":"constant","valueText":"1","description":"Loan-to-collateral ratio"}}]}\n```'
-      ).requests
-    ).toEqual([
-      {
-        name: "createAddExternalPatch",
-        args: {
-          modelId: "equations-newton",
-          variable: "theta",
-          name: "theta",
-          kind: "constant",
-          valueText: "1",
-          value: "1",
-          description: "Loan-to-collateral ratio"
-        }
-      }
-    ]);
-
-    expect(
-      extractNotebookAssistantToolRequests(
-        '```json\n{"notebookAssistantToolRequests":[{"name":"createUpdateExternalPatch","args":{"modelId":"equations-newton","variable":"theta","valueText":"1.2"}}]}\n```'
-      ).requests
-    ).toEqual([
-      {
-        name: "createUpdateExternalPatch",
-        args: {
-          modelId: "equations-newton",
-          variable: "theta",
-          valueText: "1.2",
-          value: "1.2"
-        }
-      }
-    ]);
-  });
-
-  it("normalizes optional helper aliases that should not block recovery", () => {
-    expect(
-      extractNotebookAssistantToolRequests(
-        '```json\n{"notebookAssistantToolRequests":[{"name":"createAddExternalPatch","args":{"modelId":"equations-newton","variable":"theta","kind":"parameter","valueText":"1","unitMeta":{"stockFlow":"level","units":{"$":1}}}}]}\n```'
-      ).requests
-    ).toEqual([
-      {
-        name: "createAddExternalPatch",
-        args: {
-          modelId: "equations-newton",
-          variable: "theta",
-          name: "theta",
-          kind: "constant",
-          valueText: "1",
-          value: "1",
-          unitMeta: {
-            stockFlow: "stock",
-            signature: { money: 1 }
+        label: "chart cell ids",
+        input:
+          '```json\n{"notebookAssistantToolRequests":[{"name":"createUpdateChartVariablesPatch","args":{"chartCellId":"baseline-chart","variables":["Y","Cd","W"]}}]}\n```',
+        expected: [
+          {
+            name: "createUpdateChartVariablesPatch",
+            args: {
+              chartCellId: "baseline-chart",
+              chartId: "baseline-chart",
+              variables: ["Y", "Cd", "W"]
+            }
           }
-        }
-      }
-    ]);
-
-    expect(
-      extractNotebookAssistantToolRequests(
-        '```json\n{"notebookAssistantToolRequests":[{"name":"createUpdateInitialValuePatch","args":{"modelId":"equations-newton","variable":"K","newValue":"80"}},{"name":"createUpdateChartOptionsPatch","args":{"chartCellId":"baseline-chart","axisMode":"same","periodRange":[0,5]}},{"name":"createUpdateRunOptionsPatch","args":{"cellId":"baseline-newton","solverMethod":"gauss seidel"}}]}\n```'
-      ).requests
-    ).toEqual([
-      {
-        name: "createUpdateInitialValuePatch",
-        args: {
-          modelId: "equations-newton",
-          variable: "K",
-          newValue: "80",
-          value: "80"
-        }
+        ]
       },
       {
-        name: "createUpdateChartOptionsPatch",
-        args: {
-          chartCellId: "baseline-chart",
-          chartId: "baseline-chart",
-          axisMode: "shared",
-          periodRange: [0, 5],
-          timeRangeInclusive: [0, 5]
-        }
+        label: "stale chart update helper names",
+        input:
+          '```json\n{"notebookAssistantToolRequests":[{"name":"createUpdateChartPatch","args":{"chartId":"baseline-chart","variables":["Y","Cd","Mh","W","Ld"]}}]}\n```',
+        expected: [
+          {
+            name: "createUpdateChartVariablesPatch",
+            args: {
+              chartId: "baseline-chart",
+              variables: ["Y", "Cd", "Mh", "W", "Ld"]
+            }
+          }
+        ]
       },
       {
-        name: "createUpdateRunOptionsPatch",
-        args: {
-          cellId: "baseline-newton",
-          runId: "baseline-newton",
-          solverMethod: "GAUSS_SEIDEL"
-        }
-      }
-    ]);
-  });
-
-  it("drops invalid optional metadata from assistant tool request envelopes", () => {
-    expect(
-      extractNotebookAssistantToolRequests(
-        '```json\n{"notebookAssistantToolRequests":[{"name":"createAddEquationPatch","args":{"modelId":"equations-newton","equation":"Lmax = phi * lag(K)","role":"constraint-like","description":{"text":"Loan ceiling"},"unitMeta":"money stock"}},{"name":"createAddExternalPatch","args":{"modelId":"equations-newton","name":"phi","kind":"parameter","value":1,"unitMeta":{"stockFlow":"mystery","units":{"bananas":1}}}}]}\n```'
-      ).requests
-    ).toEqual([
-      {
-        name: "createAddEquationPatch",
-        args: {
-          modelId: "equations-newton",
-          equation: "Lmax = phi * lag(K)"
-        }
+        label: "series window index aliases and variable arrays",
+        input:
+          '```json\n{"notebookAssistantToolRequests":[{"name":"getSeriesWindow","args":{"runId":"baseline-newton","variables":["Ms","Mh"],"startIndex":0,"endIndex":5}}]}\n```',
+        expected: [
+          {
+            name: "getSeriesWindow",
+            args: {
+              runId: "baseline-newton",
+              variables: ["Ms", "Mh"],
+              startIndex: 0,
+              endIndex: 5,
+              start: 0,
+              end: 5,
+              variable: "Ms"
+            }
+          },
+          {
+            name: "getSeriesWindow",
+            args: {
+              runId: "baseline-newton",
+              variables: ["Ms", "Mh"],
+              startIndex: 0,
+              endIndex: 5,
+              start: 0,
+              end: 5,
+              variable: "Mh"
+            }
+          }
+        ]
       },
       {
-        name: "createAddExternalPatch",
-        args: {
-          modelId: "equations-newton",
-          name: "phi",
-          kind: "constant",
-          value: 1
-        }
-      }
-    ]);
-  });
-
-  it("normalizes run option helper id aliases in assistant tool request envelopes", () => {
-    expect(
-      extractNotebookAssistantToolRequests(
-        '```json\n{"notebookAssistantToolRequests":[{"name":"createUpdateRunOptionsPatch","args":{"cellId":"baseline-newton","periods":100}}]}\n```'
-      ).requests
-    ).toEqual([
+        label: "stale equation helper arg names",
+        input:
+          '```json\n{"notebookAssistantToolRequests":[{"name":"createUpdateEquationPatch","args":{"modelId":"equations-newton","equationName":"Ld","expression":"lag(Ld) + Id * dt"}}]}\n```',
+        expected: [
+          {
+            name: "createUpdateEquationPatch",
+            args: {
+              modelId: "equations-newton",
+              equationName: "Ld",
+              variable: "Ld",
+              expression: "lag(Ld) + Id * dt"
+            }
+          }
+        ]
+      },
       {
-        name: "createUpdateRunOptionsPatch",
-        args: {
-          cellId: "baseline-newton",
-          periods: 100,
-          runId: "baseline-newton"
-        }
+        label: "equation role aliases",
+        input:
+          '```json\n{"notebookAssistantToolRequests":[{"name":"createAddEquationPatch","args":{"modelId":"equations-newton","equation":"Lmax = phi * lag(K)","role":"constraint"}}]}\n```',
+        expected: [
+          {
+            name: "createAddEquationPatch",
+            args: {
+              modelId: "equations-newton",
+              equation: "Lmax = phi * lag(K)",
+              role: "definition"
+            }
+          }
+        ]
+      },
+      {
+        label: "parameter helper from/to aliases",
+        input:
+          '```json\n{"notebookAssistantToolRequests":[{"name":"createUpdateParameterPatch","args":{"modelId":"equations-newton","variable":"alpha0","from":20,"to":10}}]}\n```',
+        expected: [
+          {
+            name: "createUpdateParameterPatch",
+            args: {
+              modelId: "equations-newton",
+              from: 20,
+              to: 10,
+              value: 10,
+              variable: "alpha0"
+            }
+          }
+        ]
+      },
+      {
+        label: "parameter helper patchKind newValue aliases",
+        input:
+          '{"patchKind":"updateParameter","modelId":"equations-newton","variable":"alpha0","newValue":10}',
+        expected: [
+          {
+            name: "createUpdateParameterPatch",
+            args: {
+              modelId: "equations-newton",
+              value: 10,
+              variable: "alpha0"
+            }
+          }
+        ]
+      },
+      {
+        label: "external add helper name and value aliases",
+        input:
+          '```json\n{"notebookAssistantToolRequests":[{"name":"createAddExternalPatch","args":{"modelId":"equations-newton","variable":"theta","kind":"constant","valueText":"1","description":"Loan-to-collateral ratio"}}]}\n```',
+        expected: [
+          {
+            name: "createAddExternalPatch",
+            args: {
+              modelId: "equations-newton",
+              variable: "theta",
+              name: "theta",
+              kind: "constant",
+              valueText: "1",
+              value: "1",
+              description: "Loan-to-collateral ratio"
+            }
+          }
+        ]
+      },
+      {
+        label: "external update helper value aliases",
+        input:
+          '```json\n{"notebookAssistantToolRequests":[{"name":"createUpdateExternalPatch","args":{"modelId":"equations-newton","variable":"theta","valueText":"1.2"}}]}\n```',
+        expected: [
+          {
+            name: "createUpdateExternalPatch",
+            args: {
+              modelId: "equations-newton",
+              variable: "theta",
+              valueText: "1.2",
+              value: "1.2"
+            }
+          }
+        ]
+      },
+      {
+        label: "optional external unitMeta aliases",
+        input:
+          '```json\n{"notebookAssistantToolRequests":[{"name":"createAddExternalPatch","args":{"modelId":"equations-newton","variable":"theta","kind":"parameter","valueText":"1","unitMeta":{"stockFlow":"level","units":{"$":1}}}}]}\n```',
+        expected: [
+          {
+            name: "createAddExternalPatch",
+            args: {
+              modelId: "equations-newton",
+              variable: "theta",
+              name: "theta",
+              kind: "constant",
+              valueText: "1",
+              value: "1",
+              unitMeta: {
+                stockFlow: "stock",
+                signature: { money: 1 }
+              }
+            }
+          }
+        ]
+      },
+      {
+        label: "optional initial value, chart options, and run option aliases",
+        input:
+          '```json\n{"notebookAssistantToolRequests":[{"name":"createUpdateInitialValuePatch","args":{"modelId":"equations-newton","variable":"K","newValue":"80"}},{"name":"createUpdateChartOptionsPatch","args":{"chartCellId":"baseline-chart","axisMode":"same","periodRange":[0,5]}},{"name":"createUpdateRunOptionsPatch","args":{"cellId":"baseline-newton","solverMethod":"gauss seidel"}}]}\n```',
+        expected: [
+          {
+            name: "createUpdateInitialValuePatch",
+            args: {
+              modelId: "equations-newton",
+              variable: "K",
+              newValue: "80",
+              value: "80"
+            }
+          },
+          {
+            name: "createUpdateChartOptionsPatch",
+            args: {
+              chartCellId: "baseline-chart",
+              chartId: "baseline-chart",
+              axisMode: "shared",
+              periodRange: [0, 5],
+              timeRangeInclusive: [0, 5]
+            }
+          },
+          {
+            name: "createUpdateRunOptionsPatch",
+            args: {
+              cellId: "baseline-newton",
+              runId: "baseline-newton",
+              solverMethod: "GAUSS_SEIDEL"
+            }
+          }
+        ]
+      },
+      {
+        label: "invalid optional metadata removal",
+        input:
+          '```json\n{"notebookAssistantToolRequests":[{"name":"createAddEquationPatch","args":{"modelId":"equations-newton","equation":"Lmax = phi * lag(K)","role":"constraint-like","description":{"text":"Loan ceiling"},"unitMeta":"money stock"}},{"name":"createAddExternalPatch","args":{"modelId":"equations-newton","name":"phi","kind":"parameter","value":1,"unitMeta":{"stockFlow":"mystery","units":{"bananas":1}}}}]}\n```',
+        expected: [
+          {
+            name: "createAddEquationPatch",
+            args: {
+              modelId: "equations-newton",
+              equation: "Lmax = phi * lag(K)"
+            }
+          },
+          {
+            name: "createAddExternalPatch",
+            args: {
+              modelId: "equations-newton",
+              name: "phi",
+              kind: "constant",
+              value: 1
+            }
+          }
+        ]
+      },
+      {
+        label: "run option helper id aliases",
+        input:
+          '```json\n{"notebookAssistantToolRequests":[{"name":"createUpdateRunOptionsPatch","args":{"cellId":"baseline-newton","periods":100}}]}\n```',
+        expected: [
+          {
+            name: "createUpdateRunOptionsPatch",
+            args: {
+              cellId: "baseline-newton",
+              periods: 100,
+              runId: "baseline-newton"
+            }
+          }
+        ]
       }
-    ]);
+    ])("$label", ({ input, expected }) => {
+      expect(extractNotebookAssistantToolRequests(input).requests).toEqual(expected);
+    });
   });
 
   it("reports malformed assistant tool request JSON", () => {

@@ -36,6 +36,14 @@ vi.mock("../src/notebook/useNotebookRunner", () => ({
   useNotebookRunner: () => notebookRunnerMock
 }));
 
+vi.mock("../src/notebook/notebookTour", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../src/notebook/notebookTour")>();
+  return {
+    ...actual,
+    maybeStartNotebookTourOnFirstLoad: () => () => {}
+  };
+});
+
 export function setupAppTestEnv(): void {
   beforeAll(() => {
     if (typeof Range !== "undefined") {

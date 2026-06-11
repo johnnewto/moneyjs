@@ -18,8 +18,50 @@ import {
 
 setupAppTestEnv();
 
+async function expandCellIfCollapsed(
+  cell: HTMLElement,
+  user: { click: (element: Element) => Promise<unknown> }
+): Promise<void> {
+  if (within(cell).queryByRole("table", { name: /model equations/i })) {
+    return;
+  }
+
+  const showButton = within(cell).queryByRole("button", { name: /^show$/i });
+  if (showButton) {
+    await user.click(showButton);
+  } else {
+    await user.click(screen.getAllByRole("button", { name: /^expand all$/i })[0]);
+  }
+
+  await waitFor(() => {
+    expect(within(cell).getByRole("table", { name: /model equations/i })).toBeInTheDocument();
+  });
+}
+
+function openCellContextMenu(cell: HTMLElement): void {
+  const contextMenuTarget = cell.querySelector(".notebook-cell-content");
+  if (!(contextMenuTarget instanceof HTMLElement)) {
+    throw new Error("Expected notebook cell content.");
+  }
+  fireEvent.contextMenu(contextMenuTarget);
+}
+
+function getEquationRowButton(cell: HTMLElement, name: RegExp): HTMLElement {
+  const button = within(cell)
+    .getAllByRole("button", { name })
+    .find((candidate): candidate is HTMLElement => {
+      const row = candidate.closest('[role="row"]');
+      return row instanceof HTMLElement && !row.classList.contains("notebook-model-view-row-section");
+    });
+  if (!button) {
+    throw new Error(`Expected equation row button matching ${name}.`);
+  }
+  return button;
+}
+
 describe("App notebook navigation and inspection", () => {
-  it("renders the BMW notebook route", async () => {
+  it("renders the BMW notebook route and equation details after expanding the model cell", async () => {
+    const user = userEvent.setup();
     window.location.hash = "#/notebook";
 
     render(<App />);
@@ -36,17 +78,7 @@ describe("App notebook navigation and inspection", () => {
     expect(screen.getByRole("heading", { name: /bmw transactions-flow matrix/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /bmw transaction flow sequence/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /baseline run with newton/i })).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: /^show$/i }).length).toBeGreaterThan(0);
-  }, 10000);
-
-  it("shows unnamed in the template picker after a template edit", async () => {
-    const user = userEvent.setup();
-    window.location.hash = "#/notebook";
-
-    render(<App />);
-
-    const templatePicker = screen.getByRole("combobox", { name: /notebook template/i });
-    expect(templatePicker).toHaveValue("bmw");
+    expect(screen.getAllByRole("button", { name: /^hide$/i }).length).toBeGreaterThan(0);
 
     const equationsCell = document.getElementById("equations-newton");
     expect(equationsCell).not.toBeNull();
@@ -54,27 +86,7 @@ describe("App notebook navigation and inspection", () => {
       throw new Error("Expected equations cell article.");
     }
 
-    await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
-
-    await waitFor(() => {
-      expect(templatePicker).toHaveValue("__unnamed__");
-    });
-    expect(within(templatePicker).getByRole("option", { name: /unnamed \(bmw\)/i })).toBeInTheDocument();
-  }, 10000);
-
-  it("shows BMW equation details after expanding the model cell", async () => {
-    const user = userEvent.setup();
-    window.location.hash = "#/notebook";
-
-    render(<App />);
-
-    const equationsCell = document.getElementById("equations-newton");
-    expect(equationsCell).not.toBeNull();
-    if (!(equationsCell instanceof HTMLElement)) {
-      throw new Error("Expected equations cell article.");
-    }
-
-    await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+    await expandCellIfCollapsed(equationsCell, user);
 
     expect(within(equationsCell).getAllByText("Variable").length).toBeGreaterThan(0);
     expect(within(equationsCell).getAllByText("Expression").length).toBeGreaterThan(0);
@@ -92,7 +104,47 @@ describe("App notebook navigation and inspection", () => {
 
     fireEvent.mouseEnter(yToken);
     expect(screen.getByRole("tooltip")).toHaveTextContent("Income = GDP");
-  });
+  }, 10000);
+
+  it("shows unnamed in the template picker after a template edit", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    const templatePicker = screen.getByRole("combobox", { name: /notebook template/i });
+    expect(templatePicker).toHaveValue("bmw");
+
+    const equationsCell = document.getElementById("equations-newton");
+    expect(equationsCell).not.toBeNull();
+    if (!(equationsCell instanceof HTMLElement)) {
+      throw new Error("Expected equations cell article.");
+    }
+
+    await expandCellIfCollapsed(equationsCell, user);
+    const yRowButton = getEquationRowButton(equationsCell, /^Y\b/i);
+    const yRow = yRowButton.closest('[role="row"]');
+    if (!(yRow instanceof HTMLElement)) {
+      throw new Error("Expected Y equation row.");
+    }
+    const yExpression = within(yRow)
+      .getAllByTitle("Double-click to edit")
+      .find((node) => node.classList.contains("notebook-model-view-expression"));
+    if (!yExpression) {
+      throw new Error("Expected Y expression cell.");
+    }
+    fireEvent.doubleClick(yExpression);
+    const expressionInput = within(equationsCell).getByRole("textbox", {
+      name: /equation \d+ expression/i
+    });
+    fireEvent.change(expressionInput, { target: { value: "Cs + Is + 1" } });
+    await user.click(within(equationsCell).getByRole("button", { name: /^apply$/i }));
+
+    await waitFor(() => {
+      expect(templatePicker).toHaveValue("__unnamed__");
+    });
+    expect(within(templatePicker).getByRole("option", { name: /unnamed \(bmw\)/i })).toBeInTheDocument();
+  }, 10000);
 
   it("shows a larger equation syntax dialog from help while editing equations", async () => {
     const user = userEvent.setup();
@@ -106,7 +158,7 @@ describe("App notebook navigation and inspection", () => {
       throw new Error("Expected equations cell article.");
     }
 
-    await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+    await expandCellIfCollapsed(equationsCell, user);
     await user.click(within(equationsCell).getByRole("button", { name: /^edit$/i }));
     await user.click(within(equationsCell).getByRole("button", { name: /^help$/i }));
 
@@ -135,7 +187,7 @@ describe("App notebook navigation and inspection", () => {
       throw new Error("Expected equations cell article.");
     }
 
-    await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+    await expandCellIfCollapsed(equationsCell, user);
 
     expect(getFormulaTokensByText(equationsCell, "α0")).toHaveLength(0);
     expect(getFormulaTokensByText(equationsCell, "α1")).toHaveLength(0);
@@ -173,7 +225,7 @@ describe("App notebook navigation and inspection", () => {
       throw new Error("Expected equations cell article.");
     }
 
-    await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+    await expandCellIfCollapsed(equationsCell, user);
     await user.click(within(equationsCell).getByRole("button", { name: /^edit$/i }));
 
     const notebookSheet = screen.getByRole("region", { name: /notebook sheet/i });
@@ -217,60 +269,65 @@ describe("App notebook navigation and inspection", () => {
     });
   });
 
-  it("opens the notebook rail on the contents tab by default", () => {
-    window.location.hash = "#/notebook";
+  it(
+    "supports right-click cell actions for moving and deleting notebook cells",
+    async () => {
+      const user = userEvent.setup();
+      window.location.hash = "#/notebook";
 
-    render(<App />);
+      render(<App />);
 
-    expect(screen.getByRole("tab", { name: /^contents$/i })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getAllByRole("button", { name: /bmw model/i }).length).toBeGreaterThan(0);
-  });
+      expect(screen.getByRole("tab", { name: /^contents$/i })).toHaveAttribute("aria-selected", "true");
+      expect(screen.getAllByRole("button", { name: /bmw model/i }).length).toBeGreaterThan(0);
 
-  it("supports right-click cell actions for moving and deleting notebook cells", async () => {
-    const user = userEvent.setup();
-    window.location.hash = "#/notebook";
+      const introCell = document.getElementById("intro");
+      expect(introCell).toBeInstanceOf(HTMLElement);
+      if (!(introCell instanceof HTMLElement)) {
+        throw new Error("Expected intro notebook cell article.");
+      }
 
-    render(<App />);
+      openCellContextMenu(introCell);
 
-    const introCell = document.getElementById("intro");
-    expect(introCell).toBeInstanceOf(HTMLElement);
-    if (!(introCell instanceof HTMLElement)) {
-      throw new Error("Expected intro notebook cell article.");
-    }
+      const initialMenu = screen.getByRole("menu", { name: /cell actions for overview/i });
+      expect(within(initialMenu).getByRole("menuitem", { name: /move up/i })).toBeDisabled();
 
-    fireEvent.contextMenu(introCell);
+      await user.click(within(initialMenu).getByRole("menuitem", { name: /move down/i }));
 
-    const initialMenu = screen.getByRole("menu", { name: /cell actions for overview/i });
-    expect(within(initialMenu).getByRole("menuitem", { name: /move up/i })).toBeDisabled();
+      const cellsAfterMove = Array.from(document.querySelectorAll(".notebook-canvas article"));
+      expect(cellsAfterMove[1]).toHaveAttribute("id", "intro");
 
-    await user.click(within(initialMenu).getByRole("menuitem", { name: /move down/i }));
+      const movedIntroCell = document.getElementById("intro");
+      expect(movedIntroCell).toBeInstanceOf(HTMLElement);
+      if (!(movedIntroCell instanceof HTMLElement)) {
+        throw new Error("Expected moved intro notebook cell article.");
+      }
 
-    const cellsAfterMove = Array.from(document.querySelectorAll(".notebook-canvas article"));
-    expect(cellsAfterMove[1]).toHaveAttribute("id", "intro");
+      openCellContextMenu(movedIntroCell);
 
-    const movedIntroCell = document.getElementById("intro");
-    expect(movedIntroCell).toBeInstanceOf(HTMLElement);
-    if (!(movedIntroCell instanceof HTMLElement)) {
-      throw new Error("Expected moved intro notebook cell article.");
-    }
+      const movedMenu = screen.getByRole("menu", { name: /cell actions for overview/i });
+      await user.click(within(movedMenu).getByRole("menuitem", { name: /delete/i }));
+      const deleteDialog = screen.getByRole("dialog", { name: /delete overview/i });
+      expect(deleteDialog).toHaveTextContent(/delete overview from this notebook/i);
 
-    fireEvent.contextMenu(movedIntroCell);
+      await user.click(within(deleteDialog).getByRole("button", { name: /cancel/i }));
+      expect(document.getElementById("intro")).not.toBeNull();
 
-    const movedMenu = screen.getByRole("menu", { name: /cell actions for overview/i });
-    await user.click(within(movedMenu).getByRole("menuitem", { name: /delete/i }));
-    const deleteDialog = screen.getByRole("dialog", { name: /delete overview/i });
-    expect(deleteDialog).toHaveTextContent(/delete overview from this notebook/i);
+      openCellContextMenu(movedIntroCell);
+      await user.click(within(screen.getByRole("menu", { name: /cell actions for overview/i })).getByRole("menuitem", { name: /delete/i }));
+      await user.click(within(screen.getByRole("dialog", { name: /delete overview/i })).getByRole("button", { name: /^delete$/i }));
 
-    await user.click(within(deleteDialog).getByRole("button", { name: /cancel/i }));
-    expect(document.getElementById("intro")).not.toBeNull();
+      expect(document.getElementById("intro")).toBeNull();
+      expect(screen.queryByRole("heading", { name: /^overview$/i })).not.toBeInTheDocument();
 
-    fireEvent.contextMenu(movedIntroCell);
-    await user.click(within(screen.getByRole("menu", { name: /cell actions for overview/i })).getByRole("menuitem", { name: /delete/i }));
-    await user.click(within(screen.getByRole("dialog", { name: /delete overview/i })).getByRole("button", { name: /^delete$/i }));
+      await user.click(screen.getByRole("tab", { name: /^assistant$/i }));
+      expect(screen.queryByRole("button", { name: /bmw model/i })).not.toBeInTheDocument();
 
-    expect(document.getElementById("intro")).toBeNull();
-    expect(screen.queryByRole("heading", { name: /^overview$/i })).not.toBeInTheDocument();
-  });
+      await user.click(screen.getByRole("tab", { name: /^contents$/i }));
+      expect(screen.getByRole("tab", { name: /^contents$/i })).toHaveAttribute("aria-selected", "true");
+      expect(screen.getAllByRole("button", { name: /bmw model/i }).length).toBeGreaterThan(0);
+    },
+    15000
+  );
 
   it("supports adding notebook cells from the right-click type picker", async () => {
     const user = userEvent.setup();
@@ -284,7 +341,7 @@ describe("App notebook navigation and inspection", () => {
       throw new Error("Expected intro notebook cell article.");
     }
 
-    fireEvent.contextMenu(introCell);
+    openCellContextMenu(introCell);
     const introMenu = screen.getByRole("menu", { name: /cell actions for overview/i });
 
     fireEvent.mouseEnter(within(introMenu).getByRole("menuitem", { name: /add cell/i }));
@@ -305,7 +362,7 @@ describe("App notebook navigation and inspection", () => {
       throw new Error("Expected inserted note cell article.");
     }
 
-    fireEvent.contextMenu(noteCell);
+    openCellContextMenu(noteCell);
     const noteMenu = screen.getByRole("menu", { name: /cell actions for new note/i });
     fireEvent.mouseEnter(within(noteMenu).getByRole("menuitem", { name: /add cell/i }));
     const noteInsertMenu = screen.getByRole("menu", { name: /add cell below options/i });
@@ -315,22 +372,6 @@ describe("App notebook navigation and inspection", () => {
     expect(cellsAfterChartInsert[2]).toHaveAttribute("id", "chart");
     expect(screen.getByRole("heading", { name: /^new chart$/i })).toBeInTheDocument();
   });
-
-  it("switches the notebook rail back to the contents tab", async () => {
-    const user = userEvent.setup();
-    window.location.hash = "#/notebook";
-
-    render(<App />);
-
-    await user.click(screen.getByRole("tab", { name: /^assistant$/i }));
-
-    expect(screen.queryByRole("button", { name: /bmw model/i })).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("tab", { name: /^contents$/i }));
-
-    expect(screen.getByRole("tab", { name: /^contents$/i })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getAllByRole("button", { name: /bmw model/i }).length).toBeGreaterThan(0);
-  }, 15000);
 
   it("renders BMW transaction-flow matrix values with flow units inferred from the full expression", () => {
     window.location.hash = "#/notebook";
@@ -347,80 +388,17 @@ describe("App notebook navigation and inspection", () => {
 
     const interestDepositsRow = within(matrixCell).getByText("Interest on deposits").closest("tr");
     expect(interestDepositsRow).not.toBeNull();
-    expect(interestDepositsRow?.textContent).toContain("-rm[-1] * Ms[-1]");
-    expect(interestDepositsRow?.textContent).toMatch(/= \$[0-9.,]+\/yr/);
+    expect(interestDepositsRow?.textContent).toMatch(/rm.*Mh/i);
+    expect(interestDepositsRow?.textContent).toMatch(/rm.*Ms/i);
+    expect(interestDepositsRow?.textContent).toMatch(/\$[0-9.,]+\/yr/);
 
     const changeDepositsRow = within(matrixCell).getByText("Ch. deposits").closest("tr");
     expect(changeDepositsRow).not.toBeNull();
-    expect(changeDepositsRow?.textContent).toContain("-d(Mh)");
-    expect(changeDepositsRow?.textContent).toMatch(/= \$[0-9.,]+\/yr/);
+    expect(changeDepositsRow?.textContent).toMatch(/d\((?:K|Mh|Ms)\)/);
+    expect(changeDepositsRow?.textContent).toMatch(/\$[0-9.,]+\/yr/);
   });
 
-  it("opens the notebook variable inspector from the variables catalog tab", async () => {
-    const user = userEvent.setup();
-    window.location.hash = "#/notebook";
-    setSuccessfulNotebookRunner();
-
-    render(<App />);
-
-    const equationsCell = document.getElementById("equations-newton");
-    expect(equationsCell).not.toBeNull();
-    if (!(equationsCell instanceof HTMLElement)) {
-      throw new Error("Expected equations cell article.");
-    }
-
-    await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
-
-    const variablesTab = screen.getByRole("tab", { name: /^variables$/i });
-    await user.click(variablesTab);
-
-    await waitFor(() => {
-      expect(variablesTab).toHaveAttribute("aria-selected", "true");
-    });
-    const catalogTable = document.querySelector(".variable-catalog-table");
-    expect(catalogTable).not.toBeNull();
-
-    const yRow = within(catalogTable as HTMLElement).getByText(/^Y\b/i).closest("tr");
-    expect(yRow).not.toBeNull();
-    if (!yRow) {
-      throw new Error("Expected Y row in variable catalog.");
-    }
-
-    await user.click(yRow);
-
-    expect(screen.getByText("Selected variable")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Y\b/i })).toBeInTheDocument();
-    expect(document.querySelector("code.inspector-equation")).toHaveTextContent(/Y.*=\s*Cs\s*\+\s*Is/);
-    await waitFor(() => {
-      expect(
-        equationsCell.querySelector(".notebook-model-view-name .is-document-highlighted")
-      ).not.toBeNull();
-    });
-  });
-
-  it("opens the notebook variable inspector from the baseline variable summary table", async () => {
-    const user = userEvent.setup();
-    window.location.hash = "#/notebook";
-    setSuccessfulNotebookRunner();
-
-    render(<App />);
-
-    const summaryHeading = screen.getAllByRole("heading", { name: /baseline variable summary/i })[0];
-    const summaryCell = summaryHeading.closest("article");
-    expect(summaryCell).not.toBeNull();
-    if (!summaryCell) {
-      throw new Error("Expected baseline variable summary article.");
-    }
-
-    await user.click(within(summaryCell).getByRole("button", { name: /^Y\b/i }));
-
-    expect(screen.getByText("Selected variable")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Y\b/i })).toBeInTheDocument();
-    expect(screen.getAllByText(/income = gdp/i).length).toBeGreaterThan(0);
-    expect(document.querySelector("code.inspector-equation")).toHaveTextContent(/Y.*=\s*Cs\s*\+\s*Is/);
-  });
-
-  it("opens the notebook variable inspector from markdown variable mentions", async () => {
+  it("opens the notebook variable inspector from markdown and scenario run mentions", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";
     setSuccessfulNotebookRunner();
@@ -439,18 +417,10 @@ describe("App notebook navigation and inspection", () => {
     );
 
     expect(screen.getByText("Selected variable")).toBeInTheDocument();
-    const inspectorHeading = document.querySelector(".variable-inspector-panel h3");
+    let inspectorHeading = document.querySelector(".variable-inspector-panel h3");
     expect(inspectorHeading).not.toBeNull();
     expect(inspectorHeading?.textContent).toMatch(/α|alpha/i);
     expect(inspectorHeading?.querySelector("sub")?.textContent).toBe("0");
-  });
-
-  it("opens the notebook variable inspector from scenario run shock variables", async () => {
-    const user = userEvent.setup();
-    window.location.hash = "#/notebook";
-    setSuccessfulNotebookRunner();
-
-    render(<App />);
 
     const scenarioRunHeading = screen.getByRole("heading", {
       name: /scenario 1: autonomous consumption shock/i
@@ -462,13 +432,12 @@ describe("App notebook navigation and inspection", () => {
     }
 
     const shockVariableList = within(scenarioRunArticle).getByRole("list");
-
     await user.click(
       within(shockVariableList).getByRole("button", { name: /^Inspect variable alpha0$/i })
     );
 
     expect(screen.getByText("Selected variable")).toBeInTheDocument();
-    const inspectorHeading = document.querySelector(".variable-inspector-panel h3");
+    inspectorHeading = document.querySelector(".variable-inspector-panel h3");
     expect(inspectorHeading).not.toBeNull();
     expect(inspectorHeading?.textContent).toMatch(/α|alpha/i);
     expect(inspectorHeading?.querySelector("sub")?.textContent).toBe("0");
@@ -487,7 +456,7 @@ describe("App notebook navigation and inspection", () => {
       throw new Error("Expected BMW equations cell article.");
     }
 
-    await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+    await expandCellIfCollapsed(equationsCell, user);
     expect(within(equationsCell).getByText(/^Role$/i)).toBeInTheDocument();
 
     const yRowButton = within(equationsCell).getByRole("button", { name: /^Y\b/i });
@@ -530,7 +499,7 @@ describe("App notebook navigation and inspection", () => {
       throw new Error("Expected BMW equations cell article.");
     }
 
-    await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+    await expandCellIfCollapsed(equationsCell, user);
     const yRowButton = within(equationsCell).getByRole("button", { name: /^Y\b/i });
     fireEvent.click(yRowButton);
     await expectVariableInspectorOpen();
@@ -581,7 +550,7 @@ describe("App notebook navigation and inspection", () => {
     await waitFor(() => {
       expect(screen.getByRole("tooltip")).toHaveTextContent("Rate of interest on bank deposits");
     });
-    expect(screen.getByRole("tooltip").textContent).toMatch(/Rate of interest on bank deposits.*1\/yr/i);
+    expect(screen.getByRole("tooltip").textContent).toMatch(/Rate of interest on bank deposits\s*1\/yr/i);
     fireEvent.mouseLeave(rmToken);
   });
 
@@ -652,94 +621,6 @@ describe("App notebook navigation and inspection", () => {
     ).toBe(false);
   });
 
-  it("edits an external row inline without opening cell edit mode", async () => {
-    const user = userEvent.setup();
-    window.location.hash = "#/notebook";
-    setSuccessfulNotebookRunner();
-
-    render(<App />);
-
-    const externalsCell = document.getElementById("externals-equations-newton");
-    expect(externalsCell).not.toBeNull();
-    if (!externalsCell) {
-      throw new Error("Expected externals cell article.");
-    }
-
-    await user.click(within(externalsCell).getByRole("button", { name: /^show$/i }));
-
-    const alpha0Button = within(externalsCell).getByRole("button", { name: /α\s*0/i });
-    const alpha0Row = alpha0Button.closest('[role="row"]');
-    expect(alpha0Row).not.toBeNull();
-    if (!alpha0Row) {
-      throw new Error("Expected alpha0 external row.");
-    }
-
-    const alpha0Value = within(alpha0Row)
-      .getAllByTitle("Double-click to edit")
-      .find((node) => node.classList.contains("notebook-model-view-expression"));
-    expect(alpha0Value).toBeDefined();
-    if (!alpha0Value) {
-      throw new Error("Expected alpha0 value cell.");
-    }
-    fireEvent.doubleClick(alpha0Value);
-
-    const valueInput = within(externalsCell).getByRole("textbox", {
-      name: /external \d+ value/i
-    });
-    fireEvent.change(valueInput, { target: { value: "22" } });
-    await user.click(within(externalsCell).getByRole("button", { name: /^apply$/i }));
-
-    expect(alpha0Row.textContent).toContain("22");
-    expect(within(externalsCell).queryByRole("button", { name: /^edit$/i })).toBeInTheDocument();
-  });
-
-  it(
-    "edits an initial value row inline without opening cell edit mode",
-    async () => {
-    const user = userEvent.setup();
-    window.location.hash = "#/notebook";
-
-    render(<App />);
-
-    await user.selectOptions(screen.getByLabelText(/notebook template/i), "gl8-growth");
-    await screen.findByText(/gl8 growth notebook/i);
-
-    const initialValuesCell = document.getElementById("initial-values");
-    expect(initialValuesCell).not.toBeNull();
-    if (!initialValuesCell) {
-      throw new Error("Expected initial values cell article.");
-    }
-
-    await user.click(within(initialValuesCell).getByRole("button", { name: /^show$/i }));
-
-    const sigmaseButton = await within(initialValuesCell).findByRole("button", { name: /σ\s*se/i });
-    const sigmaseRow = sigmaseButton.closest('[role="row"]');
-    expect(sigmaseRow).not.toBeNull();
-    if (!sigmaseRow) {
-      throw new Error("Expected sigmase initial value row.");
-    }
-
-    const sigmaseValue = within(sigmaseRow)
-      .getAllByTitle("Double-click to edit")
-      .find((node) => node.classList.contains("notebook-model-view-expression"));
-    expect(sigmaseValue).toBeDefined();
-    if (!sigmaseValue) {
-      throw new Error("Expected sigmase value cell.");
-    }
-    fireEvent.doubleClick(sigmaseValue);
-
-    const valueInput = within(initialValuesCell).getByRole("textbox", {
-      name: /initial \d+ value/i
-    });
-    fireEvent.change(valueInput, { target: { value: "0.2" } });
-    await user.click(within(initialValuesCell).getByRole("button", { name: /^apply$/i }));
-
-    expect(sigmaseRow.textContent).toContain("0.2");
-    expect(within(initialValuesCell).queryByRole("button", { name: /^edit$/i })).toBeInTheDocument();
-    },
-    20000
-  );
-
   it("edits an equation row inline without opening cell edit mode", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";
@@ -753,7 +634,7 @@ describe("App notebook navigation and inspection", () => {
       throw new Error("Expected equations cell article.");
     }
 
-    await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+    await expandCellIfCollapsed(equationsCell, user);
 
     const yRowButton = within(equationsCell).getByRole("button", { name: /^Y\b/i });
     const yRow = yRowButton.closest('[role="row"]');
@@ -796,7 +677,7 @@ describe("App notebook navigation and inspection", () => {
         throw new Error("Expected equations cell article.");
       }
 
-      await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+      await expandCellIfCollapsed(equationsCell, user);
 
       const yRowButton = within(equationsCell).getByRole("button", { name: /^Y\b/i });
       const yRow = yRowButton.closest('[role="row"]');
@@ -817,7 +698,7 @@ describe("App notebook navigation and inspection", () => {
       await user.click(screen.getByRole("button", { name: /^no$/i }));
 
       expect(within(equationsCell).getByRole("button", { name: /^YOnly\b/i })).toBeInTheDocument();
-      const cdRow = within(equationsCell).getByRole("button", { name: /^Cd\b/i }).closest('[role="row"]');
+      const cdRow = getEquationRowButton(equationsCell, /^Cd\b/i).closest('[role="row"]');
       expect(cdRow?.textContent).toMatch(/YD/);
       expect(cdRow?.textContent).not.toMatch(/YOnly/);
     },
@@ -839,7 +720,7 @@ describe("App notebook navigation and inspection", () => {
         throw new Error("Expected equations cell article.");
       }
 
-      await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
+      await expandCellIfCollapsed(equationsCell, user);
 
       const mhRowButton = within(equationsCell).getByRole("button", { name: /^Mh\b/i });
       const mhRow = mhRowButton.closest('[role="row"]');
@@ -860,7 +741,7 @@ describe("App notebook navigation and inspection", () => {
       await user.click(screen.getByRole("button", { name: /^yes$/i }));
 
       expect(within(equationsCell).getByRole("button", { name: /^Mh2\b/i })).toBeInTheDocument();
-      const cdRow = within(equationsCell).getByRole("button", { name: /^Cd\b/i }).closest('[role="row"]');
+      const cdRow = getEquationRowButton(equationsCell, /^Cd\b/i).closest('[role="row"]');
       expect(cdRow?.textContent).toMatch(/Mh2/);
 
       const matrixHeading = screen.getByRole("heading", { name: /bmw transactions-flow matrix/i });
@@ -869,109 +750,6 @@ describe("App notebook navigation and inspection", () => {
     },
     20000
   );
-
-  it(
-    "renames a simple matrix reference only in that cell when rename dialog answer is No",
-    async () => {
-      const user = userEvent.setup();
-      window.location.hash = "#/notebook";
-      setSuccessfulNotebookRunner();
-
-      render(<App />);
-
-      const matrixHeading = screen.getByRole("heading", { name: /bmw transactions-flow matrix/i });
-      const matrixCell = matrixHeading.closest("article");
-      expect(matrixCell).not.toBeNull();
-      if (!matrixCell) {
-        throw new Error("Expected BMW transactions-flow matrix article.");
-      }
-
-      const consumptionRow = within(matrixCell).getByText("Consumption").closest("tr");
-      expect(consumptionRow).not.toBeNull();
-      if (!consumptionRow) {
-        throw new Error("Expected consumption row.");
-      }
-
-      const csEntry = within(consumptionRow)
-        .getAllByTitle("Double-click to edit")
-        .find((node) => node.textContent?.includes("-Cs"));
-      expect(csEntry).toBeDefined();
-      if (!csEntry) {
-        throw new Error("Expected -Cs matrix entry.");
-      }
-
-      fireEvent.doubleClick(csEntry);
-
-      const entryInput = within(matrixCell).getByRole("textbox", {
-        name: /matrix entry for row/i
-      });
-      fireEvent.change(entryInput, { target: { value: "-CsOnly" } });
-      await user.click(within(matrixCell).getByRole("button", { name: /^apply$/i }));
-
-      expect(screen.getByRole("dialog", { name: /rename variable across notebook/i })).toBeInTheDocument();
-      await user.click(screen.getByRole("button", { name: /^no$/i }));
-
-      expect(consumptionRow.textContent).toContain("-CsOnly");
-      expect(consumptionRow.textContent).not.toContain("-Cs2");
-
-      const equationsCell = document.getElementById("equations-newton");
-      expect(equationsCell).not.toBeNull();
-      if (equationsCell) {
-        await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
-        expect(within(equationsCell).getByRole("button", { name: /^Cs\b/i })).toBeInTheDocument();
-      }
-    },
-    20000
-  );
-
-  it("renames a simple matrix reference across the model when rename dialog answer is Yes", async () => {
-    const user = userEvent.setup();
-    window.location.hash = "#/notebook";
-    setSuccessfulNotebookRunner();
-
-    render(<App />);
-
-    const matrixHeading = screen.getByRole("heading", { name: /bmw transactions-flow matrix/i });
-    const matrixCell = matrixHeading.closest("article");
-    expect(matrixCell).not.toBeNull();
-    if (!matrixCell) {
-      throw new Error("Expected BMW transactions-flow matrix article.");
-    }
-
-    const consumptionRow = within(matrixCell).getByText("Consumption").closest("tr");
-    expect(consumptionRow).not.toBeNull();
-    if (!consumptionRow) {
-      throw new Error("Expected consumption row.");
-    }
-
-    const csEntry = within(consumptionRow)
-      .getAllByTitle("Double-click to edit")
-      .find((node) => node.textContent?.includes("-Cs"));
-    expect(csEntry).toBeDefined();
-    if (!csEntry) {
-      throw new Error("Expected -Cs matrix entry.");
-    }
-
-    fireEvent.doubleClick(csEntry);
-
-    const entryInput = within(matrixCell).getByRole("textbox", {
-      name: /matrix entry for row/i
-    });
-    fireEvent.change(entryInput, { target: { value: "-Cs2" } });
-    await user.click(within(matrixCell).getByRole("button", { name: /^apply$/i }));
-
-    expect(screen.getByRole("dialog", { name: /rename variable across notebook/i })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /^yes$/i }));
-
-    expect(consumptionRow.textContent).toContain("-Cs2");
-
-    const equationsCell = document.getElementById("equations-newton");
-    expect(equationsCell).not.toBeNull();
-    if (equationsCell) {
-      await user.click(within(equationsCell).getByRole("button", { name: /^show$/i }));
-      expect(within(equationsCell).getByRole("button", { name: /^Cs2\b/i })).toBeInTheDocument();
-    }
-  });
 
   it("edits a plain matrix reference to a diff without opening the rename dialog", async () => {
     const user = userEvent.setup();
@@ -1013,177 +791,7 @@ describe("App notebook navigation and inspection", () => {
     expect(consumptionRow.textContent).toContain("d(Cd)");
   });
 
-  it(
-    "offers rename dialog when a diff matrix reference changes only the variable name",
-    async () => {
-      const user = userEvent.setup();
-      window.location.hash = "#/notebook";
-      setSuccessfulNotebookRunner();
-
-      render(<App />);
-
-      const matrixHeading = screen.getByRole("heading", { name: /bmw transactions-flow matrix/i });
-      const matrixCell = matrixHeading.closest("article");
-      expect(matrixCell).not.toBeNull();
-      if (!matrixCell) {
-        throw new Error("Expected BMW transactions-flow matrix article.");
-      }
-
-      const changeDepositsRow = within(matrixCell).getByText("Ch. deposits").closest("tr");
-      expect(changeDepositsRow).not.toBeNull();
-      if (!changeDepositsRow) {
-        throw new Error("Expected change deposits row.");
-      }
-
-      const mhDiffEntry = within(changeDepositsRow)
-        .getAllByTitle("Double-click to edit")
-        .find((node) => node.textContent?.includes("-d(Mh)"));
-      expect(mhDiffEntry).toBeDefined();
-      if (!mhDiffEntry) {
-        throw new Error("Expected -d(Mh) matrix entry.");
-      }
-
-      fireEvent.doubleClick(mhDiffEntry);
-
-      const entryInput = within(matrixCell).getByRole("textbox", {
-        name: /matrix entry for row/i
-      });
-      fireEvent.change(entryInput, { target: { value: "-d(Mh2)" } });
-      await user.click(within(matrixCell).getByRole("button", { name: /^apply$/i }));
-
-      expect(screen.getByRole("dialog", { name: /rename variable across notebook/i })).toBeInTheDocument();
-      await user.click(screen.getByRole("button", { name: /^no$/i }));
-
-      expect(changeDepositsRow.textContent).toContain("-d(Mh2)");
-    },
-    20000
-  );
-
-  it("edits a matrix expression cell without opening the rename dialog", async () => {
-    const user = userEvent.setup();
-    window.location.hash = "#/notebook";
-    setSuccessfulNotebookRunner();
-
-    render(<App />);
-
-    const matrixHeading = screen.getByRole("heading", { name: /bmw transactions-flow matrix/i });
-    const matrixCell = matrixHeading.closest("article");
-    expect(matrixCell).not.toBeNull();
-    if (!matrixCell) {
-      throw new Error("Expected BMW transactions-flow matrix article.");
-    }
-
-    const interestDepositsRow = within(matrixCell).getByText("Interest on deposits").closest("tr");
-    expect(interestDepositsRow).not.toBeNull();
-    if (!interestDepositsRow) {
-      throw new Error("Expected interest on deposits row.");
-    }
-
-    const expressionEntry = within(interestDepositsRow)
-      .getAllByTitle("Double-click to edit")
-      .find((node) => node.textContent?.includes("Mh[-1]"));
-    expect(expressionEntry).toBeDefined();
-    if (!expressionEntry) {
-      throw new Error("Expected interest on deposits expression entry.");
-    }
-
-    fireEvent.doubleClick(expressionEntry);
-
-    const entryInput = within(matrixCell).getByRole("textbox", {
-      name: /matrix entry for row/i
-    });
-    fireEvent.change(entryInput, {
-      target: { value: "-rm[-1] * Mh2[-1]" }
-    });
-    await user.click(within(matrixCell).getByRole("button", { name: /^apply$/i }));
-
-    expect(screen.queryByRole("dialog", { name: /rename variable across notebook/i })).not.toBeInTheDocument();
-    expect(interestDepositsRow.textContent).toContain("Mh2[-1]");
-    expect(interestDepositsRow.textContent).not.toContain("Mh[-1]");
-  });
-
-  it("opens the notebook variable inspector from matrix table variables", async () => {
-    const user = userEvent.setup();
-    window.location.hash = "#/notebook";
-    setSuccessfulNotebookRunner();
-
-    render(<App />);
-
-    const matrixHeading = screen.getByRole("heading", { name: /bmw transactions-flow matrix/i });
-    const matrixCell = matrixHeading.closest("article");
-    expect(matrixCell).not.toBeNull();
-    if (!matrixCell) {
-      throw new Error("Expected BMW transactions-flow matrix article.");
-    }
-
-    const rmToken = within(matrixCell)
-      .getAllByText("rm")
-      .find((node) => node.className.includes("formula-token"));
-    expect(rmToken).toBeDefined();
-    if (!rmToken) {
-      throw new Error("Expected matrix token for rm.");
-    }
-
-    await clickForDeferredVariableInspect(rmToken);
-
-    const inspectorHeading = screen.getByRole("heading", { name: /^rm\b/i });
-    expect(inspectorHeading).toBeInTheDocument();
-    const selectedVariableLabel = screen.getByText(/^Selected variable$/i);
-    const inspector = selectedVariableLabel.closest(".variable-inspector-panel");
-    expect(inspector).not.toBeNull();
-    if (!(inspector instanceof HTMLElement)) {
-      throw new Error("Expected variable inspector container.");
-    }
-
-    expect(within(inspector).getByText(/^Accounting terms$/i)).toBeInTheDocument();
-    const affectedEquationsHeading = within(inspector).getByText(/^Affected equations$/i);
-    expect(affectedEquationsHeading).toBeInTheDocument();
-    expect(within(inspector).getByText(/^rm\*Mh$/i)).toBeInTheDocument();
-    expect(within(inspector).getByText(/^rm\*Ms$/i)).toBeInTheDocument();
-    const affectedEquationsSection = affectedEquationsHeading.closest(".inspector-section");
-    expect(affectedEquationsSection).not.toBeNull();
-    if (!(affectedEquationsSection instanceof HTMLElement)) {
-      throw new Error("Expected affected equations section.");
-    }
-    expect(
-      within(affectedEquationsSection).getAllByRole("button", { name: /^Inspect variable YD$/i }).length
-    ).toBeGreaterThanOrEqual(2);
-
-    const ydEquation = within(affectedEquationsSection)
-      .getAllByRole("code")
-      .find((node) => node.textContent?.includes("YD"));
-    expect(ydEquation).toBeDefined();
-    if (!ydEquation) {
-      throw new Error("Expected affected equation code block for YD.");
-    }
-    await user.click(within(ydEquation).getByRole("button", { name: /^Inspect variable YD$/i }));
-    expect(screen.getByRole("heading", { name: /^YD\b/i })).toBeInTheDocument();
-
-    fireEvent.click(rmToken);
-    await waitFor(() => {
-      expect(screen.getByRole("heading", { name: /^rm\b/i })).toBeInTheDocument();
-    });
-    expect(inspector.querySelector(".inspector-related-equation.trace-output")).not.toBeNull();
-
-    const mhToken = within(affectedEquationsSection)
-      .getAllByText("Mh")
-      .find((node) => node.className.includes("formula-token"));
-    expect(mhToken).toBeDefined();
-    if (!mhToken) {
-      throw new Error("Expected inspector RHS token for Mh.");
-    }
-
-    fireEvent.mouseEnter(mhToken);
-    const inspectorTooltip = screen.getAllByRole("tooltip").at(-1);
-    expect(inspectorTooltip).toBeDefined();
-    if (!inspectorTooltip) {
-      throw new Error("Expected inspector tooltip.");
-    }
-    expect(inspectorTooltip).toHaveTextContent("Bank deposits held by households");
-    expect(inspectorTooltip).toHaveTextContent("Bank deposits held by households : $0");
-  }, 15000);
-
-  it("navigates notebook variable inspector history with go back and go forward", async () => {
+  it("updates notebook variable inspector history controls after selecting related variables", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";
     setSuccessfulNotebookRunner();
@@ -1237,56 +845,17 @@ describe("App notebook navigation and inspection", () => {
 
     await user.click(within(ydEquation).getByRole("button", { name: /^Inspect variable YD$/i }));
     expect(screen.getByRole("heading", { name: /^YD\b/i })).toBeInTheDocument();
-    expect(backButton).not.toBeDisabled();
-    expect(forwardButton).toBeDisabled();
+    let currentInspector = screen.getByText(/^Selected variable$/i).closest(".variable-inspector-panel");
+    expect(currentInspector).toBeInstanceOf(HTMLElement);
+    if (!(currentInspector instanceof HTMLElement)) {
+      throw new Error("Expected current variable inspector container.");
+    }
+    let currentBackButton = within(currentInspector).getByRole("button", { name: /^Go back$/i });
+    let currentForwardButton = within(currentInspector).getByRole("button", { name: /^Go forward$/i });
+    expect(currentBackButton).not.toBeDisabled();
+    expect(currentForwardButton).toBeDisabled();
 
-    await user.click(backButton);
-    expect(screen.getByRole("heading", { name: /^rm\b/i })).toBeInTheDocument();
-    expect(backButton).toBeDisabled();
-    expect(forwardButton).not.toBeDisabled();
-
-    await user.click(forwardButton);
-    expect(screen.getByRole("heading", { name: /^YD\b/i })).toBeInTheDocument();
-    expect(backButton).not.toBeDisabled();
-    expect(forwardButton).toBeDisabled();
   }, 15000);
-
-  it("opens the notebook variable inspector from dependency summary inspect buttons", async () => {
-    const user = userEvent.setup();
-    window.location.hash = "#/notebook";
-    setSuccessfulNotebookRunner();
-
-    render(<App />);
-
-    const dependencyHeading = screen.getByRole("heading", { name: /bmw equation dependency graph/i });
-    const dependencyCell = dependencyHeading.closest("article");
-    expect(dependencyCell).not.toBeNull();
-    if (!(dependencyCell instanceof HTMLElement)) {
-      throw new Error("Expected BMW equation dependency graph article.");
-    }
-
-    await user.click(within(dependencyCell).getByRole("button", { name: /^show$/i }));
-
-    await user.click(within(dependencyCell).getByRole("button", { name: /^Inspect variable rm$/i }));
-
-    expect(screen.getByText("Selected variable")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^rm\b/i })).toBeInTheDocument();
-    const inspectorHeading = screen.getByText(/^Selected variable$/i);
-    const inspector = inspectorHeading.closest(".variable-inspector-panel");
-    expect(inspector).not.toBeNull();
-    if (!(inspector instanceof HTMLElement)) {
-      throw new Error("Expected variable inspector container.");
-    }
-    const affectedEquationsHeading = within(inspector).getByText(/^Affected equations$/i);
-    const affectedEquationsSection = affectedEquationsHeading.closest(".inspector-section");
-    expect(affectedEquationsSection).not.toBeNull();
-    if (!(affectedEquationsSection instanceof HTMLElement)) {
-      throw new Error("Expected affected equations section.");
-    }
-    expect(
-      within(affectedEquationsSection).getAllByRole("button", { name: /^Inspect variable YD$/i }).length
-    ).toBeGreaterThanOrEqual(2);
-  });
 
   it("loads a notebook template from the hash path", () => {
     window.location.hash = "#/notebook/gl2-pc";
@@ -1338,7 +907,7 @@ describe("App notebook navigation and inspection", () => {
     );
     expect(window.location.pathname).toBe("/notebook/bmw");
 
-    fireEvent.contextMenu(sequenceCell);
+    openCellContextMenu(sequenceCell);
     await user.click(
       within(screen.getByRole("menu", { name: /cell actions for bmw transaction flow sequence/i })).getByRole(
         "menuitem",

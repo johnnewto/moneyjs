@@ -1488,7 +1488,7 @@ export function NotebookApp() {
   );
 
   useEffect(() => {
-    maybeStartNotebookTourOnFirstLoad(notebookTourHandlers);
+    return maybeStartNotebookTourOnFirstLoad(notebookTourHandlers);
   }, [notebookTourHandlers]);
 
   useEffect(() => {
