@@ -1,7 +1,8 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { AssistantMarkdown } from "../components/AssistantMarkdown";
 import type { EditorState } from "../lib/editorModel";
+import { applyFixedMenuPosition } from "../lib/clampFixedMenuPosition";
 import { isPartialSimulationResult, partialResultFailurePeriodIndex } from "../lib/partialRunResult";
 import {
   buildVariableDescriptions,
@@ -776,12 +777,13 @@ function NotebookCellViewComponent({
     }
   }, [cellContextMenu, isActivelyEditing]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (cellContextMenu && cellContextMenuRef.current) {
-      cellContextMenuRef.current.style.left = `${cellContextMenu.x}px`;
-      cellContextMenuRef.current.style.top = `${cellContextMenu.y}px`;
+      applyFixedMenuPosition(cellContextMenuRef.current, cellContextMenu.x, cellContextMenu.y);
     }
+  }, [cellContextMenu]);
 
+  useEffect(() => {
     if (cellContextMenu == null) {
       return;
     }

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type MouseEvent, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type RefObject } from "react";
+import { applyFixedMenuPosition } from "../lib/clampFixedMenuPosition";
 
 export function insertRowAt<T>(rows: T[], index: number, row: T): T[] {
   const next = rows.slice();
@@ -83,12 +84,13 @@ export function useGridRowContextMenu<T>({
     setDeleteDialogRowIndex(null);
   }
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (rowContextMenu && rowContextMenuRef.current) {
-      rowContextMenuRef.current.style.left = `${rowContextMenu.x}px`;
-      rowContextMenuRef.current.style.top = `${rowContextMenu.y}px`;
+      applyFixedMenuPosition(rowContextMenuRef.current, rowContextMenu.x, rowContextMenu.y);
     }
+  }, [rowContextMenu]);
 
+  useEffect(() => {
     if (rowContextMenu == null) {
       return;
     }

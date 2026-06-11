@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type MouseEvent as ReactMouseEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX, type MouseEvent as ReactMouseEvent } from "react";
 
 import { externalRowsOnly } from "@sfcr/notebook-core";
 
@@ -15,6 +15,7 @@ import type { MatrixEntryDisplayMode } from "../matrixEntryDisplay";
 
 import { HighlightedFormulaInput, highlightFormula } from "../../components/EquationGridEditor";
 import { collectEquationDenominatorVariables } from "../../lib/equationDivisionAnalysis";
+import { applyFixedMenuPosition } from "../../lib/clampFixedMenuPosition";
 import { NumericValueText } from "../../components/NumericValueText";
 import { VariableLabel } from "../../components/VariableLabel";
 import type { EditorState } from "../../lib/editorModel";
@@ -219,16 +220,16 @@ export function MatrixCellView({
     setColumnContextMenu(null);
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (rowContextMenu && rowContextMenuRef.current) {
-      rowContextMenuRef.current.style.left = `${rowContextMenu.x}px`;
-      rowContextMenuRef.current.style.top = `${rowContextMenu.y}px`;
+      applyFixedMenuPosition(rowContextMenuRef.current, rowContextMenu.x, rowContextMenu.y);
     }
     if (columnContextMenu && columnContextMenuRef.current) {
-      columnContextMenuRef.current.style.left = `${columnContextMenu.x}px`;
-      columnContextMenuRef.current.style.top = `${columnContextMenu.y}px`;
+      applyFixedMenuPosition(columnContextMenuRef.current, columnContextMenu.x, columnContextMenu.y);
     }
+  }, [columnContextMenu, rowContextMenu]);
 
+  useEffect(() => {
     if (rowContextMenu == null && columnContextMenu == null) {
       return;
     }
