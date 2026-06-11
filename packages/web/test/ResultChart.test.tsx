@@ -25,6 +25,30 @@ function hasTextContent(expected: RegExp) {
 }
 
 describe("ResultChart", () => {
+  it("renders scenario shock bands with start and end markers", () => {
+    render(
+      <ResultChart
+        scenarioShocks={[
+          {
+            color: "#6366f1",
+            endPeriodInclusive: 8,
+            shockIndex: 1,
+            startPeriodInclusive: 5,
+            variables: [{ name: "alpha1", valueText: "0.7" }]
+          }
+        ]}
+        series={[{ name: "Y", values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] }]}
+      />
+    );
+
+    expect(document.querySelectorAll(".chart-scenario-shock")).toHaveLength(1);
+    expect(document.querySelectorAll(".chart-scenario-shock line")).toHaveLength(2);
+    expect(document.querySelector(".chart-scenario-shock foreignObject")).not.toBeNull();
+    expect(screen.getByText("Shock 1")).toBeInTheDocument();
+    expect(screen.getByText("α", { selector: ".chart-scenario-shock-band-label .variable-math-label" })).toBeInTheDocument();
+    expect(screen.getByText("1", { selector: ".chart-scenario-shock-band-label sub" })).toBeInTheDocument();
+  });
+
   it("renders a shared left axis by default", () => {
     render(
       <ResultChart

@@ -269,3 +269,20 @@
 .chart-time-range-slider-pan:active {
   cursor: grabbing;
 }
+.chart-scenario-shock-band-label {
+  box-sizing: border-box;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+.chart-scenario-shock-band-heading {
+  font-weight: 700;
+}
+.chart-scenario-shock-variable .variable-math-label {
+  font-weight: 700;
+}

@@ -828,6 +828,13 @@ function validateCellSourceShape(
         throw new Error("Chart referenceTrace must be 'none', 'baseline', or 'previous-run'.");
       }
       if (
+        (parsed as ChartCell).showScenarioShocks != null &&
+        (parsed as ChartCell).showScenarioShocks !== "auto" &&
+        typeof (parsed as ChartCell).showScenarioShocks !== "boolean"
+      ) {
+        throw new Error("Chart showScenarioShocks must be true, false, or 'auto'.");
+      }
+      if (
         (parsed as ChartCell).yAxisTickCount != null &&
         (!Number.isInteger((parsed as ChartCell).yAxisTickCount) ||
           Number((parsed as ChartCell).yAxisTickCount) < 2)

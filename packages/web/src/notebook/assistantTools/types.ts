@@ -85,7 +85,7 @@ export const NOTEBOOK_ASSISTANT_TOOL_REGISTRY = [
   { name: "createRemoveMatrixRowPatch", kind: "patch", args: "{ matrixId: string, label: string }" },
   { name: "createAddMarkdownCellPatch", kind: "patch", args: "{ title: string, source: string, cellId?: string, insertAfterCellId?: string, insertAfterCellTitle?: string }" },
   { name: "createUpdateMarkdownCellPatch", kind: "patch", args: "{ cellId?: string, cellTitle?: string, title?: string, source?: string }" },
-  { name: "createUpdateChartOptionsPatch", kind: "patch", args: "{ chartId: string, axisMode?: 'shared' | 'separate', niceScale?: boolean, referenceTrace?: ReferenceTrace, seriesRanges?: object, sharedRange?: object, timeRangeInclusive?: [integer, integer], yAxisTickCount?: integer }" },
+  { name: "createUpdateChartOptionsPatch", kind: "patch", args: "{ chartId: string, axisMode?: 'shared' | 'separate', niceScale?: boolean, referenceTrace?: ReferenceTrace, showScenarioShocks?: boolean | 'auto', seriesRanges?: object, sharedRange?: object, timeRangeInclusive?: [integer, integer], yAxisTickCount?: integer }" },
   { name: "createUpdateNotebookTitlePatch", kind: "patch", args: "{ title: string }" },
   { name: "createUpdateVariableUnitMetaPatch", kind: "patch", args: `{ variable: string, modelId?: string, displayUnit?: string, unit?: string, stockFlow?: 'stock' | 'flow' | 'aux', unitMeta?: ${UNIT_META_SCHEMA} }` },
   { name: "createUpdateParameterPatch", kind: "patch", args: "{ modelId: string, variable: string, value: number | string }", notes: ["Use value, not from, to, newValue, or prose."] }

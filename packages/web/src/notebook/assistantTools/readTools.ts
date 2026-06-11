@@ -309,6 +309,7 @@ export function listCharts(snapshot: NotebookAssistantSnapshot) {
     variables: chart.variables,
     axisMode: chart.axisMode ?? null,
     referenceTrace: chart.referenceTrace ?? null,
+    showScenarioShocks: chart.showScenarioShocks ?? "auto",
     timeRangeInclusive: chart.timeRangeInclusive ?? null
   }));
 }

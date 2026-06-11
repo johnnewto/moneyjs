@@ -222,6 +222,7 @@ const CELL_TYPE_PROPERTY_KEYS: Record<string, string[]> = {
     "axisSnapTolarance",
     "niceScale",
     "referenceTrace",
+    "showScenarioShocks",
     "yAxisTickCount",
     "sharedRange",
     "seriesRanges",
@@ -426,6 +427,7 @@ function buildCompletionData(document: NotebookDocument, format: NotebookSourceF
       kind: ["constant", "series", "matrix", "dependency", "cld", "plantuml"],
       mode: ["baseline", "scenario"],
       referenceTrace: ["none", "baseline", "previous-run"],
+      showScenarioShocks: ["auto", "true", "false"],
       solverMethod: ["GAUSS_SEIDEL", "BROYDEN", "NEWTON"],
       stripSectorSource: ["columns", "sectors"],
       type: [
@@ -487,6 +489,7 @@ function buildKeySnippets(format: NotebookSourceFormat): Record<string, Completi
     ["axisSnapTolarance", "axisSnapTolarance"],
     ["niceScale", "niceScale"],
     ["referenceTrace", "referenceTrace"],
+    ["showScenarioShocks", "showScenarioShocks"],
     ["yAxisTickCount", "yAxisTickCount"],
     ["sharedRange", "sharedRange"],
     ["seriesRanges", "seriesRanges"],

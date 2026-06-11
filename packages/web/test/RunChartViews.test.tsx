@@ -67,7 +67,74 @@ const cells: NotebookCell[] = [
   }
 ];
 
+const scenarioCells: NotebookCell[] = [
+  {
+    id: "baseline-run",
+    mode: "baseline",
+    periods: 20,
+    resultKey: "baseline",
+    sourceModelId: "model-1",
+    title: "Baseline",
+    type: "run"
+  },
+  {
+    id: "scenario-run",
+    baselineRunCellId: "baseline-run",
+    mode: "scenario",
+    periods: 20,
+    resultKey: "scenario",
+    scenario: {
+      shocks: [
+        {
+          rangeInclusive: [5, 12],
+          variables: {
+            Gd: { kind: "constant", value: 30 }
+          }
+        }
+      ]
+    },
+    sourceModelId: "model-1",
+    title: "Scenario",
+    type: "run"
+  }
+];
+
 describe("ChartCellView", () => {
+  it("renders scenario shock markers for scenario source runs by default", () => {
+    const chart: ChartCell = {
+      id: "chart-1",
+      sourceRunCellId: "scenario-run",
+      title: "Scenario chart",
+      type: "chart",
+      variables: ["Y"]
+    };
+    const result = createResult([20, 22, 24, 26, 28, 30, 32, 34, 36, 38]);
+    const runner = {
+      ...createRunner({ current: result }),
+      getResult: vi.fn((cellId: string) => (cellId === "scenario-run" ? result : null))
+    } as unknown as ReturnType<typeof useNotebookRunner>;
+
+    render(
+      <ChartCellView
+        cell={chart}
+        cells={scenarioCells}
+        runner={runner}
+        selectedPeriodIndex={0}
+        variableDescriptions={new Map()}
+        variableUnitMetadata={new Map()}
+      />
+    );
+
+    expect(
+      screen.getByRole("img", {
+        name: /simulation result chart with shared left axis.*scenario shock markers/i
+      })
+    ).toBeInTheDocument();
+    expect(document.querySelector(".chart-scenario-shock")).not.toBeNull();
+    expect(document.querySelector(".chart-scenario-shock-band-label")).not.toBeNull();
+    expect(screen.getByText("Shock 1")).toBeInTheDocument();
+  });
+
   it("uses the previous run result as a dotted reference trace when requested", () => {
     const chart: ChartCell = {
       id: "chart-1",

@@ -294,6 +294,25 @@ export function optionalReferenceTrace(
   return value;
 }
 
+export function optionalShowScenarioShocks(
+  args: Record<string, unknown> | undefined,
+  key: string
+): boolean | "auto" | undefined {
+  if (args?.[key] == null) {
+    return undefined;
+  }
+
+  const value = args[key];
+  if (value === "auto") {
+    return "auto";
+  }
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  throw new Error(`Tool argument '${key}' must be true, false, or auto.`);
+}
+
 export function optionalPlainObject(
   args: Record<string, unknown> | undefined,
   key: string

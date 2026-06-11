@@ -7,6 +7,10 @@ import { resolveInspectorModelSource, type VariableInspectRequest } from "../../
 import { documentHighlightClassName } from "../../lib/variableHighlight";
 import type { buildVariableUnitMetadata } from "../../lib/units";
 import { getVariableDescription, type VariableDescriptions } from "../../lib/variableDescriptions";
+import {
+  buildScenarioShockMarkers,
+  resolveShowScenarioShocks
+} from "../../lib/scenarioShockMarkers";
 import type { ChartCell, NotebookCell, RunCell } from "../types";
 import type { useNotebookRunner } from "../useNotebookRunner";
 
@@ -199,6 +203,9 @@ export function ChartCellView({
     .filter(([, values]) => values.length > 1 && Array.from(values).some(Number.isFinite))
     .map(([name]) => name)
     .sort((left, right) => left.localeCompare(right));
+  const scenarioShocks = resolveShowScenarioShocks(cell, sourceRunCell)
+    ? buildScenarioShockMarkers(sourceRunCell)
+    : [];
 
   return (
     <ResultChart
@@ -211,6 +218,7 @@ export function ChartCellView({
       onRemoveVariable={onRemoveVariable}
       overlaySeries={overlaySeries}
       periodLabelOffset={periodLabelOffset}
+      scenarioShocks={scenarioShocks}
       seriesRanges={cell.seriesRanges}
       selectedIndex={chartSelectedIndex}
       series={series}

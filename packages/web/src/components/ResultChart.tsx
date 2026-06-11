@@ -21,6 +21,10 @@ import {
   toY,
   type ChartAxisRange
 } from "./ResultChartScales";
+import {
+  formatScenarioShockAriaLabel,
+  type ScenarioShockMarker
+} from "../lib/scenarioShockMarkers";
 import { VariableMathLabel, renderVariableMathSvgLabel } from "./VariableMathLabel";
 
 interface ChartSeries {
@@ -43,6 +47,7 @@ interface ResultChartProps {
   onRemoveVariable?(variableName: string): void;
   overlaySeries?: ChartSeries[];
   periodLabelOffset?: number;
+  scenarioShocks?: ScenarioShockMarker[];
   seriesRanges?: Record<string, ChartAxisRange | undefined>;
   selectedIndex?: number;
   series: ChartSeries[];
@@ -76,6 +81,9 @@ const TIME_RANGE_SLIDER_MIN_PERIODS = 10;
 const TIME_RANGE_SLIDER_GAP = 8;
 const TIME_RANGE_SLIDER_SECTION_HEIGHT = 48;
 const TIME_RANGE_SLIDER_HANDLE_WIDTH = 10;
+const SCENARIO_SHOCK_LABEL_HEIGHT = 16;
+const SCENARIO_SHOCK_LABEL_GAP = 2;
+const SCENARIO_SHOCK_LABEL_MIN_WIDTH = 56;
 
 export function ResultChart({
   addVariableOptions,
@@ -87,6 +95,7 @@ export function ResultChart({
   onRemoveVariable,
   overlaySeries = [],
   periodLabelOffset = 0,
+  scenarioShocks = [],
   seriesRanges,
   series,
   sharedRange,
@@ -285,14 +294,35 @@ export function ResultChart({
     hoveredDatum != null
       ? Math.min(Math.max(hoveredDatum.index, 0), Math.max(visibleLength - 1, 0))
       : fallbackHoverVisibleIndex;
+  const hasScenarioShocks = scenarioShocks.length > 0;
   const ariaLabel =
     axisMode === "shared"
       ? showTimeRangeSlider
-        ? "Simulation result chart with shared left axis and time range slider"
-        : "Simulation result chart with shared left axis"
+        ? hasScenarioShocks
+          ? "Simulation result chart with shared left axis, scenario shock markers, and time range slider"
+          : "Simulation result chart with shared left axis and time range slider"
+        : hasScenarioShocks
+          ? "Simulation result chart with shared left axis and scenario shock markers"
+          : "Simulation result chart with shared left axis"
       : showTimeRangeSlider
-        ? "Simulation result chart with multiple left axes and time range slider"
-        : "Simulation result chart with multiple left axes";
+        ? hasScenarioShocks
+          ? "Simulation result chart with multiple left axes, scenario shock markers, and time range slider"
+          : "Simulation result chart with multiple left axes and time range slider"
+        : hasScenarioShocks
+          ? "Simulation result chart with multiple left axes and scenario shock markers"
+          : "Simulation result chart with multiple left axes";
+  const visibleScenarioShocks = scenarioShocks
+    .map((marker) =>
+      resolveVisibleScenarioShockGeometry(
+        marker,
+        visibleStartIndex,
+        visibleEndIndex,
+        leftPadding,
+        plotWidth,
+        visibleLength
+      )
+    )
+    .filter((entry): entry is VisibleScenarioShockGeometry => entry != null);
   const hoverTooltip =
     hoveredDatum && hoveredMetric
       ? buildHoverTooltip(
@@ -770,6 +800,59 @@ export function ResultChart({
           strokeWidth="1"
         />
 
+        {visibleScenarioShocks.map((shock) => {
+          const bandWidth = Math.max(shock.bandX2 - shock.bandX1, 0);
+          const labelWidth = Math.max(bandWidth, SCENARIO_SHOCK_LABEL_MIN_WIDTH);
+          const labelX = Math.min(
+            Math.max(shock.bandX1, leftPadding),
+            leftPadding + plotWidth - labelWidth
+          );
+          const labelY = Math.max(2, topPadding - SCENARIO_SHOCK_LABEL_HEIGHT - SCENARIO_SHOCK_LABEL_GAP);
+
+          return (
+          <g
+            key={`scenario-shock-band-${shock.marker.shockIndex}`}
+            className="chart-scenario-shock"
+            aria-label={formatScenarioShockAriaLabel(shock.marker, periodLabelOffset)}
+          >
+            <foreignObject
+              x={labelX}
+              y={labelY}
+              width={labelWidth}
+              height={SCENARIO_SHOCK_LABEL_HEIGHT}
+            >
+              <ScenarioShockBandLabel marker={shock.marker} color={shock.marker.color} />
+            </foreignObject>
+            <rect
+              x={shock.bandX1}
+              y={topPadding}
+              width={bandWidth}
+              fill={shock.marker.color}
+              opacity="0.12"
+              height={plotHeight}
+            />
+            <line
+              x1={shock.startLineX}
+              x2={shock.startLineX}
+              y1={topPadding}
+              y2={topPadding + plotHeight}
+              stroke={shock.marker.color}
+              strokeDasharray="4 4"
+              strokeWidth="1.5"
+            />
+            <line
+              x1={shock.endLineX}
+              x2={shock.endLineX}
+              y1={topPadding}
+              y2={topPadding + plotHeight}
+              stroke={shock.marker.color}
+              strokeDasharray="4 4"
+              strokeWidth="1.5"
+            />
+          </g>
+          );
+        })}
+
         {/* Horizontal grid lines and Y-axis tick labels share the same tick list. */}
         {primaryMetrics?.ticks.map((tick) => {
           const y = toY(tick, topPadding, plotHeight, primaryMetrics.min, primaryMetrics.range);
@@ -1198,6 +1281,68 @@ export function ResultChart({
       ) : null}
     </section>
   );
+}
+
+function ScenarioShockBandLabel({ color, marker }: { color: string; marker: ScenarioShockMarker }) {
+  return (
+    <div className="chart-scenario-shock-band-label" style={{ color }} xmlns="http://www.w3.org/1999/xhtml">
+      <span className="chart-scenario-shock-band-heading">Shock {marker.shockIndex}</span>
+      {marker.variables.length > 0 ? (
+        <>
+          {": "}
+          {marker.variables.map((entry, entryIndex) => (
+            <span key={`${marker.shockIndex}-${entry.name}`} className="chart-scenario-shock-variable">
+              {entryIndex > 0 ? ", " : null}
+              <VariableMathLabel name={entry.name} />
+              <span className="chart-scenario-shock-arrow" aria-hidden="true">
+                {" → "}
+              </span>
+              <span className="chart-scenario-shock-value">{entry.valueText}</span>
+            </span>
+          ))}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+interface VisibleScenarioShockGeometry {
+  bandX1: number;
+  bandX2: number;
+  endLineX: number;
+  marker: ScenarioShockMarker;
+  startLineX: number;
+}
+
+function resolveVisibleScenarioShockGeometry(
+  marker: ScenarioShockMarker,
+  visibleStartIndex: number,
+  visibleEndIndex: number,
+  leftPadding: number,
+  plotWidth: number,
+  visibleLength: number
+): VisibleScenarioShockGeometry | null {
+  const startIndex = marker.startPeriodInclusive - 1;
+  const endIndex = marker.endPeriodInclusive - 1;
+  if (endIndex < visibleStartIndex || startIndex > visibleEndIndex) {
+    return null;
+  }
+
+  const clippedStartIndex = Math.max(startIndex, visibleStartIndex);
+  const clippedEndIndex = Math.min(endIndex, visibleEndIndex);
+  const startLineX = toX(clippedStartIndex - visibleStartIndex, leftPadding, plotWidth, visibleLength);
+  const endLineX =
+    visibleLength <= 1
+      ? leftPadding + plotWidth
+      : toX(clippedEndIndex - visibleStartIndex + 1, leftPadding, plotWidth, visibleLength);
+
+  return {
+    bandX1: startLineX,
+    bandX2: Math.min(endLineX, leftPadding + plotWidth),
+    endLineX: Math.min(endLineX, leftPadding + plotWidth),
+    marker,
+    startLineX
+  };
 }
 
 function buildHoverTooltip(

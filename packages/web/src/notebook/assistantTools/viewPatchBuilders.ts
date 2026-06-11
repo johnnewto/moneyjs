@@ -235,6 +235,7 @@ export function createUpdateChartOptionsPatch(
     chartId: string;
     niceScale?: boolean;
     referenceTrace?: "none" | "baseline" | "previous-run";
+    showScenarioShocks?: boolean | "auto";
     seriesRanges?: Record<string, unknown>;
     sharedRange?: Record<string, unknown>;
     timeRangeInclusive?: [number, number];
@@ -254,6 +255,9 @@ export function createUpdateChartOptionsPatch(
   }
   if (args.referenceTrace != null) {
     operations.push(createSetCellPropertyOperation(chart, "referenceTrace", args.referenceTrace));
+  }
+  if (args.showScenarioShocks != null) {
+    operations.push(createSetCellPropertyOperation(chart, "showScenarioShocks", args.showScenarioShocks));
   }
   if (args.yAxisTickCount != null) {
     operations.push(createSetCellPropertyOperation(chart, "yAxisTickCount", args.yAxisTickCount));

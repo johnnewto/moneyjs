@@ -182,6 +182,8 @@ export interface ChartCell extends NotebookCellBase {
   axisSnapTolarance?: number;
   niceScale?: boolean;
   referenceTrace?: "none" | "baseline" | "previous-run";
+  /** When `"auto"` (default), show shock bands on charts sourced from scenario runs. */
+  showScenarioShocks?: boolean | "auto";
   yAxisTickCount?: number;
   sharedRange?: ChartAxisRange;
   seriesRanges?: Record<string, ChartAxisRange | undefined>;

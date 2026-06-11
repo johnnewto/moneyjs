@@ -59,6 +59,7 @@ const ALLOWED_CELL_PROPERTIES = new Set([
   "options",
   "periods",
   "referenceTrace",
+  "showScenarioShocks",
   "rows",
   "scenario",
   "sectors",

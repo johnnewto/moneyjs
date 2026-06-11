@@ -268,6 +268,9 @@ export function buildCompactChartDescriptor(
     ...(cell.axisSnapTolarance == null ? {} : { axisSnapTolarance: cell.axisSnapTolarance }),
     ...(cell.niceScale == null ? {} : { niceScale: cell.niceScale }),
     ...(cell.referenceTrace ? { referenceTrace: cell.referenceTrace } : {}),
+    ...(cell.showScenarioShocks === false || cell.showScenarioShocks === true || cell.showScenarioShocks === "auto"
+      ? { showScenarioShocks: cell.showScenarioShocks }
+      : {}),
     ...(cell.yAxisTickCount == null ? {} : { yAxisTickCount: cell.yAxisTickCount }),
     ...(cell.sharedRange ? { sharedRange: cell.sharedRange } : {}),
     ...(cell.seriesRanges ? { seriesRanges: cell.seriesRanges } : {}),
@@ -745,6 +748,9 @@ export function buildCompactChartCells(charts: unknown, sourceRunCellId: string)
     ...(typeof chart.axisSnapTolarance === "number" ? { axisSnapTolarance: chart.axisSnapTolarance } : {}),
     ...(typeof chart.niceScale === "boolean" ? { niceScale: chart.niceScale } : {}),
     ...(chart.referenceTrace === "none" || chart.referenceTrace === "baseline" || chart.referenceTrace === "previous-run" ? { referenceTrace: chart.referenceTrace } : {}),
+    ...(chart.showScenarioShocks === false || chart.showScenarioShocks === true || chart.showScenarioShocks === "auto"
+      ? { showScenarioShocks: chart.showScenarioShocks }
+      : {}),
     ...(typeof chart.yAxisTickCount === "number" ? { yAxisTickCount: chart.yAxisTickCount } : {}),
     ...(isRecord(chart.seriesRanges) ? { seriesRanges: chart.seriesRanges as Extract<NotebookCell, { type: "chart" }>["seriesRanges"] } : {}),
     ...(Array.isArray(chart.timeRangeInclusive) ? { timeRangeInclusive: chart.timeRangeInclusive as [number, number] } : {})
