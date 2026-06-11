@@ -42,6 +42,39 @@ describe("ExternalEditor", () => {
     expect(screen.getByText(/series values are invalid/i)).toBeInTheDocument();
   });
 
+  it("edits external units from the units badge preset dialog", () => {
+    const onChange = vi.fn();
+
+    render(
+      <ExternalEditor
+        externals={[
+          {
+            id: "ext-g",
+            name: "G",
+            kind: "constant",
+            valueText: "20",
+            unitMeta: { stockFlow: "stock", signature: { money: 1 } }
+          }
+        ]}
+        issues={{}}
+        onChange={onChange}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /edit units for g/i }));
+    fireEvent.click(screen.getByRole("button", { name: "$/yr" }));
+
+    expect(onChange).toHaveBeenLastCalledWith([
+      {
+        id: "ext-g",
+        name: "G",
+        kind: "constant",
+        valueText: "20",
+        unitMeta: { stockFlow: "flow", signature: { money: 1, time: -1 } }
+      }
+    ]);
+  });
+
   it("edits an external description", () => {
     const onChange = vi.fn();
 

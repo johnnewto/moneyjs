@@ -1,9 +1,10 @@
+import { useEffect, useState } from "react";
+
 import { formatCompactRowCommentText, isRowComment, type ExternalListItem } from "@sfcr/notebook-core";
 
 import type { ExternalRow } from "../lib/editorModel";
 import { NotebookRowComment } from "../notebook/components/NotebookRowComment";
 import { newRowComment, patchCommentInRows } from "../notebook/rowCommentHelpers";
-import { formatUnitLabel } from "../lib/unitMeta";
 import {
   canMoveRowDown,
   canMoveRowUp,
@@ -12,6 +13,7 @@ import {
   removeRow,
   useGridRowContextMenu
 } from "./GridRowContextMenu";
+import { EquationUnitsPopover } from "./EquationGridEditor";
 
 interface ExternalEditorProps {
   currentValues?: Record<string, number | undefined>;
@@ -30,11 +32,34 @@ export function ExternalEditor({
   onChange,
   showHeading = true
 }: ExternalEditorProps) {
+  const [openUnitPopoverRowId, setOpenUnitPopoverRowId] = useState<string | null>(null);
   const rowContextMenu = useGridRowContextMenu({
-    ignoredSelector: "button, select",
+    ignoredSelector: "button, select, .equation-grid-unit-cell, .equation-badge-popover-panel",
     onChangeRows: onChange,
     rows: externals
   });
+
+  useEffect(() => {
+    if (!openUnitPopoverRowId) {
+      return undefined;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!(event.target instanceof Element)) {
+        setOpenUnitPopoverRowId(null);
+        return;
+      }
+
+      if (event.target.closest(".equation-grid-unit-cell")) {
+        return;
+      }
+
+      setOpenUnitPopoverRowId(null);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [openUnitPopoverRowId]);
 
   return (
     <section className={isEmbedded ? "grid-editor-embedded" : "editor-panel"}>
@@ -84,7 +109,10 @@ export function ExternalEditor({
                 : ""
             }`}
             key={external.id}
-            onContextMenu={(event) => rowContextMenu.handleRowContextMenu(event, index)}
+            onContextMenu={(event) => {
+              setOpenUnitPopoverRowId(null);
+              rowContextMenu.handleRowContextMenu(event, index);
+            }}
             role="row"
           >
             <span className="external-grid-index">{index + 1}</span>
@@ -116,9 +144,18 @@ export function ExternalEditor({
               placeholder="Propensity to consume out of income"
               spellCheck={false}
             />
-            <span className="external-grid-units">
-              {formatUnitLabel(external.unitMeta) ?? "—"}
-            </span>
+            <EquationUnitsPopover
+              expression=""
+              isOpen={openUnitPopoverRowId === external.id}
+              onChange={(unitMeta) => updateRow(externals, index, { unitMeta }, onChange)}
+              onToggle={() =>
+                setOpenUnitPopoverRowId((current) =>
+                  current === external.id ? null : external.id
+                )
+              }
+              unitMeta={external.unitMeta}
+              variableName={external.name}
+            />
             <select
               aria-label={`External ${index + 1} kind`}
               value={external.kind}

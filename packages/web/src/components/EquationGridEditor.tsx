@@ -36,7 +36,6 @@ import {
   applyMirroredEquationUnitSuggestions,
   buildVariableUnitMetadata,
   getEquationRowUnitLabel,
-  getVariableUnitLabel,
   suggestEquationUnitMeta,
   type MirroredEquationUnitChange
 } from "../lib/units";
@@ -493,7 +492,7 @@ export interface HighlightedFormulaInputProps {
   variableUnitMetadata?: VariableUnitMetadata;
 }
 
-function EquationUnitsPopover({
+export function EquationUnitsPopover({
   expression,
   isOpen,
   onChange,
@@ -756,12 +755,7 @@ export function HighlightedFormulaInput({
         spellCheck={false}
         value={value}
       />
-      {footer ??
-        (ariaLabel.toLowerCase().includes("variable") && value.trim() ? (
-          <span className="unit-badge input-unit-badge">
-            {getVariableUnitLabel(variableUnitMetadata ?? new Map(), value.trim())}
-          </span>
-        ) : null)}
+      {footer}
     </label>
   );
 }
