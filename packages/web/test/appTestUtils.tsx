@@ -46,6 +46,21 @@ vi.mock("../src/notebook/notebookTour", async (importOriginal) => {
 
 export function setupAppTestEnv(): void {
   beforeAll(() => {
+    if (typeof File !== "undefined" && typeof File.prototype.text !== "function") {
+      File.prototype.text = function text(this: File) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            resolve(typeof reader.result === "string" ? reader.result : "");
+          };
+          reader.onerror = () => {
+            reject(reader.error ?? new Error("Failed to read file."));
+          };
+          reader.readAsText(this);
+        });
+      };
+    }
+
     if (typeof Range !== "undefined") {
       const emptyClientRects = {
         length: 0,
@@ -124,8 +139,10 @@ export function setNotebookSourceValue(value: string): void {
   const view = editor ? EditorView.findFromDOM(editor) : null;
 
   if (view) {
-    view.dispatch({
-      changes: { from: 0, to: view.state.doc.length, insert: value }
+    act(() => {
+      view.dispatch({
+        changes: { from: 0, to: view.state.doc.length, insert: value }
+      });
     });
     return;
   }

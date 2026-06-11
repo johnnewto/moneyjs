@@ -308,6 +308,69 @@ describe("App notebook source and import workflows", () => {
     expect(templatePicker).toHaveValue(IMPORTED_NOTEBOOK_VARIANT_ID);
   }, 15000);
 
+  it("keeps the editor rail open after choosing a notebook file", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    await user.click(screen.getByRole("tab", { name: /^editor$/i }));
+
+    const customNotebook = createNotebookFromTemplate("bmw");
+    customNotebook.title = "Imported File Notebook";
+    customNotebook.metadata = { version: 1 };
+    const yamlSource = notebookToCompactYaml(customNotebook, { preserveIds: true });
+    const file = new File([yamlSource], "import.notebook.yaml", { type: "application/yaml" });
+    const fileInput = document.querySelector('input[type="file"]');
+
+    if (!(fileInput instanceof HTMLInputElement)) {
+      throw new Error("Expected notebook source file input.");
+    }
+
+    await user.upload(fileInput, file);
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: /^editor$/i })).toHaveAttribute("aria-selected", "true");
+      expect(screen.getByRole("tab", { name: /^inspect$/i })).toHaveAttribute("aria-selected", "false");
+      expect(getNotebookSourceTextArea().value).toContain("Imported File Notebook");
+      expect(screen.getByRole("region", { name: /notebook source validation/i })).toHaveTextContent(
+        /preview is ready\. use apply preview to replace the current notebook\./i
+      );
+    });
+    expect(screen.getByRole("button", { name: /apply preview/i })).toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.getByRole("button", { name: /apply preview/i })).toBeInTheDocument();
+  }, 15000);
+
+  it("imports a JSON notebook file while YAML is selected without leaving the editor rail", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    await setNotebookSourceFormat(user, "yaml");
+
+    const jsonSource = notebookToJson(createNotebookFromTemplate("bmw")).replace(
+      "BMW Browser Notebook",
+      "Imported JSON File Notebook"
+    );
+    const file = new File([jsonSource], "import.notebook.json", { type: "application/json" });
+    const fileInput = document.querySelector('input[type="file"]');
+
+    if (!(fileInput instanceof HTMLInputElement)) {
+      throw new Error("Expected notebook source file input.");
+    }
+
+    await user.upload(fileInput, file);
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: /^editor$/i })).toHaveAttribute("aria-selected", "true");
+      expect(screen.getByRole("tab", { name: /^inspect$/i })).toHaveAttribute("aria-selected", "false");
+      expect(getNotebookSourceTextArea().value).toContain("Imported JSON File Notebook");
+      expect(getNotebookSourceTextArea().value).not.toContain("format: sfcr-notebook-yaml");
+    });
+  }, 15000);
+
   it("shows apply and discard actions when the import text is edited", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";

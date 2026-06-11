@@ -1,6 +1,12 @@
 import type { NotebookSourceValidation, ValidationStep } from "./notebookSourceWorkflow";
 
-export function SourceValidationPanel({ validation }: { validation: NotebookSourceValidation }) {
+export function SourceValidationPanel({
+  successMessage,
+  validation
+}: {
+  successMessage?: string;
+  validation: NotebookSourceValidation;
+}) {
   const blockingIssueCount = validation.notebookIssueCount + validation.modelIssueCount;
   const warningCount = validation.notebookWarningCount + validation.modelWarningCount;
   const notebookChecksValid = blockingIssueCount === 0;
@@ -35,9 +41,10 @@ export function SourceValidationPanel({ validation }: { validation: NotebookSour
       ) : null}
       {validation.canApply ? (
         <div className="status-hint">
-          {warningCount > 0
-            ? "Source can be applied; unit and other warnings are advisory."
-            : "Source is ready to apply."}
+          {successMessage ??
+            (warningCount > 0
+              ? "Source can be applied; unit and other warnings are advisory."
+              : "Source is ready to apply.")}
         </div>
       ) : null}
     </section>

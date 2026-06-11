@@ -1200,6 +1200,19 @@ export function NotebookApp() {
     () => buildNotebookSourceValidation(importText, sourceFormat),
     [importText, sourceFormat]
   );
+  const sourceValidationWarningCount =
+    sourceValidation.notebookWarningCount + sourceValidation.modelWarningCount;
+  const sourceValidationSuccessMessage = importPreview
+    ? sourceValidationWarningCount > 0
+      ? "Preview is ready. Warnings are advisory; use Apply preview to replace the current notebook."
+      : "Preview is ready. Use Apply preview to replace the current notebook."
+    : hasPendingImportTextChanges
+      ? sourceValidationWarningCount > 0
+        ? "Source draft can be applied; unit and other warnings are advisory."
+        : "Source draft is ready to apply."
+      : sourceValidationWarningCount > 0
+        ? "Current source is valid; unit and other warnings are advisory."
+        : "Current source is valid.";
   const selectedHelpTopic = findNotebookHelpTopic(selectedHelpTopicId);
   const currentTemplateId = useMemo(
     () => resolveCurrentTemplateId(notebookDocument),
@@ -1599,23 +1612,18 @@ export function NotebookApp() {
   }, [activeEditorCellId, selectNotebookCell]);
 
   useEffect(() => {
-    if (importText !== committedImportText) {
+    if (importText !== committedImportText || importPreview) {
       return;
     }
 
     const nextSource = serializeNotebookSource(notebookDocument, sourceFormat);
     setImportText(nextSource);
     setCommittedImportText(nextSource);
-    setImportPreview(null);
   }, [notebookDocument, sourceFormat]);
 
   useEffect(() => {
     if (!importPreview && activeRailTab === "preview") {
-      setActiveRailTab("inspect");
-      return;
-    }
-    if (importPreview) {
-      setActiveRailTab("preview");
+      setActiveRailTab("editor");
     }
   }, [activeRailTab, importPreview]);
 
@@ -1886,6 +1894,10 @@ export function NotebookApp() {
   }
 
   function updateImportText(value: string): void {
+    if (value === importText) {
+      return;
+    }
+
     setImportText(value);
     setImportPreview(null);
     setUiMessage(null);
@@ -2342,6 +2354,7 @@ export function NotebookApp() {
     try {
       const parsed = parseNotebookSource(importText);
       setImportPreview({ document: parsed.document, source: parsed.format });
+      setActiveRailTab("preview");
       setUiMessage(
         `Previewed notebook ${formatNotebookSourceLabel(parsed.format)}. Apply to replace the current notebook.`
       );
@@ -2394,9 +2407,6 @@ export function NotebookApp() {
       setCommittedImportText(text);
       setImportPreview({ document: parsed.document, source: parsed.format });
       setSourceFormat(parsed.format);
-      if (!isNotebookTemplateId(parsed.document.metadata.template ?? "")) {
-        writeNotebookLocation({});
-      }
       setActiveRailTab("editor");
       setUiMessage(
         `Previewed ${file.name} as ${formatNotebookSourceLabel(parsed.format)}. Apply to replace the current notebook.`
@@ -3908,7 +3918,10 @@ export function NotebookApp() {
                 value={importText}
               />
 
-              <SourceValidationPanel validation={sourceValidation} />
+              <SourceValidationPanel
+                successMessage={sourceValidationSuccessMessage}
+                validation={sourceValidation}
+              />
 
               {hasPendingImportTextChanges ? (
                 <div className="notebook-import-draft-actions">
