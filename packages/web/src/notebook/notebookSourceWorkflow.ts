@@ -96,6 +96,59 @@ export function getNotebookSourceFileSuffix(format: NotebookSourceFormat): strin
   return "sfnb.md";
 }
 
+const NOTEBOOK_FILE_EXTENSIONS = [
+  ".notebook.yaml",
+  ".notebook.yml",
+  ".sfnb.json",
+  ".sfnb.md",
+  ".markdown",
+  ".yaml",
+  ".yml",
+  ".json",
+  ".md"
+] as const;
+
+export const NOTEBOOK_NO_FILE_CHOSEN_LABEL = "No file chosen";
+
+export function stripNotebookFileExtension(fileName: string): string {
+  const normalized = fileName.trim();
+  const lower = normalized.toLowerCase();
+
+  for (const extension of NOTEBOOK_FILE_EXTENSIONS) {
+    if (lower.endsWith(extension)) {
+      return normalized.slice(0, -extension.length);
+    }
+  }
+
+  return normalized;
+}
+
+export function stripIncrementalSaveSuffix(baseName: string): string {
+  return baseName.replace(/\s\(\d+\)$/, "").trim();
+}
+
+export function resolveNotebookSaveBaseName(args: {
+  fallbackId: string;
+  loadedFileName: string | null;
+}): string {
+  if (args.loadedFileName && args.loadedFileName !== NOTEBOOK_NO_FILE_CHOSEN_LABEL) {
+    return stripIncrementalSaveSuffix(stripNotebookFileExtension(args.loadedFileName));
+  }
+
+  return stripIncrementalSaveSuffix(args.fallbackId.trim()) || "notebook";
+}
+
+export function buildIncrementalNotebookSaveFileName(args: {
+  baseName: string;
+  counter: number;
+  format: NotebookSourceFormat;
+}): string {
+  const cleanBase =
+    stripIncrementalSaveSuffix(stripNotebookFileExtension(args.baseName.trim())) || "notebook";
+  const suffix = getNotebookSourceFileSuffix(args.format);
+  return `${cleanBase} (${args.counter}).${suffix}`;
+}
+
 export function getNotebookSourcePlaceholder(format: NotebookSourceFormat): string {
   if (format === "json") {
     return "Paste a notebook JSON document";

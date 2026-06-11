@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { externalRowsOnly, isRowComment, type EquationRow } from "@sfcr/notebook-core";
 
@@ -81,12 +81,19 @@ import {
   type NotebookHelpTopicId
 } from "./sourceEditing";
 import {
+  isNotebookSaveDialogSupported,
+  readNotebookSaveDialogPreference,
+  saveNotebookSourceFile,
+  writeNotebookSaveDialogPreference
+} from "./notebookSave";
+import {
+  buildIncrementalNotebookSaveFileName,
   buildNotebookSourceValidation,
   formatNotebookSourceLabel,
-  getNotebookSourceFileSuffix,
-  getNotebookSourceMimeType,
   getNotebookSourcePlaceholder,
   inferFormatFromFileName,
+  NOTEBOOK_NO_FILE_CHOSEN_LABEL,
+  resolveNotebookSaveBaseName,
   serializeNotebookSource,
   summarizeCellTypes,
   validateNotebookModels
@@ -229,8 +236,7 @@ type NotebookRailTab =
   | "graph"
   | "contents"
   | "assistant"
-  | "help"
-  | "preview";
+  | "help";
 
 const BUILD_DATE_LABEL = formatBuildDate(__SFCR_BUILD_DATE__);
 const NOTEBOOK_HISTORY_LIMIT = 50;
@@ -266,6 +272,7 @@ export { CUSTOM_NOTEBOOK_STORAGE_KEY } from "./notebookVariants";
 
 const LEGACY_CUSTOM_NOTEBOOK_HASH = "#/notebook/custom";
 const UNNAMED_NOTEBOOK_SELECT_VALUE = "__unnamed__";
+const OPEN_FILE_SELECT_VALUE = "__open_file__";
 const NOTEBOOK_SOURCE_FORMATS: readonly NotebookSourceFormat[] = ["json", "markdown", "yaml"];
 
 function notebookRouteWouldLoadDocument(args: {
@@ -680,6 +687,7 @@ function formatBuildDate(buildDate: string): string {
 
 export function NotebookApp() {
   const mainColumnRef = useRef<HTMLDivElement | null>(null);
+  const notebookImportFileInputRef = useRef<HTMLInputElement | null>(null);
   const scrollToCellRef = useRef<(cellId: string) => void>(() => {});
   const [mainColumnElement, setMainColumnElement] = useState<HTMLDivElement | null>(null);
   const initialNotebookRoute = useMemo(() => readNotebookRouteLocation(), []);
@@ -737,7 +745,10 @@ export function NotebookApp() {
   const [isAssistantAsking, setIsAssistantAsking] = useState(false);
   const [assistantPatchText, setAssistantPatchText] = useState("");
   const [assistantPatchPreview, setAssistantPatchPreview] = useState<NotebookPatchResult | null>(null);
-  const [selectedImportFileName, setSelectedImportFileName] = useState("No file chosen");
+  const [selectedImportFileName, setSelectedImportFileName] = useState(NOTEBOOK_NO_FILE_CHOSEN_LABEL);
+  const [saveNameCounter, setSaveNameCounter] = useState(1);
+  const [saveDialogEnabled, setSaveDialogEnabled] = useState(() => readNotebookSaveDialogPreference());
+  const notebookSaveDialogSupported = useMemo(() => isNotebookSaveDialogSupported(), []);
   const [assistantModel, setAssistantModel] = useState(() => {
     if (typeof window === "undefined") {
       return NOTEBOOK_ASSISTANT_DEFAULT_MODEL;
@@ -1621,12 +1632,6 @@ export function NotebookApp() {
     setCommittedImportText(nextSource);
   }, [notebookDocument, sourceFormat]);
 
-  useEffect(() => {
-    if (!importPreview && activeRailTab === "preview") {
-      setActiveRailTab("editor");
-    }
-  }, [activeRailTab, importPreview]);
-
   function updateCell(cellId: string, updater: (cell: NotebookCell) => NotebookCell): void {
     const previousCell = notebookDocument.cells.find((cell) => cell.id === cellId);
     const nextCell = previousCell ? updater(previousCell) : null;
@@ -2090,7 +2095,18 @@ export function NotebookApp() {
     setUiMessage("Applied inline assistant patch.");
   }
 
+  function resetNotebookImportedFileContext(): void {
+    setSelectedImportFileName(NOTEBOOK_NO_FILE_CHOSEN_LABEL);
+    setSaveNameCounter(1);
+  }
+
+  function markNotebookImportedFile(fileName: string): void {
+    setSelectedImportFileName(fileName);
+    setSaveNameCounter(1);
+  }
+
   function replaceNotebookDocumentFromTemplate(templateId: NotebookTemplateId): void {
+    resetNotebookImportedFileContext();
     replaceNotebookDocument(createNotebookFromTemplate(templateId), "template load");
   }
 
@@ -2102,6 +2118,7 @@ export function NotebookApp() {
       return false;
     }
 
+    resetNotebookImportedFileContext();
     replaceNotebookDocument(variantDocument, label);
     setActiveVariantId(variantId);
     writeNotebookVariantHash(variantId);
@@ -2354,7 +2371,7 @@ export function NotebookApp() {
     try {
       const parsed = parseNotebookSource(importText);
       setImportPreview({ document: parsed.document, source: parsed.format });
-      setActiveRailTab("preview");
+      setActiveRailTab("editor");
       setUiMessage(
         `Previewed notebook ${formatNotebookSourceLabel(parsed.format)}. Apply to replace the current notebook.`
       );
@@ -2402,7 +2419,7 @@ export function NotebookApp() {
       const text = await file.text();
       const inferredFormat = inferFormatFromFileName(file.name) ?? detectNotebookSourceFormat(text);
       const parsed = parseNotebookSource(text, inferredFormat);
-      setSelectedImportFileName(file.name);
+      markNotebookImportedFile(file.name);
       setImportText(text);
       setCommittedImportText(text);
       setImportPreview({ document: parsed.document, source: parsed.format });
@@ -2447,8 +2464,26 @@ export function NotebookApp() {
     setUiMessage("Discarded import text changes.");
   }
 
+  function handleNotebookImportFileInputChange(event: ChangeEvent<HTMLInputElement>): void {
+    const file = event.target.files?.[0];
+    if (file) {
+      void handleImportFile(file);
+    }
+    event.currentTarget.value = "";
+  }
+
+  function openNotebookFilePicker(): void {
+    setActiveRailTab("editor");
+    notebookImportFileInputRef.current?.click();
+  }
+
   function handleNotebookPickerChange(value: string): void {
     if (value === UNNAMED_NOTEBOOK_SELECT_VALUE) {
+      return;
+    }
+
+    if (value === OPEN_FILE_SELECT_VALUE) {
+      openNotebookFilePicker();
       return;
     }
 
@@ -2471,20 +2506,43 @@ export function NotebookApp() {
     }
   }
 
-  function handleDownloadJson(): void {
+  function handleSaveDialogPreferenceChange(enabled: boolean): void {
+    setSaveDialogEnabled(enabled);
+    writeNotebookSaveDialogPreference(enabled);
+  }
+
+  async function handleSaveNotebook(): Promise<void> {
     const exported = serializeNotebookSource(notebookDocument, sourceFormat);
-    const blob = new Blob([exported], {
-      type: getNotebookSourceMimeType(sourceFormat)
+    const fileName = buildIncrementalNotebookSaveFileName({
+      baseName: resolveNotebookSaveBaseName({
+        loadedFileName: selectedImportFileName,
+        fallbackId: notebookDocument.id
+      }),
+      counter: saveNameCounter,
+      format: sourceFormat
     });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${notebookDocument.id}.${getNotebookSourceFileSuffix(sourceFormat)}`;
-    document.body.append(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-    setUiMessage(`Downloaded notebook ${formatNotebookSourceLabel(sourceFormat)}.`);
+
+    try {
+      const result = await saveNotebookSourceFile({
+        content: exported,
+        fileName,
+        format: sourceFormat,
+        useSaveDialog: saveDialogEnabled
+      });
+
+      if (result.status === "cancelled") {
+        setUiMessage("Save cancelled.");
+        return;
+      }
+
+      setSaveNameCounter((current) => current + 1);
+      setSelectedImportFileName(result.fileName);
+      setUiMessage(
+        `Saved notebook ${formatNotebookSourceLabel(sourceFormat)} as ${result.fileName}.`
+      );
+    } catch (error) {
+      setUiMessage(error instanceof Error ? error.message : "Unable to save notebook file");
+    }
   }
 
   function handleValidateNotebook(): void {
@@ -3503,6 +3561,7 @@ export function NotebookApp() {
               uiMessage.toLowerCase().includes("imported") ||
               uiMessage.toLowerCase().includes("exported") ||
               uiMessage.toLowerCase().includes("downloaded") ||
+              uiMessage.toLowerCase().includes("saved") ||
               uiMessage.toLowerCase().includes("loaded") ||
               uiMessage.toLowerCase().includes("llm usage") ||
               uiMessage.toLowerCase().includes("ran all") ||
@@ -3720,6 +3779,9 @@ export function NotebookApp() {
                     value={notebookPickerValue}
                     onChange={(event) => handleNotebookPickerChange(event.target.value)}
                   >
+                    <optgroup label="Open">
+                      <option value={OPEN_FILE_SELECT_VALUE}>File…</option>
+                    </optgroup>
                     {isUnnamedNotebookSession ? (
                       <optgroup label="Current">
                         <option value={UNNAMED_NOTEBOOK_SELECT_VALUE}>{unnamedPickerLabel}</option>
@@ -3770,6 +3832,16 @@ export function NotebookApp() {
                 </div>
               </div>
             </div>
+
+            <input
+              ref={notebookImportFileInputRef}
+              id="notebook-import-file-input"
+              className="notebook-file-input-hidden"
+              type="file"
+              aria-label="Choose notebook source file"
+              accept=".sfnb.json,.json,.sfnb.md,.md,.markdown,.notebook.yaml,.yaml,.yml,.txt,application/json,text/markdown,application/yaml,text/yaml"
+              onChange={handleNotebookImportFileInputChange}
+            />
 
             <div
               id="notebook-rail-tabs"
@@ -3850,17 +3922,6 @@ export function NotebookApp() {
               >
                 Editor
               </button>
-              {importPreview ? (
-                <button
-                  type="button"
-                  role="tab"
-                  {...{ "aria-selected": activeRailTab === "preview" }}
-                  className={`notebook-rail-tab${activeRailTab === "preview" ? " is-active" : ""}`}
-                  onClick={() => setActiveRailTab("preview")}
-                >
-                  Preview
-                </button>
-              ) : null}
             </div>
           </div>
 
@@ -3876,32 +3937,34 @@ export function NotebookApp() {
                 >
                   {formatNotebookSourceFormatOptions()}
                 </button>
-                <label className="notebook-file-picker">
+                <label className="notebook-file-picker" htmlFor="notebook-import-file-input">
                   <span className="notebook-utility-button notebook-utility-button-muted notebook-file-input-trigger">
                     Choose file
                   </span>
                   <span className="notebook-file-name">{selectedImportFileName}</span>
-                  <input
-                    className="notebook-file-input"
-                    type="file"
-                    aria-label="Choose notebook source file"
-                    accept=".sfnb.json,.json,.sfnb.md,.md,.markdown,.notebook.yaml,.yaml,.yml,.txt,application/json,text/markdown,application/yaml,text/yaml"
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      if (file) {
-                        setSelectedImportFileName(file.name);
-                        void handleImportFile(file);
-                      }
-                      event.currentTarget.value = "";
-                    }}
-                  />
                 </label>
-                <button type="button" className="notebook-utility-button" onClick={handleImportJson}>
-                  Preview import
+                <button
+                  type="button"
+                  className="notebook-utility-button"
+                  onClick={() => {
+                    void handleSaveNotebook();
+                  }}
+                >
+                  Save {formatNotebookSourceLabel(sourceFormat)}
                 </button>
-                <button type="button" className="notebook-utility-button" onClick={handleDownloadJson}>
-                  Download {formatNotebookSourceLabel(sourceFormat)}
-                </button>
+                {notebookSaveDialogSupported ? (
+                  <label
+                    className="notebook-save-dialog-toggle"
+                    title="Show a save dialog to choose location and filename"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={saveDialogEnabled}
+                      onChange={(event) => handleSaveDialogPreferenceChange(event.target.checked)}
+                    />
+                    <span>Dialog</span>
+                  </label>
+                ) : null}
               </div>
 
               <SourceCodeEditor
@@ -3923,28 +3986,11 @@ export function NotebookApp() {
                 validation={sourceValidation}
               />
 
-              {hasPendingImportTextChanges ? (
-                <div className="notebook-import-draft-actions">
-                  <div className="status-hint">Unapplied import text changes.</div>
-                  <div className="button-row">
-                    <button type="button" onClick={handleApplyImportText} disabled={!sourceValidation.canApply}>
-                      Apply text
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={handleDiscardImportTextChanges}
-                    >
-                      Discard text
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-
               {importPreview ? (
                 <div className="notebook-import-preview-actions">
                   <div className="status-hint">
-                    Preview ready: {importPreview.document.title} ({importPreview.document.cells.length} cells)
+                    Preview ready: {importPreview.document.title} ({importPreview.document.cells.length}{" "}
+                    cells). Types: {summarizeCellTypes(importPreview.document.cells)}
                   </div>
                   <div className="button-row">
                     <button type="button" onClick={handleApplyPreview}>
@@ -3956,6 +4002,25 @@ export function NotebookApp() {
                       onClick={handleDiscardPreview}
                     >
                       Discard preview
+                    </button>
+                  </div>
+                </div>
+              ) : hasPendingImportTextChanges ? (
+                <div className="notebook-import-draft-actions">
+                  <div className="status-hint">Unapplied import text changes.</div>
+                  <div className="button-row">
+                    <button type="button" className="secondary-button" onClick={handleImportJson}>
+                      Preview import
+                    </button>
+                    <button type="button" onClick={handleApplyImportText} disabled={!sourceValidation.canApply}>
+                      Apply text
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={handleDiscardImportTextChanges}
+                    >
+                      Discard text
                     </button>
                   </div>
                 </div>
@@ -4414,33 +4479,6 @@ export function NotebookApp() {
             </section>
           ) : null}
 
-          {importPreview && activeRailTab === "preview" ? (
-            <section className="editor-panel notebook-preview-panel">
-              <div className="panel-header">
-                <div>
-                  <h2>Import Preview</h2>
-                  <p className="panel-subtitle">
-                    Review the parsed notebook before replacing the current document.
-                  </p>
-                </div>
-              </div>
-
-              <ul className="notebook-inline-list">
-                <li>Title: {importPreview.document.title}</li>
-                <li>Cells: {importPreview.document.cells.length}</li>
-                <li>Types: {summarizeCellTypes(importPreview.document.cells)}</li>
-              </ul>
-
-              <div className="button-row">
-                <button type="button" onClick={handleApplyPreview}>
-                  Apply preview
-                </button>
-                <button type="button" className="secondary-button" onClick={handleDiscardPreview}>
-                  Discard preview
-                </button>
-              </div>
-            </section>
-          ) : null}
         </aside>
       </div>
       <NotebookVariantManagerDialog

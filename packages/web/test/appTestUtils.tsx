@@ -168,8 +168,8 @@ export async function setNotebookSourceFormat(
   }
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const downloadButton = screen.getByRole("button", { name: /download /i });
-    const currentFormat = resolveNotebookSourceFormatFromText(downloadButton.textContent ?? "");
+    const saveButton = screen.getByRole("button", { name: /^save /i });
+    const currentFormat = resolveNotebookSourceFormatFromText(saveButton.textContent ?? "");
     if (currentFormat === format) {
       break;
     }

@@ -474,6 +474,18 @@
   opacity: 0;
   position: absolute;
 }
+.notebook-file-input-hidden {
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
 .notebook-file-picker {
   align-items: center;
   background: linear-gradient(180deg, var(--color-surface-elevated), rgba(248, 250, 252, 0.96));
@@ -1626,9 +1638,6 @@
 .notebook-run-warning-item {
   line-height: 1.35;
 }
-.notebook-preview-panel {
-  margin-top: 1rem;
-}
 .notebook-source-panel {
   display: grid;
   gap: 0.6rem;
@@ -1648,6 +1657,19 @@
 .notebook-source-format-toggle {
   min-height: 1.82rem;
   padding-inline: 0.62rem;
+}
+.notebook-save-dialog-toggle {
+  align-items: center;
+  color: var(--color-text-subtle);
+  display: inline-flex;
+  font-size: 0.78rem;
+  gap: 0.28rem;
+  min-height: 1.82rem;
+  padding-inline: 0.35rem;
+  white-space: nowrap;
+}
+.notebook-save-dialog-toggle input {
+  margin: 0;
 }
 .notebook-editor-textarea {
   min-height: 36vh;

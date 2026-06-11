@@ -62,9 +62,12 @@ describe("App notebook source and import workflows", () => {
     setNotebookSourceValue(textarea.value.replace("BMW Browser Notebook", "JSON Notebook"));
     await user.click(screen.getByRole("button", { name: /preview import/i }));
 
-    expect(screen.getByRole("heading", { name: /import preview/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /^editor$/i })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("status")).toHaveTextContent(
       /previewed notebook yaml\. apply to replace the current notebook\./i
+    );
+    expect(screen.getByRole("region", { name: /notebook source validation/i })).toHaveTextContent(
+      /preview is ready\. use apply preview to replace the current notebook\./i
     );
     expect(screen.getByRole("button", { name: /apply preview/i })).toBeInTheDocument();
   }, 15000);
@@ -209,7 +212,7 @@ describe("App notebook source and import workflows", () => {
     setNotebookSourceValue(markdownSource);
     await user.click(screen.getByRole("button", { name: /preview import/i }));
 
-    expect(screen.getByRole("heading", { name: /import preview/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /^editor$/i })).toHaveAttribute("aria-selected", "true");
     expect(
       screen.getAllByText((_, node) => node?.textContent?.includes("Types: markdown") ?? false).length
     ).toBeGreaterThan(0);
@@ -230,7 +233,7 @@ describe("App notebook source and import workflows", () => {
     setNotebookSourceValue(yamlSource);
     await user.click(screen.getByRole("button", { name: /preview import/i }));
 
-    expect(screen.getByRole("heading", { name: /import preview/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /^editor$/i })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("status")).toHaveTextContent(
       /previewed notebook yaml\. apply to replace the current notebook\./i
     );
@@ -255,7 +258,7 @@ describe("App notebook source and import workflows", () => {
     setNotebookSourceValue(nextValue);
     await user.click(screen.getByRole("button", { name: /preview import/i }));
 
-    expect(screen.getByRole("heading", { name: /import preview/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /^editor$/i })).toHaveAttribute("aria-selected", "true");
     expect(screen.getAllByText(/Imported Notebook/i).length).toBeGreaterThan(0);
 
     await user.click(screen.getAllByRole("button", { name: /apply preview/i })[0]);
@@ -306,6 +309,42 @@ describe("App notebook source and import workflows", () => {
 
     expect(screen.getAllByText(/^Recalled Custom Notebook$/i).length).toBeGreaterThan(0);
     expect(templatePicker).toHaveValue(IMPORTED_NOTEBOOK_VARIANT_ID);
+  }, 15000);
+
+  it("opens the editor tab from the template selector File option", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    const templatePicker = screen.getByRole("combobox", { name: /notebook template/i });
+    expect(templatePicker).toHaveValue("bmw");
+    expect(screen.getByRole("tab", { name: /^contents$/i })).toHaveAttribute("aria-selected", "true");
+
+    await user.selectOptions(
+      templatePicker,
+      within(templatePicker).getByRole("option", { name: /^file/i })
+    );
+
+    expect(screen.getByRole("tab", { name: /^editor$/i })).toHaveAttribute("aria-selected", "true");
+    expect(templatePicker).toHaveValue("bmw");
+
+    const customNotebook = createNotebookFromTemplate("bmw");
+    customNotebook.title = "Template Picker File Notebook";
+    customNotebook.metadata = { version: 1 };
+    const yamlSource = notebookToCompactYaml(customNotebook, { preserveIds: true });
+    const file = new File([yamlSource], "picker-import.notebook.yaml", { type: "application/yaml" });
+    const fileInput = document.getElementById("notebook-import-file-input");
+
+    if (!(fileInput instanceof HTMLInputElement)) {
+      throw new Error("Expected notebook source file input.");
+    }
+
+    await user.upload(fileInput, file);
+
+    await waitFor(() => {
+      expect(getNotebookSourceTextArea().value).toContain("Template Picker File Notebook");
+    });
   }, 15000);
 
   it("keeps the editor rail open after choosing a notebook file", async () => {

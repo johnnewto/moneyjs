@@ -8,8 +8,7 @@ export type NotebookTourRailTab =
   | "graph"
   | "contents"
   | "assistant"
-  | "help"
-  | "preview";
+  | "help";
 
 export const NOTEBOOK_TOUR_SEEN_STORAGE_KEY = "sfcr:notebook-tour-seen";
 
