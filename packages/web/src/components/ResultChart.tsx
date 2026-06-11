@@ -22,7 +22,7 @@ import {
   type ChartAxisRange
 } from "./ResultChartScales";
 import { ScenarioShockVariableLine } from "./ScenarioShockVariableLine";
-import { VariableMathLabel, renderVariableMathSvgLabel } from "./VariableMathLabel";
+import { VariableMathLabel, renderVariableMathPlainText, renderVariableMathSvgLabel } from "./VariableMathLabel";
 import {
   formatScenarioShockAriaLabel,
   type ScenarioShockMarker
@@ -88,6 +88,9 @@ const TIME_RANGE_SLIDER_SECTION_HEIGHT = 48;
 const TIME_RANGE_SLIDER_HANDLE_WIDTH = 10;
 const SCENARIO_SHOCK_LABEL_HEIGHT = 14;
 const SCENARIO_SHOCK_LABEL_GAP = 0;
+const AXIS_TITLE_FONT_SIZE = 12;
+const AXIS_TITLE_AVERAGE_CHAR_WIDTH = AXIS_TITLE_FONT_SIZE * 0.58;
+const SCENARIO_SHOCK_LABEL_AXIS_GAP = 4;
 
 export function ResultChart({
   addVariableOptions,
@@ -328,6 +331,11 @@ export function ResultChart({
       )
     )
     .filter((entry): entry is VisibleScenarioShockGeometry => entry != null);
+  const minScenarioShockLabelX = resolveMinScenarioShockLabelX({
+    axisMode,
+    leftPadding,
+    primarySeriesName: axisMetrics[0]?.name
+  });
   const hoverTooltip =
     hoveredDatum && hoveredMetric
       ? buildHoverTooltip(
@@ -807,7 +815,7 @@ export function ResultChart({
 
         {visibleScenarioShocks.map((shock) => {
           const bandWidth = Math.max(shock.bandX2 - shock.bandX1, 0);
-          const labelX = shock.bandX1;
+          const labelX = Math.max(shock.bandX1, minScenarioShockLabelX);
           const labelWidth = Math.max(leftPadding + plotWidth - labelX, bandWidth, 1);
           const labelY = Math.max(2, topPadding - SCENARIO_SHOCK_LABEL_HEIGHT - SCENARIO_SHOCK_LABEL_GAP);
 
@@ -1356,6 +1364,25 @@ function resolveVisibleScenarioShockGeometry(
     marker,
     startLineX
   };
+}
+
+export function estimateSvgAxisTitleWidth(label: string): number {
+  return label.length * AXIS_TITLE_AVERAGE_CHAR_WIDTH;
+}
+
+export function resolveMinScenarioShockLabelX({
+  axisMode,
+  leftPadding,
+  primarySeriesName
+}: {
+  axisMode: ChartAxisMode;
+  leftPadding: number;
+  primarySeriesName?: string;
+}): number {
+  const axisTitle = axisMode === "shared" ? "Value" : renderVariableMathPlainText(primarySeriesName ?? "");
+  const axisX = leftPadding;
+
+  return axisX + estimateSvgAxisTitleWidth(axisTitle) / 2 + SCENARIO_SHOCK_LABEL_AXIS_GAP;
 }
 
 function buildHoverTooltip(

@@ -6,7 +6,7 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ResultChart } from "../src/components/ResultChart";
+import { ResultChart, resolveMinScenarioShockLabelX } from "../src/components/ResultChart";
 
 afterEach(() => {
   cleanup();
@@ -47,6 +47,36 @@ describe("ResultChart", () => {
     expect(screen.getByText("0.75", { selector: ".scenario-shock-original" })).toBeInTheDocument();
     expect(screen.getByText("α", { selector: ".chart-scenario-shock-band-label .variable-math-label" })).toBeInTheDocument();
     expect(screen.getByText("1", { selector: ".chart-scenario-shock-band-label sub" })).toBeInTheDocument();
+  });
+
+  it("keeps scenario shock labels inside the plot area away from the y axis title", () => {
+    render(
+      <ResultChart
+        scenarioShocks={[
+          {
+            color: "#6366f1",
+            endPeriodInclusive: 3,
+            shockIndex: 1,
+            startPeriodInclusive: 1,
+            variables: [{ name: "Gd", originalValueText: "20", valueText: "30" }]
+          }
+        ]}
+        series={[{ name: "Y", values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] }]}
+      />
+    );
+
+    const foreignObject = document.querySelector(".chart-scenario-shock foreignObject");
+    expect(foreignObject).not.toBeNull();
+    expect(Number(foreignObject?.getAttribute("x"))).toBeGreaterThanOrEqual(
+      resolveMinScenarioShockLabelX({ axisMode: "shared", leftPadding: 56 })
+    );
+  });
+
+  it("estimates scenario shock label inset from axis title width", () => {
+    expect(resolveMinScenarioShockLabelX({ axisMode: "shared", leftPadding: 56 })).toBeCloseTo(77.4, 1);
+    expect(
+      resolveMinScenarioShockLabelX({ axisMode: "separate", leftPadding: 140, primarySeriesName: "alpha1" })
+    ).toBeCloseTo(150.96, 1);
   });
 
   it("calls onInspectScenarioShockVariable when a shock variable label is clicked", () => {
