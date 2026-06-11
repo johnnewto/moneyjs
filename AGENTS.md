@@ -8,7 +8,7 @@ Default implementation targets:
 - `packages/core`
 - `packages/core-worker`
 - `packages/notebook-core`
-- `packages/chat-api` (Cloudflare Worker for chat builder; separate from main app build)
+- `packages/chat-api` (Cloudflare Worker for notebook assistant and draft-eval API; separate from main app build)
 
 The `references/` directories are not the default place to make changes. Use them for parity checks, migration reference, and historical behavior only.
 
@@ -20,7 +20,7 @@ The active architecture is split across TypeScript packages:
 - `packages/core-worker`: worker-facing wrapper around `@sfcr/core`
 - `packages/notebook-core`: notebook document format, schema, YAML/JSON parsing, validation (no UI)
 - `packages/web`: browser UI, editor flows, notebook presentation, and result display
-- `packages/chat-api`: serverless chat-builder API (OpenAI proxy); browser uses `VITE_CHAT_BUILDER_API_URL`
+- `packages/chat-api`: serverless OpenAI proxy for the notebook assistant and draft-eval harness; browser uses `VITE_NOTEBOOK_ASSISTANT_API_URL` (with `VITE_CHAT_BUILDER_API_URL` as a legacy assistant fallback)
 
 Preferred dependency direction:
 - `packages/web` -> `packages/core-worker`, `packages/notebook-core`, and `packages/core`

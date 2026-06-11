@@ -1,6 +1,6 @@
 # Notebook Assistant Eval Harness
 
-Offline-first harness for debugging in-notebook assistant ask/edit behavior. This is a sibling to the chat-builder eval harness: chat-builder evaluates full notebook drafts, while this harness evaluates existing notebook context, tool choice, minimal patch proposals, validation, and preview summaries.
+Offline-first harness for debugging in-notebook assistant ask/edit behavior. This is a sibling to the draft eval harness (`pnpm eval:chat-builder`): that harness evaluates full notebook drafts, while this harness evaluates existing notebook context, tool choice, minimal patch proposals, validation, and preview summaries.
 
 The scoring core lives in `src/notebook/notebookAssistantEval.ts` and imports the production assistant flow, tool dispatcher, and patch validation modules. The Node CLI in this folder is a fixture/artifact wrapper around that TypeScript evaluator.
 

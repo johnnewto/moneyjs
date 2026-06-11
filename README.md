@@ -66,15 +66,11 @@ The dev server will print a local URL, typically:
 http://localhost:5173
 ```
 
-The chat builder can also be opened directly at the Pages-style local route:
-
-```text
-http://localhost:5173/moneyjs/#/chat-builder
-```
+Notebook routes use path-based URLs such as `/notebook/bmw` or the hash fallback `#/notebook`.
 
 ## Building
 
-Use Node.js 22 or newer. Wrangler requires Node 22 for the chat-builder Worker, and the GitHub Pages workflow also builds with Node 22.
+Use Node.js 22 or newer. Wrangler requires Node 22 for the chat API Worker, and the GitHub Pages workflow also builds with Node 22.
 
 With `fnm`:
 
@@ -110,10 +106,10 @@ For a GitHub Pages deployment, build the app with the repository base path:
 VITE_BASE_PATH=/moneyjs/ pnpm web:build
 ```
 
-To enable the chat builder on GitHub Pages, point the static frontend at the Cloudflare Worker proxy:
+To enable the in-notebook assistant on GitHub Pages, point the static frontend at the Cloudflare Worker proxy:
 
 ```bash
-VITE_BASE_PATH=/moneyjs/ VITE_CHAT_BUILDER_API_URL=https://sfcr-chat-api.<account>.workers.dev/v1/chat-builder/draft pnpm web:build
+VITE_BASE_PATH=/moneyjs/ VITE_NOTEBOOK_ASSISTANT_API_URL=https://sfcr-chat-api.<account>.workers.dev/v1/notebook-assistant/ask pnpm web:build
 ```
 
 Equivalent root script:
@@ -148,14 +144,14 @@ pnpm --filter @sfcr/core test
 
 ## Browser App Capabilities
 
-The current browser application supports:
+The current browser application is notebook-first and supports:
 
-- editable equations, externals, initial values, solver options, and scenario shocks
+- notebook templates such as SIM and BMW, plus imported variants
+- linked equation, external, initial-value, solver, matrix, run, chart, and markdown cells
 - worker-backed baseline and scenario execution in the browser
-- built-in SIM and BMW presets
-- result tables and lightweight SVG charts
-- JSON import/export through text and local files
-- inline validation for common editor errors
+- result tables, charts, accounting matrices, and variable inspection
+- notebook source editing in JSON, YAML, or Markdown
+- optional in-notebook assistant when `VITE_NOTEBOOK_ASSISTANT_API_URL` is configured
 
 ## GitHub Pages
 
@@ -167,11 +163,11 @@ The GitHub Actions workflow in `.github/workflows/deploy-pages.yml` publishes `p
 If the repository name changes, update the `VITE_BASE_PATH` value in that workflow so it matches the new Pages path.
 Also update `packages/web/public/404.html`; GitHub Pages uses that file to redirect direct notebook deep links such as `/moneyjs/notebook/sim` back into the browser app.
 
-### Chat Builder API
+### Chat API
 
-The chat builder uses a Cloudflare Worker in `packages/chat-api` so the OpenAI API key is never stored in or sent from the browser.
+The in-notebook assistant and offline draft-eval harness use a Cloudflare Worker in `packages/chat-api` so the OpenAI API key is never stored in or sent from the browser.
 
-Detailed usage notes are in `devdocs/chat-builder-serverless.md`.
+Detailed usage notes are in `packages/chat-api/README.md`.
 
 Local Worker development:
 
