@@ -390,6 +390,19 @@ function NotebookCellViewComponent({
         : null,
     [cell, cells, getModelCurrentValues, runner, selectedPeriodIndex]
   );
+  const chartInspectionContext = useMemo(
+    () =>
+      cell.type === "chart"
+        ? resolveNotebookInspectionContext({
+            cell,
+            cells,
+            getModelCurrentValues,
+            runner,
+            selectedPeriodIndex
+          })
+        : null,
+    [cell, cells, getModelCurrentValues, runner, selectedPeriodIndex]
+  );
   const noteInspectionContext = useMemo(
     () =>
       resolveNotebookInspectionContext({
@@ -1352,6 +1365,8 @@ function NotebookCellViewComponent({
               <ChartCellView
                 cell={cell}
                 cells={cells}
+                currentValues={chartInspectionContext?.currentValues ?? {}}
+                editor={chartInspectionContext?.editor ?? null}
                 onAddVariable={(variableName) =>
                   onCellChange(cell.id, (current) =>
                     current.type === "chart" && !current.variables.includes(variableName)
@@ -1373,6 +1388,7 @@ function NotebookCellViewComponent({
                       : current
                   )
                 }
+                onVariableInspectRequest={onVariableInspectRequest}
                 runner={runner}
                 selectedPeriodIndex={selectedPeriodIndex}
                 highlightedVariable={highlightedVariable}

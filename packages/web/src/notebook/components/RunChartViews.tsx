@@ -1,14 +1,12 @@
-import { AssistantMarkdown } from "../../components/AssistantMarkdown";
-import { InstantTooltip } from "../../components/InstantTooltip";
 import { ResultChart } from "../../components/ResultChart";
-import { VariableLabel } from "../../components/VariableLabel";
+import { ScenarioShockVariableLine } from "../../components/ScenarioShockVariableLine";
 import type { EditorState } from "../../lib/editorModel";
 import { resolveInspectorModelSource, type VariableInspectRequest } from "../../lib/variableInspect";
-import { documentHighlightClassName } from "../../lib/variableHighlight";
 import type { buildVariableUnitMetadata } from "../../lib/units";
-import { getVariableDescription, type VariableDescriptions } from "../../lib/variableDescriptions";
+import type { VariableDescriptions } from "../../lib/variableDescriptions";
 import {
   buildScenarioShockMarkers,
+  formatScenarioShockRunCellLabel,
   resolveShowScenarioShocks
 } from "../../lib/scenarioShockMarkers";
 import type { ChartCell, NotebookCell, RunCell } from "../types";
@@ -38,6 +36,18 @@ export function RunCellView({
   const modelSource = resolveInspectorModelSource(cell);
   const baselineStartPeriod = resolveEffectiveScenarioStartPeriod(cells, cell);
   const result = runner.getResult(cell.id);
+  const baselineRunCell =
+    cell.mode === "scenario" && cell.baselineRunCellId
+      ? cells.find(
+          (candidate): candidate is RunCell =>
+            candidate.type === "run" && candidate.id === cell.baselineRunCellId
+        ) ?? null
+      : null;
+  const baselineResult = baselineRunCell ? runner.getResult(baselineRunCell.id) : null;
+  const scenarioShockMarkers =
+    cell.mode === "scenario" && cell.scenario?.shocks.length
+      ? buildScenarioShockMarkers(cell, result, baselineResult)
+      : [];
   const warnings = result?.warnings ?? [];
   const handleInspectVariable =
     editor == null
@@ -76,47 +86,39 @@ export function RunCellView({
           </span>
         ) : null}
       </div>
-      {cell.scenario?.shocks.length ? (
+      {scenarioShockMarkers.length ? (
         <div className="notebook-run-scenarios">
-          {cell.scenario.shocks.map((shock, shockIndex) => (
-            <div key={`${cell.id}-shock-${shockIndex}`} className="notebook-run-shock">
-              <div className="notebook-run-shock-header">
-                Shock {shockIndex + 1}: {shock.startPeriodInclusive} to {shock.endPeriodInclusive}
+          {scenarioShockMarkers.map((marker) => (
+            <div
+              key={`${cell.id}-shock-${marker.shockIndex}`}
+              className="notebook-run-shock"
+              aria-label={formatScenarioShockRunCellLabel(marker)}
+            >
+              <div className="notebook-run-shock-line">
+                <span className="notebook-run-shock-period-label">
+                  Period {marker.startPeriodInclusive} to {marker.endPeriodInclusive}
+                </span>
+                {marker.variables.length > 0 ? (
+                  <>
+                    {",  "}
+                    {marker.variables.map((entry, entryIndex) => (
+                      <span key={`${marker.shockIndex}-${entry.name}`} className="notebook-run-shock-variable">
+                        {entryIndex > 0 ? ", " : null}
+                        {handleInspectVariable ? (
+                          <ScenarioShockVariableLine
+                            entry={entry}
+                            highlightedVariable={highlightedVariable}
+                            inspectButtonClassName="notebook-run-shock-variable-button"
+                            onInspect={handleInspectVariable}
+                          />
+                        ) : (
+                          <ScenarioShockVariableLine entry={entry} />
+                        )}
+                      </span>
+                    ))}
+                  </>
+                ) : null}
               </div>
-              <ul className="notebook-run-shock-list">
-                {Object.entries(shock.variables).map(([name, value]) => (
-                  <li key={name}>
-                    {handleInspectVariable ? (
-                      <button
-                        type="button"
-                        className={documentHighlightClassName(name, highlightedVariable, "result-variable-button")}
-                        aria-label={`Inspect variable ${name}`}
-                        onClick={() => handleInspectVariable(name)}
-                      >
-                        <VariableLabel
-                          currentValues={currentValues}
-                          name={name}
-                          variableDescriptions={variableDescriptions}
-                          variableUnitMetadata={variableUnitMetadata}
-                        />
-                      </button>
-                    ) : (
-                      <InstantTooltip
-                        as="strong"
-                        tooltip={getVariableDescription(variableDescriptions, name)}
-                      >
-                        <VariableLabel
-                          currentValues={currentValues}
-                          name={name}
-                          variableDescriptions={variableDescriptions}
-                          variableUnitMetadata={variableUnitMetadata}
-                        />
-                      </InstantTooltip>
-                    )}
-                    : {formatShockValue(value)}
-                  </li>
-                ))}
-              </ul>
             </div>
           ))}
         </div>
@@ -140,9 +142,12 @@ export function RunCellView({
 export function ChartCellView({
   cell,
   cells,
+  currentValues,
+  editor,
   onAddVariable,
   onMoveVariable,
   onRemoveVariable,
+  onVariableInspectRequest,
   runner,
   selectedPeriodIndex,
   highlightedVariable = null,
@@ -151,10 +156,13 @@ export function ChartCellView({
 }: {
   cell: ChartCell;
   cells: NotebookCell[];
+  currentValues: Record<string, number | undefined>;
+  editor: EditorState | null;
   highlightedVariable?: string | null;
   onAddVariable?(variableName: string): void;
   onMoveVariable?(variableName: string, direction: "left" | "right"): void;
   onRemoveVariable?(variableName: string): void;
+  onVariableInspectRequest?(args: VariableInspectRequest): void;
   runner: ReturnType<typeof useNotebookRunner>;
   selectedPeriodIndex: number;
   variableDescriptions: VariableDescriptions;
@@ -204,8 +212,23 @@ export function ChartCellView({
     .map(([name]) => name)
     .sort((left, right) => left.localeCompare(right));
   const scenarioShocks = resolveShowScenarioShocks(cell, sourceRunCell)
-    ? buildScenarioShockMarkers(sourceRunCell)
+    ? buildScenarioShockMarkers(sourceRunCell, result, baselineResult)
     : [];
+  const modelSource = sourceRunCell ? resolveInspectorModelSource(sourceRunCell) : null;
+  const handleInspectScenarioShockVariable =
+    editor == null || sourceRunCell == null || !onVariableInspectRequest
+      ? undefined
+      : (selectedVariable: string) => {
+          onVariableInspectRequest({
+            currentValues,
+            editor,
+            modelSource,
+            sourceRunCellId: sourceRunCell.id,
+            selectedVariable,
+            variableDescriptions,
+            variableUnitMetadata
+          });
+        };
 
   return (
     <ResultChart
@@ -214,6 +237,7 @@ export function ChartCellView({
       axisSnapTolarance={cell.axisSnapTolarance}
       niceScale={cell.niceScale}
       onAddVariable={onAddVariable}
+      onInspectScenarioShockVariable={handleInspectScenarioShockVariable}
       onMoveVariable={onMoveVariable}
       onRemoveVariable={onRemoveVariable}
       overlaySeries={overlaySeries}
@@ -309,18 +333,6 @@ function resolveEffectiveScenarioStartPeriod(
   }
 
   return baselineRunCell.periods;
-}
-
-function formatShockValue(
-  value: { kind: "constant"; value: number } | { kind: "series"; values: number[] }
-): string {
-  if (value.kind === "constant") {
-    return value.value.toLocaleString(undefined, { maximumFractionDigits: 6 });
-  }
-
-  return `[${value.values
-    .map((item) => item.toLocaleString(undefined, { maximumFractionDigits: 6 }))
-    .join(", ")}]`;
 }
 
 function resolveChartTimeRangeDefaults(

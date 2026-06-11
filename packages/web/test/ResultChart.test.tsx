@@ -34,7 +34,7 @@ describe("ResultChart", () => {
             endPeriodInclusive: 8,
             shockIndex: 1,
             startPeriodInclusive: 5,
-            variables: [{ name: "alpha1", valueText: "0.7" }]
+            variables: [{ name: "alpha1", originalValueText: "0.75", valueText: "0.7" }]
           }
         ]}
         series={[{ name: "Y", values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] }]}
@@ -44,9 +44,33 @@ describe("ResultChart", () => {
     expect(document.querySelectorAll(".chart-scenario-shock")).toHaveLength(1);
     expect(document.querySelectorAll(".chart-scenario-shock line")).toHaveLength(2);
     expect(document.querySelector(".chart-scenario-shock foreignObject")).not.toBeNull();
-    expect(screen.getByText("Shock 1")).toBeInTheDocument();
+    expect(screen.getByText("0.75", { selector: ".scenario-shock-original" })).toBeInTheDocument();
     expect(screen.getByText("α", { selector: ".chart-scenario-shock-band-label .variable-math-label" })).toBeInTheDocument();
     expect(screen.getByText("1", { selector: ".chart-scenario-shock-band-label sub" })).toBeInTheDocument();
+  });
+
+  it("calls onInspectScenarioShockVariable when a shock variable label is clicked", () => {
+    const onInspectScenarioShockVariable = vi.fn();
+    render(
+      <ResultChart
+        onInspectScenarioShockVariable={onInspectScenarioShockVariable}
+        scenarioShocks={[
+          {
+            color: "#6366f1",
+            endPeriodInclusive: 8,
+            shockIndex: 1,
+            startPeriodInclusive: 5,
+            variables: [{ name: "alpha1", originalValueText: "0.75", valueText: "0.7" }]
+          }
+        ]}
+        series={[{ name: "Y", values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] }]}
+      />
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /inspect α.*0\.75 → 0\.7/i })
+    );
+    expect(onInspectScenarioShockVariable).toHaveBeenCalledWith("alpha1");
   });
 
   it("renders a shared left axis by default", () => {

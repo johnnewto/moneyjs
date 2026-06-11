@@ -7,8 +7,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ModelDefinition, SimulationOptions, SimulationResult } from "@sfcr/core";
 
-import { ChartCellView } from "../src/notebook/components/RunChartViews";
-import type { ChartCell, NotebookCell } from "../src/notebook/types";
+import { ChartCellView, RunCellView } from "../src/notebook/components/RunChartViews";
+import type { ChartCell, NotebookCell, RunCell } from "../src/notebook/types";
 import type { useNotebookRunner } from "../src/notebook/useNotebookRunner";
 
 afterEach(() => {
@@ -17,7 +17,10 @@ afterEach(() => {
 
 const model: ModelDefinition = {
   equations: [{ name: "Y", expression: "G" }],
-  externals: { G: { kind: "constant", value: 20 } },
+  externals: {
+    G: { kind: "constant", value: 20 },
+    Gd: { kind: "constant", value: 20 }
+  },
   initialValues: {}
 };
 
@@ -29,13 +32,16 @@ const options: SimulationOptions = {
   defaultInitialValue: 1e-15
 };
 
-function createResult(values: number[]): SimulationResult {
+function createResult(values: number[], extraSeries: Record<string, number[]> = {}): SimulationResult {
   return {
     blocks: [],
     model,
     options: { ...options, periods: values.length },
     series: {
-      Y: new Float64Array(values)
+      Y: new Float64Array(values),
+      ...Object.fromEntries(
+        Object.entries(extraSeries).map(([name, seriesValues]) => [name, new Float64Array(seriesValues)])
+      )
     }
   };
 }
@@ -99,6 +105,46 @@ const scenarioCells: NotebookCell[] = [
   }
 ];
 
+describe("RunCellView", () => {
+  it("shows pre-shock values in the scenario shock summary", () => {
+    const run: RunCell = scenarioCells[1]!;
+    const gdSeries = Array.from({ length: 20 }, (_, index) => (index >= 4 ? 30 : 20));
+    const result = createResult(Array.from({ length: 20 }, (_, index) => 20 + index * 2), { Gd: gdSeries });
+    const baselineResult = createResult(Array.from({ length: 20 }, () => 20), {
+      Gd: Array.from({ length: 20 }, () => 20)
+    });
+    const runner = {
+      ...createRunner({ current: result }),
+      getResult: vi.fn((cellId: string) => {
+        if (cellId === "scenario-run") {
+          return result;
+        }
+        if (cellId === "baseline-run") {
+          return baselineResult;
+        }
+        return null;
+      })
+    } as unknown as ReturnType<typeof useNotebookRunner>;
+
+    render(
+      <RunCellView
+        cell={run}
+        cells={scenarioCells}
+        currentValues={{}}
+        editor={null}
+        onVariableInspectRequest={vi.fn()}
+        runner={runner}
+        variableDescriptions={new Map()}
+        variableUnitMetadata={new Map()}
+      />
+    );
+
+    expect(screen.getByText("Period 5 to 12")).toBeInTheDocument();
+    expect(screen.getByText("20", { selector: ".scenario-shock-original" })).toBeInTheDocument();
+    expect(screen.getByText("30", { selector: ".scenario-shock-value" })).toBeInTheDocument();
+  });
+});
+
 describe("ChartCellView", () => {
   it("renders scenario shock markers for scenario source runs by default", () => {
     const chart: ChartCell = {
@@ -108,10 +154,22 @@ describe("ChartCellView", () => {
       type: "chart",
       variables: ["Y"]
     };
-    const result = createResult([20, 22, 24, 26, 28, 30, 32, 34, 36, 38]);
+    const gdSeries = Array.from({ length: 20 }, (_, index) => (index >= 4 ? 30 : 20));
+    const result = createResult([20, 22, 24, 26, 28, 30, 32, 34, 36, 38], { Gd: gdSeries });
+    const baselineResult = createResult(Array.from({ length: 20 }, () => 20), {
+      Gd: Array.from({ length: 20 }, () => 20)
+    });
     const runner = {
       ...createRunner({ current: result }),
-      getResult: vi.fn((cellId: string) => (cellId === "scenario-run" ? result : null))
+      getResult: vi.fn((cellId: string) => {
+        if (cellId === "scenario-run") {
+          return result;
+        }
+        if (cellId === "baseline-run") {
+          return baselineResult;
+        }
+        return null;
+      })
     } as unknown as ReturnType<typeof useNotebookRunner>;
 
     render(
@@ -132,7 +190,7 @@ describe("ChartCellView", () => {
     ).toBeInTheDocument();
     expect(document.querySelector(".chart-scenario-shock")).not.toBeNull();
     expect(document.querySelector(".chart-scenario-shock-band-label")).not.toBeNull();
-    expect(screen.getByText("Shock 1")).toBeInTheDocument();
+    expect(screen.getByText("20", { selector: ".scenario-shock-original" })).toBeInTheDocument();
   });
 
   it("uses the previous run result as a dotted reference trace when requested", () => {

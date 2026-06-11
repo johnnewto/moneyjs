@@ -1,8 +1,11 @@
+import type { ModelDefinition, SimulationOptions, SimulationResult } from "@sfcr/core";
 import { describe, expect, it } from "vitest";
 
 import {
   buildScenarioShockMarkers,
   formatScenarioShockAriaLabel,
+  formatScenarioShockRunCellLabel,
+  formatScenarioShockVariableLabel,
   resolveShowScenarioShocks
 } from "../src/lib/scenarioShockMarkers";
 import type { ChartCell, RunCell } from "../src/notebook/types";
@@ -35,6 +38,31 @@ const scenarioRun: RunCell = {
   }
 };
 
+const model: ModelDefinition = {
+  equations: [{ name: "Y", expression: "Gd" }],
+  externals: {
+    Gd: { kind: "constant", value: 20 },
+    alpha1: { kind: "constant", value: 0.75 }
+  },
+  initialValues: {}
+};
+
+const options: SimulationOptions = {
+  periods: 20,
+  solverMethod: "GAUSS_SEIDEL",
+  tolerance: 1e-8,
+  maxIterations: 50
+};
+
+function createResult(series: Record<string, number[]>): SimulationResult {
+  return {
+    blocks: [],
+    model,
+    options,
+    series: Object.fromEntries(Object.entries(series).map(([name, values]) => [name, new Float64Array(values)]))
+  };
+}
+
 describe("scenarioShockMarkers", () => {
   it("enables shock markers by default for scenario charts", () => {
     const chart = { showScenarioShocks: undefined } as ChartCell;
@@ -58,9 +86,51 @@ describe("scenarioShockMarkers", () => {
     expect(markers[1]?.variables[0]?.valueText).toBe("0.7");
   });
 
+  it("includes the pre-shock value from the scenario result series", () => {
+    const result = createResult({
+      Gd: Array.from({ length: 20 }, (_, index) => (index >= 4 ? 30 : 20)),
+      alpha1: Array.from({ length: 20 }, (_, index) => (index >= 14 ? 0.7 : 0.75))
+    });
+
+    const markers = buildScenarioShockMarkers(scenarioRun, result);
+    expect(markers[0]?.variables[0]?.originalValueText).toBe("20");
+    expect(markers[1]?.variables[0]?.originalValueText).toBe("0.75");
+    expect(formatScenarioShockVariableLabel(markers[1]!.variables[0]!)).toBe("α1: 0.75 → 0.7");
+  });
+
+  it("falls back to baseline model externals when the shock starts at period 1", () => {
+    const run: RunCell = {
+      ...scenarioRun,
+      scenario: {
+        shocks: [
+          {
+            rangeInclusive: [1, 10],
+            variables: {
+              Gd: { kind: "constant", value: 30 }
+            }
+          }
+        ]
+      }
+    };
+    const baseline = createResult({ Gd: Array.from({ length: 20 }, () => 20) });
+
+    const markers = buildScenarioShockMarkers(run, baseline, baseline);
+    expect(markers[0]?.variables[0]?.originalValueText).toBe("20");
+  });
+
+  it("formats run-cell shock labels with period prefix on one line", () => {
+    const result = createResult({
+      alpha1: Array.from({ length: 20 }, (_, index) => (index >= 14 ? 0.7 : 0.75))
+    });
+    const markers = buildScenarioShockMarkers(scenarioRun, result);
+    expect(formatScenarioShockRunCellLabel(markers[1]!)).toBe("Period 15 to 18, α1: 0.75 → 0.7");
+  });
+
   it("builds accessible shock labels with plain-text variable names", () => {
-    const markers = buildScenarioShockMarkers(scenarioRun);
-    expect(formatScenarioShockAriaLabel(markers[1]!, 0)).toContain("α1");
-    expect(formatScenarioShockAriaLabel(markers[1]!, 0)).toContain("0.7");
+    const result = createResult({
+      alpha1: Array.from({ length: 20 }, (_, index) => (index >= 14 ? 0.7 : 0.75))
+    });
+    const markers = buildScenarioShockMarkers(scenarioRun, result);
+    expect(formatScenarioShockAriaLabel(markers[1]!, 0)).toContain("α1: 0.75 → 0.7");
   });
 });

@@ -21,11 +21,12 @@ import {
   toY,
   type ChartAxisRange
 } from "./ResultChartScales";
+import { ScenarioShockVariableLine } from "./ScenarioShockVariableLine";
+import { VariableMathLabel, renderVariableMathSvgLabel } from "./VariableMathLabel";
 import {
   formatScenarioShockAriaLabel,
   type ScenarioShockMarker
 } from "../lib/scenarioShockMarkers";
-import { VariableMathLabel, renderVariableMathSvgLabel } from "./VariableMathLabel";
 
 interface ChartSeries {
   highlightKey?: string;
@@ -64,6 +65,7 @@ interface ResultChartProps {
   onDismiss?(): void;
   onGraphExpressionHighlightChange?(expression: string | null): void;
   onGraphSliceHighlightChange?(slice: MatrixGraphSliceHighlight | null): void;
+  onInspectScenarioShockVariable?(variableName: string): void;
   onToggleLegendMode?(): void;
   onTogglePin?(): void;
   title?: string;
@@ -74,16 +76,18 @@ interface ResultChartProps {
 }
 
 const SERIES_COLORS = ["#111827", "#ec4899", "#ea580c", "#6366f1", "#059669", "#0284c7"];
-const X_TICK_LABEL_OFFSET = 16;
+const X_TICK_LABEL_OFFSET = 10;
+const X_AXIS_TITLE_OFFSET = 12;
 const CHART_VIEWBOX_WIDTH = 900;
 const CHART_MAIN_HEIGHT = 360;
+const CHART_TOP_PADDING = 18;
+const CHART_BOTTOM_PADDING = 28;
 const TIME_RANGE_SLIDER_MIN_PERIODS = 10;
 const TIME_RANGE_SLIDER_GAP = 8;
 const TIME_RANGE_SLIDER_SECTION_HEIGHT = 48;
 const TIME_RANGE_SLIDER_HANDLE_WIDTH = 10;
-const SCENARIO_SHOCK_LABEL_HEIGHT = 16;
-const SCENARIO_SHOCK_LABEL_GAP = 2;
-const SCENARIO_SHOCK_LABEL_MIN_WIDTH = 56;
+const SCENARIO_SHOCK_LABEL_HEIGHT = 14;
+const SCENARIO_SHOCK_LABEL_GAP = 0;
 
 export function ResultChart({
   addVariableOptions,
@@ -110,6 +114,7 @@ export function ResultChart({
   onDismiss,
   onGraphExpressionHighlightChange,
   onGraphSliceHighlightChange,
+  onInspectScenarioShockVariable,
   onToggleLegendMode,
   onTogglePin,
   title = "Chart",
@@ -235,8 +240,8 @@ export function ResultChart({
     : CHART_MAIN_HEIGHT;
   const sliderTop = CHART_MAIN_HEIGHT + TIME_RANGE_SLIDER_GAP;
   const sliderHeight = TIME_RANGE_SLIDER_SECTION_HEIGHT;
-  const topPadding = 26;
-  const bottomPadding = 42;
+  const topPadding = CHART_TOP_PADDING;
+  const bottomPadding = CHART_BOTTOM_PADDING;
   const rightPadding = 20;
   const axisSpacing = 42;
   const primaryAxisWidth = 56;
@@ -802,11 +807,8 @@ export function ResultChart({
 
         {visibleScenarioShocks.map((shock) => {
           const bandWidth = Math.max(shock.bandX2 - shock.bandX1, 0);
-          const labelWidth = Math.max(bandWidth, SCENARIO_SHOCK_LABEL_MIN_WIDTH);
-          const labelX = Math.min(
-            Math.max(shock.bandX1, leftPadding),
-            leftPadding + plotWidth - labelWidth
-          );
+          const labelX = shock.bandX1;
+          const labelWidth = Math.max(leftPadding + plotWidth - labelX, bandWidth, 1);
           const labelY = Math.max(2, topPadding - SCENARIO_SHOCK_LABEL_HEIGHT - SCENARIO_SHOCK_LABEL_GAP);
 
           return (
@@ -816,12 +818,18 @@ export function ResultChart({
             aria-label={formatScenarioShockAriaLabel(shock.marker, periodLabelOffset)}
           >
             <foreignObject
+              overflow="visible"
               x={labelX}
               y={labelY}
               width={labelWidth}
               height={SCENARIO_SHOCK_LABEL_HEIGHT}
             >
-              <ScenarioShockBandLabel marker={shock.marker} color={shock.marker.color} />
+              <ScenarioShockBandLabel
+                highlightedVariable={highlightedVariable}
+                marker={shock.marker}
+                color={shock.marker.color}
+                onInspect={onInspectScenarioShockVariable}
+              />
             </foreignObject>
             <rect
               x={shock.bandX1}
@@ -955,7 +963,7 @@ export function ResultChart({
 
               <text
                 x={axisX}
-                y={topPadding - 8}
+                y={topPadding - 5}
                 fill={axisMode === "shared" ? "#111827" : entry.color}
                 opacity={axisOpacity}
                 fontSize="12"
@@ -1130,7 +1138,7 @@ export function ResultChart({
 
         <text
           x={leftPadding + plotWidth / 2}
-          y={CHART_MAIN_HEIGHT - 2}
+          y={topPadding + plotHeight + X_TICK_LABEL_OFFSET + X_AXIS_TITLE_OFFSET}
           fill="#111827"
           fontSize="12"
           textAnchor="middle"
@@ -1283,25 +1291,30 @@ export function ResultChart({
   );
 }
 
-function ScenarioShockBandLabel({ color, marker }: { color: string; marker: ScenarioShockMarker }) {
+function ScenarioShockBandLabel({
+  color,
+  highlightedVariable = null,
+  marker,
+  onInspect
+}: {
+  color: string;
+  highlightedVariable?: string | null;
+  marker: ScenarioShockMarker;
+  onInspect?(variableName: string): void;
+}) {
   return (
-    <div className="chart-scenario-shock-band-label" style={{ color }} xmlns="http://www.w3.org/1999/xhtml">
-      <span className="chart-scenario-shock-band-heading">Shock {marker.shockIndex}</span>
-      {marker.variables.length > 0 ? (
-        <>
-          {": "}
-          {marker.variables.map((entry, entryIndex) => (
-            <span key={`${marker.shockIndex}-${entry.name}`} className="chart-scenario-shock-variable">
-              {entryIndex > 0 ? ", " : null}
-              <VariableMathLabel name={entry.name} />
-              <span className="chart-scenario-shock-arrow" aria-hidden="true">
-                {" → "}
-              </span>
-              <span className="chart-scenario-shock-value">{entry.valueText}</span>
-            </span>
-          ))}
-        </>
-      ) : null}
+    <div className="chart-scenario-shock-band-label" style={{ color }}>
+      {marker.variables.map((entry, entryIndex) => (
+        <span key={`${marker.shockIndex}-${entry.name}`} className="chart-scenario-shock-variable">
+          {entryIndex > 0 ? ", " : null}
+          <ScenarioShockVariableLine
+            entry={entry}
+            highlightedVariable={highlightedVariable}
+            inspectButtonClassName="chart-scenario-shock-variable-button"
+            onInspect={onInspect}
+          />
+        </span>
+      ))}
     </div>
   );
 }

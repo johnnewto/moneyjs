@@ -87,13 +87,16 @@
 .result-chart {
   display: block;
   height: auto;
-  margin-top: 1rem;
+  margin-top: 0.35rem;
   width: 100%;
+}
+.result-panel .panel-header {
+  margin-bottom: 0.35rem;
 }
 .chart-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 .chart-legend-add {
   align-items: center;
@@ -250,7 +253,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
-  margin-top: 0.75rem;
+  margin-top: 0.45rem;
 }
 .chart-scale-multi {
   font-size: 0.92rem;
@@ -273,16 +276,22 @@
   box-sizing: border-box;
   font-size: 10px;
   font-weight: 700;
-  line-height: 1.2;
-  overflow: hidden;
-  text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.1;
+  overflow: visible;
+  padding-left: 2px;
+  text-align: left;
+  white-space: normal;
   width: 100%;
 }
-.chart-scenario-shock-band-heading {
-  font-weight: 700;
+.chart-scenario-shock-variable-button {
+  align-items: baseline;
+  display: inline-flex;
+  text-align: left;
 }
-.chart-scenario-shock-variable .variable-math-label {
+.chart-scenario-shock-variable-button:hover .variable-math-label {
+  text-decoration: underline;
+  text-decoration-color: rgba(37, 99, 235, 0.32);
+}
+.scenario-shock-variable-line .variable-math-label {
   font-weight: 700;
 }
