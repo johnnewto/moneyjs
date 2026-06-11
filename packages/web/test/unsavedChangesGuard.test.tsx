@@ -1,0 +1,64 @@
+// @vitest-environment jsdom
+
+import { render, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+
+import { notebookHasUnsavedChanges } from "../src/notebook/notebookAppHelpers";
+import { App, screen, setupAppTestEnv, userEvent } from "./appTestUtils";
+
+setupAppTestEnv();
+
+describe("notebookHasUnsavedChanges", () => {
+  it("returns true when the notebook session is unnamed", () => {
+    expect(
+      notebookHasUnsavedChanges({
+        hasEditHistory: false,
+        hasImportPreview: false,
+        hasPendingImportTextChanges: false,
+        isUnnamedNotebookSession: true
+      })
+    ).toBe(true);
+  });
+
+  it("returns true when import text is pending", () => {
+    expect(
+      notebookHasUnsavedChanges({
+        hasEditHistory: false,
+        hasImportPreview: false,
+        hasPendingImportTextChanges: true,
+        isUnnamedNotebookSession: false
+      })
+    ).toBe(true);
+  });
+});
+
+describe("unsaved navigation guards", () => {
+  it("prompts before switching notebooks from the template picker", async () => {
+    const user = userEvent.setup();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    const templatePicker = screen.getByRole("combobox", { name: /notebook template/i });
+    expect(templatePicker).toHaveValue("bmw");
+
+    const equationsCell = document.getElementById("equations-newton");
+    expect(equationsCell).not.toBeNull();
+    if (!(equationsCell instanceof HTMLElement)) {
+      throw new Error("Expected equations cell article.");
+    }
+
+    await user.click(within(equationsCell).getByRole("button", { name: /^edit$/i }));
+
+    const yExpression = within(equationsCell).getByDisplayValue("Cs + Is");
+    await user.type(yExpression, " ");
+    await user.click(within(equationsCell).getByRole("button", { name: /^apply$/i }));
+
+    await user.selectOptions(templatePicker, "sim");
+
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("unsaved changes"));
+    confirm.mockRestore();
+  }, 15000);
+
+});

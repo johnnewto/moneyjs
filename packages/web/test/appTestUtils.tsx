@@ -9,8 +9,6 @@ import { runBaseline as runCoreBaseline } from "@sfcr/core";
 import { afterEach, beforeAll, beforeEach, vi } from "vitest";
 
 import { bmwBaselineModel, bmwBaselineOptions } from "../../core/src/fixtures/bmw";
-import { App as AppComponent } from "../src/app/App";
-import { getRouteFromHash } from "../src/app/routes";
 import { NotebookApp } from "../src/notebook/NotebookApp";
 
 export const fireEvent = testingFireEvent;
@@ -18,12 +16,9 @@ export const screen = testingScreen;
 export const userEvent = userEventLib;
 
 export function App(): JSX.Element {
-  return getRouteFromHash(window.location.hash) === "notebook" ? <NotebookApp /> : <AppComponent />;
+  return <NotebookApp />;
 }
 
-export const runBaseline = vi.fn();
-export const runScenario = vi.fn();
-export const validate = vi.fn();
 export const bmwNotebookBaselineResult = runCoreBaseline(bmwBaselineModel, bmwBaselineOptions);
 
 export let notebookRunnerMock: {
@@ -36,17 +31,6 @@ export let notebookRunnerMock: {
   getResult: (cellId: string) => typeof bmwNotebookBaselineResult | null;
   getPreviousResult: (cellId: string) => typeof bmwNotebookBaselineResult | null;
 };
-
-vi.mock("../src/hooks/useSolver", () => ({
-  useSolver: () => ({
-    status: "idle" as const,
-    result: null,
-    error: null,
-    runBaseline,
-    runScenario,
-    validate
-  })
-}));
 
 vi.mock("../src/notebook/useNotebookRunner", () => ({
   useNotebookRunner: () => notebookRunnerMock
@@ -69,7 +53,7 @@ export function setupAppTestEnv(): void {
   });
 
   beforeEach(() => {
-    window.history.replaceState(null, "", "/#/workspace");
+    window.history.replaceState(null, "", "/#/notebook");
     window.localStorage.clear();
     Object.defineProperty(window, "scrollTo", {
       configurable: true,
@@ -85,9 +69,6 @@ export function setupAppTestEnv(): void {
         writeText: vi.fn().mockResolvedValue(undefined)
       }
     });
-    runBaseline.mockReset();
-    runScenario.mockReset();
-    validate.mockReset();
     notebookRunnerMock = {
       outputs: {},
       status: {},

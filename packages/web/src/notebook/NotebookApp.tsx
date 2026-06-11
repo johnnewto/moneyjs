@@ -105,9 +105,11 @@ import {
   NOTEBOOK_AI_GUIDE_URL,
   NOTEBOOK_AI_LANDING_URL,
   migrateNotebookHashToPathname,
+  notebookHasUnsavedChanges,
   parseNotebookTemplateIdFromHash,
   parseNotebookVariantIdFromHash,
   readNotebookRouteLocation,
+  restoreNotebookRouteLocation,
   resolveNotebookTemplateIdFromLocation,
   type NotebookRouteLocation,
   writeNotebookLocation,
@@ -179,6 +181,7 @@ import {
 import { buildEditorStateForInspectorModelSource } from "../lib/variableInspect";
 import { resolveNotebookStabilityTarget } from "../lib/stabilityAtPeriod";
 import { usePanelSplitter } from "../hooks/usePanelSplitter";
+import { useUnsavedChangesGuard } from "../hooks/useUnsavedChangesGuard";
 import { useNotebookStickySurfaceTop } from "./useNotebookStickySurfaceTop";
 import { buildVariableInspectorData } from "../lib/variableInspector";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
@@ -264,6 +267,39 @@ export { CUSTOM_NOTEBOOK_STORAGE_KEY } from "./notebookVariants";
 const LEGACY_CUSTOM_NOTEBOOK_HASH = "#/notebook/custom";
 const UNNAMED_NOTEBOOK_SELECT_VALUE = "__unnamed__";
 const NOTEBOOK_SOURCE_FORMATS: readonly NotebookSourceFormat[] = ["json", "markdown", "yaml"];
+
+function notebookRouteWouldLoadDocument(args: {
+  activeVariantId: string | null;
+  currentTemplateId: NotebookTemplateId | "";
+  hash: string;
+  location: NotebookRouteLocation;
+  notebookDocumentId: string;
+  notebookTemplateMetadata: string | undefined;
+}): boolean {
+  const { templateId, variantId } = args.location;
+
+  if (variantId) {
+    return !(variantId === args.activeVariantId && args.notebookDocumentId === variantId);
+  }
+
+  if (args.hash === LEGACY_CUSTOM_NOTEBOOK_HASH) {
+    return args.activeVariantId !== IMPORTED_NOTEBOOK_VARIANT_ID;
+  }
+
+  if (!templateId) {
+    return false;
+  }
+
+  if (
+    args.activeVariantId == null &&
+    args.notebookTemplateMetadata === templateId &&
+    args.currentTemplateId
+  ) {
+    return false;
+  }
+
+  return true;
+}
 
 interface NotebookSessionState {
   activeVariantId: string | null;
@@ -1169,6 +1205,36 @@ export function NotebookApp() {
     () => resolveCurrentTemplateId(notebookDocument),
     [notebookDocument]
   );
+  const notebookDerivedFrom = useMemo(
+    () => resolveNotebookDerivedFrom(notebookDocument, activeVariantId, currentTemplateId),
+    [activeVariantId, currentTemplateId, notebookDocument]
+  );
+  const isUnnamedNotebookSessionForGuard =
+    activeVariantId == null && !currentTemplateId && notebookDerivedFrom != null;
+  const hasUnsavedChanges = useMemo(
+    () =>
+      notebookHasUnsavedChanges({
+        hasEditHistory: notebookJournal.past.length > 0,
+        hasImportPreview: importPreview != null,
+        hasPendingImportTextChanges,
+        isUnnamedNotebookSession: isUnnamedNotebookSessionForGuard
+      }),
+    [
+      hasPendingImportTextChanges,
+      importPreview,
+      isUnnamedNotebookSessionForGuard,
+      notebookJournal.past.length
+    ]
+  );
+  const { confirmNavigation } = useUnsavedChangesGuard({ isDirty: hasUnsavedChanges });
+  const confirmNavigationRef = useRef(confirmNavigation);
+  confirmNavigationRef.current = confirmNavigation;
+  const committedNotebookRouteRef = useRef<NotebookRouteLocation>(readNotebookRouteLocation());
+  useEffect(() => {
+    if (!hasUnsavedChanges) {
+      committedNotebookRouteRef.current = readNotebookRouteLocation();
+    }
+  }, [activeVariantId, currentTemplateId, hasUnsavedChanges, notebookDocument.id]);
   const notebookScopeId = useMemo(
     () =>
       resolveNotebookScopeId({
@@ -2036,7 +2102,12 @@ export function NotebookApp() {
   }
 
   function handleOpenVariant(variantId: string): void {
+    if (!confirmNavigationRef.current()) {
+      return;
+    }
+
     if (loadNotebookVariant(variantId)) {
+      committedNotebookRouteRef.current = readNotebookRouteLocation();
       const entry = listNotebookVariants().find((variant) => variant.id === variantId);
       setUiMessage(`Loaded variant ${entry?.title ?? variantId}.`);
       setIsVariantManagerOpen(false);
@@ -2044,6 +2115,10 @@ export function NotebookApp() {
   }
 
   function handleCreateVariantFromTemplate(templateId: NotebookTemplateId, title: string): void {
+    if (!confirmNavigationRef.current()) {
+      return;
+    }
+
     const entry = createNotebookVariantFromTemplate(templateId, title);
     if (!entry) {
       setUiMessage("Could not create variant. Browser storage may be full.");
@@ -2052,6 +2127,7 @@ export function NotebookApp() {
 
     refreshVariantIndex();
     if (loadNotebookVariant(entry.id, "variant create")) {
+      committedNotebookRouteRef.current = readNotebookRouteLocation();
       setUiMessage(`Created variant ${entry.title}.`);
       setIsVariantManagerOpen(false);
     }
@@ -2103,11 +2179,16 @@ export function NotebookApp() {
       return;
     }
 
+    if (!confirmNavigationRef.current()) {
+      return;
+    }
+
     setActiveVariantId(null);
     const fallbackTemplateId =
       entry?.derivedFrom ?? resolveNotebookTemplateIdFromLocation(readNotebookRouteLocation());
     replaceNotebookDocumentFromTemplate(fallbackTemplateId);
     writeNotebookLocation({ templateId: fallbackTemplateId });
+    committedNotebookRouteRef.current = readNotebookRouteLocation();
     setImportPreview(null);
     setUiMessage(
       entry
@@ -2139,6 +2220,22 @@ export function NotebookApp() {
       const { cellId, templateId, variantId } = location;
       const hash = window.location.hash;
 
+      if (
+        notebookRouteWouldLoadDocument({
+          activeVariantId,
+          currentTemplateId,
+          hash,
+          location,
+          notebookDocumentId: notebookDocument.id,
+          notebookTemplateMetadata: notebookDocument.metadata.template
+        }) &&
+        hasUnsavedChanges &&
+        !confirmNavigationRef.current()
+      ) {
+        restoreNotebookRouteLocation(committedNotebookRouteRef.current);
+        return;
+      }
+
       if (variantId) {
         if (variantId === activeVariantId && notebookDocument.id === variantId) {
           if (cellId) {
@@ -2147,6 +2244,7 @@ export function NotebookApp() {
           return;
         }
         if (loadNotebookVariant(variantId, "variant route load")) {
+          committedNotebookRouteRef.current = readNotebookRouteLocation();
           const entry = listNotebookVariants().find((variant) => variant.id === variantId);
           setUiMessage(`Loaded variant ${entry?.title ?? variantId}.`);
         }
@@ -2166,6 +2264,7 @@ export function NotebookApp() {
           return;
         }
         loadNotebookVariant(IMPORTED_NOTEBOOK_VARIANT_ID, "imported notebook load");
+        committedNotebookRouteRef.current = readNotebookRouteLocation();
         setUiMessage(`Loaded ${imported.title}.`);
         return;
       }
@@ -2184,6 +2283,7 @@ export function NotebookApp() {
       }
       setActiveVariantId(null);
       replaceNotebookDocumentFromTemplate(templateId);
+      committedNotebookRouteRef.current = readNotebookRouteLocation();
       setImportPreview(null);
       setUiMessage(`Loaded template ${NOTEBOOK_TEMPLATES[templateId].label}.`);
     }
@@ -2198,6 +2298,7 @@ export function NotebookApp() {
     activeVariantId,
     applyNotebookCellFromRoute,
     currentTemplateId,
+    hasUnsavedChanges,
     notebookDocument.id,
     notebookDocument.metadata.template
   ]);
@@ -2342,9 +2443,14 @@ export function NotebookApp() {
     }
 
     if (isNotebookTemplateId(value)) {
+      if (!confirmNavigationRef.current()) {
+        return;
+      }
+
       setActiveVariantId(null);
       replaceNotebookDocumentFromTemplate(value);
       writeNotebookLocation({ templateId: value });
+      committedNotebookRouteRef.current = readNotebookRouteLocation();
       setImportPreview(null);
       setUiMessage(`Loaded template ${NOTEBOOK_TEMPLATES[value].label}.`);
       return;

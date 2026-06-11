@@ -262,6 +262,35 @@ export function writeNotebookVariantHash(variantId: string, cellId?: string): vo
   writeNotebookLocation({ variantId, cellId });
 }
 
+export function restoreNotebookRouteLocation(location: NotebookRouteLocation): void {
+  if (location.variantId) {
+    writeNotebookLocation({
+      variantId: location.variantId,
+      cellId: location.cellId ?? undefined
+    });
+    return;
+  }
+
+  writeNotebookLocation({
+    templateId: location.templateId ?? undefined,
+    cellId: location.cellId ?? undefined
+  });
+}
+
+export function notebookHasUnsavedChanges(args: {
+  hasEditHistory: boolean;
+  hasImportPreview: boolean;
+  hasPendingImportTextChanges: boolean;
+  isUnnamedNotebookSession: boolean;
+}): boolean {
+  return (
+    args.isUnnamedNotebookSession ||
+    args.hasPendingImportTextChanges ||
+    args.hasImportPreview ||
+    args.hasEditHistory
+  );
+}
+
 export function isNotebookPathname(pathname: string): boolean {
   return stripAppBasePath(pathname).startsWith("/notebook");
 }

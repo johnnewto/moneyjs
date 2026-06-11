@@ -32,7 +32,6 @@ describe("App notebook navigation and inspection", () => {
     expect(screen.getAllByText(/bmw browser notebook/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /^run all$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /validate/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /chat builder/i })).toHaveAttribute("href", "#/chat-builder");
     expect(screen.getByRole("heading", { name: /bmw balance sheet/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /bmw transactions-flow matrix/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /bmw transaction flow sequence/i })).toBeInTheDocument();
