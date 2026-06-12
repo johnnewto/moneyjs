@@ -10,6 +10,7 @@ export * from "./unitMetaAliases";
 export * from "./rowComments";
 export * from "./sectionBoundary";
 export {
+  buildCompactChartCells,
   buildCompactEquationListRow,
   parseCompactEquationRows,
   parseCompactExternalRows,

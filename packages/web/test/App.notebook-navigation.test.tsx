@@ -228,6 +228,9 @@ describe("App notebook navigation and inspection", () => {
     await expandCellIfCollapsed(equationsCell, user);
     await user.click(within(equationsCell).getByRole("button", { name: /^edit$/i }));
 
+    expect(screen.getByRole("tab", { name: /^contents$/i })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: /^editor$/i })).toHaveAttribute("aria-selected", "false");
+
     const notebookSheet = screen.getByRole("region", { name: /notebook sheet/i });
     expect(notebookSheet.className).toContain("notebook-has-active-editor");
     expect(equationsCell.className).toContain("notebook-cell-is-active-editor");
@@ -237,6 +240,9 @@ describe("App notebook navigation and inspection", () => {
       .map((button) => button.closest("li"))
       .find((item): item is HTMLLIElement => item instanceof HTMLLIElement);
     expect(activeOutlineItem?.className).toContain("notebook-outline-item-is-active");
+
+    await user.click(screen.getByRole("tab", { name: /^editor$/i }));
+    expect(document.querySelector(".notebook-source-selected-cell-line")).toBeNull();
 
     await user.click(within(equationsCell).getByRole("button", { name: /^cancel$/i }));
     expect(notebookSheet.className).not.toContain("notebook-has-active-editor");

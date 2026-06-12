@@ -65,6 +65,11 @@ import {
   InitialValuesCellView,
   SolverCellView
 } from "./components/LinkedSectionViews";
+import {
+  appendChartVariable,
+  moveChartSeriesByDisplayName,
+  removeChartSeriesByDisplayName
+} from "./chartSeries";
 import { ChartCellView, RunCellView } from "./components/RunChartViews";
 import type { MatrixGraphSliceHighlight } from "./graphDocumentHighlight";
 import { MatrixCellView } from "./components/MatrixCellView";
@@ -1371,22 +1376,20 @@ function NotebookCellViewComponent({
                 editor={chartInspectionContext?.editor ?? null}
                 onAddVariable={(variableName) =>
                   onCellChange(cell.id, (current) =>
-                    current.type === "chart" && !current.variables.includes(variableName)
-                      ? { ...current, variables: [variableName, ...current.variables] }
-                      : current
+                    current.type === "chart" ? appendChartVariable(current, variableName) : current
                   )
                 }
                 onMoveVariable={(variableName, direction) =>
                   onCellChange(cell.id, (current) =>
                     current.type === "chart"
-                      ? { ...current, variables: moveChartVariable(current.variables, variableName, direction) }
+                      ? moveChartSeriesByDisplayName(current, variableName, direction)
                       : current
                   )
                 }
                 onRemoveVariable={(variableName) =>
                   onCellChange(cell.id, (current) =>
-                    current.type === "chart" && current.variables.length > 1
-                      ? { ...current, variables: current.variables.filter((name) => name !== variableName) }
+                    current.type === "chart"
+                      ? removeChartSeriesByDisplayName(current, variableName)
                       : current
                   )
                 }
@@ -1760,29 +1763,6 @@ function formatChartReferenceTrace(trace: NonNullable<ChartCell["referenceTrace"
     case "previous-run":
       return "Previous";
   }
-}
-
-function moveChartVariable(
-  variables: string[],
-  variableName: string,
-  direction: "left" | "right"
-): string[] {
-  const currentIndex = variables.indexOf(variableName);
-  if (currentIndex === -1) {
-    return variables;
-  }
-
-  const nextIndex = direction === "left" ? currentIndex - 1 : currentIndex + 1;
-  if (nextIndex < 0 || nextIndex >= variables.length) {
-    return variables;
-  }
-
-  const nextVariables = [...variables];
-  [nextVariables[currentIndex], nextVariables[nextIndex]] = [
-    nextVariables[nextIndex]!,
-    nextVariables[currentIndex]!
-  ];
-  return nextVariables;
 }
 
 function isNotebookCellSelected(cellId: string, selectedCellId: string | null): boolean {

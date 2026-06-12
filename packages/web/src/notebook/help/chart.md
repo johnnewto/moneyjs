@@ -29,6 +29,38 @@ Choose variables that answer one question at a time. For example:
 - Prices or rates: `W`, `rl`, `rm`.
 - Scenario comparison: a small group of variables most affected by the shock.
 
+## Expression Series
+
+Use `series` when you need derived quantities such as portfolio shares or percentage transforms. Each entry evaluates an expression against the source run result using the same syntax as model and matrix cells (`+`, `-`, `*`, `/`, `lag(...)`, `d(...)`, and so on).
+
+When `series` is non-empty, it takes precedence over `variables`.
+
+```json
+{
+  "type": "chart",
+  "sourceRunCellId": "scenario-1-run",
+  "timeRangeInclusive": [2, 25],
+  "axisMode": "separate",
+  "series": [
+    {
+      "expression": "100 * h_h / v",
+      "label": "Share of money balances"
+    },
+    {
+      "expression": "100 * b_h / v",
+      "label": "Share of bills"
+    }
+  ]
+}
+```
+
+Optional per-series fields:
+
+- `label` for legend text (defaults to the expression).
+- `range` for y-axis bounds on that series (merged with top-level `seriesRanges` keyed by the resolved label).
+
+The `variables` list remains valid shorthand for plotting raw run series by name.
+
 ## Axis Modes
 
 Charts can use shared or separate axes.
@@ -52,6 +84,9 @@ Useful options include:
 - `niceScale` to expand automatic bounds to readable tick values.
 - `timeRangeInclusive` to focus on a period window.
 - `yAxisTickCount` to guide tick density.
+- `xAxis.title` for the horizontal axis label (defaults to `yr`).
+- `yAxis.title` and `yAxis.unit` for the shared vertical axis (unit appears below the lowest tick label).
+- `series[].unit` for per-series units in separate-axis mode (overrides model unit inference; shown below each axis’s lowest tick).
 
 Example:
 
@@ -60,9 +95,25 @@ Example:
   "timeRangeInclusive": [5, 30],
   "axisMode": "separate",
   "niceScale": true,
+  "xAxis": { "title": "yr" },
+  "yAxis": { "title": "Value", "unit": "$" },
   "sharedRange": {
     "includeZero": true
   }
+}
+```
+
+Expression series with explicit units:
+
+```json
+{
+  "series": [
+    {
+      "expression": "100 * h_h / v",
+      "label": "Share of money balances",
+      "unit": "%"
+    }
+  ]
 }
 ```
 

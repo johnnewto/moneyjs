@@ -307,6 +307,42 @@ describe("renameVariable", () => {
     expect(Object.keys(scenarioRun?.scenario?.shocks[0]?.variables ?? {})).toEqual(["s2^e"]);
   });
 
+  it("renames identifiers inside chart expression series", () => {
+    const cells: NotebookCell[] = [
+      {
+        id: "run-a",
+        type: "run",
+        title: "Run",
+        mode: "baseline",
+        periods: 10,
+        resultKey: "baseline",
+        sourceModelId: "model-a"
+      },
+      {
+        id: "chart",
+        type: "chart",
+        title: "Chart",
+        sourceRunCellId: "run-a",
+        series: [
+          { expression: "100 * h_h / v", label: "Money share" },
+          { expression: "100 * b_h / v", label: "Bill share" }
+        ],
+        seriesRanges: {
+          "Money share": { min: 20, max: 25 }
+        }
+      }
+    ] satisfies NotebookCell[];
+
+    const next = renameVariableInNotebook(cells, { kind: "modelId", modelId: "model-a" }, "h_h", "cash");
+    const chart = next.find((cell): cell is ChartCell => cell.type === "chart");
+
+    expect(chart?.series).toEqual([
+      { expression: "100 * cash / v", label: "Money share" },
+      { expression: "100 * b_h / v", label: "Bill share" }
+    ]);
+    expect(chart?.seriesRanges).toEqual({ "Money share": { min: 20, max: 25 } });
+  });
+
   it("renames derivative-balance equation targets when the underlying stock is renamed", () => {
     const cells: NotebookCell[] = [
       {

@@ -170,16 +170,16 @@
       "title": "Initial values",
       "modelId": "eco-3io-pc",
       "initialValues": [
-        { "id": "aux", "name": "p1", "desc": "Initial agriculture price.", "valueText": "1" },
-        { "id": "aux", "name": "p2", "desc": "Initial manufacturing price.", "valueText": "1" },
-        { "id": "aux", "name": "p3", "desc": "Initial services price.", "valueText": "1" },
-        { "id": "aux", "name": "p_c", "desc": "Initial consumer price index.", "valueText": "1" },
-        { "id": "aux", "name": "p_g", "desc": "Initial government price index.", "valueText": "1" },
-        { "id": "aux", "name": "beta_e", "desc": "Initial CO2 intensity.", "valueText": "0.07" },
-        { "id": "aux", "name": "k_m", "desc": "Initial matter reserves.", "valueText": "6000" },
-        { "id": "aux", "name": "res_m", "desc": "Initial matter resources.", "valueText": "388889" },
-        { "id": "aux", "name": "k_e", "desc": "Initial energy reserves.", "valueText": "37000" },
-        { "id": "aux", "name": "res_e", "desc": "Initial energy resources.", "valueText": "542000" }
+        { "id": "init-0-p1", "name": "p1", "desc": "Initial agriculture price.", "valueText": "1" },
+        { "id": "init-1-p2", "name": "p2", "desc": "Initial manufacturing price.", "valueText": "1" },
+        { "id": "init-2-p3", "name": "p3", "desc": "Initial services price.", "valueText": "1" },
+        { "id": "init-3-p_c", "name": "p_c", "desc": "Initial consumer price index.", "valueText": "1" },
+        { "id": "init-4-p_g", "name": "p_g", "desc": "Initial government price index.", "valueText": "1" },
+        { "id": "init-5-beta_e", "name": "beta_e", "desc": "Initial CO2 intensity.", "valueText": "0.07" },
+        { "id": "init-6-k_m", "name": "k_m", "desc": "Initial matter reserves.", "valueText": "6000" },
+        { "id": "init-7-res_m", "name": "res_m", "desc": "Initial matter resources.", "valueText": "388889" },
+        { "id": "init-8-k_e", "name": "k_e", "desc": "Initial energy reserves.", "valueText": "37000" },
+        { "id": "init-9-res_e", "name": "res_e", "desc": "Initial energy resources.", "valueText": "542000" }
       ],
       "collapsed": false
     },

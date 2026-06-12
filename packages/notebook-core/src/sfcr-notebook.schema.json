@@ -86,6 +86,34 @@
         }
       }
     },
+    "chartAxisRange": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "includeZero": { "type": "boolean" },
+        "min": { "type": "number" },
+        "max": { "type": "number" }
+      }
+    },
+    "chartAxisLabel": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string" },
+        "unit": { "type": "string" }
+      }
+    },
+    "chartSeriesSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["expression"],
+      "properties": {
+        "expression": { "type": "string", "minLength": 1 },
+        "label": { "type": "string" },
+        "range": { "$ref": "#/$defs/chartAxisRange" },
+        "unit": { "type": "string" }
+      }
+    },
     "rowComment": {
       "type": "object",
       "additionalProperties": false,
@@ -393,7 +421,13 @@
         "sourceRunCellId": { "type": "string" },
         "variables": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "series": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/chartSeriesSpec" },
+          "minItems": 1
         },
         "axisMode": { "enum": ["shared", "separate"] },
         "axisSnapTolarance": { "type": "number" },
@@ -401,6 +435,8 @@
         "referenceTrace": { "enum": ["none", "baseline", "previous-run"] },
         "showScenarioShocks": { "oneOf": [{ "type": "boolean" }, { "const": "auto" }] },
         "yAxisTickCount": { "type": "integer", "minimum": 1 },
+        "yAxis": { "$ref": "#/$defs/chartAxisLabel" },
+        "xAxis": { "$ref": "#/$defs/chartAxisLabel" },
         "sharedRange": {
           "type": "object",
           "additionalProperties": false,
@@ -484,7 +520,13 @@
         },
         {
           "if": { "properties": { "type": { "const": "chart" } } },
-          "then": { "required": ["sourceRunCellId", "variables"] }
+          "then": {
+            "required": ["sourceRunCellId"],
+            "anyOf": [
+              { "required": ["variables"] },
+              { "required": ["series"] }
+            ]
+          }
         },
         {
           "if": { "properties": { "type": { "const": "table" } } },

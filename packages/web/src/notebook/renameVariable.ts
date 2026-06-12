@@ -440,7 +440,12 @@ function renameVariableInCell(
     case "chart":
       return {
         ...cell,
-        variables: cell.variables.map((name) => (name.trim() === oldName ? newName : name)),
+        variables: cell.variables?.map((name) => (name.trim() === oldName ? newName : name)),
+        series: cell.series?.map((entry) => ({
+          ...entry,
+          expression: replaceIdentifierInSource(entry.expression, oldName, newName),
+          label: entry.label?.trim() === oldName ? newName : entry.label
+        })),
         seriesRanges: renameSeriesRangeKeys(cell.seriesRanges, oldName, newName)
       };
     case "run":
@@ -587,7 +592,11 @@ function countReferencesInCell(
       return cell.variables.reduce((total, name) => total + countExactNameMatch(name, variable), 0);
     case "chart":
       return (
-        cell.variables.reduce((total, name) => total + countExactNameMatch(name, variable), 0) +
+        (cell.variables ?? []).reduce((total, name) => total + countExactNameMatch(name, variable), 0) +
+        (cell.series ?? []).reduce(
+          (total, entry) => total + countIdentifierOccurrences(entry.expression, variable),
+          0
+        ) +
         Object.keys(cell.seriesRanges ?? {}).reduce(
           (total, key) => total + countExactNameMatch(key, variable),
           0

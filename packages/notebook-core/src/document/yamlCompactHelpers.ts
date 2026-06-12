@@ -8,6 +8,8 @@ import {
   parseCompactRowComment
 } from "../rowComments";
 import type {
+  ChartAxisRange,
+  ChartSeriesSpec,
   EquationListItem,
   EquationRow,
   ExternalListItem,
@@ -263,7 +265,8 @@ export function buildCompactChartDescriptor(
     title: cell.title,
     ...(cell.description ? { description: cell.description } : {}),
     ...(cell.note ? { note: cell.note } : {}),
-    variables: cell.variables,
+    ...(cell.variables && cell.variables.length > 0 ? { variables: cell.variables } : {}),
+    ...(cell.series && cell.series.length > 0 ? { series: cell.series } : {}),
     ...(cell.axisMode ? { axisMode: cell.axisMode } : {}),
     ...(cell.axisSnapTolarance == null ? {} : { axisSnapTolarance: cell.axisSnapTolarance }),
     ...(cell.niceScale == null ? {} : { niceScale: cell.niceScale }),
@@ -598,6 +601,12 @@ export function buildCompactInitialValues(initialValues: unknown): Extract<Noteb
   }));
 }
 
+const COMPACT_STOCK_FLOW_TOKENS = new Set(["stock", "flow", "aux"]);
+
+function isCompactStockFlowToken(value: unknown): boolean {
+  return COMPACT_STOCK_FLOW_TOKENS.has(stringValue(value, "").trim().toLowerCase());
+}
+
 function parseCompactInitialValueArrayRow(row: unknown[], index: number): InitialValueRow {
   const [rawName, rawValue, ...rest] = row;
   const name = stringValue(rawName, "");
@@ -613,15 +622,25 @@ function parseCompactInitialValueArrayRow(row: unknown[], index: number): Initia
   let id: string | undefined;
   if (tail.length === 1) {
     const trailing = tail[0];
-    const trailingText = stringValue(trailing, "");
+    const trailingText = stringValue(trailing, "").trim();
     if (trailingText.startsWith("init-")) {
       id = trailingText;
-    } else {
+    } else if (!isCompactStockFlowToken(trailingText)) {
       desc = trailingText;
     }
   } else if (tail.length >= 2) {
-    desc = stringValue(tail[0], "");
-    id = stringValue(tail[tail.length - 1], "");
+    const firstText = stringValue(tail[0], "").trim();
+    if (!firstText.startsWith("init-")) {
+      desc = firstText;
+    }
+    const lastText = stringValue(tail[tail.length - 1], "").trim();
+    if (
+      lastText &&
+      !isCompactStockFlowToken(lastText) &&
+      (lastText.startsWith("init-") || tail.length === 2)
+    ) {
+      id = lastText;
+    }
   }
 
   return {
@@ -736,25 +755,74 @@ export function buildCompactChartCells(charts: unknown, sourceRunCellId: string)
     return [];
   }
 
-  return charts.filter(isRecord).map((chart, index) => ({
-    id: typeof chart.id === "string" ? chart.id : `chart-${index + 1}`,
-    type: "chart",
-    title: typeof chart.title === "string" ? chart.title : `Chart ${index + 1}`,
-    ...compactCellFlags(chart),
-    sourceRunCellId,
-    variables: stringArray(chart.variables) ?? [],
-    ...(isRecord(chart.sharedRange) ? { sharedRange: chart.sharedRange as Extract<NotebookCell, { type: "chart" }>["sharedRange"] } : {}),
-    ...(chart.axisMode === "shared" || chart.axisMode === "separate" ? { axisMode: chart.axisMode } : {}),
-    ...(typeof chart.axisSnapTolarance === "number" ? { axisSnapTolarance: chart.axisSnapTolarance } : {}),
-    ...(typeof chart.niceScale === "boolean" ? { niceScale: chart.niceScale } : {}),
-    ...(chart.referenceTrace === "none" || chart.referenceTrace === "baseline" || chart.referenceTrace === "previous-run" ? { referenceTrace: chart.referenceTrace } : {}),
-    ...(chart.showScenarioShocks === false || chart.showScenarioShocks === true || chart.showScenarioShocks === "auto"
-      ? { showScenarioShocks: chart.showScenarioShocks }
-      : {}),
-    ...(typeof chart.yAxisTickCount === "number" ? { yAxisTickCount: chart.yAxisTickCount } : {}),
-    ...(isRecord(chart.seriesRanges) ? { seriesRanges: chart.seriesRanges as Extract<NotebookCell, { type: "chart" }>["seriesRanges"] } : {}),
-    ...(Array.isArray(chart.timeRangeInclusive) ? { timeRangeInclusive: chart.timeRangeInclusive as [number, number] } : {})
-  }));
+  return charts.filter(isRecord).map((chart, index) => {
+    const variables = stringArray(chart.variables);
+    const series = parseChartSeries(chart.series);
+
+    return {
+      id: typeof chart.id === "string" ? chart.id : `chart-${index + 1}`,
+      type: "chart",
+      title: typeof chart.title === "string" ? chart.title : `Chart ${index + 1}`,
+      ...compactCellFlags(chart),
+      sourceRunCellId,
+      ...(variables && variables.length > 0 ? { variables } : {}),
+      ...(series && series.length > 0 ? { series } : {}),
+      ...(isRecord(chart.sharedRange) ? { sharedRange: chart.sharedRange as Extract<NotebookCell, { type: "chart" }>["sharedRange"] } : {}),
+      ...(chart.axisMode === "shared" || chart.axisMode === "separate" ? { axisMode: chart.axisMode } : {}),
+      ...(typeof chart.axisSnapTolarance === "number" ? { axisSnapTolarance: chart.axisSnapTolarance } : {}),
+      ...(typeof chart.niceScale === "boolean" ? { niceScale: chart.niceScale } : {}),
+      ...(chart.referenceTrace === "none" || chart.referenceTrace === "baseline" || chart.referenceTrace === "previous-run" ? { referenceTrace: chart.referenceTrace } : {}),
+      ...(chart.showScenarioShocks === false || chart.showScenarioShocks === true || chart.showScenarioShocks === "auto"
+        ? { showScenarioShocks: chart.showScenarioShocks }
+        : {}),
+      ...(typeof chart.yAxisTickCount === "number" ? { yAxisTickCount: chart.yAxisTickCount } : {}),
+      ...(isRecord(chart.seriesRanges) ? { seriesRanges: chart.seriesRanges as Extract<NotebookCell, { type: "chart" }>["seriesRanges"] } : {}),
+      ...(Array.isArray(chart.timeRangeInclusive) ? { timeRangeInclusive: chart.timeRangeInclusive as [number, number] } : {})
+    };
+  });
+}
+
+function parseChartAxisRange(value: unknown): ChartAxisRange | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const range: ChartAxisRange = {};
+  if (typeof value.includeZero === "boolean") {
+    range.includeZero = value.includeZero;
+  }
+  if (typeof value.min === "number") {
+    range.min = value.min;
+  }
+  if (typeof value.max === "number") {
+    range.max = value.max;
+  }
+
+  return Object.keys(range).length > 0 ? range : undefined;
+}
+
+function parseChartSeries(value: unknown): ChartSeriesSpec[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const series = value.filter(isRecord).flatMap((entry) => {
+    const expression = stringValue(entry.expression, "").trim();
+    if (!expression) {
+      return [];
+    }
+
+    const range = parseChartAxisRange(entry.range);
+    return [
+      {
+        expression,
+        ...(typeof entry.label === "string" && entry.label.trim() !== "" ? { label: entry.label } : {}),
+        ...(range ? { range } : {})
+      }
+    ];
+  });
+
+  return series.length > 0 ? series : undefined;
 }
 
 export function buildCompactTableCells(tables: unknown, sourceRunCellId: string): Array<Extract<NotebookCell, { type: "table" }>> {

@@ -139,7 +139,81 @@ describe("ResultChart", () => {
     expect(screen.getAllByText("P").length).toBeGreaterThan(0);
     expect(screen.getAllByText("POLR").length).toBeGreaterThan(0);
     expect(screen.getAllByText("NR").length).toBeGreaterThan(0);
+    expect(
+      Array.from(document.querySelectorAll(".chart-axis > text"))
+        .map((node) => node.textContent?.trim())
+        .filter(Boolean)
+    ).toEqual(expect.arrayContaining(["P", "POL", "NR"]));
     expect(screen.getByText(hasTextContent(/P: .* to /i))).toBeInTheDocument();
+  });
+
+  it("truncates long separate-axis titles to three characters", () => {
+    render(
+      <ResultChart
+        axisMode="separate"
+        series={[
+          {
+            name: "Share of money balances",
+            values: [25, 25, 25]
+          },
+          {
+            name: "Share of bills",
+            values: [75, 75, 75]
+          }
+        ]}
+      />
+    );
+
+    const axisTitles = Array.from(document.querySelectorAll(".chart-axis > text"))
+      .map((node) => node.textContent?.trim())
+      .filter(Boolean);
+    expect(axisTitles).toEqual(expect.arrayContaining(["Sha", "Sha"]));
+  });
+
+  it("defaults the x-axis title to yr", () => {
+    render(
+      <ResultChart
+        series={[
+          { name: "y", values: [1, 2, 3] }
+        ]}
+      />
+    );
+
+    expect(screen.getByText("yr")).toBeInTheDocument();
+  });
+
+  it("shows shared y-axis unit below the lowest tick label", () => {
+    render(
+      <ResultChart
+        yAxis={{ unit: "$" }}
+        series={[
+          { name: "y", values: [1, 2, 3] }
+        ]}
+      />
+    );
+
+    expect(screen.getByText("Value")).toBeInTheDocument();
+    const unitLabel = document.querySelector(".chart-axis-unit-label");
+    expect(unitLabel?.textContent).toBe("$");
+  });
+
+  it("shows per-series unit below the lowest tick label in separate mode", () => {
+    render(
+      <ResultChart
+        axisMode="separate"
+        series={[
+          {
+            name: "Share of money balances",
+            unit: "%",
+            values: [25, 25, 25]
+          }
+        ]}
+      />
+    );
+
+    expect(screen.getByText("Sha")).toBeInTheDocument();
+    const unitLabel = document.querySelector(".chart-axis-unit-label");
+    expect(unitLabel?.textContent).toBe("%");
   });
 
   it("renders superscripted variable names in chart legends and scales", () => {

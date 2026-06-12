@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import { formatVariableTooltip, type VariableUnitMetadata } from "../lib/unitMeta";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
@@ -27,11 +27,13 @@ import {
   formatScenarioShockAriaLabel,
   type ScenarioShockMarker
 } from "../lib/scenarioShockMarkers";
+import type { ChartAxisLabel } from "@sfcr/notebook-core";
 
 interface ChartSeries {
   highlightKey?: string;
   legendTooltip?: string;
   name: string;
+  unit?: string;
   values: number[];
 }
 
@@ -72,6 +74,8 @@ interface ResultChartProps {
   variableDescriptions?: VariableDescriptions;
   variableUnitMetadata?: VariableUnitMetadata;
   showAxisSummary?: boolean;
+  xAxisTitle?: string;
+  yAxis?: ChartAxisLabel;
   yAxisTickCount?: number;
 }
 
@@ -88,9 +92,67 @@ const TIME_RANGE_SLIDER_SECTION_HEIGHT = 48;
 const TIME_RANGE_SLIDER_HANDLE_WIDTH = 10;
 const SCENARIO_SHOCK_LABEL_HEIGHT = 14;
 const SCENARIO_SHOCK_LABEL_GAP = 0;
+const SCENARIO_SHOCK_BAND_OPACITY = 0.04;
 const AXIS_TITLE_FONT_SIZE = 12;
 const AXIS_TITLE_AVERAGE_CHAR_WIDTH = AXIS_TITLE_FONT_SIZE * 0.58;
+const CHART_AXIS_TITLE_MAX_LENGTH = 3;
 const SCENARIO_SHOCK_LABEL_AXIS_GAP = 4;
+export const DEFAULT_X_AXIS_TITLE = "yr";
+export const DEFAULT_Y_AXIS_TITLE = "Value";
+const Y_AXIS_UNIT_LABEL_OFFSET = 14;
+const Y_AXIS_UNIT_FONT_SIZE = 9;
+
+export function formatChartAxisLabel(title: string, unit?: string): string {
+  const trimmedTitle = title.trim();
+  const trimmedUnit = unit?.trim();
+  if (!trimmedUnit) {
+    return trimmedTitle;
+  }
+  if (!trimmedTitle) {
+    return trimmedUnit;
+  }
+  return `${trimmedTitle} (${trimmedUnit})`;
+}
+
+function renderSeparateAxisTitle(name: string): ReactNode {
+  const plain = renderVariableMathPlainText(name);
+  if (plain.length <= CHART_AXIS_TITLE_MAX_LENGTH) {
+    return renderVariableMathSvgLabel(name);
+  }
+  return formatChartAxisTitlePlain(name);
+}
+
+function resolveYAxisUnit(
+  axisMode: ChartAxisMode,
+  entry: { unit?: string },
+  yAxisConfig?: ChartAxisLabel
+): string | undefined {
+  const unit = axisMode === "shared" ? yAxisConfig?.unit : entry.unit;
+  const trimmed = unit?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function lowestTickLabelY(
+  ticks: number[],
+  topPadding: number,
+  plotHeight: number,
+  min: number,
+  range: number
+): number {
+  const bottomTick = ticks.reduce((lowest, tick) => (tick < lowest ? tick : lowest), ticks[0] ?? min);
+  return toY(bottomTick, topPadding, plotHeight, min, range) + 3;
+}
+
+export function formatChartAxisTitlePlain(
+  name: string,
+  maxLength = CHART_AXIS_TITLE_MAX_LENGTH
+): string {
+  const plain = renderVariableMathPlainText(name);
+  if (plain.length <= maxLength) {
+    return plain;
+  }
+  return plain.slice(0, maxLength);
+}
 
 export function ResultChart({
   addVariableOptions,
@@ -124,6 +186,8 @@ export function ResultChart({
   variableDescriptions,
   variableUnitMetadata,
   showAxisSummary = true,
+  xAxisTitle = DEFAULT_X_AXIS_TITLE,
+  yAxis,
   yAxisTickCount = DEFAULT_AXIS_TICK_COUNT,
   selectedIndex = 0
 }: ResultChartProps) {
@@ -844,7 +908,7 @@ export function ResultChart({
               y={topPadding}
               width={bandWidth}
               fill={shock.marker.color}
-              opacity="0.12"
+              opacity={SCENARIO_SHOCK_BAND_OPACITY}
               height={plotHeight}
             />
             <line
@@ -926,11 +990,16 @@ export function ResultChart({
           const labelX = axisX - 12;
           const axisHitLeft = labelX - 34;
           const axisHitWidth = 52;
+          const axisPlainLabel = renderVariableMathPlainText(entry.name);
           const hasHoverTarget = hoveredDatum != null;
           const isAxisActive = axisMode === "shared" || !hasHoverTarget || hoveredDatum?.seriesName === entry.name;
           const isAxisDimmed = axisMode === "separate" && hasHoverTarget && hoveredDatum?.seriesName !== entry.name;
           const axisStroke = axisMode === "shared" ? "#0f172a" : entry.color;
           const axisOpacity = isAxisDimmed ? 0.28 : 1;
+          const axisTicks = axisMode === "shared" ? sharedMetrics.ticks : entry.ticks;
+          const axisMin = axisMode === "shared" ? sharedMetrics.min : entry.min;
+          const axisRange = axisMode === "shared" ? sharedMetrics.range : entry.range;
+          const axisUnit = resolveYAxisUnit(axisMode, entry, yAxis);
 
           return (
             <g
@@ -946,10 +1015,12 @@ export function ResultChart({
             >
               {axisMode === "shared" ? null : (
                 <title>
-                  {formatVariableTooltip(
-                    variableDescriptions?.get(entry.name),
-                    variableUnitMetadata?.get(entry.name)
-                  )}
+                  {axisPlainLabel.length > CHART_AXIS_TITLE_MAX_LENGTH
+                    ? axisPlainLabel
+                    : formatVariableTooltip(
+                        variableDescriptions?.get(entry.name),
+                        variableUnitMetadata?.get(entry.name)
+                      )}
                 </title>
               )}
               <rect
@@ -978,16 +1049,18 @@ export function ResultChart({
                 fontWeight="700"
                 textAnchor="middle"
               >
-                {axisMode === "shared" ? "Value" : renderVariableMathSvgLabel(entry.name)}
+                {axisMode === "shared"
+                  ? (yAxis?.title?.trim() || DEFAULT_Y_AXIS_TITLE)
+                  : renderSeparateAxisTitle(entry.name)}
               </text>
 
-              {(axisMode === "shared" ? sharedMetrics.ticks : entry.ticks).map((tick) => {
+              {axisTicks.map((tick) => {
                 const y = toY(
                   tick,
                   topPadding,
                   plotHeight,
-                  axisMode === "shared" ? sharedMetrics.min : entry.min,
-                  axisMode === "shared" ? sharedMetrics.range : entry.range
+                  axisMin,
+                  axisRange
                 );
                 return (
                   <g key={`${entry.name}-${tick}`}>
@@ -1013,6 +1086,21 @@ export function ResultChart({
                   </g>
                 );
               })}
+
+              {axisUnit ? (
+                <text
+                  className="chart-axis-unit-label"
+                  x={labelX}
+                  y={lowestTickLabelY(axisTicks, topPadding, plotHeight, axisMin, axisRange) + Y_AXIS_UNIT_LABEL_OFFSET}
+                  fill={axisMode === "shared" ? "#111827" : entry.color}
+                  opacity={axisOpacity}
+                  fontSize={Y_AXIS_UNIT_FONT_SIZE}
+                  fontWeight="500"
+                  textAnchor="end"
+                >
+                  {axisUnit}
+                </text>
+              ) : null}
             </g>
           );
         })}
@@ -1151,7 +1239,7 @@ export function ResultChart({
           fontSize="12"
           textAnchor="middle"
         >
-          Period
+          {xAxisTitle}
         </text>
 
         {showTimeRangeSlider ? (
@@ -1379,7 +1467,7 @@ export function resolveMinScenarioShockLabelX({
   leftPadding: number;
   primarySeriesName?: string;
 }): number {
-  const axisTitle = axisMode === "shared" ? "Value" : renderVariableMathPlainText(primarySeriesName ?? "");
+  const axisTitle = axisMode === "shared" ? "Value" : formatChartAxisTitlePlain(primarySeriesName ?? "");
   const axisX = leftPadding;
 
   return axisX + estimateSvgAxisTitleWidth(axisTitle) / 2 + SCENARIO_SHOCK_LABEL_AXIS_GAP;

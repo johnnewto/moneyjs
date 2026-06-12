@@ -1128,7 +1128,9 @@ function collectKnownNotebookVariables(document: NotebookDocument): Set<string> 
       collectExternalsCellVariables(cell, variables);
     } else if (cell.type === "initial-values") {
       collectInitialValuesCellVariables(cell, variables);
-    } else if (cell.type === "chart" || cell.type === "table") {
+    } else if (cell.type === "chart") {
+      (cell.variables ?? []).forEach((variable) => variables.add(variable));
+    } else if (cell.type === "table") {
       cell.variables.forEach((variable) => variables.add(variable));
     }
   }
@@ -1251,12 +1253,37 @@ function createToolRequestFromSupportedDirectPatch(
     if (!value || typeof value !== "object" || Array.isArray(value)) {
       return null;
     }
-    const chart = value as { id?: unknown; sourceRunCellId?: unknown; title?: unknown; type?: unknown; variables?: unknown };
-    if (chart.type !== "chart" || typeof chart.sourceRunCellId !== "string" || !Array.isArray(chart.variables)) {
+    const chart = value as {
+      id?: unknown;
+      series?: unknown;
+      sourceRunCellId?: unknown;
+      title?: unknown;
+      type?: unknown;
+      variables?: unknown;
+    };
+    if (chart.type !== "chart" || typeof chart.sourceRunCellId !== "string") {
       return null;
     }
-    const variables = chart.variables.filter((variable): variable is string => typeof variable === "string" && variable.trim() !== "");
-    if (variables.length === 0) {
+
+    const variables = Array.isArray(chart.variables)
+      ? chart.variables.filter((variable): variable is string => typeof variable === "string" && variable.trim() !== "")
+      : [];
+    const series = Array.isArray(chart.series)
+      ? chart.series.filter(
+          (entry): entry is { expression: string } =>
+            !!entry &&
+            typeof entry === "object" &&
+            !Array.isArray(entry) &&
+            typeof (entry as { expression?: unknown }).expression === "string" &&
+            (entry as { expression: string }).expression.trim() !== ""
+        )
+      : [];
+
+    if (variables.length === 0 && series.length === 0) {
+      return null;
+    }
+
+    if (series.length > 0) {
       return null;
     }
     return {

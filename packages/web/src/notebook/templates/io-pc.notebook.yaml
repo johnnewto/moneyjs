@@ -118,14 +118,14 @@ cells:
       modelId: io-pc
       collapsed: false
       rows:
-        - [v, 86.49, Initial household wealth., aux]
-        - [b_h, 64.87, Initial household bill holdings., aux]
-        - [h_h, 21.62, Initial household cash holdings., aux]
-        - [b_cb, 21.62, Initial central-bank bill holdings., aux]
-        - [b_s, 86.49, Initial government bill supply., aux]
-        - [h_s, 21.62, Initial high-powered money supply., aux]
-        - [p_c, 1, Initial consumer price index., aux]
-        - [p_g, 1, Initial government purchase price index., aux]
+        - [v, 86.49, Initial household wealth.]
+        - [b_h, 64.87, Initial household bill holdings.]
+        - [h_h, 21.62, Initial household cash holdings.]
+        - [b_cb, 21.62, Initial central-bank bill holdings.]
+        - [b_s, 86.49, Initial government bill supply.]
+        - [h_s, 21.62, Initial high-powered money supply.]
+        - [p_c, 1, Initial consumer price index.]
+        - [p_g, 1, Initial government purchase price index.]
   - run:
       id: baseline-run
       title: Baseline run
@@ -189,16 +189,40 @@ cells:
       periods: 90
       resultKey: io_pc_s1
       sourceModelId: io-pc
+      baselineStartPeriod: 40
   - chart:
-      id: scenario-1-chart
-      title: Scenario 1 portfolio and macro adjustment
-      variables:
-        - yd
-        - cons
-        - b_h
-        - h_h
+      id: scenario-1-figure-1
+      title: "Figure 1: portfolio shares after rate rise"
+      description: Money and bill shares of household wealth (`100 * h_h / v`, `100 * b_h / v`) following the interest-rate shock in scenario 1, matching Figure 1 in IOPC_model.R.
+      series:
+        - expression: 100 * h_h / v
+          label: Share of money balances
+          unit: "%"
+        - expression: 100 * b_h / v
+          label: Share of bills
+          unit: "%"
       axisMode: separate
       axisSnapTolarance: 0.5
+      referenceTrace: baseline
+      timeRangeInclusive:
+        - 2
+        - 25
+      sourceRunCellId: scenario-1-run
+  - chart:
+      id: scenario-1-figure-2
+      title: "Figure 2: disposable income and consumption after rate rise"
+      description: Disposable income and real consumption following the interest-rate shock (R scenario 2, periods 2–45), matching Figure 2 in IOPC_model.R.
+      series:
+        - expression: yd
+          label: Disposable income
+        - expression: cons
+          label: Consumption
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      referenceTrace: baseline
+      timeRangeInclusive:
+        - 2
+        - 45
       sourceRunCellId: scenario-1-run
   - markdown:
       id: scenario-2-note
@@ -212,25 +236,89 @@ cells:
         shocks:
           - rangeInclusive:
               - 10
-              - 90
+              - 50
             variables:
               alpha1:
                 kind: constant
                 value: 0.7
             startPeriodInclusive: 10
-            endPeriodInclusive: 90
+            endPeriodInclusive: 50
       baselineRunCellId: baseline-run
-      periods: 90
+      periods: 50
       resultKey: io_pc_s2
       sourceModelId: io-pc
+      baselineStartPeriod: 40
   - chart:
-      id: scenario-2-chart
-      title: Scenario 2 GDP and IO response
-      variables:
-        - y
-        - cons
-        - x1
-        - x2
-      axisMode: separate
+      id: scenario-2-figure-3
+      title: "Figure 3: GDP after higher propensity to consume"
+      description: Nominal GDP `y` following the consumption-propensity shock (R scenario 3, periods 2–60). R also draws pre- and post-shock steady-state reference lines; use the early and late portions of the path for comparison.
+      series:
+        - expression: y
+          label: National income
+      axisMode: shared
       axisSnapTolarance: 0.5
+      referenceTrace: baseline
+      timeRangeInclusive:
+        - 2
+        - 60
+      sourceRunCellId: scenario-2-run
+  - markdown:
+      id: figures-4-5-note
+      title: Figures 4 and 5
+      source: Figures 4 and 5 in `IOPC_model.R` overlay industry input demand at sector prices for the rate shock (R scenario 2) and the consumption shock (R scenario 3). Each figure is split into two charts here (`k1 * p1` for industry 1, `k2 * p2` for industry 2) because chart cells read a single run at a time.
+  - chart:
+      id: figure-4-rate-shock
+      title: "Figure 4: industry 1 input demand (rate shock)"
+      description: Nominal industry 1 intermediate demand `k1 * p1` for the interest-rate scenario (R scenario 2, periods 2–45).
+      series:
+        - expression: k1 * p1
+          label: Higher interest rate
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      referenceTrace: baseline
+      timeRangeInclusive:
+        - 2
+        - 45
+      sourceRunCellId: scenario-1-run
+  - chart:
+      id: figure-4-consumption-shock
+      title: "Figure 4: industry 1 input demand (consumption shock)"
+      description: Nominal industry 1 intermediate demand `k1 * p1` for the consumption-propensity scenario (R scenario 3, periods 2–45). R uses sector prices from scenario 2; both scenarios keep `p1` fixed here.
+      series:
+        - expression: k1 * p1
+          label: Higher consumption
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      referenceTrace: baseline
+      timeRangeInclusive:
+        - 2
+        - 45
+      sourceRunCellId: scenario-2-run
+  - chart:
+      id: figure-5-rate-shock
+      title: "Figure 5: industry 2 input demand (rate shock)"
+      description: Nominal industry 2 intermediate demand `k2 * p2` for the interest-rate scenario (R scenario 2, periods 2–45).
+      series:
+        - expression: k2 * p2
+          label: Higher interest rate
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      referenceTrace: baseline
+      timeRangeInclusive:
+        - 2
+        - 45
+      sourceRunCellId: scenario-1-run
+  - chart:
+      id: figure-5-consumption-shock
+      title: "Figure 5: industry 2 input demand (consumption shock)"
+      description: Nominal industry 2 intermediate demand `k2 * p2` for the consumption-propensity scenario (R scenario 3, periods 2–45).
+      series:
+        - expression: k2 * p2
+          label: Higher consumption
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      referenceTrace: baseline
+      timeRangeInclusive:
+        - 2
+        - 45
       sourceRunCellId: scenario-2-run

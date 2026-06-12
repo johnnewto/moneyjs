@@ -1616,13 +1616,6 @@ export function NotebookApp() {
   }, [notebookDocument.cells, runner.historyUpdates]);
 
   useEffect(() => {
-    if (activeEditorCellId) {
-      setActiveRailTab("editor");
-      selectNotebookCell(activeEditorCellId);
-    }
-  }, [activeEditorCellId, selectNotebookCell]);
-
-  useEffect(() => {
     if (importText !== committedImportText || importPreview) {
       return;
     }
@@ -3977,7 +3970,7 @@ export function NotebookApp() {
                 format={sourceFormat}
                 onChange={updateImportText}
                 placeholderText={getNotebookSourcePlaceholder(sourceFormat)}
-                selectedCellId={selectedCellId}
+                selectedCellId={activeEditorCellId ? null : selectedCellId}
                 value={importText}
               />
 

@@ -97,6 +97,11 @@ export interface ChartAxisRange {
   min?: number;
 }
 
+export interface ChartAxisLabel {
+  title?: string;
+  unit?: string;
+}
+
 export interface NotebookDocument {
   id: string;
   title: string;
@@ -174,10 +179,21 @@ export interface RunCell extends NotebookCellBase {
   periods: number;
 }
 
+export interface ChartSeriesSpec {
+  expression: string;
+  label?: string;
+  range?: ChartAxisRange;
+  /** Y-axis unit for this series (separate-axis mode). Overrides model unit inference. */
+  unit?: string;
+}
+
 export interface ChartCell extends NotebookCellBase {
   type: "chart";
   sourceRunCellId: string;
-  variables: string[];
+  /** Shorthand for plotting raw run series by name. Ignored when `series` is non-empty. */
+  variables?: string[];
+  /** Derived series evaluated from run results using model/matrix expression syntax. */
+  series?: ChartSeriesSpec[];
   axisMode?: "shared" | "separate";
   axisSnapTolarance?: number;
   niceScale?: boolean;
@@ -185,6 +201,10 @@ export interface ChartCell extends NotebookCellBase {
   /** When `"auto"` (default), show shock bands on charts sourced from scenario runs. */
   showScenarioShocks?: boolean | "auto";
   yAxisTickCount?: number;
+  /** Shared-axis title and unit. Separate-axis mode uses per-series `unit` when set. */
+  yAxis?: ChartAxisLabel;
+  /** X-axis title. Defaults to `yr` when omitted. */
+  xAxis?: ChartAxisLabel;
   sharedRange?: ChartAxisRange;
   seriesRanges?: Record<string, ChartAxisRange | undefined>;
   timeRangeInclusive?: [number, number];

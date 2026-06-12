@@ -9,6 +9,13 @@ import {
   formatScenarioShockRunCellLabel,
   resolveShowScenarioShocks
 } from "../../lib/scenarioShockMarkers";
+import {
+  buildOverlaySeriesFromSpecs,
+  buildResolvedChartSeriesRanges,
+  buildResolvedChartSeriesWithUnits,
+  resolveChartSeriesSpecs,
+  type ResolvedChartSeries
+} from "../chartSeries";
 import type { ChartCell, NotebookCell, RunCell } from "../types";
 import type { useNotebookRunner } from "../useNotebookRunner";
 
@@ -173,12 +180,8 @@ export function ChartCellView({
     return null;
   }
 
-  const series = cell.variables
-    .map((name) => ({
-      name,
-      values: Array.from(result.series[name] ?? [])
-    }))
-    .filter((entry) => entry.values.length > 0);
+  const series = buildResolvedChartSeriesWithUnits(cell, result, variableUnitMetadata);
+  const seriesRanges = buildResolvedChartSeriesRanges(cell, series);
   const sourceRunCell = cells.find(
     (candidate): candidate is RunCell =>
       candidate.type === "run" && candidate.id === cell.sourceRunCellId
@@ -202,7 +205,7 @@ export function ChartCellView({
       : selectedPeriodIndex;
   const referenceTrace = resolveReferenceTrace(cell, sourceRunCell);
   const overlaySeries = referenceTrace === "previous-run"
-    ? buildPreviousRunOverlaySeries(cell, previousResult)
+    ? buildPreviousRunOverlaySeries(cell, previousResult, series)
     : referenceTrace === "baseline"
       ? buildBaselineOverlaySeries(cell, sourceRunCell, baselineStartPeriod, baselineResult, series)
       : [];
@@ -243,7 +246,7 @@ export function ChartCellView({
       overlaySeries={overlaySeries}
       periodLabelOffset={periodLabelOffset}
       scenarioShocks={scenarioShocks}
-      seriesRanges={cell.seriesRanges}
+      seriesRanges={seriesRanges}
       selectedIndex={chartSelectedIndex}
       series={series}
       sharedRange={cell.sharedRange}
@@ -252,6 +255,8 @@ export function ChartCellView({
       highlightedVariable={highlightedVariable}
       variableDescriptions={variableDescriptions}
       variableUnitMetadata={variableUnitMetadata}
+      xAxisTitle={cell.xAxis?.title}
+      yAxis={cell.yAxis}
       yAxisTickCount={cell.yAxisTickCount}
     />
   );
@@ -262,40 +267,50 @@ function buildBaselineOverlaySeries(
   sourceRunCell: RunCell | null | undefined,
   baselineStartPeriod: number | undefined,
   baselineResult: ReturnType<ReturnType<typeof useNotebookRunner>["getResult"]>,
-  series: Array<{ name: string; values: number[] }>
+  resolvedSeries: ResolvedChartSeries[]
 ) {
-  return (
-    sourceRunCell?.mode === "scenario" &&
-    baselineStartPeriod != null &&
-    baselineResult
-      ? cell.variables
-          .map((name) => ({
-            name,
-            values: Array.from(
-              baselineResult.series[name]?.slice(
-                Math.max(baselineStartPeriod - 1, 0),
-                Math.max(baselineStartPeriod - 1, 0) +
-                  (sourceRunCell.periods ?? series[0]?.values.length ?? 0)
-              ) ?? []
-            )
-          }))
-          .filter((entry) => entry.values.length > 0)
-      : []
+  if (
+    sourceRunCell?.mode !== "scenario" ||
+    baselineStartPeriod == null ||
+    !baselineResult
+  ) {
+    return [];
+  }
+
+  const specs = resolveChartSeriesSpecs(cell);
+  const startIndex = Math.max(baselineStartPeriod - 1, 0);
+  const length = sourceRunCell.periods ?? resolvedSeries[0]?.values.length ?? 0;
+  const overlayByHighlightKey = new Map(
+    buildOverlaySeriesFromSpecs(specs, baselineResult, { startIndex, length }).map((entry) => [
+      entry.highlightKey,
+      entry
+    ])
   );
+
+  return resolvedSeries.flatMap((entry) => {
+    const overlay = overlayByHighlightKey.get(entry.highlightKey);
+    return overlay ? [{ ...overlay, name: entry.name }] : [];
+  });
 }
 
 function buildPreviousRunOverlaySeries(
   cell: ChartCell,
-  previousResult: ReturnType<ReturnType<typeof useNotebookRunner>["getPreviousResult"]>
+  previousResult: ReturnType<ReturnType<typeof useNotebookRunner>["getPreviousResult"]>,
+  resolvedSeries: ResolvedChartSeries[]
 ) {
-  return previousResult
-    ? cell.variables
-        .map((name) => ({
-          name,
-          values: Array.from(previousResult.series[name] ?? [])
-        }))
-        .filter((entry) => entry.values.length > 0)
-    : [];
+  if (!previousResult) {
+    return [];
+  }
+
+  const specs = resolveChartSeriesSpecs(cell);
+  const overlayByHighlightKey = new Map(
+    buildOverlaySeriesFromSpecs(specs, previousResult).map((entry) => [entry.highlightKey, entry])
+  );
+
+  return resolvedSeries.flatMap((entry) => {
+    const overlay = overlayByHighlightKey.get(entry.highlightKey);
+    return overlay ? [{ ...overlay, name: entry.name }] : [];
+  });
 }
 
 function resolveReferenceTrace(

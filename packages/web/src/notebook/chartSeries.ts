@@ -1,0 +1,267 @@
+import type { SimulationResult } from "@sfcr/core";
+import type { ChartAxisRange, ChartCell, ChartSeriesSpec } from "@sfcr/notebook-core";
+
+import { getVariableUnitLabel } from "../lib/units";
+import type { VariableUnitMetadata } from "../lib/unitMeta";
+import { buildMatrixEntryTimeSeries } from "./matrixSliceGraph";
+
+export interface ResolvedChartSeries {
+  highlightKey: string;
+  name: string;
+  values: number[];
+  unit?: string;
+}
+
+interface NamedChartSeriesSpec {
+  expression: string;
+  name: string;
+  spec: ChartSeriesSpec;
+}
+
+function isGraphableTimeSeries(values: number[]): boolean {
+  return values.length > 1 && values.some(Number.isFinite);
+}
+
+export function resolveChartSeriesSpecs(cell: Pick<ChartCell, "series" | "variables">): ChartSeriesSpec[] {
+  if (cell.series != null && cell.series.length > 0) {
+    return cell.series;
+  }
+
+  return (cell.variables ?? []).map((expression) => ({ expression }));
+}
+
+export function resolveChartSeriesDisplayName(
+  spec: ChartSeriesSpec,
+  seenNames: Map<string, number>
+): string {
+  const baseName = spec.label?.trim() || spec.expression.trim();
+  const seenCount = (seenNames.get(baseName) ?? 0) + 1;
+  seenNames.set(baseName, seenCount);
+
+  if (seenCount > 1) {
+    return `${baseName} (${spec.expression.trim()})`;
+  }
+
+  return baseName;
+}
+
+function assignChartSeriesNames(specs: ChartSeriesSpec[]): NamedChartSeriesSpec[] {
+  const seenNames = new Map<string, number>();
+
+  return specs.flatMap((spec) => {
+    const expression = spec.expression.trim();
+    if (!expression) {
+      return [];
+    }
+
+    return [
+      {
+        spec,
+        expression,
+        name: resolveChartSeriesDisplayName(spec, seenNames)
+      }
+    ];
+  });
+}
+
+function buildNamedChartSeriesValues(
+  namedSpecs: NamedChartSeriesSpec[],
+  result: SimulationResult,
+  slice?: { startIndex: number; length: number }
+): ResolvedChartSeries[] {
+  return namedSpecs.flatMap(({ expression, name }) => {
+    let values = buildMatrixEntryTimeSeries(expression, result);
+    if (slice) {
+      values = values.slice(slice.startIndex, slice.startIndex + slice.length);
+    }
+
+    if (!isGraphableTimeSeries(values)) {
+      return [];
+    }
+
+    return [{ highlightKey: expression, name, values }];
+  });
+}
+
+export function resolveChartSeriesUnit(
+  entry: Pick<ResolvedChartSeries, "highlightKey">,
+  cell: Pick<ChartCell, "series" | "variables">,
+  variableUnitMetadata: VariableUnitMetadata
+): string | undefined {
+  const expression = entry.highlightKey.trim();
+  const spec = resolveChartSeriesSpecs(cell).find((candidate) => candidate.expression.trim() === expression);
+  const explicitUnit = spec?.unit?.trim();
+  if (explicitUnit) {
+    return explicitUnit;
+  }
+
+  if (/^[A-Za-z_][A-Za-z0-9_^]*$/.test(expression)) {
+    return getVariableUnitLabel(variableUnitMetadata, expression) ?? undefined;
+  }
+
+  return undefined;
+}
+
+export function buildResolvedChartSeriesWithUnits(
+  cell: Pick<ChartCell, "series" | "variables">,
+  result: SimulationResult,
+  variableUnitMetadata: VariableUnitMetadata
+): ResolvedChartSeries[] {
+  return buildResolvedChartSeries(cell, result).map((entry) => ({
+    ...entry,
+    unit: resolveChartSeriesUnit(entry, cell, variableUnitMetadata)
+  }));
+}
+
+export function buildResolvedChartSeries(
+  cell: Pick<ChartCell, "series" | "variables">,
+  result: SimulationResult
+): ResolvedChartSeries[] {
+  return buildNamedChartSeriesValues(assignChartSeriesNames(resolveChartSeriesSpecs(cell)), result);
+}
+
+export function buildResolvedChartSeriesRanges(
+  cell: Pick<ChartCell, "series" | "variables" | "seriesRanges">,
+  resolvedSeries: Pick<ResolvedChartSeries, "highlightKey" | "name">[]
+): Record<string, ChartAxisRange | undefined> | undefined {
+  const specs = resolveChartSeriesSpecs(cell);
+  const merged: Record<string, ChartAxisRange | undefined> = {
+    ...(cell.seriesRanges ?? {})
+  };
+
+  const specsByExpression = new Map<string, ChartSeriesSpec>();
+  for (const spec of specs) {
+    specsByExpression.set(spec.expression.trim(), spec);
+  }
+
+  for (const entry of resolvedSeries) {
+    const spec = specsByExpression.get(entry.highlightKey);
+    if (spec?.range) {
+      merged[entry.name] = spec.range;
+    }
+  }
+
+  if (Object.keys(merged).length === 0) {
+    return undefined;
+  }
+
+  return merged;
+}
+
+export function buildOverlaySeriesFromSpecs(
+  specs: ChartSeriesSpec[],
+  result: SimulationResult,
+  slice?: { startIndex: number; length: number }
+): ResolvedChartSeries[] {
+  return buildNamedChartSeriesValues(assignChartSeriesNames(specs), result, slice);
+}
+
+export function resolveChartSeriesDisplayNames(
+  cell: Pick<ChartCell, "series" | "variables">
+): string[] {
+  return assignChartSeriesNames(resolveChartSeriesSpecs(cell)).map((entry) => entry.name);
+}
+
+export function chartCellUsesSeriesEntries(cell: Pick<ChartCell, "series">): boolean {
+  return cell.series != null && cell.series.length > 0;
+}
+
+export function appendChartVariable(cell: ChartCell, variableName: string): ChartCell {
+  if (chartCellUsesSeriesEntries(cell)) {
+    const series = cell.series ?? [];
+    if (series.some((entry) => entry.expression.trim() === variableName)) {
+      return cell;
+    }
+    return {
+      ...cell,
+      series: [{ expression: variableName }, ...series]
+    };
+  }
+
+  const variables = cell.variables ?? [];
+  if (variables.includes(variableName)) {
+    return cell;
+  }
+
+  return {
+    ...cell,
+    variables: [variableName, ...variables]
+  };
+}
+
+export function removeChartSeriesByDisplayName(cell: ChartCell, displayName: string): ChartCell {
+  if (chartCellUsesSeriesEntries(cell)) {
+    const names = resolveChartSeriesDisplayNames(cell);
+    const removeIndex = names.indexOf(displayName);
+    if (removeIndex === -1 || (cell.series?.length ?? 0) <= 1) {
+      return cell;
+    }
+
+    return {
+      ...cell,
+      series: cell.series?.filter((_, index) => index !== removeIndex)
+    };
+  }
+
+  const variables = cell.variables ?? [];
+  if (variables.length <= 1 || !variables.includes(displayName)) {
+    return cell;
+  }
+
+  return {
+    ...cell,
+    variables: variables.filter((name) => name !== displayName)
+  };
+}
+
+export function moveChartSeriesByDisplayName(
+  cell: ChartCell,
+  displayName: string,
+  direction: "left" | "right"
+): ChartCell {
+  if (chartCellUsesSeriesEntries(cell)) {
+    const names = resolveChartSeriesDisplayNames(cell);
+    const currentIndex = names.indexOf(displayName);
+    if (currentIndex === -1 || !cell.series) {
+      return cell;
+    }
+
+    const nextIndex = direction === "left" ? currentIndex - 1 : currentIndex + 1;
+    if (nextIndex < 0 || nextIndex >= cell.series.length) {
+      return cell;
+    }
+
+    const nextSeries = [...cell.series];
+    [nextSeries[currentIndex], nextSeries[nextIndex]] = [
+      nextSeries[nextIndex]!,
+      nextSeries[currentIndex]!
+    ];
+
+    return {
+      ...cell,
+      series: nextSeries
+    };
+  }
+
+  const variables = cell.variables ?? [];
+  const currentIndex = variables.indexOf(displayName);
+  if (currentIndex === -1) {
+    return cell;
+  }
+
+  const nextIndex = direction === "left" ? currentIndex - 1 : currentIndex + 1;
+  if (nextIndex < 0 || nextIndex >= variables.length) {
+    return cell;
+  }
+
+  const nextVariables = [...variables];
+  [nextVariables[currentIndex], nextVariables[nextIndex]] = [
+    nextVariables[nextIndex]!,
+    nextVariables[currentIndex]!
+  ];
+
+  return {
+    ...cell,
+    variables: nextVariables
+  };
+}

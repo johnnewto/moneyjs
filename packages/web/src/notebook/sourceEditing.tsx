@@ -238,7 +238,12 @@ export function buildSourceHelperActions(
         { label: "Include zero", insert: '"sharedRange": {\n  "includeZero": true\n}' },
         { label: "Use shared", insert: '"axisMode": "shared"' },
         { label: "Use separate", insert: '"axisMode": "separate"' },
-        { label: "Variables array", insert: '"variables": ["y", "c"]' }
+        { label: "Variables array", insert: '"variables": ["y", "c"]' },
+        {
+          label: "Series array",
+          insert:
+            '"series": [\n  {\n    "expression": "100 * y / v",\n    "label": "Income share"\n  }\n]'
+        }
       ];
     case "run":
       return [
@@ -800,9 +805,7 @@ function validateCellSourceShape(
       if (typeof (parsed as ChartCell).sourceRunCellId !== "string") {
         throw new Error("Chart cells require sourceRunCellId.");
       }
-      if (!Array.isArray((parsed as ChartCell).variables)) {
-        throw new Error("Chart cells require variables to be an array.");
-      }
+      validateChartSeriesOrVariables(parsed as ChartCell);
       if (
         (parsed as ChartCell).axisMode != null &&
         !["shared", "separate"].includes(String((parsed as ChartCell).axisMode))
@@ -856,6 +859,8 @@ function validateCellSourceShape(
       Object.entries((parsed as ChartCell).seriesRanges ?? {}).forEach(([name, range]) => {
         validateChartAxisRange(range, `seriesRanges.${name}`);
       });
+      validateChartAxisLabel((parsed as ChartCell).xAxis, "xAxis");
+      validateChartAxisLabel((parsed as ChartCell).yAxis, "yAxis");
       return;
     case "table":
       if (typeof (parsed as TableCell).sourceRunCellId !== "string") {
@@ -953,6 +958,57 @@ function insertIntoJsonObject(source: string, insert: string): string {
     .join("\n");
 
   return `${beforeClosing}${needsComma ? "," : ""}\n${formattedInsert}\n}`;
+}
+
+function validateChartSeriesOrVariables(cell: ChartCell): void {
+  const hasVariables = Array.isArray(cell.variables) && cell.variables.length > 0;
+  const hasSeries = Array.isArray(cell.series) && cell.series.length > 0;
+
+  if (cell.variables != null && !Array.isArray(cell.variables)) {
+    throw new Error("Chart variables must be an array when provided.");
+  }
+
+  if (cell.series != null && !Array.isArray(cell.series)) {
+    throw new Error("Chart series must be an array when provided.");
+  }
+
+  if (!hasVariables && !hasSeries) {
+    throw new Error("Chart cells require a non-empty variables or series array.");
+  }
+
+  (cell.series ?? []).forEach((entry, index) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      throw new Error(`Chart series[${index}] must be an object.`);
+    }
+    if (typeof entry.expression !== "string" || entry.expression.trim() === "") {
+      throw new Error(`Chart series[${index}].expression must be a non-empty string.`);
+    }
+    if (entry.label != null && typeof entry.label !== "string") {
+      throw new Error(`Chart series[${index}].label must be a string when provided.`);
+    }
+    if (entry.range != null) {
+      validateChartAxisRange(entry.range, `series[${index}].range`);
+    }
+    if (entry.unit != null && typeof entry.unit !== "string") {
+      throw new Error(`Chart series[${index}].unit must be a string when provided.`);
+    }
+  });
+}
+
+function validateChartAxisLabel(label: unknown, fieldName: string): void {
+  if (label == null) {
+    return;
+  }
+  if (typeof label !== "object" || Array.isArray(label)) {
+    throw new Error(`Chart ${fieldName} must be an object when provided.`);
+  }
+  const record = label as Record<string, unknown>;
+  if (record.title != null && typeof record.title !== "string") {
+    throw new Error(`Chart ${fieldName}.title must be a string when provided.`);
+  }
+  if (record.unit != null && typeof record.unit !== "string") {
+    throw new Error(`Chart ${fieldName}.unit must be a string when provided.`);
+  }
 }
 
 function validateChartAxisRange(range: unknown, label: string): void {

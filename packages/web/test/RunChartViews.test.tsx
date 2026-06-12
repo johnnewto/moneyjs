@@ -219,4 +219,38 @@ describe("ChartCellView", () => {
     expect(document.querySelector('polyline[stroke-dasharray="5 5"]')).not.toBeNull();
     expect(runner.getPreviousResult).toHaveBeenCalledWith("run-1");
   });
+
+  it("renders expression series from run results", () => {
+    const chart: ChartCell = {
+      id: "chart-1",
+      sourceRunCellId: "run-1",
+      title: "Portfolio shares",
+      type: "chart",
+      series: [
+        { expression: "100 * h_h / v", label: "Money share" },
+        { expression: "100 * b_h / v", label: "Bill share" }
+      ]
+    };
+    const result = createResult([20, 22, 24], {
+      h_h: [10, 20, 30],
+      b_h: [30, 60, 90],
+      v: [40, 80, 120]
+    });
+    const runner = createRunner({ current: result });
+
+    render(
+      <ChartCellView
+        cell={chart}
+        cells={cells}
+        runner={runner}
+        selectedPeriodIndex={0}
+        variableDescriptions={new Map()}
+        variableUnitMetadata={new Map()}
+      />
+    );
+
+    expect(screen.getByText("Money share")).toBeInTheDocument();
+    expect(screen.getByText("Bill share")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /simulation result chart with shared left axis/i })).toBeInTheDocument();
+  });
 });
