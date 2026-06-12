@@ -9,6 +9,65 @@ const env = {
   OPENAI_MODEL_ALLOWLIST: "gpt-5.5"
 };
 
+describe("chat API notebook share shortening", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("rejects shorten requests without a configured TinyURL token", async () => {
+    const response = await worker.fetch(createShareShortenRequest("https://johnnewto.github.io/moneyjs/notebook?nbz=abc"), {
+      ...env,
+      TINYURL_API_TOKEN: ""
+    });
+
+    await expect(response.json()).resolves.toEqual({ error: "TINYURL_API_TOKEN is not configured." });
+    expect(response.status).toBe(503);
+  });
+
+  it("rejects shorten requests for non-notebook URLs", async () => {
+    const response = await worker.fetch(createShareShortenRequest("https://johnnewto.github.io/moneyjs/"), {
+      ...env,
+      TINYURL_API_TOKEN: "tiny-token"
+    });
+
+    await expect(response.json()).resolves.toEqual({ error: "url must target a notebook share route." });
+    expect(response.status).toBe(400);
+  });
+
+  it("returns a TinyURL short link for valid notebook share URLs", async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          data: {
+            tiny_url: "https://tinyurl.com/2yd2kg5z"
+          }
+        }),
+        { headers: { "Content-Type": "application/json" }, status: 200 }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const longUrl = "https://johnnewto.github.io/moneyjs/notebook?nbz=compressed";
+    const response = await worker.fetch(createShareShortenRequest(longUrl), {
+      ...env,
+      TINYURL_API_TOKEN: "tiny-token"
+    });
+
+    await expect(response.json()).resolves.toEqual({ shortUrl: "https://tinyurl.com/2yd2kg5z" });
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.tinyurl.com/create",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          Authorization: "Bearer tiny-token"
+        }),
+        body: JSON.stringify({ url: longUrl })
+      })
+    );
+  });
+});
+
 describe("chat API discovery resources", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -60,5 +119,16 @@ function createDraftRequest(discoveryUrl: string): Request {
       model: "gpt-5.5",
       prompt: "Build a notebook."
     })
+  });
+}
+
+function createShareShortenRequest(url: string): Request {
+  return new Request("https://sfcr-chat-api.example/v1/notebook-share/shorten", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Origin: "https://johnnewto.github.io"
+    },
+    body: JSON.stringify({ url })
   });
 }

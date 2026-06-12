@@ -122,6 +122,14 @@ import {
   writeNotebookLocation,
   writeNotebookVariantHash
 } from "./notebookAppHelpers";
+import {
+  buildNotebookShareUrl,
+  clearNotebookShareQueryFromLocation,
+  parseNotebookShareSearch,
+  readNotebookShareCellIdFromSearch,
+  resolveNotebookShareLinkToCopy,
+  tryLoadNotebookFromShareSearch
+} from "./notebookShareLink";
 import { NotebookVariantManagerDialog } from "./NotebookVariantManagerDialog";
 import {
   createNotebookVariantFromDocument,
@@ -348,6 +356,15 @@ function resolveInitialNotebookSession(
   location: NotebookRouteLocation,
   hash: string
 ): NotebookSessionState {
+  const shared = tryLoadNotebookFromShareSearch(window.location.search);
+  if (shared) {
+    upsertImportedNotebookVariant(shared);
+    const sharedDocument = loadNotebookVariantDocument(IMPORTED_NOTEBOOK_VARIANT_ID);
+    if (sharedDocument) {
+      return { activeVariantId: IMPORTED_NOTEBOOK_VARIANT_ID, document: sharedDocument };
+    }
+  }
+
   const variants = migrateLegacyStoredNotebooks();
 
   if (location.variantId) {
@@ -691,6 +708,7 @@ export function NotebookApp() {
   const scrollToCellRef = useRef<(cellId: string) => void>(() => {});
   const [mainColumnElement, setMainColumnElement] = useState<HTMLDivElement | null>(null);
   const initialNotebookRoute = useMemo(() => readNotebookRouteLocation(), []);
+  const initialShareSearch = useMemo(() => window.location.search, []);
   const initialNotebookSession = useMemo(
     () => resolveInitialNotebookSession(initialNotebookRoute, window.location.hash),
     [initialNotebookRoute]
@@ -723,7 +741,7 @@ export function NotebookApp() {
   const [autoRunRevision, setAutoRunRevision] = useState(0);
   const [activeEditorCellId, setActiveEditorCellId] = useState<string | null>(null);
   const [selectedCellId, setSelectedCellId] = useState<string | null>(
-    () => initialNotebookRoute.cellId
+    () => readNotebookShareCellIdFromSearch(initialShareSearch) ?? initialNotebookRoute.cellId
   );
   const [pinnedCellId, setPinnedCellId] = useState<string | null>(null);
   const [activeRailTab, setActiveRailTab] = useState<NotebookRailTab>("contents");
@@ -2237,6 +2255,23 @@ export function NotebookApp() {
   }, []);
 
   useEffect(() => {
+    const shareParams = parseNotebookShareSearch(initialShareSearch);
+    if (!shareParams) {
+      return;
+    }
+
+    clearNotebookShareQueryFromLocation();
+    writeNotebookVariantHash(IMPORTED_NOTEBOOK_VARIANT_ID, shareParams.cellId ?? undefined);
+    committedNotebookRouteRef.current = readNotebookRouteLocation();
+
+    if (shareParams.cellId) {
+      applyNotebookCellFromRoute(shareParams.cellId);
+    }
+
+    setUiMessage(`Loaded shared notebook: ${initialNotebookSession.document.title}.`);
+  }, []);
+
+  useEffect(() => {
     function handleNotebookRouteChange(): void {
       const location = readNotebookRouteLocation();
       const { cellId, templateId, variantId } = location;
@@ -2340,6 +2375,38 @@ export function NotebookApp() {
           `Notebook ${formatNotebookSourceLabel(sourceFormat)} source is shown in the editor.`
         )
       );
+  }
+
+  async function handleCopyShareLink(): Promise<void> {
+    if (hasPendingImportTextChanges) {
+      setUiMessage("Apply or discard the source draft before sharing a link.");
+      return;
+    }
+
+    const result = buildNotebookShareUrl({
+      basePath: import.meta.env.BASE_URL,
+      cellId: selectedCellId,
+      document: notebookDocument,
+      origin: window.location.origin
+    });
+
+    if ("error" in result) {
+      setUiMessage(result.error);
+      return;
+    }
+
+    const shareLink = await resolveNotebookShareLinkToCopy(result.url);
+
+    navigator.clipboard
+      .writeText(shareLink.url)
+      .then(() =>
+        setUiMessage(
+          shareLink.shortened
+            ? "Copied short notebook share link to the clipboard."
+            : "Copied notebook share link to the clipboard."
+        )
+      )
+      .catch(() => setUiMessage("Could not copy share link to the clipboard."));
   }
 
   function handleSourceFormatChange(nextFormat: NotebookSourceFormat): void {
@@ -3678,6 +3745,13 @@ export function NotebookApp() {
                   <button
                     type="button"
                     className="notebook-run-button notebook-action-desktop"
+                    onClick={handleCopyShareLink}
+                  >
+                    Share link
+                  </button>
+                  <button
+                    type="button"
+                    className="notebook-run-button notebook-action-desktop"
                     onClick={() => {
                       setActiveRailTab("editor");
                     }}
@@ -3944,6 +4018,13 @@ export function NotebookApp() {
                   }}
                 >
                   Save {formatNotebookSourceLabel(sourceFormat)}
+                </button>
+                <button
+                  type="button"
+                  className="notebook-utility-button"
+                  onClick={handleCopyShareLink}
+                >
+                  Share link
                 </button>
                 {notebookSaveDialogSupported ? (
                   <label

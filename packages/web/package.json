@@ -37,6 +37,7 @@
     "ajv": "^8.20.0",
     "codemirror": "^6.0.2",
     "driver.js": "^1.4.0",
+    "lz-string": "^1.5.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-markdown": "^10.1.0",

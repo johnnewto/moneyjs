@@ -15,6 +15,11 @@ import {
 } from "./appTestUtils";
 import { notebookToCompactYaml, notebookToJson } from "../src/notebook/document";
 import {
+  compressNotebookSharePayload,
+  NOTEBOOK_SHARE_CELL_QUERY_PARAM,
+  NOTEBOOK_SHARE_QUERY_PARAM
+} from "../src/notebook/notebookShareLink";
+import {
   CUSTOM_NOTEBOOK_STORAGE_KEY,
   IMPORTED_NOTEBOOK_VARIANT_ID
 } from "../src/notebook/notebookVariants";
@@ -451,5 +456,24 @@ describe("App notebook source and import workflows", () => {
 
     expect(refreshedTextarea.value).toContain("Draft Notebook");
     expect(refreshedTextarea.value).not.toBe(originalValue);
+  }, 15000);
+
+  it("loads a shared notebook from ?nbz= query params and cleans the URL", async () => {
+    const sharedDocument = createNotebookFromTemplate("sim");
+    sharedDocument.title = "Shared Via URL Notebook";
+    const nbz = compressNotebookSharePayload(notebookToJson(sharedDocument));
+    const cellId = sharedDocument.cells[0]?.id ?? "intro";
+    const search = `?${NOTEBOOK_SHARE_QUERY_PARAM}=${nbz}&${NOTEBOOK_SHARE_CELL_QUERY_PARAM}=${cellId}`;
+
+    window.history.replaceState(null, "", `/notebook${search}`);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(window.location.search).not.toContain(NOTEBOOK_SHARE_QUERY_PARAM);
+      expect(screen.getByRole("status")).toHaveTextContent(/loaded shared notebook: shared via url notebook/i);
+      expect(screen.getAllByText(/^Shared Via URL Notebook$/i).length).toBeGreaterThan(0);
+      expect(window.location.pathname).toContain(`/notebook/variant/${IMPORTED_NOTEBOOK_VARIANT_ID}/${cellId}`);
+    });
   }, 15000);
 });

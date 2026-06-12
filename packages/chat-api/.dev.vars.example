@@ -4,3 +4,6 @@ DISCOVERY_ALLOWED_ORIGINS=http://localhost:5173,https://johnnewto.github.io
 BETA_PASSWORD=
 MAX_OUTPUT_TOKENS=8000
 OPENAI_MODEL_ALLOWLIST=gpt-5.4-mini,gpt-5.4,gpt-4.1,gpt-5.5,o3
+# TinyURL API token for POST /v1/notebook-share/shorten (Share link in the web app).
+# Create at https://tinyurl.com/app/dev — needs "Create TinyURL" permission.
+TINYURL_API_TOKEN=

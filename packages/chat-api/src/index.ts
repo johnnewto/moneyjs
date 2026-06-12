@@ -11,6 +11,7 @@ interface Env {
   NOTEBOOK_ASSISTANT_SYSTEM_PROMPT?: string | (() => string | Promise<string>);
   OPENAI_API_KEY?: string;
   OPENAI_MODEL_ALLOWLIST?: string;
+  TINYURL_API_TOKEN?: string;
 }
 
 interface CacheStorageWithDefault extends CacheStorage {
@@ -42,6 +43,10 @@ interface NotebookAssistantRequest {
   question?: unknown;
 }
 
+interface NotebookShareShortenRequest {
+  url?: unknown;
+}
+
 interface SfcrDiscoveryIndex {
   resources?: {
     notebooks?: {
@@ -71,6 +76,8 @@ const MAX_DISCOVERY_RESOURCE_LENGTH = 250_000;
 const MAX_PROMPT_LENGTH = 12000;
 const MAX_MESSAGE_COUNT = 12;
 const MAX_MESSAGE_LENGTH = 8000;
+const MAX_NOTEBOOK_SHARE_URL_LENGTH = 32_000;
+const NOTEBOOK_SHARE_QUERY_PARAM = "nbz";
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -88,6 +95,10 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   if (url.pathname === "/v1/notebook-assistant/ask") {
     return handleNotebookAssistantRequest(request, env, corsHeaders);
+  }
+
+  if (url.pathname === "/v1/notebook-share/shorten") {
+    return handleNotebookShareShortenRequest(request, env, corsHeaders);
   }
 
   if (url.pathname !== "/v1/chat-builder/draft") {
@@ -173,6 +184,70 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to create chat draft.";
+    return jsonResponse({ error: message }, 500, corsHeaders);
+  }
+}
+
+async function handleNotebookShareShortenRequest(
+  request: Request,
+  env: Env,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  if (request.method !== "POST") {
+    return jsonResponse({ error: "Method not allowed." }, 405, corsHeaders);
+  }
+
+  if (!corsHeaders["Access-Control-Allow-Origin"]) {
+    return jsonResponse({ error: "Origin is not allowed." }, 403, corsHeaders);
+  }
+
+  const rateLimitResponse = await enforceChatBuilderRateLimit(request, env, corsHeaders);
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
+
+  if (!env.TINYURL_API_TOKEN?.trim()) {
+    return jsonResponse({ error: "TINYURL_API_TOKEN is not configured." }, 503, corsHeaders);
+  }
+
+  let payload: NotebookShareShortenRequest;
+  try {
+    payload = (await request.json()) as NotebookShareShortenRequest;
+  } catch {
+    return jsonResponse({ error: "Request body must be valid JSON." }, 400, corsHeaders);
+  }
+
+  const validation = validateNotebookShareShortenRequest(payload, env);
+  if ("error" in validation) {
+    return jsonResponse({ error: validation.error }, 400, corsHeaders);
+  }
+
+  try {
+    const tinyUrlResponse = await fetch("https://api.tinyurl.com/create", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${env.TINYURL_API_TOKEN.trim()}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ url: validation.url })
+    });
+
+    if (!tinyUrlResponse.ok) {
+      return jsonResponse({ error: await readTinyUrlError(tinyUrlResponse) }, 502, corsHeaders);
+    }
+
+    const tinyUrlPayload = (await tinyUrlResponse.json()) as {
+      data?: { tiny_url?: string };
+    };
+    const shortUrl = tinyUrlPayload.data?.tiny_url?.trim();
+    if (!shortUrl) {
+      return jsonResponse({ error: "TinyURL response did not include a short URL." }, 502, corsHeaders);
+    }
+
+    return jsonResponse({ shortUrl }, 200, corsHeaders);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to shorten notebook share URL.";
     return jsonResponse({ error: message }, 500, corsHeaders);
   }
 }
@@ -471,6 +546,50 @@ function validateDraftRequest(
   };
 }
 
+function validateNotebookShareShortenRequest(
+  payload: NotebookShareShortenRequest,
+  env: Env
+): { url: string } | { error: string } {
+  if (typeof payload.url !== "string" || payload.url.trim() === "") {
+    return { error: "url is required." };
+  }
+
+  const urlText = payload.url.trim();
+  if (urlText.length > MAX_NOTEBOOK_SHARE_URL_LENGTH) {
+    return { error: `url must be ${MAX_NOTEBOOK_SHARE_URL_LENGTH} characters or fewer.` };
+  }
+
+  let shareUrl: URL;
+  try {
+    shareUrl = new URL(urlText);
+  } catch {
+    return { error: "url must be a valid URL." };
+  }
+
+  if (!["http:", "https:"].includes(shareUrl.protocol)) {
+    return { error: "url must use http or https." };
+  }
+
+  if (!isNotebookShareOriginAllowed(shareUrl, env)) {
+    return { error: "url origin is not allowed." };
+  }
+
+  if (!shareUrl.pathname.includes("/notebook")) {
+    return { error: "url must target a notebook share route." };
+  }
+
+  if (!shareUrl.searchParams.has(NOTEBOOK_SHARE_QUERY_PARAM)) {
+    return { error: `url must include the ${NOTEBOOK_SHARE_QUERY_PARAM} query parameter.` };
+  }
+
+  return { url: shareUrl.toString() };
+}
+
+function isNotebookShareOriginAllowed(shareUrl: URL, env: Env): boolean {
+  const allowedOrigins = resolveDiscoveryAllowedOrigins(env);
+  return allowedOrigins.includes(shareUrl.origin);
+}
+
 function validateNotebookAssistantRequest(
   payload: NotebookAssistantRequest,
   env: Env
@@ -677,6 +796,19 @@ async function readOpenAiError(response: Response): Promise<string> {
     return error.error?.message ?? "OpenAI request failed.";
   } catch {
     return "OpenAI request failed.";
+  }
+}
+
+async function readTinyUrlError(response: Response): Promise<string> {
+  try {
+    const error = (await response.json()) as {
+      errors?: Array<{ message?: string }>;
+      message?: string;
+    };
+    const firstMessage = error.errors?.[0]?.message ?? error.message;
+    return firstMessage?.trim() || "TinyURL request failed.";
+  } catch {
+    return "TinyURL request failed.";
   }
 }
 
