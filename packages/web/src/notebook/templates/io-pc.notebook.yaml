@@ -1,0 +1,236 @@
+format: sfcr-notebook-yaml
+formatVersion: 1
+id: io-pc-notebook
+title: Model IO-PC Notebook
+metadata:
+  version: 1
+  template: io-pc
+cells:
+  - markdown:
+      id: intro
+      title: Overview
+      source: This notebook ports Marco Veronese Passarella's Model IO-PC from the Six Lectures on SFC Models course (`references/six_lectures_on_sfc_models/IOPC_model.R`). It extends Godley and Lavoie Model PC with a two-industry input-output structure, fixed sectoral prices, and an inflation-tax consumption block.
+  - matrix:
+      id: balance-sheet
+      sourceRunCellId: baseline-run
+      title: IO-PC balance sheet
+      description: Balance-sheet matrix for the IO-PC macro structure.
+      note: Validated against the baseline simulation in the Six Lectures R fixture.
+      columns: [Households, Firms, Central bank, Government, Sum]
+      sectors: [Households, Firms, Central bank, Government, ""]
+      accountingKind: balance-sheet
+      rows:
+        - [Cash, Cash (money), +h_h, "", -h_s, "", "0"]
+        - [Bills, Bills, +b_h, "", +b_cb, -b_s, "0"]
+        - [Wealth, Wealth, -v, "", "", +b_s, "0"]
+        - [Sum, Sum, "0", "0", "0", "0", "0"]
+  - matrix:
+      id: transaction-flow
+      sourceRunCellId: baseline-run
+      title: IO-PC transactions-flow matrix
+      description: Transactions-flow matrix for the IO-PC macro structure.
+      note: Validated against the baseline simulation in the Six Lectures R fixture.
+      columns: [Households, Firms, Central bank, Government, Sum]
+      sectors: [Households, Firms, Central bank, Government, ""]
+      accountingKind: transaction-flow
+      rows:
+        - [Consumption, Consumption, -cons * p_c, +cons * p_c, "", "", "0"]
+        - [Government, Government expenditure, "", +g * p_g, "", -g * p_g, "0"]
+        - [Income, GDP (income), +y, -y, "", "", "0"]
+        - [Interest, Interest payments, +lag(r) * lag(b_h), "", +lag(r) * lag(b_cb), -lag(r) * lag(b_s), "0"]
+        - [Profits, CB profit, "", "", -lag(r) * lag(b_cb), +lag(r) * lag(b_cb), "0"]
+        - [Taxes, Taxes, -t, "", "", +t, "0"]
+        - [Cash, Change in cash, -d(h_h), "", +d(h_s), "", "0"]
+        - [Bills, Change in bills, -d(b_h), "", -d(b_cb), +d(b_s), "0"]
+        - [Sum, Sum, "0", "0", "0", "0", "0"]
+  - sequence:
+      id: transaction-flow-sequence
+      title: IO-PC transaction flow sequence
+      source:
+        kind: matrix
+        matrixCellId: transaction-flow
+      description: Sequence view generated from the transactions-flow matrix at the selected simulation period.
+  - equations:
+      id: equations
+      title: IO-PC model
+      modelId: io-pc
+      collapsed: false
+      rows:
+        - [d1, beta1_c * cons + beta1_g * g, "Final demand for industry 1 output.", items/year, flow, identity]
+        - [d2, beta2_c * cons + beta2_g * g, "Final demand for industry 2 output.", items/year, flow, identity]
+        - [x1, a11 * x1 + a12 * x2 + d1, "Gross output in industry 1.", items/year, flow, identity]
+        - [x2, a21 * x1 + a22 * x2 + d2, "Gross output in industry 2.", items/year, flow, identity]
+        - [y, p1 * d1 + p2 * d2, "Nominal GDP from final demands.", $/year, flow, identity]
+        - [p_c, p1 * beta1_c + p2 * beta2_c, "Consumer price index.", $/item, aux, identity]
+        - [p_g, p1 * beta1_g + p2 * beta2_g, "Government purchase price index.", $/item, aux, identity]
+        - [yd, y - t + lag(r) * lag(b_h), "Household disposable income.", $/year, flow, identity]
+        - [v, I(yd - p_c * cons), "Household wealth.", $, stock, accumulation]
+        - [infl, (d(p_c) / p_c') * (v' / p_c), "Inflation tax on lagged wealth.", items/year, flow, identity]
+        - [cons, alpha1 * ((yd / p_c) - infl) + alpha2 * lag(v) / p_c', "Real consumption without monetary illusion.", items/year, flow, identity]
+        - [h_h, v - b_h, "Household cash holdings.", $, stock, accumulation]
+        - [b_h, v * (lambda0 + lambda1 * r - lambda2 * (yd / v)), "Household bill holdings.", $, stock, accumulation]
+        - [t, theta * (y + lag(r) * lag(b_h)), "Income and interest taxes.", $/year, flow, identity]
+        - [b_s, I(p_g * g + lag(r) * lag(b_s) - t - lag(r) * lag(b_cb)), "Government bill supply.", $, stock, accumulation]
+        - [h_s, I(b_cb - lag(b_cb)), "High-powered money supply.", $, stock, accumulation]
+        - [b_cb, b_s - b_h, "Central-bank bill holdings.", $, stock, accumulation]
+        - [k1, a11 * x1 + a12 * x2, "Industry 1 inputs used in production.", items/year, flow, identity]
+        - [k2, a21 * x1 + a22 * x2, "Industry 2 inputs used in production.", items/year, flow, identity]
+  - solver:
+      id: solver
+      title: Solver
+      modelId: io-pc
+      collapsed: true
+      method: gauss-seidel
+      tolerance: "1e-10"
+      maxIterations: 200
+      defaultInitialValue: "0"
+      hiddenLeftVariable: h_h
+      hiddenRightVariable: h_s
+      hiddenTolerance: "1e-6"
+      relativeHiddenTolerance: false
+  - externals:
+      id: externals-equations
+      title: Externals
+      modelId: io-pc
+      collapsed: true
+      rows:
+        - [r, 0.025, "Interest rate on government bills.", 1/year, aux]
+        - [g, 20, "Real government expenditure.", items/year, flow]
+        - [alpha1, 0.6, "Propensity to consume out of income.", "", aux]
+        - [alpha2, 0.4, "Propensity to consume out of lagged wealth.", 1/year, aux]
+        - [theta, 0.2, "Tax rate on income and interest.", "", aux]
+        - [lambda0, 0.635, "Autonomous portfolio share of bills.", "", aux]
+        - [lambda1, 5, "Interest elasticity of bill demand.", year, aux]
+        - [lambda2, 0.01, "Income elasticity of bill demand.", year, aux]
+        - [p1, 1.02, "Unit price of industry 1 output.", $/item, aux]
+        - [p2, 0.98, "Unit price of industry 2 output.", $/item, aux]
+        - [beta1_c, 0.5, "Consumption share of industry 1 output.", "", aux]
+        - [beta2_c, 0.5, "Consumption share of industry 2 output.", "", aux]
+        - [beta1_g, 0.48, "Government spending share of industry 1 output.", "", aux]
+        - [beta2_g, 0.52, "Government spending share of industry 2 output.", "", aux]
+        - [a11, 0.11, "Industry 1 input per unit of industry 1 output.", "", aux]
+        - [a12, 0.12, "Industry 2 input per unit of industry 1 output.", "", aux]
+        - [a21, 0.21, "Industry 1 input per unit of industry 2 output.", "", aux]
+        - [a22, 0.22, "Industry 2 input per unit of industry 2 output.", "", aux]
+  - initial-values:
+      id: initial-values-equations
+      title: Initial values
+      modelId: io-pc
+      collapsed: false
+      rows:
+        - [v, 86.49, Initial household wealth., aux]
+        - [b_h, 64.87, Initial household bill holdings., aux]
+        - [h_h, 21.62, Initial household cash holdings., aux]
+        - [b_cb, 21.62, Initial central-bank bill holdings., aux]
+        - [b_s, 86.49, Initial government bill supply., aux]
+        - [h_s, 21.62, Initial high-powered money supply., aux]
+        - [p_c, 1, Initial consumer price index., aux]
+        - [p_g, 1, Initial government purchase price index., aux]
+  - run:
+      id: baseline-run
+      title: Baseline run
+      description: Baseline IO-PC simulation with hidden-equation condition h_h = h_s.
+      mode: baseline
+      periods: 90
+      resultKey: io_pc_baseline
+      sourceModelId: io-pc
+  - chart:
+      id: baseline-chart
+      title: Baseline macro and IO variables
+      variables:
+        - y
+        - yd
+        - cons
+        - v
+        - p_c
+        - x1
+        - x2
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      sourceRunCellId: baseline-run
+  - table:
+      id: baseline-table
+      title: Baseline variable summary
+      variables:
+        - y
+        - yd
+        - cons
+        - v
+        - b_h
+        - h_h
+        - p_c
+        - p1
+        - p2
+        - x1
+        - x2
+        - d1
+        - d2
+      sourceRunCellId: baseline-run
+  - markdown:
+      id: scenario-1-note
+      title: Interest-rate scenario
+      source: This scenario raises the bills rate `r` from `0.025` to `0.035` from period 10 onward, matching the first experiment in `IOPC_model.R` (R scenario 2). The notebook uses `runScenario` from the baseline terminal state.
+  - run:
+      id: scenario-1-run
+      title: "Scenario 1: higher bills rate"
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 10
+              - 90
+            variables:
+              r:
+                kind: constant
+                value: 0.035
+            startPeriodInclusive: 10
+            endPeriodInclusive: 90
+      baselineRunCellId: baseline-run
+      periods: 90
+      resultKey: io_pc_s1
+      sourceModelId: io-pc
+  - chart:
+      id: scenario-1-chart
+      title: Scenario 1 portfolio and macro adjustment
+      variables:
+        - yd
+        - cons
+        - b_h
+        - h_h
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      sourceRunCellId: scenario-1-run
+  - markdown:
+      id: scenario-2-note
+      title: Consumption propensity scenario
+      source: This scenario raises `alpha1` from `0.6` to `0.7` from period 10 onward, matching the second experiment in `IOPC_model.R` (R scenario 3).
+  - run:
+      id: scenario-2-run
+      title: "Scenario 2: higher propensity to consume"
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 10
+              - 90
+            variables:
+              alpha1:
+                kind: constant
+                value: 0.7
+            startPeriodInclusive: 10
+            endPeriodInclusive: 90
+      baselineRunCellId: baseline-run
+      periods: 90
+      resultKey: io_pc_s2
+      sourceModelId: io-pc
+  - chart:
+      id: scenario-2-chart
+      title: Scenario 2 GDP and IO response
+      variables:
+        - y
+        - cons
+        - x1
+        - x2
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      sourceRunCellId: scenario-2-run

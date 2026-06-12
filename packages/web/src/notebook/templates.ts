@@ -2,6 +2,7 @@ import bmwNotebookYaml from "./templates/bmw.notebook.yaml?raw";
 import eco3IoPcNotebookYaml from "./templates/eco-3io-pc.notebook.yaml?raw";
 import endogenousMoneyNotebookYaml from "./templates/endogenous-money.notebook.yaml?raw";
 import gl2PcNotebookYaml from "./templates/gl2-pc.notebook.yaml?raw";
+import ioPcNotebookYaml from "./templates/io-pc.notebook.yaml?raw";
 import gl6DisNotebookYaml from "./templates/gl6-dis.notebook.yaml?raw";
 import gl6DisRentierNotebookYaml from "./templates/gl6-dis-rentier.notebook.yaml?raw";
 import gl6DisRentierV2NotebookYaml from "./templates/gl6-dis-rentier-v2.notebook.yaml?raw";
@@ -24,6 +25,7 @@ export type NotebookTemplateId =
   | "eco-3io-pc"
   | "endogenous-money"
   | "gl2-pc"
+  | "io-pc"
   | "gl6-dis"
   | "gl6-dis-rentier"
   | "gl6-dis-rentier-v2"
@@ -81,6 +83,13 @@ export const NOTEBOOK_TEMPLATES: Record<NotebookTemplateId, NotebookTemplateDefi
     description:
       "PC notebook based on the gl2-pc article baseline, balance-sheet views, and two deterministic extensions.",
     document: notebookFromYaml(gl2PcNotebookYaml)
+  },
+  "io-pc": {
+    id: "io-pc",
+    label: "Model IO-PC",
+    description:
+      "Six Lectures IO-PC notebook with two-industry input-output structure, inflation-tax consumption, and interest-rate and propensity scenarios.",
+    document: notebookFromYaml(ioPcNotebookYaml)
   },
   "gl6-dis": {
     id: "gl6-dis",

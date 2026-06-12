@@ -1,0 +1,158 @@
+{
+  "id": "io-pc-notebook",
+  "title": "Model IO-PC Notebook",
+  "metadata": { "version": 1, "template": "io-pc" },
+  "cells": [
+    { "id": "intro", "type": "markdown", "title": "Overview", "source": "This notebook ports Marco Veronese Passarella's Model IO-PC from the Six Lectures on SFC Models course (`references/six_lectures_on_sfc_models/IOPC_model.R`). It extends Godley and Lavoie Model PC with a two-industry input-output structure, fixed sectoral prices, and an inflation-tax consumption block." },
+    {
+      "id": "balance-sheet",
+      "type": "matrix",
+      "title": "IO-PC balance sheet",
+      "sourceRunCellId": "baseline-run",
+      "accountingKind": "balance-sheet",
+      "columns": ["Households", "Firms", "Central bank", "Government", "Sum"],
+      "sectors": ["Households", "Firms", "Central bank", "Government", ""],
+      "rows": [
+        { "band": "Cash", "label": "Cash (money)", "values": ["+h_h", "", "-h_s", "", "0"] },
+        { "band": "Bills", "label": "Bills", "values": ["+b_h", "", "+b_cb", "-b_s", "0"] },
+        { "band": "Wealth", "label": "Wealth", "values": ["-v", "", "", "+b_s", "0"] },
+        { "band": "Sum", "label": "Sum", "values": ["0", "0", "0", "0", "0"] }
+      ],
+      "description": "Balance-sheet matrix for the IO-PC macro structure.",
+      "note": "Validated against the baseline simulation in the Six Lectures R fixture."
+    },
+    {
+      "id": "transaction-flow",
+      "type": "matrix",
+      "title": "IO-PC transactions-flow matrix",
+      "sourceRunCellId": "baseline-run",
+      "accountingKind": "transaction-flow",
+      "columns": ["Households", "Firms", "Central bank", "Government", "Sum"],
+      "sectors": ["Households", "Firms", "Central bank", "Government", ""],
+      "rows": [
+        { "band": "Consumption", "label": "Consumption", "values": ["-cons * p_c", "+cons * p_c", "", "", "0"] },
+        { "band": "Government", "label": "Government expenditure", "values": ["", "+g * p_g", "", "-g * p_g", "0"] },
+        { "band": "Income", "label": "GDP (income)", "values": ["+y", "-y", "", "", "0"] },
+        { "band": "Interest", "label": "Interest payments", "values": ["+lag(r) * lag(b_h)", "", "+lag(r) * lag(b_cb)", "-lag(r) * lag(b_s)", "0"] },
+        { "band": "Profits", "label": "CB profit", "values": ["", "", "-lag(r) * lag(b_cb)", "+lag(r) * lag(b_cb)", "0"] },
+        { "band": "Taxes", "label": "Taxes", "values": ["-t", "", "", "+t", "0"] },
+        { "band": "Cash", "label": "Change in cash", "values": ["-d(h_h)", "", "+d(h_s)", "", "0"] },
+        { "band": "Bills", "label": "Change in bills", "values": ["-d(b_h)", "", "-d(b_cb)", "+d(b_s)", "0"] },
+        { "band": "Sum", "label": "Sum", "values": ["0", "0", "0", "0", "0"] }
+      ],
+      "description": "Transactions-flow matrix for the IO-PC macro structure.",
+      "note": "Validated against the baseline simulation in the Six Lectures R fixture."
+    },
+    { "id": "transaction-flow-sequence", "type": "sequence", "title": "IO-PC transaction flow sequence", "source": { "kind": "matrix", "matrixCellId": "transaction-flow" }, "description": "Sequence view generated from the transactions-flow matrix at the selected simulation period." },
+    {
+      "id": "equations",
+      "type": "equations",
+      "title": "IO-PC model",
+      "modelId": "io-pc",
+      "equations": [
+        { "id": "eq-0-d1", "name": "d1", "desc": "Final demand for industry 1 output.", "expression": "beta1_c * cons + beta1_g * g", "role": "identity", "unitMeta": { "stockFlow": "flow", "signature": { "items": 1, "time": -1 } } },
+        { "id": "eq-1-d2", "name": "d2", "desc": "Final demand for industry 2 output.", "expression": "beta2_c * cons + beta2_g * g", "role": "identity", "unitMeta": { "stockFlow": "flow", "signature": { "items": 1, "time": -1 } } },
+        { "id": "eq-2-x1", "name": "x1", "desc": "Gross output in industry 1.", "expression": "a11 * x1 + a12 * x2 + d1", "role": "identity", "unitMeta": { "stockFlow": "flow", "signature": { "items": 1, "time": -1 } } },
+        { "id": "eq-3-x2", "name": "x2", "desc": "Gross output in industry 2.", "expression": "a21 * x1 + a22 * x2 + d2", "role": "identity", "unitMeta": { "stockFlow": "flow", "signature": { "items": 1, "time": -1 } } },
+        { "id": "eq-4-y", "name": "y", "desc": "Nominal GDP from final demands.", "expression": "p1 * d1 + p2 * d2", "role": "identity", "unitMeta": { "stockFlow": "flow", "signature": { "money": 1, "time": -1 } } },
+        { "id": "eq-5-p_c", "name": "p_c", "desc": "Consumer price index.", "expression": "p1 * beta1_c + p2 * beta2_c", "role": "identity", "unitMeta": { "stockFlow": "aux", "signature": { "money": 1, "items": -1 } } },
+        { "id": "eq-6-p_g", "name": "p_g", "desc": "Government purchase price index.", "expression": "p1 * beta1_g + p2 * beta2_g", "role": "identity", "unitMeta": { "stockFlow": "aux", "signature": { "money": 1, "items": -1 } } },
+        { "id": "eq-7-yd", "name": "yd", "desc": "Household disposable income.", "expression": "y - t + lag(r) * lag(b_h)", "role": "identity", "unitMeta": { "stockFlow": "flow", "signature": { "money": 1, "time": -1 } } },
+        { "id": "eq-8-v", "name": "v", "desc": "Household wealth.", "expression": "I(yd - p_c * cons)", "role": "accumulation", "unitMeta": { "stockFlow": "stock", "signature": { "money": 1 } } },
+        { "id": "eq-9-infl", "name": "infl", "desc": "Inflation tax on lagged wealth.", "expression": "(d(p_c) / p_c') * (v' / p_c)", "role": "identity", "unitMeta": { "stockFlow": "flow", "signature": { "items": 1, "time": -1 } } },
+        { "id": "eq-10-cons", "name": "cons", "desc": "Real consumption without monetary illusion.", "expression": "alpha1 * ((yd / p_c) - infl) + alpha2 * lag(v) / p_c'", "role": "identity", "unitMeta": { "stockFlow": "flow", "signature": { "items": 1, "time": -1 } } },
+        { "id": "eq-11-h_h", "name": "h_h", "desc": "Household cash holdings.", "expression": "v - b_h", "role": "accumulation", "unitMeta": { "stockFlow": "stock", "signature": { "money": 1 } } },
+        { "id": "eq-12-b_h", "name": "b_h", "desc": "Household bill holdings.", "expression": "v * (lambda0 + lambda1 * r - lambda2 * (yd / v))", "role": "accumulation", "unitMeta": { "stockFlow": "stock", "signature": { "money": 1 } } },
+        { "id": "eq-13-t", "name": "t", "desc": "Income and interest taxes.", "expression": "theta * (y + lag(r) * lag(b_h))", "role": "identity", "unitMeta": { "stockFlow": "flow", "signature": { "money": 1, "time": -1 } } },
+        { "id": "eq-14-b_s", "name": "b_s", "desc": "Government bill supply.", "expression": "I(p_g * g + lag(r) * lag(b_s) - t - lag(r) * lag(b_cb))", "role": "accumulation", "unitMeta": { "stockFlow": "stock", "signature": { "money": 1 } } },
+        { "id": "eq-15-h_s", "name": "h_s", "desc": "High-powered money supply.", "expression": "I(b_cb - lag(b_cb))", "role": "accumulation", "unitMeta": { "stockFlow": "stock", "signature": { "money": 1 } } },
+        { "id": "eq-16-b_cb", "name": "b_cb", "desc": "Central-bank bill holdings.", "expression": "b_s - b_h", "role": "accumulation", "unitMeta": { "stockFlow": "stock", "signature": { "money": 1 } } },
+        { "id": "eq-17-k1", "name": "k1", "desc": "Industry 1 inputs used in production.", "expression": "a11 * x1 + a12 * x2", "role": "identity", "unitMeta": { "stockFlow": "flow", "signature": { "items": 1, "time": -1 } } },
+        { "id": "eq-18-k2", "name": "k2", "desc": "Industry 2 inputs used in production.", "expression": "a21 * x1 + a22 * x2", "role": "identity", "unitMeta": { "stockFlow": "flow", "signature": { "items": 1, "time": -1 } } }
+      ],
+      "collapsed": false
+    },
+    { "id": "solver", "type": "solver", "title": "Solver", "modelId": "io-pc", "options": { "solverMethod": "GAUSS_SEIDEL", "toleranceText": "1e-10", "maxIterations": 200, "defaultInitialValueText": "0", "hiddenLeftVariable": "h_h", "hiddenRightVariable": "h_s", "hiddenToleranceText": "1e-6", "relativeHiddenTolerance": false }, "collapsed": true },
+    {
+      "id": "externals-equations",
+      "type": "externals",
+      "title": "Externals",
+      "modelId": "io-pc",
+      "externals": [
+        { "id": "ext-0-r", "name": "r", "desc": "Interest rate on government bills.", "kind": "constant", "valueText": "0.025", "unitMeta": { "stockFlow": "aux", "signature": { "time": -1 } } },
+        { "id": "ext-1-g", "name": "g", "desc": "Real government expenditure.", "kind": "constant", "valueText": "20", "unitMeta": { "stockFlow": "flow", "signature": { "items": 1, "time": -1 } } },
+        { "id": "ext-2-alpha1", "name": "alpha1", "desc": "Propensity to consume out of income.", "kind": "constant", "valueText": "0.6", "unitMeta": { "stockFlow": "aux" } },
+        { "id": "ext-3-alpha2", "name": "alpha2", "desc": "Propensity to consume out of lagged wealth.", "kind": "constant", "valueText": "0.4", "unitMeta": { "stockFlow": "aux", "signature": { "time": -1 } } },
+        { "id": "ext-4-theta", "name": "theta", "desc": "Tax rate on income and interest.", "kind": "constant", "valueText": "0.2", "unitMeta": { "stockFlow": "aux" } },
+        { "id": "ext-5-lambda0", "name": "lambda0", "desc": "Autonomous portfolio share of bills.", "kind": "constant", "valueText": "0.635", "unitMeta": { "stockFlow": "aux" } },
+        { "id": "ext-6-lambda1", "name": "lambda1", "desc": "Interest elasticity of bill demand.", "kind": "constant", "valueText": "5", "unitMeta": { "stockFlow": "aux", "signature": { "time": 1 } } },
+        { "id": "ext-7-lambda2", "name": "lambda2", "desc": "Income elasticity of bill demand.", "kind": "constant", "valueText": "0.01", "unitMeta": { "stockFlow": "aux", "signature": { "time": 1 } } },
+        { "id": "ext-8-p1", "name": "p1", "desc": "Unit price of industry 1 output.", "kind": "constant", "valueText": "1.02", "unitMeta": { "stockFlow": "aux", "signature": { "money": 1, "items": -1 } } },
+        { "id": "ext-9-p2", "name": "p2", "desc": "Unit price of industry 2 output.", "kind": "constant", "valueText": "0.98", "unitMeta": { "stockFlow": "aux", "signature": { "money": 1, "items": -1 } } },
+        { "id": "ext-10-beta1_c", "name": "beta1_c", "desc": "Consumption share of industry 1 output.", "kind": "constant", "valueText": "0.5", "unitMeta": { "stockFlow": "aux" } },
+        { "id": "ext-11-beta2_c", "name": "beta2_c", "desc": "Consumption share of industry 2 output.", "kind": "constant", "valueText": "0.5", "unitMeta": { "stockFlow": "aux" } },
+        { "id": "ext-12-beta1_g", "name": "beta1_g", "desc": "Government spending share of industry 1 output.", "kind": "constant", "valueText": "0.48", "unitMeta": { "stockFlow": "aux" } },
+        { "id": "ext-13-beta2_g", "name": "beta2_g", "desc": "Government spending share of industry 2 output.", "kind": "constant", "valueText": "0.52", "unitMeta": { "stockFlow": "aux" } },
+        { "id": "ext-14-a11", "name": "a11", "desc": "Industry 1 input per unit of industry 1 output.", "kind": "constant", "valueText": "0.11", "unitMeta": { "stockFlow": "aux" } },
+        { "id": "ext-15-a12", "name": "a12", "desc": "Industry 2 input per unit of industry 1 output.", "kind": "constant", "valueText": "0.12", "unitMeta": { "stockFlow": "aux" } },
+        { "id": "ext-16-a21", "name": "a21", "desc": "Industry 1 input per unit of industry 2 output.", "kind": "constant", "valueText": "0.21", "unitMeta": { "stockFlow": "aux" } },
+        { "id": "ext-17-a22", "name": "a22", "desc": "Industry 2 input per unit of industry 2 output.", "kind": "constant", "valueText": "0.22", "unitMeta": { "stockFlow": "aux" } }
+      ],
+      "collapsed": true
+    },
+    {
+      "id": "initial-values-equations",
+      "type": "initial-values",
+      "title": "Initial values",
+      "modelId": "io-pc",
+      "initialValues": [
+        { "id": "aux", "name": "v", "desc": "Initial household wealth.", "valueText": "86.49" },
+        { "id": "aux", "name": "b_h", "desc": "Initial household bill holdings.", "valueText": "64.87" },
+        { "id": "aux", "name": "h_h", "desc": "Initial household cash holdings.", "valueText": "21.62" },
+        { "id": "aux", "name": "b_cb", "desc": "Initial central-bank bill holdings.", "valueText": "21.62" },
+        { "id": "aux", "name": "b_s", "desc": "Initial government bill supply.", "valueText": "86.49" },
+        { "id": "aux", "name": "h_s", "desc": "Initial high-powered money supply.", "valueText": "21.62" },
+        { "id": "aux", "name": "p_c", "desc": "Initial consumer price index.", "valueText": "1" },
+        { "id": "aux", "name": "p_g", "desc": "Initial government purchase price index.", "valueText": "1" }
+      ],
+      "collapsed": false
+    },
+    { "id": "baseline-run", "type": "run", "title": "Baseline run", "description": "Baseline IO-PC simulation with hidden-equation condition h_h = h_s.", "mode": "baseline", "periods": 90, "resultKey": "io_pc_baseline", "sourceModelId": "io-pc" },
+    { "id": "baseline-chart", "type": "chart", "title": "Baseline macro and IO variables", "sourceRunCellId": "baseline-run", "variables": ["y", "yd", "cons", "v", "p_c", "x1", "x2"], "axisMode": "separate", "axisSnapTolarance": 0.5 },
+    { "id": "baseline-table", "type": "table", "title": "Baseline variable summary", "sourceRunCellId": "baseline-run", "variables": ["y", "yd", "cons", "v", "b_h", "h_h", "p_c", "p1", "p2", "x1", "x2", "d1", "d2"] },
+    { "id": "scenario-1-note", "type": "markdown", "title": "Interest-rate scenario", "source": "This scenario raises the bills rate `r` from `0.025` to `0.035` from period 10 onward, matching the first experiment in `IOPC_model.R` (R scenario 2). The notebook uses `runScenario` from the baseline terminal state." },
+    {
+      "id": "scenario-1-run",
+      "type": "run",
+      "title": "Scenario 1: higher bills rate",
+      "mode": "scenario",
+      "scenario": {
+        "shocks": [
+          { "variables": { "r": { "kind": "constant", "value": 0.035 } }, "startPeriodInclusive": 10, "endPeriodInclusive": 90 }
+        ]
+      },
+      "baselineRunCellId": "baseline-run",
+      "periods": 90,
+      "resultKey": "io_pc_s1",
+      "sourceModelId": "io-pc"
+    },
+    { "id": "scenario-1-chart", "type": "chart", "title": "Scenario 1 portfolio and macro adjustment", "sourceRunCellId": "scenario-1-run", "variables": ["yd", "cons", "b_h", "h_h"], "axisMode": "separate", "axisSnapTolarance": 0.5 },
+    { "id": "scenario-2-note", "type": "markdown", "title": "Consumption propensity scenario", "source": "This scenario raises `alpha1` from `0.6` to `0.7` from period 10 onward, matching the second experiment in `IOPC_model.R` (R scenario 3)." },
+    {
+      "id": "scenario-2-run",
+      "type": "run",
+      "title": "Scenario 2: higher propensity to consume",
+      "mode": "scenario",
+      "scenario": {
+        "shocks": [
+          { "variables": { "alpha1": { "kind": "constant", "value": 0.7 } }, "startPeriodInclusive": 10, "endPeriodInclusive": 90 }
+        ]
+      },
+      "baselineRunCellId": "baseline-run",
+      "periods": 90,
+      "resultKey": "io_pc_s2",
+      "sourceModelId": "io-pc"
+    },
+    { "id": "scenario-2-chart", "type": "chart", "title": "Scenario 2 GDP and IO response", "sourceRunCellId": "scenario-2-run", "variables": ["y", "cons", "x1", "x2"], "axisMode": "separate", "axisSnapTolarance": 0.5 }
+  ]
+}

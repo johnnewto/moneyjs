@@ -22,6 +22,7 @@ Tolerance: `5e-3` per variable.
 | `gl7-insout.json` | `gl7-insout` | `scripts/generate_notebook_r_fixtures.R` | `notebookTemplateRegression.extended.test.ts` |
 | `gl8-growth.json` | `gl8-growth` | `scripts/generate_notebook_r_fixtures.R` | `notebookTemplateRegression.extended.test.ts` |
 | `eco-3io-pc.json` | `eco-3io-pc` | baseline: `scripts/generate_florence_r_fixture.R`; scenario: TypeScript (see below) | `notebookTemplateRegression.extended.test.ts` |
+| `io-pc.json` | `io-pc` | baseline: `scripts/generate_iopc_r_fixture.R`; scenarios: TypeScript (see below) | `notebookTemplateRegression.extended.test.ts` |
 
 ## Refresh Godley-Lavoie / r-sfcr fixtures
 
@@ -82,11 +83,46 @@ To refresh scenario checkpoints after changing the notebook or scenario definiti
 2. Run a one-off dump from the TypeScript engine (same imports as `notebookTemplateRegressionHarness.ts`): `runBaseline` on `baseline-run`, then `runScenario` with the `scenario-1-run` cell shocks.
 3. Update `checkpoints.scenario-1-run` in `eco-3io-pc.json` and keep `sourceScenarioScript` accurate.
 
+## Refresh Model IO-PC (Six Lectures)
+
+Reference code: `references/six_lectures_on_sfc_models/` (cloned from [marcoverpas/Six_lectures_on_sfc_models](https://github.com/marcoverpas/Six_lectures_on_sfc_models)).
+
+### Baseline checkpoints
+
+Requires R and `jsonlite` only (no r-sfcr package).
+
+```bash
+Rscript scripts/generate_iopc_r_fixture.R
+```
+
+The script sources `references/six_lectures_on_sfc_models/IOPC_model.R`, snapshots baseline scenario 1 at periods 5, 50, and 90, and writes `packages/web/test/fixtures/r-regressions/io-pc.json`.
+
+**Scenario checkpoints are preserved** on re-run: if `scenario-1-run` or `scenario-2-run` already exist in the JSON, the R script keeps them (and `sourceScenarioScript`) unchanged.
+
+After editing the notebook YAML:
+
+```bash
+pnpm --filter @sfcr/web compile:notebook-yaml -- --write io-pc
+```
+
+### Scenario checkpoints (`scenario-1-run`, `scenario-2-run`)
+
+The Six Lectures R code runs three scenarios in one pass (path continuation). The SFCR notebook uses `runScenario` from the baseline terminal state — same pattern as `eco-3io-pc` and `gl2-pc`.
+
+Do **not** copy R scenario-2 or scenario-3 values into the fixture; they will not match the browser engine.
+
+To refresh scenario checkpoints after changing the notebook or scenario definition:
+
+1. Run the extended regression and note failing `io-pc:scenario-…` diffs, or
+2. Run a one-off dump from the TypeScript engine (same imports as `notebookTemplateRegressionHarness.ts`): `runBaseline` on `baseline-run`, then `runScenario` for each scenario run cell.
+3. Update `checkpoints.scenario-1-run` and `checkpoints.scenario-2-run` in `io-pc.json` and keep `sourceScenarioScript` accurate.
+
 ## When to regenerate
 
 - Changed equations, externals, solver options, or run periods in a template YAML → re-run the matching generator, then regression tests.
 - Changed `references/r-sfcr` or Java growth model source → `generate_notebook_r_fixtures.R`.
 - Changed Florence R model → `generate_florence_r_fixture.R` (baseline only unless you also refresh scenario JSON manually).
+- Changed Six Lectures IO-PC R model → `generate_iopc_r_fixture.R` (baseline only unless you also refresh scenario JSON manually).
 - Intentional solver/port change that diverges from R → update fixture JSON and document why in the PR.
 
 ## Prerequisites
@@ -94,3 +130,4 @@ To refresh scenario checkpoints after changing the notebook or scenario definiti
 - **R** 4.x with `jsonlite`
 - **r-sfcr fixtures**: submodule at `references/r-sfcr`, plus R deps used by that package (`pkgload`, etc.)
 - **Florence fixture**: clone under `references/keynote_speech_Florence/` (see `references/README.md`)
+- **IO-PC fixture**: clone under `references/six_lectures_on_sfc_models/` (see `references/README.md`)
