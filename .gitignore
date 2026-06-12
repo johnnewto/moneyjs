@@ -18,3 +18,5 @@ references/java/**/*.class
 
 # Local generated dev outputs
 devdocs/results_*.png
+packages/chat-api/.wrangler/cache/wrangler-account.json
+packages/chat-api/.wrangler/cache/cf.json
