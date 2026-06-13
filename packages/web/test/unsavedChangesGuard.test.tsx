@@ -3,7 +3,7 @@
 import { render, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { notebookHasUnsavedChanges } from "../src/notebook/notebookAppHelpers";
+import { notebookHasUnsavedChanges, isNotebookNavigationLoadLabel } from "../src/notebook/notebookAppHelpers";
 import { App, screen, setupAppTestEnv, userEvent } from "./appTestUtils";
 
 setupAppTestEnv();
@@ -32,7 +32,33 @@ describe("notebookHasUnsavedChanges", () => {
   });
 });
 
+describe("isNotebookNavigationLoadLabel", () => {
+  it("recognizes notebook navigation load labels", () => {
+    expect(isNotebookNavigationLoadLabel("template load")).toBe(true);
+    expect(isNotebookNavigationLoadLabel("variant load")).toBe(true);
+    expect(isNotebookNavigationLoadLabel("cell edit")).toBe(false);
+    expect(isNotebookNavigationLoadLabel("source import")).toBe(false);
+  });
+});
+
 describe("unsaved navigation guards", () => {
+  it("does not prompt when switching pristine templates without edits", async () => {
+    const user = userEvent.setup();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    const templatePicker = screen.getByRole("combobox", { name: /notebook template/i });
+    await user.selectOptions(templatePicker, "sim");
+    expect(confirm).not.toHaveBeenCalled();
+
+    await user.selectOptions(templatePicker, "bmw");
+    expect(confirm).not.toHaveBeenCalled();
+
+    confirm.mockRestore();
+  }, 15000);
+
   it("prompts before switching notebooks from the template picker", async () => {
     const user = userEvent.setup();
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);

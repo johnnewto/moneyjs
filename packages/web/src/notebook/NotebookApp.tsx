@@ -112,6 +112,7 @@ import {
   NOTEBOOK_AI_GUIDE_URL,
   NOTEBOOK_AI_LANDING_URL,
   migrateNotebookHashToPathname,
+  isNotebookNavigationLoadLabel,
   notebookHasUnsavedChanges,
   parseNotebookTemplateIdFromHash,
   parseNotebookVariantIdFromHash,
@@ -1351,13 +1352,21 @@ export function NotebookApp() {
     (
       label: string,
       updater: NotebookDocument | ((current: NotebookDocument) => NotebookDocument),
-      options: { messageId?: string } = {}
+      options: { messageId?: string; resetHistory?: boolean } = {}
     ) => {
       setNotebookJournal((current) => {
         const nextDocument =
           typeof updater === "function" ? updater(current.present) : updater;
         if (nextDocument === current.present) {
           return current;
+        }
+
+        if (options.resetHistory) {
+          return {
+            future: [],
+            past: [],
+            present: nextDocument
+          };
         }
 
         return {
@@ -1924,7 +1933,10 @@ export function NotebookApp() {
     label = "notebook change",
     messageId?: string
   ): void {
-    commitNotebookDocument(label, nextDocument, { messageId });
+    commitNotebookDocument(label, nextDocument, {
+      messageId,
+      resetHistory: isNotebookNavigationLoadLabel(label)
+    });
     setSelectedPeriodIndex(0);
     setAutoRunRevision((current) => current + 1);
   }

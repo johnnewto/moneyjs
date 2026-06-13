@@ -277,6 +277,19 @@ export function restoreNotebookRouteLocation(location: NotebookRouteLocation): v
   });
 }
 
+const NOTEBOOK_NAVIGATION_LOAD_LABELS = new Set([
+  "imported notebook load",
+  "template load",
+  "variant create",
+  "variant load",
+  "variant route load",
+  "variant save"
+]);
+
+export function isNotebookNavigationLoadLabel(label: string): boolean {
+  return NOTEBOOK_NAVIGATION_LOAD_LABELS.has(label);
+}
+
 export function notebookHasUnsavedChanges(args: {
   hasEditHistory: boolean;
   hasImportPreview: boolean;
