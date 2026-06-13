@@ -68,7 +68,7 @@ MoneyJS **Share link** builds a long URL with an `nbz` query parameter (LZ-compr
 
 Flow:
 
-1. Browser builds `…/notebook?nbz=…&cell=…` (optional `cell` for deep links).
+1. Browser builds `…/#/notebook?nbz=…&cell=…` (hash routing avoids HTTP 414 on static hosts; optional `cell` for deep links).
 2. Browser `POST`s `{ "url": "<long share url>" }` to `/v1/notebook-share/shorten`.
 3. Worker validates the URL origin (must match `ALLOWED_ORIGINS` / `DISCOVERY_ALLOWED_ORIGINS`) and that it is a notebook share link with `nbz`.
 4. Worker calls TinyURL `POST https://api.tinyurl.com/create` with `TINYURL_API_TOKEN`.

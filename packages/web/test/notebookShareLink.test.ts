@@ -11,6 +11,7 @@ import {
   NOTEBOOK_SHARE_MAX_COMPRESSED_LENGTH,
   NOTEBOOK_SHARE_QUERY_PARAM,
   parseNotebookShareSearch,
+  readNotebookShareSearchSource,
   resolveNotebookShareLinkToCopy,
   tryLoadNotebookFromShareSearch
 } from "../src/notebook/notebookShareLink";
@@ -60,11 +61,22 @@ describe("notebookShareLink", () => {
       return;
     }
 
-    const url = new URL(built.url);
-    expect(url.origin).toBe("https://example.test");
-    expect(url.pathname).toBe("/moneyjs/notebook");
-    expect(url.searchParams.get(NOTEBOOK_SHARE_QUERY_PARAM)).toBeTruthy();
-    expect(url.searchParams.get(NOTEBOOK_SHARE_CELL_QUERY_PARAM)).toBe("intro");
+    expect(built.url).toMatch(/^https:\/\/example\.test\/moneyjs\/#\/notebook\?/);
+    const hashQuery = built.url.split("?").slice(1).join("?");
+    const params = new URLSearchParams(hashQuery);
+    expect(params.get(NOTEBOOK_SHARE_QUERY_PARAM)).toBeTruthy();
+    expect(params.get(NOTEBOOK_SHARE_CELL_QUERY_PARAM)).toBe("intro");
+  });
+
+  it("loads share payloads from hash routes without sending nbz to the server path", () => {
+    const document = createNotebookFromTemplate("sim");
+    document.title = "Hash Shared Notebook";
+    const nbz = compressNotebookSharePayload(notebookToJson(document));
+    history.replaceState(history.state, "", `/#/notebook?${NOTEBOOK_SHARE_QUERY_PARAM}=${nbz}`);
+
+    expect(tryLoadNotebookFromShareSearch(readNotebookShareSearchSource())?.title).toBe(
+      "Hash Shared Notebook"
+    );
   });
 
   it("returns an error when the compressed payload exceeds the share limit", () => {

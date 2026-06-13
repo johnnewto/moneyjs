@@ -159,8 +159,10 @@ The current browser application is notebook-first and supports:
 The **Share link** button copies a URL that embeds the current notebook as LZ-compressed JSON in the `nbz` query parameter, for example:
 
 ```text
-https://johnnewto.github.io/moneyjs/notebook?nbz=<compressed>&cell=<optional-cell-id>
+https://johnnewto.github.io/moneyjs/#/notebook?nbz=<compressed>&cell=<optional-cell-id>
 ```
+
+The `nbz` payload lives in the **hash** so static hosts (GitHub Pages) do not receive a multi-kilobyte query string (which causes HTTP 414 URI Too Long). Legacy `…/notebook?nbz=…` links still load when the server accepts the request.
 
 Opening the link loads the notebook as an imported variant. If a cell is selected when sharing, the optional `cell` parameter deep-links to that section.
 

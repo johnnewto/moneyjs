@@ -465,7 +465,7 @@ describe("App notebook source and import workflows", () => {
     const cellId = sharedDocument.cells[0]?.id ?? "intro";
     const search = `?${NOTEBOOK_SHARE_QUERY_PARAM}=${nbz}&${NOTEBOOK_SHARE_CELL_QUERY_PARAM}=${cellId}`;
 
-    window.history.replaceState(null, "", `/notebook${search}`);
+    window.history.replaceState(null, "", `/#/notebook${search}`);
 
     render(<App />);
 

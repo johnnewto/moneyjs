@@ -34,6 +34,27 @@ describe("chat API notebook share shortening", () => {
     expect(response.status).toBe(400);
   });
 
+  it("accepts hash-based notebook share URLs", async () => {
+    const longUrl = "https://johnnewto.github.io/moneyjs/#/notebook?nbz=compressed";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(JSON.stringify({ data: { tiny_url: "https://tinyurl.com/hash" } }), {
+          headers: { "Content-Type": "application/json" },
+          status: 200
+        })
+      )
+    );
+
+    const response = await worker.fetch(createShareShortenRequest(longUrl), {
+      ...env,
+      TINYURL_API_TOKEN: "tiny-token"
+    });
+
+    await expect(response.json()).resolves.toEqual({ shortUrl: "https://tinyurl.com/hash" });
+    expect(response.status).toBe(200);
+  });
+
   it("returns a TinyURL short link for valid notebook share URLs", async () => {
     const fetchMock = vi.fn(async () =>
       new Response(

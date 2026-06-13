@@ -14,6 +14,7 @@ export const NOTEBOOK_TOUR_SEEN_STORAGE_KEY = "sfcr:notebook-tour-seen";
 
 export type NotebookTourHandlers = {
   openRailTab: (tab: NotebookTourRailTab) => void;
+  openCommandsPanel?(): void;
   openHelpPanel?(): void;
 };
 
@@ -84,21 +85,24 @@ function openHelpPanel(handlers: NotebookTourHandlers) {
 const NOTEBOOK_TOUR_STEP_DEFINITIONS: NotebookTourStepDefinition[] = [
   {
     id: "command-bar",
-    title: "Command bar",
+    title: "Commands",
     buildStep: () => ({
-      element: "#notebook-command-tray",
+      element: "#notebook-commands-toggle",
       popover: {
-        title: "Command bar",
+        title: "Commands",
         description:
-          "Use the command bar to undo and redo edits, run the notebook, validate structure, export, and jump to the contents outline."
+          "Open Commands to show the floating command panel. Undo and redo edits, run the notebook, validate structure, export, share links, and jump to the contents outline."
       }
     })
   },
   {
     id: "run-all",
     title: "Run all",
-    buildStep: () => ({
+    buildStep: (handlers) => ({
       element: "#notebook-run-all",
+      onHighlightStarted: () => {
+        handlers.openCommandsPanel?.();
+      },
       popover: {
         title: "Run all",
         description:

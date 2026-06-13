@@ -6,6 +6,7 @@ import {
   isNotebookTemplateId,
   type NotebookTemplateId
 } from "./templates";
+import { hasNotebookShareInLocation } from "./notebookShareLink";
 import type { NotebookCell } from "./types";
 
 const APP_BASE_URL = import.meta.env.BASE_URL;
@@ -243,7 +244,11 @@ export function writeNotebookLocation(args: {
 
 export function migrateNotebookHashToPathname(): void {
   const hash = window.location.hash;
-  if (!hash.startsWith("#/notebook") || parseNotebookPathname(window.location.pathname)) {
+  if (
+    !hash.startsWith("#/notebook") ||
+    parseNotebookPathname(window.location.pathname) ||
+    hasNotebookShareInLocation()
+  ) {
     return;
   }
 

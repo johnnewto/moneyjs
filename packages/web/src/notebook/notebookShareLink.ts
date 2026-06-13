@@ -5,6 +5,7 @@ import type { NotebookDocument } from "./types";
 
 export const NOTEBOOK_SHARE_QUERY_PARAM = "nbz";
 export const NOTEBOOK_SHARE_CELL_QUERY_PARAM = "cell";
+export const NOTEBOOK_SHARE_HASH_ROUTE = "#/notebook";
 export const NOTEBOOK_SHARE_MAX_COMPRESSED_LENGTH = 12_000;
 
 export interface NotebookShareSearchParams {
@@ -31,7 +32,12 @@ export function decompressNotebookSharePayload(nbz: string): string | null {
 }
 
 export function parseNotebookShareSearch(search: string): NotebookShareSearchParams | null {
-  const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
+  const normalized = search.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const params = new URLSearchParams(normalized.startsWith("?") ? normalized.slice(1) : normalized);
   const nbz = params.get(NOTEBOOK_SHARE_QUERY_PARAM)?.trim();
   if (!nbz) {
     return null;
@@ -41,8 +47,53 @@ export function parseNotebookShareSearch(search: string): NotebookShareSearchPar
   return { nbz, cellId };
 }
 
+function parseNotebookShareHash(hash: string): NotebookShareSearchParams | null {
+  const normalized = hash.trim();
+  if (!normalized.startsWith(`${NOTEBOOK_SHARE_HASH_ROUTE}?`)) {
+    return null;
+  }
+
+  return parseNotebookShareSearch(normalized.slice(NOTEBOOK_SHARE_HASH_ROUTE.length));
+}
+
+export function readNotebookShareSearchSource(): string {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  if (parseNotebookShareSearch(window.location.search)) {
+    return window.location.search;
+  }
+
+  const fromHash = parseNotebookShareHash(window.location.hash);
+  if (fromHash) {
+    const params = new URLSearchParams();
+    params.set(NOTEBOOK_SHARE_QUERY_PARAM, fromHash.nbz);
+    if (fromHash.cellId) {
+      params.set(NOTEBOOK_SHARE_CELL_QUERY_PARAM, fromHash.cellId);
+    }
+    return `?${params.toString()}`;
+  }
+
+  return "";
+}
+
+export function tryLoadNotebookFromShareLocation(): NotebookDocument | null {
+  return tryLoadNotebookFromShareSearch(readNotebookShareSearchSource());
+}
+
 export function hasNotebookShareSearch(search: string): boolean {
   return parseNotebookShareSearch(search) != null;
+}
+
+export function hasNotebookShareInLocation(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return (
+    hasNotebookShareSearch(window.location.search) || parseNotebookShareHash(window.location.hash) != null
+  );
 }
 
 export function tryLoadNotebookFromShareSearch(search: string): NotebookDocument | null {
@@ -65,6 +116,18 @@ export function tryLoadNotebookFromShareSearch(search: string): NotebookDocument
 
 export function readNotebookShareCellIdFromSearch(search: string): string | null {
   return parseNotebookShareSearch(search)?.cellId ?? null;
+}
+
+export function readNotebookShareCellIdFromLocation(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return (
+    parseNotebookShareSearch(window.location.search)?.cellId ??
+    parseNotebookShareHash(window.location.hash)?.cellId ??
+    null
+  );
 }
 
 export function buildNotebookShareUrl(args: {
@@ -90,8 +153,9 @@ export function buildNotebookShareUrl(args: {
     params.set(NOTEBOOK_SHARE_CELL_QUERY_PARAM, cellId);
   }
 
+  // Hash routing keeps nbz off the HTTP request line (avoids HTTP 414 on GitHub Pages).
   return {
-    url: `${origin}${basePath}notebook?${params.toString()}`
+    url: `${origin}${basePath}${NOTEBOOK_SHARE_HASH_ROUTE}?${params.toString()}`
   };
 }
 
@@ -144,10 +208,9 @@ export async function shortenNotebookShareUrl(longUrl: string): Promise<string |
   }
 }
 
-export async function resolveNotebookShareLinkToCopy(longUrl: string): Promise<{
-  shortened: boolean;
-  url: string;
-}> {
+export async function resolveNotebookShareLinkToCopy(
+  longUrl: string
+): Promise<{ shortened: boolean; url: string }> {
   const shortUrl = await shortenNotebookShareUrl(longUrl);
   if (shortUrl) {
     return { shortened: true, url: shortUrl };
@@ -161,14 +224,21 @@ export function clearNotebookShareQueryFromLocation(): void {
     return;
   }
 
-  const params = new URLSearchParams(window.location.search);
-  if (!params.has(NOTEBOOK_SHARE_QUERY_PARAM) && !params.has(NOTEBOOK_SHARE_CELL_QUERY_PARAM)) {
+  const searchParams = new URLSearchParams(window.location.search);
+  const hadSearchShare =
+    searchParams.has(NOTEBOOK_SHARE_QUERY_PARAM) || searchParams.has(NOTEBOOK_SHARE_CELL_QUERY_PARAM);
+  if (hadSearchShare) {
+    searchParams.delete(NOTEBOOK_SHARE_QUERY_PARAM);
+    searchParams.delete(NOTEBOOK_SHARE_CELL_QUERY_PARAM);
+  }
+
+  const hadHashShare = parseNotebookShareHash(window.location.hash) != null;
+  const nextSearch = searchParams.toString();
+  const nextHash = hadHashShare ? "" : window.location.hash;
+  if (!hadSearchShare && !hadHashShare) {
     return;
   }
 
-  params.delete(NOTEBOOK_SHARE_QUERY_PARAM);
-  params.delete(NOTEBOOK_SHARE_CELL_QUERY_PARAM);
-  const nextSearch = params.toString();
-  const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`;
+  const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${nextHash}`;
   history.replaceState(history.state, "", nextUrl);
 }

@@ -68,6 +68,9 @@ import {
   type NotebookPatchResult
 } from "./notebookPatch";
 import { NotebookCellView, type NotebookCellViewProps } from "./NotebookCellView";
+import { NotebookCommandActions } from "./components/NotebookCommandActions";
+import { NotebookCommandsPanel } from "./components/NotebookCommandsPanel";
+import { NotebookCommandsToggle } from "./components/NotebookCommandsToggle";
 import { PinnedCellPanel } from "./components/PinnedCellPanel";
 import { resolveNotebookScopeId } from "./resolveNotebookScopeId";
 import { NotebookRenderProfiler } from "./notebookProfiler";
@@ -109,8 +112,6 @@ import {
   buildNotebookVariableDescriptions,
   buildNotebookVariableUnitMetadata,
   formatElapsedTime,
-  NOTEBOOK_AI_GUIDE_URL,
-  NOTEBOOK_AI_LANDING_URL,
   migrateNotebookHashToPathname,
   isNotebookNavigationLoadLabel,
   notebookHasUnsavedChanges,
@@ -127,9 +128,10 @@ import {
   buildNotebookShareUrl,
   clearNotebookShareQueryFromLocation,
   parseNotebookShareSearch,
-  readNotebookShareCellIdFromSearch,
+  readNotebookShareCellIdFromLocation,
+  readNotebookShareSearchSource,
   resolveNotebookShareLinkToCopy,
-  tryLoadNotebookFromShareSearch
+  tryLoadNotebookFromShareLocation
 } from "./notebookShareLink";
 import { NotebookVariantManagerDialog } from "./NotebookVariantManagerDialog";
 import {
@@ -357,7 +359,7 @@ function resolveInitialNotebookSession(
   location: NotebookRouteLocation,
   hash: string
 ): NotebookSessionState {
-  const shared = tryLoadNotebookFromShareSearch(window.location.search);
+  const shared = tryLoadNotebookFromShareLocation();
   if (shared) {
     upsertImportedNotebookVariant(shared);
     const sharedDocument = loadNotebookVariantDocument(IMPORTED_NOTEBOOK_VARIANT_ID);
@@ -709,7 +711,7 @@ export function NotebookApp() {
   const scrollToCellRef = useRef<(cellId: string) => void>(() => {});
   const [mainColumnElement, setMainColumnElement] = useState<HTMLDivElement | null>(null);
   const initialNotebookRoute = useMemo(() => readNotebookRouteLocation(), []);
-  const initialShareSearch = useMemo(() => window.location.search, []);
+  const initialShareSearch = useMemo(() => readNotebookShareSearchSource(), []);
   const initialNotebookSession = useMemo(
     () => resolveInitialNotebookSession(initialNotebookRoute, window.location.hash),
     [initialNotebookRoute]
@@ -737,12 +739,11 @@ export function NotebookApp() {
     serializeNotebookSource(notebookDocument, sourceFormat)
   );
   const [selectedPeriodIndex, setSelectedPeriodIndex] = useState(0);
-  const [isNotebookCommandTrayOpen, setIsNotebookCommandTrayOpen] = useState(false);
-  const [isNotebookCommandTrayDismissed, setIsNotebookCommandTrayDismissed] = useState(false);
+  const [isNotebookCommandsPanelOpen, setIsNotebookCommandsPanelOpen] = useState(false);
   const [autoRunRevision, setAutoRunRevision] = useState(0);
   const [activeEditorCellId, setActiveEditorCellId] = useState<string | null>(null);
   const [selectedCellId, setSelectedCellId] = useState<string | null>(
-    () => readNotebookShareCellIdFromSearch(initialShareSearch) ?? initialNotebookRoute.cellId
+    () => readNotebookShareCellIdFromLocation() ?? initialNotebookRoute.cellId
   );
   const [pinnedCellId, setPinnedCellId] = useState<string | null>(null);
   const [activeRailTab, setActiveRailTab] = useState<NotebookRailTab>("contents");
@@ -812,8 +813,6 @@ export function NotebookApp() {
     [parameterOverrides]
   );
   const latestHistoryUpdateRef = useRef(0);
-  const notebookCommandTrayRef = useRef<HTMLElement | null>(null);
-  const notebookCommandTrayToggleRef = useRef<HTMLButtonElement | null>(null);
   const assistantVariableDescriptions = useMemo(
     () => buildNotebookVariableDescriptions(notebookDocument.cells),
     [notebookDocument.cells]
@@ -1528,6 +1527,7 @@ export function NotebookApp() {
   const notebookTourHandlers = useMemo(
     () => ({
       openRailTab: setActiveRailTab,
+      openCommandsPanel: () => setIsNotebookCommandsPanelOpen(true),
       openHelpPanel: () => {
         setSelectedHelpTopicId("introduction");
         setHelpContext(null);
@@ -1541,36 +1541,6 @@ export function NotebookApp() {
   useEffect(() => {
     return maybeStartNotebookTourOnFirstLoad(notebookTourHandlers);
   }, [notebookTourHandlers]);
-
-  useEffect(() => {
-    if (!isNotebookCommandTrayOpen) {
-      return;
-    }
-
-    function handleCommandTrayOutsidePointerDown(event: PointerEvent): void {
-      const target = event.target;
-      if (!(target instanceof Node)) {
-        return;
-      }
-
-      if (notebookCommandTrayRef.current?.contains(target)) {
-        return;
-      }
-
-      if (notebookCommandTrayToggleRef.current?.contains(target)) {
-        return;
-      }
-
-      setIsNotebookCommandTrayOpen(false);
-      setIsNotebookCommandTrayDismissed(true);
-    }
-
-    document.addEventListener("pointerdown", handleCommandTrayOutsidePointerDown, true);
-
-    return () => {
-      document.removeEventListener("pointerdown", handleCommandTrayOutsidePointerDown, true);
-    };
-  }, [isNotebookCommandTrayOpen]);
 
   useEffect(() => {
     void runner.runAll();
@@ -2409,13 +2379,15 @@ export function NotebookApp() {
 
     const shareLink = await resolveNotebookShareLinkToCopy(result.url);
 
+    const linkLengthLabel = shareLink.url.length.toLocaleString();
+
     navigator.clipboard
       .writeText(shareLink.url)
       .then(() =>
         setUiMessage(
           shareLink.shortened
-            ? "Copied short notebook share link to the clipboard."
-            : "Copied notebook share link to the clipboard."
+            ? `Copied short notebook share link to the clipboard (${linkLengthLabel} characters).`
+            : `Copied notebook share link to the clipboard (${linkLengthLabel} characters).`
         )
       )
       .catch(() => setUiMessage("Could not copy share link to the clipboard."));
@@ -3665,10 +3637,8 @@ export function NotebookApp() {
         >
           <div
             className={`notebook-top-tray${
-              isNotebookCommandTrayOpen ? " is-command-tray-open" : ""
-            }${isNotebookCommandTrayDismissed ? " is-command-tray-dismissed" : ""
-            }${maxResultPeriodIndex > 0 ? " has-period-scrubber" : ""}`}
-            onMouseLeave={() => setIsNotebookCommandTrayDismissed(false)}
+              maxResultPeriodIndex > 0 ? " has-period-scrubber" : " has-commands-toggle"
+            }`}
           >
             {maxResultPeriodIndex > 0 ? (
               <div className="notebook-scrubber-slot">
@@ -3677,137 +3647,19 @@ export function NotebookApp() {
                   onChange={setSelectedPeriodIndex}
                   selectedIndex={selectedPeriodIndex}
                 />
-                <button
-                  ref={notebookCommandTrayToggleRef}
-                  type="button"
-                  className="notebook-command-tray-toggle"
-                  aria-controls="notebook-command-tray"
-                  aria-expanded={isNotebookCommandTrayOpen}
-                  aria-pressed={isNotebookCommandTrayOpen}
-                  onClick={() => {
-                    const nextIsOpen = !isNotebookCommandTrayOpen;
-                    setIsNotebookCommandTrayOpen(nextIsOpen);
-                    setIsNotebookCommandTrayDismissed(!nextIsOpen);
-                  }}
-                >
-                  Commands
-                </button>
+                <NotebookCommandsToggle
+                  isOpen={isNotebookCommandsPanelOpen}
+                  onToggle={() => setIsNotebookCommandsPanelOpen((open) => !open)}
+                />
               </div>
-            ) : null}
-
-            <section
-              ref={notebookCommandTrayRef}
-              id="notebook-command-tray"
-              className="control-panel notebook-app-bar notebook-command-tray"
-            >
-              <div className="notebook-app-bar-main">
-                <div className="notebook-app-bar-brand">
-                  <div className="notebook-app-bar-meta">
-                    <span className="eyebrow">Notebook commands</span>
-                    <span className="notebook-build-badge" title={__SFCR_BUILD_DATE__}>
-                      {BUILD_DATE_LABEL}
-                    </span>
-                  </div>
-                  <strong>{notebookDocument.title}</strong>
-                </div>
-
-                <div className="notebook-app-bar-actions">
-                  <button
-                    type="button"
-                    className="notebook-run-button"
-                    title={nextUndoLabel ? `Undo: ${nextUndoLabel}` : "Nothing to undo"}
-                    aria-label={nextUndoLabel ? `Undo: ${nextUndoLabel}` : "Undo"}
-                    onClick={() => handleUndoNotebookEdit()}
-                    disabled={!nextUndoLabel}
-                  >
-                    Undo
-                  </button>
-                  <button
-                    type="button"
-                    className="notebook-run-button"
-                    title={nextRedoLabel ? `Redo: ${nextRedoLabel}` : "Nothing to redo"}
-                    aria-label={nextRedoLabel ? `Redo: ${nextRedoLabel}` : "Redo"}
-                    onClick={handleRedoNotebookEdit}
-                    disabled={!nextRedoLabel}
-                  >
-                    Redo
-                  </button>
-                  <button
-                    type="button"
-                    id="notebook-run-all"
-                    className="notebook-run-button"
-                    onClick={() => void handleRunAll()}
-                  >
-                    Run all
-                  </button>
-                  <button
-                    type="button"
-                    className="notebook-run-button notebook-action-desktop"
-                    onClick={handleValidateNotebook}
-                  >
-                    Validate
-                  </button>
-                  <button
-                    type="button"
-                    className="notebook-run-button notebook-action-desktop"
-                    onClick={handleExportJson}
-                  >
-                    Export
-                  </button>
-                  <button
-                    type="button"
-                    className="notebook-run-button notebook-action-desktop"
-                    onClick={handleCopyShareLink}
-                  >
-                    Share link
-                  </button>
-                  <button
-                    type="button"
-                    className="notebook-run-button notebook-action-desktop"
-                    onClick={() => {
-                      setActiveRailTab("editor");
-                    }}
-                  >
-                    Import
-                  </button>
-                  <button
-                    type="button"
-                    className="notebook-run-button"
-                    {...{ "aria-pressed": activeRailTab === "contents" }}
-                    onClick={() => setActiveRailTab("contents")}
-                  >
-                    Contents
-                  </button>
-                  <a
-                    className="notebook-toolbar-link notebook-run-button notebook-action-desktop"
-                    href={NOTEBOOK_AI_LANDING_URL}
-                    rel="noreferrer"
-                    target="_blank"
-                  >
-                    AI resources
-                  </a>
-                  <a
-                    className="notebook-toolbar-link notebook-run-button notebook-action-desktop"
-                    href={NOTEBOOK_AI_GUIDE_URL}
-                    rel="noreferrer"
-                    target="_blank"
-                  >
-                    AI guide
-                  </a>
-                  <button
-                    type="button"
-                    id="notebook-tour-launcher"
-                    className="notebook-run-button notebook-tour-launcher"
-                    aria-label="Choose tour step"
-                    aria-haspopup="dialog"
-                    title="Tour"
-                    onClick={() => setIsTourMenuOpen(true)}
-                  >
-                    Tour
-                  </button>
-                </div>
+            ) : (
+              <div className="notebook-commands-toggle-row">
+                <NotebookCommandsToggle
+                  isOpen={isNotebookCommandsPanelOpen}
+                  onToggle={() => setIsNotebookCommandsPanelOpen((open) => !open)}
+                />
               </div>
-            </section>
+            )}
           </div>
 
           <NotebookRenderProfiler
@@ -4620,6 +4472,28 @@ export function NotebookApp() {
             clearBlockConvergence();
           }}
         />
+      ) : null}
+      {isNotebookCommandsPanelOpen ? (
+        <NotebookCommandsPanel
+          buildDateLabel={BUILD_DATE_LABEL}
+          notebookTitle={notebookDocument.title}
+          onClose={() => setIsNotebookCommandsPanelOpen(false)}
+        >
+          <NotebookCommandActions
+            activeRailTab={activeRailTab}
+            nextRedoLabel={nextRedoLabel}
+            nextUndoLabel={nextUndoLabel}
+            onCopyShareLink={() => void handleCopyShareLink()}
+            onExport={handleExportJson}
+            onImport={() => setActiveRailTab("editor")}
+            onOpenContents={() => setActiveRailTab("contents")}
+            onOpenTour={() => setIsTourMenuOpen(true)}
+            onRedo={handleRedoNotebookEdit}
+            onRunAll={() => void handleRunAll()}
+            onUndo={() => handleUndoNotebookEdit()}
+            onValidate={handleValidateNotebook}
+          />
+        </NotebookCommandsPanel>
       ) : null}
       {pinnedCell ? (
         <PinnedCellPanel

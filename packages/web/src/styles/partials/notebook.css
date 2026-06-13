@@ -260,32 +260,16 @@
 .notebook-top-tray {
   position: relative;
 }
-.notebook-top-tray.has-period-scrubber {
+.notebook-top-tray.has-period-scrubber,
+.notebook-top-tray.has-commands-toggle {
   position: sticky;
   top: 0;
   z-index: 20;
 }
-.notebook-top-tray.has-period-scrubber .notebook-command-tray {
-  left: 0;
-  opacity: 0;
-  pointer-events: none;
-  position: absolute;
-  right: 0;
-  top: 100%;
-  transform: translateY(-0.25rem);
-  transition:
-    opacity 140ms ease,
-    transform 140ms ease,
-    visibility 140ms ease;
-  visibility: hidden;
-}
-.notebook-top-tray.has-period-scrubber:not(.is-command-tray-dismissed):hover .notebook-command-tray,
-.notebook-top-tray.has-period-scrubber:not(.is-command-tray-dismissed):focus-within .notebook-command-tray,
-.notebook-top-tray.has-period-scrubber.is-command-tray-open .notebook-command-tray {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateY(0);
-  visibility: visible;
+.notebook-commands-toggle-row {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.2rem 0.55rem 0.15rem;
 }
 .notebook-app-bar {
   -webkit-backdrop-filter: none;
@@ -294,10 +278,6 @@
   border: 1px solid var(--color-border-grid);
   box-shadow: none;
   position: static;
-}
-.notebook-command-tray {
-  padding-bottom: 0.2rem;
-  padding-top: 0.2rem;
 }
 .notebook-app-bar-main {
   align-items: center;
@@ -642,7 +622,7 @@
   top: 0;
   z-index: 2;
 }
-.notebook-command-tray-toggle {
+.notebook-commands-toggle {
   background: linear-gradient(180deg, #ffffff, var(--color-grid-header-bg));
   border: 1px solid rgba(100, 116, 139, 0.28);
   border-radius: var(--radius-pill);
@@ -655,26 +635,95 @@
   line-height: 1;
   min-height: 1.75rem;
   padding: 0.18rem 0.55rem;
-  position: absolute;
-  right: 0.55rem;
-  top: 50%;
-  transform: translateY(-50%);
   transition:
     background-color 140ms ease,
     border-color 140ms ease,
     box-shadow 140ms ease;
 }
-.notebook-command-tray-toggle:hover,
-.notebook-command-tray-toggle:focus-visible,
-.notebook-command-tray-toggle[aria-expanded="true"] {
+.notebook-scrubber-slot .notebook-commands-toggle {
+  position: absolute;
+  right: 0.55rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.notebook-commands-toggle:hover,
+.notebook-commands-toggle:focus-visible,
+.notebook-commands-toggle[aria-expanded="true"] {
   background: linear-gradient(180deg, #ffffff, #dbeafe);
   border-color: rgba(37, 99, 235, 0.3);
   box-shadow: 0 3px 8px rgba(15, 23, 42, 0.1);
 }
-.notebook-command-tray-toggle[aria-expanded="true"] {
+.notebook-commands-toggle[aria-expanded="true"] {
   background: linear-gradient(180deg, #dbeafe, #bfdbfe);
   border-color: rgba(37, 99, 235, 0.48);
   color: var(--color-link-active);
+}
+.notebook-commands-panel {
+  background: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 0.65rem;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.22);
+  display: flex;
+  flex-direction: column;
+  max-width: min(42rem, calc(100vw - 1.5rem));
+  min-width: 280px;
+  pointer-events: auto;
+  position: fixed;
+  z-index: 1190;
+}
+.notebook-commands-panel-header {
+  align-items: flex-start;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  padding: 0.85rem 0.95rem 0.75rem;
+}
+.notebook-commands-panel-header-draggable {
+  cursor: grab;
+  flex: 1;
+  min-width: 0;
+  touch-action: none;
+  user-select: none;
+}
+.notebook-commands-panel-header-draggable:active {
+  cursor: grabbing;
+}
+.notebook-commands-panel-header h3 {
+  margin: 0.1rem 0 0;
+}
+.notebook-commands-panel-meta {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.15rem;
+}
+.notebook-commands-panel-close {
+  background: transparent;
+  border: 0;
+  color: var(--color-text-subtle);
+  cursor: pointer;
+  font-size: 1.35rem;
+  line-height: 1;
+  padding: 0.15rem 0.35rem;
+}
+.notebook-commands-panel-close:hover {
+  color: var(--color-text-strong);
+}
+.notebook-commands-panel-body {
+  padding: 0.65rem 0.95rem 0.85rem;
+}
+.notebook-commands-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.notebook-commands-panel-actions .notebook-run-button,
+.notebook-commands-panel-actions .notebook-toolbar-link {
+  font-size: 0.78rem;
+  min-height: 1.85rem;
+  padding: 0.2rem 0.55rem;
 }
 .notebook-outline {
   align-content: start;

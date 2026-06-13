@@ -574,15 +574,37 @@ function validateNotebookShareShortenRequest(
     return { error: "url origin is not allowed." };
   }
 
-  if (!shareUrl.pathname.includes("/notebook")) {
+  if (!isNotebookShareRouteUrl(shareUrl)) {
     return { error: "url must target a notebook share route." };
   }
 
-  if (!shareUrl.searchParams.has(NOTEBOOK_SHARE_QUERY_PARAM)) {
+  if (!readNotebookShareParams(shareUrl)?.has(NOTEBOOK_SHARE_QUERY_PARAM)) {
     return { error: `url must include the ${NOTEBOOK_SHARE_QUERY_PARAM} query parameter.` };
   }
 
   return { url: shareUrl.toString() };
+}
+
+function isNotebookShareRouteUrl(shareUrl: URL): boolean {
+  if (shareUrl.pathname.includes("/notebook")) {
+    return true;
+  }
+
+  return /^#\/notebook(\?|$)/.test(shareUrl.hash);
+}
+
+function readNotebookShareParams(shareUrl: URL): URLSearchParams | null {
+  if (shareUrl.searchParams.has(NOTEBOOK_SHARE_QUERY_PARAM)) {
+    return shareUrl.searchParams;
+  }
+
+  const queryIndex = shareUrl.hash.indexOf("?");
+  if (queryIndex === -1) {
+    return null;
+  }
+
+  const params = new URLSearchParams(shareUrl.hash.slice(queryIndex + 1));
+  return params.has(NOTEBOOK_SHARE_QUERY_PARAM) ? params : null;
 }
 
 function isNotebookShareOriginAllowed(shareUrl: URL, env: Env): boolean {
