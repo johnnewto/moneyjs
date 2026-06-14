@@ -24,6 +24,10 @@
         },
         "template": {
           "type": "string"
+        },
+        "sourceFileName": {
+          "type": "string",
+          "minLength": 1
         }
       }
     },

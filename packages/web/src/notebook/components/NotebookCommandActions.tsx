@@ -8,8 +8,6 @@ export function NotebookCommandActions({
   nextRedoLabel,
   nextUndoLabel,
   onCopyShareLink,
-  onExport,
-  onImport,
   onOpenContents,
   onOpenTour,
   onRedo,
@@ -21,8 +19,6 @@ export function NotebookCommandActions({
   nextRedoLabel?: string;
   nextUndoLabel?: string;
   onCopyShareLink(): void;
-  onExport(): void;
-  onImport(): void;
   onOpenContents(): void;
   onOpenTour(): void;
   onRedo(): void;
@@ -58,14 +54,8 @@ export function NotebookCommandActions({
       <button type="button" className="notebook-run-button" onClick={onValidate}>
         Validate
       </button>
-      <button type="button" className="notebook-run-button" onClick={onExport}>
-        Export
-      </button>
       <button type="button" className="notebook-run-button" onClick={onCopyShareLink}>
         Share link
-      </button>
-      <button type="button" className="notebook-run-button" onClick={onImport}>
-        Import
       </button>
       <button
         type="button"

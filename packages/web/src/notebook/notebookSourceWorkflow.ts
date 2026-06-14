@@ -130,12 +130,36 @@ export function stripIncrementalSaveSuffix(baseName: string): string {
 export function resolveNotebookSaveBaseName(args: {
   fallbackId: string;
   loadedFileName: string | null;
+  sourceFileName?: string | null;
 }): string {
+  if (args.sourceFileName?.trim()) {
+    return stripIncrementalSaveSuffix(stripNotebookFileExtension(args.sourceFileName.trim()));
+  }
+
   if (args.loadedFileName && args.loadedFileName !== NOTEBOOK_NO_FILE_CHOSEN_LABEL) {
     return stripIncrementalSaveSuffix(stripNotebookFileExtension(args.loadedFileName));
   }
 
   return stripIncrementalSaveSuffix(args.fallbackId.trim()) || "notebook";
+}
+
+export function withNotebookSourceFileName(
+  document: NotebookDocument,
+  sourceFileName: string
+): NotebookDocument {
+  const trimmed = sourceFileName.trim();
+  if (!trimmed) {
+    return document;
+  }
+
+  return {
+    ...document,
+    metadata: {
+      ...document.metadata,
+      version: 1,
+      sourceFileName: trimmed
+    }
+  };
 }
 
 export function buildIncrementalNotebookSaveFileName(args: {

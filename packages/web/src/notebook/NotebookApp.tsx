@@ -98,6 +98,7 @@ import {
   NOTEBOOK_NO_FILE_CHOSEN_LABEL,
   resolveNotebookSaveBaseName,
   serializeNotebookSource,
+  withNotebookSourceFileName,
   summarizeCellTypes,
   validateNotebookModels
 } from "./notebookSourceWorkflow";
@@ -136,6 +137,7 @@ import {
 import { NotebookVariantManagerDialog } from "./NotebookVariantManagerDialog";
 import {
   createNotebookVariantFromDocument,
+  createNotebookVariantFromFileImport,
   createNotebookVariantFromTemplate,
   CUSTOM_NOTEBOOK_STORAGE_KEY,
   IMPORTED_NOTEBOOK_VARIANT_ID,
@@ -2113,6 +2115,9 @@ export function NotebookApp() {
 
     resetNotebookImportedFileContext();
     replaceNotebookDocument(variantDocument, label);
+    if (variantDocument.metadata.sourceFileName) {
+      markNotebookImportedFile(variantDocument.metadata.sourceFileName);
+    }
     setActiveVariantId(variantId);
     writeNotebookVariantHash(variantId);
     setImportPreview(null);
@@ -2232,6 +2237,51 @@ export function NotebookApp() {
     writeNotebookVariantHash(entry.id);
   }
 
+  function resolveNotebookImportFileName(): string | null {
+    if (selectedImportFileName === NOTEBOOK_NO_FILE_CHOSEN_LABEL) {
+      return null;
+    }
+
+    return selectedImportFileName;
+  }
+
+  function activateNotebookFromFileImport(
+    document: NotebookDocument,
+    fileName: string,
+    successMessage?: string
+  ): void {
+    const entry = createNotebookVariantFromFileImport(document, fileName);
+    if (!entry) {
+      setUiMessage("Could not save imported notebook to browser storage.");
+      return;
+    }
+
+    refreshVariantIndex();
+    if (loadNotebookVariant(entry.id, "source import")) {
+      markNotebookImportedFile(fileName);
+      committedNotebookRouteRef.current = readNotebookRouteLocation();
+      setUiMessage(successMessage ?? `Imported ${fileName}.`);
+    }
+  }
+
+  function completeNotebookImport(document: NotebookDocument, successMessage: string): void {
+    const fileName = resolveNotebookImportFileName();
+    if (fileName) {
+      activateNotebookFromFileImport(document, fileName, successMessage);
+      return;
+    }
+
+    replaceNotebookDocument(document, "source import");
+    const templateId = resolveCurrentTemplateId(document);
+    if (templateId) {
+      setActiveVariantId(null);
+      writeNotebookLocation({ templateId });
+    } else {
+      activateImportedNotebookVariant(document);
+    }
+    setUiMessage(successMessage);
+  }
+
   useEffect(() => {
     migrateNotebookHashToPathname();
   }, []);
@@ -2342,23 +2392,6 @@ export function NotebookApp() {
     notebookDocument.metadata.template
   ]);
 
-  function handleExportJson(): void {
-    const exported = importText || serializeNotebookSource(notebookDocument, sourceFormat);
-    setActiveRailTab("editor");
-    navigator.clipboard
-      .writeText(exported)
-      .then(() =>
-        setUiMessage(
-          `Copied notebook ${formatNotebookSourceLabel(sourceFormat)} source to the clipboard.`
-        )
-      )
-      .catch(() =>
-        setUiMessage(
-          `Notebook ${formatNotebookSourceLabel(sourceFormat)} source is shown in the editor.`
-        )
-      );
-  }
-
   async function handleCopyShareLink(): Promise<void> {
     if (hasPendingImportTextChanges) {
       setUiMessage("Apply or discard the source draft before sharing a link.");
@@ -2437,17 +2470,12 @@ export function NotebookApp() {
 
     try {
       const parsed = parseNotebookSource(importText);
-      replaceNotebookDocument(parsed.document, "source import");
-      const templateId = resolveCurrentTemplateId(parsed.document);
-      if (templateId) {
-        setActiveVariantId(null);
-        writeNotebookLocation({ templateId });
-      } else {
-        activateImportedNotebookVariant(parsed.document);
-      }
+      completeNotebookImport(
+        parsed.document,
+        `Imported notebook ${formatNotebookSourceLabel(parsed.format)}.`
+      );
       setCommittedImportText(importText);
       setImportPreview(null);
-      setUiMessage(`Imported notebook ${formatNotebookSourceLabel(parsed.format)}.`);
     } catch (error) {
       setImportPreview(null);
       setUiMessage(
@@ -2482,16 +2510,12 @@ export function NotebookApp() {
     if (!importPreview) {
       return;
     }
-    replaceNotebookDocument(importPreview.document, "source import");
-    const templateId = resolveCurrentTemplateId(importPreview.document);
-    if (templateId) {
-      setActiveVariantId(null);
-      writeNotebookLocation({ templateId });
-    } else {
-      activateImportedNotebookVariant(importPreview.document);
-    }
+
+    completeNotebookImport(
+      importPreview.document,
+      `Imported notebook ${formatNotebookSourceLabel(importPreview.source)}.`
+    );
     setCommittedImportText(importText);
-    setUiMessage(`Imported notebook ${formatNotebookSourceLabel(importPreview.source)}.`);
     setImportPreview(null);
   }
 
@@ -2556,15 +2580,17 @@ export function NotebookApp() {
   }
 
   async function handleSaveNotebook(): Promise<void> {
-    const exported = serializeNotebookSource(notebookDocument, sourceFormat);
     const fileName = buildIncrementalNotebookSaveFileName({
       baseName: resolveNotebookSaveBaseName({
+        sourceFileName: notebookDocument.metadata.sourceFileName,
         loadedFileName: selectedImportFileName,
         fallbackId: notebookDocument.id
       }),
       counter: saveNameCounter,
       format: sourceFormat
     });
+    const documentForSave = withNotebookSourceFileName(notebookDocument, fileName);
+    const exported = serializeNotebookSource(documentForSave, sourceFormat);
 
     try {
       const result = await saveNotebookSourceFile({
@@ -2580,7 +2606,10 @@ export function NotebookApp() {
       }
 
       setSaveNameCounter((current) => current + 1);
-      setSelectedImportFileName(result.fileName);
+      markNotebookImportedFile(result.fileName);
+      commitNotebookDocument("save", (current) =>
+        withNotebookSourceFileName(current, result.fileName)
+      );
       setUiMessage(
         `Saved notebook ${formatNotebookSourceLabel(sourceFormat)} as ${result.fileName}.`
       );
@@ -4484,8 +4513,6 @@ export function NotebookApp() {
             nextRedoLabel={nextRedoLabel}
             nextUndoLabel={nextUndoLabel}
             onCopyShareLink={() => void handleCopyShareLink()}
-            onExport={handleExportJson}
-            onImport={() => setActiveRailTab("editor")}
             onOpenContents={() => setActiveRailTab("contents")}
             onOpenTour={() => setIsTourMenuOpen(true)}
             onRedo={handleRedoNotebookEdit}

@@ -5,8 +5,10 @@ import {
   NOTEBOOK_NO_FILE_CHOSEN_LABEL,
   resolveNotebookSaveBaseName,
   stripIncrementalSaveSuffix,
-  stripNotebookFileExtension
+  stripNotebookFileExtension,
+  withNotebookSourceFileName
 } from "../src/notebook/notebookSourceWorkflow";
+import { createNotebookFromTemplate } from "../src/notebook/templates";
 
 describe("notebook save file names", () => {
   it("strips common notebook file extensions", () => {
@@ -38,6 +40,23 @@ describe("notebook save file names", () => {
         fallbackId: "bmw-notebook"
       })
     ).toBe("bmw-notebook");
+  });
+
+  it("prefers metadata sourceFileName over loaded file UI state", () => {
+    expect(
+      resolveNotebookSaveBaseName({
+        sourceFileName: "browser-notebook.notebook.yaml",
+        loadedFileName: "other.notebook.yaml",
+        fallbackId: "sim-browser-notebook"
+      })
+    ).toBe("browser-notebook");
+  });
+
+  it("sets metadata sourceFileName on the document", () => {
+    const document = createNotebookFromTemplate("sim");
+    const updated = withNotebookSourceFileName(document, "browser-notebook.notebook.yaml");
+    expect(updated.metadata.sourceFileName).toBe("browser-notebook.notebook.yaml");
+    expect(updated.metadata.template).toBe("sim");
   });
 
   it("builds numbered save names for the active format", () => {

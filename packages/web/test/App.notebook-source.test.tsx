@@ -386,6 +386,38 @@ describe("App notebook source and import workflows", () => {
     expect(screen.getByRole("button", { name: /apply preview/i })).toBeInTheDocument();
   }, 15000);
 
+  it("routes applied file imports to a variant URL and records the source file name", async () => {
+    const user = userEvent.setup();
+    window.history.replaceState(null, "", "/notebook");
+
+    render(<App />);
+
+    await user.click(screen.getByRole("tab", { name: /^editor$/i }));
+
+    const customNotebook = createNotebookFromTemplate("sim");
+    customNotebook.title = "Applied File Notebook";
+    customNotebook.metadata = { version: 1, template: "sim" };
+    const yamlSource = notebookToCompactYaml(customNotebook, { preserveIds: true });
+    const file = new File([yamlSource], "browser-notebook.notebook.yaml", { type: "application/yaml" });
+    const fileInput = document.querySelector('input[type="file"]');
+
+    if (!(fileInput instanceof HTMLInputElement)) {
+      throw new Error("Expected notebook source file input.");
+    }
+
+    await user.upload(fileInput, file);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /apply preview/i })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole("button", { name: /apply preview/i }));
+
+    await waitFor(() => {
+      expect(window.location.pathname).toContain("/notebook/variant/sim-browser-notebook");
+      expect(getNotebookSourceTextArea().value).toContain("sourceFileName: browser-notebook.notebook.yaml");
+    });
+  }, 15000);
+
   it("imports a JSON notebook file while YAML is selected without leaving the editor rail", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";

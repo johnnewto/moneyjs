@@ -82,7 +82,10 @@ export function buildCompactYamlEnvelope(document: NotebookDocument, options: Co
     title: document.title,
     metadata: {
       version: 1,
-      ...(document.metadata.template ? { template: document.metadata.template } : {})
+      ...(document.metadata.template ? { template: document.metadata.template } : {}),
+      ...(document.metadata.sourceFileName
+        ? { sourceFileName: document.metadata.sourceFileName }
+        : {})
     }
   };
 

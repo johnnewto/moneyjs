@@ -6,7 +6,7 @@ import {
   type NotebookTemplateId
 } from "./templates";
 import type { NotebookDocument } from "./types";
-import { serializeNotebookSource } from "./notebookSourceWorkflow";
+import { serializeNotebookSource, stripNotebookFileExtension } from "./notebookSourceWorkflow";
 
 export const NOTEBOOK_VARIANT_INDEX_STORAGE_KEY = "sfcr:notebook-variants:index";
 
@@ -132,11 +132,14 @@ function applyVariantEntryToDocument(
   if (entry.derivedFrom) {
     metadata.template = entry.derivedFrom;
   }
+  if (document.metadata.sourceFileName) {
+    metadata.sourceFileName = document.metadata.sourceFileName;
+  }
 
   return {
     ...structuredClone(document),
     id: entry.id,
-    title: entry.title,
+    title: document.title.trim() || entry.title,
     metadata
   };
 }
@@ -283,6 +286,35 @@ export function createNotebookVariantFromDocument(
   };
 
   return createNotebookVariant(id, trimmedTitle, options.derivedFrom, document);
+}
+
+export function createNotebookVariantFromFileImport(
+  source: NotebookDocument,
+  fileName: string
+): NotebookVariantIndexEntry | null {
+  const trimmedFileName = fileName.trim();
+  if (!trimmedFileName) {
+    return null;
+  }
+
+  const templateId = source.metadata.template;
+  const derivedFrom =
+    typeof templateId === "string" && isNotebookTemplateId(templateId) ? templateId : undefined;
+  const titleFromFile = stripNotebookFileExtension(trimmedFileName).trim();
+  const title = titleFromFile || source.title.trim() || "Imported notebook";
+  const id = allocateNotebookVariantId(derivedFrom, title);
+  const document: NotebookDocument = {
+    ...structuredClone(source),
+    id,
+    title: source.title.trim() || title,
+    metadata: {
+      version: 1,
+      ...(derivedFrom ? { template: derivedFrom } : {}),
+      sourceFileName: trimmedFileName
+    }
+  };
+
+  return createNotebookVariant(id, title, derivedFrom, document);
 }
 
 function createNotebookVariant(

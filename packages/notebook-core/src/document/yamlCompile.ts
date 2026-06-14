@@ -31,6 +31,8 @@ export function compileYamlNotebookSource(source: NotebookYamlEnvelope): Partial
   const title = stringValue(source.title, id);
   const metadataInput: Record<string, unknown> = isRecord(source.metadata) ? source.metadata : {};
   const template = typeof metadataInput.template === "string" ? metadataInput.template : undefined;
+  const sourceFileName =
+    typeof metadataInput.sourceFileName === "string" ? metadataInput.sourceFileName.trim() : "";
   const modelId = typeof source.modelId === "string" ? source.modelId : template ? `${template}-model` : "main";
   const baselineRunInput = isRecord(source.baselineRun) ? source.baselineRun : {};
   const baselineRunCellId = stringValue(baselineRunInput.id, "baseline-run");
@@ -149,7 +151,8 @@ export function compileYamlNotebookSource(source: NotebookYamlEnvelope): Partial
     title,
     metadata: {
       version: 1,
-      ...(template ? { template } : {})
+      ...(template ? { template } : {}),
+      ...(sourceFileName ? { sourceFileName } : {})
     },
     cells: orderCompactCells(cells, source.cellOrder)
   };

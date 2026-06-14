@@ -8,6 +8,7 @@ import {
   CUSTOM_NOTEBOOK_STORAGE_KEY,
   IMPORTED_NOTEBOOK_VARIANT_ID,
   NOTEBOOK_VARIANT_INDEX_STORAGE_KEY,
+  createNotebookVariantFromFileImport,
   createNotebookVariantFromTemplate,
   listNotebookVariants,
   loadNotebookVariantDocument,
@@ -75,5 +76,18 @@ describe("notebookVariants", () => {
     removeNotebookVariant(entry!.id);
     expect(loadNotebookVariantDocument(entry!.id)).toBeNull();
     expect(listNotebookVariants().some((variant) => variant.id === entry!.id)).toBe(false);
+  });
+
+  it("creates a file-import variant with source metadata", () => {
+    const source = createNotebookFromTemplate("sim");
+    source.title = "SIM browser notebook";
+
+    const entry = createNotebookVariantFromFileImport(source, "browser-notebook.notebook.yaml");
+    expect(entry?.id).toBe("sim-browser-notebook");
+
+    const loaded = loadNotebookVariantDocument(entry!.id);
+    expect(loaded?.metadata.sourceFileName).toBe("browser-notebook.notebook.yaml");
+    expect(loaded?.metadata.template).toBe("sim");
+    expect(loaded?.title).toBe("SIM browser notebook");
   });
 });

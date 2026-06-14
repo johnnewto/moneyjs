@@ -109,6 +109,7 @@ export interface NotebookDocument {
   metadata: {
     version: 1;
     template?: string;
+    sourceFileName?: string;
   };
 }
 
