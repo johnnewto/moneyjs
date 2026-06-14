@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 
 import "../styles/app.css";
 import { readPublicationRouteLocation } from "../publication/publicationRouteHelpers";
@@ -25,7 +25,21 @@ function redirectLegacyRoutes(): void {
 }
 
 function AppContent() {
-  const publicationRoute = useMemo(() => readPublicationRouteLocation(), []);
+  const [routeRevision, setRouteRevision] = useState(0);
+
+  useEffect(() => {
+    function handleRouteChange(): void {
+      setRouteRevision((current) => current + 1);
+    }
+
+    window.addEventListener("popstate", handleRouteChange);
+    return () => window.removeEventListener("popstate", handleRouteChange);
+  }, []);
+
+  const publicationRoute = useMemo(
+    () => readPublicationRouteLocation(),
+    [routeRevision]
+  );
 
   if (publicationRoute) {
     return <PublicationNotebookApp route={publicationRoute} />;

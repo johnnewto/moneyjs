@@ -1,5 +1,20 @@
+import { isPublicationPathname } from "../publication/publicationRouteHelpers";
+
 export const UNSAVED_CHANGES_MESSAGE =
   "You have unsaved changes. Leave this page anyway?";
+
+export function isPublicationNavigationHref(href: string): boolean {
+  if (!href || href.startsWith("#")) {
+    return false;
+  }
+
+  try {
+    const url = new URL(href, window.location.href);
+    return isPublicationPathname(url.pathname);
+  } catch {
+    return false;
+  }
+}
 
 export function confirmUnsavedNavigation(
   isDirty: boolean,

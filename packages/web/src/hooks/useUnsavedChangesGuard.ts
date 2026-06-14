@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import {
   confirmUnsavedNavigation,
   isInternalNavigationHref,
+  isPublicationNavigationHref,
   readAppLocation,
   resolveNavigationTarget,
   UNSAVED_CHANGES_MESSAGE
@@ -63,6 +64,10 @@ export function useUnsavedChangesGuard(options: {
 
       const href = anchor.getAttribute("href");
       if (!href || !isInternalNavigationHref(href)) {
+        return;
+      }
+
+      if (isPublicationNavigationHref(href)) {
         return;
       }
 

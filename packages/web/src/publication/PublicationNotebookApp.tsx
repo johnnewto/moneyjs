@@ -5,14 +5,15 @@ import type { SimulationResult } from "@sfcr/core";
 import { useInspectorVariableHistory } from "../hooks/useInspectorVariableHistory";
 import { isSameInspectorContext, type VariableInspectRequest } from "../lib/variableInspect";
 import { buildNotebookPathname, buildNotebookVariableUnitMetadata } from "../notebook/notebookAppHelpers";
-import { createNotebookFromTemplate } from "../notebook/templates";
 import { useNotebookRunner } from "../notebook/useNotebookRunner";
 import { buildPublicationViewModel, buildPublicationContentsEntries } from "./buildPublicationViewModel";
 import { PublicationCellView } from "./PublicationCellView";
 import { PublicationContents } from "./PublicationContents";
 import { PublicationActionLinks } from "./PublicationActionLinks";
 import type { PublicationRouteLocation } from "./publicationRouteHelpers";
-import { buildPublicationPathname } from "./publicationRouteHelpers";
+import {
+  buildPublicationPathnameFromRoute
+} from "./publicationRouteHelpers";
 import {
   buildPublicationInspectRequest,
   mergePublicationVariableInteraction,
@@ -20,6 +21,15 @@ import {
 } from "./publicationInspect";
 import { buildPublicationVariableDescriptions } from "./publicationVariables";
 import { PublicationVariableInspectorPopup } from "./PublicationVariableInspectorPopup";
+import {
+  readPublicationLiveReturnUrl,
+  readPublicationLiveSession
+} from "./publicationLiveSession";
+import {
+  resolveInitialPublicationDocument,
+  resolvePublicationTemplateId,
+  subscribeLivePublicationDocument
+} from "./resolvePublicationDocument";
 import "../styles/partials/publication.css";
 
 function resolveMaxPeriodIndex(
@@ -43,24 +53,52 @@ function resolveMaxPeriodIndex(
 }
 
 export function PublicationNotebookApp({ route }: { route: PublicationRouteLocation }) {
-  const notebookDocument = useMemo(
-    () => createNotebookFromTemplate(route.templateId),
-    [route.templateId]
-  );
+  const initialPublication = useMemo(() => resolveInitialPublicationDocument(route), [route]);
+  const [notebookDocument, setNotebookDocument] = useState(initialPublication.document);
+  const [liveSessionMissing, setLiveSessionMissing] = useState(initialPublication.liveSessionMissing);
+  const [documentRevision, setDocumentRevision] = useState<number | null>(null);
   const runner = useNotebookRunner(notebookDocument);
   const [runPhase, setRunPhase] = useState<"pending" | "running" | "done">("pending");
   const [inspectorContext, setInspectorContext] = useState<VariableInspectRequest | null>(null);
   const inspectorHistory = useInspectorVariableHistory();
 
+  const publicationTemplateId = useMemo(
+    () => resolvePublicationTemplateId(notebookDocument),
+    [notebookDocument]
+  );
+
+  useEffect(() => {
+    const next = resolveInitialPublicationDocument(route);
+    setNotebookDocument(next.document);
+    setLiveSessionMissing(next.liveSessionMissing);
+    setDocumentRevision((previous) =>
+      route.source === "live"
+        ? (readPublicationLiveSession()?.revision ?? 0)
+        : (previous ?? -1) + 1
+    );
+  }, [route]);
+
+  useEffect(() => {
+    if (route.source !== "live") {
+      return;
+    }
+
+    return subscribeLivePublicationDocument((document) => {
+      setNotebookDocument(document);
+      setLiveSessionMissing(false);
+      setDocumentRevision((current) => current + 1);
+    });
+  }, [route.source]);
+
   const viewModel = useMemo(
     () =>
       buildPublicationViewModel({
         document: notebookDocument,
-        templateId: route.templateId,
+        templateId: publicationTemplateId,
         mode: route.mode,
         embedCellId: route.embedCellId
       }),
-    [notebookDocument, route.embedCellId, route.mode, route.templateId]
+    [notebookDocument, publicationTemplateId, route.embedCellId, route.mode]
   );
 
   const runCellIds = useMemo(
@@ -69,6 +107,10 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
   );
 
   useEffect(() => {
+    if (documentRevision === null) {
+      return;
+    }
+
     let cancelled = false;
 
     void (async () => {
@@ -82,7 +124,7 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
     return () => {
       cancelled = true;
     };
-  }, [notebookDocument]);
+  }, [documentRevision]);
 
   const selectedPeriodIndex = useMemo(
     () => resolveMaxPeriodIndex(runner.getResult, runCellIds),
@@ -193,10 +235,13 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
     target?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [route.cellId, route.mode, runPhase]);
 
-  const interactiveNotebookHref = buildNotebookPathname({ templateId: route.templateId });
-  const printHref = buildPublicationPathname({
-    mode: "print",
-    templateId: route.templateId,
+  const interactiveNotebookHref =
+    readPublicationLiveReturnUrl() ??
+    buildNotebookPathname({
+      templateId: publicationTemplateId
+    });
+  const printHref = buildPublicationPathnameFromRoute({
+    route: { mode: "print", source: route.source, templateId: route.templateId },
     cellId: route.cellId ?? undefined
   });
   const isEmbed = route.mode === "embed";
@@ -212,6 +257,12 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
 
   const mainContent = (
     <>
+      {liveSessionMissing ? (
+        <p className="publication-status-hint">
+          Live publication snapshot is unavailable. Open publication view from the interactive notebook
+          to mirror your current edits.
+        </p>
+      ) : null}
       {embedMissingCell ? (
         <p className="publication-status-hint">
           Embed URL requires a <code>?cell=</code> query parameter naming a notebook cell id.
@@ -280,9 +331,8 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
                 entries={contentsEntries}
                 interactiveNotebookHref={interactiveNotebookHref}
                 isPrint={isPrint}
-                mode={route.mode}
+                route={route}
                 printHref={printHref}
-                templateId={route.templateId}
               />
             ) : null}
           </div>

@@ -42,6 +42,7 @@ describe("PublicationNotebookApp variable inspector", () => {
       <PublicationNotebookApp
         route={{
           mode: "publish",
+          source: "template",
           templateId: "bmw",
           cellId: null,
           embedCellId: null

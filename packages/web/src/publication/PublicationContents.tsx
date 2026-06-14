@@ -2,26 +2,23 @@ import { useCallback, useEffect, useState, type MouseEvent } from "react";
 
 import type { PublicationContentsEntry } from "./buildPublicationViewModel";
 import { PublicationActionLinks } from "./PublicationActionLinks";
-import type { PublicationRenderMode } from "./publicationRouteHelpers";
-import { buildPublicationPathname } from "./publicationRouteHelpers";
-import type { NotebookTemplateId } from "../notebook/templates";
+import type { PublicationRouteLocation } from "./publicationRouteHelpers";
+import { buildPublicationPathnameFromRoute } from "./publicationRouteHelpers";
 
 export function PublicationContents({
   activeAnchorId,
   entries,
   interactiveNotebookHref,
   isPrint,
-  mode,
   printHref,
-  templateId
+  route
 }: {
   activeAnchorId: string | null;
   entries: PublicationContentsEntry[];
   interactiveNotebookHref: string;
   isPrint: boolean;
-  mode: PublicationRenderMode;
   printHref: string;
-  templateId: NotebookTemplateId;
+  route: PublicationRouteLocation;
 }) {
   const [trackedAnchorId, setTrackedAnchorId] = useState<string | null>(activeAnchorId);
 
@@ -78,14 +75,13 @@ export function PublicationContents({
       window.history.replaceState(
         null,
         "",
-        buildPublicationPathname({
-          mode,
-          templateId,
+        buildPublicationPathnameFromRoute({
+          route,
           cellId: anchorId
         })
       );
     },
-    [mode, templateId]
+    [route]
   );
 
   if (entries.length === 0) {
@@ -107,9 +103,8 @@ export function PublicationContents({
                     ? "publication-contents-link is-active"
                     : "publication-contents-link"
                 }
-                href={buildPublicationPathname({
-                  mode,
-                  templateId,
+                href={buildPublicationPathnameFromRoute({
+                  route,
                   cellId: entry.anchorId
                 })}
                 onClick={(event) => handleNavigate(entry.anchorId, event)}

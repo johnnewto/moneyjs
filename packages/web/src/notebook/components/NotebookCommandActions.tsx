@@ -1,3 +1,4 @@
+import { navigateToPublicationView } from "../../publication/publicationRouteHelpers";
 import {
   NOTEBOOK_AI_GUIDE_URL,
   NOTEBOOK_AI_LANDING_URL
@@ -14,6 +15,7 @@ export function NotebookCommandActions({
   onRunAll,
   onUndo,
   onValidate,
+  onPreparePublicationView,
   publicationHref = null
 }: {
   activeRailTab: string;
@@ -26,6 +28,7 @@ export function NotebookCommandActions({
   onRunAll(): void;
   onUndo(): void;
   onValidate(): void;
+  onPreparePublicationView?(): void;
   publicationHref?: string | null;
 }) {
   return (
@@ -60,7 +63,27 @@ export function NotebookCommandActions({
         Share link
       </button>
       {publicationHref ? (
-        <a className="notebook-toolbar-link notebook-run-button" href={publicationHref}>
+        <a
+          className="notebook-toolbar-link notebook-run-button"
+          href={publicationHref}
+          onClick={(event) => {
+            onPreparePublicationView?.();
+
+            if (
+              event.defaultPrevented ||
+              event.button !== 0 ||
+              event.metaKey ||
+              event.ctrlKey ||
+              event.shiftKey ||
+              event.altKey
+            ) {
+              return;
+            }
+
+            event.preventDefault();
+            navigateToPublicationView(publicationHref);
+          }}
+        >
           Publication view
         </a>
       ) : null}

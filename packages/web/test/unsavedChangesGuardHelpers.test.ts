@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   confirmUnsavedNavigation,
   isInternalNavigationHref,
+  isPublicationNavigationHref,
   resolveNavigationTarget
 } from "../src/lib/unsavedChangesGuard";
 
@@ -31,5 +32,12 @@ describe("unsavedChangesGuard helpers", () => {
     window.history.replaceState(null, "", "/notebook/bmw");
 
     expect(resolveNavigationTarget("#/notebook")).toBe("/notebook/bmw#/notebook");
+  });
+
+  it("recognizes publication navigation hrefs", () => {
+    expect(isPublicationNavigationHref("/publish/live")).toBe(true);
+    expect(isPublicationNavigationHref("/print/bmw")).toBe(true);
+    expect(isPublicationNavigationHref("#/notebook")).toBe(false);
+    expect(isPublicationNavigationHref("/notebook/bmw")).toBe(false);
   });
 });

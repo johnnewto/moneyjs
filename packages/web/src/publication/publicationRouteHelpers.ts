@@ -1,4 +1,5 @@
 import {
+  DEFAULT_NOTEBOOK_TEMPLATE_ID,
   isNotebookTemplateId,
   type NotebookTemplateId
 } from "../notebook/templates";
@@ -6,10 +7,14 @@ import {
 const APP_BASE_URL = import.meta.env.BASE_URL;
 
 export type PublicationRenderMode = "publish" | "embed" | "print";
+export type PublicationDocumentSource = "template" | "live";
+
+export const PUBLICATION_LIVE_ROUTE_ID = "live";
 
 export interface PublicationRouteLocation {
   mode: PublicationRenderMode;
-  templateId: NotebookTemplateId;
+  source: PublicationDocumentSource;
+  templateId: NotebookTemplateId | null;
   cellId: string | null;
   embedCellId: string | null;
 }
@@ -37,16 +42,27 @@ export function parsePublicationPathname(pathname: string): PublicationRouteLoca
 
   const mode = match[1] as PublicationRenderMode;
   const candidate = match[2].trim();
-  if (!isNotebookTemplateId(candidate)) {
-    return null;
-  }
-
   const cellId = match[3]?.trim() || null;
   const embedCellId =
     mode === "embed" ? new URLSearchParams(window.location.search).get("cell")?.trim() || null : null;
 
+  if (candidate === PUBLICATION_LIVE_ROUTE_ID) {
+    return {
+      mode,
+      source: "live",
+      templateId: null,
+      cellId: mode === "embed" ? null : cellId,
+      embedCellId
+    };
+  }
+
+  if (!isNotebookTemplateId(candidate)) {
+    return null;
+  }
+
   return {
     mode,
+    source: "template",
     templateId: candidate,
     cellId: mode === "embed" ? null : cellId,
     embedCellId
@@ -59,17 +75,23 @@ export function readPublicationRouteLocation(): PublicationRouteLocation | null 
 
 export function buildPublicationPathname(args: {
   mode: PublicationRenderMode;
-  templateId: NotebookTemplateId;
+  source?: PublicationDocumentSource;
+  templateId?: NotebookTemplateId;
   cellId?: string;
   embedCellId?: string;
 }): string {
   const base = APP_BASE_URL.replace(/\/$/, "");
+  const source = args.source ?? "template";
+  const segment =
+    source === "live"
+      ? PUBLICATION_LIVE_ROUTE_ID
+      : args.templateId ?? DEFAULT_NOTEBOOK_TEMPLATE_ID;
   const route =
     args.mode === "embed"
-      ? `/embed/${args.templateId}`
+      ? `/embed/${segment}`
       : args.cellId
-        ? `/${args.mode}/${args.templateId}/${args.cellId}`
-        : `/${args.mode}/${args.templateId}`;
+        ? `/${args.mode}/${segment}/${args.cellId}`
+        : `/${args.mode}/${segment}`;
   const path = base ? `${base}${route}` : route;
 
   if (args.mode === "embed" && args.embedCellId) {
@@ -84,4 +106,21 @@ export function buildPublicationPathname(args: {
 export function isPublicationPathname(pathname: string): boolean {
   const path = stripAppBasePath(pathname);
   return /^\/(publish|embed|print)\//.test(path);
+}
+
+export function buildPublicationPathnameFromRoute(args: {
+  route: Pick<PublicationRouteLocation, "mode" | "source" | "templateId">;
+  cellId?: string;
+}): string {
+  return buildPublicationPathname({
+    mode: args.route.mode,
+    source: args.route.source,
+    templateId: args.route.templateId ?? undefined,
+    cellId: args.cellId
+  });
+}
+
+export function navigateToPublicationView(pathname: string): void {
+  window.history.pushState(window.history.state, "", pathname);
+  window.dispatchEvent(new PopStateEvent("popstate"));
 }

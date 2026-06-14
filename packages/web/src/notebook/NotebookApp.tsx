@@ -126,6 +126,7 @@ import {
   writeNotebookVariantHash
 } from "./notebookAppHelpers";
 import { buildPublicationPathname } from "../publication/publicationRouteHelpers";
+import { writePublicationLiveSession } from "../publication/publicationLiveSession";
 import {
   buildNotebookShareUrl,
   clearNotebookShareQueryFromLocation,
@@ -1251,12 +1252,25 @@ export function NotebookApp() {
     [notebookDocument]
   );
   const publicationHref = useMemo(
-    () =>
-      currentTemplateId
-        ? buildPublicationPathname({ mode: "publish", templateId: currentTemplateId })
-        : null,
-    [currentTemplateId]
+    () => buildPublicationPathname({ mode: "publish", source: "live" }),
+    []
   );
+  const handlePreparePublicationView = useCallback(() => {
+    writePublicationLiveSession({
+      document: notebookDocument,
+      returnUrl: `${window.location.pathname}${window.location.search}`
+    });
+  }, [notebookDocument]);
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      writePublicationLiveSession({
+        document: notebookDocument,
+        returnUrl: `${window.location.pathname}${window.location.search}`
+      });
+    }, 300);
+
+    return () => window.clearTimeout(timeout);
+  }, [notebookDocument]);
   const notebookDerivedFrom = useMemo(
     () => resolveNotebookDerivedFrom(notebookDocument, activeVariantId, currentTemplateId),
     [activeVariantId, currentTemplateId, notebookDocument]
@@ -4528,6 +4542,7 @@ export function NotebookApp() {
             onUndo={() => handleUndoNotebookEdit()}
             onValidate={handleValidateNotebook}
             publicationHref={publicationHref}
+            onPreparePublicationView={handlePreparePublicationView}
           />
         </NotebookCommandsPanel>
       ) : null}

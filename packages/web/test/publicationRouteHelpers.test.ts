@@ -19,20 +19,40 @@ describe("publicationRouteHelpers", () => {
   it("parses publish and print pathnames with optional cell segments", () => {
     expect(parsePublicationPathname("/publish/bmw")).toEqual({
       mode: "publish",
+      source: "template",
       templateId: "bmw",
       cellId: null,
       embedCellId: null
     });
     expect(parsePublicationPathname("/publish/bmw/balance-sheet")).toEqual({
       mode: "publish",
+      source: "template",
       templateId: "bmw",
       cellId: "balance-sheet",
       embedCellId: null
     });
     expect(parsePublicationPathname("/print/werner-qtc-explainer")).toEqual({
       mode: "print",
+      source: "template",
       templateId: "werner-qtc-explainer",
       cellId: null,
+      embedCellId: null
+    });
+  });
+
+  it("parses live publication routes", () => {
+    expect(parsePublicationPathname("/publish/live")).toEqual({
+      mode: "publish",
+      source: "live",
+      templateId: null,
+      cellId: null,
+      embedCellId: null
+    });
+    expect(parsePublicationPathname("/publish/live/intro")).toEqual({
+      mode: "publish",
+      source: "live",
+      templateId: null,
+      cellId: "intro",
       embedCellId: null
     });
   });
@@ -42,6 +62,7 @@ describe("publicationRouteHelpers", () => {
 
     expect(readPublicationRouteLocation()).toEqual({
       mode: "embed",
+      source: "template",
       templateId: "bmw",
       cellId: null,
       embedCellId: "balance-sheet"
@@ -50,6 +71,7 @@ describe("publicationRouteHelpers", () => {
 
   it("builds publication and embed pathnames", () => {
     expect(buildPublicationPathname({ mode: "publish", templateId: "bmw" })).toBe("/publish/bmw");
+    expect(buildPublicationPathname({ mode: "publish", source: "live" })).toBe("/publish/live");
     expect(
       buildPublicationPathname({
         mode: "embed",

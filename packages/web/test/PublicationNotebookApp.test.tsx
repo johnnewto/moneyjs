@@ -32,6 +32,7 @@ describe("PublicationNotebookApp", () => {
       <PublicationNotebookApp
         route={{
           mode: "publish",
+          source: "template",
           templateId: "werner-qtc-explainer",
           cellId: null,
           embedCellId: null
@@ -58,6 +59,7 @@ describe("PublicationNotebookApp", () => {
       <PublicationNotebookApp
         route={{
           mode: "embed",
+          source: "template",
           templateId: "werner-qtc-explainer",
           cellId: null,
           embedCellId: "intro"
@@ -78,6 +80,7 @@ describe("PublicationNotebookApp", () => {
       <PublicationNotebookApp
         route={{
           mode: "embed",
+          source: "template",
           templateId: "bmw",
           cellId: null,
           embedCellId: null

@@ -39,9 +39,14 @@ describe("PublicationContents", () => {
         entries={entries.slice(0, 3)}
         interactiveNotebookHref="/notebook/bmw"
         isPrint={false}
-        mode="publish"
-        printHref="/print/bmw"
-        templateId="bmw"
+        printHref="/print/live"
+        route={{
+          mode: "publish",
+          source: "live",
+          templateId: null,
+          cellId: null,
+          embedCellId: null
+        }}
       />
     );
 
@@ -52,6 +57,6 @@ describe("PublicationContents", () => {
     fireEvent.click(screen.getByRole("link", { name: overviewEntry!.title }));
 
     expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
-    expect(replaceState).toHaveBeenCalledWith(null, "", expect.stringContaining("/publish/bmw/intro"));
+    expect(replaceState).toHaveBeenCalledWith(null, "", expect.stringContaining("/publish/live/intro"));
   });
 });
