@@ -13,7 +13,8 @@ export function NotebookCommandActions({
   onRedo,
   onRunAll,
   onUndo,
-  onValidate
+  onValidate,
+  publicationHref = null
 }: {
   activeRailTab: string;
   nextRedoLabel?: string;
@@ -25,6 +26,7 @@ export function NotebookCommandActions({
   onRunAll(): void;
   onUndo(): void;
   onValidate(): void;
+  publicationHref?: string | null;
 }) {
   return (
     <div className="notebook-commands-panel-actions">
@@ -57,6 +59,11 @@ export function NotebookCommandActions({
       <button type="button" className="notebook-run-button" onClick={onCopyShareLink}>
         Share link
       </button>
+      {publicationHref ? (
+        <a className="notebook-toolbar-link notebook-run-button" href={publicationHref}>
+          Publication view
+        </a>
+      ) : null}
       <button
         type="button"
         className="notebook-run-button"

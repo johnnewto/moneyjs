@@ -1,0 +1,511 @@
+body:has(.publication-root) {
+  overflow: auto;
+}
+
+#root:has(.publication-root) {
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
+}
+
+.publication-root {
+  min-height: 100vh;
+  background: #faf9f7;
+  color: #1a1a1a;
+  font-family: Georgia, "Times New Roman", "Palatino Linotype", serif;
+  line-height: 1.65;
+}
+
+/* Match pkgdown / Bootstrap 3 article container width (see sfcr articles site). */
+.publication-header,
+.publication-page-shell,
+.publication-footer {
+  width: 100%;
+  max-width: 1170px;
+  margin: 0 auto;
+  padding: 0 15px;
+}
+
+@media (min-width: 768px) {
+  .publication-header,
+  .publication-page-shell,
+  .publication-footer {
+    max-width: 750px;
+  }
+}
+
+@media (min-width: 992px) {
+  .publication-header,
+  .publication-page-shell,
+  .publication-footer {
+    max-width: 970px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .publication-header,
+  .publication-page-shell,
+  .publication-footer {
+    max-width: 1170px;
+  }
+}
+
+.publication-page-shell {
+  padding-bottom: 3rem;
+}
+
+.publication-layout {
+  display: block;
+}
+
+@media (min-width: 992px) {
+  .publication-layout-with-contents {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(11rem, 15rem);
+    gap: 2rem;
+  }
+
+  .publication-layout-with-contents .publication-contents {
+    align-self: start;
+    position: sticky;
+    top: 1.5rem;
+  }
+}
+
+.publication-contents {
+  display: none;
+}
+
+@media (min-width: 992px) {
+  .publication-layout-with-contents .publication-contents {
+    display: block;
+  }
+}
+
+.publication-contents-nav {
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
+  padding-top: 0.15rem;
+}
+
+.publication-contents-title {
+  margin: 0 0 0.75rem;
+  font-family: system-ui, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.publication-contents-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: system-ui, sans-serif;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.publication-contents-list li + li {
+  margin-top: 0.45rem;
+}
+
+.publication-contents-link {
+  color: #1a4b8c;
+  display: block;
+  text-decoration: none;
+}
+
+.publication-contents-link:hover,
+.publication-contents-link:focus-visible {
+  text-decoration: underline;
+}
+
+.publication-contents-link.is-active {
+  color: #0f2f5c;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.publication-action-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  font-family: system-ui, sans-serif;
+  font-size: 0.92rem;
+}
+
+.publication-action-links-sidebar {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid #ddd;
+  font-size: 0.82rem;
+}
+
+.publication-footer {
+  padding-top: 1rem;
+  padding-bottom: 2.5rem;
+  border-top: 1px solid #ddd;
+}
+
+.publication-header {
+  padding-top: 2.5rem;
+  padding-bottom: 1.5rem;
+}
+
+.publication-eyebrow {
+  margin: 0 0 0.5rem;
+  font-family: system-ui, sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #666;
+}
+
+.publication-title {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.publication-status,
+.publication-status-hint {
+  font-family: system-ui, sans-serif;
+  font-size: 0.95rem;
+  color: #555;
+}
+
+.publication-main {
+  min-width: 0;
+}
+
+.publication-main-embed {
+  max-width: none;
+  margin: 0 auto;
+  padding: 0.75rem;
+}
+
+.publication-section {
+  margin-bottom: 2rem;
+}
+
+.publication-section-heading,
+.publication-appendix-title {
+  margin: 0 0 1rem;
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.publication-markdown,
+.publication-markdown.assistant-markdown {
+  font-family: inherit;
+}
+
+.publication-markdown h1,
+.publication-markdown h2,
+.publication-markdown h3 {
+  font-family: inherit;
+  line-height: 1.25;
+}
+
+.publication-markdown code,
+.publication-markdown pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.92em;
+}
+
+.publication-section-equations .publication-equations {
+  padding-left: 1.5rem;
+}
+
+.publication-equations-section {
+  margin: 1rem 0 0.5rem;
+  font-style: italic;
+  color: #444;
+}
+
+.publication-equation-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  margin: 0.45rem 0;
+  text-align: left;
+}
+
+.publication-equation-expression {
+  display: block;
+  padding: 0.24rem 0.5rem;
+  background: #f3f2ef;
+  border-radius: 3px;
+  text-align: left;
+}
+
+.publication-equation-formula {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.92rem;
+  line-height: 1.25;
+}
+
+.publication-equation-formula .variable-math-label,
+.publication-equation-formula .formula-token {
+  font-family: inherit;
+}
+
+.publication-equation-description {
+  font-size: 0.9rem;
+  color: #555;
+  line-height: 1.35;
+}
+
+.publication-matrix-wrap {
+  overflow-x: auto;
+}
+
+.publication-matrix {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+}
+
+.publication-matrix th,
+.publication-matrix td {
+  border: 1px solid #ccc;
+  padding: 0.35rem 0.5rem;
+  text-align: right;
+  vertical-align: top;
+}
+
+.publication-matrix th:first-child,
+.publication-matrix td:first-child {
+  text-align: left;
+}
+
+.publication-matrix thead th {
+  background: #efede8;
+  font-weight: 600;
+}
+
+.publication-matrix-entry {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: inherit;
+  line-height: 1.35;
+}
+
+.publication-matrix-entry .variable-math-label,
+.publication-matrix-entry .formula-token {
+  font-family: inherit;
+}
+
+.publication-caption {
+  margin-top: 0.65rem;
+  font-size: 0.92rem;
+  color: #444;
+}
+
+.publication-caption-title {
+  font-weight: 600;
+}
+
+.publication-caption-detail {
+  display: block;
+  margin-top: 0.2rem;
+  font-style: italic;
+}
+
+.publication-chart .result-panel {
+  border: none;
+  padding: 0;
+  background: transparent;
+}
+
+.publication-chart .result-panel h2 {
+  display: none;
+}
+
+.publication-section-table .result-panel h2 {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.publication-table-wrap {
+  overflow-x: auto;
+}
+
+.publication-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.publication-table th,
+.publication-table td {
+  border: 1px solid #ccc;
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.publication-table thead th {
+  background: #efede8;
+  font-weight: 600;
+}
+
+.publication-table tbody th {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.publication-table-equation {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.publication-table-equation .variable-math-label,
+.publication-table-equation .formula-token {
+  font-family: inherit;
+}
+
+.publication-table-missing {
+  color: #888;
+}
+
+.publication-appendix {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #ddd;
+}
+
+.publication-appendix-heading {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+}
+
+.publication-appendix-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.25rem;
+  font-size: 0.88rem;
+}
+
+.publication-appendix-table th,
+.publication-appendix-table td {
+  border: 1px solid #ddd;
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.publication-appendix-table code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.88em;
+}
+
+.publication-appendix-list {
+  margin: 0 0 1.25rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.publication-appendix-list dt {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.publication-appendix-list dd {
+  margin: 0.1rem 0 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.88rem;
+}
+
+.publication-interactive-link,
+.publication-print-link,
+.publication-print-button {
+  color: #1a4b8c;
+  text-decoration: none;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.publication-interactive-link:hover,
+.publication-print-link:hover,
+.publication-print-button:hover {
+  text-decoration: underline;
+}
+
+.publication-inspector-popup {
+  width: min(28rem, calc(100vw - 2rem));
+  max-width: min(28rem, calc(100vw - 2rem));
+}
+
+.publication-inspector-popup-body {
+  overflow: auto;
+  padding: 0 0.75rem 0.75rem;
+}
+
+.publication-inspector-popup-body .variable-inspector-panel {
+  padding: 0;
+}
+
+.publication-variable-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+
+.publication-root .formula-token.is-clickable {
+  cursor: pointer;
+}
+
+.publication-root .assistant-variable-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+
+@media print {
+  @page {
+    margin: 2cm;
+  }
+
+  .publication-root {
+    background: #fff;
+  }
+
+  .publication-no-print {
+    display: none !important;
+  }
+
+  .publication-page-break-before {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .publication-section-chart,
+  .publication-section-matrix,
+  .publication-section-table {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .publication-header,
+  .publication-page-shell,
+  .publication-footer {
+    max-width: none;
+    padding-left: 0;
+    padding-right: 0;
+  }
+}

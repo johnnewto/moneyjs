@@ -125,6 +125,7 @@ import {
   writeNotebookLocation,
   writeNotebookVariantHash
 } from "./notebookAppHelpers";
+import { buildPublicationPathname } from "../publication/publicationRouteHelpers";
 import {
   buildNotebookShareUrl,
   clearNotebookShareQueryFromLocation,
@@ -1248,6 +1249,13 @@ export function NotebookApp() {
   const currentTemplateId = useMemo(
     () => resolveCurrentTemplateId(notebookDocument),
     [notebookDocument]
+  );
+  const publicationHref = useMemo(
+    () =>
+      currentTemplateId
+        ? buildPublicationPathname({ mode: "publish", templateId: currentTemplateId })
+        : null,
+    [currentTemplateId]
   );
   const notebookDerivedFrom = useMemo(
     () => resolveNotebookDerivedFrom(notebookDocument, activeVariantId, currentTemplateId),
@@ -4519,6 +4527,7 @@ export function NotebookApp() {
             onRunAll={() => void handleRunAll()}
             onUndo={() => handleUndoNotebookEdit()}
             onValidate={handleValidateNotebook}
+            publicationHref={publicationHref}
           />
         </NotebookCommandsPanel>
       ) : null}

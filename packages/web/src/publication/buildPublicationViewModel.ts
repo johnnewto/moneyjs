@@ -1,0 +1,150 @@
+import type { NotebookCell, NotebookDocument } from "../notebook/types";
+import type { NotebookTemplateId } from "../notebook/templates";
+import type { PublicationRenderMode } from "./publicationRouteHelpers";
+
+export type PublicationSectionKind =
+  | "prose"
+  | "equations"
+  | "matrix"
+  | "chart"
+  | "table"
+  | "appendix";
+
+export interface PublicationSection {
+  kind: PublicationSectionKind;
+  cell: NotebookCell;
+  anchorId: string;
+}
+
+export interface PublicationViewModel {
+  title: string;
+  templateId: NotebookTemplateId;
+  mode: PublicationRenderMode;
+  embedCellId: string | null;
+  bodySections: PublicationSection[];
+  appendixSections: PublicationSection[];
+}
+
+export interface PublicationContentsEntry {
+  anchorId: string;
+  title: string;
+}
+
+export function buildPublicationContentsEntries(
+  sections: PublicationSection[]
+): PublicationContentsEntry[] {
+  return sections
+    .map((section) => ({
+      anchorId: section.anchorId,
+      title: section.cell.title.trim()
+    }))
+    .filter((entry) => entry.title.length > 0);
+}
+
+function classifyCellPlacement(cell: NotebookCell): "body" | "appendix" | "skip" {
+  switch (cell.type) {
+    case "markdown":
+    case "equations":
+    case "model":
+    case "matrix":
+    case "chart":
+    case "table":
+      return "body";
+    case "externals":
+    case "initial-values":
+    case "solver":
+    case "run":
+      return "appendix";
+    case "sequence":
+      return "skip";
+    default:
+      return "skip";
+  }
+}
+
+function resolveSectionKind(cell: NotebookCell): PublicationSectionKind {
+  switch (cell.type) {
+    case "markdown":
+      return "prose";
+    case "equations":
+    case "model":
+      return "equations";
+    case "matrix":
+      return "matrix";
+    case "chart":
+      return "chart";
+    case "table":
+      return "table";
+    default:
+      return "appendix";
+  }
+}
+
+function isEmbedEligible(cell: NotebookCell): boolean {
+  return classifyCellPlacement(cell) === "body";
+}
+
+export function buildPublicationViewModel(args: {
+  document: NotebookDocument;
+  templateId: NotebookTemplateId;
+  mode: PublicationRenderMode;
+  embedCellId?: string | null;
+}): PublicationViewModel {
+  const embedCellId = args.embedCellId?.trim() || null;
+  const bodySections: PublicationSection[] = [];
+  const appendixSections: PublicationSection[] = [];
+
+  for (const cell of args.document.cells) {
+    const placement = classifyCellPlacement(cell);
+    if (placement === "skip") {
+      continue;
+    }
+
+    const section: PublicationSection = {
+      kind: resolveSectionKind(cell),
+      cell,
+      anchorId: cell.id
+    };
+
+    if (placement === "appendix") {
+      appendixSections.push(section);
+    } else {
+      bodySections.push(section);
+    }
+  }
+
+  if (args.mode === "embed") {
+    if (!embedCellId) {
+      return {
+        title: args.document.title,
+        templateId: args.templateId,
+        mode: args.mode,
+        embedCellId: null,
+        bodySections: [],
+        appendixSections: []
+      };
+    }
+
+    const embedSection = bodySections.find(
+      (section) => section.anchorId === embedCellId && isEmbedEligible(section.cell)
+    );
+
+    return {
+      title: args.document.title,
+      templateId: args.templateId,
+      mode: args.mode,
+      embedCellId,
+      bodySections: embedSection ? [embedSection] : [],
+      appendixSections: []
+    };
+  }
+
+  return {
+    title: args.document.title,
+    templateId: args.templateId,
+    mode: args.mode,
+    embedCellId: null,
+    bodySections,
+    appendixSections
+  };
+}
