@@ -291,6 +291,21 @@ body:has(.publication-root) {
   font-weight: 600;
 }
 
+.publication-matrix-sector-columns th.publication-matrix-sector-start,
+.publication-matrix-sector-columns td.publication-matrix-sector-start {
+  border-left: 3px double rgba(71, 85, 105, 0.42);
+}
+
+.publication-matrix-sector-columns th.publication-matrix-intra-sector-divider,
+.publication-matrix-sector-columns td.publication-matrix-intra-sector-divider {
+  border-right: 1.5px solid rgba(100, 116, 139, 0.55);
+}
+
+.publication-matrix-sector-columns th.publication-matrix-sum-column,
+.publication-matrix-sector-columns td.publication-matrix-sum-column {
+  border-left: 2px solid rgba(51, 65, 85, 0.55);
+}
+
 .publication-matrix-entry {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: inherit;
