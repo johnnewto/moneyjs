@@ -93,11 +93,53 @@ export function parseVariableFromColumnLabel(label: string): string | undefined 
   return match?.[1]?.trim() || undefined;
 }
 
+export function stripMatrixColumnVariableSuffix(label: string): string {
+  return label.trim().replace(/\s*\([^)]+\)\s*$/, "").trim();
+}
+
+/** Canonical sum(columnRef) key for account-transactions columns. */
+export function resolveMatrixColumnSumReference(
+  columns: string[],
+  columnIndex: number,
+  sectors?: string[]
+): string {
+  const label = columns[columnIndex]?.trim() ?? "";
+  if (!label) {
+    return "";
+  }
+
+  const baseRef = stripMatrixColumnVariableSuffix(label);
+  if (!baseRef || baseRef.toLowerCase() === "sum") {
+    return "";
+  }
+  if (baseRef.includes(".")) {
+    return baseRef;
+  }
+
+  const sectorLabel = sectors?.[columnIndex]?.trim() ?? "";
+  if (!sectorLabel) {
+    return baseRef;
+  }
+
+  const sectorName = parseMatrixSectorDisplay(sectorLabel).sectorName.trim();
+  if (!sectorName) {
+    return baseRef;
+  }
+
+  return `${sectorName}.${baseRef}`;
+}
+
 export function resolveMatrixColumnInspectVariable(
   columns: string[],
   columnIndex: number,
-  variables?: string[]
+  variables?: string[],
+  sectors?: string[]
 ): string {
+  const columnSumRef = resolveMatrixColumnSumReference(columns, columnIndex, sectors);
+  if (columnSumRef) {
+    return columnSumRef;
+  }
+
   const fromVariables = variables?.[columnIndex]?.trim();
   if (fromVariables) {
     return fromVariables;
@@ -560,7 +602,7 @@ export function buildMatrixAccountColumnHeaderRows(
         isExpandable: false,
         isLeafHidden: isHidden,
         isSectorStart: columnIndex === index,
-        inspectVariable: resolveMatrixColumnInspectVariable(columns, columnIndex, variables),
+        inspectVariable: resolveMatrixColumnInspectVariable(columns, columnIndex, variables, sectors),
         ...(badgeRole ? { stockRole: badgeRole } : {})
       });
     }

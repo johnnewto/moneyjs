@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildMatrixColumnSumSeries,
+  collectMatrixColumnSumRefsFromMatrices,
   columnHasFlowEntries,
   formatMatrixColumnSumReference,
   formatQualifiedMatrixColumnSumReference,
-  resolveMatrixColumnSumBindings
+  resolveMatrixColumnSumBindings,
+  resolveMatrixColumnSumInspectContext
 } from "../src/notebook/matrixColumnSumRuntime";
-import type { EquationsCell, MatrixCell, NotebookCell, RunCell } from "../src/notebook/types";
+import { runBaseline } from "@sfcr/core";
+import { bmwBaselineModel, bmwBaselineOptions } from "../../core/src/fixtures/bmw";
+import type { MatrixCell, NotebookCell, RunCell } from "../src/notebook/types";
 
 const modelId = "equations-newton";
 
@@ -58,12 +63,12 @@ describe("matrixColumnSumRuntime", () => {
     expect(columnHasFlowEntries(accountTransactionsMatrix, 1, sumRowIndex)).toBe(false);
   });
 
-  it("resolves matrix column sum bindings from linked account-transactions matrices", () => {
+  it("resolves bindings from bare qualified column refs in equations", () => {
     const bindings = resolveMatrixColumnSumBindings({
       cells: [runCell, accountTransactionsMatrix],
       modelId,
       runCellId: "baseline-run",
-      equationSources: ["Mh' + sum(Households.Deposits) * dt"]
+      equationSources: ["Mh' + Households.Deposits * dt"]
     });
 
     expect(bindings).toEqual({
@@ -110,5 +115,41 @@ describe("matrixColumnSumRuntime", () => {
       "Households.Deposits": ["WBd", "-Cs"],
       "Firms.Deposits": ["-WBd", "+Cd"]
     });
+  });
+
+  it("lists matrix column sum refs from linked account-transactions matrices", () => {
+    expect(
+      collectMatrixColumnSumRefsFromMatrices({
+        cells: [runCell, accountTransactionsMatrix],
+        modelId,
+        runCellId: "baseline-run"
+      })
+    ).toEqual(["Firms.Loans", "Households.Deposits"]);
+  });
+
+  it("builds inspect context and series for a matrix column sum ref", () => {
+    const context = resolveMatrixColumnSumInspectContext({
+      cells: [runCell, accountTransactionsMatrix],
+      modelId,
+      runCellId: "baseline-run",
+      columnRef: "Households.Deposits"
+    });
+
+    expect(context).toMatchObject({
+      columnRef: "Households.Deposits",
+      expression: "Households.Deposits",
+      sources: ["WBd", "-Cs"]
+    });
+
+    const result = runBaseline(bmwBaselineModel, bmwBaselineOptions);
+    const bindings = resolveMatrixColumnSumBindings({
+      cells: [runCell, accountTransactionsMatrix],
+      modelId,
+      runCellId: "baseline-run",
+      equationSources: ["sum(Households.Deposits)"]
+    });
+    const series = buildMatrixColumnSumSeries("Households.Deposits", bindings, result);
+    expect(series?.length).toBe(result.options.periods + 1);
+    expect(series?.[3]).toBeTypeOf("number");
   });
 });

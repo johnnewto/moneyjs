@@ -997,6 +997,9 @@ export function NotebookApp() {
         currentValues: inspectorCurrentValues,
         editor: inspectorContext.editor,
         notebookCells: notebookDocument.cells,
+        modelSource: inspectorContext.modelSource,
+        sourceRunCellId: inspectorContext.sourceRunCellId,
+        getResult: (runCellId) => runner.getResult(runCellId),
         selectedVariable: inspectorContext.selectedVariable,
         variableDescriptions: inspectorContext.variableDescriptions,
         variableUnitMetadata: inspectorContext.variableUnitMetadata
@@ -1011,6 +1014,7 @@ export function NotebookApp() {
       document: notebookDocument,
       getResult: (runCellId) => runner.getResult(runCellId),
       modelSource: inspectorContext.modelSource,
+      sourceRunCellId: inspectorContext.sourceRunCellId,
       variableName: selectedVariableData.name
     });
   }, [

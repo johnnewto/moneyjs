@@ -1,0 +1,89 @@
+format: sfcr-notebook-yaml
+formatVersion: 1
+id: imported-notebook
+title: pc-table3
+metadata:
+  version: 1
+  template: gl2-pc
+cells:
+  - matrix:
+      id: account-transactions
+      sourceRunCellId: baseline-run
+      title: PC account transactions
+      columns: [Deposits, Bills, Current, Current, Bills (Bs), Current, Capital, Sum]
+      sectors: [Households (HH), Households (HH), Firms, Government (Govt), Government (Govt), Central bank (CB), Central bank (CB), ""]
+      columnBadges: [asset, asset, asset, asset, liability, liability, asset, ""]
+      accountingKind: account-transactions
+      rows:
+        - [Consumption, Consumption, -C, "", +C, "", "", "", "", "0"]
+        - label: Govt. expenditures
+          values:
+            - ""
+            - ""
+            - +G
+            - -G
+            - "-"
+            - ""
+            - ""
+            - "0"
+        - [Income, Income, +Y, "", -Y, "", "", "", "", "0"]
+        - [Interest, Interest payments, +lag(r) * lag(Bh), "", "", -lag(r) * lag(Bs), "", "", +lag(r) * lag(Bcb), "0"]
+        - [Profits, CB profits, "", "", "", +lag(r) * lag(Bcb), "", -lag(r) * lag(Bcb), "", "0"]
+        - [Taxes, Taxes, -TX, "", "", +TX, "", "", "", "0"]
+        - [Money, Change money, "", "", "", "", "", "", "", "0"]
+        - [Bills, Change bills, -d(Bh), +d(Bh), "", +d(Bs), -d(Bs), "", -d(Bcb), "0"]
+        - [Sum, Sum, Mh, Bh, "", "", BGs, "", Hs, "0"]
+  - equations:
+      id: equations
+      title: PC model
+      modelId: pc-baseline
+      rows:
+        - [Y, C + G, "National income.", $/year, flow, identity]
+        - [YD, Y - TX + lag(r) * lag(Bh), "Disposable income.", $/year, flow, identity]
+        - [TX, theta * (Y + lag(r) * lag(Bh)), "Taxes.", $/year, flow, identity]
+        - [V, I(YD - C), "Household wealth.", $, stock, accumulation]
+        - [C, alpha1 * YD + alpha2 * lag(V), "Consumption.", $/year, flow, identity]
+        - [Hh, V - Bh, "Household money.", $, stock, accumulation]
+        - [Bh, V * (lambda0 + lambda1 * r - lambda2 * (YD / V)), "Household bills.", $, stock, accumulation]
+        - [Bs, I(G + lag(r) * lag(Bs) - TX - lag(r) * lag(Bcb)), "Government bill supply.", $, stock, accumulation]
+        - [Hs, I(d(Bcb)), "High-powered money.", $, stock, accumulation]
+        - [Bcb, Bs - Bh, "Central-bank bill holdings.", $, stock, accumulation]
+        - [Mh, Mh' + Households.Deposits* dt, "", "", "", "", eq-mh]
+        - [BGs, BGs' + Government.Bills * dt, "", "", "", "", eq-bgs]
+  - solver:
+      id: solver
+      title: Solver
+      modelId: pc-baseline
+      method: gauss-seidel
+      tolerance: "1e-10"
+      maxIterations: 200
+      defaultInitialValue: "1e-15"
+      hiddenLeftVariable: Hh
+      hiddenRightVariable: Hs
+      hiddenTolerance: "0.00001"
+      relativeHiddenTolerance: false
+  - externals:
+      id: externals-equations
+      title: Externals
+      modelId: pc-baseline
+      rows:
+        - [r, 0.025, "Interest rate.", 1/year, aux]
+        - [G, 20, "Government expenditure.", $/year, aux]
+        - [alpha1, 0.6, "alpha1", "", aux]
+        - [alpha2, 0.4, "alpha2", 1/year, aux]
+        - [theta, 0.2, "theta", "", aux]
+        - [lambda0, 0.635, "lambda0", "", aux]
+        - [lambda1, 0.05, "lambda1", year, aux]
+        - [lambda2, 0.01, "lambda2", year, aux]
+  - initial-values:
+      id: initial-values-equations
+      title: Initial values
+      modelId: pc-baseline
+      rows: []
+  - run:
+      id: baseline-run
+      title: Baseline run
+      mode: baseline
+      periods: 70
+      resultKey: gl2_pc_baseline
+      sourceModelId: pc-baseline

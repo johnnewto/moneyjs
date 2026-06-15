@@ -1,3 +1,4 @@
+import { isSkippableMatrixCellSource } from "@sfcr/core";
 import { isRowComment } from "@sfcr/notebook-core";
 
 import { evaluateExpression, parseExpression, type EquationRole, type SimulationResult } from "@sfcr/core";
@@ -23,8 +24,12 @@ export const ACCOUNT_SUM_ROW_FLOW_UNIT_META: UnitMeta = {
 };
 
 export function isEmptyAccountSumRowSource(source: string): boolean {
-  const trimmed = source.trim();
-  return !trimmed || trimmed === "0";
+  return isEmptyMatrixEntrySource(source);
+}
+
+/** Treats accounting sign-only placeholders as empty matrix cells. */
+export function isEmptyMatrixEntrySource(source: string): boolean {
+  return isSkippableMatrixCellSource(source);
 }
 
 export interface ProposedMatrixEquationUpdate {
@@ -107,7 +112,7 @@ export function resolveSumRowStockVariable(
   source: string
 ): string | null {
   const reference = classifyMatrixEntrySource(source);
-  if (reference?.shape.kind === "diff") {
+  if (reference?.shape.kind === "diff" || reference?.shape.kind === "plain") {
     return reference.variableName;
   }
 
@@ -178,24 +183,65 @@ export function buildProposedAccumulationExpression(
   columnRef: string,
   hasFlows: boolean
 ): string {
-  const laggedVariable = formatLaggedVariable(variableName);
   if (!hasFlows) {
-    return laggedVariable;
+    return formatLaggedVariable(variableName);
   }
 
-  return `${laggedVariable} + sum(${columnRef}) * dt`;
+  return `I(${columnRef})`;
 }
+
+const SUM_WRAPPED_COLUMN_REF_PATTERN =
+  /sum\(\s*([A-Za-z_][A-Za-z0-9_.]*\.[A-Za-z0-9_.]*)\s*\)/g;
+const INTEGRAL_COLUMN_REF_PATTERN =
+  /^I\(\s*([A-Za-z_][A-Za-z0-9_.]*\.[A-Za-z0-9_.]*)\s*\)$/;
 
 export function normalizeEquationExpression(expression: string): string {
   return expression
     .trim()
     .replace(/\s+/g, " ")
+    .replace(SUM_WRAPPED_COLUMN_REF_PATTERN, "$1")
     .replace(LAG_INDEX_PATTERN, "$1'")
     .replace(LAG_CALL_PATTERN, "$1'");
 }
 
-export function equationExpressionsMatch(left: string, right: string): boolean {
-  return normalizeEquationExpression(left) === normalizeEquationExpression(right);
+export function normalizeAccumulationEquationExpression(
+  expression: string,
+  stockVariable: string
+): string {
+  const normalized = normalizeEquationExpression(expression);
+  const stock = stockVariable.trim();
+  if (!stock) {
+    return normalized;
+  }
+
+  const integralMatch = INTEGRAL_COLUMN_REF_PATTERN.exec(normalized);
+  if (integralMatch?.[1]) {
+    return `${formatLaggedVariable(stock)} + ${integralMatch[1]} * dt`;
+  }
+
+  return normalized;
+}
+
+export function equationExpressionsMatch(
+  left: string,
+  right: string,
+  stockVariable?: string
+): boolean {
+  const normalizedLeft = normalizeEquationExpression(left);
+  const normalizedRight = normalizeEquationExpression(right);
+  if (normalizedLeft === normalizedRight) {
+    return true;
+  }
+
+  const stock = stockVariable?.trim();
+  if (!stock) {
+    return false;
+  }
+
+  return (
+    normalizeAccumulationEquationExpression(left, stock) ===
+    normalizeAccumulationEquationExpression(right, stock)
+  );
 }
 
 export function evaluateMatrixEntryNumber(
@@ -389,7 +435,7 @@ export function collectProposedMatrixEquationUpdates(args: {
       return;
     }
 
-    const isMismatch = !equationExpressionsMatch(existing.expression, proposedExpression);
+    const isMismatch = !equationExpressionsMatch(existing.expression, proposedExpression, variable);
     updates.push({
       variable,
       action: "update",

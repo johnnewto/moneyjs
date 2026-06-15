@@ -52,6 +52,9 @@ export function PublicationVariableInspectorPopup({
     currentValues: inspectorContext.currentValues,
     editor: inspectorContext.editor,
     notebookCells: notebookDocument.cells,
+    modelSource: inspectorContext.modelSource,
+    sourceRunCellId: inspectorContext.sourceRunCellId,
+    getResult,
     selectedVariable: inspectorContext.selectedVariable,
     variableDescriptions: inspectorContext.variableDescriptions,
     variableUnitMetadata: inspectorContext.variableUnitMetadata

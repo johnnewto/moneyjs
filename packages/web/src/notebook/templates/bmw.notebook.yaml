@@ -92,7 +92,7 @@ cells:
         - [KT, kappa * lag(Y), "Target stock of capital", $, stock, target, eq-19-KT]
         - [K, K' + (Id - DA) • dt, "Stock of capital", $, stock, accumulation, eq-17-K]
         - [Id, gamma * (KT - lag(K)) + DA, "Demand for investment goods", $/year, flow, behavioral, eq-20-Id]
-        - [Mf, Mf' + sum(Firms.Deposits) * dt, "Stock accumulation from Firms.Deposits (Mf)", $, stock, accumulation, eq-mf]
+        - [Mf, Mf' + Firms.Deposits * dt, "Stock accumulation from Firms.Deposits (Mf)", $, stock, accumulation, eq-mf]
         - Wage bill
         - [Ns, Nd, "Supply of labor", items/year, flow, definition]
         - [WBs, W * Ns, "Wage bill - supply", $/year, flow, identity, eq-13-WBs]
@@ -101,8 +101,8 @@ cells:
         - Households.
         - [YD, WBs + lag(rm) * lag(Mh), "Disposable income of households", $/year, flow, identity, eq-9-YD]
         - [Cd, alpha0 + alpha1 * YD + alpha2 * lag(Mh), "Consumption goods demand by households", $/year, flow, behavioral, eq-16-Cd]
-        - [Mh, Mh' + sum(Households.Deposits) * dt, "Stock accumulation from Households.Deposits (Mh)", $, stock, accumulation, eq-10-Mh]
-        - [Vh, Vh' + sum(Households.Net_Worth) * dt, "Stock accumulation from Households.Net_Worth (Vh)", $, stock, accumulation, eq-vh]
+        - [Mh, Mh' + Households.Deposits * dt, "Stock accumulation from Households.Deposits (Mh)", $, stock, accumulation, eq-10-Mh]
+        - [Vh, Vh' + Households.Net_Worth * dt, "Stock accumulation from Households.Net_Worth (Vh)", $, stock, accumulation, eq-vh]
         - Banks
         - [rm, rl, "Rate of interest on bank deposits", 1/year, aux, definition, eq-12-rm]
         - [Ls, lag(Ls) + d(Ld) * dt, "Supply of bank loans", $, stock, accumulation]

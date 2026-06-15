@@ -23,11 +23,17 @@ import type { StockFlowKind, UnitMeta } from "./unitMeta";
 import type { InspectorModelSource } from "./variableInspect";
 import { resolveInspectorModelSource } from "./variableInspect";
 import type { NotebookAssistantSnapshot } from "../notebook/assistantTools/types";
+import {
+  collectMatrixColumnSumRefsFromMatrices,
+  evaluateMatrixColumnSumAtPeriod,
+  resolveMatrixColumnSumBindingsForRef
+} from "../notebook/matrixColumnSumRuntime";
 
 export type VariableCatalogEndogenousExogenous =
   | "endogenous"
   | "exogenous"
   | "initial-only"
+  | "matrix-column-sum"
   | "unknown";
 
 export type VariableCatalogValueSource = "run" | "external" | "initial" | "default" | "none";
@@ -116,50 +122,69 @@ export function buildVariableCatalogRows(args: {
     const graph = buildDependencyGraph(context.editor);
     const currentValues = args.currentValuesByModel?.get(context.modelId);
 
-    for (const node of graph.nodes) {
-      if (seen.has(node.name)) {
-        continue;
+    function pushCatalogRow(name: string) {
+      if (seen.has(name)) {
+        return;
       }
-      seen.add(node.name);
+      seen.add(name);
 
+      const node = graph.nodes.find((entry) => entry.name === name);
       const external =
         context.editor.externals.find(
-          (row) => !isRowComment(row) && row.name.trim() === node.name
+          (row) => !isRowComment(row) && row.name.trim() === name
         ) ?? null;
-      const initialValue = parseInitialValue(context.editor, node.name);
-      const endogenousExogenous = deriveEndogenousExogenous({
-        editor: context.editor,
-        name: node.name,
-        initialValue
-      });
-      const unitMeta = unitMetadata.get(node.name);
+      const initialValue = parseInitialValue(context.editor, name);
+      const endogenousExogenous = node
+        ? deriveEndogenousExogenous({
+            editor: context.editor,
+            name,
+            initialValue
+          })
+        : deriveMatrixColumnSumEndogenousExogenous(context.editor, name);
+      const unitMeta = unitMetadata.get(name);
       const { value, valueSource } = resolveCatalogValue({
         currentValues,
         editor: context.editor,
         external: external && !isRowComment(external) ? external : null,
-        name: node.name,
+        name,
         selectedPeriodIndex: 0
       });
 
       rows.push({
-        name: node.name,
-        description: descriptions.get(node.name) ?? node.description ?? null,
+        name,
+        description:
+          descriptions.get(name) ?? node?.description ?? describeMatrixColumnSumCatalogRow(name) ?? null,
         value,
         valueSource,
         endogenousExogenous,
-        variableType: node.variableType ?? (external ? "exogenous" : null),
-        stockFlow: unitMeta?.stockFlow ?? null,
-        unitText: getVariableUnitText(unitMetadata, node.name) || null,
-        equationRole: node.equationRole ?? null,
+        variableType: node?.variableType ?? (external ? "exogenous" : null),
+        stockFlow: unitMeta?.stockFlow ?? (endogenousExogenous === "matrix-column-sum" ? "flow" : null),
+        unitText: getVariableUnitText(unitMetadata, name) || null,
+        equationRole: node?.equationRole ?? null,
         modelId: context.modelId,
         modelTitle: context.modelTitle,
         externalKind: external && !isRowComment(external) ? external.kind : null,
         externalValueText: external && !isRowComment(external) ? external.valueText : null,
         initialValue,
-        currentDependencies: [...node.currentDependencyNames],
-        lagDependencies: [...node.lagDependencyNames],
+        currentDependencies: node ? [...node.currentDependencyNames] : [],
+        lagDependencies: node ? [...node.lagDependencyNames] : [],
         modelSource: context.modelSource
       });
+    }
+
+    for (const node of graph.nodes) {
+      pushCatalogRow(node.name);
+    }
+
+    const preferredRun = findPreferredRunForModelKey(args.document, context.modelKey);
+    if (preferredRun?.sourceModelId) {
+      for (const columnRef of collectMatrixColumnSumRefsFromMatrices({
+        cells: args.document.cells,
+        modelId: preferredRun.sourceModelId,
+        runCellId: preferredRun.id
+      })) {
+        pushCatalogRow(columnRef);
+      }
     }
   }
 
@@ -313,7 +338,14 @@ export function buildModelCurrentValues(args: {
 
   return buildModelDisplayCurrentValues({
     editor,
-    runCurrentValues,
+    runCurrentValues: mergeMatrixColumnSumCurrentValues({
+      document: args.document,
+      modelKey,
+      runCell: sourceRunCell,
+      runCurrentValues,
+      selectedPeriodIndex: args.selectedPeriodIndex,
+      getResult: args.getResult
+    }),
     selectedPeriodIndex: args.selectedPeriodIndex
   });
 }
@@ -581,9 +613,79 @@ function formatEndogenousExogenousLabel(value: VariableCatalogEndogenousExogenou
       return "Exogenous";
     case "initial-only":
       return "Initial condition";
+    case "matrix-column-sum":
+      return "Matrix column sum";
     default:
       return "Unknown";
   }
+}
+
+function deriveMatrixColumnSumEndogenousExogenous(
+  editor: EditorState,
+  name: string
+): VariableCatalogEndogenousExogenous {
+  const appearsInEquation = editor.equations.some((equation) => {
+    if (isRowComment(equation)) {
+      return false;
+    }
+    return equationReferencesMatrixColumnRef(equation.expression, name);
+  });
+  return appearsInEquation ? "matrix-column-sum" : "unknown";
+}
+
+function equationReferencesMatrixColumnRef(expression: string, name: string): boolean {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return false;
+  }
+  return expression.includes(trimmed) || expression.includes(`sum(${trimmed})`);
+}
+
+function describeMatrixColumnSumCatalogRow(name: string): string {
+  return `Matrix column sum ${name}`;
+}
+
+function mergeMatrixColumnSumCurrentValues(args: {
+  document: NotebookDocument;
+  modelKey: string;
+  runCell: RunCell | null;
+  runCurrentValues: Record<string, number | undefined>;
+  selectedPeriodIndex: number;
+  getResult: (runCellId: string) => SimulationResult | null;
+}): Record<string, number | undefined> {
+  if (!args.runCell?.sourceModelId) {
+    return args.runCurrentValues;
+  }
+
+  const result = args.getResult(args.runCell.id);
+  if (!result) {
+    return args.runCurrentValues;
+  }
+
+  const values = { ...args.runCurrentValues };
+  for (const columnRef of collectMatrixColumnSumRefsFromMatrices({
+    cells: args.document.cells,
+    modelId: args.runCell.sourceModelId,
+    runCellId: args.runCell.id
+  })) {
+    const bindings = resolveMatrixColumnSumBindingsForRef({
+      cells: args.document.cells,
+      modelId: args.runCell.sourceModelId,
+      runCellId: args.runCell.id,
+      columnRef
+    });
+    const value = evaluateMatrixColumnSumAtPeriod(
+      columnRef,
+      bindings,
+      result,
+      args.selectedPeriodIndex
+    );
+    if (value != null) {
+      values[columnRef] = value;
+    }
+  }
+
+  return values;
 }
 
 function defaultModelSectionOptions(): EditorState["options"] {

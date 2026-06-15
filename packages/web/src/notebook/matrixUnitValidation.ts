@@ -1,5 +1,6 @@
-import { parseExpression } from "@sfcr/core";
+import { isSkippableMatrixCellSource, parseExpression } from "@sfcr/core";
 
+import { formatMatrixEntryParseMessage } from "../lib/parseDiagnostics";
 import { inferUnits, type UnitDiagnostic } from "../lib/units";
 import {
   formatSignature,
@@ -82,10 +83,10 @@ export function validateMatrixEntryUnits(
   source: string,
   kind: AccountingMatrixKind,
   variableUnitMetadata: VariableUnitMetadata,
-  context?: MatrixEntryUnitContext
+  context?: MatrixEntryUnitContext & { cell?: Pick<MatrixCell, "id" | "title"> }
 ): UnitDiagnostic[] {
   const trimmed = source.trim();
-  if (!trimmed || trimmed === "0") {
+  if (isSkippableMatrixCellSource(trimmed)) {
     return [];
   }
 
@@ -115,11 +116,23 @@ export function validateMatrixEntryUnits(
     }
 
     return diagnostics;
-  } catch {
+  } catch (error) {
+    const parseMessage =
+      context?.cell && context.rowLabel != null && context.columnLabel != null
+        ? formatMatrixEntryParseMessage(
+            context.cell,
+            context.rowLabel,
+            context.columnLabel,
+            trimmed,
+            error
+          )
+        : `${matrixKindLabel(kind)} matrix cell${location} cannot parse '${trimmed}': ${
+            error instanceof Error ? error.message : "Unable to parse expression."
+          }`;
     return [
       {
         severity: "warning",
-        message: `${matrixKindLabel(kind)} matrix cell${location} cannot parse '${trimmed}' for unit validation.`
+        message: parseMessage
       }
     ];
   }
@@ -150,7 +163,8 @@ export function validateMatrixCellUnits(
       diagnostics.push(
         ...validateMatrixEntryUnits(value, kind, variableUnitMetadata, {
           rowLabel: row.label,
-          columnLabel: cell.columns[columnIndex]
+          columnLabel: cell.columns[columnIndex],
+          cell: { id: cell.id, title: cell.title }
         })
       );
     });

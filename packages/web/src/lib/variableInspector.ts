@@ -19,6 +19,11 @@ import type {
 } from "./editorModel";
 import type { NotebookCell } from "../notebook/types";
 import { buildDerivedAccountingTermsFromCells } from "../notebook/derivedAccountingTerms";
+import {
+  evaluateMatrixColumnSumAtPeriod,
+  resolveMatrixColumnSumInspectContext,
+  resolveMatrixColumnSumBindingsForRef
+} from "../notebook/matrixColumnSumRuntime";
 import type { VariableDescriptions } from "./variableDescriptions";
 import type { VariableUnitMetadata } from "./unitMeta";
 import {
@@ -26,13 +31,15 @@ import {
   explainEquationExpression
 } from "./equationExplanation";
 import { getVariableUnitText } from "./units";
+import type { SimulationResult } from "@sfcr/core";
+import { resolveInspectorModelSource, type InspectorModelSource } from "./variableInspect";
 
 export interface VariableInspectorData {
   name: string;
   description?: string;
   unitLabel?: string | null;
   parameterNames: string[];
-  kind: "equation" | "external" | "initial-only" | "unknown";
+  kind: "equation" | "external" | "initial-only" | "matrix-column-sum" | "unknown";
   roleLabel: string;
   roleSummary: string;
   equationRoleLabel: string | null;
@@ -41,6 +48,12 @@ export interface VariableInspectorData {
   initialValue?: number;
   definingEquation: EquationRow | null;
   generatedEquationExplanation: string | null;
+  matrixColumnSum?: {
+    columnRef: string;
+    expression: string;
+    sources: string[];
+    stockVariable: string | null;
+  };
   equationInputs: {
     current: string[];
     lagged: string[];
@@ -69,6 +82,9 @@ export function buildVariableInspectorData(args: {
   currentValues?: Record<string, number | undefined>;
   editor: EditorState;
   notebookCells?: NotebookCell[];
+  modelSource?: InspectorModelSource | null;
+  sourceRunCellId?: string | null;
+  getResult?: (runCellId: string) => SimulationResult | null;
   selectedVariable: string | null;
   variableDescriptions: VariableDescriptions;
   variableUnitMetadata: VariableUnitMetadata;
@@ -77,6 +93,8 @@ export function buildVariableInspectorData(args: {
   if (!selectedVariable) {
     return null;
   }
+
+  const matrixColumnSumContext = resolveMatrixColumnSumInspectorContext(args, selectedVariable);
 
   const equationAnalysis = buildEquationAnalysis(
     args.editor.equations.filter((equation): equation is EquationRow => !isRowComment(equation))
@@ -108,7 +126,12 @@ export function buildVariableInspectorData(args: {
 
   const equationInputs = definingEquation
     ? equationAnalysis.get(definingEquation.id) ?? { currentDependencies: [], lagDependencies: [] }
-    : { currentDependencies: [], lagDependencies: [] };
+    : matrixColumnSumContext
+      ? {
+          currentDependencies: matrixColumnSumContext.currentDependencies,
+          lagDependencies: matrixColumnSumContext.lagDependencies
+        }
+      : { currentDependencies: [], lagDependencies: [] };
 
   const affectedBy = uniqueSorted([
     ...equationInputs.currentDependencies,
@@ -124,23 +147,33 @@ export function buildVariableInspectorData(args: {
     args.variableDescriptions.get(selectedVariable) ??
     definingEquation?.desc?.trim() ??
     externalDefinition?.desc?.trim() ??
-    undefined;
+    (matrixColumnSumContext
+      ? matrixColumnSumContext.stockVariable
+        ? `Matrix column sum for ${selectedVariable}, linked to stock ${matrixColumnSumContext.stockVariable}.`
+        : `Matrix column sum for ${selectedVariable} from the linked account-transactions matrix.`
+      : undefined);
   const unitMeta = args.variableUnitMetadata.get(selectedVariable);
   const stockFlow = unitMeta?.stockFlow ?? null;
   const unitLabel = getVariableUnitText(args.variableUnitMetadata, selectedVariable);
-  const currentValue = args.currentValues?.[selectedVariable];
+  const currentValue =
+    args.currentValues?.[selectedVariable] ??
+    (matrixColumnSumContext?.currentValue != null ? matrixColumnSumContext.currentValue : undefined);
 
   const kind = definingEquation
     ? "equation"
     : externalDefinition
       ? "external"
-      : initialValue != null
-        ? "initial-only"
-        : "unknown";
+      : matrixColumnSumContext
+        ? "matrix-column-sum"
+        : initialValue != null
+          ? "initial-only"
+          : "unknown";
 
   const generatedEquationExplanation = definingEquation
     ? buildGeneratedEquationExplanation(definingEquation, args.variableDescriptions)
-    : null;
+    : matrixColumnSumContext
+      ? `This period's net flow through ${selectedVariable} is the sum of the linked account-transactions column entries.`
+      : null;
   const equationRoleMeta = definingEquation
     ? buildEquationRoleMeta(definingEquation)
     : { label: null, sourceLabel: null };
@@ -177,6 +210,14 @@ export function buildVariableInspectorData(args: {
     initialValue,
     definingEquation,
     generatedEquationExplanation,
+    matrixColumnSum: matrixColumnSumContext
+      ? {
+          columnRef: matrixColumnSumContext.columnRef,
+          expression: matrixColumnSumContext.expression,
+          sources: matrixColumnSumContext.sources,
+          stockVariable: matrixColumnSumContext.stockVariable
+        }
+      : undefined,
     equationInputs: {
       current: equationInputs.currentDependencies,
       lagged: equationInputs.lagDependencies
@@ -395,6 +436,10 @@ function buildRoleSummary(args: {
 }): string {
   const typeFragment = args.stockFlow ? `${args.stockFlow} variable` : "model variable";
 
+  if (args.kind === "matrix-column-sum") {
+    return `This matrix column sum aggregates ${pluralize(args.affectedByCount, "linked flow term")} from the account-transactions matrix.`;
+  }
+
   if (args.kind === "external") {
     return `This exogenous ${typeFragment} feeds ${pluralize(args.affectsCount, "downstream equation")} in the current model.`;
   }
@@ -418,9 +463,68 @@ function formatRoleLabel(kind: VariableInspectorData["kind"]): string {
       return "Exogenous";
     case "initial-only":
       return "Initial condition";
+    case "matrix-column-sum":
+      return "Matrix column sum";
     default:
       return "Unresolved";
   }
+}
+
+function resolveMatrixColumnSumInspectorContext(
+  args: {
+    notebookCells?: NotebookCell[];
+    modelSource?: InspectorModelSource | null;
+    sourceRunCellId?: string | null;
+    getResult?: (runCellId: string) => SimulationResult | null;
+    currentValues?: Record<string, number | undefined>;
+  },
+  selectedVariable: string
+): (ReturnType<typeof resolveMatrixColumnSumInspectContext> & { currentValue?: number }) | null {
+  if (!args.notebookCells?.length || !args.modelSource) {
+    return null;
+  }
+
+  const modelId =
+    "sourceModelId" in args.modelSource ? args.modelSource.sourceModelId.trim() : "";
+  const runCellId = args.sourceRunCellId?.trim() ?? "";
+  if (!modelId || !runCellId) {
+    return null;
+  }
+
+  const context = resolveMatrixColumnSumInspectContext({
+    cells: args.notebookCells,
+    modelId,
+    runCellId,
+    columnRef: selectedVariable
+  });
+  if (!context) {
+    return null;
+  }
+
+  const cachedValue = args.currentValues?.[selectedVariable];
+  if (cachedValue != null && Number.isFinite(cachedValue)) {
+    return { ...context, currentValue: cachedValue };
+  }
+
+  const result = args.getResult?.(runCellId) ?? null;
+  if (!result) {
+    return context;
+  }
+
+  const bindings = resolveMatrixColumnSumBindingsForRef({
+    cells: args.notebookCells,
+    modelId,
+    runCellId,
+    columnRef: selectedVariable
+  });
+  const periodIndex = Math.max(result.options.periods, 0);
+  const currentValue = evaluateMatrixColumnSumAtPeriod(
+    selectedVariable,
+    bindings,
+    result,
+    periodIndex
+  );
+  return currentValue == null ? context : { ...context, currentValue };
 }
 
 function uniqueSorted(values: string[]): string[] {

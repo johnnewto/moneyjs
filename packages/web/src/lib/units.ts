@@ -567,6 +567,9 @@ export function inferUnits(expr: Expr, variableUnits: VariableUnitMetadata): Inf
       if (expr.name === DT_VARIABLE) {
         return known(TIME_STEP);
       }
+      if (expr.name.includes(".")) {
+        return inferMatrixColumnSumUnits(variableUnits);
+      }
       return fromMeta(variableUnits.get(expr.name));
     case "Lag":
       if (expr.name === DT_VARIABLE) {
@@ -1138,6 +1141,8 @@ function renderExpr(expr: Expr): string {
       return `if (...)`;
     case "Function":
       return `${expr.name}(...)`;
+    case "MatrixColumnSum":
+      return expr.columnRef;
     default:
       return "";
   }

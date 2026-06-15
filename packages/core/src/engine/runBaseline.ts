@@ -19,6 +19,7 @@ export function runBaseline(
   validateOptions(options);
 
   const matrixColumnSums = model.matrixColumnSums ?? {};
+  const matrixColumnSumLocations = model.matrixColumnSumLocations;
   const parsed = model.equations.map((equation) =>
     parseEquation(equation.name, equation.expression, { matrixColumnSums })
   );
@@ -59,7 +60,8 @@ export function runBaseline(
     for (let period = 1; period < options.periods; period += 1) {
       const context = wrapContextWithMatrixColumnSums(
         SeriesStore.forPeriod(series, period),
-        matrixColumnSums
+        matrixColumnSums,
+        matrixColumnSumLocations
       );
       for (const block of ordered.blocks) {
         solver.solveBlock(period, block, equationsByName, context, {

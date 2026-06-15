@@ -183,6 +183,7 @@ function analyzeBlockAtPeriod(
   const recordIterations = analysisOptions?.recordIterations ?? false;
 
   const matrixColumnSums = model.matrixColumnSums ?? {};
+  const matrixColumnSumLocations = model.matrixColumnSumLocations;
   const parsed = model.equations.map((equation) =>
     parseEquation(equation.name, equation.expression, { matrixColumnSums })
   );
@@ -196,7 +197,11 @@ function analyzeBlockAtPeriod(
     lagOverrides: analysisOptions?.lagOverrides,
     currentOverrides: analysisOptions?.currentGuess
   });
-  const wrappedContext = wrapContextWithMatrixColumnSums(context, matrixColumnSums);
+  const wrappedContext = wrapContextWithMatrixColumnSums(
+    context,
+    matrixColumnSums,
+    matrixColumnSumLocations
+  );
   const solver = selectSolver(solverMethod);
   const runOptions = { tolerance, maxIterations };
 

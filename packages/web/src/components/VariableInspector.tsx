@@ -160,6 +160,32 @@ export function VariableInspector({
                 variableDescriptions={variableDescriptions}
                 variableUnitMetadata={variableUnitMetadata}
               />
+            ) : data.matrixColumnSum ? (
+              <div className="inspector-matrix-column-sum">
+                <p className="inspector-matrix-column-sum-expression">
+                  <code>{data.matrixColumnSum.expression}</code>
+                </p>
+                {data.generatedEquationExplanation ? (
+                  <p>{data.generatedEquationExplanation}</p>
+                ) : null}
+                {data.matrixColumnSum.stockVariable ? (
+                  <p>
+                    Linked stock variable:{" "}
+                    <button
+                      type="button"
+                      className="result-variable-button"
+                      onClick={() => onSelectVariable(data.matrixColumnSum!.stockVariable!)}
+                    >
+                      {data.matrixColumnSum.stockVariable}
+                    </button>
+                  </p>
+                ) : null}
+                <StaticChipList
+                  emptyLabel="No linked matrix entries."
+                  label="Column entries"
+                  values={data.matrixColumnSum.sources}
+                />
+              </div>
             ) : data.externalDefinition ? (
               <p>
                 Defined externally as a <strong>{data.externalDefinition.kind}</strong> input.

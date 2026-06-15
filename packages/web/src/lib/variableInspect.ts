@@ -8,6 +8,10 @@ import { buildVariableUnitMetadata } from "./units";
 import type { VariableCatalogRow } from "./variableCatalog";
 import { findPreferredRunForModelKey, listCatalogModelContexts, buildModelCurrentValues } from "./variableCatalog";
 import { resolveRunCellModelKey } from "../notebook/modelSections";
+import {
+  buildMatrixColumnSumSeries,
+  resolveMatrixColumnSumBindingsForRef
+} from "../notebook/matrixColumnSumRuntime";
 
 export type InspectorModelSource = { sourceModelId: string } | { sourceModelCellId: string };
 
@@ -113,7 +117,25 @@ export function buildInspectorSeriesValues(args: {
 
   const result = args.getResult(runCell.id);
   const values = result?.series[args.variableName.trim()];
-  return values ? Array.from(values) : undefined;
+  if (values) {
+    return Array.from(values);
+  }
+
+  if (!result || !args.modelSource || !("sourceModelId" in args.modelSource)) {
+    return undefined;
+  }
+
+  const bindings = resolveMatrixColumnSumBindingsForRef({
+    cells: args.document.cells,
+    modelId: args.modelSource.sourceModelId,
+    runCellId: args.sourceRunCellId?.trim() || runCell.id,
+    columnRef: args.variableName.trim()
+  });
+  if (!bindings[args.variableName.trim()]?.length) {
+    return undefined;
+  }
+
+  return buildMatrixColumnSumSeries(args.variableName.trim(), bindings, result) ?? undefined;
 }
 
 export function isSameInspectorModelSource(

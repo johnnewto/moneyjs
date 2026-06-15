@@ -1,6 +1,6 @@
 import { wrapContextWithMatrixColumnSums } from "../engine/matrixColumnSum";
 import type { SolverContext } from "../engine/context";
-import { evaluateExpression } from "../parser/dependencies";
+import { evaluateExpression, type MatrixColumnSumLocations } from "../parser/dependencies";
 import { parseEquation, type ParsedEquation } from "../parser/parse";
 import type { SimulationResult } from "../result/result";
 import { solveLinearSystem } from "../solver/linearSolve";
@@ -73,6 +73,7 @@ export function computeTransitionMatrix(
   validatePeriod(result, period);
 
   const matrixColumnSums = result.model.matrixColumnSums ?? {};
+  const matrixColumnSumLocations = result.model.matrixColumnSumLocations;
   const parsed = result.model.equations.map((equation) =>
     parseEquation(equation.name, equation.expression, { matrixColumnSums })
   );
@@ -81,14 +82,19 @@ export function computeTransitionMatrix(
 
   const values = buildPeriodValues(result, period, options?.valueOverrides);
   const rawContext = new TransitionAnalysisContext(values);
-  const context = wrapContextWithMatrixColumnSums(rawContext, matrixColumnSums);
+  const context = wrapContextWithMatrixColumnSums(
+    rawContext,
+    matrixColumnSums,
+    matrixColumnSumLocations
+  );
 
   const residual = computeResidualVector(variables, equationsByName, context);
   const { A0, A1 } = computeLocalJacobians(
     variables,
     equationsByName,
     rawContext,
-    matrixColumnSums
+    matrixColumnSums,
+    matrixColumnSumLocations
   );
   const T = computeTransitionMatrixFromJacobians(A0, A1);
 
@@ -168,9 +174,14 @@ function computeLocalJacobians(
   variables: string[],
   equationsByName: Map<string, ParsedEquation>,
   context: TransitionAnalysisContext,
-  matrixColumnSums: Record<string, string[]>
+  matrixColumnSums: Record<string, string[]>,
+  matrixColumnSumLocations?: MatrixColumnSumLocations
 ): { A0: number[][]; A1: number[][] } {
-  const wrappedContext = wrapContextWithMatrixColumnSums(context, matrixColumnSums);
+  const wrappedContext = wrapContextWithMatrixColumnSums(
+    context,
+    matrixColumnSums,
+    matrixColumnSumLocations
+  );
   const baseResidual = computeResidualVector(variables, equationsByName, wrappedContext);
 
   const A0 = Array.from({ length: variables.length }, () =>

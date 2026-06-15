@@ -81,7 +81,7 @@ export const NOTEBOOK_TEMPLATES: Record<NotebookTemplateId, NotebookTemplateDefi
     id: "gl2-pc",
     label: "GL2 PC",
     description:
-      "PC notebook based on the gl2-pc article baseline, balance-sheet views, and two deterministic extensions.",
+      "PC notebook based on the gl2-pc article baseline, balance-sheet views, account-transactions matrix, and two deterministic extensions.",
     document: notebookFromYaml(gl2PcNotebookYaml)
   },
   "io-pc": {

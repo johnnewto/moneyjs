@@ -1,0 +1,33 @@
+format: sfcr-notebook-yaml
+formatVersion: 1
+id: imported-notebook
+title: pc-table3
+metadata:
+  version: 1
+  template: gl2-pc
+cells:
+  - matrix:
+      id: account-transactions
+      sourceRunCellId: baseline-run
+      title: PC account transactions
+      columns: [Deposits, Bills, Current, Current, Bills (Bs), Current, Capital, Sum]
+      sectors: [Households (HH), Households (HH), Firms, Government (Govt), Government (Govt), Central bank (CB), Central bank (CB), ""]
+      columnBadges: [asset, asset, asset, asset, liability, liability, asset, ""]
+      accountingKind: account-transactions
+      rows:
+        - [Consumption, Consumption, -C, "", +C, "", "", "", "", "0"]
+        - [Sum, Sum, Mh, Bh, "", "", BGs, "", Hs, "0"]
+  - equations:
+      id: equations
+      title: PC model
+      modelId: pc-baseline
+      rows:
+        - [Mh, Mh' + Households.Deposits* dt, "", "", "", "", eq-mh]
+        - [BGs, BGs' + Government.Bills * dt, "", "", "", "", eq-bgs]
+  - run:
+      id: baseline-run
+      title: Baseline run
+      mode: baseline
+      periods: 70
+      resultKey: gl2_pc_baseline
+      sourceModelId: pc-baseline

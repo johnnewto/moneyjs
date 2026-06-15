@@ -23,7 +23,7 @@ import {
   type NotebookDiagnosticDomain
 } from "@sfcr/notebook-core";
 import type { NotebookCell } from "../notebook/types";
-import { resolveMatrixColumnSumBindings } from "../notebook/matrixColumnSumRuntime";
+import { resolveMatrixColumnSumBindingBundle } from "../notebook/matrixColumnSumRuntime";
 import { stringifyJsonWithCompactLeaves } from "../lib/jsonFormat";
 import type { UnitMeta } from "../lib/unitMeta";
 import { buildVariableUnitMetadata, diagnoseEquationUnits } from "../lib/units";
@@ -212,11 +212,11 @@ export function buildRuntimeConfig(
       .map((initial) => [initial.name.trim(), parseNumber(initial.valueText)])
   );
 
-  const matrixColumnSums =
+  const matrixColumnSumBundle =
     runtimeOptions?.notebookCells &&
     runtimeOptions.modelId &&
     runtimeOptions.runCellId
-      ? resolveMatrixColumnSumBindings({
+      ? resolveMatrixColumnSumBindingBundle({
           cells: runtimeOptions.notebookCells,
           modelId: runtimeOptions.modelId,
           runCellId: runtimeOptions.runCellId,
@@ -228,8 +228,11 @@ export function buildRuntimeConfig(
     equations,
     externals,
     initialValues,
-    ...(matrixColumnSums && Object.keys(matrixColumnSums).length > 0
-      ? { matrixColumnSums }
+    ...(matrixColumnSumBundle && Object.keys(matrixColumnSumBundle.bindings).length > 0
+      ? {
+          matrixColumnSums: matrixColumnSumBundle.bindings,
+          matrixColumnSumLocations: matrixColumnSumBundle.locations
+        }
       : {})
   };
 
@@ -524,7 +527,12 @@ export function diagnoseBuildRuntime(editor: EditorState): BuildDiagnosticResult
     } catch (error) {
       issues.push({
         path: `equations.${index}.expression`,
-        message: error instanceof Error ? error.message : "Unable to parse equation expression."
+        message:
+          error instanceof Error
+            ? error.message.includes(expression)
+              ? error.message
+              : `Equation '${name}': ${error.message} (expression: '${expression}')`
+            : `Equation '${name}': Unable to parse equation expression.`
       });
     }
   });

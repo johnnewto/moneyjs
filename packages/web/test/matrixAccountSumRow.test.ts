@@ -108,9 +108,9 @@ describe("matrixAccountSumRow", () => {
     ).toBe(false);
   });
 
-  it("builds sum() column references for accumulation proposals", () => {
+  it("builds I(columnRef) accumulation proposals", () => {
     expect(buildProposedAccumulationExpression("Mh", "Households.Deposits", true)).toBe(
-      "Mh' + sum(Households.Deposits) * dt"
+      "I(Households.Deposits)"
     );
     expect(buildProposedAccumulationExpression("Ld", "Firms.Loans", false)).toBe("Ld'");
   });
@@ -133,7 +133,7 @@ describe("matrixAccountSumRow", () => {
     expect(updates.find((update) => update.variable === "Mh")).toMatchObject({
       action: "update",
       proposed: {
-        expression: "Mh' + sum(Households.Deposits) * dt"
+        expression: "I(Households.Deposits)"
       }
     });
     expect(updates.find((update) => update.variable === "Ld")).toMatchObject({
@@ -155,7 +155,7 @@ describe("matrixAccountSumRow", () => {
       action: "update",
       isMismatch: true,
       proposed: {
-        expression: "Mh' + sum(Households.Deposits) * dt"
+        expression: "I(Households.Deposits)"
       }
     });
     expect(updates.find((update) => update.variable === "Ld")).toMatchObject({
@@ -195,7 +195,7 @@ describe("matrixAccountSumRow", () => {
       variable: "Ms",
       action: "add",
       proposed: {
-        expression: "Ms' + sum(Households.Deposits) * dt"
+        expression: "I(Households.Deposits)"
       }
     });
   });
@@ -212,8 +212,24 @@ describe("matrixAccountSumRow", () => {
       (entry): entry is EquationsCell => entry.type === "equations"
     )?.equations;
     expect(nextEquations?.find((equation) => equation.name === "Mh")?.expression).toBe(
-      "Mh' + sum(Households.Deposits) * dt"
+      "I(Households.Deposits)"
     );
+  });
+
+  it("treats sum(columnRef), bare column refs, and I(columnRef) as equivalent", () => {
+    expect(
+      equationExpressionsMatch(
+        "Mh' + sum(Households.Deposits) * dt",
+        "Mh' + Households.Deposits * dt",
+        "Mh"
+      )
+    ).toBe(true);
+    expect(
+      equationExpressionsMatch("I(Households.Deposits)", "Mh' + Households.Deposits * dt", "Mh")
+    ).toBe(true);
+    expect(
+      equationExpressionsMatch("I(Households.Deposits)", "Mh' + sum(Households.Deposits) * dt", "Mh")
+    ).toBe(true);
   });
 
   it("treats matching accumulation expressions as non-mismatch proposals", () => {
@@ -230,7 +246,7 @@ describe("matrixAccountSumRow", () => {
         {
           id: "eq-mh",
           name: "Mh",
-          expression: "Mh' + sum(Households.Deposits) * dt",
+          expression: "I(Households.Deposits)",
           role: "accumulation"
         }
       ]
@@ -244,9 +260,31 @@ describe("matrixAccountSumRow", () => {
 
     expect(updates).toHaveLength(1);
     expect(updates[0]?.isMismatch).toBe(false);
-    expect(equationExpressionsMatch(updates[0]!.proposed.expression, "Mh' + sum(Households.Deposits) * dt")).toBe(
+    expect(equationExpressionsMatch(updates[0]!.proposed.expression, "Mh' + Households.Deposits * dt", "Mh")).toBe(
       true
     );
+  });
+
+  it("treats I(columnRef) as matching an existing lag-plus-flow equation", () => {
+    const matchingEquations: EquationsCell = {
+      ...equationsCell,
+      equations: [
+        {
+          id: "eq-mh",
+          name: "Mh",
+          expression: "I(Households.Deposits)",
+          role: "accumulation"
+        }
+      ]
+    };
+
+    const updates = collectProposedMatrixEquationUpdates({
+      cells: [matchingEquations, runCell, accountTransactionsMatrix],
+      matrix: accountTransactionsMatrix,
+      modelId
+    });
+
+    expect(updates.find((update) => update.variable === "Mh")?.isMismatch).toBe(false);
   });
 
   it("treats lag() and prime lag syntax as equivalent when comparing expressions", () => {
@@ -264,6 +302,8 @@ describe("matrixAccountSumRow", () => {
     expect(isEmptyAccountSumRowSource("")).toBe(true);
     expect(isEmptyAccountSumRowSource("0")).toBe(true);
     expect(isEmptyAccountSumRowSource("  ")).toBe(true);
+    expect(isEmptyAccountSumRowSource("-")).toBe(true);
+    expect(isEmptyAccountSumRowSource("+")).toBe(true);
     expect(isEmptyAccountSumRowSource("d(Mh)")).toBe(false);
   });
 

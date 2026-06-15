@@ -242,6 +242,20 @@ describe("editor model validation", () => {
     expect(diagnostics.issues.filter((issue) => issue.path === "equations.0.expression")).toHaveLength(0);
   });
 
+  it("accepts I(Households.Deposits) for matrix-linked stock equations", () => {
+    const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
+    editor.equations[0] = {
+      id: "eq-mh",
+      name: "Mh",
+      expression: "I(Households.Deposits)",
+      unitMeta: { stockFlow: "stock", signature: { money: 1 } }
+    };
+
+    const diagnostics = diagnoseBuildRuntime(editor);
+
+    expect(diagnostics.issues.filter((issue) => issue.path === "equations.0.expression")).toHaveLength(0);
+  });
+
   it("flags I(flow) when the inner expression is not a flow", () => {
     const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
     editor.equations[0] = {

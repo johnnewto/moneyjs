@@ -9,7 +9,7 @@ cells:
   - markdown:
       id: intro
       title: Overview
-      source: This notebook adapts `gl2-pc.Rmd` into executable browser cells. It includes the PC balance-sheet and transactions-flow matrices, the baseline portfolio-choice model, the interest-rate scenario from the article, a deterministic `PCEX1` random-shock section with a stored `Ra` sequence, the `PCEX2` adaptive-expectations variant, and the `PCEX3` interest-sensitive propensity-to-consume extension.
+      source: This notebook adapts `gl2-pc.Rmd` into executable browser cells. It includes the PC balance-sheet, transactions-flow, and account-transactions matrices, the baseline portfolio-choice model, the interest-rate scenario from the article, a deterministic `PCEX1` random-shock section with a stored `Ra` sequence, the `PCEX2` adaptive-expectations variant, and the `PCEX3` interest-sensitive propensity-to-consume extension.
   - matrix:
       id: balance-sheet
       accountingKind: balance-sheet
@@ -50,6 +50,38 @@ cells:
         - [Money, Change money, -(Hh - lag(Hh)), "", "", "", +(Hs - lag(Hs)), "0"]
         - [Bills, Change bills, -(Bh - lag(Bh)), "", +(Bs - lag(Bs)), "", -(Bcb - lag(Bcb)), "0"]
         - [Sum, Sum, "0", "0", "0", "0", "0", "0"]
+  - matrix:
+      id: account-transactions
+      collapsed: false
+      sourceRunCellId: baseline-run
+      title: PC account transactions
+      description: Account-level transaction matrix for PC with hierarchical sector and account columns.
+      note: Columns group balance-sheet accounts by sector. Use Expand all / Collapse all or click sector headers to show or hide account columns.
+      columns: [Money (Hh), Net_worth (V), Current, Bills (Bs), Current, Capital, Gov.Bills, HH.Bills, CB.Bills, Sum]
+      sectors: [Households (HH), Households (HH), Firms, Government (Govt), Central bank (CB), Central bank (CB), Government (Govt), Households (HH), Central bank (CB), ""]
+      columnBadges: [asset, equity, asset, liability, liability, asset, liability, asset, asset, ""]
+      accountingKind: account-transactions
+      rows:
+        - [Consumption, Consumption, -C, -C, +C, "", "", "", "", "", "", "0"]
+        - label: Govt. expenditures
+          values:
+            - ""
+            - ""
+            - +G
+            - -G
+            - ""
+            - ""
+            - -G
+            - ""
+            - ""
+            - "0"
+        - [Income, Income, +Y, +Y, -Y, "", "", "", "", "", "", "0"]
+        - [Interest, Interest payments, +lag(r) * lag(Bh), +lag(r) * lag(Bh), "", -lag(r) * lag(Bs), "", +lag(r) * lag(Bcb), -lag(r) * lag(Bs), +lag(r) * lag(Bh), +lag(r) * lag(Bcb), "0"]
+        - [Profits, CB profits, "", "", "", +lag(r) * lag(Bcb), -lag(r) * lag(Bcb), "", "", "", "", "0"]
+        - [Taxes, Taxes, -TX, -TX, "", +TX, "", "", +TX, "", "", "0"]
+        - [Money, Change money, -d(Hh), -d(Hh), "", "", "", +d(Hs), "", "", "", "0"]
+        - [Bills, Change bills, -d(Bh), -d(Bh), "", +d(Bs), "", -d(Bcb), +d(Bs), -d(Bh), -d(Bcb), "0"]
+        - [Sum, Sum, Hh, V, "", Bs, "", Hs, "", Bh, Bcb, "0"]
   - sequence:
       id: transaction-flow-sequence
       title: PC transaction flow sequence

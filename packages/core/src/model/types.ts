@@ -1,4 +1,5 @@
 import type { EquationRole } from "../parser/analyze";
+import type { MatrixColumnSumLocations } from "../parser/dependencies";
 
 export type SolverMethod = "GAUSS_SEIDEL" | "BROYDEN" | "NEWTON";
 
@@ -25,6 +26,8 @@ export interface ModelDefinition {
   initialValues: Record<string, number>;
   /** Maps sum(columnRef) keys to matrix cell expression strings summed at runtime. */
   matrixColumnSums?: Record<string, string[]>;
+  /** Row/column labels parallel to each matrixColumnSums entry (same order). */
+  matrixColumnSumLocations?: MatrixColumnSumLocations;
 }
 
 export interface SimulationOptions {

@@ -133,3 +133,65 @@ describe("variableInspector derivative-balance", () => {
     expect(data?.generatedEquationExplanation).not.toMatch(/change in K equals/i);
   });
 });
+
+describe("variableInspector matrix column sums", () => {
+  it("treats Households.Deposits as an inspectable matrix column sum", () => {
+    const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
+    editor.equations = [
+      {
+        id: "eq-mh",
+        name: "Mh",
+        expression: "Mh' + Households.Deposits * dt",
+        role: "accumulation"
+      }
+    ];
+
+    const data = buildVariableInspectorData({
+      editor,
+      notebookCells: [
+        {
+          id: "baseline-run",
+          type: "run",
+          title: "Baseline",
+          sourceModelId: "sim",
+          mode: "baseline",
+          resultKey: "baseline",
+          periods: 10
+        },
+        {
+          id: "account-transactions",
+          type: "matrix",
+          title: "Account transactions",
+          sourceRunCellId: "baseline-run",
+          accountingKind: "account-transactions",
+          columns: ["Deposits (Mh)", "Sum"],
+          sectors: ["Households(HH)", ""],
+          rows: [
+            { band: "Income", label: "Income", values: ["YD - Cd", "0"] },
+            { band: "Sum", label: "Sum", values: ["Mh", "0"] }
+          ]
+        }
+      ],
+      modelSource: { sourceModelId: "sim" },
+      sourceRunCellId: "baseline-run",
+      selectedVariable: "Households.Deposits",
+      variableDescriptions: buildVariableDescriptions({
+        equations: editor.equations,
+        externals: editor.externals
+      }),
+      variableUnitMetadata: buildVariableUnitMetadata({
+        equations: editor.equations,
+        externals: editor.externals
+      })
+    });
+
+    expect(data?.kind).toBe("matrix-column-sum");
+    expect(data?.matrixColumnSum).toMatchObject({
+      columnRef: "Households.Deposits",
+      expression: "Households.Deposits",
+      stockVariable: "Mh"
+    });
+    expect(data?.equationInputs.current).toContain("Cd");
+    expect(data?.equationInputs.current).toContain("YD");
+  });
+});

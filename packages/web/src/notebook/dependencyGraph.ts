@@ -89,7 +89,11 @@ export function buildDependencyGraph(
     } catch (error) {
       errors.push(
         `Equation ${equationIndex + 1} (${name}): ${
-          error instanceof Error ? error.message : "Unable to parse expression."
+          error instanceof Error
+            ? error.message.includes(expression)
+              ? error.message
+              : `${error.message} (expression: '${expression}')`
+            : "Unable to parse expression."
         }`
       );
     }

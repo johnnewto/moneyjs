@@ -16,6 +16,8 @@ import {
   migrateLegacyColumnCollapseNodeId,
   parseMatrixAccountColumnLeafDisplay,
   parseMatrixSectorDisplay,
+  resolveMatrixColumnInspectVariable,
+  resolveMatrixColumnSumReference,
   signedMatrixAccountColumnContribution,
   usesMatrixSectorColumnLayout,
   validateMatrixAccountColumnsLayout
@@ -85,6 +87,20 @@ describe("matrixAccountColumns", () => {
     );
     expect(formatMatrixAccountColumnTooltipLabel("Firm.Loans", "Banks")).toBe("Banks.Firm.Loans");
     expect(formatMatrixAccountColumnTooltipLabel("Capital", "")).toBe("Capital");
+  });
+
+  it("resolves matrix column sum and inspect variable names", () => {
+    expect(resolveMatrixColumnSumReference(["Deposits (Mh)", "Sum"], 0, ["Households(HH)", ""])).toBe(
+      "Households.Deposits"
+    );
+    expect(
+      resolveMatrixColumnInspectVariable(
+        ["Deposits (Mh)", "Sum"],
+        0,
+        undefined,
+        ["Households(HH)", ""]
+      )
+    ).toBe("Households.Deposits");
   });
 
   it("parses leaf display names and variable symbols", () => {

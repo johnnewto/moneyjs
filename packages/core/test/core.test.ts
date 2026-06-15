@@ -8,7 +8,7 @@ import {
   simGovernmentSpendingShock
 } from "../src/fixtures/sim";
 import { validateShock } from "../src/engine/validate";
-import { wrapContextWithMatrixColumnSums } from "../src/engine/matrixColumnSum";
+import { wrapContextWithMatrixColumnSums, evaluateMatrixColumnSum, isSkippableMatrixCellSource } from "../src/engine/matrixColumnSum";
 import { buildOrderedBlocks } from "../src/graph/blocks";
 import {
   classifySectorEdge,
@@ -119,6 +119,85 @@ describe("parser", () => {
     );
 
     expect(evaluateExpression(parseExpression("sum(Households.Deposits)"), context)).toBe(6);
+    expect(evaluateExpression(parseExpression("Households.Deposits"), context)).toBe(6);
+  });
+
+  it("skips sign-only matrix placeholders when summing column flows", () => {
+    expect(isSkippableMatrixCellSource("-")).toBe(true);
+    const context = wrapContextWithMatrixColumnSums(
+      {
+        currentValue: () => 0,
+        lagValue: () => 0,
+        diffValue: () => 0,
+        setCurrentValue: () => {},
+        hasSeries: () => true
+      },
+      {
+        "Households.Deposits": ["-", "WBd"]
+      },
+      {
+        "Households.Deposits": [
+          {
+            matrixTitle: "PC account transactions",
+            rowLabel: "Govt. expenditures",
+            columnLabel: "Bills (Bs)"
+          },
+          {
+            matrixTitle: "PC account transactions",
+            rowLabel: "Income",
+            columnLabel: "Deposits"
+          }
+        ]
+      }
+    );
+
+    expect(evaluateExpression(parseExpression("Households.Deposits"), context)).toBe(0);
+  });
+
+  it("includes matrix cell location when a column-sum source fails to parse", () => {
+    const context = {
+      currentValue: () => 0,
+      lagValue: () => 0,
+      diffValue: () => 0,
+      setCurrentValue: () => {},
+      hasSeries: () => true
+    };
+
+    expect(() =>
+      evaluateMatrixColumnSum(
+        "Households.Deposits",
+        { "Households.Deposits": ["("] },
+        context,
+        {
+          "Households.Deposits": [
+            {
+              matrixTitle: "PC account transactions",
+              rowLabel: "Govt. expenditures",
+              columnLabel: "Bills (Bs)"
+            }
+          ]
+        }
+      )
+    ).toThrow(
+      "Matrix 'PC account transactions' cell (Govt. expenditures / Bills (Bs))"
+    );
+  });
+
+  it("parses bare qualified column refs as matrix column flows", () => {
+    const bindings = {
+      "Households.Deposits": ["WBd", "-Cs"]
+    };
+    const fullExpression = parseExpression("Mh' + Households.Deposits * dt");
+    expect(new Set(collectCurrentDependencies(fullExpression, bindings))).toEqual(
+      new Set(["WBd", "Cs"])
+    );
+    expect(new Set(collectLagDependencies(fullExpression, bindings))).toEqual(new Set(["Mh"]));
+
+    const equation = parseEquation("Mh", "Mh' + Households.Deposits * dt", {
+      matrixColumnSums: bindings
+    });
+    expect(new Set(equation.currentDependencies)).toEqual(new Set(["WBd", "Cs"]));
+    expect(new Set(equation.lagDependencies)).toEqual(new Set(["Mh"]));
   });
 
   it("normalizes bullet multiplication syntax", () => {
@@ -164,6 +243,16 @@ describe("parser", () => {
     expect(() => parseEquation("Bs", "lag(Bs) + I(G - TX)")).toThrow(
       "I(...) is only supported as the outermost RHS form"
     );
+  });
+
+  it("reports informative parse errors with token position and expression", () => {
+    expect(() => parseExpression("-")).toThrow(
+      "Unexpected end of expression at character 2 in expression '-'"
+    );
+    expect(() => parseEquation("Mh", "Mh' +")).toThrow(
+      "Equation 'Mh': Unexpected end of expression"
+    );
+    expect(() => parseEquation("Mh", "Mh' + Households.Deposits* dt")).not.toThrow();
   });
 
   it("parses derivative-balance targets as stock integrator equations", () => {
@@ -400,6 +489,41 @@ describe("simulation", () => {
     expectClose(result.series.Bs[1] ?? NaN, 12, 1e-12);
     expectClose(result.series.Bs[2] ?? NaN, 14, 1e-12);
     expectClose(result.series.Bs[3] ?? NaN, 16, 1e-12);
+  });
+
+  it("parses and evaluates I(Households.Deposits) with matrix column bindings", () => {
+    const equation = parseEquation("Mh", "I(Households.Deposits)", {
+      matrixColumnSums: { "Households.Deposits": ["WBd", "-Cs"] }
+    });
+    expect(equation.sourceExpression).toEqual({
+      type: "Integral",
+      expr: { type: "Variable", name: "Households.Deposits" }
+    });
+    expect(new Set(equation.lagDependencies)).toEqual(new Set(["Mh"]));
+
+    const result = runBaseline(
+      {
+        equations: [
+          { name: "WBd", expression: "4" },
+          { name: "Cs", expression: "1" },
+          { name: "Mh", expression: "I(Households.Deposits)" }
+        ],
+        externals: {},
+        initialValues: { Mh: 10 },
+        matrixColumnSums: { "Households.Deposits": ["WBd", "-Cs"] }
+      },
+      {
+        periods: 4,
+        solverMethod: "GAUSS_SEIDEL",
+        tolerance: 1e-9,
+        maxIterations: 20
+      }
+    );
+
+    expectClose(result.series.Mh[0] ?? NaN, 10, 1e-12);
+    expectClose(result.series.Mh[1] ?? NaN, 13, 1e-12);
+    expectClose(result.series.Mh[2] ?? NaN, 16, 1e-12);
+    expectClose(result.series.Mh[3] ?? NaN, 19, 1e-12);
   });
 
   it("evaluates derivative-balance form d(stock) = flow like I(flow)", () => {

@@ -32,6 +32,8 @@ function explainExpr(expr: Expr, variableDescriptions: VariableDescriptions): st
       return `last period's ${describeVariable(expr.name, variableDescriptions)}`;
     case "Diff":
       return `the change in ${describeVariable(expr.name, variableDescriptions)}`;
+    case "MatrixColumnSum":
+      return `the matrix column flow ${expr.columnRef}`;
     case "Integral":
       return `the accumulated value of ${explainExpr(expr.expr, variableDescriptions)}`;
     case "Unary":

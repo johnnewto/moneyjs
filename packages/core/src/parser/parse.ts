@@ -1,6 +1,11 @@
 import type { Expr } from "./ast";
 import { normalizeDerivativeBalanceTarget } from "./equationTarget";
 import { collectCurrentDependencies, collectLagDependencies } from "./dependencies";
+import { expressionParseError, rethrowExpressionParseError } from "./parseErrors";
+import type { Token, TokenType } from "./parseTokens";
+
+export { describeParseToken, formatExpressionSnippet, formatMatrixColumnCellParseError } from "./parseErrors";
+export type { Token, TokenType } from "./parseTokens";
 
 export {
   derivativeBalanceStockName,
@@ -19,35 +24,6 @@ export interface ParsedEquation {
   lagDependencies: string[];
 }
 
-type TokenType =
-  | "NUMBER"
-  | "IDENTIFIER"
-  | "IF"
-  | "ELSE"
-  | "PLUS"
-  | "MINUS"
-  | "STAR"
-  | "SLASH"
-  | "LPAREN"
-  | "RPAREN"
-  | "LBRACE"
-  | "RBRACE"
-  | "COMMA"
-  | "GT"
-  | "GTE"
-  | "LT"
-  | "LTE"
-  | "EQEQ"
-  | "NEQ"
-  | "ANDAND"
-  | "OROR"
-  | "EOF";
-
-interface Token {
-  type: TokenType;
-  text: string;
-}
-
 const IDENTIFIER_SOURCE = String.raw`[A-Za-z_][A-Za-z0-9_\.\^\{\}]*`;
 const LAG_PATTERN = new RegExp(`(${IDENTIFIER_SOURCE})\\[-1\\]`, "g");
 const PRIME_LAG_PATTERN = new RegExp(`(${IDENTIFIER_SOURCE})'`, "g");
@@ -60,65 +36,66 @@ class Lexer {
 
   nextToken(): Token {
     this.skipWhitespace();
+    const offset = this.index;
     if (this.index >= this.source.length) {
-      return { type: "EOF", text: "" };
+      return { type: "EOF", text: "", offset };
     }
 
     const c = this.source[this.index];
 
     switch (c) {
       case "+":
-        return this.single("PLUS");
+        return this.single("PLUS", offset);
       case "-":
-        return this.single("MINUS");
+        return this.single("MINUS", offset);
       case "*":
-        return this.single("STAR");
+        return this.single("STAR", offset);
       case "/":
-        return this.single("SLASH");
+        return this.single("SLASH", offset);
       case "(":
-        return this.single("LPAREN");
+        return this.single("LPAREN", offset);
       case ")":
-        return this.single("RPAREN");
+        return this.single("RPAREN", offset);
       case "{":
-        return this.single("LBRACE");
+        return this.single("LBRACE", offset);
       case "}":
-        return this.single("RBRACE");
+        return this.single("RBRACE", offset);
       case ",":
-        return this.single("COMMA");
+        return this.single("COMMA", offset);
       case ">":
-        return this.match("=", "GTE", "GT");
+        return this.match("=", "GTE", "GT", offset);
       case "<":
-        return this.match("=", "LTE", "LT");
+        return this.match("=", "LTE", "LT", offset);
       case "=":
         if (this.peekNext() === "=") {
           this.index += 2;
-          return { type: "EQEQ", text: "==" };
+          return { type: "EQEQ", text: "==", offset };
         }
-        throw new Error("Unexpected character: =");
+        throw new Error(`Unexpected character: =`);
       case "!":
         if (this.peekNext() === "=") {
           this.index += 2;
-          return { type: "NEQ", text: "!=" };
+          return { type: "NEQ", text: "!=", offset };
         }
-        throw new Error("Unexpected character: !");
+        throw new Error(`Unexpected character: !`);
       case "&":
         if (this.peekNext() === "&") {
           this.index += 2;
-          return { type: "ANDAND", text: "&&" };
+          return { type: "ANDAND", text: "&&", offset };
         }
-        throw new Error("Unexpected character: &");
+        throw new Error(`Unexpected character: &`);
       case "|":
         if (this.peekNext() === "|") {
           this.index += 2;
-          return { type: "OROR", text: "||" };
+          return { type: "OROR", text: "||", offset };
         }
-        throw new Error("Unexpected character: |");
+        throw new Error(`Unexpected character: |`);
       default:
         if (isNumberStart(c)) {
-          return this.number();
+          return this.number(offset);
         }
         if (isIdentifierStart(c)) {
-          return this.identifier();
+          return this.identifier(offset);
         }
         throw new Error(`Unexpected character: ${c}`);
     }
@@ -130,13 +107,13 @@ class Lexer {
     }
   }
 
-  private single(type: TokenType): Token {
+  private single(type: TokenType, offset: number): Token {
     const text = this.source[this.index] ?? "";
     this.index += 1;
-    return { type, text };
+    return { type, text, offset };
   }
 
-  private number(): Token {
+  private number(offset: number): Token {
     const start = this.index;
     while (this.index < this.source.length) {
       const c = this.source[this.index] ?? "";
@@ -146,10 +123,10 @@ class Lexer {
         break;
       }
     }
-    return { type: "NUMBER", text: this.source.slice(start, this.index) };
+    return { type: "NUMBER", text: this.source.slice(start, this.index), offset };
   }
 
-  private identifier(): Token {
+  private identifier(offset: number): Token {
     const start = this.index;
     while (this.index < this.source.length) {
       const c = this.source[this.index] ?? "";
@@ -162,21 +139,21 @@ class Lexer {
 
     const text = this.source.slice(start, this.index);
     if (text === "if") {
-      return { type: "IF", text };
+      return { type: "IF", text, offset };
     }
     if (text === "else") {
-      return { type: "ELSE", text };
+      return { type: "ELSE", text, offset };
     }
-    return { type: "IDENTIFIER", text };
+    return { type: "IDENTIFIER", text, offset };
   }
 
-  private match(expectedNext: string, matched: TokenType, single: TokenType): Token {
+  private match(expectedNext: string, matched: TokenType, single: TokenType, offset: number): Token {
     if (this.peekNext() === expectedNext) {
       this.index += 2;
-      return { type: matched, text: this.source.slice(this.index - 2, this.index) };
+      return { type: matched, text: this.source.slice(this.index - 2, this.index), offset };
     }
     this.index += 1;
-    return { type: single, text: this.source.slice(this.index - 1, this.index) };
+    return { type: single, text: this.source.slice(this.index - 1, this.index), offset };
   }
 
   private peekNext(): string {
@@ -187,13 +164,21 @@ class Lexer {
 class Parser {
   private current: Token;
 
-  constructor(source: string) {
+  constructor(private readonly source: string) {
     const lexer = new Lexer(source);
     this.lexer = lexer;
     this.current = lexer.nextToken();
   }
 
   private readonly lexer: Lexer;
+
+  private failUnexpected(): never {
+    throw expressionParseError(this.source, this.current, "unexpected");
+  }
+
+  private failExpected(expected: string): never {
+    throw expressionParseError(this.source, this.current, "expected", expected);
+  }
 
   parseTopLevelExpression(): Expr {
     if (this.peekType() === "IF") {
@@ -204,7 +189,7 @@ class Parser {
 
   expect(expected: TokenType): Token {
     if (this.current.type !== expected) {
-      throw new Error(`Expected ${expected} but found ${this.current.type}`);
+      this.failExpected(expected);
     }
     const token = this.current;
     this.advance();
@@ -326,7 +311,7 @@ class Parser {
       return expression;
     }
 
-    throw new Error(`Unexpected token: ${this.current.text}`);
+    this.failUnexpected();
   }
 
   private parseFunctionCall(identifier: string): Expr {
@@ -343,6 +328,9 @@ class Parser {
         return { type: "Diff", name: argument };
       }
       case "I": {
+        if (this.peekType() === "RPAREN") {
+          throw new Error("I(...) requires a flow expression.");
+        }
         const argument = this.parseTopLevelExpression();
         this.expect("RPAREN");
         return { type: "Integral", expr: argument };
@@ -390,10 +378,15 @@ class Parser {
 }
 
 export function parseExpression(source: string): Expr {
-  const parser = new Parser(normalize(source));
-  const expression = parser.parseTopLevelExpression();
-  parser.expect("EOF");
-  return expression;
+  const normalized = normalize(source);
+  try {
+    const parser = new Parser(normalized);
+    const expression = parser.parseTopLevelExpression();
+    parser.expect("EOF");
+    return expression;
+  } catch (error) {
+    rethrowExpressionParseError(error, normalized);
+  }
 }
 
 export function parseEquation(
@@ -405,7 +398,12 @@ export function parseEquation(
     name,
     source
   );
-  const sourceExpression = parseExpression(equationSource);
+  let sourceExpression: Expr;
+  try {
+    sourceExpression = parseExpression(equationSource);
+  } catch (error) {
+    rethrowExpressionParseError(error, normalize(equationSource), { equationName });
+  }
   const expression = lowerIntegrals(equationName, sourceExpression);
   const matrixColumnSums = options?.matrixColumnSums;
   return {

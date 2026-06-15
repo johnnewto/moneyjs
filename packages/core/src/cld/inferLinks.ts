@@ -130,8 +130,13 @@ function collectSignedEndogenousRefs(
       const sources = matrixColumnSums?.[expr.columnRef.trim()] ?? [];
       return collectSignedEndogenousRefsFromMatrixCellSources(sources, sign, matrixColumnSums);
     }
-    case "Variable":
+    case "Variable": {
+      if (expr.name.includes(".") && matrixColumnSums?.[expr.name.trim()]?.length) {
+        const sources = matrixColumnSums[expr.name.trim()] ?? [];
+        return collectSignedEndogenousRefsFromMatrixCellSources(sources, sign, matrixColumnSums);
+      }
       return [{ variable: expr.name, sign, lagged: false }];
+    }
     case "Lag":
     case "Diff":
       return [{ variable: expr.name, sign, lagged: true }];

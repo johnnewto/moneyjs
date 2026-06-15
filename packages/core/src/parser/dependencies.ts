@@ -1,10 +1,32 @@
 import type { SolverContext } from "../engine/context";
+import { isSkippableMatrixCellSource } from "../engine/matrixCellSource";
 import type { Expr } from "./ast";
 import { parseExpression } from "./parse";
 
 const DT_VARIABLE = "dt";
 
+export interface MatrixColumnCellLocation {
+  matrixTitle: string;
+  rowLabel: string;
+  columnLabel: string;
+}
+
+/** Parallel to each string[] in matrixColumnSums — same order, same length. */
+export type MatrixColumnSumLocations = Record<string, MatrixColumnCellLocation[]>;
+
 export type MatrixColumnSumBindings = Record<string, string[]>;
+
+function isBareMatrixColumnFlowRef(name: string, matrixColumnSums?: MatrixColumnSumBindings): boolean {
+  const key = name.trim();
+  return key.includes(".") && Boolean(matrixColumnSums?.[key]?.length);
+}
+
+function matrixColumnSumSources(
+  columnRef: string,
+  matrixColumnSums?: MatrixColumnSumBindings
+): string[] {
+  return matrixColumnSums?.[columnRef.trim()] ?? [];
+}
 
 function stripLeadingPlus(source: string): string {
   return source.startsWith("+") ? source.slice(1).trimStart() : source;
@@ -19,7 +41,7 @@ function collectDependenciesFromMatrixCellSources(
 
   for (const source of sources) {
     const trimmed = source.trim();
-    if (!trimmed || trimmed === "0") {
+    if (isSkippableMatrixCellSource(trimmed)) {
       continue;
     }
 
@@ -43,6 +65,11 @@ export function extractMatrixColumnSumRefs(expr: Expr, refs = new Set<string>())
   switch (expr.type) {
     case "MatrixColumnSum":
       refs.add(expr.columnRef);
+      break;
+    case "Variable":
+      if (expr.name.includes(".")) {
+        refs.add(expr.name);
+      }
       break;
     case "Unary":
       extractMatrixColumnSumRefs(expr.expr, refs);
@@ -91,6 +118,13 @@ export function evaluateExpression(expr: Expr, context: SolverContext): number {
     case "Variable":
       if (expr.name === DT_VARIABLE) {
         return 1;
+      }
+      if (isBareMatrixColumnFlowRef(expr.name, context.matrixColumnSums)) {
+        const evaluate = context.evaluateMatrixColumnSum;
+        if (!evaluate) {
+          throw new Error(`Matrix column flow is not bound: ${expr.name}`);
+        }
+        return evaluate(expr.name);
       }
       return context.currentValue(expr.name);
     case "Lag":
@@ -165,6 +199,12 @@ export function collectCurrentDependencies(
       if (expr.name === DT_VARIABLE) {
         return new Set<string>();
       }
+      if (isBareMatrixColumnFlowRef(expr.name, matrixColumnSums)) {
+        return collectDependenciesFromMatrixCellSources(
+          matrixColumnSumSources(expr.name, matrixColumnSums),
+          matrixColumnSums
+        ).current;
+      }
       return new Set<string>([expr.name]);
     case "Diff":
       if (expr.name === DT_VARIABLE) {
@@ -202,7 +242,14 @@ export function collectLagDependencies(
 ): Set<string> {
   switch (expr.type) {
     case "Number":
+      return new Set<string>();
     case "Variable":
+      if (isBareMatrixColumnFlowRef(expr.name, matrixColumnSums)) {
+        return collectDependenciesFromMatrixCellSources(
+          matrixColumnSumSources(expr.name, matrixColumnSums),
+          matrixColumnSums
+        ).lag;
+      }
       return new Set<string>();
     case "Lag":
       if (expr.name === DT_VARIABLE) {
