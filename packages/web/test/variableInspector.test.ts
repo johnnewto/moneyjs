@@ -194,4 +194,64 @@ describe("variableInspector matrix column sums", () => {
     expect(data?.equationInputs.current).toContain("Cd");
     expect(data?.equationInputs.current).toContain("YD");
   });
+
+  it("shows implicit I(columnRef) accumulation when inspecting a sum-row stock without an equation", () => {
+    const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
+    editor.equations = [
+      { id: "eq-wbd", name: "WBd", expression: "4" },
+      { id: "eq-cs", name: "Cs", expression: "1" }
+    ];
+    editor.initialValues = [{ id: "init-mh", name: "Mh", valueText: "10" }];
+
+    const data = buildVariableInspectorData({
+      editor,
+      notebookCells: [
+        {
+          id: "baseline-run",
+          type: "run",
+          title: "Baseline",
+          sourceModelId: "sim",
+          mode: "baseline",
+          resultKey: "baseline",
+          periods: 10
+        },
+        {
+          id: "account-transactions",
+          type: "matrix",
+          title: "Account transactions",
+          sourceRunCellId: "baseline-run",
+          accountingKind: "account-transactions",
+          columns: ["Deposits (Mh)", "Sum"],
+          sectors: ["Households(HH)", ""],
+          rows: [
+            { band: "Wages", label: "Wages", values: ["WBd", "0"] },
+            { band: "Consumption", label: "Consumption", values: ["-Cs", "0"] },
+            { band: "Sum", label: "Sum", values: ["Mh", "0"] }
+          ]
+        }
+      ],
+      modelSource: { sourceModelId: "sim" },
+      sourceRunCellId: "baseline-run",
+      selectedVariable: "Mh",
+      variableDescriptions: buildVariableDescriptions({
+        equations: editor.equations,
+        externals: editor.externals
+      }),
+      variableUnitMetadata: buildVariableUnitMetadata({
+        equations: editor.equations,
+        externals: editor.externals
+      })
+    });
+
+    expect(data?.kind).toBe("equation");
+    expect(data?.isImplicitEquation).toBe(true);
+    expect(data?.definingEquation).toMatchObject({
+      id: "implicit-matrix-Mh",
+      name: "Mh",
+      expression: "I(Households.Deposits)"
+    });
+    expect(data?.equationRoleSourceLabel).toBe("From matrix Sum row");
+    expect(data?.equationInputs.current).toEqual(expect.arrayContaining(["WBd", "Cs"]));
+    expect(data?.generatedEquationExplanation).toMatch(/accumulated value/i);
+  });
 });

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildMatrixColumnSumSeries,
+  collectImplicitMatrixAccumulationEquations,
   collectMatrixColumnSumRefsFromMatrices,
   columnHasFlowEntries,
   formatMatrixColumnSumReference,
@@ -125,6 +126,31 @@ describe("matrixColumnSumRuntime", () => {
         runCellId: "baseline-run"
       })
     ).toEqual(["Firms.Loans", "Households.Deposits"]);
+  });
+
+  it("collects implicit accumulation equations from sum-row stock annotations", () => {
+    const implicit = collectImplicitMatrixAccumulationEquations({
+      cells: [runCell, accountTransactionsMatrix],
+      modelId,
+      runCellId: "baseline-run",
+      existingEquationNames: new Set()
+    });
+
+    expect(implicit).toEqual([
+      { name: "Ld", expression: "Ld'", role: "accumulation" },
+      { name: "Mh", expression: "I(Households.Deposits)", role: "accumulation" }
+    ]);
+  });
+
+  it("skips implicit equations when the model already defines the stock", () => {
+    const implicit = collectImplicitMatrixAccumulationEquations({
+      cells: [runCell, accountTransactionsMatrix],
+      modelId,
+      runCellId: "baseline-run",
+      existingEquationNames: new Set(["Mh"])
+    });
+
+    expect(implicit).toEqual([{ name: "Ld", expression: "Ld'", role: "accumulation" }]);
   });
 
   it("builds inspect context and series for a matrix column sum ref", () => {

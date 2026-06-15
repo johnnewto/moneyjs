@@ -23,7 +23,7 @@ import {
   type NotebookDiagnosticDomain
 } from "@sfcr/notebook-core";
 import type { NotebookCell } from "../notebook/types";
-import { resolveMatrixColumnSumBindingBundle } from "../notebook/matrixColumnSumRuntime";
+import { resolveMatrixColumnSumBindingBundle, collectImplicitMatrixAccumulationEquations } from "../notebook/matrixColumnSumRuntime";
 import { stringifyJsonWithCompactLeaves } from "../lib/jsonFormat";
 import type { UnitMeta } from "../lib/unitMeta";
 import { buildVariableUnitMetadata, diagnoseEquationUnits } from "../lib/units";
@@ -181,7 +181,7 @@ export function buildRuntimeConfig(
   options: SimulationOptions;
   scenario: ScenarioDefinition | null;
 } {
-  const equations = equationRowsOnly(editor.equations)
+  const explicitEquations = equationRowsOnly(editor.equations)
     .filter((equation) => equation.name.trim() !== "" && equation.expression.trim() !== "")
     .map((equation) => {
       const { name, source } = normalizeDerivativeBalanceTarget(
@@ -194,6 +194,18 @@ export function buildRuntimeConfig(
         ...(equation.role ? { role: equation.role } : {})
       };
     });
+
+  const implicitEquations =
+    runtimeOptions?.notebookCells && runtimeOptions.modelId && runtimeOptions.runCellId
+      ? collectImplicitMatrixAccumulationEquations({
+          cells: runtimeOptions.notebookCells,
+          modelId: runtimeOptions.modelId,
+          runCellId: runtimeOptions.runCellId,
+          existingEquationNames: new Set(explicitEquations.map((equation) => equation.name))
+        })
+      : [];
+
+  const equations = [...explicitEquations, ...implicitEquations];
 
   const externals = Object.fromEntries(
     externalRowsOnly(editor.externals)

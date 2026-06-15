@@ -12,11 +12,24 @@ import {
   resolveMatrixColumnSumReference
 } from "@sfcr/notebook-core";
 
-import { evaluateMatrixEntryNumber, isSumLabel } from "./matrixAccountSumRow";
+import {
+  buildProposedAccumulationExpression,
+  evaluateMatrixEntryNumber,
+  isSumLabel,
+  isSumRowStockAnnotation,
+  resolveSumRowStockVariable
+} from "./matrixAccountSumRow";
 import { isSkippableMatrixCellSource } from "@sfcr/core";
 import { resolveAccountingMatrixKind } from "./validation";
+import type { EquationRole } from "@sfcr/core";
 import type { MatrixCell, NotebookCell, RunCell } from "./types";
 import type { SimulationResult } from "@sfcr/core";
+
+export interface ImplicitMatrixAccumulationEquation {
+  name: string;
+  expression: string;
+  role: EquationRole;
+}
 
 export function formatMatrixColumnSumReference(columnLabel: string): string {
   return columnLabel.trim().replace(/\s*\([^)]+\)\s*$/, "").trim();
@@ -232,7 +245,84 @@ function resolveColumnIndexForRef(matrix: MatrixCell, columnRef: string): number
   return null;
 }
 
-function findLinkedAccountTransactionMatrices(
+export function collectImplicitMatrixAccumulationEquations(args: {
+  cells: NotebookCell[];
+  modelId: string;
+  runCellId: string;
+  existingEquationNames: ReadonlySet<string>;
+}): ImplicitMatrixAccumulationEquation[] {
+  const implicit: ImplicitMatrixAccumulationEquation[] = [];
+  const seen = new Set<string>();
+
+  for (const matrix of findLinkedAccountTransactionMatrices(
+    args.cells,
+    args.modelId,
+    args.runCellId
+  )) {
+    const sumRowIndex = matrix.rows.findIndex((row) => isSumLabel(row.label));
+    const sumColumnIndex = matrix.columns.findIndex((column) => isSumLabel(column));
+    if (sumRowIndex < 0) {
+      continue;
+    }
+
+    matrix.rows[sumRowIndex]?.values.forEach((source, columnIndex) => {
+      if (columnIndex === sumColumnIndex) {
+        return;
+      }
+
+      const trimmedSource = source.trim();
+      if (!trimmedSource || trimmedSource === "0" || !isSumRowStockAnnotation(trimmedSource)) {
+        return;
+      }
+
+      const variable = resolveSumRowStockVariable(matrix, columnIndex, trimmedSource);
+      if (!variable || args.existingEquationNames.has(variable) || seen.has(variable)) {
+        return;
+      }
+
+      const columnLabel = matrix.columns[columnIndex]?.trim() ?? variable;
+      const sectorLabel = matrix.sectors?.[columnIndex]?.trim() ?? "";
+      const columnRef = sectorLabel
+        ? formatQualifiedMatrixColumnSumReference(sectorLabel, columnLabel)
+        : formatMatrixColumnSumReference(columnLabel);
+      const hasFlows = columnHasFlowEntries(matrix, columnIndex, sumRowIndex);
+      const expression = buildProposedAccumulationExpression(variable, columnRef, hasFlows);
+
+      seen.add(variable);
+      implicit.push({
+        name: variable,
+        expression,
+        role: "accumulation"
+      });
+    });
+  }
+
+  return implicit.sort((left, right) => left.name.localeCompare(right.name));
+}
+
+export function resolveImplicitMatrixAccumulationEquation(args: {
+  cells: NotebookCell[];
+  modelId: string;
+  runCellId: string;
+  variable: string;
+  existingEquationNames: ReadonlySet<string>;
+}): ImplicitMatrixAccumulationEquation | null {
+  const variable = args.variable.trim();
+  if (!variable || args.existingEquationNames.has(variable)) {
+    return null;
+  }
+
+  return (
+    collectImplicitMatrixAccumulationEquations({
+      cells: args.cells,
+      modelId: args.modelId,
+      runCellId: args.runCellId,
+      existingEquationNames: args.existingEquationNames
+    }).find((equation) => equation.name === variable) ?? null
+  );
+}
+
+export function findLinkedAccountTransactionMatrices(
   cells: NotebookCell[],
   modelId: string,
   runCellId: string

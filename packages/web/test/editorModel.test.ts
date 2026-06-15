@@ -8,6 +8,7 @@ import {
   runtimeDocumentToJson,
   validateEditorState
 } from "../src/lib/editorModel";
+import type { EquationsCell, MatrixCell, NotebookCell, RunCell } from "../src/notebook/types";
 import {
   simBaselineModel,
   simBaselineOptions,
@@ -437,5 +438,77 @@ describe("editor model validation", () => {
         message: expect.stringContaining("I(...) for stock 'Ls' expects a flow")
       })
     ]);
+  });
+
+  it("injects implicit I(columnRef) accumulation equations from account-transactions sum rows", () => {
+    const modelId = "pc-baseline";
+    const equationsCell: EquationsCell = {
+      id: "equations",
+      type: "equations",
+      title: "Equations",
+      modelId,
+      equations: [
+        { id: "eq-wbd", name: "WBd", expression: "4" },
+        { id: "eq-cs", name: "Cs", expression: "1" }
+      ]
+    };
+    const runCell: RunCell = {
+      id: "baseline-run",
+      type: "run",
+      title: "Baseline",
+      sourceModelId: modelId,
+      mode: "baseline",
+      resultKey: "baseline",
+      periods: 4
+    };
+    const matrix: MatrixCell = {
+      id: "account-transactions",
+      type: "matrix",
+      title: "Account transactions",
+      sourceRunCellId: "baseline-run",
+      accountingKind: "account-transactions",
+      columns: ["Households.Deposits (Mh)", "Sum"],
+      sectors: ["Households", ""],
+      rows: [
+        { band: "Wages", label: "Wages", values: ["WBd", "0"] },
+        { band: "Consumption", label: "Consumption", values: ["-Cs", "0"] },
+        { band: "Sum", label: "Sum", values: ["Mh", "0"] }
+      ]
+    };
+    const cells: NotebookCell[] = [equationsCell, runCell, matrix];
+    const editor = {
+      equations: equationsCell.equations,
+      externals: [],
+      initialValues: [{ id: "init-mh", name: "Mh", valueText: "10" }],
+      options: {
+        periods: 4,
+        solverMethod: "GAUSS_SEIDEL" as const,
+        toleranceText: "1e-9",
+        maxIterations: 20,
+        defaultInitialValueText: "1e-15",
+        hiddenLeftVariable: "",
+        hiddenRightVariable: "",
+        hiddenToleranceText: "1e-5",
+        relativeHiddenTolerance: false
+      },
+      scenario: { shocks: [] }
+    };
+
+    const runtime = buildRuntimeConfig(editor, {
+      notebookCells: cells,
+      modelId,
+      runCellId: "baseline-run"
+    });
+
+    expect(runtime.model.equations).toEqual(
+      expect.arrayContaining([
+        { name: "WBd", expression: "4" },
+        { name: "Cs", expression: "1" },
+        { name: "Mh", expression: "I(Households.Deposits)", role: "accumulation" }
+      ])
+    );
+    expect(runtime.model.matrixColumnSums).toEqual({
+      "Households.Deposits": ["WBd", "-Cs"]
+    });
   });
 });

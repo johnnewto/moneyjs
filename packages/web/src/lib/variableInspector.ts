@@ -6,7 +6,8 @@ import {
   isDerivativeBalanceTarget,
   parseEquation,
   parseExpression,
-  type EquationRole
+  type EquationRole,
+  type MatrixColumnSumBindings
 } from "@sfcr/core";
 import { isRowComment } from "@sfcr/notebook-core";
 
@@ -21,6 +22,9 @@ import type { NotebookCell } from "../notebook/types";
 import { buildDerivedAccountingTermsFromCells } from "../notebook/derivedAccountingTerms";
 import {
   evaluateMatrixColumnSumAtPeriod,
+  collectImplicitMatrixAccumulationEquations,
+  resolveImplicitMatrixAccumulationEquation,
+  resolveMatrixColumnSumBindings,
   resolveMatrixColumnSumInspectContext,
   resolveMatrixColumnSumBindingsForRef
 } from "../notebook/matrixColumnSumRuntime";
@@ -47,6 +51,7 @@ export interface VariableInspectorData {
   currentValue?: number;
   initialValue?: number;
   definingEquation: EquationRow | null;
+  isImplicitEquation: boolean;
   generatedEquationExplanation: string | null;
   matrixColumnSum?: {
     columnRef: string;
@@ -94,26 +99,48 @@ export function buildVariableInspectorData(args: {
     return null;
   }
 
+  const inspectorRuntime = resolveInspectorRuntimeContext(args);
   const matrixColumnSumContext = resolveMatrixColumnSumInspectorContext(args, selectedVariable);
 
-  const equationAnalysis = buildEquationAnalysis(
-    args.editor.equations.filter((equation): equation is EquationRow => !isRowComment(equation))
+  const explicitEquations = args.editor.equations.filter(
+    (equation): equation is EquationRow => !isRowComment(equation)
   );
+  const explicitEquationNames = new Set(
+    explicitEquations.map((equation) => equationOutputVariable(equation.name) ?? equation.name.trim())
+  );
+  const equationAnalysis = buildEquationAnalysis(explicitEquations, inspectorRuntime?.matrixColumnSums);
   const definingEquation =
-    args.editor.equations.find(
-      (equation): equation is EquationRow =>
-        !isRowComment(equation) && equationDefinesVariable(equation.name, selectedVariable)
-    ) ?? null;
+    explicitEquations.find((equation) => equationDefinesVariable(equation.name, selectedVariable)) ??
+    null;
+  const implicitAccumulation =
+    !definingEquation && inspectorRuntime
+      ? resolveImplicitMatrixAccumulationEquation({
+          cells: inspectorRuntime.cells,
+          modelId: inspectorRuntime.modelId,
+          runCellId: inspectorRuntime.runCellId,
+          variable: selectedVariable,
+          existingEquationNames: explicitEquationNames
+        })
+      : null;
+  const effectiveDefiningEquation =
+    definingEquation ??
+    (implicitAccumulation
+      ? ({
+          id: `implicit-matrix-${implicitAccumulation.name}`,
+          name: implicitAccumulation.name,
+          expression: implicitAccumulation.expression,
+          role: implicitAccumulation.role,
+          desc: "Implicit accumulation from account-transactions matrix Sum row"
+        } satisfies EquationRow)
+      : null);
+  const isImplicitEquation = definingEquation == null && implicitAccumulation != null;
   const externalDefinition =
     args.editor.externals.find(
       (external): external is ExternalRow =>
         !isRowComment(external) && external.name.trim() === selectedVariable
     ) ?? null;
   const initialValue = findInitialValue(args.editor.initialValues, selectedVariable);
-  const appearsInEquations = args.editor.equations.filter((equation): equation is EquationRow => {
-    if (isRowComment(equation)) {
-      return false;
-    }
+  const appearsInEquations = explicitEquations.filter((equation) => {
     if (equationDefinesVariable(equation.name, selectedVariable)) {
       return false;
     }
@@ -124,8 +151,14 @@ export function buildVariableInspectorData(args: {
     );
   });
 
-  const equationInputs = definingEquation
-    ? equationAnalysis.get(definingEquation.id) ?? { currentDependencies: [], lagDependencies: [] }
+  const effectiveEquationAnalysis =
+    effectiveDefiningEquation && !equationAnalysis.has(effectiveDefiningEquation.id)
+      ? parseEquationAnalysis(effectiveDefiningEquation, inspectorRuntime?.matrixColumnSums)
+      : null;
+
+  const equationInputs = effectiveDefiningEquation
+    ? equationAnalysis.get(effectiveDefiningEquation.id) ??
+      effectiveEquationAnalysis ?? { currentDependencies: [], lagDependencies: [] }
     : matrixColumnSumContext
       ? {
           currentDependencies: matrixColumnSumContext.currentDependencies,
@@ -145,7 +178,7 @@ export function buildVariableInspectorData(args: {
   );
   const description =
     args.variableDescriptions.get(selectedVariable) ??
-    definingEquation?.desc?.trim() ??
+    effectiveDefiningEquation?.desc?.trim() ??
     externalDefinition?.desc?.trim() ??
     (matrixColumnSumContext
       ? matrixColumnSumContext.stockVariable
@@ -159,7 +192,7 @@ export function buildVariableInspectorData(args: {
     args.currentValues?.[selectedVariable] ??
     (matrixColumnSumContext?.currentValue != null ? matrixColumnSumContext.currentValue : undefined);
 
-  const kind = definingEquation
+  const kind = effectiveDefiningEquation
     ? "equation"
     : externalDefinition
       ? "external"
@@ -169,13 +202,17 @@ export function buildVariableInspectorData(args: {
           ? "initial-only"
           : "unknown";
 
-  const generatedEquationExplanation = definingEquation
-    ? buildGeneratedEquationExplanation(definingEquation, args.variableDescriptions)
+  const generatedEquationExplanation = effectiveDefiningEquation
+    ? buildGeneratedEquationExplanation(
+        effectiveDefiningEquation,
+        args.variableDescriptions,
+        inspectorRuntime?.matrixColumnSums
+      )
     : matrixColumnSumContext
       ? `This period's net flow through ${selectedVariable} is the sum of the linked account-transactions column entries.`
       : null;
-  const equationRoleMeta = definingEquation
-    ? buildEquationRoleMeta(definingEquation)
+  const equationRoleMeta = effectiveDefiningEquation
+    ? buildEquationRoleMeta(effectiveDefiningEquation, isImplicitEquation)
     : { label: null, sourceLabel: null };
   const parameterNames = uniqueSorted(
     args.editor.externals.flatMap((external) =>
@@ -187,7 +224,7 @@ export function buildVariableInspectorData(args: {
     equationAnalysis,
     equationInputs,
     appearsInEquations,
-    definingEquation,
+    definingEquation: effectiveDefiningEquation,
     selectedVariable
   });
 
@@ -208,7 +245,8 @@ export function buildVariableInspectorData(args: {
     equationRoleSourceLabel: equationRoleMeta.sourceLabel,
     currentValue,
     initialValue,
-    definingEquation,
+    definingEquation: effectiveDefiningEquation,
+    isImplicitEquation,
     generatedEquationExplanation,
     matrixColumnSum: matrixColumnSumContext
       ? {
@@ -335,7 +373,8 @@ function buildRelatedEquations(args: {
 
 function buildGeneratedEquationExplanation(
   equation: EquationRow,
-  variableDescriptions: VariableDescriptions
+  variableDescriptions: VariableDescriptions,
+  matrixColumnSums?: MatrixColumnSumBindings
 ): string | null {
   const name = equation.name.trim();
   const expression = equation.expression.trim();
@@ -353,14 +392,17 @@ function buildGeneratedEquationExplanation(
       return explainDerivativeBalanceEquation(stockName, rhsExpression, variableDescriptions);
     }
 
-    const parsed = parseEquation(name, expression);
+    const parsed = parseEquation(name, expression, { matrixColumnSums });
     return explainEquationExpression(name, parsed.sourceExpression, variableDescriptions);
   } catch {
     return null;
   }
 }
 
-function buildEquationRoleMeta(equation: EquationRow): {
+function buildEquationRoleMeta(
+  equation: EquationRow,
+  isImplicitEquation = false
+): {
   label: string | null;
   sourceLabel: string | null;
 } {
@@ -368,6 +410,13 @@ function buildEquationRoleMeta(equation: EquationRow): {
   const expression = equation.expression.trim();
   if (!name || !expression) {
     return { label: null, sourceLabel: null };
+  }
+
+  if (isImplicitEquation) {
+    return {
+      label: formatEquationRole(equation.role ?? "accumulation"),
+      sourceLabel: "From matrix Sum row"
+    };
   }
 
   try {
@@ -387,31 +436,99 @@ function buildEquationRoleMeta(equation: EquationRow): {
   }
 }
 
-function buildEquationAnalysis(equations: EquationRow[]): Map<string, EquationAnalysis> {
+function buildEquationAnalysis(
+  equations: EquationRow[],
+  matrixColumnSums?: MatrixColumnSumBindings
+): Map<string, EquationAnalysis> {
   const analysis = new Map<string, EquationAnalysis>();
 
   for (const equation of equations) {
-    const name = equation.name.trim();
-    const expression = equation.expression.trim();
-    if (!name || !expression) {
-      continue;
-    }
-
-    try {
-      const parsed = parseEquation(name, expression);
-      analysis.set(equation.id, {
-        currentDependencies: parsed.currentDependencies,
-        lagDependencies: parsed.lagDependencies
-      });
-    } catch {
-      analysis.set(equation.id, {
-        currentDependencies: [],
-        lagDependencies: []
-      });
+    const parsedAnalysis = parseEquationAnalysis(equation, matrixColumnSums);
+    if (parsedAnalysis) {
+      analysis.set(equation.id, parsedAnalysis);
     }
   }
 
   return analysis;
+}
+
+function parseEquationAnalysis(
+  equation: EquationRow,
+  matrixColumnSums?: MatrixColumnSumBindings
+): EquationAnalysis | null {
+  const name = equation.name.trim();
+  const expression = equation.expression.trim();
+  if (!name || !expression) {
+    return null;
+  }
+
+  try {
+    const parsed = parseEquation(name, expression, { matrixColumnSums });
+    return {
+      currentDependencies: parsed.currentDependencies,
+      lagDependencies: parsed.lagDependencies
+    };
+  } catch {
+    return {
+      currentDependencies: [],
+      lagDependencies: []
+    };
+  }
+}
+
+interface InspectorRuntimeContext {
+  cells: NotebookCell[];
+  modelId: string;
+  runCellId: string;
+  matrixColumnSums: MatrixColumnSumBindings;
+}
+
+function resolveInspectorRuntimeContext(args: {
+  notebookCells?: NotebookCell[];
+  modelSource?: InspectorModelSource | null;
+  sourceRunCellId?: string | null;
+  editor: EditorState;
+}): InspectorRuntimeContext | null {
+  if (!args.notebookCells?.length || !args.modelSource) {
+    return null;
+  }
+
+  const modelId =
+    "sourceModelId" in args.modelSource ? args.modelSource.sourceModelId.trim() : "";
+  const runCellId = args.sourceRunCellId?.trim() ?? "";
+  if (!modelId || !runCellId) {
+    return null;
+  }
+
+  const equationSources = args.editor.equations
+    .filter((equation): equation is EquationRow => !isRowComment(equation))
+    .map((equation) => equation.expression.trim())
+    .filter(Boolean);
+
+  const implicitSources = collectImplicitMatrixAccumulationEquations({
+    cells: args.notebookCells,
+    modelId,
+    runCellId,
+    existingEquationNames: new Set(
+      args.editor.equations
+        .filter((equation): equation is EquationRow => !isRowComment(equation))
+        .map((equation) => equationOutputVariable(equation.name) ?? equation.name.trim())
+    )
+  }).map((equation) => equation.expression);
+
+  const matrixColumnSums = resolveMatrixColumnSumBindings({
+    cells: args.notebookCells,
+    modelId,
+    runCellId,
+    equationSources: [...equationSources, ...implicitSources]
+  });
+
+  return {
+    cells: args.notebookCells,
+    modelId,
+    runCellId,
+    matrixColumnSums
+  };
 }
 
 function findInitialValue(

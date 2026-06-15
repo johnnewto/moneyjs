@@ -4043,7 +4043,8 @@ export function NotebookApp() {
               canEditDefiningEquation={
                 inspectorContext?.modelSource != null &&
                 isInspectorModelEditable(notebookDocument.cells, inspectorContext.modelSource) &&
-                selectedVariableData?.definingEquation != null
+                selectedVariableData?.definingEquation != null &&
+                !selectedVariableData.isImplicitEquation
               }
               canGoBack={inspectorVariableHistory.canGoBack}
               canGoForward={inspectorVariableHistory.canGoForward}
