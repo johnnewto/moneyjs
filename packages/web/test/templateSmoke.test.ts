@@ -4,7 +4,7 @@ import { runBaseline, runScenario } from "@sfcr/core";
 
 import { buildRuntimeConfig } from "../src/lib/editorModel";
 import { buildEditorStateForNotebookModel } from "../src/notebook/modelSections";
-import { NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
+import { getNotebookTemplateDocument } from "../src/notebook/templates";
 
 type TemplateId =
   | "endogenous-money"
@@ -207,7 +207,7 @@ const TEMPLATE_CASES: TemplateSmokeCase[] = [
 describe("notebook template smoke tests", () => {
   for (const templateCase of TEMPLATE_CASES) {
     it(`builds and runs ${templateCase.templateId}`, () => {
-      const document = NOTEBOOK_TEMPLATES[templateCase.templateId].document;
+      const document = getNotebookTemplateDocument(templateCase.templateId);
       const baselineRunCell = document.cells.find(
         (cell): cell is Extract<(typeof document.cells)[number], { type: "run" }> =>
           cell.type === "run" && cell.id === templateCase.baselineRunCellId

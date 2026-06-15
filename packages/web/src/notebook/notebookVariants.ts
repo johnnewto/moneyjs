@@ -1,7 +1,7 @@
 import { parseNotebookSource } from "./document";
 import {
-  createNotebookFromTemplate,
   isNotebookTemplateId,
+  loadNotebookTemplate,
   NOTEBOOK_TEMPLATES,
   type NotebookTemplateId
 } from "./templates";
@@ -257,7 +257,11 @@ export function createNotebookVariantFromTemplate(
 ): NotebookVariantIndexEntry | null {
   const trimmedTitle = title.trim() || `${NOTEBOOK_TEMPLATES[derivedFrom].label} variant`;
   const id = allocateNotebookVariantId(derivedFrom, trimmedTitle);
-  const document = createNotebookFromTemplate(derivedFrom);
+  const loaded = loadNotebookTemplate(derivedFrom);
+  if (!loaded.ok) {
+    return null;
+  }
+  const document = structuredClone(loaded.document);
   document.id = id;
   document.title = trimmedTitle;
   document.metadata = { version: 1, template: derivedFrom };

@@ -57,31 +57,21 @@ cells:
       title: PC account transactions
       description: Account-level transaction matrix for PC with hierarchical sector and account columns.
       note: Columns group balance-sheet accounts by sector. Use Expand all / Collapse all or click sector headers to show or hide account columns.
-      columns: [Money (Hh), Net_worth (V), Current, Bills (Bs), Current, Capital, Gov.Bills, HH.Bills, CB.Bills, Sum]
-      sectors: [Households (HH), Households (HH), Firms, Government (Govt), Central bank (CB), Central bank (CB), Government (Govt), Households (HH), Central bank (CB), ""]
-      columnBadges: [asset, equity, asset, liability, liability, asset, liability, asset, asset, ""]
+      columns: [Deposits, Bills, Equity, Current, Equity, Current, Bills (Bs), Equity, Current, Bills, Equity, Sum]
+      sectors: [Households (HH), Households (HH), Households (HH), Firms, Firms, Government (Govt), Government (Govt), Government (Govt), Central_bank (CB), Central_bank (CB), Central_bank (CB), ""]
+      columnBadges: [asset, asset, equity, asset, equity, asset, liability, equity, liability, asset, equity, ""]
       accountingKind: account-transactions
       rows:
-        - [Consumption, Consumption, -C, -C, +C, "", "", "", "", "", "", "0"]
-        - label: Govt. expenditures
-          values:
-            - ""
-            - ""
-            - +G
-            - -G
-            - ""
-            - ""
-            - -G
-            - ""
-            - ""
-            - "0"
-        - [Income, Income, +Y, +Y, -Y, "", "", "", "", "", "", "0"]
-        - [Interest, Interest payments, +lag(r) * lag(Bh), +lag(r) * lag(Bh), "", -lag(r) * lag(Bs), "", +lag(r) * lag(Bcb), -lag(r) * lag(Bs), +lag(r) * lag(Bh), +lag(r) * lag(Bcb), "0"]
-        - [Profits, CB profits, "", "", "", +lag(r) * lag(Bcb), -lag(r) * lag(Bcb), "", "", "", "", "0"]
-        - [Taxes, Taxes, -TX, -TX, "", +TX, "", "", +TX, "", "", "0"]
-        - [Money, Change money, -d(Hh), -d(Hh), "", "", "", +d(Hs), "", "", "", "0"]
-        - [Bills, Change bills, -d(Bh), -d(Bh), "", +d(Bs), "", -d(Bcb), +d(Bs), -d(Bh), -d(Bcb), "0"]
-        - [Sum, Sum, Hh, V, "", Bs, "", Hs, "", Bh, Bcb, "0"]
+        - [Consumption, Consumption, -C, "", -C, +C, +C, "", "", "", "", "", "", "0"]
+        - [Govt, Govt. expenditures, "", "", +G, -G, -G, "", "", "", "", "", "", "0"]
+        - [Income, Income, +Y, "", +Y, -Y, -Y, "", "", "", "", "", "", "0"]
+        - [Interest, Interest payments, +lag(r) * lag(Bh), "", +r'•Bh', "", "", -lag(r) * lag(Bs), "", -r'•Bs', +r'•Bcb', "", +r'•Bcb', "0"]
+        - [Profits, CB profits, "", "", "", "", "", +r'*Bcb, "", +r'•Bcb, -r'*Bcb', "", -r'•Bcb', "0"]
+        - [Taxes, Taxes, -TX, "", -TX, "", "", +TX, "", +TX, "", "", "", "0"]
+        - [Money, Change money, "", "", "", "", "", "", "", "", "", "", "", "0"]
+        - [Bills, Change bills, -d(Bh), +d(Bh), "", "", "", +d(Bs), -d(Bs), "", -d(Bcb), +d(Bcb), "", "0"]
+        - [Sum, Sum, Mh, Bh, HH_eq, "", "", "", Deficit, "", "", Hs, "", "0"]
+
   - sequence:
       id: transaction-flow-sequence
       title: PC transaction flow sequence
@@ -93,7 +83,7 @@ cells:
       id: equations
       title: PC model
       modelId: pc-baseline
-      collapsed: true
+      collapsed: false
       rows:
         - [Y, C + G, "National income.", $/year, flow, identity]
         - [YD, Y - TX + lag(r) * lag(Bh), "Disposable income including interest on bills.", $/year, flow, identity]
@@ -101,11 +91,14 @@ cells:
         - [V, I(YD - C), "Household wealth.", $, stock, accumulation]
         - [C, alpha1 * YD + alpha2 * lag(V), "Consumption depends on disposable income and lagged wealth.", $/year, flow, identity]
         - [Hh, V - Bh, "Household money holdings.", $, stock, accumulation]
-        - [Hh1, V * ((1 - lambda0) - lambda1 * r + lambda2 * (YD / V)), "Alternative portfolio-choice definition for money holdings.", $, stock, accumulation]
+        - [Hh_Tobin, V * ((1 - lambda0) - lambda1 * r + lambda2 * (YD / V)), "Alternative Tobin's portfolio-choice definition for money holdings.", $, stock, accumulation, eq-6-Hh1]
         - [Bh, V * (lambda0 + lambda1 * r - lambda2 * (YD / V)), "Household bill holdings.", $, stock, accumulation]
         - [Bs, I(G + lag(r) * lag(Bs) - TX - lag(r) * lag(Bcb)), "Government bill supply.", $, stock, accumulation]
         - [Hs, I(d(Bcb)), "High-powered money supplied by the central bank.", $, stock, accumulation]
         - [Bcb, Bs - Bh, "Central-bank bill holdings.", $, stock, accumulation]
+        - [Mh, I(Households.Deposits), "", "", "", "", eq-cddd7630-9e5a-44fb-aeaf-f95ecd2a071c]
+        - [BGs, BGs' + Government.Bills * dt, "", "", "", "", eq-786f7c2b-e729-4710-9109-79e5787910a9]
+        - [Bcbs, I(Central_bank.Bills), "", "", "", "", eq-a50bd039-4cea-42e2-b9c0-f6a08dacb824]
   - solver:
       id: solver
       title: Solver

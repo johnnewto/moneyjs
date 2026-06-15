@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { buildEditorStateForNotebookModel } from "../src/notebook/modelSections";
-import { NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
+import { getNotebookTemplateDocument } from "../src/notebook/templates";
 import { validateNotebookDocument } from "../src/notebook/validation";
 
 describe("Werner quantity-theory-of-credit notebook template", () => {
   it("validates and exposes runnable editor state for all run cells", () => {
-    const document = NOTEBOOK_TEMPLATES["werner-quantity-theory-credit"].document;
+    const document = getNotebookTemplateDocument("werner-quantity-theory-credit");
 
     expect(validateNotebookDocument(document)).toEqual([]);
 

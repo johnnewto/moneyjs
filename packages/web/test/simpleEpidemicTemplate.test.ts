@@ -4,11 +4,11 @@ import { runBaseline } from "@sfcr/core";
 
 import { buildRuntimeConfig } from "../src/lib/editorModel";
 import { buildEditorStateForNotebookModel } from "../src/notebook/modelSections";
-import { NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
+import { getNotebookTemplateDocument } from "../src/notebook/templates";
 
 describe("simple-epidemic notebook template", () => {
   it("builds and runs the baseline cell", () => {
-    const document = NOTEBOOK_TEMPLATES["simple-epidemic"].document;
+    const document = getNotebookTemplateDocument("simple-epidemic");
     const baselineRunCell = document.cells.find(
       (cell): cell is Extract<(typeof document.cells)[number], { type: "run" }> =>
         cell.type === "run" && cell.id === "baseline-run"

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { editorStateFromModel, type EditorState } from "../src/lib/editorModel";
 import { buildVariableCatalogRows, buildModelCurrentValues, buildModelLaggedCurrentValues, buildModelDisplayCurrentValues, catalogRowGroupKey, listCatalogModelContexts } from "../src/lib/variableCatalog";
-import { NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
+import { getNotebookTemplateDocument } from "../src/notebook/templates";
 import { simBaselineModel, simBaselineOptions } from "../../core/src/fixtures/sim";
 import type { NotebookDocument } from "../src/notebook/types";
 
@@ -262,7 +262,7 @@ describe("variableCatalog", () => {
 
   it("builds BMW catalog rows quickly enough for interactive tab open", () => {
     const started = performance.now();
-    const rows = buildVariableCatalogRows({ document: NOTEBOOK_TEMPLATES.bmw.document });
+    const rows = buildVariableCatalogRows({ document: getNotebookTemplateDocument("bmw") });
     const elapsedMs = performance.now() - started;
 
     expect(rows.length).toBeGreaterThan(20);

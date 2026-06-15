@@ -4,7 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { analyzeNotebookSource } from "../src/notebook/document";
-import { NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
+import { getNotebookTemplateDocument, NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
 import type { NotebookDocument } from "../src/notebook/types";
 
 describe("notebook run periods", () => {
@@ -34,9 +34,9 @@ describe("notebook run periods", () => {
 
   it("keeps run periods on run cells rather than solver cells in shipped notebooks", () => {
     const documents = [
-      ...Object.entries(NOTEBOOK_TEMPLATES).map(([name, template]) => ({
+      ...Object.keys(NOTEBOOK_TEMPLATES).map((name) => ({
         name: `template:${name}`,
-        document: template.document
+        document: getNotebookTemplateDocument(name as keyof typeof NOTEBOOK_TEMPLATES)
       })),
       ...loadPublicNotebookExamples().map(({ name, document }) => ({
         name: `example:${name}`,

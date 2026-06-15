@@ -10,13 +10,13 @@ afterEach(() => {
 
 import { NotebookRowComment } from "../src/notebook/components/NotebookRowComment";
 import { SectionBoundarySignatureView } from "../src/notebook/components/SectionBoundarySignatureView";
-import { NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
+import { getNotebookTemplateDocument } from "../src/notebook/templates";
 import { resolveInferredSectionBoundary } from "@sfcr/notebook-core";
 
 describe("section boundary display", () => {
   it("renders an inferred BMW production firms signature", () => {
-    const equationsCell = NOTEBOOK_TEMPLATES.bmw.document.cells.find((cell) => cell.type === "equations");
-    const externalsCell = NOTEBOOK_TEMPLATES.bmw.document.cells.find((cell) => cell.type === "externals");
+    const equationsCell = getNotebookTemplateDocument("bmw").cells.find((cell) => cell.type === "equations");
+    const externalsCell = getNotebookTemplateDocument("bmw").cells.find((cell) => cell.type === "externals");
     expect(equationsCell?.type).toBe("equations");
     if (equationsCell?.type !== "equations" || externalsCell?.type !== "externals") {
       return;

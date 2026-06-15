@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { notebookFromJson, notebookFromYaml, notebookToCompactYaml, notebookToJson } from "../src/notebook/document";
 import { validateNotebookModels } from "../src/notebook/notebookSourceWorkflow";
-import { NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
+import { getNotebookTemplateDocument, NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
 import { validateNotebookDocument } from "../src/notebook/validation";
 
 const templateRoot = path.resolve(__dirname, "../src/notebook/templates");
@@ -13,10 +13,11 @@ const PILOT_TEMPLATE_IDS = ["bmw", "sim", "werner_quantity_theory_credit", "wern
 const PILOT_PUBLIC_EXAMPLE_IDS = ["bmw", "sim"] as const;
 
 describe("shipped notebook templates", () => {
-  for (const [templateId, template] of Object.entries(NOTEBOOK_TEMPLATES)) {
+  for (const [templateId] of Object.entries(NOTEBOOK_TEMPLATES)) {
     it(`validates ${templateId} document schema and models`, () => {
-      expect(validateNotebookDocument(template.document)).toEqual([]);
-      expect(validateNotebookModels(template.document).issueCount).toBe(0);
+      const document = getNotebookTemplateDocument(templateId as keyof typeof NOTEBOOK_TEMPLATES);
+      expect(validateNotebookDocument(document)).toEqual([]);
+      expect(validateNotebookModels(document).issueCount).toBe(0);
     });
   }
 });

@@ -103,10 +103,13 @@ import {
   validateNotebookModels
 } from "./notebookSourceWorkflow";
 import {
-  createNotebookFromTemplate,
+  createNotebookFromTemplateWithFallback,
   DEFAULT_NOTEBOOK_TEMPLATE_ID,
   type NotebookTemplateId,
+  formatNotebookTemplateLoadError,
   isNotebookTemplateId,
+  isNotebookTemplateLoadable,
+  loadNotebookTemplate,
   NOTEBOOK_TEMPLATES
 } from "./templates";
 import {
@@ -326,6 +329,7 @@ function notebookRouteWouldLoadDocument(args: {
 interface NotebookSessionState {
   activeVariantId: string | null;
   document: NotebookDocument;
+  initialUiMessage?: string | null;
 }
 
 function isNotebookAssistantLocalLiveTestEnabled(): boolean {
@@ -392,9 +396,13 @@ function resolveInitialNotebookSession(
   }
 
   const templateId = resolveNotebookTemplateIdFromLocation(location);
+  const loaded = createNotebookFromTemplateWithFallback(templateId);
   return {
     activeVariantId: null,
-    document: createNotebookFromTemplate(templateId)
+    document: loaded.document,
+    initialUiMessage: loaded.loadError
+      ? `${loaded.loadError} Loaded ${NOTEBOOK_TEMPLATES[loaded.resolvedTemplateId].label} instead.`
+      : null
   };
 }
 
@@ -422,8 +430,13 @@ function resolveCurrentTemplateId(document: NotebookDocument): NotebookTemplateI
     return "";
   }
 
+  const loaded = loadNotebookTemplate(templateId);
+  if (!loaded.ok) {
+    return "";
+  }
+
   const documentJson = serializeNotebookSource(document, "json");
-  const templateJson = serializeNotebookSource(NOTEBOOK_TEMPLATES[templateId].document, "json");
+  const templateJson = serializeNotebookSource(loaded.document, "json");
   return documentJson === templateJson ? templateId : "";
 }
 
@@ -734,7 +747,9 @@ export function NotebookApp() {
   );
   const [isVariantManagerOpen, setIsVariantManagerOpen] = useState(false);
   const [isTourMenuOpen, setIsTourMenuOpen] = useState(false);
-  const [uiMessage, setUiMessage] = useState<string | null>(null);
+  const [uiMessage, setUiMessage] = useState<string | null>(
+    initialNotebookSession.initialUiMessage ?? null
+  );
   const [sourceFormat, setSourceFormat] = useState<NotebookSourceFormat>("yaml");
   const [importText, setImportText] = useState(() =>
     serializeNotebookSource(notebookDocument, sourceFormat)
@@ -2126,9 +2141,16 @@ export function NotebookApp() {
     setSaveNameCounter(1);
   }
 
-  function replaceNotebookDocumentFromTemplate(templateId: NotebookTemplateId): void {
+  function replaceNotebookDocumentFromTemplate(templateId: NotebookTemplateId): boolean {
+    const loaded = loadNotebookTemplate(templateId);
+    if (!loaded.ok) {
+      setUiMessage(formatNotebookTemplateLoadError(templateId, loaded.diagnostics));
+      return false;
+    }
+
     resetNotebookImportedFileContext();
-    replaceNotebookDocument(createNotebookFromTemplate(templateId), "template load");
+    replaceNotebookDocument(structuredClone(loaded.document), "template load");
+    return true;
   }
 
   function loadNotebookVariant(variantId: string, label = "variant load"): boolean {
@@ -2174,7 +2196,12 @@ export function NotebookApp() {
 
     const entry = createNotebookVariantFromTemplate(templateId, title);
     if (!entry) {
-      setUiMessage("Could not create variant. Browser storage may be full.");
+      const loaded = loadNotebookTemplate(templateId);
+      if (!loaded.ok) {
+        setUiMessage(formatNotebookTemplateLoadError(templateId, loaded.diagnostics));
+      } else {
+        setUiMessage("Could not create variant. Browser storage may be full.");
+      }
       return;
     }
 
@@ -2397,7 +2424,9 @@ export function NotebookApp() {
         return;
       }
       setActiveVariantId(null);
-      replaceNotebookDocumentFromTemplate(templateId);
+      if (!replaceNotebookDocumentFromTemplate(templateId)) {
+        return;
+      }
       committedNotebookRouteRef.current = readNotebookRouteLocation();
       setImportPreview(null);
       setUiMessage(`Loaded template ${NOTEBOOK_TEMPLATES[templateId].label}.`);
@@ -2586,8 +2615,20 @@ export function NotebookApp() {
         return;
       }
 
+      if (!isNotebookTemplateLoadable(value)) {
+        const diagnostics = loadNotebookTemplate(value);
+        setUiMessage(
+          diagnostics.ok
+            ? `Template ${NOTEBOOK_TEMPLATES[value].label} is unavailable.`
+            : formatNotebookTemplateLoadError(value, diagnostics.diagnostics)
+        );
+        return;
+      }
+
       setActiveVariantId(null);
-      replaceNotebookDocumentFromTemplate(value);
+      if (!replaceNotebookDocumentFromTemplate(value)) {
+        return;
+      }
       writeNotebookLocation({ templateId: value });
       committedNotebookRouteRef.current = readNotebookRouteLocation();
       setImportPreview(null);
@@ -3774,11 +3815,14 @@ export function NotebookApp() {
                       </optgroup>
                     ) : null}
                     <optgroup label="Templates">
-                      {Object.values(NOTEBOOK_TEMPLATES).map((template) => (
-                        <option key={template.id} value={template.id}>
-                          {template.label}
-                        </option>
-                      ))}
+                      {Object.values(NOTEBOOK_TEMPLATES).map((template) => {
+                        const loadable = isNotebookTemplateLoadable(template.id);
+                        return (
+                          <option key={template.id} value={template.id} disabled={!loadable}>
+                            {loadable ? template.label : `${template.label} (unavailable)`}
+                          </option>
+                        );
+                      })}
                     </optgroup>
                     {Object.values(NOTEBOOK_TEMPLATES).map((template) => {
                       const group = variantsByTemplate.get(template.id) ?? [];

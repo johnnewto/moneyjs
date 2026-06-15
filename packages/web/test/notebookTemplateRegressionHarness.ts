@@ -4,7 +4,7 @@ import { runBaseline, runScenario } from "@sfcr/core";
 
 import { buildRuntimeConfig } from "../src/lib/editorModel";
 import { buildEditorStateForNotebookModel, resolveRunCellModelKey } from "../src/notebook/modelSections";
-import { NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
+import { getNotebookTemplateDocument, NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
 import { resolveModelIdFromRunCellKey } from "../src/notebook/useNotebookRunner";
 
 interface RegressionFixture {
@@ -26,7 +26,7 @@ export function runNotebookTemplateRegressionFixtures(
   describe(suiteName, () => {
     for (const fixture of fixtures) {
       it(`matches ${fixture.templateId} baseline and scenario checkpoints`, () => {
-        const document = NOTEBOOK_TEMPLATES[fixture.templateId].document;
+        const document = getNotebookTemplateDocument(fixture.templateId);
         const baselineResults = new Map<string, ReturnType<typeof runBaseline>>();
 
         for (const [cellId, checkpoint] of Object.entries(fixture.checkpoints)) {

@@ -20,7 +20,7 @@ import {
   resolveAccountSumRowDisplayValue
 } from "../src/notebook/matrixAccountSumRow";
 import { formatUnitText } from "../src/lib/unitMeta";
-import { NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
+import { getNotebookTemplateDocument } from "../src/notebook/templates";
 import type { EquationsCell, MatrixCell, NotebookCell, RunCell } from "../src/notebook/types";
 
 const modelId = "equations-newton";
@@ -339,7 +339,7 @@ describe("matrixAccountSumRow", () => {
 
   it("BMW interest on deposits row sums to zero at period 3", () => {
     const result = runBaseline(bmwBaselineModel, bmwBaselineOptions);
-    const matrix = NOTEBOOK_TEMPLATES.bmw.document.cells.find(
+    const matrix = getNotebookTemplateDocument("bmw").cells.find(
       (cell): cell is MatrixCell => cell.type === "matrix" && cell.id === "account-transactions"
     );
     expect(matrix).toBeDefined();

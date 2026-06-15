@@ -11,11 +11,11 @@ import {
   listAddableMatrixGraphSeries,
   resolveMatrixGraphChartSeries
 } from "../src/notebook/matrixSliceGraph";
-import { NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
+import { getNotebookTemplateDocument } from "../src/notebook/templates";
 import type { MatrixCell, RunCell } from "../src/notebook/types";
 
 describe("matrixSliceGraph", () => {
-  const document = NOTEBOOK_TEMPLATES.sim.document;
+  const document = getNotebookTemplateDocument("sim");
   const baselineRunCell = document.cells.find(
     (cell): cell is RunCell => cell.type === "run" && cell.mode === "baseline"
   );

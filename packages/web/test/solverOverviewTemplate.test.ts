@@ -4,11 +4,11 @@ import { runBaseline, runScenario } from "@sfcr/core";
 
 import { buildRuntimeConfig } from "../src/lib/editorModel";
 import { buildEditorStateForNotebookModel } from "../src/notebook/modelSections";
-import { NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
+import { getNotebookTemplateDocument } from "../src/notebook/templates";
 
 describe("solver-overview notebook template", () => {
   it("builds the intended block structure and runs the baseline and scenario cells", () => {
-    const document = NOTEBOOK_TEMPLATES["solver-overview"].document;
+    const document = getNotebookTemplateDocument("solver-overview");
     const baselineRunCell = document.cells.find(
       (cell): cell is Extract<(typeof document.cells)[number], { type: "run" }> =>
         cell.type === "run" && cell.id === "baseline-run"

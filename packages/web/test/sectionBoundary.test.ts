@@ -12,7 +12,7 @@ import {
   validateSectionCommentText
 } from "@sfcr/notebook-core";
 
-import { NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
+import { getNotebookTemplateDocument } from "../src/notebook/templates";
 
 describe("section boundary signatures", () => {
   it("parses title and boundary from section comment text", () => {
@@ -170,8 +170,8 @@ cells:
   });
 
   it("infers BMW template section boundaries at display time", () => {
-    const equationsCell = NOTEBOOK_TEMPLATES.bmw.document.cells.find((cell) => cell.type === "equations");
-    const externalsCell = NOTEBOOK_TEMPLATES.bmw.document.cells.find((cell) => cell.type === "externals");
+    const equationsCell = getNotebookTemplateDocument("bmw").cells.find((cell) => cell.type === "equations");
+    const externalsCell = getNotebookTemplateDocument("bmw").cells.find((cell) => cell.type === "externals");
     expect(equationsCell?.type).toBe("equations");
     if (equationsCell?.type !== "equations" || externalsCell?.type !== "externals") {
       return;

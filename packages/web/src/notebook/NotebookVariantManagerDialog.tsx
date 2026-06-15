@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import {
+  isNotebookTemplateLoadable,
   NOTEBOOK_TEMPLATES,
   type NotebookTemplateId,
   isNotebookTemplateId
@@ -206,11 +207,14 @@ export function NotebookVariantManagerDialog({
                 value={newTemplateId}
                 onChange={(event) => setNewTemplateId(event.target.value as NotebookTemplateId)}
               >
-                {Object.values(NOTEBOOK_TEMPLATES).map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {template.label}
-                  </option>
-                ))}
+                {Object.values(NOTEBOOK_TEMPLATES).map((template) => {
+                  const loadable = isNotebookTemplateLoadable(template.id);
+                  return (
+                    <option key={template.id} value={template.id} disabled={!loadable}>
+                      {loadable ? template.label : `${template.label} (unavailable)`}
+                    </option>
+                  );
+                })}
               </select>
             </label>
             <label>
