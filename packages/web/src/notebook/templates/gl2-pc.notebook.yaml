@@ -63,7 +63,7 @@ cells:
       accountingKind: account-transactions
       rows:
         - [Consumption, Consumption, -C, "", -C, +C, +C, "", "", "", "", "", "", "0"]
-        - [Govt, Govt. expenditures, "", "", +G, -G, -G, "", "", "", "", "", "", "0"]
+        - [Govt, Govt. expenditures, "", "", "", +G, +G, -G, "", -G, "", "", "", "0"]
         - [Income, Income, +Y, "", +Y, -Y, -Y, "", "", "", "", "", "", "0"]
         - [Interest, Interest payments, +lag(r) * lag(Bh), "", +r'•Bh', "", "", -lag(r) * lag(Bs), "", -r'•Bs', +r'•Bcb', "", +r'•Bcb', "0"]
         - [Profits, CB profits, "", "", "", "", "", +r'*Bcb, "", +r'•Bcb, -r'*Bcb', "", -r'•Bcb', "0"]
