@@ -16,6 +16,7 @@ import { newRowComment } from "../rowCommentHelpers";
 import { useInlineCommentRowEdit } from "../useInlineCommentRowEdit";
 import { useInlineEquationRowEdit } from "../useInlineEquationRowEdit";
 import { CommentRowReadView } from "./CommentRowReadView";
+import { ImplicitEquationsSection } from "./ImplicitEquationsSection";
 import {
   canMoveRowDown,
   canMoveRowUp,
@@ -35,6 +36,7 @@ import { buildVariableUnitMetadata } from "../../lib/units";
 import { useDragScroll } from "../../hooks/useDragScroll";
 import { useEquationValueColumnsCollapse } from "../../hooks/useEquationValueColumnsCollapse";
 import { buildEditorStateFromSections, countModelSectionIssues, findEquationsCell, findExternalsCell, findInitialValuesCell, findSolverCell } from "../modelSections";
+import { resolveImplicitMatrixAccumulationEntries } from "../implicitMatrixEquations";
 import { collectMatrixInitialValueOverrideIssues } from "../matrixInitialRow";
 import type { VariableInspectRequest } from "../../lib/variableInspect";
 import type { EquationsCell, ExternalsCell, ModelCell, NotebookCell, SolverCell } from "../types";
@@ -571,6 +573,15 @@ export function EquationsCellView({
     () => inferEquationSectionBoundaries({ equations: cell.equations, externals }),
     [cell.equations, externals]
   );
+  const implicitEquationContext = useMemo(
+    () =>
+      resolveImplicitMatrixAccumulationEntries({
+        cells,
+        modelId: cell.modelId,
+        equations: cell.equations
+      }),
+    [cells, cell.modelId, cell.equations]
+  );
   const collapsibleSectionIds = useMemo(
     () => collectCollapsibleSectionCommentIds(cell.equations, sectionBoundaries),
     [cell.equations, sectionBoundaries]
@@ -902,6 +913,28 @@ export function EquationsCellView({
                 />
               );
             })}
+            <ImplicitEquationsSection
+              currentValues={currentValues}
+              entries={implicitEquationContext.entries}
+              highlightedVariable={highlightedVariable}
+              laggedCurrentValues={laggedCurrentValues}
+              laggedPeriodLabel={laggedPeriodLabel}
+              parameterNames={parameterNameSet}
+              preferredRun={implicitEquationContext.preferredRun}
+              variableDescriptions={variableDescriptions}
+              variableUnitMetadata={variableUnitMetadata}
+              onInspectVariable={(selectedVariable) =>
+                onVariableInspectRequest({
+                  currentValues,
+                  editor,
+                  modelSource,
+                  sourceRunCellId: implicitEquationContext.preferredRun?.id ?? null,
+                  selectedVariable,
+                  variableDescriptions,
+                  variableUnitMetadata
+                })
+              }
+            />
           </NotebookEquationViewTable>
           {equationRowMenu.rowContextMenu ? (
             <GridRowContextMenu

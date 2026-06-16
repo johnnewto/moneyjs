@@ -271,9 +271,32 @@
   .notebook-model-view-row-section:not(.notebook-model-view-row-comment-grid) {
   border-top: 2px solid rgba(100, 116, 139, 0.38);
 }
-.notebook-model-view-row-comment.is-hovered,
-.notebook-model-view-row-comment:hover {
-  background: rgba(226, 232, 240, 0.35);
+.notebook-model-view-row-implicit-section {
+  cursor: default;
+}
+.notebook-model-view-implicit-section-heading {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.notebook-model-view-implicit-section-run {
+  color: var(--color-text-subtle);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+.notebook-model-view-row-implicit {
+  background: rgba(248, 250, 252, 0.85);
+  cursor: default;
+}
+.notebook-model-view-row-implicit .notebook-model-view-name,
+.notebook-model-view-row-implicit .notebook-model-view-expression,
+.notebook-model-view-row-implicit .notebook-model-view-description,
+.notebook-model-view-row-implicit .notebook-model-view-kind {
+  cursor: default;
+}
+.notebook-model-view-row-implicit .result-variable-button {
+  cursor: pointer;
 }
 .notebook-model-view-row-comment .notebook-model-view-row-comment-text {
   grid-column: 1 / -1;

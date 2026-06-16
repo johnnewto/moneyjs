@@ -108,10 +108,10 @@ export function MatrixEquationProposalDialog({
         className="notebook-cell-delete-dialog notebook-confirm-dialog matrix-unit-meta-dialog matrix-equation-proposal-dialog"
         role="dialog"
         aria-modal="true"
-        aria-label="Propose accumulation equations from matrix"
+        aria-label="Set accumulation equations from matrix"
         onClick={(event) => event.stopPropagation()}
       >
-        <h3>Propose accumulation equations from matrix</h3>
+        <h3>Set accumulation equations from matrix</h3>
         <p>
           Add or update model accumulation equations using stock annotations (<strong>Mh</strong>,{" "}
           <strong>d(Mh)</strong>, and similar) in the Sum row of <strong>{matrixTitle}</strong>.

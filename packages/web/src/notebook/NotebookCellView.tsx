@@ -1178,7 +1178,7 @@ function NotebookCellViewComponent({
                   onClick={handleOpenMatrixEquationProposalDialog}
                   type="button"
                 >
-                  Propose accumulation equations…
+                  Set accumulation equations…
                 </button>
               ) : null}
             </div>

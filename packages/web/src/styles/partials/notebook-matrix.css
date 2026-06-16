@@ -1031,6 +1031,9 @@ button.notebook-matrix-tree-badge-toggle:hover {
 .matrix-entry-source.is-editable {
   cursor: text;
 }
+.matrix-entry-source.is-editable.result-variable-button {
+  cursor: pointer;
+}
 .matrix-entry-editor {
   display: grid;
   gap: 0.35rem;
