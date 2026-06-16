@@ -184,11 +184,7 @@ function readGreekPrefix(
     }
 
     const suffix = word.slice(name.length);
-    if (
-      word.startsWith(name) &&
-      (/^[0-9]+$/.test(suffix) ||
-        (GREEK_NAMES_WITH_LETTER_SUFFIXES.has(name) && /^[a-z][a-z0-9]*$/.test(suffix)))
-    ) {
+    if (word.startsWith(name) && isGreekParameterSuffix(name, suffix)) {
       return {
         symbol,
         suffix,
@@ -198,6 +194,18 @@ function readGreekPrefix(
   }
 
   return null;
+}
+
+function isGreekParameterSuffix(greekName: string, suffix: string): boolean {
+  if (/^[0-9]+$/.test(suffix)) {
+    return true;
+  }
+
+  if (/^[0-9]+[a-z][a-z0-9]*$/.test(suffix)) {
+    return true;
+  }
+
+  return GREEK_NAMES_WITH_LETTER_SUFFIXES.has(greekName) && /^[a-z][a-z0-9]*$/.test(suffix);
 }
 
 function renderGreekWord(value: string): string {

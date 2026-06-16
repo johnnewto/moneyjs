@@ -2,6 +2,7 @@ import bmwNotebookYaml from "./templates/bmw.notebook.yaml?raw";
 import eco3IoPcNotebookYaml from "./templates/eco-3io-pc.notebook.yaml?raw";
 import endogenousMoneyNotebookYaml from "./templates/endogenous-money.notebook.yaml?raw";
 import gl2PcNotebookYaml from "./templates/gl2-pc.notebook.yaml?raw";
+import pcTwoClassNotebookYaml from "./templates/pc-two-class.notebook.yaml?raw";
 import ioPcNotebookYaml from "./templates/io-pc.notebook.yaml?raw";
 import gl6DisNotebookYaml from "./templates/gl6-dis.notebook.yaml?raw";
 import gl6DisRentierNotebookYaml from "./templates/gl6-dis-rentier.notebook.yaml?raw";
@@ -25,6 +26,7 @@ export type NotebookTemplateId =
   | "eco-3io-pc"
   | "endogenous-money"
   | "gl2-pc"
+  | "pc-two-class"
   | "io-pc"
   | "gl6-dis"
   | "gl6-dis-rentier"
@@ -58,6 +60,7 @@ const NOTEBOOK_TEMPLATE_YAML: Record<NotebookTemplateId, string> = {
   "eco-3io-pc": eco3IoPcNotebookYaml,
   "endogenous-money": endogenousMoneyNotebookYaml,
   "gl2-pc": gl2PcNotebookYaml,
+  "pc-two-class": pcTwoClassNotebookYaml,
   "io-pc": ioPcNotebookYaml,
   "gl6-dis": gl6DisNotebookYaml,
   "gl6-dis-rentier": gl6DisRentierNotebookYaml,
@@ -103,6 +106,12 @@ export const NOTEBOOK_TEMPLATES: Record<NotebookTemplateId, NotebookTemplateDefi
     label: "GL2 PC",
     description:
       "PC notebook based on the gl2-pc article baseline, balance-sheet views, account-transactions matrix, and two deterministic extensions."
+  },
+  "pc-two-class": {
+    id: "pc-two-class",
+    label: "PC Two-Class",
+    description:
+      "PC notebook with poor and rich households, linear poor consumption, log rich consumption, and separate portfolio choice."
   },
   "io-pc": {
     id: "io-pc",

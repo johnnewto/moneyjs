@@ -26,6 +26,21 @@ describe("VariableMathLabel", () => {
     expect(screen.getByText("10", { selector: "sub" })).toBeInTheDocument();
   });
 
+  it("renders Greek parameters with digit-and-letter class suffixes", () => {
+    render(
+      <>
+        <VariableMathLabel name="alpha1p" />
+        <VariableMathLabel name="alpha2r" />
+        <VariableMathLabel name="alpha0r" />
+      </>
+    );
+
+    expect(screen.getAllByText("α")).toHaveLength(3);
+    expect(screen.getByText("1p", { selector: "sub" })).toBeInTheDocument();
+    expect(screen.getByText("2r", { selector: "sub" })).toBeInTheDocument();
+    expect(screen.getByText("0r", { selector: "sub" })).toBeInTheDocument();
+  });
+
   it("renders standalone Greek parameter names as symbols", () => {
     render(<VariableMathLabel name="theta" />);
 

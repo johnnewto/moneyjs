@@ -13,6 +13,7 @@ type TemplateId =
   | "interbank-liquidity-risk"
   | "opensimplest"
   | "opensimplest-levy"
+  | "pc-two-class"
   | "predator-prey"
   | "werner-qtc-explainer";
 
@@ -200,6 +201,32 @@ const TEMPLATE_CASES: TemplateSmokeCase[] = [
       expect(result.series.inv.length).toBe(50);
       expect(Number.isFinite(result.series.inv.at(-1) ?? NaN)).toBe(true);
       expect(Number.isFinite(result.series.inv_E.at(-1) ?? NaN)).toBe(true);
+    }
+  },
+  {
+    templateId: "pc-two-class",
+    baselineRunCellId: "baseline-run",
+    scenarioRunCellId: "scenario-run",
+    baselineExpectations(result) {
+      expect(result.options.periods).toBe(70);
+      expect(result.series.Y.length).toBe(70);
+      expect(result.series.Cp.length).toBe(70);
+      expect(result.series.Cr.length).toBe(70);
+      expect(Number.isFinite(result.series.Y.at(-1) ?? NaN)).toBe(true);
+      expect(Number.isFinite(result.series.Vp.at(-1) ?? NaN)).toBe(true);
+      expect(Number.isFinite(result.series.Vr.at(-1) ?? NaN)).toBe(true);
+      expect(Number.isFinite(result.series.Bhr.at(-1) ?? NaN)).toBe(true);
+      expect(result.series.Vr[0] ?? NaN).toBeCloseTo(120, 4);
+    },
+    scenarioExpectations(result, baselineResult) {
+      expect(result.options.periods).toBe(70);
+      expect(result.series.Cr.length).toBe(70);
+      expect(Number.isFinite(result.series.Cr.at(-1) ?? NaN)).toBe(true);
+      expect(Number.isFinite(result.series.Bhr.at(-1) ?? NaN)).toBe(true);
+      expect(result.series.Cr.at(-1) ?? NaN).toBeLessThan(baselineResult.series.Cr.at(-1) ?? NaN);
+      expect(result.series.Bhr.at(-1) ?? NaN).toBeGreaterThan(
+        baselineResult.series.Bhr.at(-1) ?? NaN
+      );
     }
   }
 ];

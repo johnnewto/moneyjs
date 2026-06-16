@@ -1,0 +1,264 @@
+format: sfcr-notebook-yaml
+formatVersion: 1
+id: pc-two-class-notebook
+title: PC Two-Class Notebook
+metadata:
+  version: 1
+  template: pc-two-class
+cells:
+  - markdown:
+      id: intro
+      title: Overview
+      source: |
+        This notebook extends Godley and Lavoie model PC with two household classes: poor and rich.
+        Poor households follow the standard linear consumption function. Rich households use a log form,
+        so marginal consumption out of income and wealth falls as levels rise; surplus saving accumulates in bills.
+        Rich households start with a larger initial wealth stock (`Vr`).
+        The notebook includes balance-sheet, transactions-flow, and account-transactions matrices.
+  - matrix:
+      id: balance-sheet
+      accountingKind: balance-sheet
+      title: PC two-class balance sheet
+      description: Balance-sheet matrix separating poor and rich household money and bill holdings.
+      note: Aggregate household wealth equals poor plus rich wealth; government and central-bank rows match model PC.
+      sourceRunCellId: baseline-run
+      columns: [Poor, Rich, Firms, Government, Central bank, Sum]
+      sectors: [Poor households, Rich households, Firms, Government, Central bank, ""]
+      rows:
+        - [Money, Money, +Hhp, +Hhr, "", "", -Hs, "0"]
+        - [Bills, Bills, +Bhp, +Bhr, "", -Bs, +Bcb, "0"]
+        - ["", Balance, -Vp, -Vr, "", +V, "", "0"]
+        - [Sum, Sum, "0", "0", "0", "0", "0", "0"]
+  - matrix:
+      id: transaction-flow
+      accountingKind: transaction-flow
+      title: PC two-class transactions-flow matrix
+      description: Transactions-flow matrix with separate consumption flows for poor and rich households.
+      note: Rich log consumption rises slowly with income and wealth; surplus saving shows up in bill accumulation on the rich balance sheet.
+      sourceRunCellId: baseline-run
+      columns: [Poor, Rich, Firms, Government, CB current, CB capital, Sum]
+      sectors: [Poor households, Rich households, Firms, Government, Central bank, Central bank, ""]
+      rows:
+        - [Consumption, Consumption by poor, -Cp, "", +Cp, "", "", "", "0"]
+        - [Consumption, Consumption by rich, "", -Cr, +Cr, "", "", "", "0"]
+        - label: Govt. expenditures
+          values:
+            - ""
+            - ""
+            - +G
+            - -G
+            - ""
+            - ""
+            - "0"
+        - [Income, Income, +omega * Y, +(1 - omega) * Y, -Y, "", "", "", "0"]
+        - [Interest, Interest payments, +lag(r) * lag(Bhp), +lag(r) * lag(Bhr), "", -lag(r) * lag(Bs), +lag(r) * lag(Bcb), "", "0"]
+        - [Profits, CB profits, "", "", "", +lag(r) * lag(Bcb), -lag(r) * lag(Bcb), "", "0"]
+        - [Taxes, Taxes, -TXp, -TXr, "", +TX, "", "", "0"]
+        - [Money, Change money, -(Hhp - lag(Hhp)), -(Hhr - lag(Hhr)), "", "", "", +(Hs - lag(Hs)), "0"]
+        - [Bills, Change bills, -(Bhp - lag(Bhp)), -(Bhr - lag(Bhr)), "", +(Bs - lag(Bs)), "", -(Bcb - lag(Bcb)), "0"]
+        - [Sum, Sum, "0", "0", "0", "0", "0", "0", "0"]
+  - matrix:
+      id: account-transactions
+      collapsed: false
+      sourceRunCellId: baseline-run
+      title: PC two-class account transactions
+      description: Account-level transaction matrix for the two-class PC model with poor and rich household account columns.
+      note: Columns group balance-sheet accounts by sector. Use Expand all / Collapse all or click sector headers to show or hide account columns.
+      columns: [Deposits, Bills, Equity, Deposits, Bills, Equity, Current, Equity, Current, Bills (Bs), Equity, Current, Bills, Equity, Sum]
+      sectors: [Poor (HH), Poor (HH), Poor (HH), Rich (HH), Rich (HH), Rich (HH), Firms, Firms, Government (Govt), Government (Govt), Government (Govt), Central_bank (CB), Central_bank (CB), Central_bank (CB), ""]
+      columnBadges: [asset, asset, equity, asset, asset, equity, asset, equity, asset, liability, equity, liability, asset, equity, ""]
+      accountingKind: account-transactions
+      rows:
+        - [Consumption, Consumption by poor, -Cp, "", -Cp, "", "", +Cp, +Cp, "", "", "", "", "", "", "", "0"]
+        - [Consumption, Consumption by rich, "", "", "", -Cr, "", -Cr, +Cr, +Cr, "", "", "", "", "", "", "0"]
+        - [Govt, Govt. expenditures, "", "", "", "", "", "", +G, -G, -G, "", "", "", "", "", "0"]
+        - [Income, Income, +omega * Y, "", +omega * Y, +(1 - omega) * Y, "", +(1 - omega) * Y, -Y, -Y, "", "", "", "", "", "", "0"]
+        - [Interest, Interest payments, +lag(r) * lag(Bhp), "", +r'•Bhp, +lag(r) * lag(Bhr), "", +r'•Bhr, "", "", -lag(r) * lag(Bs), "", -r'•Bs, +r'•Bcb, "", +r'•Bcb, "0"]
+        - [Profits, CB profits, "", "", "", "", "", "", "", +r'*Bcb, "", +r'•Bcb, -r'*Bcb, "", -r'•Bcb, "", "0"]
+        - [Taxes, Taxes, -TXp, "", -TXp, -TXr, "", -TXr, "", "", +TX, "", +TX, "", "", "", "0"]
+        - [Money, Change money, "", "", "", "", "", "", "", "", "", "", "", "", "", "", "0"]
+        - [Bills, Change bills, -d(Bhp), +d(Bhp), "", -d(Bhr), +d(Bhr), "", "", "", +d(Bs), -d(Bs), "", -d(Bcb), +d(Bcb), "", "0"]
+        - [Sum, Sum, Hhp, Bhp, Vp, Hhr, Bhr, Vr, "", "", "", Deficit, "", "", Hs, "", "0"]
+  - sequence:
+      id: transaction-flow-sequence
+      title: PC two-class transaction flow sequence
+      source:
+        kind: matrix
+        matrixCellId: transaction-flow
+      description: Sequence view generated from the two-class transactions-flow matrix at the selected simulation period.
+  - equations:
+      id: equations
+      title: PC two-class model
+      modelId: pc-two-class
+      collapsed: false
+      rows:
+        - [Y, Cp + Cr + G, "National income.", $/year, flow, identity]
+        - [C, Cp + Cr, "Aggregate household consumption.", $/year, flow, identity]
+        - [YD, YDp + YDr, "Aggregate disposable income.", $/year, flow, identity]
+        - [TX, TXp + TXr, "Aggregate taxes.", $/year, flow, identity]
+        - [YDp, omega * Y + lag(r) * lag(Bhp) - TXp, "Poor disposable income.", $/year, flow, identity]
+        - [YDr, (1 - omega) * Y + lag(r) * lag(Bhr) - TXr, "Rich disposable income.", $/year, flow, identity]
+        - [TXp, theta * (omega * Y + lag(r) * lag(Bhp)), "Taxes paid by poor households.", $/year, flow, identity]
+        - [TXr, theta * ((1 - omega) * Y + lag(r) * lag(Bhr)), "Taxes paid by rich households.", $/year, flow, identity]
+        - [Cp, alpha1p * YDp + alpha2p * lag(Vp), "Linear consumption for poor households.", $/year, flow, identity]
+        - [Cr, "alpha0r + alpha1r * log(YDr + Y0) + alpha2r * log(lag(Vr) + V0)", "Rich log consumption with diminishing marginal propensities.", $/year, flow, identity]
+        - [Vp, I(YDp - Cp), "Poor household wealth.", $, stock, accumulation]
+        - [Vr, I(YDr - Cr), "Rich household wealth.", $, stock, accumulation]
+        - [V, Vp + Vr, "Aggregate household wealth.", $, stock, accumulation]
+        - [Bhp, Vp * (lambda0p + lambda1p * r - lambda2p * (YDp / Vp)), "Poor household bill holdings.", $, stock, accumulation]
+        - [Bhr, Vr * (lambda0r + lambda1r * r - lambda2r * (YDr / Vr)), "Rich household bill holdings.", $, stock, accumulation]
+        - [Bh, Bhp + Bhr, "Aggregate household bill holdings.", $, stock, accumulation]
+        - [Hhp, Vp - Bhp, "Poor household money holdings.", $, stock, accumulation]
+        - [Hhr, Vr - Bhr, "Rich household money holdings.", $, stock, accumulation]
+        - [Hh, Hhp + Hhr, "Aggregate household money holdings.", $, stock, accumulation]
+        - [Bs, I(G + lag(r) * lag(Bs) - TX - lag(r) * lag(Bcb)), "Government bill supply.", $, stock, accumulation]
+        - [Hs, I(d(Bcb)), "High-powered money supplied by the central bank.", $, stock, accumulation]
+        - [Bcb, Bs - Bh, "Central-bank bill holdings.", $, stock, accumulation]
+  - solver:
+      id: solver
+      title: Solver
+      modelId: pc-two-class
+      collapsed: true
+      method: gauss-seidel
+      tolerance: "1e-10"
+      maxIterations: 200
+      defaultInitialValue: "1e-15"
+      hiddenLeftVariable: Hh
+      hiddenRightVariable: Hs
+      hiddenTolerance: "0.00001"
+      relativeHiddenTolerance: false
+  - externals:
+      id: externals-equations
+      title: Externals
+      modelId: pc-two-class
+      collapsed: true
+      rows:
+        - [r, 0.025, "Interest rate on bills.", 1/year, aux]
+        - [G, 20, "Government expenditure.", $/year, aux]
+        - [omega, 0.25, "Poor share of pre-tax income.", "", aux]
+        - [theta, 0.2, "Tax rate.", "", aux]
+        - [alpha1p, 0.6, "Poor propensity to consume out of disposable income.", "", aux]
+        - [alpha2p, 0.04, "Poor propensity to consume out of lagged wealth.", 1/year, aux]
+        - [alpha0r, 2, "Autonomous rich consumption.", $/year, aux]
+        - [alpha1r, 3, "Rich propensity to consume out of log disposable income.", $/year, aux]
+        - [alpha2r, 1.5, "Rich propensity to consume out of log lagged wealth.", $/year, aux]
+        - [Y0, 10, "Income offset inside rich log consumption.", $, aux]
+        - [V0, 10, "Wealth offset inside rich log consumption.", $, aux]
+        - [lambda0p, 0.5, "Poor portfolio parameter for bills.", "", aux]
+        - [lambda1p, 0.03, "Poor interest sensitivity of bill demand.", year, aux]
+        - [lambda2p, 0.01, "Poor income sensitivity of bill demand.", year, aux]
+        - [lambda0r, 0.75, "Rich portfolio parameter for bills.", "", aux]
+        - [lambda1r, 0.08, "Rich interest sensitivity of bill demand.", year, aux]
+        - [lambda2r, 0.005, "Rich income sensitivity of bill demand.", year, aux]
+  - initial-values:
+      id: initial-values-equations
+      title: Initial values
+      modelId: pc-two-class
+      collapsed: true
+      rows:
+        - [Vp, 45]
+        - [Vr, 120]
+        - [Bhp, 32]
+        - [Bhr, 95]
+        - [Bs, 127]
+        - [Bcb, 0]
+  - run:
+      id: baseline-run
+      title: Baseline run
+      description: Baseline two-class PC simulation with Hh = Hs closure and log rich consumption starting from Vr = 120.
+      mode: baseline
+      periods: 70
+      resultKey: pc_two_class_baseline
+      sourceModelId: pc-two-class
+  - chart:
+      id: baseline-chart
+      title: Baseline distribution and consumption
+      variables:
+        - Y
+        - YDp
+        - YDr
+        - Cp
+        - Cr
+        - Vp
+        - Vr
+        - Bhp
+        - Bhr
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      sourceRunCellId: baseline-run
+  - table:
+      id: baseline-table
+      title: Baseline variable summary
+      variables:
+        - Y
+        - YDp
+        - YDr
+        - Cp
+        - Cr
+        - V
+        - Vp
+        - Vr
+        - Bh
+        - Bhp
+        - Bhr
+        - Hh
+      sourceRunCellId: baseline-run
+  - markdown:
+      id: scenario-note
+      title: Scenario — lower rich wealth consumption propensity
+      source: This scenario lowers `alpha2r` from `1.5` to `0.5` between periods 10 and 70, so rich households consume even less out of lagged wealth and accumulate more bills.
+  - run:
+      id: scenario-run
+      title: "Scenario: lower alpha2r"
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 10
+              - 70
+            variables:
+              alpha2r:
+                kind: constant
+                value: 0.5
+      baselineRunCellId: baseline-run
+      periods: 70
+      resultKey: pc_two_class_scenario_alpha2r
+      sourceModelId: pc-two-class
+      description: Scenario with a lower rich log-wealth consumption propensity from period 10 onward.
+  - chart:
+      id: scenario-chart
+      title: Scenario rich saving and bill holdings
+      variables:
+        - Cr
+        - Vr
+        - Bhr
+        - Cp
+        - Y
+      axisMode: separate
+      referenceTrace: baseline
+      axisSnapTolarance: 0.5
+      sourceRunCellId: scenario-run
+  - table:
+      id: scenario-table
+      title: Scenario variable summary
+      variables:
+        - alpha2r
+        - Cr
+        - Vr
+        - Bhr
+        - Bhp
+        - Y
+        - C
+      sourceRunCellId: scenario-run
+  - sequence:
+      id: equation-dependency-graph
+      title: PC two-class equation dependency graph
+      source:
+        kind: dependency
+        modelId: pc-two-class
+        showAccountingStrips: true
+        showExogenous: false
+        stripMapping:
+          transactionMatrixCellId: transaction-flow
+          balanceMatrixCellId: balance-sheet
+      description: Dependency view of the two-class PC equations organized by sector strips and accounting bands.
