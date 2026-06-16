@@ -34,6 +34,12 @@ export interface ImplicitMatrixAccumulationEquation {
   role: EquationRole;
 }
 
+export interface MatrixSumRowIntegrationBinding {
+  columnRef: string;
+  hasFlows: boolean;
+  stockVariable: string;
+}
+
 export function formatMatrixColumnSumReference(columnLabel: string): string {
   return columnLabel.trim().replace(/\s*\([^)]+\)\s*$/, "").trim();
 }
@@ -248,20 +254,28 @@ function resolveColumnIndexForRef(matrix: MatrixCell, columnRef: string): number
   return null;
 }
 
-export function collectImplicitMatrixAccumulationEquations(args: {
+export function collectMatrixSumRowIntegrationBindings(args: {
   cells: NotebookCell[];
   modelId: string;
   runCellId: string;
-  existingEquationNames: ReadonlySet<string>;
-}): ImplicitMatrixAccumulationEquation[] {
-  const implicit: ImplicitMatrixAccumulationEquation[] = [];
-  const seen = new Set<string>();
+}): {
+  bindings: MatrixSumRowIntegrationBinding[];
+  matrixTitles: string[];
+} {
+  const bindings: MatrixSumRowIntegrationBinding[] = [];
+  const seenStocks = new Set<string>();
+  const matrixTitles: string[] = [];
 
   for (const matrix of findLinkedAccountTransactionMatrices(
     args.cells,
     args.modelId,
     args.runCellId
   )) {
+    const matrixTitle = matrix.title.trim() || matrix.id.trim();
+    if (matrixTitle) {
+      matrixTitles.push(matrixTitle);
+    }
+
     const sumRowIndex = matrix.rows.findIndex((row) => isSumLabel(row.label));
     const sumColumnIndex = matrix.columns.findIndex((column) => isSumLabel(column));
     if (sumRowIndex < 0) {
@@ -278,29 +292,54 @@ export function collectImplicitMatrixAccumulationEquations(args: {
         continue;
       }
 
-      const variable = resolveSumRowStockVariable(matrix, columnIndex, sumSource);
-      if (!variable || args.existingEquationNames.has(variable) || seen.has(variable)) {
+      const stockVariable = resolveSumRowStockVariable(matrix, columnIndex, sumSource);
+      if (!stockVariable || seenStocks.has(stockVariable)) {
         continue;
       }
 
-      const columnLabel = matrix.columns[columnIndex]?.trim() ?? variable;
+      const columnLabel = matrix.columns[columnIndex]?.trim() ?? stockVariable;
       const sectorLabel = matrix.sectors?.[columnIndex]?.trim() ?? "";
       const columnRef = sectorLabel
         ? formatQualifiedMatrixColumnSumReference(sectorLabel, columnLabel)
         : formatMatrixColumnSumReference(columnLabel);
       const hasFlows = columnHasFlowEntries(matrix, columnIndex, sumRowIndex);
-      const expression = buildProposedAccumulationExpression(variable, columnRef, hasFlows);
 
-      seen.add(variable);
-      implicit.push({
-        name: variable,
-        expression,
-        role: "accumulation"
+      seenStocks.add(stockVariable);
+      bindings.push({
+        columnRef,
+        hasFlows,
+        stockVariable
       });
     }
   }
 
-  return implicit.sort((left, right) => left.name.localeCompare(right.name));
+  bindings.sort((left, right) => left.stockVariable.localeCompare(right.stockVariable));
+  return { bindings, matrixTitles };
+}
+
+export function collectImplicitMatrixAccumulationEquations(args: {
+  cells: NotebookCell[];
+  modelId: string;
+  runCellId: string;
+  existingEquationNames: ReadonlySet<string>;
+}): ImplicitMatrixAccumulationEquation[] {
+  const { bindings } = collectMatrixSumRowIntegrationBindings({
+    cells: args.cells,
+    modelId: args.modelId,
+    runCellId: args.runCellId
+  });
+
+  return bindings
+    .filter((binding) => !args.existingEquationNames.has(binding.stockVariable))
+    .map((binding) => ({
+      name: binding.stockVariable,
+      expression: buildProposedAccumulationExpression(
+        binding.stockVariable,
+        binding.columnRef,
+        binding.hasFlows
+      ),
+      role: "accumulation" as const
+    }));
 }
 
 export function resolveMatrixColumnAccumulationFlowWarning(args: {

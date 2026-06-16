@@ -9,6 +9,7 @@ afterEach(() => {
 });
 
 import { NotebookRowComment } from "../src/notebook/components/NotebookRowComment";
+import { ImplicitEquationsSection } from "../src/notebook/components/ImplicitEquationsSection";
 import { SectionBoundarySignatureView } from "../src/notebook/components/SectionBoundarySignatureView";
 import { getNotebookTemplateDocument } from "../src/notebook/templates";
 import { resolveInferredSectionBoundary } from "@sfcr/notebook-core";
@@ -91,5 +92,100 @@ describe("section boundary display", () => {
     const signature = screen.getByTitle("Expand section equations");
     expect(signature).toHaveAttribute("aria-expanded", "false");
     expect(signature.querySelector(".section-boundary-toggle-icon")).toHaveTextContent("▸");
+  });
+
+  it("renders a merged matrix integration signature in the implicit equations section", () => {
+    render(
+      <ImplicitEquationsSection
+        boundary={{
+          functionName: "BMW_account_transactions_matrix_Integration",
+          inputs: ["Firms.Deposits", "Households.Deposits", "Households.Net_Worth"],
+          outputs: ["Mf", "Mh", "Vh"]
+        }}
+        currentValues={{}}
+        entries={[]}
+        parameterNames={new Set()}
+        preferredRun={null}
+        variableDescriptions={new Map()}
+        variableUnitMetadata={new Map()}
+        onInspectVariable={() => {}}
+      />
+    );
+
+    expect(screen.getByText(/Implicit accumulation from account-transactions matrix Sum row/)).toBeTruthy();
+    expect(screen.getByText(/BMW_account_transactions_matrix_Integration/)).toHaveClass("formula-function");
+    expect(screen.getByText("Mf").closest(".formula-uppercase")).toBeTruthy();
+    expect(screen.getByText("Households.Deposits").closest(".formula-uppercase")).toBeTruthy();
+  });
+
+  it("shows a collapse triangle on the implicit matrix integration signature", () => {
+    const onToggleSectionCollapse = vi.fn();
+
+    render(
+      <ImplicitEquationsSection
+        boundary={{
+          functionName: "Account_transactions_matrix_Integration",
+          inputs: ["Households.Deposits"],
+          outputs: ["Mh"]
+        }}
+        currentValues={{}}
+        entries={[
+          {
+            name: "Mh",
+            expression: "I(Households.Deposits)",
+            role: "accumulation",
+            flowWarning: null
+          }
+        ]}
+        parameterNames={new Set()}
+        preferredRun={null}
+        sectionCollapsible
+        sectionCollapsed={false}
+        variableDescriptions={new Map()}
+        variableUnitMetadata={new Map()}
+        onInspectVariable={() => {}}
+        onToggleSectionCollapse={onToggleSectionCollapse}
+      />
+    );
+
+    const signature = screen.getByTitle("Collapse section equations");
+    expect(signature.querySelector(".section-boundary-toggle-icon")).toHaveTextContent("▾");
+    expect(screen.getByText("From matrix Sum row")).toBeTruthy();
+
+    fireEvent.click(signature);
+    expect(onToggleSectionCollapse).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides implicit equation rows when the matrix integration section is collapsed", () => {
+    render(
+      <ImplicitEquationsSection
+        boundary={{
+          functionName: "Account_transactions_matrix_Integration",
+          inputs: ["Households.Deposits"],
+          outputs: ["Mh"]
+        }}
+        currentValues={{}}
+        entries={[
+          {
+            name: "Mh",
+            expression: "I(Households.Deposits)",
+            role: "accumulation",
+            flowWarning: null
+          }
+        ]}
+        parameterNames={new Set()}
+        preferredRun={null}
+        sectionCollapsible
+        sectionCollapsed
+        variableDescriptions={new Map()}
+        variableUnitMetadata={new Map()}
+        onInspectVariable={() => {}}
+      />
+    );
+
+    expect(screen.getByTitle("Expand section equations").querySelector(".section-boundary-toggle-icon")).toHaveTextContent(
+      "▸"
+    );
+    expect(screen.queryByText("From matrix Sum row")).toBeNull();
   });
 });

@@ -36,7 +36,7 @@ import { buildVariableUnitMetadata } from "../../lib/units";
 import { useDragScroll } from "../../hooks/useDragScroll";
 import { useEquationValueColumnsCollapse } from "../../hooks/useEquationValueColumnsCollapse";
 import { buildEditorStateFromSections, countModelSectionIssues, findEquationsCell, findExternalsCell, findInitialValuesCell, findSolverCell } from "../modelSections";
-import { resolveImplicitMatrixAccumulationEntries } from "../implicitMatrixEquations";
+import { resolveImplicitMatrixAccumulationEntries, IMPLICIT_MATRIX_INTEGRATION_SECTION_ID } from "../implicitMatrixEquations";
 import { collectMatrixInitialValueOverrideIssues } from "../matrixInitialRow";
 import type { VariableInspectRequest } from "../../lib/variableInspect";
 import type { EquationsCell, ExternalsCell, ModelCell, NotebookCell, SolverCell } from "../types";
@@ -582,10 +582,13 @@ export function EquationsCellView({
       }),
     [cells, cell.modelId, cell.equations]
   );
-  const collapsibleSectionIds = useMemo(
-    () => collectCollapsibleSectionCommentIds(cell.equations, sectionBoundaries),
-    [cell.equations, sectionBoundaries]
-  );
+  const collapsibleSectionIds = useMemo(() => {
+    const ids = collectCollapsibleSectionCommentIds(cell.equations, sectionBoundaries);
+    if (implicitEquationContext.boundary && implicitEquationContext.entries.length > 0) {
+      ids.push(IMPLICIT_MATRIX_INTEGRATION_SECTION_ID);
+    }
+    return ids;
+  }, [cell.equations, implicitEquationContext.boundary, implicitEquationContext.entries.length, sectionBoundaries]);
   const traceModel = useMemo(() => buildTraceModel(draftEquations), [draftEquations]);
   const activeTrace = pinnedTrace
     ? buildActiveTrace(traceModel, pinnedTrace.rowId, pinnedTrace.mode)
@@ -914,6 +917,7 @@ export function EquationsCellView({
               );
             })}
             <ImplicitEquationsSection
+              boundary={implicitEquationContext.boundary}
               currentValues={currentValues}
               entries={implicitEquationContext.entries}
               highlightedVariable={highlightedVariable}
@@ -921,6 +925,8 @@ export function EquationsCellView({
               laggedPeriodLabel={laggedPeriodLabel}
               parameterNames={parameterNameSet}
               preferredRun={implicitEquationContext.preferredRun}
+              sectionCollapsible={implicitEquationContext.entries.length > 0}
+              sectionCollapsed={sectionCollapse.isSectionCollapsed(IMPLICIT_MATRIX_INTEGRATION_SECTION_ID)}
               variableDescriptions={variableDescriptions}
               variableUnitMetadata={variableUnitMetadata}
               onInspectVariable={(selectedVariable) =>
@@ -933,6 +939,9 @@ export function EquationsCellView({
                   variableDescriptions,
                   variableUnitMetadata
                 })
+              }
+              onToggleSectionCollapse={() =>
+                sectionCollapse.toggleSectionCollapse(IMPLICIT_MATRIX_INTEGRATION_SECTION_ID)
               }
             />
           </NotebookEquationViewTable>

@@ -131,7 +131,13 @@ export function useEquationSectionCollapseState(
     () => new Set(collapsibleSectionIds),
     [collapsibleSectionIds]
   );
-  const validSectionIds = useMemo(() => collectSectionCommentIds(equations), [equations]);
+  const validSectionIds = useMemo(() => {
+    const ids = collectSectionCommentIds(equations);
+    for (const sectionId of collapsibleSectionIds) {
+      ids.add(sectionId);
+    }
+    return ids;
+  }, [collapsibleSectionIds, equations]);
   const validSectionIdsKey = useMemo(() => [...validSectionIds].sort().join("\n"), [validSectionIds]);
   const storageKey = useMemo(() => equationSectionCollapseStorageKey(cellId), [cellId]);
   const [collapsedSectionIds, setCollapsedSectionIds] = useState<Set<string>>(() =>

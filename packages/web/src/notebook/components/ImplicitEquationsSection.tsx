@@ -1,3 +1,5 @@
+import type { SectionBoundarySignature } from "@sfcr/notebook-core";
+
 import {
   highlightFormula
 } from "../../components/EquationGridEditor";
@@ -12,9 +14,11 @@ import {
 import { formatNotebookCurrentValue } from "./NotebookCurrentValue";
 import type { ImplicitMatrixAccumulationViewEntry } from "../implicitMatrixEquations";
 import { IMPLICIT_MATRIX_ACCUMULATION_SECTION_TITLE } from "../implicitMatrixEquations";
+import { SectionBoundarySignatureView } from "./SectionBoundarySignatureView";
 import type { RunCell } from "../types";
 
 export function ImplicitEquationsSection({
+  boundary = null,
   currentValues,
   entries,
   highlightedVariable = null,
@@ -22,10 +26,14 @@ export function ImplicitEquationsSection({
   laggedPeriodLabel,
   parameterNames,
   preferredRun,
+  sectionCollapsible = false,
+  sectionCollapsed = false,
   variableDescriptions,
   variableUnitMetadata,
-  onInspectVariable
+  onInspectVariable,
+  onToggleSectionCollapse
 }: {
+  boundary?: SectionBoundarySignature | null;
   currentValues: Record<string, number | undefined>;
   entries: ImplicitMatrixAccumulationViewEntry[];
   highlightedVariable?: string | null;
@@ -33,11 +41,14 @@ export function ImplicitEquationsSection({
   laggedPeriodLabel?: string;
   parameterNames: Set<string>;
   preferredRun: RunCell | null;
+  sectionCollapsible?: boolean;
+  sectionCollapsed?: boolean;
   variableDescriptions: VariableDescriptions;
   variableUnitMetadata: VariableUnitMetadata;
   onInspectVariable(variableName: string): void;
+  onToggleSectionCollapse?(): void;
 }) {
-  if (entries.length === 0) {
+  if (!boundary) {
     return null;
   }
 
@@ -48,30 +59,46 @@ export function ImplicitEquationsSection({
         role="row"
       >
         <div className="notebook-model-view-row-comment-text" role="cell">
-          <div className="notebook-model-view-implicit-section-heading">
-            <strong>{IMPLICIT_MATRIX_ACCUMULATION_SECTION_TITLE}</strong>
-            {preferredRun ? (
-              <span className="notebook-model-view-implicit-section-run">
-                {preferredRun.title.trim() || "Baseline run"}
-              </span>
-            ) : null}
+          <div className="section-comment-read-view">
+            <div className="notebook-model-view-implicit-section-heading">
+              <strong>{IMPLICIT_MATRIX_ACCUMULATION_SECTION_TITLE}</strong>
+              {preferredRun ? (
+                <span className="notebook-model-view-implicit-section-run">
+                  {preferredRun.title.trim() || "Baseline run"}
+                </span>
+              ) : null}
+            </div>
+            <SectionBoundarySignatureView
+              boundary={boundary}
+              collapsible={sectionCollapsible}
+              currentValues={currentValues}
+              highlightedVariable={highlightedVariable}
+              isCollapsed={sectionCollapsed}
+              parameterNames={parameterNames}
+              variableDescriptions={variableDescriptions}
+              variableUnitMetadata={variableUnitMetadata}
+              onInspectVariable={onInspectVariable}
+              onToggleCollapse={onToggleSectionCollapse}
+            />
           </div>
         </div>
       </div>
-      {entries.map((entry) => (
-        <ImplicitEquationReadRow
-          key={entry.name}
-          currentValues={currentValues}
-          entry={entry}
-          highlightedVariable={highlightedVariable}
-          laggedCurrentValues={laggedCurrentValues}
-          laggedPeriodLabel={laggedPeriodLabel}
-          parameterNames={parameterNames}
-          variableDescriptions={variableDescriptions}
-          variableUnitMetadata={variableUnitMetadata}
-          onInspectVariable={onInspectVariable}
-        />
-      ))}
+      {sectionCollapsed
+        ? null
+        : entries.map((entry) => (
+            <ImplicitEquationReadRow
+              key={entry.name}
+              currentValues={currentValues}
+              entry={entry}
+              highlightedVariable={highlightedVariable}
+              laggedCurrentValues={laggedCurrentValues}
+              laggedPeriodLabel={laggedPeriodLabel}
+              parameterNames={parameterNames}
+              variableDescriptions={variableDescriptions}
+              variableUnitMetadata={variableUnitMetadata}
+              onInspectVariable={onInspectVariable}
+            />
+          ))}
     </>
   );
 }
