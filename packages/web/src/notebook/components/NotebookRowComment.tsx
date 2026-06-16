@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import {
   normalizeRowCommentText,
   parseSectionCommentText,
@@ -26,6 +28,7 @@ export function NotebookRowComment({
   onInspectVariable,
   onTextChange,
   onToggleSectionCollapse,
+  rowControls = null,
   currentValues,
   highlightedVariable = null,
   parameterNames,
@@ -55,6 +58,7 @@ export function NotebookRowComment({
   onInspectVariable?(variableName: string): void;
   onTextChange?(value: string): void;
   onToggleSectionCollapse?(): void;
+  rowControls?: ReactNode;
 }) {
   if (mode === "grid") {
     return (
@@ -92,6 +96,7 @@ export function NotebookRowComment({
             />
           ) : null}
         </div>
+        {rowControls}
       </div>
     );
   }

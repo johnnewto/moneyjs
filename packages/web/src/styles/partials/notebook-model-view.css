@@ -368,12 +368,23 @@
   gap: 0.2rem;
   width: 100%;
 }
+.notebook-model-view-row-comment-grid {
+  align-items: flex-start;
+  display: flex;
+  gap: 0.45rem;
+}
 .notebook-model-view-row-comment-grid-body {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 0.25rem;
-  grid-column: 1 / -1;
+  min-width: 0;
   width: 100%;
+}
+.notebook-model-view-row-comment-grid .grid-editor-row-controls {
+  flex: 0 0 auto;
+  margin-inline-end: 0.95rem;
+  margin-top: 0.1rem;
 }
 .section-boundary-signature {
   color: #475569;

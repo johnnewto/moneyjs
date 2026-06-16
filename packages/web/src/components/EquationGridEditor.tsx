@@ -54,9 +54,12 @@ import {
   canMoveRowUp,
   GridRowContextMenu,
   GridRowDeleteDialog,
+  insertRowAt,
+  moveRow,
   removeRow,
   useGridRowContextMenu
 } from "./GridRowContextMenu";
+import { GridRowControls } from "./GridRowControls";
 import { renderVariableMathLabel } from "./VariableMathLabel";
 import { classifyVariableToken } from "../lib/formulaTokenClass";
 import { documentHighlightClassName } from "../lib/variableHighlight";
@@ -227,6 +230,20 @@ export function EquationGridEditor({
                   onContextMenu={(event) => handleRowContextMenu(event, index)}
                   onInspectVariable={onSelectVariable}
                   onTextChange={(text) => onChange(patchCommentInRows(equations, row.id, text))}
+                  rowControls={
+                    <GridRowControls
+                      canMoveDown={canMoveRowDown(equations, index)}
+                      canMoveUp={canMoveRowUp(equations, index)}
+                      onInsertAfter={() =>
+                        onChange(insertRowAt(equations, index + 1, newRowComment()))
+                      }
+                      onMoveDown={() => onChange(moveRow(equations, index, 1))}
+                      onMoveUp={() => onChange(moveRow(equations, index, -1))}
+                      onRemove={() => onChange(removeRow(equations, index))}
+                      rowIndex={index}
+                      rowTypeLabel="section comment"
+                    />
+                  }
                 />
               );
             }
@@ -364,14 +381,18 @@ export function EquationGridEditor({
                   >
                     {issue == null ? "OK" : issue.severity === "warning" ? "Warning" : "Error"}
                   </span>
-                  <button
-                    type="button"
-                    aria-label={`Remove equation ${index + 1}`}
-                    className="equation-grid-remove-button"
-                    onClick={() => onChange(removeRow(equations, index))}
-                  >
-                    -
-                  </button>
+                  <GridRowControls
+                    canMoveDown={canMoveRowDown(equations, index)}
+                    canMoveUp={canMoveRowUp(equations, index)}
+                    onInsertAfter={() =>
+                      onChange(insertRowAt(equations, index + 1, newEquationRow()))
+                    }
+                    onMoveDown={() => onChange(moveRow(equations, index, 1))}
+                    onMoveUp={() => onChange(moveRow(equations, index, -1))}
+                    onRemove={() => onChange(removeRow(equations, index))}
+                    rowIndex={index}
+                    rowTypeLabel="equation"
+                  />
                 </div>
                 {issue != null ? (
                   <div

@@ -287,10 +287,10 @@ export function MatrixSourceEditor({ value, onChange }: MatrixSourceEditorProps)
                       .filter(Boolean)
                       .join(" ")}
                   >
-                    <div className="notebook-matrix-editor-column-controls">
+                    <div className="grid-editor-row-controls">
                       <button
                         type="button"
-                        className="secondary-button notebook-matrix-editor-symbol-button"
+                        className="secondary-button grid-editor-symbol-button"
                         onClick={() => insertColumnAfter(index)}
                         aria-label={`Insert matrix column after ${index + 1}`}
                         title="Insert column after"
@@ -299,7 +299,7 @@ export function MatrixSourceEditor({ value, onChange }: MatrixSourceEditorProps)
                       </button>
                       <button
                         type="button"
-                        className="secondary-button notebook-matrix-editor-symbol-button"
+                        className="secondary-button grid-editor-symbol-button"
                         onClick={() => removeColumn(index)}
                         disabled={matrix.columns.length <= 1}
                         aria-label={`Remove matrix column ${index + 1}`}
@@ -309,7 +309,7 @@ export function MatrixSourceEditor({ value, onChange }: MatrixSourceEditorProps)
                       </button>
                       <button
                         type="button"
-                        className="secondary-button notebook-matrix-editor-symbol-button"
+                        className="secondary-button grid-editor-symbol-button"
                         onClick={() => moveColumn(index, -1)}
                         disabled={index === 0}
                         aria-label={`Move matrix column ${index + 1} left`}
@@ -319,7 +319,7 @@ export function MatrixSourceEditor({ value, onChange }: MatrixSourceEditorProps)
                       </button>
                       <button
                         type="button"
-                        className="secondary-button notebook-matrix-editor-symbol-button"
+                        className="secondary-button grid-editor-symbol-button"
                         onClick={() => moveColumn(index, 1)}
                         disabled={index === matrix.columns.length - 1}
                         aria-label={`Move matrix column ${index + 1} right`}
@@ -471,10 +471,10 @@ export function MatrixSourceEditor({ value, onChange }: MatrixSourceEditorProps)
                       </td>
                     ))}
                     <td>
-                      <div className="notebook-matrix-editor-row-controls">
+                      <div className="grid-editor-row-controls">
                         <button
                           type="button"
-                          className="secondary-button notebook-matrix-editor-symbol-button"
+                          className="secondary-button grid-editor-symbol-button"
                           onClick={() => insertRowAfter(rowIndex)}
                           aria-label={`Insert matrix row after ${rowIndex + 1}`}
                           title="Insert row after"
@@ -483,7 +483,7 @@ export function MatrixSourceEditor({ value, onChange }: MatrixSourceEditorProps)
                         </button>
                         <button
                           type="button"
-                          className="secondary-button notebook-matrix-editor-symbol-button"
+                          className="secondary-button grid-editor-symbol-button"
                           onClick={() => removeRow(rowIndex)}
                           disabled={matrix.rows.length <= 1}
                           aria-label={`Remove matrix row ${rowIndex + 1}`}
@@ -493,7 +493,7 @@ export function MatrixSourceEditor({ value, onChange }: MatrixSourceEditorProps)
                         </button>
                         <button
                           type="button"
-                          className="secondary-button notebook-matrix-editor-symbol-button"
+                          className="secondary-button grid-editor-symbol-button"
                           onClick={() => moveRow(rowIndex, -1)}
                           disabled={rowIndex === 0}
                           aria-label={`Move matrix row ${rowIndex + 1} up`}
@@ -503,7 +503,7 @@ export function MatrixSourceEditor({ value, onChange }: MatrixSourceEditorProps)
                         </button>
                         <button
                           type="button"
-                          className="secondary-button notebook-matrix-editor-symbol-button"
+                          className="secondary-button grid-editor-symbol-button"
                           onClick={() => moveRow(rowIndex, 1)}
                           disabled={rowIndex === matrix.rows.length - 1}
                           aria-label={`Move matrix row ${rowIndex + 1} down`}

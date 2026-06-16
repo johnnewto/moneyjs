@@ -24,9 +24,12 @@ import {
   canMoveRowUp,
   GridRowContextMenu,
   GridRowDeleteDialog,
+  insertRowAt,
+  moveRow,
   removeRow,
   useGridRowContextMenu
 } from "./GridRowContextMenu";
+import { GridRowControls } from "./GridRowControls";
 
 interface InitialValuesEditorProps {
   currentValues?: Record<string, number | undefined>;
@@ -117,6 +120,20 @@ export function InitialValuesEditor({
                 text={row.text}
                 onContextMenu={(event) => rowContextMenu.handleRowContextMenu(event, index)}
                 onTextChange={(text) => onChange(patchCommentInRows(initialValues, row.id, text))}
+                rowControls={
+                  <GridRowControls
+                    canMoveDown={canMoveRowDown(initialValues, index)}
+                    canMoveUp={canMoveRowUp(initialValues, index)}
+                    onInsertAfter={() =>
+                      onChange(insertRowAt(initialValues, index + 1, newRowComment()))
+                    }
+                    onMoveDown={() => onChange(moveRow(initialValues, index, 1))}
+                    onMoveUp={() => onChange(moveRow(initialValues, index, -1))}
+                    onRemove={() => onChange(removeRow(initialValues, index))}
+                    rowIndex={index}
+                    rowTypeLabel="section comment"
+                  />
+                }
               />
             );
           }
@@ -200,14 +217,18 @@ export function InitialValuesEditor({
                   issues[`initialValues.${index}.valueText`] ??
                   "OK")}
             </span>
-            <button
-              type="button"
-              aria-label={`Remove initial ${index + 1}`}
-              className="external-grid-remove-button"
-              onClick={() => onChange(removeRow(initialValues, index))}
-            >
-              -
-            </button>
+            <GridRowControls
+              canMoveDown={canMoveRowDown(initialValues, index)}
+              canMoveUp={canMoveRowUp(initialValues, index)}
+              onInsertAfter={() =>
+                onChange(insertRowAt(initialValues, index + 1, newInitialValueRow()))
+              }
+              onMoveDown={() => onChange(moveRow(initialValues, index, 1))}
+              onMoveUp={() => onChange(moveRow(initialValues, index, -1))}
+              onRemove={() => onChange(removeRow(initialValues, index))}
+              rowIndex={index}
+              rowTypeLabel="initial value"
+            />
           </div>
           );
         })}

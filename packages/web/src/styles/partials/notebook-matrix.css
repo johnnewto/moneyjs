@@ -376,27 +376,8 @@
 .notebook-matrix-editor-controlcell {
   padding-block: 0.2rem;
 }
-.notebook-matrix-editor-column-controls {
-  display: inline-grid;
-  gap: 0.2rem;
-  grid-template-columns: repeat(4, auto);
-}
-.notebook-matrix-editor-symbol-button {
-  align-items: center;
-  display: inline-flex;
-  font-size: 0.78rem;
-  justify-content: center;
-  min-height: 1.3rem;
-  min-width: 1.3rem;
-  padding: 0.04rem 0.14rem;
-}
-.notebook-matrix-editor-row-controls {
-  display: grid;
-  gap: 0.12rem;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
 .notebook-matrix-editor-action-head {
-  min-width: 4.5rem;
+  min-width: 3.4rem;
 }
 .notebook-matrix-editor-table tbody tr:last-child td,
 .notebook-matrix-editor-table tbody tr:last-child th {

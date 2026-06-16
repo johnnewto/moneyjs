@@ -10,9 +10,12 @@ import {
   canMoveRowUp,
   GridRowContextMenu,
   GridRowDeleteDialog,
+  insertRowAt,
+  moveRow,
   removeRow,
   useGridRowContextMenu
 } from "./GridRowContextMenu";
+import { GridRowControls } from "./GridRowControls";
 import { EquationUnitsPopover } from "./EquationGridEditor";
 
 interface ExternalEditorProps {
@@ -96,6 +99,20 @@ export function ExternalEditor({
                 text={row.text}
                 onContextMenu={(event) => rowContextMenu.handleRowContextMenu(event, index)}
                 onTextChange={(text) => onChange(patchCommentInRows(externals, row.id, text))}
+                rowControls={
+                  <GridRowControls
+                    canMoveDown={canMoveRowDown(externals, index)}
+                    canMoveUp={canMoveRowUp(externals, index)}
+                    onInsertAfter={() =>
+                      onChange(insertRowAt(externals, index + 1, newRowComment()))
+                    }
+                    onMoveDown={() => onChange(moveRow(externals, index, 1))}
+                    onMoveUp={() => onChange(moveRow(externals, index, -1))}
+                    onRemove={() => onChange(removeRow(externals, index))}
+                    rowIndex={index}
+                    rowTypeLabel="section comment"
+                  />
+                }
               />
             );
           }
@@ -177,14 +194,18 @@ export function ExternalEditor({
             >
               {issues[`externals.${index}.name`] ?? issues[`externals.${index}.valueText`] ?? "OK"}
             </span>
-            <button
-              type="button"
-              aria-label={`Remove external ${index + 1}`}
-              className="external-grid-remove-button"
-              onClick={() => onChange(removeRow(externals, index))}
-            >
-              -
-            </button>
+            <GridRowControls
+              canMoveDown={canMoveRowDown(externals, index)}
+              canMoveUp={canMoveRowUp(externals, index)}
+              onInsertAfter={() =>
+                onChange(insertRowAt(externals, index + 1, newExternalRow()))
+              }
+              onMoveDown={() => onChange(moveRow(externals, index, 1))}
+              onMoveUp={() => onChange(moveRow(externals, index, -1))}
+              onRemove={() => onChange(removeRow(externals, index))}
+              rowIndex={index}
+              rowTypeLabel="external"
+            />
           </div>
           );
         })}
