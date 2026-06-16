@@ -5,6 +5,7 @@ import { bmwBaselineModel, bmwBaselineOptions } from "../../core/src/fixtures/bm
 
 import {
   ACCOUNT_SUM_ROW_FLOW_UNIT_META,
+  ACCOUNT_TRANSACTIONS_SUM_ROW_DISPLAY_LABEL,
   applyMatrixEquationUpdates,
   buildProposedAccumulationExpression,
   collectProposedMatrixEquationUpdates,
@@ -12,6 +13,7 @@ import {
   equationExpressionsMatch,
   evaluateMatrixEntryNumber,
   evaluateMatrixColumnIntegratedDisplay,
+  formatAccountTransactionsSumRowDisplayLabel,
   isEditableAccountSumRowCell,
   isEmptyAccountSumRowSource,
   isSumRowStockAnnotation,
@@ -79,6 +81,14 @@ const accountTransactionsMatrix: MatrixCell = {
 const cells: NotebookCell[] = [equationsCell, runCell, accountTransactionsMatrix];
 
 describe("matrixAccountSumRow", () => {
+  it("uses an accumulation label for account-transactions sum rows", () => {
+    expect(ACCOUNT_TRANSACTIONS_SUM_ROW_DISPLAY_LABEL).toBe("initial + ∫ Σ(flows) dt");
+    expect(formatAccountTransactionsSumRowDisplayLabel(accountTransactionsMatrix, "Sum")).toBe(
+      ACCOUNT_TRANSACTIONS_SUM_ROW_DISPLAY_LABEL
+    );
+    expect(formatAccountTransactionsSumRowDisplayLabel(accountTransactionsMatrix, "Wages")).toBe("Wages");
+  });
+
   it("detects d(stock) sum-row annotations", () => {
     expect(isSumRowStockChangeAnnotation("d(Mh)")).toBe(true);
     expect(isSumRowStockChangeAnnotation("+d(Mh)")).toBe(true);

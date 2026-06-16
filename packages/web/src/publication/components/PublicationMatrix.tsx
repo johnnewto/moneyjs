@@ -9,7 +9,10 @@ import {
 } from "@sfcr/notebook-core";
 
 import { resolveMatrixCornerLabel, resolveMatrixTableKind } from "../../notebook/matrixSemantics";
-import { isEmptyAccountSumRowSource } from "../../notebook/matrixAccountSumRow";
+import {
+  formatAccountTransactionsSumRowDisplayLabel,
+  isEmptyAccountSumRowSource
+} from "../../notebook/matrixAccountSumRow";
 import type { MatrixCell } from "../../notebook/types";
 import type { PublicationVariableInteraction } from "../publicationInspect";
 import { renderPublicationFormula } from "../publicationFormula";
@@ -176,7 +179,7 @@ export function PublicationMatrix({
         <tbody>
           {cell.rows.map((row) => (
             <tr key={`${row.label}-${row.band ?? ""}`}>
-              <th scope="row">{row.label}</th>
+              <th scope="row">{formatAccountTransactionsSumRowDisplayLabel(cell, row.label)}</th>
               {row.values.map((source, columnIndex) => (
                 <td
                   key={`${row.label}-${columnIndex}`}

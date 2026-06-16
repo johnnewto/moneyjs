@@ -2115,7 +2115,20 @@
 .notebook-matrix-floating-column-header .notebook-matrix-table {
   border: 0;
   border-radius: 0;
+  margin-inline: 0;
   margin-top: 0;
+  max-width: none;
+}
+.notebook-matrix-floating-column-header-scroll {
+  width: 100%;
+}
+.notebook-floating-header .notebook-matrix-table thead tr > th:first-child,
+.notebook-matrix-floating-column-header .notebook-matrix-table thead tr > th:first-child {
+  background: var(--color-grid-header-bg);
+  box-shadow: 2px 0 4px rgba(15, 23, 42, 0.06);
+  left: 0;
+  position: sticky;
+  z-index: 1;
 }
 .notebook-floating-header thead th,
 .notebook-matrix-floating-column-header thead th {

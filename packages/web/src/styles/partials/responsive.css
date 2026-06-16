@@ -195,15 +195,8 @@
     max-width: 100%;
   }
 
-  .notebook-matrix-table {
-    min-width: 560px;
-  }
-
-  .notebook-matrix-row-header-col {
-    width: 12rem;
-  }
-
   .notebook-matrix-value-col {
+    min-width: 7.5rem;
     width: 7.5rem;
   }
 

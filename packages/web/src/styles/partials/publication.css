@@ -266,11 +266,30 @@ body:has(.publication-root) {
   overflow-x: auto;
 }
 
+.publication-matrix tbody th[scope="row"] {
+  background: #fff;
+  box-shadow: 2px 0 4px rgba(15, 23, 42, 0.06);
+  left: 0;
+  position: sticky;
+  z-index: 1;
+}
+
+.publication-matrix thead tr:first-child > th:first-child {
+  background: #efede8;
+  box-shadow: 2px 0 4px rgba(15, 23, 42, 0.06);
+  left: 0;
+  position: sticky;
+  z-index: 2;
+}
+
 .publication-matrix {
-  width: 100%;
   border-collapse: collapse;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.82rem;
+  margin-inline: auto;
+  max-width: 100%;
+  table-layout: auto;
+  width: max-content;
 }
 
 .publication-matrix th,
@@ -284,6 +303,8 @@ body:has(.publication-root) {
 .publication-matrix th:first-child,
 .publication-matrix td:first-child {
   text-align: left;
+  white-space: nowrap;
+  width: max-content;
 }
 
 .publication-matrix thead th {

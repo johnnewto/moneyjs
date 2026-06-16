@@ -52,6 +52,9 @@ describe("PublicationMatrix", () => {
     expect(screen.getAllByRole("columnheader", { name: "Banks" })[0]).toHaveAttribute("colspan", "4");
     expect(screen.getAllByRole("columnheader", { name: "Deposits" }).length).toBe(2);
     expect(screen.getByRole("columnheader", { name: "Sum" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("rowheader", { name: "initial + ∫ Σ(flows) dt" })
+    ).toBeInTheDocument();
     expect(container.querySelector("tbody td.publication-matrix-sector-start")).not.toBeNull();
   });
 });

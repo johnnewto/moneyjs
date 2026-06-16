@@ -38,6 +38,7 @@ import { NotebookRenderProfiler } from "../notebookProfiler";
 import {
   ACCOUNT_SUM_ROW_INTEGRATED_STOCK_UNIT_META,
   evaluateMatrixEntryNumber,
+  formatAccountTransactionsSumRowDisplayLabel,
   isAccountTransactionsMatrix,
   isEditableAccountSumRowCell,
   isEmptyAccountSumRowSource,
@@ -67,7 +68,8 @@ import {
 import { useMatrixColumnCollapseState } from "../matrixColumnCollapseStorage";
 import {
   useMatrixFloatingColumnHeader,
-  useSyncedHorizontalScroll
+  useSyncedHorizontalScroll,
+  useSyncedMatrixFloatingTableLayout
 } from "../useMatrixFloatingColumnHeader";
 import { MatrixColumnTreeHeader, useMatrixColumnLayout } from "./MatrixColumnTreeHeader";
 
@@ -122,6 +124,8 @@ export function MatrixCellView({
   const matrixRootRef = useRef<HTMLDivElement | null>(null);
   const matrixWrapRef = useRef<HTMLDivElement | null>(null);
   const matrixColumnRowRef = useRef<HTMLTableRowElement | null>(null);
+  const matrixTableRef = useRef<HTMLTableElement | null>(null);
+  const matrixFloatingTableRef = useRef<HTMLTableElement | null>(null);
   const matrixFloatingScrollRef = useRef<HTMLDivElement | null>(null);
   const variableInspectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const {
@@ -143,6 +147,23 @@ export function MatrixCellView({
       enabled: usesFloatingColumnHeader
     });
   useSyncedHorizontalScroll(matrixWrapRef, matrixFloatingScrollRef, floatingColumnHeaderVisible);
+  const matrixFloatingLayoutSyncKey = useMemo(
+    () =>
+      [
+        cell.id,
+        cell.columns.join("\u0000"),
+        [...collapsedColumnTreeNodeIds].sort().join("\u0000"),
+        displaySlots.length,
+        selectedPeriodIndex
+      ].join("|"),
+    [cell.columns, cell.id, collapsedColumnTreeNodeIds, displaySlots.length, selectedPeriodIndex]
+  );
+  useSyncedMatrixFloatingTableLayout({
+    enabled: floatingColumnHeaderVisible,
+    sourceHeaderRowRef: matrixColumnRowRef,
+    targetTableRef: matrixFloatingTableRef,
+    syncKey: matrixFloatingLayoutSyncKey
+  });
   const accountColumnLayout = usesMatrixAccountColumnLayout(cell.columnBadges);
   const sectorGroupedColumns =
     accountColumnLayout ||
@@ -735,6 +756,7 @@ export function MatrixCellView({
             onMouseDown={matrixDragScroll.dragScrollProps.onMouseDown}
           >
             <table
+              ref={matrixTableRef}
               className={[
                 "notebook-matrix-table",
                 sectorGroupedColumns ? "notebook-matrix-table-account-columns" : undefined
@@ -788,6 +810,7 @@ export function MatrixCellView({
                 className="notebook-floating-header-scroll notebook-matrix-floating-column-header-scroll"
               >
                 <table
+                  ref={matrixFloatingTableRef}
                   className={[
                     "notebook-matrix-table",
                     sectorGroupedColumns ? "notebook-matrix-table-account-columns" : undefined
@@ -1609,7 +1632,7 @@ function buildEvaluatedMatrix(
     });
 
     return {
-      label: row.label,
+      label: formatAccountTransactionsSumRowDisplayLabel(cell, row.label),
       entries: rowEntries,
       isBalanced: isInitialRow
         ? true

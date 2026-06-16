@@ -2,7 +2,8 @@ import type { RefObject } from "react";
 
 import {
   useNotebookFloatingHeaderRow,
-  useSyncedHorizontalScroll
+  useSyncedHorizontalScroll,
+  useSyncedMatrixFloatingTableLayout
 } from "./useNotebookFloatingHeaderRow";
 
 /** @deprecated Use useNotebookFloatingHeaderRow */
@@ -28,4 +29,4 @@ export function useMatrixFloatingColumnHeader({
   });
 }
 
-export { useSyncedHorizontalScroll };
+export { useSyncedHorizontalScroll, useSyncedMatrixFloatingTableLayout };

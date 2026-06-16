@@ -62,8 +62,19 @@ export function isAccountTransactionsMatrix(cell: MatrixCell): boolean {
   return resolveAccountingMatrixKind(cell) === "account-transactions";
 }
 
+export const ACCOUNT_TRANSACTIONS_SUM_ROW_DISPLAY_LABEL = "initial + ∫ Σ(flows) dt";
+
 export function isSumLabel(value: string): boolean {
   return value.trim().toLowerCase().replace(/[\s_-]+/g, " ") === "sum";
+}
+
+export function formatAccountTransactionsSumRowDisplayLabel(
+  matrix: MatrixCell,
+  rowLabel: string
+): string {
+  return isAccountTransactionsMatrix(matrix) && isSumLabel(rowLabel)
+    ? ACCOUNT_TRANSACTIONS_SUM_ROW_DISPLAY_LABEL
+    : rowLabel;
 }
 
 export function isEditableAccountSumRowCell(
