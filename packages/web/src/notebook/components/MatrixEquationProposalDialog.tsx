@@ -172,7 +172,12 @@ export function MatrixEquationProposalDialog({
                     value={draftExpressions[proposal.variable] ?? proposal.proposed.expression}
                     onChange={(event) => updateDraftExpression(proposal.variable, event.target.value)}
                   />
-                  <span className="matrix-unit-meta-dialog-sources">{proposal.source}</span>
+                  <span className="matrix-unit-meta-dialog-sources">
+                    {proposal.source}
+                    {proposal.warning ? (
+                      <span className="matrix-equation-proposal-warning">{proposal.warning}</span>
+                    ) : null}
+                  </span>
                 </div>
               );
             })}

@@ -152,6 +152,11 @@ export function SolverCellView({
           <span className="notebook-model-chip">
             Issues <strong>{countModelSectionIssues(issuePaths, "options.")}</strong>
           </span>
+          {issueMap["options.matrixInitialValues"] ? (
+            <span className="notebook-model-chip notebook-model-chip-warning">
+              Matrix initials <strong>override</strong>
+            </span>
+          ) : null}
         </div>
       </NotebookLinkedEditorHeader>
       {cell.collapsed ? null : isEditingSolver ? (
@@ -219,7 +224,16 @@ export function SolverCellView({
                 label: "Relative hidden tol.",
                 value: options.relativeHiddenTolerance ? "true" : "false",
                 status: "OK"
-              }
+              },
+              ...(issueMap["options.matrixInitialValues"]
+                ? [
+                    {
+                      label: "Matrix initials",
+                      value: issueMap["options.matrixInitialValues"],
+                      status: "Override"
+                    }
+                  ]
+                : [])
             ].map((row) => (
               <div
                 key={row.label}
@@ -891,6 +905,11 @@ export function InitialValuesCellView({
               }
             </strong>
           </span>
+          {issueMap["options.matrixInitialValues"] ? (
+            <span className="notebook-model-chip notebook-model-chip-warning">
+              Matrix initials <strong>override</strong>
+            </span>
+          ) : null}
           <span className="notebook-model-chip">
             Issues <strong>{countModelSectionIssues(issuePaths, "initialValues.")}</strong>
           </span>

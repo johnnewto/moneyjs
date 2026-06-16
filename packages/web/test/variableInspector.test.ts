@@ -195,6 +195,62 @@ describe("variableInspector matrix column sums", () => {
     expect(data?.equationInputs.current).toContain("YD");
   });
 
+  it("shows ∫ = I(columnRef) when inspecting an empty sum-row integral placeholder", () => {
+    const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
+    editor.equations = [
+      { id: "eq-wbd", name: "WBd", expression: "4" },
+      { id: "eq-cs", name: "Cs", expression: "1" }
+    ];
+
+    const data = buildVariableInspectorData({
+      editor,
+      notebookCells: [
+        {
+          id: "baseline-run",
+          type: "run",
+          title: "Baseline",
+          sourceModelId: "sim",
+          mode: "baseline",
+          resultKey: "baseline",
+          periods: 10
+        },
+        {
+          id: "account-transactions",
+          type: "matrix",
+          title: "Account transactions",
+          sourceRunCellId: "baseline-run",
+          accountingKind: "account-transactions",
+          columns: ["Deposits (Mh)", "Sum"],
+          sectors: ["Households(HH)", ""],
+          rows: [
+            { band: "Wages", label: "Wages", values: ["WBd", "0"] },
+            { band: "Consumption", label: "Consumption", values: ["-Cs", "0"] },
+            { band: "Sum", label: "Sum", values: ["", "0"] }
+          ]
+        }
+      ],
+      modelSource: { sourceModelId: "sim" },
+      sourceRunCellId: "baseline-run",
+      selectedVariable: "∫:Households.Deposits",
+      variableDescriptions: buildVariableDescriptions({
+        equations: editor.equations,
+        externals: editor.externals
+      }),
+      variableUnitMetadata: buildVariableUnitMetadata({
+        equations: editor.equations,
+        externals: editor.externals
+      })
+    });
+
+    expect(data?.kind).toBe("matrix-column-integral");
+    expect(data?.name).toBe("∫");
+    expect(data?.matrixColumnIntegral).toMatchObject({
+      columnRef: "Households.Deposits",
+      expression: "I(Households.Deposits)",
+      sources: ["WBd", "-Cs"]
+    });
+  });
+
   it("shows implicit I(columnRef) accumulation when inspecting a sum-row stock without an equation", () => {
     const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
     editor.equations = [

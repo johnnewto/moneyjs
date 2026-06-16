@@ -37,6 +37,7 @@ Set `accountingKind` to `account-transactions` (YAML alias `accountTransactions`
 - `columns` and `sectors` must have the same length.
 - `columnBadges` is optional but recommended for account layouts; use `asset`, `liability`, or `equity` (aliases such as `netWorth` normalize to equity).
 - The final column is usually `Sum`. The Sum row can hold stock expressions that other rows reference.
+- Optional `role: "initial"` row (typically first) sets opening stocks per column. Values map to the Sum-row stock variable for that column, override the linked initial-values cell at runtime, and are excluded from column integration (`I(columnRef)` / `sum(columnRef)`). In compact YAML arrays, use band `Initial` (e.g. `[Initial, Initial values, …]`).
 
 ## Row Totals And Signs
 

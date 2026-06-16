@@ -10,6 +10,7 @@ import {
   type UnitSignature,
   type VariableUnitMetadata
 } from "../lib/unitMeta";
+import { isMatrixInitialRow } from "@sfcr/notebook-core";
 import { resolveAccountingMatrixKind, type AccountingMatrixKind } from "./validation";
 import type { MatrixCell } from "./types";
 
@@ -42,6 +43,23 @@ function isSumLabel(value: string): boolean {
 
 function stripLeadingPlus(source: string): string {
   return source.startsWith("+") ? source.slice(1).trimStart() : source;
+}
+
+function expectedSignaturesForRow(
+  kind: AccountingMatrixKind,
+  isInitialRow: boolean
+): UnitSignature[] {
+  if (isInitialRow && kind === "account-transactions") {
+    return BALANCE_SHEET_SIGNATURES;
+  }
+  return expectedSignaturesForKind(kind);
+}
+
+function expectedUnitLabelsForRow(kind: AccountingMatrixKind, isInitialRow: boolean): string {
+  if (isInitialRow && kind === "account-transactions") {
+    return expectedUnitLabelsForKind("balance-sheet");
+  }
+  return expectedUnitLabelsForKind(kind);
 }
 
 function expectedSignaturesForKind(kind: AccountingMatrixKind): UnitSignature[] {
@@ -79,19 +97,36 @@ function signatureMatchesAllowed(signature: UnitSignature, allowed: UnitSignatur
   return allowed.some((candidate) => signaturesEqual(candidate, normalized));
 }
 
+function isPlainNumericLiteral(source: string): boolean {
+  const trimmed = source.trim();
+  if (!trimmed) {
+    return false;
+  }
+  return Number.isFinite(Number(trimmed));
+}
+
 export function validateMatrixEntryUnits(
   source: string,
   kind: AccountingMatrixKind,
   variableUnitMetadata: VariableUnitMetadata,
-  context?: MatrixEntryUnitContext & { cell?: Pick<MatrixCell, "id" | "title"> }
+  context?: MatrixEntryUnitContext & {
+    cell?: Pick<MatrixCell, "id" | "title">;
+    isInitialRow?: boolean;
+  }
 ): UnitDiagnostic[] {
   const trimmed = source.trim();
   if (isSkippableMatrixCellSource(trimmed)) {
     return [];
   }
 
-  const allowed = expectedSignaturesForKind(kind);
+  const isInitialRow = context?.isInitialRow === true;
+  if (isInitialRow && kind === "account-transactions" && isPlainNumericLiteral(trimmed)) {
+    return [];
+  }
+
+  const allowed = expectedSignaturesForRow(kind, isInitialRow);
   const location = formatEntryLocation(context);
+  const unitLabelKind = isInitialRow && kind === "account-transactions" ? "Account-transactions initial" : matrixKindLabel(kind);
 
   try {
     const expression = parseExpression(stripLeadingPlus(trimmed));
@@ -101,7 +136,7 @@ export function validateMatrixEntryUnits(
     if (inferred.signature == null) {
       diagnostics.push({
         severity: "warning",
-        message: `${matrixKindLabel(kind)} matrix cell${location} cannot verify units for '${trimmed}'.`
+        message: `${unitLabelKind} matrix cell${location} cannot verify units for '${trimmed}'.`
       });
       return diagnostics;
     }
@@ -111,7 +146,7 @@ export function validateMatrixEntryUnits(
         formatUnitText({ signature: inferred.signature }) ?? formatSignature(inferred.signature);
       diagnostics.push({
         severity: "error",
-        message: `${matrixKindLabel(kind)} matrix cell${location} expects ${expectedUnitLabelsForKind(kind)}, but '${trimmed}' infers ${inferredLabel}.`
+        message: `${unitLabelKind} matrix cell${location} expects ${expectedUnitLabelsForRow(kind, isInitialRow)}, but '${trimmed}' infers ${inferredLabel}.`
       });
     }
 
@@ -155,6 +190,8 @@ export function validateMatrixCellUnits(
       return;
     }
 
+    const isInitialRow = isMatrixInitialRow(row);
+
     row.values.forEach((value, columnIndex) => {
       if (columnIndex === sumColumnIndex) {
         return;
@@ -164,7 +201,8 @@ export function validateMatrixCellUnits(
         ...validateMatrixEntryUnits(value, kind, variableUnitMetadata, {
           rowLabel: row.label,
           columnLabel: cell.columns[columnIndex],
-          cell: { id: cell.id, title: cell.title }
+          cell: { id: cell.id, title: cell.title },
+          isInitialRow
         })
       );
     });

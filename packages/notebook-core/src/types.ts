@@ -236,6 +236,7 @@ export interface MatrixCell extends NotebookCellBase {
   rows: Array<{
     band?: string;
     label: string;
+    role?: "flow" | "initial";
     values: string[];
   }>;
 }

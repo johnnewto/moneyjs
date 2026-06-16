@@ -54,6 +54,7 @@
       "columnBadges": ["asset", "equity", "asset", "asset", "liability", "equity", "asset", "liability", "liability", "equity", ""],
       "sectors": ["Households(HH)", "Households(HH)", "Firms", "Firms", "Firms", "Firms", "Banks", "Banks", "Banks", "Banks", ""],
       "rows": [
+        { "band": "Initial", "label": "Initial values", "role": "initial", "values": ["0", "0", "0", "", "0", "", "", "", "", "", "0"] },
         { "band": "Wages", "label": "Wages", "values": ["WBd", "WBd", "-WBd", "", "", "-WBd", "", "-WBd", "+WBd", "", "0"] },
         { "band": "Consumption", "label": "Consumption", "values": ["-Cs", "-Cs", "+Cd", "", "", "+Cd", "", "+Cs", "-Cd", "", "0"] },
         { "band": "Investment", "label": "Investment", "values": ["", "", "+Is", "-Is", "", "", "", "", "", "", "0"] },

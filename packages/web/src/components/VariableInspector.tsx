@@ -160,6 +160,20 @@ export function VariableInspector({
                 variableDescriptions={variableDescriptions}
                 variableUnitMetadata={variableUnitMetadata}
               />
+            ) : data.matrixColumnIntegral ? (
+              <div className="inspector-matrix-column-sum">
+                <p className="inspector-matrix-column-sum-expression">
+                  <code>∫ = {data.matrixColumnIntegral.expression}</code>
+                </p>
+                {data.generatedEquationExplanation ? (
+                  <p>{data.generatedEquationExplanation}</p>
+                ) : null}
+                <StaticChipList
+                  emptyLabel="No linked matrix entries."
+                  label="Column entries"
+                  values={data.matrixColumnIntegral.sources}
+                />
+              </div>
             ) : data.matrixColumnSum ? (
               <div className="inspector-matrix-column-sum">
                 <p className="inspector-matrix-column-sum-expression">

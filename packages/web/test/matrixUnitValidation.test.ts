@@ -52,6 +52,15 @@ describe("matrixUnitValidation", () => {
     ]);
   });
 
+  it("skips unit validation for numeric literals in account-transactions initial rows", () => {
+    const diagnostics = validateMatrixEntryUnits("45", "account-transactions", bmwUnitMetadata, {
+      rowLabel: "Initial values",
+      columnLabel: "Equity",
+      isInitialRow: true
+    });
+    expect(diagnostics).toEqual([]);
+  });
+
   it("validates all non-sum cells in an accounting matrix", () => {
     const cell: MatrixCell = {
       id: "balance-sheet",

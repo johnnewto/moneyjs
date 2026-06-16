@@ -7,6 +7,7 @@ import {
   columnHasFlowEntries,
   formatMatrixColumnSumReference,
   formatQualifiedMatrixColumnSumReference,
+  resolveMatrixColumnAccumulationFlowWarning,
   resolveMatrixColumnSumBindings,
   resolveMatrixColumnSumInspectContext
 } from "../src/notebook/matrixColumnSumRuntime";
@@ -140,6 +141,39 @@ describe("matrixColumnSumRuntime", () => {
       { name: "Ld", expression: "Ld'", role: "accumulation" },
       { name: "Mh", expression: "I(Households.Deposits)", role: "accumulation" }
     ]);
+  });
+
+  it("collects implicit accumulation from sum-row stock annotations only", () => {
+    const matrix: MatrixCell = {
+      ...accountTransactionsMatrix,
+      columns: ["Households.Deposits (Mh)", "Sum"],
+      sectors: ["Households", ""],
+      columnBadges: ["asset", ""],
+      rows: [
+        { band: "Wages", label: "Wages", values: ["WBd", "0"] },
+        { band: "Sum", label: "Sum", values: ["", "0"] }
+      ]
+    };
+
+    expect(
+      collectImplicitMatrixAccumulationEquations({
+        cells: [runCell, matrix],
+        modelId,
+        runCellId: "baseline-run",
+        existingEquationNames: new Set()
+      })
+    ).toEqual([]);
+  });
+
+  it("warns when a sum-row stock column has no flow entries", () => {
+    expect(
+      resolveMatrixColumnAccumulationFlowWarning({
+        cells: [runCell, accountTransactionsMatrix],
+        modelId,
+        runCellId: "baseline-run",
+        stockVariable: "Ld"
+      })
+    ).toContain("no flow entries");
   });
 
   it("skips implicit equations when the model already defines the stock", () => {

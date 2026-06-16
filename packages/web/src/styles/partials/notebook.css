@@ -1545,6 +1545,25 @@
   color: var(--color-text-strong);
   font-size: 0.8rem;
 }
+.notebook-model-chip-warning {
+  border-color: rgba(217, 119, 6, 0.35);
+  color: #92400e;
+}
+.notebook-matrix-initial-override-warning {
+  background: rgba(254, 243, 199, 0.92);
+  border: 1px solid rgba(217, 119, 6, 0.35);
+  border-radius: var(--radius-md);
+  color: #92400e;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  margin: 0 0 0.55rem;
+  padding: 0.45rem 0.65rem;
+}
+.notebook-matrix-initial-row .matrix-entry-resolved,
+.notebook-matrix-initial-row .matrix-entry-value {
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
 .notebook-equation-row-editor {
   display: grid;
   gap: 0.35rem;

@@ -24,6 +24,7 @@ import {
 } from "@sfcr/notebook-core";
 import type { NotebookCell } from "../notebook/types";
 import { resolveMatrixColumnSumBindingBundle, collectImplicitMatrixAccumulationEquations } from "../notebook/matrixColumnSumRuntime";
+import { resolveMatrixInitialValues } from "../notebook/matrixInitialRow";
 import { stringifyJsonWithCompactLeaves } from "../lib/jsonFormat";
 import type { UnitMeta } from "../lib/unitMeta";
 import { buildVariableUnitMetadata, diagnoseEquationUnits } from "../lib/units";
@@ -213,7 +214,7 @@ export function buildRuntimeConfig(
       .map((external) => [external.name.trim(), parseExternal(external.kind, external.valueText)])
   );
 
-  const initialValues = Object.fromEntries(
+  const cellInitialValues = Object.fromEntries(
     initialValueRowsOnly(editor.initialValues)
       .filter(
         (initial) =>
@@ -223,6 +224,20 @@ export function buildRuntimeConfig(
       )
       .map((initial) => [initial.name.trim(), parseNumber(initial.valueText)])
   );
+
+  const matrixInitialValues =
+    runtimeOptions?.notebookCells && runtimeOptions.modelId && runtimeOptions.runCellId
+      ? resolveMatrixInitialValues({
+          cells: runtimeOptions.notebookCells,
+          modelId: runtimeOptions.modelId,
+          runCellId: runtimeOptions.runCellId
+        })
+      : {};
+
+  const initialValues = {
+    ...cellInitialValues,
+    ...matrixInitialValues
+  };
 
   const matrixColumnSumBundle =
     runtimeOptions?.notebookCells &&

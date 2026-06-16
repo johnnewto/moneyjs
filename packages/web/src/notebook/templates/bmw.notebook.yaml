@@ -56,6 +56,7 @@ cells:
       columnBadges: [asset, equity, asset, asset, liability, equity, asset, liability, liability, equity, ""]
       accountingKind: account-transactions
       rows:
+        - [Initial, Initial values, "0", "0", "0", "", "0", "", "", "", "", "", "0"]
         - [Wages, Wages, WBd, WBd, -WBd, "", "", -WBd, "", -WBd, +WBd, "", "0"]
         - [Consumption, Consumption, -Cs, -Cs, +Cd, "", "", +Cd, "", +Cs, -Cd, "", "0"]
         - [Investment, Investment, "", "", +Is, -Is, "", "", "", "", "", "", "0"]

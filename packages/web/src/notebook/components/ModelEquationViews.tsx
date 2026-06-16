@@ -35,6 +35,7 @@ import { buildVariableUnitMetadata } from "../../lib/units";
 import { useDragScroll } from "../../hooks/useDragScroll";
 import { useEquationValueColumnsCollapse } from "../../hooks/useEquationValueColumnsCollapse";
 import { buildEditorStateFromSections, countModelSectionIssues, findEquationsCell, findExternalsCell, findInitialValuesCell, findSolverCell } from "../modelSections";
+import { collectMatrixInitialValueOverrideIssues } from "../matrixInitialRow";
 import type { VariableInspectRequest } from "../../lib/variableInspect";
 import type { EquationsCell, ExternalsCell, ModelCell, NotebookCell, SolverCell } from "../types";
 import { NotebookLinkedEditorActions, NotebookLinkedEditorHeader } from "./NotebookCellHeader";
@@ -1109,11 +1110,17 @@ export function buildIssueMapForStandaloneModelSections(
   }
 
   const editor = buildEditorStateForStandaloneModelSections(cells, modelId);
+  const matrixInitialIssues = collectMatrixInitialValueOverrideIssues({
+    cells,
+    modelId,
+    cellInitialValues: findInitialValuesCell(cells, modelId)?.initialValues ?? []
+  });
 
   return Object.fromEntries(
-    [...validateEditorState(editor), ...diagnoseBuildRuntime(editor).issues].map((issue) => [
-      issue.path,
-      issue.message
-    ])
+    [
+      ...validateEditorState(editor),
+      ...diagnoseBuildRuntime(editor).issues,
+      ...matrixInitialIssues
+    ].map((issue) => [issue.path, issue.message])
   );
 }

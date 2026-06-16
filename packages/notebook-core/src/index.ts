@@ -1,5 +1,6 @@
 export * from "./accountingMatrixKind";
 export * from "./matrixAccountColumns";
+export * from "./matrixRowRole";
 export * from "./matrixColumnTree";
 export * from "./document/index";
 export * from "./diagnostics";

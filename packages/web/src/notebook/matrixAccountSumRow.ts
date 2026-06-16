@@ -1,5 +1,5 @@
 import { isSkippableMatrixCellSource } from "@sfcr/core";
-import { isRowComment } from "@sfcr/notebook-core";
+import { findMatrixInitialRowIndex, isRowComment, listMatrixFlowRowIndices } from "@sfcr/notebook-core";
 
 import { evaluateExpression, parseExpression, type EquationRole, type SimulationResult } from "@sfcr/core";
 import { parseVariableFromColumnLabel, resolveMatrixColumnInspectVariable } from "@sfcr/notebook-core";
@@ -21,6 +21,11 @@ const MATRIX_BALANCE_TOLERANCE = 1e-6;
 export const ACCOUNT_SUM_ROW_FLOW_UNIT_META: UnitMeta = {
   stockFlow: "flow",
   signature: { money: 1, time: -1 }
+};
+
+export const ACCOUNT_SUM_ROW_INTEGRATED_STOCK_UNIT_META: UnitMeta = {
+  stockFlow: "stock",
+  signature: { money: 1 }
 };
 
 export function isEmptyAccountSumRowSource(source: string): boolean {
@@ -50,6 +55,7 @@ export interface ProposedMatrixEquationUpdate {
   };
   source: string;
   isMismatch: boolean;
+  warning?: string;
 }
 
 export function isAccountTransactionsMatrix(cell: MatrixCell): boolean {
@@ -106,6 +112,122 @@ export function sumRowHasStockAnnotations(matrix: MatrixCell): boolean {
   }) ?? false;
 }
 
+/** Resolves the stock variable named explicitly in the Sum row for an account column. */
+export function resolveMatrixColumnStockVariable(
+  matrix: MatrixCell,
+  columnIndex: number
+): string | null {
+  const sumRowIndex = matrix.rows.findIndex((row) => isSumLabel(row.label));
+  if (sumRowIndex < 0) {
+    return null;
+  }
+
+  const sumSource = matrix.rows[sumRowIndex]?.values[columnIndex]?.trim() ?? "";
+  if (!sumSource || sumSource === "0" || !isSumRowStockAnnotation(sumSource)) {
+    return null;
+  }
+
+  return resolveSumRowStockVariable(matrix, columnIndex, sumSource);
+}
+
+export function resolveMatrixColumnInitialConstant(matrix: MatrixCell, columnIndex: number): number {
+  const sumRowIndex = matrix.rows.findIndex((row) => isSumLabel(row.label));
+  if (sumRowIndex < 0) {
+    return 0;
+  }
+
+  const initialRowIndex = findMatrixInitialRowIndex(matrix, sumRowIndex);
+  if (initialRowIndex == null) {
+    return 0;
+  }
+
+  const source = matrix.rows[initialRowIndex]?.values[columnIndex]?.trim() ?? "";
+  if (!source || isSkippableMatrixCellSource(source)) {
+    return 0;
+  }
+
+  const value = Number(source);
+  return Number.isFinite(value) ? value : 0;
+}
+
+export function evaluateMatrixColumnFlowSumAtPeriod(
+  matrix: MatrixCell,
+  columnIndex: number,
+  result: SimulationResult | null,
+  periodIndex: number
+): number | null {
+  if (!result) {
+    return null;
+  }
+
+  const sumRowIndex = matrix.rows.findIndex((row) => isSumLabel(row.label));
+  if (sumRowIndex < 0) {
+    return null;
+  }
+
+  let total = 0;
+  for (const rowIndex of listMatrixFlowRowIndices(matrix, sumRowIndex)) {
+    const source = matrix.rows[rowIndex]?.values[columnIndex]?.trim() ?? "";
+    if (isSkippableMatrixCellSource(source)) {
+      continue;
+    }
+
+    const value = evaluateMatrixEntryNumber(source, result, periodIndex);
+    if (value == null) {
+      return null;
+    }
+    total += value;
+  }
+
+  return total;
+}
+
+export function evaluateMatrixColumnIntegratedDisplay(
+  matrix: MatrixCell,
+  columnIndex: number,
+  result: SimulationResult | null,
+  periodIndex: number,
+  dt = 1
+): number | null {
+  if (!result) {
+    return null;
+  }
+
+  let integrated = resolveMatrixColumnInitialConstant(matrix, columnIndex);
+  for (let period = 1; period <= periodIndex; period += 1) {
+    const flowSum = evaluateMatrixColumnFlowSumAtPeriod(matrix, columnIndex, result, period);
+    if (flowSum == null) {
+      return null;
+    }
+    integrated += flowSum * dt;
+  }
+
+  return integrated;
+}
+
+export function columnAccumulationMissingFlowsMessage(columnLabel: string): string {
+  return `Column "${columnLabel}" has no flow entries; accumulation expects column flows.`;
+}
+
+export const MATRIX_INTEGRAL_INSPECT_PREFIX = "∫:";
+
+export function formatMatrixIntegralInspectVariable(columnRef: string): string {
+  return `${MATRIX_INTEGRAL_INSPECT_PREFIX}${columnRef.trim()}`;
+}
+
+export function parseMatrixIntegralInspectVariable(selectedVariable: string): string | null {
+  const trimmed = selectedVariable.trim();
+  if (!trimmed.startsWith(MATRIX_INTEGRAL_INSPECT_PREFIX)) {
+    return null;
+  }
+  const columnRef = trimmed.slice(MATRIX_INTEGRAL_INSPECT_PREFIX.length).trim();
+  return columnRef || null;
+}
+
+export function formatMatrixIntegralEquation(columnRef: string): string {
+  return `I(${columnRef.trim()})`;
+}
+
 export function resolveSumRowStockVariable(
   cell: MatrixCell,
   columnIndex: number,
@@ -134,7 +256,7 @@ export function buildSymbolicColumnFlowSum(
 ): string {
   const terms: string[] = [];
 
-  for (let rowIndex = 0; rowIndex < sumRowIndex; rowIndex += 1) {
+  for (const rowIndex of listMatrixFlowRowIndices(matrix, sumRowIndex)) {
     const raw = matrix.rows[rowIndex]?.values[columnIndex]?.trim() ?? "";
     if (!raw || raw === "0") {
       continue;
@@ -285,7 +407,12 @@ export function resolveAccountSumRowDisplayValue(
   source: string,
   columnSum: number | null,
   result: SimulationResult | null,
-  selectedPeriodIndex: number
+  selectedPeriodIndex: number,
+  options?: {
+    stockVariable?: string | null;
+    matrix?: MatrixCell;
+    columnIndex?: number;
+  }
 ): number | null {
   const trimmed = source.trim();
   if (trimmed && trimmed !== "0") {
@@ -293,6 +420,28 @@ export function resolveAccountSumRowDisplayValue(
     if (evaluated != null) {
       return evaluated;
     }
+  }
+
+  const stock = options?.stockVariable?.trim();
+  if (stock && result) {
+    const stockValue = evaluateMatrixEntryNumber(stock, result, selectedPeriodIndex);
+    if (stockValue != null) {
+      return stockValue;
+    }
+  }
+
+  if (
+    isEmptyAccountSumRowSource(source) &&
+    options?.matrix &&
+    options.columnIndex != null &&
+    result
+  ) {
+    return evaluateMatrixColumnIntegratedDisplay(
+      options.matrix,
+      options.columnIndex,
+      result,
+      selectedPeriodIndex
+    );
   }
 
   return columnSum;
@@ -363,6 +512,14 @@ function resolveStockUnitMeta(
   return defaultStockUnitMeta();
 }
 
+function buildMatrixAccumulationProposalSource(sumRowSource: string, columnLabel: string): string {
+  const trimmedSource = sumRowSource.trim();
+  if (trimmedSource && trimmedSource !== "0") {
+    return `Sum row ${trimmedSource} · ${columnLabel}`;
+  }
+  return `Column ${columnLabel}`;
+}
+
 export function collectProposedMatrixEquationUpdates(args: {
   cells: NotebookCell[];
   matrix: MatrixCell;
@@ -385,21 +542,17 @@ export function collectProposedMatrixEquationUpdates(args: {
 
   const updates: ProposedMatrixEquationUpdate[] = [];
 
-  args.matrix.rows[sumRowIndex]?.values.forEach((source, columnIndex) => {
+  for (let columnIndex = 0; columnIndex < args.matrix.columns.length; columnIndex += 1) {
     if (columnIndex === sumColumnIndex) {
-      return;
+      continue;
     }
 
-    const trimmedSource = source.trim();
-    if (!trimmedSource || trimmedSource === "0" || !isSumRowStockAnnotation(trimmedSource)) {
-      return;
-    }
-
-    const variable = resolveSumRowStockVariable(args.matrix, columnIndex, trimmedSource);
+    const variable = resolveMatrixColumnStockVariable(args.matrix, columnIndex);
     if (!variable) {
-      return;
+      continue;
     }
 
+    const trimmedSource = args.matrix.rows[sumRowIndex]?.values[columnIndex]?.trim() ?? "";
     const columnLabel = args.matrix.columns[columnIndex]?.trim() ?? variable;
     const sectorLabel = args.matrix.sectors?.[columnIndex]?.trim() ?? "";
     const columnRef = sectorLabel
@@ -407,6 +560,7 @@ export function collectProposedMatrixEquationUpdates(args: {
       : formatMatrixColumnSumReference(columnLabel);
     const hasFlows = columnHasFlowEntries(args.matrix, columnIndex, sumRowIndex);
     const proposedExpression = buildProposedAccumulationExpression(variable, columnRef, hasFlows);
+    const warning = hasFlows ? undefined : columnAccumulationMissingFlowsMessage(columnLabel);
     const existingIndex = equationsCell.equations.findIndex(
       (equation) => !isRowComment(equation) && equation.name.trim() === variable
     );
@@ -429,10 +583,11 @@ export function collectProposedMatrixEquationUpdates(args: {
         cellId: equationsCell.id,
         rowIndex: null,
         proposed,
-        source: `Sum row ${trimmedSource} · ${columnLabel}`,
-        isMismatch: true
+        source: buildMatrixAccumulationProposalSource(trimmedSource, columnLabel),
+        isMismatch: true,
+        ...(warning ? { warning } : {})
       });
-      return;
+      continue;
     }
 
     const isMismatch = !equationExpressionsMatch(existing.expression, proposedExpression, variable);
@@ -446,10 +601,11 @@ export function collectProposedMatrixEquationUpdates(args: {
         expression: existing.expression,
         ...(existing.role ? { role: existing.role } : {})
       },
-      source: `Sum row ${trimmedSource} · ${columnLabel}`,
-      isMismatch
+      source: buildMatrixAccumulationProposalSource(trimmedSource, columnLabel),
+      isMismatch,
+      ...(warning ? { warning } : {})
     });
-  });
+  }
 
   return updates.sort((left, right) => left.variable.localeCompare(right.variable));
 }

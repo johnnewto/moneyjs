@@ -24,10 +24,15 @@ import {
   evaluateMatrixColumnSumAtPeriod,
   collectImplicitMatrixAccumulationEquations,
   resolveImplicitMatrixAccumulationEquation,
+  resolveMatrixColumnAccumulationFlowWarning,
   resolveMatrixColumnSumBindings,
   resolveMatrixColumnSumInspectContext,
   resolveMatrixColumnSumBindingsForRef
 } from "../notebook/matrixColumnSumRuntime";
+import {
+  formatMatrixIntegralEquation,
+  parseMatrixIntegralInspectVariable
+} from "../notebook/matrixAccountSumRow";
 import type { VariableDescriptions } from "./variableDescriptions";
 import type { VariableUnitMetadata } from "./unitMeta";
 import {
@@ -43,7 +48,7 @@ export interface VariableInspectorData {
   description?: string;
   unitLabel?: string | null;
   parameterNames: string[];
-  kind: "equation" | "external" | "initial-only" | "matrix-column-sum" | "unknown";
+  kind: "equation" | "external" | "initial-only" | "matrix-column-sum" | "matrix-column-integral" | "unknown";
   roleLabel: string;
   roleSummary: string;
   equationRoleLabel: string | null;
@@ -58,6 +63,11 @@ export interface VariableInspectorData {
     expression: string;
     sources: string[];
     stockVariable: string | null;
+  };
+  matrixColumnIntegral?: {
+    columnRef: string;
+    expression: string;
+    sources: string[];
   };
   equationInputs: {
     current: string[];
@@ -99,8 +109,14 @@ export function buildVariableInspectorData(args: {
     return null;
   }
 
+  const integralColumnRef = parseMatrixIntegralInspectVariable(selectedVariable);
+  const matrixColumnSumSelectedVariable = integralColumnRef ?? selectedVariable;
+
   const inspectorRuntime = resolveInspectorRuntimeContext(args);
-  const matrixColumnSumContext = resolveMatrixColumnSumInspectorContext(args, selectedVariable);
+  const matrixColumnSumContext = resolveMatrixColumnSumInspectorContext(
+    args,
+    matrixColumnSumSelectedVariable
+  );
 
   const explicitEquations = args.editor.equations.filter(
     (equation): equation is EquationRow => !isRowComment(equation)
@@ -196,21 +212,41 @@ export function buildVariableInspectorData(args: {
     ? "equation"
     : externalDefinition
       ? "external"
-      : matrixColumnSumContext
-        ? "matrix-column-sum"
-        : initialValue != null
-          ? "initial-only"
-          : "unknown";
+      : integralColumnRef
+        ? "matrix-column-integral"
+        : matrixColumnSumContext
+          ? "matrix-column-sum"
+          : initialValue != null
+            ? "initial-only"
+            : "unknown";
 
-  const generatedEquationExplanation = effectiveDefiningEquation
-    ? buildGeneratedEquationExplanation(
-        effectiveDefiningEquation,
-        args.variableDescriptions,
-        inspectorRuntime?.matrixColumnSums
-      )
-    : matrixColumnSumContext
-      ? `This period's net flow through ${selectedVariable} is the sum of the linked account-transactions column entries.`
-      : null;
+  const generatedEquationExplanation = (() => {
+    if (integralColumnRef) {
+      return "This integrated column level accumulates flow entries from the linked account-transactions matrix. Name a stock in the Sum row to add it to the model.";
+    }
+
+    const base = effectiveDefiningEquation
+      ? buildGeneratedEquationExplanation(
+          effectiveDefiningEquation,
+          args.variableDescriptions,
+          inspectorRuntime?.matrixColumnSums
+        )
+      : matrixColumnSumContext
+        ? `This period's net flow through ${selectedVariable} is the sum of the linked account-transactions column entries.`
+        : null;
+
+    if (!base || !isImplicitEquation || !inspectorRuntime) {
+      return base;
+    }
+
+    const flowWarning = resolveMatrixColumnAccumulationFlowWarning({
+      cells: inspectorRuntime.cells,
+      modelId: inspectorRuntime.modelId,
+      runCellId: inspectorRuntime.runCellId,
+      stockVariable: selectedVariable
+    });
+    return flowWarning ? `${base} ${flowWarning}` : base;
+  })();
   const equationRoleMeta = effectiveDefiningEquation
     ? buildEquationRoleMeta(effectiveDefiningEquation, isImplicitEquation)
     : { label: null, sourceLabel: null };
@@ -229,7 +265,7 @@ export function buildVariableInspectorData(args: {
   });
 
   return {
-    name: selectedVariable,
+    name: integralColumnRef ? "∫" : selectedVariable,
     description,
     unitLabel,
     parameterNames,
@@ -248,12 +284,19 @@ export function buildVariableInspectorData(args: {
     definingEquation: effectiveDefiningEquation,
     isImplicitEquation,
     generatedEquationExplanation,
-    matrixColumnSum: matrixColumnSumContext
+    matrixColumnSum: matrixColumnSumContext && !integralColumnRef
       ? {
           columnRef: matrixColumnSumContext.columnRef,
           expression: matrixColumnSumContext.expression,
           sources: matrixColumnSumContext.sources,
           stockVariable: matrixColumnSumContext.stockVariable
+        }
+      : undefined,
+    matrixColumnIntegral: integralColumnRef
+      ? {
+          columnRef: integralColumnRef,
+          expression: formatMatrixIntegralEquation(integralColumnRef),
+          sources: matrixColumnSumContext?.sources ?? []
         }
       : undefined,
     equationInputs: {
@@ -557,6 +600,10 @@ function buildRoleSummary(args: {
     return `This matrix column sum aggregates ${pluralize(args.affectedByCount, "linked flow term")} from the account-transactions matrix.`;
   }
 
+  if (args.kind === "matrix-column-integral") {
+    return `This integrated column level aggregates ${pluralize(args.affectedByCount, "linked flow term")} from the account-transactions matrix.`;
+  }
+
   if (args.kind === "external") {
     return `This exogenous ${typeFragment} feeds ${pluralize(args.affectsCount, "downstream equation")} in the current model.`;
   }
@@ -582,6 +629,8 @@ function formatRoleLabel(kind: VariableInspectorData["kind"]): string {
       return "Initial condition";
     case "matrix-column-sum":
       return "Matrix column sum";
+    case "matrix-column-integral":
+      return "Matrix column integral";
     default:
       return "Unresolved";
   }

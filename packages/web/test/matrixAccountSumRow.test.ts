@@ -11,13 +11,15 @@ import {
   defaultSelectedMatrixEquationVariables,
   equationExpressionsMatch,
   evaluateMatrixEntryNumber,
+  evaluateMatrixColumnIntegratedDisplay,
   isEditableAccountSumRowCell,
   isEmptyAccountSumRowSource,
   isSumRowStockAnnotation,
   isSumRowStockChangeAnnotation,
-  sumRowHasStockAnnotations,
   resolveAccountSumRowCellBalance,
-  resolveAccountSumRowDisplayValue
+  resolveAccountSumRowDisplayValue,
+  resolveMatrixColumnStockVariable,
+  sumRowHasStockAnnotations
 } from "../src/notebook/matrixAccountSumRow";
 import { formatUnitText } from "../src/lib/unitMeta";
 import { getNotebookTemplateDocument } from "../src/notebook/templates";
@@ -235,9 +237,12 @@ describe("matrixAccountSumRow", () => {
   it("treats matching accumulation expressions as non-mismatch proposals", () => {
     const matchingMatrix: MatrixCell = {
       ...accountTransactionsMatrix,
+      columns: ["Households.Deposits (Mh)", "Sum"],
+      sectors: ["Households", ""],
+      columnBadges: ["asset", ""],
       rows: [
-        { band: "Income", label: "Income", values: ["YD - Cd", "", "0"] },
-        { band: "Sum", label: "Sum", values: ["d(Mh)", "", "0"] }
+        { band: "Income", label: "Income", values: ["YD - Cd", "0"] },
+        { band: "Sum", label: "Sum", values: ["d(Mh)", "0"] }
       ]
     };
     const matchingEquations: EquationsCell = {
@@ -307,6 +312,18 @@ describe("matrixAccountSumRow", () => {
     expect(isEmptyAccountSumRowSource("d(Mh)")).toBe(false);
   });
 
+  it("warns when proposing accumulation for a sum-row stock without column flows", () => {
+    const updates = collectProposedMatrixEquationUpdates({
+      cells,
+      matrix: accountTransactionsMatrix,
+      modelId
+    });
+
+    expect(updates.find((update) => update.variable === "Ld")?.warning).toContain(
+      "no flow entries"
+    );
+  });
+
   it("uses default flow units for empty sum-row display", () => {
     expect(formatUnitText(ACCOUNT_SUM_ROW_FLOW_UNIT_META)).toBe("$/yr");
   });
@@ -333,8 +350,71 @@ describe("matrixAccountSumRow", () => {
 
     expect(resolveAccountSumRowDisplayValue("d(Mh)", 999, result, 1)).toBe(10);
     expect(resolveAccountSumRowDisplayValue("Mh", 999, result, 1)).toBe(110);
+    expect(
+      resolveAccountSumRowDisplayValue("", 42, result, 1, { stockVariable: "Mh" })
+    ).toBe(110);
     expect(resolveAccountSumRowDisplayValue("", 42, result, 1)).toBe(42);
     expect(resolveAccountSumRowDisplayValue("0", 42, result, 1)).toBe(42);
+  });
+
+  it("does not infer stock variables from column labels when the sum row is empty", () => {
+    const emptySumRowMatrix: MatrixCell = {
+      ...accountTransactionsMatrix,
+      columns: ["Households.Deposits (Mh)", "Sum"],
+      sectors: ["Households", ""],
+      columnBadges: ["asset", ""],
+      rows: [
+        { band: "Wages", label: "Wages", values: ["WBd", "0"] },
+        { band: "Sum", label: "Sum", values: ["", "0"] }
+      ]
+    };
+
+    expect(resolveMatrixColumnStockVariable(emptySumRowMatrix, 0)).toBeNull();
+    expect(sumRowHasStockAnnotations(emptySumRowMatrix)).toBe(false);
+    expect(
+      collectProposedMatrixEquationUpdates({
+        cells,
+        matrix: emptySumRowMatrix,
+        modelId
+      })
+    ).toEqual([]);
+  });
+
+  it("integrates column flows from the initial row when the sum row is empty", () => {
+    const matrix: MatrixCell = {
+      ...accountTransactionsMatrix,
+      columns: ["Households.Deposits (Mh)", "Sum"],
+      sectors: ["Households", ""],
+      columnBadges: ["asset", ""],
+      rows: [
+        { band: "Initial", label: "Initial values", role: "initial", values: ["100", "0"] },
+        { band: "Wages", label: "Wages", values: ["4", "0"] },
+        { band: "Consumption", label: "Consumption", values: ["-1", "0"] },
+        { band: "Sum", label: "Sum", values: ["", "0"] }
+      ]
+    };
+    const result: SimulationResult = {
+      blocks: [],
+      model: { equations: [], externals: {}, initialValues: {} },
+      options: {
+        periods: 2,
+        solverMethod: "NEWTON",
+        tolerance: 1e-15,
+        maxIterations: 200,
+        defaultInitialValue: 1e-15
+      },
+      series: {
+        WBd: new Float64Array([4, 4, 4]),
+        Cs: new Float64Array([1, 1, 1])
+      }
+    };
+
+    expect(evaluateMatrixColumnIntegratedDisplay(matrix, 0, result, 0)).toBe(100);
+    expect(evaluateMatrixColumnIntegratedDisplay(matrix, 0, result, 1)).toBe(103);
+    expect(evaluateMatrixColumnIntegratedDisplay(matrix, 0, result, 2)).toBe(106);
+    expect(
+      resolveAccountSumRowDisplayValue("", 999, result, 2, { matrix, columnIndex: 0 })
+    ).toBe(106);
   });
 
   it("BMW interest on deposits row sums to zero at period 3", () => {

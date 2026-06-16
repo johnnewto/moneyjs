@@ -190,6 +190,10 @@
       "properties": {
         "band": { "type": "string" },
         "label": { "type": "string" },
+        "role": {
+          "type": "string",
+          "enum": ["flow", "initial"]
+        },
         "values": {
           "type": "array",
           "items": { "type": "string" }

@@ -1,4 +1,5 @@
 import { normalizeAccountingMatrixKindInput, normalizeMatrixCellAccountingKind } from "../accountingMatrixKind";
+import { inferMatrixRowRoleFromLabels, normalizeMatrixRowRole } from "../matrixRowRole";
 import { parseMatrixColumnBadges } from "../matrixAccountColumns";
 import { parseMatrixColumnTree } from "../matrixColumnTree";
 import {
@@ -252,7 +253,13 @@ export function buildCompactMatrixDescriptor(
     ...(cell.variables ? { variables: cell.variables } : {}),
     ...(cell.columnTree ? { columnTree: cell.columnTree } : {}),
     ...(cell.accountingKind ? { accountingKind: cell.accountingKind } : {}),
-    rows: cell.rows.map((row) => (row.band == null ? { label: row.label, values: row.values } : [row.band, row.label, ...row.values]))
+    rows: cell.rows.map((row) =>
+      row.band != null
+        ? [row.band, row.label, ...row.values]
+        : row.role == null
+          ? { label: row.label, values: row.values }
+          : { label: row.label, role: row.role, values: row.values }
+    )
   };
 }
 
@@ -697,16 +704,24 @@ export function buildCompactMatrixCell(
     ? input.rows.map((row) => {
         if (Array.isArray(row)) {
           const [band, label, ...values] = row;
+          const bandText = String(band);
+          const labelText = String(label);
+          const role = inferMatrixRowRoleFromLabels(bandText, labelText);
           return {
-            band: String(band),
-            label: String(label),
+            band: bandText,
+            label: labelText,
+            ...(role ? { role } : {}),
             values: values.map((value) => String(value))
           };
         }
         if (isRecord(row)) {
+          const band = typeof row.band === "string" ? row.band : undefined;
+          const label = stringValue(row.label, "");
+          const role = normalizeMatrixRowRole(row.role) ?? inferMatrixRowRoleFromLabels(band, label);
           return {
-            ...(typeof row.band === "string" ? { band: row.band } : {}),
-            label: stringValue(row.label, ""),
+            ...(band ? { band } : {}),
+            label,
+            ...(role ? { role } : {}),
             values: stringArray(row.values) ?? []
           };
         }

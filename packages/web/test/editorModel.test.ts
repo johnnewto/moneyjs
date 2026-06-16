@@ -472,7 +472,7 @@ describe("editor model validation", () => {
       rows: [
         { band: "Wages", label: "Wages", values: ["WBd", "0"] },
         { band: "Consumption", label: "Consumption", values: ["-Cs", "0"] },
-        { band: "Sum", label: "Sum", values: ["Mh", "0"] }
+        { band: "Sum", label: "Sum", values: ["", "0"] }
       ]
     };
     const cells: NotebookCell[] = [equationsCell, runCell, matrix];
@@ -503,12 +503,10 @@ describe("editor model validation", () => {
     expect(runtime.model.equations).toEqual(
       expect.arrayContaining([
         { name: "WBd", expression: "4" },
-        { name: "Cs", expression: "1" },
-        { name: "Mh", expression: "I(Households.Deposits)", role: "accumulation" }
+        { name: "Cs", expression: "1" }
       ])
     );
-    expect(runtime.model.matrixColumnSums).toEqual({
-      "Households.Deposits": ["WBd", "-Cs"]
-    });
+    expect(runtime.model.equations.some((equation) => equation.name === "Mh")).toBe(false);
+    expect(runtime.model.matrixColumnSums).toBeUndefined();
   });
 });
