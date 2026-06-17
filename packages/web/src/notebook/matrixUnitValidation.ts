@@ -211,6 +211,33 @@ export function validateMatrixCellUnits(
   return diagnostics;
 }
 
+export function formatMatrixEntryUnitValidationMessage(
+  source: string,
+  cell: MatrixCell,
+  rowIndex: number,
+  columnIndex: number,
+  variableUnitMetadata: VariableUnitMetadata
+): string | null {
+  const kind = resolveAccountingMatrixKind(cell);
+  if (!kind) {
+    return null;
+  }
+
+  const row = cell.rows[rowIndex];
+  if (!row) {
+    return null;
+  }
+
+  const errors = validateMatrixEntryUnits(source, kind, variableUnitMetadata, {
+    rowLabel: row.label,
+    columnLabel: cell.columns[columnIndex],
+    cell: { id: cell.id, title: cell.title },
+    isInitialRow: isMatrixInitialRow(row)
+  }).filter((diagnostic) => diagnostic.severity === "error");
+
+  return errors[0]?.message ?? null;
+}
+
 export function firstMatrixCellUnitValidationError(
   cell: MatrixCell,
   variableUnitMetadata: VariableUnitMetadata

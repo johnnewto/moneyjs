@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { buildVariableUnitMetadata } from "../src/lib/units";
 import {
   formatMatrixCellUnitValidationMessage,
+  formatMatrixEntryUnitValidationMessage,
   hasMatrixEntryUnitErrors,
   validateMatrixCellUnits,
   validateMatrixEntryUnits
@@ -87,5 +88,23 @@ describe("matrixUnitValidation", () => {
     };
 
     expect(validateMatrixCellUnits(cell, bmwUnitMetadata)).toEqual([]);
+  });
+
+  it("formats inline entry validation with row and column context", () => {
+    const cell: MatrixCell = {
+      id: "account-transactions",
+      type: "matrix",
+      accountingKind: "account-transactions",
+      title: "PC account transactions",
+      columns: ["Net_Worth (Vh)", "Sum"],
+      rows: [{ band: "Wages", label: "Wages", values: ["1", "0"] }]
+    };
+
+    expect(
+      formatMatrixEntryUnitValidationMessage("1", cell, 0, 0, bmwUnitMetadata)
+    ).toMatch(/Account-transactions matrix cell \(Wages \/ Net_Worth \(Vh\)/);
+    expect(
+      formatMatrixEntryUnitValidationMessage("1", cell, 0, 0, bmwUnitMetadata)
+    ).toMatch(/expects \$\/yr/);
   });
 });

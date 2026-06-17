@@ -1053,6 +1053,10 @@ button.notebook-matrix-tree-badge-toggle:hover {
   display: flex;
   gap: 0.4rem;
 }
+.matrix-entry-validation {
+  font-size: 0.78rem;
+  padding: 0.4rem 0.55rem;
+}
 .matrix-entry-current {
   color: var(--color-text-secondary);
   flex-shrink: 0;

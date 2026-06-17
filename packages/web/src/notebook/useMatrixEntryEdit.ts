@@ -1,6 +1,8 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
+import type { VariableUnitMetadata } from "../lib/unitMeta";
 import type { InspectorModelSource } from "../lib/variableInspect";
+import { formatMatrixEntryUnitValidationMessage } from "./matrixUnitValidation";
 import { classifyMatrixEntrySource, matrixReferenceShapesMatch } from "./matrixVariableReference";
 import {
   countVariableReferences,
@@ -34,23 +36,48 @@ function resolveRenameScope(modelSource: InspectorModelSource | null): ModelRena
   return { kind: "legacyModelCell", cellId: modelSource.sourceModelCellId };
 }
 
+function resolveMatrixEntryUnitValidationError(
+  cell: MatrixCell,
+  editingTarget: MatrixEditingTarget | null,
+  draftSource: string,
+  variableUnitMetadata: VariableUnitMetadata
+): string | null {
+  if (!editingTarget) {
+    return null;
+  }
+
+  return formatMatrixEntryUnitValidationMessage(
+    draftSource,
+    cell,
+    editingTarget.rowIndex,
+    editingTarget.columnIndex,
+    variableUnitMetadata
+  );
+}
+
 export function useMatrixEntryEdit({
   cell,
   cells,
   modelSource,
   onCellChange,
-  onReplaceCells
+  onReplaceCells,
+  variableUnitMetadata
 }: {
   cell: MatrixCell;
   cells: NotebookCell[];
   modelSource: InspectorModelSource | null;
   onCellChange(cellId: string, updater: (cell: NotebookCell) => NotebookCell): void;
   onReplaceCells(nextCells: NotebookCell[]): void;
+  variableUnitMetadata: VariableUnitMetadata;
 }) {
   const renameScope = resolveRenameScope(modelSource);
   const [editingTarget, setEditingTarget] = useState<MatrixEditingTarget | null>(null);
   const [draftSource, setDraftSource] = useState("");
   const [renameDialog, setRenameDialog] = useState<PendingMatrixRename | null>(null);
+  const draftValidationError = useMemo(
+    () => resolveMatrixEntryUnitValidationError(cell, editingTarget, draftSource, variableUnitMetadata),
+    [cell, draftSource, editingTarget, variableUnitMetadata]
+  );
 
   const cancelEntryEdit = useCallback(() => {
     setEditingTarget(null);
@@ -105,6 +132,12 @@ export function useMatrixEntryEdit({
       return;
     }
 
+    if (
+      resolveMatrixEntryUnitValidationError(cell, editingTarget, draftSource, variableUnitMetadata) != null
+    ) {
+      return;
+    }
+
     const oldReference = classifyMatrixEntrySource(currentSource);
     const newReference = classifyMatrixEntrySource(trimmedDraft);
     const hasVariableRename =
@@ -129,10 +162,12 @@ export function useMatrixEntryEdit({
   }, [
     cancelEntryEdit,
     cell.rows,
+    cell,
     commitEntryOnly,
     draftSource,
     editingTarget,
-    renameScope
+    renameScope,
+    variableUnitMetadata
   ]);
 
   const confirmRenameNo = useCallback(() => {
@@ -140,8 +175,19 @@ export function useMatrixEntryEdit({
       return;
     }
 
+    if (
+      resolveMatrixEntryUnitValidationError(
+        cell,
+        { rowIndex: renameDialog.rowIndex, columnIndex: renameDialog.columnIndex },
+        renameDialog.draftSource,
+        variableUnitMetadata
+      ) != null
+    ) {
+      return;
+    }
+
     commitEntryOnly(renameDialog.rowIndex, renameDialog.columnIndex, renameDialog.draftSource);
-  }, [commitEntryOnly, renameDialog]);
+  }, [cell, commitEntryOnly, renameDialog, variableUnitMetadata]);
 
   const confirmRenameYes = useCallback(() => {
     if (!renameDialog || !renameScope) {
@@ -170,6 +216,7 @@ export function useMatrixEntryEdit({
     confirmRenameNo,
     confirmRenameYes,
     draftSource,
+    draftValidationError,
     editingTarget,
     renameDialog,
     renameReferenceCount,

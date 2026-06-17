@@ -482,7 +482,8 @@ export function MatrixCellView({
     cells,
     modelSource,
     onCellChange,
-    onReplaceCells
+    onReplaceCells,
+    variableUnitMetadata
   });
 
   const cancelMatrixEntryEdit = useCallback(() => {
@@ -1393,6 +1394,7 @@ function renderMatrixLeafDataCell({
                   laggedCurrentValues={laggedCurrentValues}
                   laggedPeriodLabel={laggedPeriodLabel}
                   draftSource={matrixEntryEdit.draftSource}
+                  draftValidationError={matrixEntryEdit.draftValidationError}
                   editingTarget={matrixEntryEdit.editingTarget}
                   isSumCell={entry.isSumCell}
                   parameterNames={parameterNames}
@@ -1886,6 +1888,7 @@ function MatrixEntrySource({
   laggedCurrentValues,
   laggedPeriodLabel,
   draftSource,
+  draftValidationError,
   editingTarget,
   isSumCell,
   parameterNames,
@@ -1908,6 +1911,7 @@ function MatrixEntrySource({
   laggedCurrentValues?: Record<string, number | undefined>;
   laggedPeriodLabel?: string;
   draftSource: string;
+  draftValidationError: string | null;
   editingTarget: MatrixEditingTarget | null;
   isSumCell: boolean;
   parameterNames: Set<string>;
@@ -1973,8 +1977,17 @@ function MatrixEntrySource({
           variableDescriptions={variableDescriptions}
           variableUnitMetadata={variableUnitMetadata}
         />
+        {draftValidationError ? (
+          <div className="notebook-source-validation matrix-entry-validation" role="status" aria-live="polite">
+            {draftValidationError}
+          </div>
+        ) : null}
         <div className="matrix-entry-editor-actions">
-          <button disabled={!hasDraftChanges} onClick={onApply} type="button">
+          <button
+            disabled={!hasDraftChanges || draftValidationError != null}
+            onClick={onApply}
+            type="button"
+          >
             Apply
           </button>
           <button className="secondary-button" onClick={onCancel} type="button">
