@@ -84,6 +84,34 @@ describe("matrixInitialRow", () => {
     ]);
   });
 
+  it("infers empty equity initial values from sector assets minus liabilities", () => {
+    const matrix: MatrixCell = {
+      ...accountTransactionsMatrix,
+      columnBadges: ["asset", "liability", "equity", ""],
+      rows: [
+        { band: "Initial", label: "Initial values", role: "initial", values: ["100", "40", "", "0"] },
+        { band: "Income", label: "Income", values: ["+Y", "", "-Y", "0"] },
+        { band: "Sum", label: "Sum", values: ["Hhp", "Bhp", "Vp", "0"] }
+      ]
+    };
+
+    expect(
+      collectMatrixInitialValueBindings({
+        cells: [equationsCell, initialValuesCell, runCell, matrix],
+        modelId,
+        runCellId: "baseline-run"
+      })
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          variable: "Vp",
+          valueText: "60",
+          numericValue: 60
+        })
+      ])
+    );
+  });
+
   it("excludes initial row cells from column integration", () => {
     const sumRowIndex = accountTransactionsMatrix.rows.findIndex((row) => row.label === "Sum");
     expect(columnHasFlowEntries(accountTransactionsMatrix, 0, sumRowIndex)).toBe(true);

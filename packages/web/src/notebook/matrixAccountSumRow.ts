@@ -1,8 +1,20 @@
 import { isSkippableMatrixCellSource } from "@sfcr/core";
-import { findMatrixInitialRowIndex, isRowComment, listMatrixFlowRowIndices } from "@sfcr/notebook-core";
+import {
+  findMatrixInitialRowIndex,
+  isMatrixInitialRow,
+  isRowComment,
+  listMatrixFlowRowIndices
+} from "@sfcr/notebook-core";
 
 import { evaluateExpression, parseExpression, type EquationRole, type SimulationResult } from "@sfcr/core";
-import { parseVariableFromColumnLabel, resolveMatrixColumnInspectVariable } from "@sfcr/notebook-core";
+import {
+  computeSectorImpliedEquity,
+  isMatrixEquityColumn,
+  parseVariableFromColumnLabel,
+  resolveMatrixColumnInspectVariable,
+  sectorsAlignWithMatrixColumns,
+  usesMatrixAccountColumnLayout
+} from "@sfcr/notebook-core";
 
 import type { UnitMeta } from "../lib/unitMeta";
 import { createUniqueRowId } from "./assistantTools/shared";
@@ -124,6 +136,29 @@ export function sumRowHasStockAnnotations(matrix: MatrixCell): boolean {
 }
 
 /** Resolves the stock variable named explicitly in the Sum row for an account column. */
+export function resolveAccountTransactionsSectorImpliedEquity(
+  matrix: MatrixCell,
+  equityColumnIndex: number,
+  getColumnValue: (columnIndex: number) => number | null
+): number | null {
+  if (!isAccountTransactionsMatrix(matrix) || !usesMatrixAccountColumnLayout(matrix.columnBadges)) {
+    return null;
+  }
+  if (!sectorsAlignWithMatrixColumns(matrix.columns, matrix.sectors)) {
+    return null;
+  }
+
+  const sumColumnIndex = matrix.columns.findIndex((column) => isSumLabel(column));
+  return computeSectorImpliedEquity(
+    matrix.columns,
+    matrix.sectors,
+    matrix.columnBadges,
+    equityColumnIndex,
+    getColumnValue,
+    sumColumnIndex
+  );
+}
+
 export function resolveMatrixColumnStockVariable(
   matrix: MatrixCell,
   columnIndex: number
@@ -154,11 +189,103 @@ export function resolveMatrixColumnInitialConstant(matrix: MatrixCell, columnInd
 
   const source = matrix.rows[initialRowIndex]?.values[columnIndex]?.trim() ?? "";
   if (!source || isSkippableMatrixCellSource(source)) {
-    return 0;
+    return (
+      resolveAccountTransactionsMatrixCellValue(matrix, initialRowIndex, columnIndex, null, 0) ?? 0
+    );
   }
 
   const value = Number(source);
   return Number.isFinite(value) ? value : 0;
+}
+
+function resolveAccountTransactionsRowImpliedEquity(
+  matrix: MatrixCell,
+  rowIndex: number,
+  columnIndex: number,
+  getColumnValue: (columnIndex: number) => number | null
+): number | null {
+  if (!isMatrixEquityColumn(matrix.columnBadges, columnIndex)) {
+    return null;
+  }
+
+  return resolveAccountTransactionsSectorImpliedEquity(matrix, columnIndex, getColumnValue);
+}
+
+function evaluateAccountTransactionsFlowCellNumber(
+  source: string,
+  result: SimulationResult | null,
+  periodIndex: number
+): number | null {
+  const trimmed = source.trim();
+  if (isEmptyMatrixEntrySource(trimmed)) {
+    return null;
+  }
+
+  const literal = Number(trimmed);
+  if (Number.isFinite(literal)) {
+    return literal;
+  }
+
+  return evaluateMatrixEntryNumber(trimmed, result, periodIndex);
+}
+
+export function resolveAccountTransactionsMatrixCellValue(
+  matrix: MatrixCell,
+  rowIndex: number,
+  columnIndex: number,
+  result: SimulationResult | null,
+  periodIndex: number
+): number | null {
+  const row = matrix.rows[rowIndex];
+  if (!row || isSumLabel(row.label)) {
+    return null;
+  }
+
+  const source = row.values[columnIndex]?.trim() ?? "";
+  if (isMatrixInitialRow(row)) {
+    if (!isEmptyMatrixEntrySource(source)) {
+      const value = Number(source);
+      return Number.isFinite(value) ? value : null;
+    }
+
+    return resolveAccountTransactionsRowImpliedEquity(matrix, rowIndex, columnIndex, (col) => {
+      const initialSource = row.values[col]?.trim() ?? "";
+      if (isEmptyMatrixEntrySource(initialSource)) {
+        return null;
+      }
+      const initialValue = Number(initialSource);
+      return Number.isFinite(initialValue) ? initialValue : null;
+    });
+  }
+
+  if (!isEmptyMatrixEntrySource(source)) {
+    return evaluateAccountTransactionsFlowCellNumber(source, result, periodIndex);
+  }
+
+  return resolveAccountTransactionsRowImpliedEquity(matrix, rowIndex, columnIndex, (col) => {
+    const colSource = row.values[col]?.trim() ?? "";
+    if (isEmptyMatrixEntrySource(colSource)) {
+      return null;
+    }
+    return evaluateAccountTransactionsFlowCellNumber(colSource, result, periodIndex);
+  });
+}
+
+export function resolveMatrixInitialRowCellValue(
+  matrix: MatrixCell,
+  columnIndex: number
+): number | null {
+  const sumRowIndex = matrix.rows.findIndex((row) => isSumLabel(row.label));
+  if (sumRowIndex < 0) {
+    return null;
+  }
+
+  const initialRowIndex = findMatrixInitialRowIndex(matrix, sumRowIndex);
+  if (initialRowIndex == null) {
+    return null;
+  }
+
+  return resolveAccountTransactionsMatrixCellValue(matrix, initialRowIndex, columnIndex, null, 0);
 }
 
 export function evaluateMatrixColumnFlowSumAtPeriod(
@@ -438,6 +565,33 @@ export function resolveAccountSumRowDisplayValue(
     const stockValue = evaluateMatrixEntryNumber(stock, result, selectedPeriodIndex);
     if (stockValue != null) {
       return stockValue;
+    }
+  }
+
+  if (
+    isEmptyAccountSumRowSource(source) &&
+    options?.matrix &&
+    options.columnIndex != null &&
+    isMatrixEquityColumn(options.matrix.columnBadges, options.columnIndex)
+  ) {
+    const matrix = options.matrix;
+    const equityColumnIndex = options.columnIndex;
+    const implied = resolveAccountTransactionsSectorImpliedEquity(matrix, equityColumnIndex, (col) =>
+      resolveAccountSumRowDisplayValue(
+        matrix.rows[matrix.rows.findIndex((row) => isSumLabel(row.label))]?.values[col]?.trim() ??
+          "",
+        evaluateMatrixColumnFlowSumAtPeriod(matrix, col, result, selectedPeriodIndex),
+        result,
+        selectedPeriodIndex,
+        {
+          stockVariable: resolveMatrixColumnStockVariable(matrix, col),
+          matrix,
+          columnIndex: col
+        }
+      )
+    );
+    if (implied != null) {
+      return implied;
     }
   }
 

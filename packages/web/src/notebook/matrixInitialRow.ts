@@ -3,6 +3,7 @@ import {
   findMatrixInitialRowIndex,
   initialValueRowsOnly,
   isInitialValueEnabled,
+  isMatrixEquityColumn,
   isRowComment,
   type InitialValueListItem
 } from "@sfcr/notebook-core";
@@ -12,6 +13,7 @@ import { findLinkedAccountTransactionMatrices } from "./matrixColumnSumRuntime";
 import {
   isAccountTransactionsMatrix,
   isSumLabel,
+  resolveAccountTransactionsSectorImpliedEquity,
   resolveSumRowStockVariable
 } from "./matrixAccountSumRow";
 import type { MatrixCell, NotebookCell, RunCell } from "./types";
@@ -85,10 +87,6 @@ function collectMatrixInitialValueBindingsFromMatrix(matrix: MatrixCell): Matrix
     }
 
     const trimmedSource = source.trim();
-    if (!trimmedSource || isSkippableMatrixCellSource(trimmedSource)) {
-      return;
-    }
-
     const sumSource = matrix.rows[sumRowIndex]?.values[columnIndex]?.trim() ?? "";
     const variable = resolveSumRowStockVariable(matrix, columnIndex, sumSource);
     if (!variable) {
@@ -96,15 +94,39 @@ function collectMatrixInitialValueBindingsFromMatrix(matrix: MatrixCell): Matrix
     }
 
     let numericValue: number;
-    try {
-      numericValue = parseMatrixInitialNumericValue(trimmedSource);
-    } catch {
-      return;
+    let valueText: string;
+
+    if (!trimmedSource || isSkippableMatrixCellSource(trimmedSource)) {
+      if (!isMatrixEquityColumn(matrix.columnBadges, columnIndex)) {
+        return;
+      }
+
+      const implied = resolveAccountTransactionsSectorImpliedEquity(matrix, columnIndex, (col) => {
+        const initialSource = initialRow.values[col]?.trim() ?? "";
+        if (!initialSource || isSkippableMatrixCellSource(initialSource)) {
+          return null;
+        }
+        const initialValue = Number(initialSource);
+        return Number.isFinite(initialValue) ? initialValue : null;
+      });
+      if (implied == null) {
+        return;
+      }
+
+      numericValue = implied;
+      valueText = String(implied);
+    } else {
+      try {
+        numericValue = parseMatrixInitialNumericValue(trimmedSource);
+      } catch {
+        return;
+      }
+      valueText = trimmedSource;
     }
 
     bindings.push({
       variable,
-      valueText: trimmedSource,
+      valueText,
       numericValue,
       matrixCellId: matrix.id,
       matrixTitle: matrix.title.trim() || matrix.id,

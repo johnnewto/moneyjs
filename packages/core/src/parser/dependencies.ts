@@ -18,7 +18,7 @@ export type MatrixColumnSumBindings = Record<string, string[]>;
 
 function isBareMatrixColumnFlowRef(name: string, matrixColumnSums?: MatrixColumnSumBindings): boolean {
   const key = name.trim();
-  return key.includes(".") && Boolean(matrixColumnSums?.[key]?.length);
+  return key.includes(".") && matrixColumnSums != null && key in matrixColumnSums;
 }
 
 function matrixColumnSumSources(

@@ -180,6 +180,8 @@ function resolveMatrixColumnSumBindingsInternal(args: {
 
   for (const ref of refs) {
     const collected: Array<{ source: string; location: MatrixColumnCellLocation }> = [];
+    let bound = false;
+
     for (const matrix of matrices) {
       const sumRowIndex = matrix.rows.findIndex((row) => isSumLabel(row.label));
       if (sumRowIndex < 0) {
@@ -191,10 +193,11 @@ function resolveMatrixColumnSumBindingsInternal(args: {
         continue;
       }
 
+      bound = true;
       collected.push(...collectColumnCellSources(matrix, columnIndex, sumRowIndex));
     }
 
-    if (collected.length > 0) {
+    if (bound) {
       bindings[ref] = collected.map((entry) => entry.source);
       locations[ref] = collected.map((entry) => entry.location);
     }

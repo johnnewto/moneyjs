@@ -5,6 +5,7 @@ import {
   buildMatrixAccountColumnHeaderRows,
   collectMatrixAccountSectorCollapseKeys,
   computeMatrixAccountRowTotal,
+  computeSectorImpliedEquity,
   formatMatrixAccountRowBalanceBreakdown,
   isMatrixAccountIntraSectorColumnDivider,
   isMatrixAccountSectorStartColumn,
@@ -58,6 +59,37 @@ describe("matrixAccountColumns", () => {
         0
       )
     ).toBe(0);
+  });
+
+  it("infers empty equity from sector row assets and liabilities", () => {
+    const columns = ["Deposits", "Bills", "Equity", "Sum"];
+    const sectors = ["Poor (HH)", "Poor (HH)", "Poor (HH)", ""];
+    const columnBadges = ["asset", "liability", "equity", ""];
+
+    expect(
+      computeSectorImpliedEquity(columns, sectors, columnBadges, 2, (columnIndex) => {
+        const values = [100, 40, null, null];
+        return values[columnIndex];
+      })
+    ).toBe(60);
+
+    expect(computeSectorImpliedEquity(columns, sectors, columnBadges, 2, () => null)).toBeNull();
+
+    expect(
+      computeSectorImpliedEquity(columns, sectors, columnBadges, 2, (columnIndex) =>
+        columnIndex === 0 ? 100 : null
+      )
+    ).toBe(100);
+
+    expect(
+      computeSectorImpliedEquity(columns, sectors, columnBadges, 2, (columnIndex) =>
+        columnIndex === 1 ? 40 : null
+      )
+    ).toBe(40);
+
+    expect(
+      computeSectorImpliedEquity(columns, ["Poor (HH)", "Poor (HH)"], columnBadges, 2, () => null)
+    ).toBeNull();
   });
 
   it("validates parallel sectors and columnBadges lengths", () => {

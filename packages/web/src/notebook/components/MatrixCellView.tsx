@@ -44,6 +44,7 @@ import {
   isEmptyAccountSumRowSource,
   resolveAccountSumRowCellBalance,
   resolveAccountSumRowDisplayValue,
+  resolveAccountTransactionsMatrixCellValue,
   resolveMatrixColumnStockVariable,
   formatMatrixIntegralInspectVariable
 } from "../matrixAccountSumRow";
@@ -1571,6 +1572,15 @@ function buildEvaluatedMatrix(
       if (rowIndex === sumRowIndex || columnIndex === sumColumnIndex) {
         return null;
       }
+      if (isAccountTransactionsMatrix(cell)) {
+        return resolveAccountTransactionsMatrixCellValue(
+          cell,
+          rowIndex,
+          columnIndex,
+          result,
+          selectedPeriodIndex
+        );
+      }
       if (isMatrixInitialRow(row)) {
         return parseMatrixInitialConstant(value);
       }
@@ -1593,19 +1603,27 @@ function buildEvaluatedMatrix(
             useAccountRowSumRule ? cell.columnBadges : undefined
           )
         : null;
-      const computedValue = isInitialRow
-        ? parseMatrixInitialConstant(value)
-        : isSumCell
-          ? rowIndex === sumRowIndex &&
-            columnIndex !== sumColumnIndex &&
-            isAccountTransactionsMatrix(cell)
-            ? resolveAccountSumRowDisplayValue(value, columnSum, result, selectedPeriodIndex, {
-                stockVariable: resolveMatrixColumnStockVariable(cell, columnIndex),
-                matrix: cell,
-                columnIndex
-              })
-            : columnSum
-          : numericValues[rowIndex]?.[columnIndex] ?? null;
+      const computedValue = isSumCell
+        ? rowIndex === sumRowIndex &&
+          columnIndex !== sumColumnIndex &&
+          isAccountTransactionsMatrix(cell)
+          ? resolveAccountSumRowDisplayValue(value, columnSum, result, selectedPeriodIndex, {
+              stockVariable: resolveMatrixColumnStockVariable(cell, columnIndex),
+              matrix: cell,
+              columnIndex
+            })
+          : columnSum
+        : isAccountTransactionsMatrix(cell)
+          ? resolveAccountTransactionsMatrixCellValue(
+              cell,
+              rowIndex,
+              columnIndex,
+              result,
+              selectedPeriodIndex
+            )
+          : isInitialRow
+            ? parseMatrixInitialConstant(value)
+            : numericValues[rowIndex]?.[columnIndex] ?? null;
 
       const isBalanced = isInitialRow
         ? true

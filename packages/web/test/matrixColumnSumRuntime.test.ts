@@ -13,7 +13,8 @@ import {
 } from "../src/notebook/matrixColumnSumRuntime";
 import { runBaseline } from "@sfcr/core";
 import { bmwBaselineModel, bmwBaselineOptions } from "../../core/src/fixtures/bmw";
-import type { MatrixCell, NotebookCell, RunCell } from "../src/notebook/types";
+import { buildRuntimeConfig } from "../src/lib/editorModel";
+import type { EquationsCell, MatrixCell, NotebookCell, RunCell } from "../src/notebook/types";
 
 const modelId = "equations-newton";
 
@@ -76,6 +77,66 @@ describe("matrixColumnSumRuntime", () => {
     expect(bindings).toEqual({
       "Households.Deposits": ["WBd", "-Cs"]
     });
+  });
+
+  it("binds empty matrix columns referenced in equations", () => {
+    const bindings = resolveMatrixColumnSumBindings({
+      cells: [runCell, accountTransactionsMatrix],
+      modelId,
+      runCellId: "baseline-run",
+      equationSources: ["Ld' + Firms.Loans * dt", "I(Firms.Loans)"]
+    });
+
+    expect(bindings).toEqual({
+      "Firms.Loans": []
+    });
+  });
+
+  it("runs equations that reference empty matrix columns without unknown-variable errors", () => {
+    const emptyLoansMatrix: MatrixCell = {
+      ...accountTransactionsMatrix,
+      columns: ["Firms.Loans (Ld)", "Sum"],
+      sectors: ["Firms", ""],
+      columnBadges: ["liability", ""],
+      rows: [
+        { band: "Sum", label: "Sum", values: ["", "0"] }
+      ]
+    };
+    const equationsCell: EquationsCell = {
+      id: "equations",
+      type: "equations",
+      title: "Equations",
+      modelId,
+      equations: [{ id: "eq-ld", name: "Ld", expression: "Ld' + Firms.Loans * dt" }]
+    };
+    const cells: NotebookCell[] = [equationsCell, runCell, emptyLoansMatrix];
+    const runtime = buildRuntimeConfig(
+      {
+        equations: equationsCell.equations,
+        externals: [],
+        initialValues: [{ id: "init-ld", name: "Ld", valueText: "10" }],
+        options: {
+          periods: 2,
+          solverMethod: "GAUSS_SEIDEL",
+          toleranceText: "1e-9",
+          maxIterations: 20,
+          defaultInitialValueText: "1e-15",
+          hiddenLeftVariable: "",
+          hiddenRightVariable: "",
+          hiddenToleranceText: "1e-5",
+          relativeHiddenTolerance: false
+        },
+        scenario: { shocks: [] }
+      },
+      {
+        notebookCells: cells,
+        modelId,
+        runCellId: "baseline-run"
+      }
+    );
+
+    expect(runtime.model.matrixColumnSums).toEqual({ "Firms.Loans": [] });
+    expect(() => runBaseline(runtime.model, runtime.options)).not.toThrow();
   });
 
   it("resolves bindings by stock variable symbol", () => {

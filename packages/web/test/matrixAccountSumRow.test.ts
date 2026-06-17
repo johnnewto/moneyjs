@@ -20,7 +20,10 @@ import {
   isSumRowStockChangeAnnotation,
   resolveAccountSumRowCellBalance,
   resolveAccountSumRowDisplayValue,
+  resolveAccountTransactionsMatrixCellValue,
+  resolveMatrixColumnInitialConstant,
   resolveMatrixColumnStockVariable,
+  resolveMatrixInitialRowCellValue,
   sumRowHasStockAnnotations
 } from "../src/notebook/matrixAccountSumRow";
 import { formatUnitText } from "../src/lib/unitMeta";
@@ -425,6 +428,154 @@ describe("matrixAccountSumRow", () => {
     expect(
       resolveAccountSumRowDisplayValue("", 999, result, 2, { matrix, columnIndex: 0 })
     ).toBe(106);
+  });
+
+  it("infers empty equity initial values from sector assets minus liabilities", () => {
+    const matrix: MatrixCell = {
+      ...accountTransactionsMatrix,
+      columns: ["Deposits", "Bills", "Equity", "Sum"],
+      sectors: ["Poor (HH)", "Poor (HH)", "Poor (HH)", ""],
+      columnBadges: ["asset", "liability", "equity", ""],
+      rows: [
+        { band: "Initial", label: "Initial values", role: "initial", values: ["100", "40", "", "0"] },
+        { band: "Income", label: "Income", values: ["+Y", "-Y", "", "0"] },
+        { band: "Sum", label: "Sum", values: ["Hhp", "Bhp", "Vp", "0"] }
+      ]
+    };
+
+    expect(resolveMatrixColumnInitialConstant(matrix, 2)).toBe(60);
+    expect(resolveMatrixInitialRowCellValue(matrix, 2)).toBe(60);
+    expect(resolveMatrixInitialRowCellValue(matrix, 0)).toBe(100);
+  });
+
+  it("infers empty equity flow-row values from sector assets minus liabilities", () => {
+    const matrix: MatrixCell = {
+      ...accountTransactionsMatrix,
+      columns: ["Deposits", "Bills", "Equity", "Sum"],
+      sectors: ["Poor (HH)", "Poor (HH)", "Poor (HH)", ""],
+      columnBadges: ["asset", "liability", "equity", ""],
+      rows: [
+        { band: "Initial", label: "Initial values", role: "initial", values: ["0", "0", "", "0"] },
+        { band: "Income", label: "Income", values: ["10", "-4", "", "0"] },
+        { band: "Sum", label: "Sum", values: ["Hhp", "Bhp", "Vp", "0"] }
+      ]
+    };
+
+    const incomeRowIndex = matrix.rows.findIndex((row) => row.label === "Income");
+    expect(
+      resolveAccountTransactionsMatrixCellValue(matrix, incomeRowIndex, 2, null, 0)
+    ).toBe(14);
+  });
+
+  it("leaves empty equity blank when the sector row has no asset and liability entries", () => {
+    const matrix: MatrixCell = {
+      ...accountTransactionsMatrix,
+      columns: ["Deposits", "Bills", "Equity", "Sum"],
+      sectors: ["Poor (HH)", "Poor (HH)", "Poor (HH)", ""],
+      columnBadges: ["asset", "liability", "equity", ""],
+      rows: [
+        { band: "Initial", label: "Initial values", role: "initial", values: ["", "", "", "0"] },
+        { band: "Income", label: "Income", values: ["", "", "", "0"] },
+        { band: "Sum", label: "Sum", values: ["Hhp", "Bhp", "Vp", "0"] }
+      ]
+    };
+
+    const initialRowIndex = matrix.rows.findIndex((row) => row.label === "Initial values");
+    const incomeRowIndex = matrix.rows.findIndex((row) => row.label === "Income");
+
+    expect(resolveAccountTransactionsMatrixCellValue(matrix, initialRowIndex, 2, null, 0)).toBeNull();
+    expect(resolveAccountTransactionsMatrixCellValue(matrix, incomeRowIndex, 2, null, 0)).toBeNull();
+    expect(resolveMatrixColumnInitialConstant(matrix, 2)).toBe(0);
+  });
+
+  it("shows assets-only or liabilities-only sector rows in empty equity cells", () => {
+    const matrix: MatrixCell = {
+      ...accountTransactionsMatrix,
+      columns: ["Deposits", "Bills", "Equity", "Sum"],
+      sectors: ["Poor (HH)", "Poor (HH)", "Poor (HH)", ""],
+      columnBadges: ["asset", "liability", "equity", ""],
+      rows: [
+        { band: "Initial", label: "Initial values", role: "initial", values: ["100", "", "", "0"] },
+        { band: "Income", label: "Income", values: ["", "-4", "", "0"] },
+        { band: "Sum", label: "Sum", values: ["Hhp", "Bhp", "Vp", "0"] }
+      ]
+    };
+
+    const initialRowIndex = matrix.rows.findIndex((row) => row.label === "Initial values");
+    const incomeRowIndex = matrix.rows.findIndex((row) => row.label === "Income");
+
+    expect(resolveAccountTransactionsMatrixCellValue(matrix, initialRowIndex, 2, null, 0)).toBe(100);
+    expect(resolveAccountTransactionsMatrixCellValue(matrix, incomeRowIndex, 2, null, 0)).toBe(-4);
+  });
+
+  it("prefers simulation stock lookup over sector implied equity on empty sum-row cells", () => {
+    const matrix: MatrixCell = {
+      ...accountTransactionsMatrix,
+      columns: ["Deposits", "Bills", "Equity", "Sum"],
+      sectors: ["Poor (HH)", "Poor (HH)", "Poor (HH)", ""],
+      columnBadges: ["asset", "liability", "equity", ""],
+      rows: [
+        { band: "Initial", label: "Initial values", role: "initial", values: ["100", "40", "", "0"] },
+        { band: "Income", label: "Income", values: ["+Y", "-Y", "", "0"] },
+        { band: "Sum", label: "Sum", values: ["Hhp", "Bhp", "Vp", "0"] }
+      ]
+    };
+    const result: SimulationResult = {
+      blocks: [],
+      model: { equations: [], externals: {}, initialValues: {} },
+      options: {
+        periods: 2,
+        solverMethod: "NEWTON",
+        tolerance: 1e-15,
+        maxIterations: 200,
+        defaultInitialValue: 1e-15
+      },
+      series: {
+        Vp: new Float64Array([60, 75])
+      }
+    };
+
+    expect(
+      resolveAccountSumRowDisplayValue("", 999, result, 1, {
+        stockVariable: "Vp",
+        matrix,
+        columnIndex: 2
+      })
+    ).toBe(75);
+  });
+
+  it("infers empty equity sum-row display from sector stocks when simulation is unavailable", () => {
+    const matrix: MatrixCell = {
+      ...accountTransactionsMatrix,
+      columns: ["Deposits", "Bills", "Equity", "Sum"],
+      sectors: ["Poor (HH)", "Poor (HH)", "Poor (HH)", ""],
+      columnBadges: ["asset", "liability", "equity", ""],
+      rows: [
+        { band: "Initial", label: "Initial values", role: "initial", values: ["100", "40", "", "0"] },
+        { band: "Income", label: "Income", values: ["10", "-5", "", "0"] },
+        { band: "Sum", label: "Sum", values: ["", "", "Vp", "0"] }
+      ]
+    };
+    const result: SimulationResult = {
+      blocks: [],
+      model: { equations: [], externals: {}, initialValues: {} },
+      options: {
+        periods: 1,
+        solverMethod: "NEWTON",
+        tolerance: 1e-15,
+        maxIterations: 200,
+        defaultInitialValue: 1e-15
+      },
+      series: {}
+    };
+
+    expect(
+      resolveAccountSumRowDisplayValue("", 999, result, 1, {
+        stockVariable: "Vp",
+        matrix,
+        columnIndex: 2
+      })
+    ).toBe(75);
   });
 
   it("BMW interest on deposits row sums to zero at period 3", () => {

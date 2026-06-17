@@ -154,6 +154,33 @@ describe("parser", () => {
     expect(evaluateExpression(parseExpression("Households.Deposits"), context)).toBe(0);
   });
 
+  it("treats bare qualified column refs with empty bindings as zero flows", () => {
+    const bindings = {
+      "Households.Deposits": [] as string[]
+    };
+    const context = wrapContextWithMatrixColumnSums(
+      {
+        currentValue: () => {
+          throw new Error("Unknown variable");
+        },
+        lagValue: () => 0,
+        diffValue: () => 0,
+        setCurrentValue: () => {},
+        hasSeries: () => false
+      },
+      bindings
+    );
+
+    expect(evaluateExpression(parseExpression("Households.Deposits"), context)).toBe(0);
+    expect(evaluateExpression(parseExpression("sum(Households.Deposits)"), context)).toBe(0);
+
+    const equation = parseEquation("Mh", "Mh' + Households.Deposits * dt", {
+      matrixColumnSums: bindings
+    });
+    expect(new Set(equation.currentDependencies)).toEqual(new Set());
+    expect(new Set(equation.lagDependencies)).toEqual(new Set(["Mh"]));
+  });
+
   it("includes matrix cell location when a column-sum source fails to parse", () => {
     const context = {
       currentValue: () => 0,

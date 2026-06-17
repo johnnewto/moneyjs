@@ -397,6 +397,116 @@ export function resolveMatrixAccountColumnCellClasses(
   return classes;
 }
 
+export function sectorsAlignWithMatrixColumns(
+  columns: readonly string[],
+  sectors: string[] | undefined
+): boolean {
+  return Boolean(sectors && sectors.length === columns.length);
+}
+
+export function isMatrixEquityColumn(
+  columnBadges: string[] | undefined,
+  columnIndex: number
+): boolean {
+  return normalizeMatrixAccountBadgeRole(columnBadges?.[columnIndex]) === "equity";
+}
+
+export function sectorHasSingleEquityColumn(
+  columns: readonly string[],
+  sectors: string[] | undefined,
+  columnBadges: string[] | undefined,
+  sectorLabel: string,
+  sumColumnIndex: number
+): boolean {
+  let equityCount = 0;
+  for (let columnIndex = 0; columnIndex < columns.length; columnIndex += 1) {
+    if (columnIndex === sumColumnIndex) {
+      continue;
+    }
+    if ((sectors?.[columnIndex]?.trim() ?? "") !== sectorLabel) {
+      continue;
+    }
+    if (isMatrixEquityColumn(columnBadges, columnIndex)) {
+      equityCount += 1;
+    }
+  }
+  return equityCount === 1;
+}
+
+/** Implied equity for an empty column from sector row assets and/or liabilities. */
+export function computeSectorImpliedEquity(
+  columns: readonly string[],
+  sectors: string[] | undefined,
+  columnBadges: string[] | undefined,
+  equityColumnIndex: number,
+  getColumnValue: (columnIndex: number) => number | null,
+  sumColumnIndex = columns.findIndex((column) => isSumColumnLabel(column))
+): number | null {
+  if (!sectorsAlignWithMatrixColumns(columns, sectors)) {
+    return null;
+  }
+  if (!isMatrixEquityColumn(columnBadges, equityColumnIndex)) {
+    return null;
+  }
+
+  const sectorLabel = sectors?.[equityColumnIndex]?.trim() ?? "";
+  if (!sectorLabel) {
+    return null;
+  }
+  if (
+    !sectorHasSingleEquityColumn(columns, sectors, columnBadges, sectorLabel, sumColumnIndex)
+  ) {
+    return null;
+  }
+
+  let assets = 0;
+  let liabilities = 0;
+  let hasSectorAsset = false;
+  let hasSectorLiability = false;
+
+  for (let columnIndex = 0; columnIndex < columns.length; columnIndex += 1) {
+    if (columnIndex === sumColumnIndex || columnIndex === equityColumnIndex) {
+      continue;
+    }
+    if ((sectors?.[columnIndex]?.trim() ?? "") !== sectorLabel) {
+      continue;
+    }
+
+    const role = normalizeMatrixAccountBadgeRole(columnBadges?.[columnIndex]);
+    if (role !== "asset" && role !== "liability") {
+      continue;
+    }
+
+    const value = getColumnValue(columnIndex);
+    if (value == null) {
+      continue;
+    }
+    if (!Number.isFinite(value)) {
+      return null;
+    }
+
+    if (role === "asset") {
+      assets += value;
+      hasSectorAsset = true;
+    } else {
+      liabilities += value;
+      hasSectorLiability = true;
+    }
+  }
+
+  if (!hasSectorAsset && !hasSectorLiability) {
+    return null;
+  }
+  if (hasSectorAsset && hasSectorLiability) {
+    return assets - liabilities;
+  }
+  if (hasSectorAsset) {
+    return assets;
+  }
+
+  return liabilities;
+}
+
 /** Row total for account-transaction matrices: asset +, liability and equity −. */
 export function signedMatrixAccountColumnContribution(
   value: number | null,
