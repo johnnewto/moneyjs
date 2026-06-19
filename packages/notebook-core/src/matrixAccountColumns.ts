@@ -184,10 +184,11 @@ export function parseMatrixSectorDisplay(label: string): MatrixSectorDisplay {
   };
 }
 
-/** Header/body label for a collapsed sector group; prefers the parenthetical alias. */
+/** Compact single-letter label for a collapsed sector group (full name shown in tooltip). */
 export function formatMatrixSectorCollapsedLabel(label: string): string {
   const display = parseMatrixSectorDisplay(label);
-  return display.variableSymbol ?? display.sectorName;
+  const base = (display.sectorName || display.variableSymbol || "").trim();
+  return base.charAt(0).toUpperCase();
 }
 
 export function parseMatrixAccountColumnLeafDisplay(label: string): MatrixAccountColumnLeafDisplay {

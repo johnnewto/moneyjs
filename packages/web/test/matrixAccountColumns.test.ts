@@ -105,8 +105,8 @@ describe("matrixAccountColumns", () => {
       variableSymbol: "H",
       fullLabel: "Households (H)"
     });
-    expect(formatMatrixSectorCollapsedLabel("Firms")).toBe("Firms");
-    expect(formatMatrixSectorCollapsedLabel("Banks (Bk)")).toBe("Bk");
+    expect(formatMatrixSectorCollapsedLabel("Firms")).toBe("F");
+    expect(formatMatrixSectorCollapsedLabel("Banks (Bk)")).toBe("B");
   });
 
   it("formats account column display labels and sector-prefixed tooltips", () => {
@@ -332,7 +332,7 @@ describe("matrixAccountColumns", () => {
       {
         kind: "collapsed",
         nodeId: "sector:Households",
-        label: "Households",
+        label: "H",
         fullLabel: "Households"
       },
       { kind: "leaf", columnIndex: 2 }
@@ -397,7 +397,7 @@ describe("matrixAccountColumns", () => {
       {
         kind: "collapsed",
         nodeId: "sector:Production firms",
-        label: "Production firms",
+        label: "P",
         fullLabel: "Production firms"
       }
     ]);
