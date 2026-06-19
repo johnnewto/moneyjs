@@ -85,6 +85,23 @@ function validateNotebookJson(document, sourcePath, validateNotebookDocument) {
   if (issues.length === 0) {
     return;
   }
-  const messages = issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("\n");
-  throw new Error(`${path.relative(webRoot, sourcePath)}: compiled JSON failed schema validation\n${messages}`);
+
+  const relativeSource = path.relative(webRoot, sourcePath);
+  const warnings = issues.filter((issue) => issue.severity === "warning");
+  const errors = issues.filter((issue) => issue.severity !== "warning");
+
+  for (const warning of warnings) {
+    console.warn(`${relativeSource}: warning: ${formatIssue(warning)}`);
+  }
+
+  if (errors.length === 0) {
+    return;
+  }
+
+  const messages = errors.map((issue) => formatIssue(issue)).join("\n");
+  throw new Error(`${relativeSource}: compiled JSON failed schema validation\n${messages}`);
+}
+
+function formatIssue(issue) {
+  return issue.path ? `${issue.path}: ${issue.message}` : issue.message;
 }
