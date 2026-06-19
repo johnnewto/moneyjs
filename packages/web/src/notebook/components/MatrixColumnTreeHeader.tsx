@@ -99,6 +99,7 @@ export function MatrixColumnTreeHeader({
   sectors,
   columnBadges,
   sumColumnIndex,
+  sumColumnLabel,
   collapsedNodeIds,
   editorLinked,
   accountColumnLayout = false,
@@ -118,6 +119,8 @@ export function MatrixColumnTreeHeader({
   sectors?: string[];
   columnBadges?: string[];
   sumColumnIndex: number;
+  /** Overrides the displayed Sum-column header (e.g. "A − L − E" for account-transactions). */
+  sumColumnLabel?: string;
   collapsedNodeIds: ReadonlySet<string>;
   editorLinked: boolean;
   accountColumnLayout?: boolean;
@@ -139,7 +142,8 @@ export function MatrixColumnTreeHeader({
 }): JSX.Element {
   const cornerRowSpan = Math.max(headerRows.length, 1);
   const cornerLabel = resolveMatrixCornerLabel(accountColumnLayout, matrixKind);
-  const sumColumnHeaderLabel = sumColumnIndex >= 0 ? columns[sumColumnIndex] : "";
+  const sumColumnHeaderLabel =
+    sumColumnIndex >= 0 ? sumColumnLabel ?? columns[sumColumnIndex] : "";
   const renderedRows =
     variant === "column-row"
       ? headerRows.length >= 2

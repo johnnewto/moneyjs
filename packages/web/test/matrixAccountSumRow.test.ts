@@ -505,7 +505,7 @@ describe("matrixAccountSumRow", () => {
     const incomeRowIndex = matrix.rows.findIndex((row) => row.label === "Income");
 
     expect(resolveAccountTransactionsMatrixCellValue(matrix, initialRowIndex, 2, null, 0)).toBe(100);
-    expect(resolveAccountTransactionsMatrixCellValue(matrix, incomeRowIndex, 2, null, 0)).toBe(-4);
+    expect(resolveAccountTransactionsMatrixCellValue(matrix, incomeRowIndex, 2, null, 0)).toBe(4);
   });
 
   it("prefers simulation stock lookup over sector implied equity on empty sum-row cells", () => {

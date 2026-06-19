@@ -76,6 +76,8 @@ export function isAccountTransactionsMatrix(cell: MatrixCell): boolean {
 
 export const ACCOUNT_TRANSACTIONS_SUM_ROW_DISPLAY_LABEL = "initial + ∫ Σ(flows) dt";
 
+export const ACCOUNT_TRANSACTIONS_SUM_COLUMN_DISPLAY_LABEL = "A − L − E";
+
 export function isSumLabel(value: string): boolean {
   return value.trim().toLowerCase().replace(/[\s_-]+/g, " ") === "sum";
 }
@@ -87,6 +89,16 @@ export function formatAccountTransactionsSumRowDisplayLabel(
   return isAccountTransactionsMatrix(matrix) && isSumLabel(rowLabel)
     ? ACCOUNT_TRANSACTIONS_SUM_ROW_DISPLAY_LABEL
     : rowLabel;
+}
+
+/** The Sum column totals each row as assets − liabilities − equities for account-transactions matrices. */
+export function formatAccountTransactionsSumColumnDisplayLabel(
+  matrix: MatrixCell,
+  columnLabel: string
+): string {
+  return isAccountTransactionsMatrix(matrix) && isSumLabel(columnLabel)
+    ? ACCOUNT_TRANSACTIONS_SUM_COLUMN_DISPLAY_LABEL
+    : columnLabel;
 }
 
 export function isEditableAccountSumRowCell(

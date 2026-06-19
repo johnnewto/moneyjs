@@ -85,7 +85,7 @@ describe("matrixAccountColumns", () => {
       computeSectorImpliedEquity(columns, sectors, columnBadges, 2, (columnIndex) =>
         columnIndex === 1 ? 40 : null
       )
-    ).toBe(40);
+    ).toBe(-40);
 
     expect(
       computeSectorImpliedEquity(columns, ["Poor (HH)", "Poor (HH)"], columnBadges, 2, () => null)

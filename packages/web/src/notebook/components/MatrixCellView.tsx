@@ -38,6 +38,7 @@ import { NotebookRenderProfiler } from "../notebookProfiler";
 import {
   ACCOUNT_SUM_ROW_INTEGRATED_STOCK_UNIT_META,
   evaluateMatrixEntryNumber,
+  formatAccountTransactionsSumColumnDisplayLabel,
   formatAccountTransactionsSumRowDisplayLabel,
   isAccountTransactionsMatrix,
   isEditableAccountSumRowCell,
@@ -559,6 +560,10 @@ export function MatrixCellView({
     sectors: cell.sectors,
     columnBadges: cell.columnBadges,
     sumColumnIndex,
+    sumColumnLabel:
+      sumColumnIndex >= 0
+        ? formatAccountTransactionsSumColumnDisplayLabel(cell, cell.columns[sumColumnIndex] ?? "")
+        : undefined,
     collapsedNodeIds: collapsedColumnTreeNodeIds,
     editorLinked: editor != null,
     accountColumnLayout,

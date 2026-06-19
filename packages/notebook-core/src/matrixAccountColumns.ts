@@ -504,7 +504,7 @@ export function computeSectorImpliedEquity(
     return assets;
   }
 
-  return liabilities;
+  return -liabilities;
 }
 
 /** Row total for account-transaction matrices: asset +, liability and equity −. */
