@@ -7,6 +7,12 @@ Run cells execute a model and store the result for charts, tables, matrices, and
 3. Use chart, table, matrix, and sequence cells to inspect the output.
 4. For scenarios, compare the scenario result against a baseline run.
 
+## Keyboard Shortcut
+
+Press **R** to run all cells without leaving the keyboard. The shortcut is ignored while you are typing in an input, text area, or equation editor, and it does nothing if a run is already in progress.
+
+Press **P** to toggle between the interactive run view and the publication view. From the notebook it opens the publication view; from a publication it returns to the interactive run view. Like **R**, it is ignored while you are typing in an editor.
+
 A run cell does not define equations. It tells the notebook which model to execute, how many periods to simulate, and where to store the result.
 
 ## Baseline Runs

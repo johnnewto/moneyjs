@@ -53,8 +53,15 @@ export function NotebookCommandActions({
       >
         Redo
       </button>
-      <button type="button" id="notebook-run-all" className="notebook-run-button" onClick={onRunAll}>
-        Run all
+      <button
+        type="button"
+        id="notebook-run-all"
+        className="notebook-run-button"
+        title="Run all (R)"
+        aria-label="Run all"
+        onClick={onRunAll}
+      >
+        <u className="notebook-run-all-hotkey">R</u>un all
       </button>
       <button type="button" className="notebook-run-button" onClick={onValidate}>
         Validate
@@ -66,6 +73,7 @@ export function NotebookCommandActions({
         <a
           className="notebook-toolbar-link notebook-run-button"
           href={publicationHref}
+          title="Publication view (P)"
           onClick={(event) => {
             onPreparePublicationView?.();
 
@@ -84,7 +92,7 @@ export function NotebookCommandActions({
             navigateToPublicationView(publicationHref);
           }}
         >
-          Publication view
+          <u className="notebook-run-all-hotkey">P</u>ublication view
         </a>
       ) : null}
       <button

@@ -128,7 +128,7 @@ import {
   writeNotebookLocation,
   writeNotebookVariantHash
 } from "./notebookAppHelpers";
-import { buildPublicationPathname } from "../publication/publicationRouteHelpers";
+import { buildPublicationPathname, navigateToPublicationView } from "../publication/publicationRouteHelpers";
 import { writePublicationLiveSession } from "../publication/publicationLiveSession";
 import {
   buildNotebookShareUrl,
@@ -832,6 +832,7 @@ export function NotebookApp() {
     [parameterOverrides]
   );
   const latestHistoryUpdateRef = useRef(0);
+  const runAllHotkeyInFlightRef = useRef(false);
   const assistantVariableDescriptions = useMemo(
     () => buildNotebookVariableDescriptions(notebookDocument.cells),
     [notebookDocument.cells]
@@ -1622,6 +1623,56 @@ export function NotebookApp() {
     window.addEventListener("keydown", handleNotebookHistoryShortcut);
     return () => window.removeEventListener("keydown", handleNotebookHistoryShortcut);
   }, [handleRedoNotebookEdit, handleUndoNotebookEdit]);
+
+  useEffect(() => {
+    function handleRunAllShortcut(event: KeyboardEvent): void {
+      if (event.key.toLowerCase() !== "r") {
+        return;
+      }
+      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+        return;
+      }
+      if (isNotebookHistoryShortcutEditableTarget(event.target)) {
+        return;
+      }
+      if (runAllHotkeyInFlightRef.current) {
+        return;
+      }
+      if (Object.values(runner.status).some((status) => status === "running")) {
+        return;
+      }
+
+      event.preventDefault();
+      runAllHotkeyInFlightRef.current = true;
+      void handleRunAll().finally(() => {
+        runAllHotkeyInFlightRef.current = false;
+      });
+    }
+
+    window.addEventListener("keydown", handleRunAllShortcut);
+    return () => window.removeEventListener("keydown", handleRunAllShortcut);
+  }, [handleRunAll, runner.status]);
+
+  useEffect(() => {
+    function handlePublicationViewShortcut(event: KeyboardEvent): void {
+      if (event.key.toLowerCase() !== "p") {
+        return;
+      }
+      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+        return;
+      }
+      if (isNotebookHistoryShortcutEditableTarget(event.target)) {
+        return;
+      }
+
+      event.preventDefault();
+      handlePreparePublicationView();
+      navigateToPublicationView(publicationHref);
+    }
+
+    window.addEventListener("keydown", handlePublicationViewShortcut);
+    return () => window.removeEventListener("keydown", handlePublicationViewShortcut);
+  }, [handlePreparePublicationView, publicationHref]);
 
   useEffect(() => {
     const historyUpdates = runner.historyUpdates;

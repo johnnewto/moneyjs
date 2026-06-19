@@ -32,6 +32,14 @@ import {
 } from "./resolvePublicationDocument";
 import "../styles/partials/publication.css";
 
+function isEditableKeyboardTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  return target.closest("input, textarea, select, [contenteditable='true'], .cm-editor") != null;
+}
+
 function resolveMaxPeriodIndex(
   getResult: (cellId: string) => SimulationResult | null,
   runCellIds: string[]
@@ -125,6 +133,33 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
       cancelled = true;
     };
   }, [documentRevision]);
+
+  useEffect(() => {
+    function handleRunAllShortcut(event: KeyboardEvent): void {
+      if (event.key.toLowerCase() !== "r") {
+        return;
+      }
+      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+        return;
+      }
+      if (isEditableKeyboardTarget(event.target)) {
+        return;
+      }
+      if (runPhase === "running") {
+        return;
+      }
+
+      event.preventDefault();
+      setRunPhase("running");
+      void (async () => {
+        await runner.runAll();
+        setRunPhase("done");
+      })();
+    }
+
+    window.addEventListener("keydown", handleRunAllShortcut);
+    return () => window.removeEventListener("keydown", handleRunAllShortcut);
+  }, [runPhase, runner]);
 
   const selectedPeriodIndex = useMemo(
     () => resolveMaxPeriodIndex(runner.getResult, runCellIds),
@@ -248,6 +283,30 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
   const isPrint = route.mode === "print";
   const embedMissingCell = isEmbed && !route.embedCellId;
   const embedUnknownCell = isEmbed && route.embedCellId && viewModel.bodySections.length === 0;
+
+  useEffect(() => {
+    if (isEmbed) {
+      return;
+    }
+
+    function handleRunViewShortcut(event: KeyboardEvent): void {
+      if (event.key.toLowerCase() !== "p") {
+        return;
+      }
+      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+        return;
+      }
+      if (isEditableKeyboardTarget(event.target)) {
+        return;
+      }
+
+      event.preventDefault();
+      window.location.assign(interactiveNotebookHref);
+    }
+
+    window.addEventListener("keydown", handleRunViewShortcut);
+    return () => window.removeEventListener("keydown", handleRunViewShortcut);
+  }, [interactiveNotebookHref, isEmbed]);
 
   const contentsEntries = useMemo(
     () => buildPublicationContentsEntries(viewModel.bodySections),

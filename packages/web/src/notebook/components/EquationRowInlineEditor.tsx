@@ -71,6 +71,14 @@ export function VariableRenameDialog({
   onConfirmNo(): void;
   onConfirmYes(): void;
 }) {
+  const noButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      noButtonRef.current?.focus();
+    }
+  }, [isOpen]);
+
   if (!isOpen) {
     return null;
   }
@@ -113,7 +121,7 @@ export function VariableRenameDialog({
           <button className="secondary-button" onClick={onCancel} type="button">
             Cancel
           </button>
-          <button className="secondary-button" onClick={onConfirmNo} type="button">
+          <button ref={noButtonRef} className="secondary-button" onClick={onConfirmNo} type="button">
             No
           </button>
           <button onClick={onConfirmYes} type="button">
