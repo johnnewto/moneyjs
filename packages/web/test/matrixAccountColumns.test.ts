@@ -49,7 +49,7 @@ describe("matrixAccountColumns", () => {
     expect(computeMatrixAccountRowTotal([100, 100, 100, 0], columnBadges, 3)).toBe(-100);
   });
 
-  it("does not apply A-L-E to signed account-transaction flow rows", () => {
+  it("weights every column by badge sign regardless of cell sign", () => {
     const columnBadges = ["asset", "equity", "asset", "asset", "liability", ""];
     const interestOnDepositsRow = [12, -12, 0, 12, -12, null];
     expect(computeMatrixAccountRowTotal(interestOnDepositsRow, columnBadges, 5)).toBe(48);

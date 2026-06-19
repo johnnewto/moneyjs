@@ -56,14 +56,14 @@ cells:
       columnBadges: [asset, equity, asset, asset, liability, equity, asset, liability, liability, equity, ""]
       accountingKind: account-transactions
       rows:
-        - [Initial, Initial values, "0", "0", "0", "", "0", "", "", "", "", "", "0"]
-        - [Wages, Wages, WBd, WBd, -WBd, "", "", -WBd, "", -WBd, +WBd, "", "0"]
+        - [Initial, Initial values, "", "", "", "", "", "", "", "", "", "", "0"]
+        - [Wages, Wages, WBd, WBd, -WBd, "", "", "", "", -WBd, +WBd, "", "0"]
         - [Consumption, Consumption, -Cs, -Cs, +Cd, "", "", +Cd, "", +Cs, -Cd, "", "0"]
         - [Investment, Investment, "", "", +Is, -Is, "", "", "", "", "", "", "0"]
         - [Depreciation, Depreciation, "", "", -AF, +AF, "", "", "", "", "", "", "0"]
-        - [Loans, Interest loans, "", "", -rl'*Ld', "", "", -rl'*Ld', "", "", +rl'*Ld', "rl[-1]*Ls[-1]", "0"]
-        - [Deposits, Interest on deposits, +rm'*Mh', +rm'*Mh', "", "", "", "", "", -rm'•Mh', "", "-rm[-1]*Ms[-1]", "0"]
-        - [Loans, Ch. loans, "", "", d(Ld), "", -d(Ls), +d(Ld)-d(Ls), +d(Ls), "", -d(Ld), "", "0"]
+        - [Loans, Interest loans, "", "", -rl'*Ld', "", "", -rl'*Ld', "", "", +rl'*Ld', "", "0"]
+        - [Deposits, Interest on deposits, +rm'*Mh', +rm'*Mh', "", "", "", "", "", rm'•Mh', "", "", "0"]
+        - [Loans, Ch. loans, "", "", d(Ld), "", d(Ls), "", +d(Ls), "", d(Ld), "", "0"]
         - [Deposits, Ch. deposits, "", "", "", "", "", +d(K), "", "", "", "", "0"]
         - [Sum, Sum, Mh, Vh, Mf, "", Ls, "", "", "", "", "", "0"]
   - sequence:

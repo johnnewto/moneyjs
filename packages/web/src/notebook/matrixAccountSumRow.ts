@@ -564,24 +564,9 @@ export function resolveAccountSumRowDisplayValue(
     columnIndex?: number;
   }
 ): number | null {
-  const trimmed = source.trim();
-  if (trimmed && trimmed !== "0") {
-    const evaluated = evaluateMatrixEntryNumber(trimmed, result, selectedPeriodIndex);
-    if (evaluated != null) {
-      return evaluated;
-    }
-  }
-
-  const stock = options?.stockVariable?.trim();
-  if (stock && result) {
-    const stockValue = evaluateMatrixEntryNumber(stock, result, selectedPeriodIndex);
-    if (stockValue != null) {
-      return stockValue;
-    }
-  }
-
+  // Equity columns in the Sum row are derived as assets − liabilities for the sector,
+  // overriding any explicit stock entry so net worth always reflects the balance sheet.
   if (
-    isEmptyAccountSumRowSource(source) &&
     options?.matrix &&
     options.columnIndex != null &&
     isMatrixEquityColumn(options.matrix.columnBadges, options.columnIndex)
@@ -604,6 +589,22 @@ export function resolveAccountSumRowDisplayValue(
     );
     if (implied != null) {
       return implied;
+    }
+  }
+
+  const trimmed = source.trim();
+  if (trimmed && trimmed !== "0") {
+    const evaluated = evaluateMatrixEntryNumber(trimmed, result, selectedPeriodIndex);
+    if (evaluated != null) {
+      return evaluated;
+    }
+  }
+
+  const stock = options?.stockVariable?.trim();
+  if (stock && result) {
+    const stockValue = evaluateMatrixEntryNumber(stock, result, selectedPeriodIndex);
+    if (stockValue != null) {
+      return stockValue;
     }
   }
 

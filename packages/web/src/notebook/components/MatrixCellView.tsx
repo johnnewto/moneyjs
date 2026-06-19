@@ -5,6 +5,7 @@ import { externalRowsOnly } from "@sfcr/notebook-core";
 import { evaluateExpression, parseExpression, type SimulationResult } from "@sfcr/core";
 import {
   computeMatrixAccountRowTotal,
+  isMatrixEquityColumn,
   isMatrixInitialRow,
   resolveMatrixAccountColumnCellClasses,
   resolveMatrixColumnSumReference,
@@ -1364,13 +1365,27 @@ function renderMatrixLeafDataCell({
             ? classifyMatrixStockRole(row.label, entry.source, entry.numericValue)
             : null;
 
+        // Equity cells in account-transactions matrices usually carry no explicit
+        // equation; their value is implied from the sector's asset/liability columns.
+        // In "Cells: Equation" mode such cells would otherwise render blank, so fall
+        // back to the resolved value when one is available.
+        const isEmptyEquationEquityCell =
+          isAccountTransactionsMatrix(cell) &&
+          isMatrixEquityColumn(cell.columnBadges, columnIndex) &&
+          !entry.isSumCell &&
+          isEmptyAccountSumRowSource(entry.source) &&
+          entry.resolved != null;
+
         const showEquation =
-          isEditingEntry || entryDisplayMode === "equation" || entryDisplayMode === "both";
+          isEditingEntry ||
+          ((entryDisplayMode === "equation" || entryDisplayMode === "both") &&
+            !isEmptyEquationEquityCell);
         const showValue =
           !isEditingEntry &&
           ((entry.isSumCell && entry.resolved != null) ||
             entryDisplayMode === "value" ||
-            (entryDisplayMode === "both" && entry.resolved != null));
+            (entryDisplayMode === "both" && entry.resolved != null) ||
+            isEmptyEquationEquityCell);
 
         return (
           <div className="matrix-entry-inline">
@@ -1569,10 +1584,11 @@ function buildEvaluatedMatrix(
 ) {
   const sumRowIndex = cell.rows.findIndex((row) => row.label.trim().toLowerCase() === "sum");
   const sumColumnIndex = cell.columns.findIndex((column) => column.trim().toLowerCase() === "sum");
-  // Flow matrices store signed debits/credits in cells; A-L-E applies only to balance-sheet
-  // matrices where column badges classify unsigned stock magnitudes.
+  // Balance-sheet and account-transaction matrices weight column badges as A − L − E
+  // (asset +, liability −, equity −) for row totals and the Sum-column grand total.
+  const accountingKind = resolveAccountingMatrixKind(cell);
   const useAccountRowSumRule =
-    resolveAccountingMatrixKind(cell) === "balance-sheet" &&
+    (accountingKind === "balance-sheet" || accountingKind === "account-transactions") &&
     usesMatrixAccountColumnLayout(cell.columnBadges);
   const numericValues = cell.rows.map((row, rowIndex) =>
     row.values.map((value, columnIndex) => {
@@ -1688,14 +1704,17 @@ function computeMatrixTotal(
   columnBadges?: string[]
 ): number | null {
   if (rowIndex === sumRowIndex && columnIndex === sumColumnIndex) {
-    return numericValues
-      .filter((_, currentRowIndex) => currentRowIndex !== sumRowIndex)
-      .flatMap((row, currentRowIndex) =>
-        isMatrixInitialRow(cell.rows[currentRowIndex] ?? { label: "" })
-          ? []
-          : row.filter((_, currentColumnIndex) => currentColumnIndex !== sumColumnIndex)
-      )
-      .reduce<number>((total, value) => total + (value ?? 0), 0);
+    // Grand total is the vertical sum of the Sum column: each row's (badge-weighted)
+    // row total, excluding the initial row and the Sum row itself.
+    return numericValues.reduce<number>((total, row, currentRowIndex) => {
+      if (currentRowIndex === sumRowIndex) {
+        return total;
+      }
+      if (isMatrixInitialRow(cell.rows[currentRowIndex] ?? { label: "" })) {
+        return total;
+      }
+      return total + computeRowTotal(row, sumColumnIndex, columnBadges);
+    }, 0);
   }
   if (rowIndex === sumRowIndex) {
     return numericValues

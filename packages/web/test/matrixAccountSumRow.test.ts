@@ -544,6 +544,45 @@ describe("matrixAccountSumRow", () => {
     ).toBe(75);
   });
 
+  it("overrides explicit equity sum-row entries with sector assets minus liabilities", () => {
+    const matrix: MatrixCell = {
+      ...accountTransactionsMatrix,
+      columns: ["Deposits", "Bills", "Equity", "Sum"],
+      sectors: ["Poor (HH)", "Poor (HH)", "Poor (HH)", ""],
+      columnBadges: ["asset", "liability", "equity", ""],
+      rows: [
+        { band: "Initial", label: "Initial values", role: "initial", values: ["0", "0", "", "0"] },
+        { band: "Income", label: "Income", values: ["+Dep", "-Bil", "", "0"] },
+        { band: "Sum", label: "Sum", values: ["Dep", "Bil", "Vp", "0"] }
+      ]
+    };
+    const result: SimulationResult = {
+      blocks: [],
+      model: { equations: [], externals: {}, initialValues: {} },
+      options: {
+        periods: 1,
+        solverMethod: "NEWTON",
+        tolerance: 1e-15,
+        maxIterations: 200,
+        defaultInitialValue: 1e-15
+      },
+      series: {
+        Dep: new Float64Array([110, 110]),
+        Bil: new Float64Array([35, 35]),
+        Vp: new Float64Array([999, 999])
+      }
+    };
+
+    // Explicit Vp resolves to 999, but the equity column must show assets − liabilities = 75.
+    expect(
+      resolveAccountSumRowDisplayValue("Vp", 999, result, 1, {
+        stockVariable: "Vp",
+        matrix,
+        columnIndex: 2
+      })
+    ).toBe(75);
+  });
+
   it("infers empty equity sum-row display from sector stocks when simulation is unavailable", () => {
     const matrix: MatrixCell = {
       ...accountTransactionsMatrix,
