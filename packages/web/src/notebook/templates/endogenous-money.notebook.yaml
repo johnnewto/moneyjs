@@ -1,10 +1,11 @@
 format: sfcr-notebook-yaml
 formatVersion: 1
-id: endogenous-money
-title: "Endogenous Money: Bank-Originated Money and Debt"
+id: endogenous-money-endog-tf
+title: Endog-tf
 metadata:
   version: 1
   template: endogenous-money
+  sourceFileName: endogenous-money-endog-tf (1).notebook.yaml
 cells:
   - markdown:
       id: intro
@@ -55,7 +56,7 @@ cells:
         - [Wages, Wages, -Wages, +Wages, "", "", "0"]
         - [Taxes, Taxes, "", -Tax, +Tax, "", "0"]
         - [Government, Government spending, +Spend_Govt, "", -Spend_Govt, "", "0"]
-        - [Bonds, Government bonds, "", "", +Bonds, -Bonds, "0"]
+        - [Bonds, Government bonds, "", "", +Bonds_sell, -Bonds_sell, "0"]
         - [Interest, Private debt interest, -Interest, "", "", +Interest, "0"]
         - [Fees, Bank fees, -Fee, "", "", +Fee, "0"]
         - [Interest, Bond interest, "", "", -Int_Bonds, +Int_Bonds, "0"]
@@ -63,26 +64,29 @@ cells:
         - [Sum, Sum, "0", "0", "0", "0", "0"]
   - matrix:
       id: account-transactions
-      accountingKind: account-transactions
       sourceRunCellId: baseline-run
       title: Endogenous money account transactions
       description: Account-level transaction matrix for the endogenous-money model, with balance-sheet accounts grouped by sector.
       note: Columns group balance-sheet accounts by sector. Use Expand all / Collapse all or click sector headers to show or hide account columns.
-      columns: [Deposits (Firms_eq), Debt, Net_Worth, Deposits (Workers_eq), Net_Worth, Bonds (Gov_Bonds), Net_Worth, Loans (Debt), Bonds (Gov_Bonds), Firm.Deposits, Worker.Deposits, Net_Worth (Banks_eq), Sum]
-      sectors: [Firms, Firms, Firms, Workers, Workers, Government, Government, Private_banks, Private_banks, Private_banks, Private_banks, Private_banks, ""]
-      columnBadges: [asset, liability, equity, asset, equity, liability, equity, asset, asset, liability, liability, equity, ""]
+      columns: [Deposits (Firms_eq), Debt, Net_Worth, Deposits, Bonds, Net_Worth, Govt.Acct, Bonds, Equity, Bonds, Reserves, Govt.Acct, Net_Worth, Reserves, Loans (Debt), Bonds (Gov_Bonds), Firm.Deposits, Worker.Deposits, Net_Worth (Banks_eq), Sum]
+      sectors: [Firms, Firms, Firms, Households, Households, Households, Treasury, Treasury, Treasury, Central.Bank, Central.Bank, Central.Bank, Central.Bank, Private_banks, Private_banks, Private_banks, Private_banks, Private_banks, Private_banks, ""]
+      columnBadges: [asset, liability, equity, asset, asset, equity, asset, liability, equity, asset, liability, liability, equity, asset, asset, asset, liability, liability, equity, ""]
+      accountingKind: account-transactions
       rows:
-        - [Initial, Initial values, 10, "0", "", 80, "", "0", "", "0", "0", 10, 80, 10, "0"]
-        - [Loans, New loans, +Loans, +Loans, "", "", "", "", "", +Loans, "", +Loans, "", "", "0"]
-        - [Consumption, Worker consumption, +Con_W, "", +Con_W, -Con_W, -Con_W, "", "", "", "", +Con_W, -Con_W, "", "0"]
-        - [Wages, Wages, -Wages, "", -Wages, +Wages, +Wages, "", "", "", "", -Wages, +Wages, "", "0"]
-        - [Taxes, Taxes, "", "", "", -Tax, -Tax, -Tax, +Tax, "", -Tax, "", -Tax, "", "0"]
-        - [Government, Government spending, +Spend_Govt, "", +Spend_Govt, "", "", +Spend_Govt, -Spend_Govt, "", +Spend_Govt, +Spend_Govt, "", "", "0"]
-        - [Interest, Private debt interest, -Interest, "", -Interest, "", "", "", "", "", "", -Interest, "", +Interest, "0"]
-        - [Fees, Bank fees, -Fee, "", -Fee, "", "", "", "", "", "", -Fee, "", +Fee, "0"]
-        - [Interest, Bond interest, "", "", "", "", "", +Int_Bonds, -Int_Bonds, "", +Int_Bonds, "", "", +Int_Bonds, "0"]
-        - [Bank spending, Bank spending, +Spend_banks, "", +Spend_banks, "", "", "", "", "", "", +Spend_banks, "", -Spend_banks, "0"]
-        - [Sum, Sum, Firms_eq, Debt, "", Workers_eq, "", Gov_Bonds, "", Debt, Gov_Bonds, Firms_eq, Workers_eq, Banks_eq, "0"]
+        - [Initial, Initial values, "20", "0", "", "80", "", "", "", "", "", "", "100", "", "", "100", "", "", "20", "80", "", "0"]
+        - [Loans, New loans, +Loans, +Loans, "", "", "", "", "", "", "", "", "", "", "", "", +Loans, "", +Loans, "", "", "0"]
+        - [Consumption, Worker consumption, +Con_W, "", +Con_W, -Con_W, "", -Con_W, "", "", "", "", "", "", "", "", "", "", +Con_W, -Con_W, "", "0"]
+        - [Wages, Wages, -Wages, "", -Wages, +Wages, "", +Wages, "", "", "", "", "", "", "", "", "", "", -Wages, +Wages, "", "0"]
+        - [Taxes, Taxes, "", "", "", -Tax, "", -Tax, +Tax, "", +Tax, "", -Tax, +Tax, "", -Tax, "", "", "", -Tax, "", "0"]
+        - [Government, Govt spending, +Spend_Govt, "", +Spend_Govt, "", "", "", -Spend_Govt, "", -Spend_Govt, "", +Spend_Govt, -Spend_Govt, "", +Spend_Govt, "", "", +Spend_Govt, "", "", "0"]
+        - [Government, Govt bond sales, "", "", "", "", "", "", +Bonds_sell, +Bonds_sell, "", "", -Bonds_sell, +Bonds_sell, "", -Bonds_sell, "", +Bonds_sell, "", "", "", ""]
+        - [Government, CB buy bonds, "", "", "", "", "", "", "", "", "", Bonds_buy^CB, Bonds_buy^CB, "", "", +Bonds_buy^CB, "", -Bonds_buy^CB, "", "", "", ""]
+        - [HH, HH buy bonds, "", "", "", -Bonds_buy^HH, Bonds_buy^HH, "", "", "", "", "", "", "", "", "", "", -Bonds_buy^HH, "", -Bonds_buy^HH, "", ""]
+        - [Interest, Private debt interest, -Interest, "", -Interest, "", "", "", "", "", "", "", "", "", "", "", "", "", -Interest, "", +Interest, "0"]
+        - [Fees, Bank fees, -Fee, "", -Fee, "", "", "", "", "", "", "", "", "", "", "", "", "", -Fee, "", +Fee, "0"]
+        - [Interest, Bond interest, "", "", "", "", "", "", -IntBonds, "", -IntBonds, "", "", -Int_Bonds, "", +Int_Bonds, "", "", "", "", +Int_Bonds, "0"]
+        - [Bank spending, Bank spending, +Spend_banks, "", +Spend_banks, "", "", "", "", "", "", "", "", "", "", "", "", "", +Spend_banks, "", -Spend_banks, "0"]
+        - [Sum, Sum, "", "", Firms_eq, "", "", Workers_eq, "", "", "", "", "", "", "", "", "", "", "", "", Banks_eq, "0"]
   - sequence:
       id: transaction-sequence
       title: Endogenous money transaction sequence
@@ -149,7 +153,7 @@ cells:
         - [Interest_rate, 0.05, "Debt interest rate.", 1/year, aux, ext-4-Interest_Rate]
         - [Fee_rate, 0.5, "Fee rate.", "", aux, ext-5-Fee_rate]
         - [Spend_rate, 0.1, "Bank spend rate.", 1/year, aux, ext-6-Spend_rate]
-        - [Workers_spendrate, 0.08, "Worker spend rate.", 1/year, aux, ext-7-Workers_spendrate]
+        - [Workers_spendrate, 0.2, "Worker spend rate.", 1/year, aux, ext-7-Workers_spendrate]
         - [Wage_rate, 0.65, "Wage rate.", "", aux, ext-8-Wage_rate]
         - [Tax_frac, 0.3, "Tax rate.", "", aux, ext-9-Tax_rate]
   - initial-values:
@@ -178,7 +182,7 @@ cells:
         - BankAssets
       axisMode: separate
       axisSnapTolarance: 0.1
-      niceScale: true
+      niceScale: false
       sourceRunCellId: baseline-run
   - chart:
       id: baseline-debt-chart
