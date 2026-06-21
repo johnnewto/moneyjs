@@ -8,6 +8,7 @@ import { PublicationChart } from "./components/PublicationChart";
 import { PublicationEquations } from "./components/PublicationEquations";
 import { PublicationMarkdown } from "./components/PublicationMarkdown";
 import { PublicationMatrix } from "./components/PublicationMatrix";
+import { PublicationSequence } from "./components/PublicationSequence";
 import { PublicationTable } from "./components/PublicationTable";
 import type { PublicationVariableInteraction } from "./publicationInspect";
 
@@ -55,6 +56,21 @@ export function PublicationCellView({
     return (
       <figure id={section.anchorId} className="publication-section publication-section-matrix">
         <PublicationMatrix cell={cell} interaction={interaction} />
+        <PublicationCaption description={cell.description} note={cell.note} title={cell.title} />
+      </figure>
+    );
+  }
+
+  if (section.kind === "sequence" && cell.type === "sequence") {
+    return (
+      <figure id={section.anchorId} className="publication-section publication-section-sequence">
+        <PublicationSequence
+          cell={cell}
+          cells={cells}
+          getResult={getResult}
+          interaction={interaction}
+          selectedPeriodIndex={selectedPeriodIndex}
+        />
         <PublicationCaption description={cell.description} note={cell.note} title={cell.title} />
       </figure>
     );

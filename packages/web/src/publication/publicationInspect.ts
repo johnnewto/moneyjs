@@ -20,6 +20,7 @@ import {
   findExternalsCell
 } from "../notebook/modelSections";
 import { resolveNearestNotebookContextCell } from "../notebook/notebookContext";
+import { resolveSequenceMatrixRunCellId } from "../notebook/sequenceMatrixInspect";
 import type { NotebookCell, NotebookDocument, RunCell } from "../notebook/types";
 
 export interface PublicationVariableInteraction {
@@ -159,6 +160,24 @@ export function resolvePublicationInspectContext(args: {
       (candidate): candidate is RunCell =>
         candidate.type === "run" && candidate.id === cell.sourceRunCellId
     );
+    return sourceRunCell
+      ? resolvePublicationInspectContext({
+          cell: sourceRunCell,
+          document,
+          getResult,
+          selectedPeriodIndex
+        })
+      : null;
+  }
+
+  if (cell.type === "sequence") {
+    const sourceRunCellId = resolveSequenceMatrixRunCellId(cell, document.cells);
+    const sourceRunCell = sourceRunCellId
+      ? document.cells.find(
+          (candidate): candidate is RunCell =>
+            candidate.type === "run" && candidate.id === sourceRunCellId
+        )
+      : null;
     return sourceRunCell
       ? resolvePublicationInspectContext({
           cell: sourceRunCell,

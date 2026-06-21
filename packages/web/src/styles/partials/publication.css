@@ -193,6 +193,14 @@ body:has(.publication-root) {
   margin-bottom: 2rem;
 }
 
+.publication-section-sequence {
+  margin: 0 0 2rem;
+}
+
+.publication-sequence {
+  width: 100%;
+}
+
 .publication-section-heading,
 .publication-appendix-title {
   margin: 0 0 1rem;
@@ -532,6 +540,7 @@ body:has(.publication-root) {
 
   .publication-section-chart,
   .publication-section-matrix,
+  .publication-section-sequence,
   .publication-section-table {
     break-inside: avoid;
     page-break-inside: avoid;
