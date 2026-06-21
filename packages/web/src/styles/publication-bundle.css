@@ -1,0 +1,18 @@
+/* Publication style bundle.
+ *
+ * Curated subset of partials needed to render the publication/embed views
+ * (and the components they reuse: matrices, charts, multiport transaction-flow
+ * canvas) in standalone hosts such as the docs site.
+ *
+ * Intentionally excludes global-scope partials (base.css, layout.css, etc.)
+ * so it can be layered onto a host that owns its own page chrome and scrolling.
+ */
+
+@import "./partials/tokens.css";
+@import "./partials/shared-components.css";
+@import "./partials/results-charts.css";
+@import "./partials/flow.css";
+@import "./partials/sequence.css";
+@import "./partials/notebook-matrix.css";
+@import "./partials/misc.css";
+@import "./partials/publication.css";
