@@ -45,9 +45,6 @@ export function PublicationEquations({
 
         return (
           <div key={item.id} className="publication-equation-block">
-            {item.desc?.trim() ? (
-              <span className="publication-equation-description">{item.desc.trim()}</span>
-            ) : null}
             <div className="publication-equation-expression">
               <span className="publication-equation-formula">
                 <PublicationVariableName interaction={interaction} name={item.name} />
@@ -55,6 +52,9 @@ export function PublicationEquations({
                 {renderPublicationFormula(expression, interaction)}
               </span>
             </div>
+            {item.desc?.trim() ? (
+              <span className="publication-equation-description">{item.desc.trim()}</span>
+            ) : null}
           </div>
         );
       })}

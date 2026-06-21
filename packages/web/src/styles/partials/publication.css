@@ -190,7 +190,9 @@ body:has(.publication-root) {
 }
 
 .publication-section {
-  margin-bottom: 2rem;
+  margin: 0 0 2rem;
+  border-top: 1px solid rgba(26, 26, 26, 0.1);
+  padding-top: 1.5rem;
 }
 
 .publication-section-sequence {
@@ -231,17 +233,26 @@ body:has(.publication-root) {
 }
 
 .publication-equations-section {
-  margin: 1rem 0 0.5rem;
+  margin: 0.3rem 0 0.1rem -1.5rem;
+  padding: 0.25rem 0 0 1.5rem;
+  border-top: 1px solid rgba(26, 26, 26, 0.35);
   font-style: italic;
   color: #444;
 }
 
+.publication-equations-section:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
 .publication-equation-block {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.15rem;
-  margin: 0.45rem 0;
+  flex-direction: row;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin: 0.15rem 0;
   text-align: left;
 }
 

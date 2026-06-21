@@ -37,7 +37,7 @@ describe("PublicationEquations", () => {
     const block = screen.getByText("Consumption demand").closest(".publication-equation-block");
     expect(block).not.toBeNull();
     const children = [...block!.children].map((child) => child.className);
-    expect(children[0]).toContain("publication-equation-description");
-    expect(children[1]).toContain("publication-equation-expression");
+    expect(children[0]).toContain("publication-equation-expression");
+    expect(children[1]).toContain("publication-equation-description");
   });
 });
