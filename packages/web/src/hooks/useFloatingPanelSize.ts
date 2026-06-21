@@ -34,7 +34,6 @@ export function useFloatingPanelSize({
   size: FloatingPanelSize;
   resizeHandleProps: {
     "aria-label": string;
-    "aria-orientation": "both";
     className: string;
     onMouseDown(event: ReactMouseEvent<HTMLElement>): void;
     role: "separator";
@@ -137,7 +136,6 @@ export function useFloatingPanelSize({
     size,
     resizeHandleProps: {
       "aria-label": "Resize pinned panel",
-      "aria-orientation": "both",
       className: "notebook-pinned-cell-panel-resize-handle",
       onMouseDown,
       role: "separator",

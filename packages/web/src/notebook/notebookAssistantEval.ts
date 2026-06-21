@@ -335,7 +335,7 @@ function validateExpectedDocument(
     const chart = document.cells.find((cell) => cell.type === "chart" && cell.id === expected.addedChart?.id);
     if (!chart || chart.type !== "chart") {
       diagnostics.push({ phase: "expected", message: `Expected chart ${expected.addedChart.id} to exist.` });
-    } else if (expected.addedChart.variables && !sameStrings(chart.variables, expected.addedChart.variables)) {
+    } else if (expected.addedChart.variables && !sameStrings(chart.variables ?? [], expected.addedChart.variables)) {
       diagnostics.push({ phase: "expected", message: `Expected chart ${expected.addedChart.id} variables ${expected.addedChart.variables.join(", ")}.` });
     }
   }

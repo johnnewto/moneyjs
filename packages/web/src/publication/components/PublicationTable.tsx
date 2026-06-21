@@ -1,4 +1,4 @@
-import { externalRowsOnly, isRowComment } from "@sfcr/notebook-core";
+import { equationRowsOnly, externalRowsOnly } from "@sfcr/notebook-core";
 
 import { buildEditorStateForNotebookModel } from "../../notebook/modelSections";
 import type { NotebookCell, RunCell, TableCell } from "../../notebook/types";
@@ -34,8 +34,8 @@ function resolvePublicationTableExpression(
     return null;
   }
 
-  const equation = editor.equations.find(
-    (entry) => !isRowComment(entry) && entry.name.trim() === variableName.trim()
+  const equation = equationRowsOnly(editor.equations).find(
+    (entry) => entry.name.trim() === variableName.trim()
   );
   if (equation?.expression.trim()) {
     return equation.expression.trim();

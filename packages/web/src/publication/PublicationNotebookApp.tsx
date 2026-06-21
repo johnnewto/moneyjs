@@ -94,7 +94,7 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
     return subscribeLivePublicationDocument((document) => {
       setNotebookDocument(document);
       setLiveSessionMissing(false);
-      setDocumentRevision((current) => current + 1);
+      setDocumentRevision((current) => (current ?? -1) + 1);
     });
   }, [route.source]);
 

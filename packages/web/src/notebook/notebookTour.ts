@@ -44,7 +44,7 @@ function queryCellEditButton(cell: Element | undefined): Element | undefined {
     return undefined;
   }
 
-  for (const button of cell.querySelectorAll("button")) {
+  for (const button of Array.from(cell.querySelectorAll("button"))) {
     if (button.textContent?.trim() === "Edit") {
       return button;
     }
@@ -126,7 +126,7 @@ const NOTEBOOK_TOUR_STEP_DEFINITIONS: NotebookTourStepDefinition[] = [
     id: "markdown-overview",
     title: "Overview markdown",
     buildStep: () => ({
-      element: () => queryFirstNotebookCell("markdown"),
+      element: () => queryFirstNotebookCell("markdown") as Element,
       onHighlightStarted: () => {
         scrollTourTargetIntoView(queryFirstNotebookCell("markdown"));
       },
@@ -171,7 +171,7 @@ const NOTEBOOK_TOUR_STEP_DEFINITIONS: NotebookTourStepDefinition[] = [
     id: "matrix-cells",
     title: "Matrix cells",
     buildStep: () => ({
-      element: () => queryFirstNotebookCell("matrix"),
+      element: () => queryFirstNotebookCell("matrix") as Element,
       onHighlightStarted: () => {
         scrollTourTargetIntoView(queryFirstNotebookCell("matrix"));
       },
@@ -186,7 +186,7 @@ const NOTEBOOK_TOUR_STEP_DEFINITIONS: NotebookTourStepDefinition[] = [
     id: "edit-matrix",
     title: "Edit a matrix",
     buildStep: () => ({
-      element: () => queryFirstCellEditButton("matrix"),
+      element: () => queryFirstCellEditButton("matrix") as Element,
       onHighlightStarted: () => {
         scrollTourTargetIntoView(queryFirstCellEditButton("matrix"));
       },
@@ -201,7 +201,7 @@ const NOTEBOOK_TOUR_STEP_DEFINITIONS: NotebookTourStepDefinition[] = [
     id: "matrix-graph-label",
     title: "Graph a matrix row or column",
     buildStep: () => ({
-      element: () => queryFirstMatrixGraphLabel(),
+      element: () => queryFirstMatrixGraphLabel() as Element,
       onHighlightStarted: () => {
         scrollTourTargetIntoView(queryFirstMatrixGraphLabel());
       },
@@ -246,7 +246,7 @@ const NOTEBOOK_TOUR_STEP_DEFINITIONS: NotebookTourStepDefinition[] = [
     id: "equation-cells",
     title: "Equation cells",
     buildStep: () => ({
-      element: () => queryFirstEquationsCell(),
+      element: () => queryFirstEquationsCell() as Element,
       onHighlightStarted: () => {
         scrollTourTargetIntoView(queryFirstEquationsCell());
       },
@@ -261,7 +261,7 @@ const NOTEBOOK_TOUR_STEP_DEFINITIONS: NotebookTourStepDefinition[] = [
     id: "edit-equations",
     title: "Edit equations",
     buildStep: () => ({
-      element: () => queryFirstEquationsEditButton(),
+      element: () => queryFirstEquationsEditButton() as Element,
       onHighlightStarted: () => {
         scrollTourTargetIntoView(queryFirstEquationsEditButton());
       },

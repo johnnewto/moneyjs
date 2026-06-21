@@ -30,9 +30,7 @@ export function resolveRunCellRenameScope(
   return null;
 }
 
-export function applyShockVariableRenameToRunCell<
-  T extends Pick<RunCell, "scenario"> & Record<string, unknown>
->(
+export function applyShockVariableRenameToRunCell<T extends Pick<RunCell, "scenario">>(
   runCell: T,
   shockIndex: number,
   variableName: string,

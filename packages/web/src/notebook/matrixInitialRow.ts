@@ -16,7 +16,7 @@ import {
   resolveAccountTransactionsSectorImpliedEquity,
   resolveSumRowStockVariable
 } from "./matrixAccountSumRow";
-import type { MatrixCell, NotebookCell, RunCell } from "./types";
+import type { InitialValuesCell, MatrixCell, NotebookCell, RunCell } from "./types";
 
 export interface MatrixInitialValueBinding {
   variable: string;
@@ -310,12 +310,13 @@ export function buildIssueMapForMatrixCell(
   }
 
   const initialValuesCell = cells.find(
-    (cell) => cell.type === "initial-values" && cell.modelId === runCell.sourceModelId
+    (cell): cell is InitialValuesCell =>
+      cell.type === "initial-values" && cell.modelId === runCell.sourceModelId
   );
 
   const issues = collectMatrixInitialValueOverrideIssues({
     cells,
-    modelId: runCell.sourceModelId,
+    modelId: runCell.sourceModelId ?? "",
     cellInitialValues: initialValuesCell?.initialValues ?? [],
     runCellId: runCell.id
   }).filter((issue) => issue.path.startsWith(`matrix.${matrix.id}.`));

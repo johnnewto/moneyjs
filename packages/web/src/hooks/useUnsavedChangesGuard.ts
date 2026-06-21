@@ -57,7 +57,7 @@ export function useUnsavedChangesGuard(options: {
         return;
       }
 
-      const anchor = (event.target as Element | null)?.closest("a[href]");
+      const anchor = (event.target as Element | null)?.closest<HTMLAnchorElement>("a[href]");
       if (!anchor || anchor.target === "_blank") {
         return;
       }

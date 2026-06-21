@@ -1120,7 +1120,7 @@ export function InitialValuesCellView({
             inlineEdit.confirmRenameNo();
             return;
           }
-          batchRename.cancelRenameNo();
+          batchRename.confirmRenameNo();
         }}
         onConfirmYes={() => {
           if (inlineEdit.renameDialog) {
