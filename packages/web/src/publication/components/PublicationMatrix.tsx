@@ -1,5 +1,6 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 
+import type { SimulationResult } from "@sfcr/core";
 import {
   buildMatrixAccountColumnHeaderRows,
   resolveMatrixAccountColumnCellClasses,
@@ -13,6 +14,10 @@ import {
   formatAccountTransactionsSumRowDisplayLabel,
   isEmptyAccountSumRowSource
 } from "../../notebook/matrixAccountSumRow";
+import {
+  collectMatrixColumnGraphSeries,
+  type MatrixGraphRequest
+} from "../../notebook/matrixSliceGraph";
 import type { MatrixCell } from "../../notebook/types";
 import type { PublicationVariableInteraction } from "../publicationInspect";
 import { renderPublicationFormula } from "../publicationFormula";
@@ -88,14 +93,45 @@ function resolvePublicationMatrixColumnClassName(
   );
 }
 
+function PublicationMatrixColumnHeaderLabel({
+  canGraph,
+  columnIndex,
+  label,
+  onGraphColumn
+}: {
+  canGraph: boolean;
+  columnIndex: number | null | undefined;
+  label: string;
+  onGraphColumn(columnIndex: number): void;
+}) {
+  if (!canGraph || columnIndex == null) {
+    return <>{label}</>;
+  }
+
+  return (
+    <button
+      type="button"
+      className="publication-matrix-graph-trigger"
+      title={`Graph column ${label}`}
+      onClick={() => onGraphColumn(columnIndex)}
+    >
+      {label}
+    </button>
+  );
+}
+
 function PublicationMatrixHeader({
+  canGraph,
   cell,
   cornerLabel,
-  headerRows
+  headerRows,
+  onGraphColumn
 }: {
+  canGraph: boolean;
   cell: MatrixCell;
   cornerLabel: string;
   headerRows: MatrixColumnHeaderCell[][];
+  onGraphColumn(columnIndex: number): void;
 }) {
   const sumColumnIndex = cell.columns.findIndex((column) => column.trim().toLowerCase() === "sum");
   const sumColumnLabel = sumColumnIndex >= 0 ? cell.columns[sumColumnIndex] : null;
@@ -106,9 +142,14 @@ function PublicationMatrixHeader({
       <thead>
         <tr>
           <th scope="col">{cornerLabel}</th>
-          {cell.columns.map((column) => (
+          {cell.columns.map((column, columnIndex) => (
             <th key={column} scope="col">
-              {column}
+              <PublicationMatrixColumnHeaderLabel
+                canGraph={canGraph && columnIndex !== sumColumnIndex}
+                columnIndex={columnIndex}
+                label={column}
+                onGraphColumn={onGraphColumn}
+              />
             </th>
           ))}
         </tr>
@@ -142,7 +183,12 @@ function PublicationMatrixHeader({
                     )
               }
             >
-              {headerCell.label}
+              <PublicationMatrixColumnHeaderLabel
+                canGraph={canGraph && headerCell.columnIndex !== sumColumnIndex}
+                columnIndex={headerCell.columnIndex}
+                label={headerCell.label}
+                onGraphColumn={onGraphColumn}
+              />
             </th>
           ))}
           {rowIndex === 0 && sumColumnLabel ? (
@@ -158,10 +204,14 @@ function PublicationMatrixHeader({
 
 export function PublicationMatrix({
   cell,
-  interaction
+  getResult,
+  interaction,
+  onRequestMatrixGraph
 }: {
   cell: MatrixCell;
+  getResult?(runCellId: string): SimulationResult | null;
   interaction: PublicationVariableInteraction;
+  onRequestMatrixGraph?(request: MatrixGraphRequest): void;
 }) {
   const accountColumnLayout = usesMatrixAccountColumnLayout(cell.columnBadges);
   const matrixKind = resolveMatrixTableKind(cell);
@@ -170,12 +220,46 @@ export function PublicationMatrix({
   const sumColumnIndex = cell.columns.findIndex((column) => column.trim().toLowerCase() === "sum");
   const usesSectorColumns = headerRows.length > 0;
 
+  const result = cell.sourceRunCellId && getResult ? getResult(cell.sourceRunCellId) : null;
+  const canGraph = Boolean(cell.sourceRunCellId && result && onRequestMatrixGraph);
+
+  const handleGraphColumn = useCallback(
+    (columnIndex: number) => {
+      if (!cell.sourceRunCellId || !result || !onRequestMatrixGraph) {
+        return;
+      }
+      if (columnIndex === sumColumnIndex) {
+        return;
+      }
+
+      const label = cell.columns[columnIndex]?.trim() || `Column ${columnIndex + 1}`;
+      onRequestMatrixGraph({
+        index: columnIndex,
+        kind: "column",
+        label,
+        matrixCellId: cell.id,
+        matrixTitle: cell.title,
+        sourceRunCellId: cell.sourceRunCellId,
+        series: collectMatrixColumnGraphSeries(cell, columnIndex, result),
+        variableDescriptions: interaction.variableDescriptions,
+        variableUnitMetadata: interaction.variableUnitMetadata
+      });
+    },
+    [cell, interaction, onRequestMatrixGraph, result, sumColumnIndex]
+  );
+
   return (
     <div className="publication-matrix-wrap">
       <table
         className={`publication-matrix${usesSectorColumns ? " publication-matrix-sector-columns" : ""}`}
       >
-        <PublicationMatrixHeader cell={cell} cornerLabel={cornerLabel} headerRows={headerRows} />
+        <PublicationMatrixHeader
+          canGraph={canGraph}
+          cell={cell}
+          cornerLabel={cornerLabel}
+          headerRows={headerRows}
+          onGraphColumn={handleGraphColumn}
+        />
         <tbody>
           {cell.rows.map((row) => (
             <tr key={`${row.label}-${row.band ?? ""}`}>

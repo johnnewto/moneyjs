@@ -511,6 +511,35 @@ body:has(.publication-root) {
   padding: 0;
 }
 
+.publication-graph-popup {
+  width: min(34rem, calc(100vw - 2rem));
+  max-width: min(34rem, calc(100vw - 2rem));
+}
+
+.publication-graph-popup-body {
+  overflow: auto;
+  padding: 0 0.75rem 0.75rem;
+}
+
+.publication-graph-popup-body .notebook-graph-rail-panel,
+.publication-graph-popup-body .notebook-sidebar-panel {
+  padding: 0;
+}
+
+.publication-matrix-graph-trigger {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-align: inherit;
+}
+
+.publication-matrix-graph-trigger:hover,
+.publication-matrix-graph-trigger:focus-visible {
+  text-decoration: underline;
+}
+
 .publication-variable-button {
   background: none;
   border: none;

@@ -10,12 +10,14 @@ import { PublicationMarkdown } from "./components/PublicationMarkdown";
 import { PublicationMatrix } from "./components/PublicationMatrix";
 import { PublicationSequence } from "./components/PublicationSequence";
 import { PublicationTable } from "./components/PublicationTable";
+import type { MatrixGraphRequest } from "../notebook/matrixSliceGraph";
 import type { PublicationVariableInteraction } from "./publicationInspect";
 
 export function PublicationCellView({
   cells,
   getResult,
   interaction,
+  onRequestMatrixGraph,
   section,
   selectedPeriodIndex,
   showHeading = true
@@ -23,6 +25,7 @@ export function PublicationCellView({
   cells: NotebookCell[];
   getResult(runCellId: string): SimulationResult | null;
   interaction: PublicationVariableInteraction;
+  onRequestMatrixGraph?(request: MatrixGraphRequest): void;
   section: PublicationSection;
   selectedPeriodIndex: number;
   showHeading?: boolean;
@@ -55,7 +58,12 @@ export function PublicationCellView({
   if (section.kind === "matrix" && cell.type === "matrix") {
     return (
       <figure id={section.anchorId} className="publication-section publication-section-matrix">
-        <PublicationMatrix cell={cell} interaction={interaction} />
+        <PublicationMatrix
+          cell={cell}
+          getResult={getResult}
+          interaction={interaction}
+          onRequestMatrixGraph={onRequestMatrixGraph}
+        />
         <PublicationCaption description={cell.description} note={cell.note} title={cell.title} />
       </figure>
     );

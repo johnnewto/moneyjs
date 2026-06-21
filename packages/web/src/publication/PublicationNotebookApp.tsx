@@ -1,9 +1,23 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { SimulationResult } from "@sfcr/core";
 
 import { useInspectorVariableHistory } from "../hooks/useInspectorVariableHistory";
 import { isSameInspectorContext, type VariableInspectRequest } from "../lib/variableInspect";
+import {
+  addMatrixGraphChartSeries,
+  applyMatrixGraphRequest,
+  removeMatrixGraphChart,
+  removeMatrixGraphChartSeries,
+  toggleMatrixGraphChartLegendMode,
+  toggleMatrixGraphChartPin,
+  type MatrixGraphChartEntry
+} from "../notebook/matrixGraphRailState";
+import {
+  collectMatrixGraphSliceSeries,
+  type MatrixGraphRequest
+} from "../notebook/matrixSliceGraph";
+import type { MatrixCell } from "../notebook/types";
 import { buildNotebookPathname, buildNotebookVariableUnitMetadata } from "../notebook/notebookAppHelpers";
 import { useNotebookRunner } from "../notebook/useNotebookRunner";
 import { buildPublicationViewModel, buildPublicationContentsEntries } from "./buildPublicationViewModel";
@@ -21,6 +35,7 @@ import {
 } from "./publicationInspect";
 import { buildPublicationVariableDescriptions } from "./publicationVariables";
 import { PublicationVariableInspectorPopup } from "./PublicationVariableInspectorPopup";
+import { PublicationMatrixGraphPopup } from "./PublicationMatrixGraphPopup";
 import {
   readPublicationLiveReturnUrl,
   readPublicationLiveSession
@@ -69,6 +84,8 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
   const [runPhase, setRunPhase] = useState<"pending" | "running" | "done">("pending");
   const [inspectorContext, setInspectorContext] = useState<VariableInspectRequest | null>(null);
   const inspectorHistory = useInspectorVariableHistory();
+  const [matrixGraphCharts, setMatrixGraphCharts] = useState<MatrixGraphChartEntry[]>([]);
+  const matrixGraphChartIdRef = useRef(0);
 
   const publicationTemplateId = useMemo(
     () => resolvePublicationTemplateId(notebookDocument),
@@ -261,6 +278,67 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
     setInspectorContext(null);
   }, []);
 
+  const handleMatrixGraphRequest = useCallback((request: MatrixGraphRequest) => {
+    setMatrixGraphCharts((current) =>
+      applyMatrixGraphRequest(current, request, () => {
+        matrixGraphChartIdRef.current += 1;
+        return `publication-matrix-graph-${matrixGraphChartIdRef.current}`;
+      })
+    );
+  }, []);
+
+  const handleToggleMatrixGraphChartPin = useCallback((chartId: string) => {
+    setMatrixGraphCharts((current) => toggleMatrixGraphChartPin(current, chartId));
+  }, []);
+
+  const handleToggleMatrixGraphChartLegendMode = useCallback((chartId: string) => {
+    setMatrixGraphCharts((current) => toggleMatrixGraphChartLegendMode(current, chartId));
+  }, []);
+
+  const handleDismissMatrixGraphChart = useCallback((chartId: string) => {
+    setMatrixGraphCharts((current) => removeMatrixGraphChart(current, chartId));
+  }, []);
+
+  const handleAddMatrixGraphChartSeries = useCallback(
+    (chartId: string, source: string) => {
+      setMatrixGraphCharts((charts) => {
+        const chart = charts.find((entry) => entry.id === chartId);
+        if (!chart) {
+          return charts;
+        }
+
+        const matrixCell = notebookDocument.cells.find(
+          (cell): cell is MatrixCell => cell.type === "matrix" && cell.id === chart.matrixCellId
+        );
+        const result = runner.getResult(chart.sourceRunCellId);
+        if (!matrixCell || !result) {
+          return charts;
+        }
+
+        const sliceEntry = collectMatrixGraphSliceSeries(
+          matrixCell,
+          chart.kind,
+          chart.index,
+          result
+        ).find((entry) => entry.source === source);
+        if (!sliceEntry) {
+          return charts;
+        }
+
+        return addMatrixGraphChartSeries(charts, chartId, sliceEntry);
+      });
+    },
+    [notebookDocument, runner]
+  );
+
+  const handleRemoveMatrixGraphChartSeries = useCallback((chartId: string, source: string) => {
+    setMatrixGraphCharts((current) => removeMatrixGraphChartSeries(current, chartId, source));
+  }, []);
+
+  const handleCloseMatrixGraph = useCallback(() => {
+    setMatrixGraphCharts([]);
+  }, []);
+
   useEffect(() => {
     if (route.mode === "embed" || !route.cellId || runPhase !== "done") {
       return;
@@ -339,6 +417,7 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
           cells={notebookDocument.cells}
           getResult={runner.getResult}
           interaction={buildCellInteraction(section.cell)}
+          onRequestMatrixGraph={runPhase === "done" ? handleMatrixGraphRequest : undefined}
           section={section}
           selectedPeriodIndex={selectedPeriodIndex}
           showHeading={!isEmbed}
@@ -354,6 +433,7 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
               cells={notebookDocument.cells}
               getResult={runner.getResult}
               interaction={buildCellInteraction(section.cell)}
+              onRequestMatrixGraph={runPhase === "done" ? handleMatrixGraphRequest : undefined}
               section={section}
               selectedPeriodIndex={selectedPeriodIndex}
             />
@@ -420,6 +500,21 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
           onGoBack={handleInspectorGoBack}
           onGoForward={handleInspectorGoForward}
           onSelectVariable={handleInspectorSelectVariable}
+          selectedPeriodIndex={selectedPeriodIndex}
+        />
+      ) : null}
+
+      {matrixGraphCharts.length > 0 ? (
+        <PublicationMatrixGraphPopup
+          cells={notebookDocument.cells}
+          charts={matrixGraphCharts}
+          getResult={runner.getResult}
+          onAddChartSeries={handleAddMatrixGraphChartSeries}
+          onClose={handleCloseMatrixGraph}
+          onDismissChart={handleDismissMatrixGraphChart}
+          onRemoveChartSeries={handleRemoveMatrixGraphChartSeries}
+          onToggleChartLegendMode={handleToggleMatrixGraphChartLegendMode}
+          onToggleChartPin={handleToggleMatrixGraphChartPin}
           selectedPeriodIndex={selectedPeriodIndex}
         />
       ) : null}
