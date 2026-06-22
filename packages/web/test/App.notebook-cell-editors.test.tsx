@@ -7,6 +7,7 @@ import {
   App,
   fireEvent,
   getNotebookSourceTextArea,
+  openNotebookCommandsPanel,
   screen,
   setSuccessfulNotebookRunner,
   setNotebookSourceFormat,
@@ -88,8 +89,9 @@ describe("App per-cell source editors", () => {
 
     render(<App />);
 
-    expect(screen.getByRole("button", { name: /^undo$/i })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /^redo$/i })).toBeDisabled();
+    const commandsPanel = await openNotebookCommandsPanel(user);
+    expect(within(commandsPanel).getByRole("button", { name: /^undo$/i })).toBeDisabled();
+    expect(within(commandsPanel).getByRole("button", { name: /^redo$/i })).toBeDisabled();
 
     const overviewHeading = screen.getByRole("heading", { name: /overview/i });
     const overviewArticle = overviewHeading.closest("article");
@@ -109,11 +111,11 @@ describe("App per-cell source editors", () => {
 
     expect(screen.getByRole("heading", { name: /journal overview/i })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /undo: cell edit/i }));
+    await user.click(within(commandsPanel).getByRole("button", { name: /undo: cell edit/i }));
     expect(screen.getByRole("heading", { name: /^overview$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /redo: cell edit/i })).toBeEnabled();
+    expect(within(commandsPanel).getByRole("button", { name: /redo: cell edit/i })).toBeEnabled();
 
-    await user.click(screen.getByRole("button", { name: /redo: cell edit/i }));
+    await user.click(within(commandsPanel).getByRole("button", { name: /redo: cell edit/i }));
     expect(screen.getByRole("heading", { name: /journal overview/i })).toBeInTheDocument();
   }, 15000);
 

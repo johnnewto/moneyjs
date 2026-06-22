@@ -1662,7 +1662,9 @@
 .notebook-run-scenarios {
   display: grid;
   gap: 0.55rem;
-  margin-top: 0.7rem;
+  list-style: none;
+  margin: 0.7rem 0 0;
+  padding-left: 0;
 }
 .notebook-run-shock {
   background: rgba(248, 250, 252, 0.84);

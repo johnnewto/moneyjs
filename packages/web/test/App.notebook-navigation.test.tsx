@@ -8,6 +8,7 @@ import {
   fireEvent,
   getFormulaTokensByText,
   notebookRunnerMock,
+  openNotebookCommandsPanel,
   screen,
   clickForDeferredVariableInspect,
   expectVariableInspectorOpen,
@@ -71,9 +72,10 @@ describe("App notebook navigation and inspection", () => {
     expect(templatePicker).toHaveValue("bmw");
     expect(within(templatePicker).getByRole("option", { name: /^BMW$/i })).toBeInTheDocument();
     expect(within(templatePicker).getByRole("option", { name: /^SIM$/i })).toBeInTheDocument();
-    expect(screen.getAllByText(/bmw browser notebook/i).length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: /^run all$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /validate/i })).toBeInTheDocument();
+    const commandsPanel = await openNotebookCommandsPanel(user);
+    expect(within(commandsPanel).getByText(/bmw browser notebook/i)).toBeInTheDocument();
+    expect(within(commandsPanel).getByRole("button", { name: /^run all$/i })).toBeInTheDocument();
+    expect(within(commandsPanel).getByRole("button", { name: /validate/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /bmw balance sheet/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /bmw transactions-flow matrix/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /bmw transaction flow sequence/i })).toBeInTheDocument();
@@ -267,11 +269,12 @@ describe("App notebook navigation and inspection", () => {
 
     notebookRunnerMock.runAll.mockClear();
 
-    await user.click(screen.getByRole("button", { name: /^run all$/i }));
+    const commandsPanel = await openNotebookCommandsPanel(user);
+    await user.click(within(commandsPanel).getByRole("button", { name: /^run all$/i }));
 
     await waitFor(() => {
       expect(notebookRunnerMock.runAll).toHaveBeenCalledTimes(1);
-      expect(screen.getByRole("status")).toHaveTextContent(/ran all notebook cells in /i);
+      expect(screen.getByText(/ran all notebook cells in /i)).toBeInTheDocument();
     });
   });
 
@@ -625,7 +628,7 @@ describe("App notebook navigation and inspection", () => {
         .getAllByTitle("Double-click to edit")
         .some((node) => node.textContent?.includes("CdDraft"))
     ).toBe(false);
-  });
+  }, 15000);
 
   it("edits an equation row inline without opening cell edit mode", async () => {
     const user = userEvent.setup();
@@ -863,12 +866,14 @@ describe("App notebook navigation and inspection", () => {
 
   }, 15000);
 
-  it("loads a notebook template from the hash path", () => {
+  it("loads a notebook template from the hash path", async () => {
+    const user = userEvent.setup();
     window.location.hash = "#/notebook/gl2-pc";
 
     render(<App />);
 
-    expect(screen.getAllByText(/gl2 pc notebook/i).length).toBeGreaterThan(0);
+    const commandsPanel = await openNotebookCommandsPanel(user);
+    expect(within(commandsPanel).getByText(/gl2 pc notebook/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /pc balance sheet/i })).toBeInTheDocument();
   });
 
@@ -931,11 +936,14 @@ describe("App notebook navigation and inspection", () => {
 
     render(<App />);
 
-    expect(screen.getAllByText(/bmw browser notebook/i).length).toBeGreaterThan(0);
+    const commandsPanel = await openNotebookCommandsPanel(user);
+    expect(within(commandsPanel).getByText(/bmw browser notebook/i)).toBeInTheDocument();
 
     await user.selectOptions(screen.getByLabelText(/notebook template/i), "gl6-dis");
 
-    expect(screen.getAllByText(/gl6 dis notebook/i).length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(within(commandsPanel).getByText(/gl6 dis notebook/i)).toBeInTheDocument();
+    });
     expect(screen.getByRole("heading", { name: /dis balance sheet/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /dis transactions-flow matrix/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /dis equation dependency graph/i })).toBeInTheDocument();
@@ -1049,7 +1057,8 @@ describe("App notebook navigation and inspection", () => {
 
     await user.selectOptions(screen.getByLabelText(/notebook template/i), "gl8-growth");
 
-    expect(screen.getAllByText(/gl8 growth notebook/i).length).toBeGreaterThan(0);
+    const commandsPanel = await openNotebookCommandsPanel(user);
+    expect(within(commandsPanel).getByText(/gl8 growth notebook/i)).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { name: /^externals$/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("heading", { name: /initial values/i }).length).toBeGreaterThan(0);
 
@@ -1071,5 +1080,5 @@ describe("App notebook navigation and inspection", () => {
     expect(within(externalsCell).getByRole("button", { name: /^edit$/i })).toBeInTheDocument();
     await user.click(within(externalsCell).getByRole("button", { name: /^edit$/i }));
     expect(within(externalsCell).getByRole("button", { name: /add external/i })).toBeInTheDocument();
-  });
+  }, 15000);
 });

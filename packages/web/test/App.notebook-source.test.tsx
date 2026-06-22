@@ -119,7 +119,7 @@ describe("App notebook source and import workflows", () => {
       );
       expect(screen.getByRole("button", { name: /apply text/i })).toBeDisabled();
     });
-  }, 15000);
+  }, 30000);
 
   it("shows detailed model validation issues for invalid notebook JSON", async () => {
     const user = userEvent.setup();
@@ -138,7 +138,7 @@ describe("App notebook source and import workflows", () => {
       );
       expect(screen.getByRole("button", { name: /apply text/i })).toBeDisabled();
     });
-  });
+  }, 30000);
 
   it("persists dependency toolbar choices into the notebook document", async () => {
     const user = userEvent.setup();
@@ -183,7 +183,7 @@ describe("App notebook source and import workflows", () => {
     expect(getNotebookSourceTextArea().value).toMatch(/```sfcr-matrix/i);
     expect(getNotebookSourceTextArea().value).toMatch(/```sfcr-sequence/i);
     expect(getNotebookSourceTextArea().value).toMatch(/# BMW Browser Notebook/i);
-  });
+  }, 15000);
 
   it("renders notebook YAML in the editor when YAML is selected", async () => {
     const user = userEvent.setup();

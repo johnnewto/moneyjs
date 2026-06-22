@@ -94,9 +94,9 @@ export function RunCellView({
         ) : null}
       </div>
       {scenarioShockMarkers.length ? (
-        <div className="notebook-run-scenarios">
+        <ul className="notebook-run-scenarios">
           {scenarioShockMarkers.map((marker) => (
-            <div
+            <li
               key={`${cell.id}-shock-${marker.shockIndex}`}
               className="notebook-run-shock"
               aria-label={formatScenarioShockRunCellLabel(marker)}
@@ -126,9 +126,9 @@ export function RunCellView({
                   </>
                 ) : null}
               </div>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       ) : null}
       {warnings.length > 0 ? (
         <div className="notebook-run-warnings" role="status" aria-label="Run warnings">

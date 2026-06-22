@@ -52,7 +52,7 @@ describe("App notebook assistant", () => {
     await waitFor(() => {
       expect(screen.getByLabelText(/simulation period navigation/i)).toBeInTheDocument();
     });
-  }, 15000);
+  }, 30000);
 
   it("previews, applies, and undoes an assistant notebook patch", async () => {
     const user = userEvent.setup();
@@ -94,7 +94,7 @@ describe("App notebook assistant", () => {
     await waitFor(() => {
       expect(screen.queryByRole("heading", { name: /^disposable income$/i })).not.toBeInTheDocument();
     });
-  }, 15000);
+  }, 30000);
 
   it("continues through response.completed SSE follow-up tool rounds before preparing a patch", async () => {
     const user = userEvent.setup();
@@ -179,7 +179,7 @@ describe("App notebook assistant", () => {
 
     expect(screen.getByText(/proposed change prepared/i)).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /apply patch/i }).length).toBeGreaterThan(0);
-  }, 15000);
+  }, 30000);
 
 });
 

@@ -47,7 +47,8 @@ export function ScenarioShockVariableLine({
         highlightedVariable,
         `result-variable-button scenario-shock-variable-button ${inspectButtonClassName}`.trim()
       )}
-      aria-label={`Inspect ${formatScenarioShockVariableLabel(entry)}`}
+      aria-label={`Inspect variable ${entry.name}`}
+      title={`Inspect ${formatScenarioShockVariableLabel(entry)}`}
       onClick={() => onInspect(entry.name)}
     >
       {content}

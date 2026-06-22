@@ -158,6 +158,16 @@ export function getFormulaTokensByText(container: HTMLElement, text: string): HT
   );
 }
 
+export async function openNotebookCommandsPanel(
+  user: ReturnType<typeof userEventLib.setup>
+): Promise<HTMLElement> {
+  const toggle = screen.getByRole("button", { name: /^commands$/i });
+  if (toggle.getAttribute("aria-expanded") !== "true") {
+    await user.click(toggle);
+  }
+  return screen.findByRole("dialog", { name: /notebook commands/i });
+}
+
 export async function setNotebookSourceFormat(
   user: ReturnType<typeof userEventLib.setup>,
   format: "json" | "markdown" | "yaml"
@@ -183,10 +193,19 @@ export async function setNotebookSourceFormat(
         throw new Error("Notebook source editor has not finished mounting yet.");
       }
     });
-    return;
+  } else {
+    await screen.findByTestId("notebook-source-text");
   }
 
-  await screen.findByTestId("notebook-source-text");
+  await waitFor(() => {
+    const currentFormat = resolveNotebookSourceFormatFromSource(getNotebookSourceTextArea().value);
+    if (currentFormat !== format) {
+      if (screen.queryByRole("status")?.textContent?.match(/apply or discard the source draft/i)) {
+        return;
+      }
+      throw new Error(`Notebook source format is ${currentFormat}, expected ${format}.`);
+    }
+  });
 }
 
 export async function expectVariableInspectorOpen(timeout = 3500): Promise<void> {
@@ -216,4 +235,15 @@ function resolveNotebookSourceFormatFromText(text: string): "json" | "markdown" 
     return "yaml";
   }
   return "json";
+}
+
+function resolveNotebookSourceFormatFromSource(text: string): "json" | "markdown" | "yaml" {
+  const trimmed = text.trimStart();
+  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+    return "json";
+  }
+  if (/^format:\s*sfcr-notebook-yaml/im.test(trimmed)) {
+    return "yaml";
+  }
+  return "markdown";
 }
