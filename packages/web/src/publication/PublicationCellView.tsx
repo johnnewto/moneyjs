@@ -109,6 +109,18 @@ export function PublicationCellView({
     );
   }
 
+  if (section.kind === "run" && cell.type === "run") {
+    const runText = [cell.description?.trim(), cell.note?.trim()].filter(Boolean).join(" ");
+    return (
+      <section id={section.anchorId} className="publication-section publication-section-prose">
+        {showHeading && cell.title.trim() ? (
+          <h2 className="publication-section-heading">{cell.title}</h2>
+        ) : null}
+        {runText ? <p>{runText}</p> : null}
+      </section>
+    );
+  }
+
   if (section.kind === "appendix") {
     return (
       <section id={section.anchorId} className="publication-section publication-section-appendix">

@@ -9,6 +9,7 @@ export type PublicationSectionKind =
   | "chart"
   | "table"
   | "sequence"
+  | "run"
   | "appendix";
 
 export interface PublicationSection {
@@ -50,11 +51,11 @@ function classifyCellPlacement(cell: NotebookCell): "body" | "appendix" | "skip"
     case "matrix":
     case "chart":
     case "table":
+    case "run":
       return "body";
     case "externals":
     case "initial-values":
     case "solver":
-    case "run":
       return "appendix";
     case "sequence":
       // Only matrix-sourced sequences render as multiport transaction-flow figures.
@@ -79,6 +80,8 @@ function resolveSectionKind(cell: NotebookCell): PublicationSectionKind {
       return "table";
     case "sequence":
       return "sequence";
+    case "run":
+      return "run";
     default:
       return "appendix";
   }

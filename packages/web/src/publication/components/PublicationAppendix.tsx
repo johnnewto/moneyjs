@@ -4,7 +4,6 @@ import type {
   ExternalsCell,
   InitialValuesCell,
   NotebookCell,
-  RunCell,
   SolverCell
 } from "../../notebook/types";
 
@@ -16,8 +15,6 @@ export function PublicationAppendixSection({ cell }: { cell: NotebookCell }) {
       return <PublicationInitialValues cell={cell} />;
     case "solver":
       return <PublicationSolver cell={cell} />;
-    case "run":
-      return <PublicationRun cell={cell} />;
     default:
       return null;
   }
@@ -108,31 +105,6 @@ function PublicationSolver({ cell }: { cell: SolverCell }) {
   );
 }
 
-function PublicationRun({ cell }: { cell: RunCell }) {
-  return (
-    <dl className="publication-appendix-list">
-      <div>
-        <dt>Mode</dt>
-        <dd>{cell.mode}</dd>
-      </div>
-      <div>
-        <dt>Periods</dt>
-        <dd>{cell.periods}</dd>
-      </div>
-      <div>
-        <dt>Result key</dt>
-        <dd>{cell.resultKey}</dd>
-      </div>
-      {cell.baselineRunCellId ? (
-        <div>
-          <dt>Baseline run</dt>
-          <dd>{cell.baselineRunCellId}</dd>
-        </div>
-      ) : null}
-    </dl>
-  );
-}
-
 export function hasAppendixContent(cell: NotebookCell): boolean {
   if (cell.type === "externals") {
     return externalRowsOnly(cell.externals).length > 0;
@@ -140,7 +112,7 @@ export function hasAppendixContent(cell: NotebookCell): boolean {
   if (cell.type === "initial-values") {
     return initialValueRowsOnly(cell.initialValues).length > 0;
   }
-  if (cell.type === "solver" || cell.type === "run") {
+  if (cell.type === "solver") {
     return true;
   }
   return false;

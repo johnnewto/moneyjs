@@ -14,7 +14,8 @@ describe("buildPublicationViewModel", () => {
 
     expect(viewModel.bodySections.some((section) => section.cell.type === "markdown")).toBe(true);
     expect(viewModel.bodySections.some((section) => section.cell.type === "matrix")).toBe(true);
-    expect(viewModel.appendixSections.some((section) => section.cell.type === "run")).toBe(true);
+    expect(viewModel.bodySections.some((section) => section.cell.type === "run")).toBe(true);
+    expect(viewModel.appendixSections.some((section) => section.cell.type === "run")).toBe(false);
     expect(viewModel.appendixSections.some((section) => section.cell.type === "solver")).toBe(true);
   });
 
