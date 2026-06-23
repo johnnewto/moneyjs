@@ -19,6 +19,7 @@ export function PublicationCellView({
   cells,
   getResult,
   interaction,
+  interactiveCharts = false,
   matrixEntryDisplayMode = "equation",
   onRequestMatrixGraph,
   section,
@@ -28,6 +29,7 @@ export function PublicationCellView({
   cells: NotebookCell[];
   getResult(runCellId: string): SimulationResult | null;
   interaction: PublicationVariableInteraction;
+  interactiveCharts?: boolean;
   matrixEntryDisplayMode?: MatrixEntryDisplayMode;
   onRequestMatrixGraph?(request: MatrixGraphRequest): void;
   section: PublicationSection;
@@ -106,6 +108,7 @@ export function PublicationCellView({
           cells={cells}
           getResult={getResult}
           interaction={interaction}
+          interactive={interactiveCharts}
           result={result}
           selectedPeriodIndex={selectedPeriodIndex}
         />

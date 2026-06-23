@@ -3,7 +3,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import type { SimulationResult } from "@sfcr/core";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { PublicationChart } from "../src/publication/components/PublicationChart";
@@ -112,5 +112,134 @@ describe("PublicationChart", () => {
     );
 
     expect(screen.queryByLabelText(/→/)).not.toBeInTheDocument();
+  });
+
+  it("omits interactive affordances by default", () => {
+    const result = createResult({
+      Y: [100, 105, 110, 115, 120, 125, 130, 135],
+      C: [80, 84, 88, 92, 96, 100, 104, 108]
+    });
+
+    render(
+      <PublicationChart
+        cell={chartCell}
+        cells={cells}
+        getResult={() => result}
+        interaction={interaction}
+        result={result}
+        selectedPeriodIndex={0}
+      />
+    );
+
+    expect(screen.queryByLabelText("Time range slider")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Add chart variable")).not.toBeInTheDocument();
+  });
+
+  it("renders interactive affordances and computes add-variable options", () => {
+    const result = createResult({
+      Y: [100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150, 155],
+      C: [80, 84, 88, 92, 96, 100, 104, 108, 112, 116, 120, 124],
+      constantVar: [5],
+      nonFinite: [NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN]
+    });
+
+    render(
+      <PublicationChart
+        cell={chartCell}
+        cells={cells}
+        getResult={() => result}
+        interaction={interaction}
+        interactive
+        result={result}
+        selectedPeriodIndex={0}
+      />
+    );
+
+    expect(screen.getByLabelText("Time range slider")).toBeInTheDocument();
+
+    const addButton = screen.getByLabelText("Add chart variable");
+    fireEvent.click(addButton);
+
+    const menu = screen.getByRole("listbox", { name: "Available chart variables" });
+    const optionNames = within(menu)
+      .getAllByRole("option")
+      .map((option) => option.textContent?.trim());
+
+    // "Y" is already displayed; "constantVar" (single period) and "nonFinite"
+    // (no finite values) are not graphable, so only "C" is offered.
+    expect(optionNames).toEqual(["C"]);
+  });
+
+  it("updates rendered traces without mutating the precomputed result", () => {
+    const result = createResult({
+      Y: [100, 105, 110, 115, 120, 125, 130, 135],
+      C: [80, 84, 88, 92, 96, 100, 104, 108]
+    });
+    const originalY = result.series.Y;
+    const originalSeriesKeys = Object.keys(result.series);
+
+    render(
+      <PublicationChart
+        cell={chartCell}
+        cells={cells}
+        getResult={() => result}
+        interaction={interaction}
+        interactive
+        result={result}
+        selectedPeriodIndex={0}
+      />
+    );
+
+    expect(screen.queryByText("C")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("Add chart variable"));
+    const menu = screen.getByRole("listbox", { name: "Available chart variables" });
+    fireEvent.click(within(menu).getByRole("option", { name: "C" }));
+
+    expect(screen.getAllByText("C").length).toBeGreaterThan(0);
+    expect(result.series.Y).toBe(originalY);
+    expect(Object.keys(result.series)).toEqual(originalSeriesKeys);
+  });
+
+  it("forwards axisGroups in both modes", () => {
+    const result = createResult({
+      Y: [100, 105, 110, 115, 120, 125, 130, 135],
+      C: [80, 84, 88, 92, 96, 100, 104, 108]
+    });
+    const groupedCell: ChartCell = {
+      ...chartCell,
+      variables: ["Y", "C"],
+      axisGroups: [["Y"], ["C"]]
+    };
+
+    const { container: staticContainer } = render(
+      <PublicationChart
+        cell={groupedCell}
+        cells={[scenarioRun, groupedCell]}
+        getResult={() => result}
+        interaction={interaction}
+        result={result}
+        selectedPeriodIndex={0}
+      />
+    );
+    const staticAxisCount = staticContainer.querySelectorAll(".chart-axis").length;
+
+    cleanup();
+
+    const { container: interactiveContainer } = render(
+      <PublicationChart
+        cell={groupedCell}
+        cells={[scenarioRun, groupedCell]}
+        getResult={() => result}
+        interaction={interaction}
+        interactive
+        result={result}
+        selectedPeriodIndex={0}
+      />
+    );
+    const interactiveAxisCount = interactiveContainer.querySelectorAll(".chart-axis").length;
+
+    expect(staticAxisCount).toBeGreaterThan(1);
+    expect(interactiveAxisCount).toBe(staticAxisCount);
   });
 });
