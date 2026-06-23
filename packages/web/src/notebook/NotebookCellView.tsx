@@ -23,6 +23,7 @@ import {
 } from "./modelSections";
 import { resolveNearestNotebookContextCell } from "./notebookContext";
 import { MatrixUnitMetaDialog } from "./components/MatrixUnitMetaDialog";
+import { NotebookCellMore } from "./components/NotebookCellMore";
 import { MatrixEquationProposalDialog } from "./components/MatrixEquationProposalDialog";
 import { MatrixSourceEditor } from "./MatrixSourceEditor";
 import {
@@ -465,6 +466,7 @@ function NotebookCellViewComponent({
   const hasCellInsertRunSource = cells.some((candidate) => candidate.type === "run");
   const cellDescription = getNotebookCellDescription(cell);
   const cellNote = getNotebookCellNote(cell);
+  const cellMore = getNotebookCellMore(cell);
 
   useEffect(() => {
     setTitleDraft(cell.title);
@@ -1474,6 +1476,24 @@ function NotebookCellViewComponent({
             />
           </div>
         ) : null}
+        {!isCollapsed && cellMore ? (
+          <NotebookCellMore
+            currentValues={noteInspectionContext?.currentValues}
+            highlightedVariable={highlightedVariable}
+            onSelectVariable={
+              noteInspectionContext == null
+                ? undefined
+                : (selectedVariable) =>
+                    onVariableInspectRequest({
+                      ...noteInspectionContext,
+                      selectedVariable
+                    })
+            }
+            text={cellMore}
+            variableDescriptions={variableDescriptions}
+            variableUnitMetadata={variableUnitMetadata}
+          />
+        ) : null}
         {cellContextMenu ? (
           <div
             ref={cellContextMenuRef}
@@ -1780,6 +1800,14 @@ function isViewportDeferredCellType(cellType: NotebookCell["type"]): boolean {
 function getNotebookCellNote(cell: NotebookCell): string {
   if (cell.note?.trim()) {
     return cell.note;
+  }
+
+  return "";
+}
+
+function getNotebookCellMore(cell: NotebookCell): string {
+  if (cell.more?.trim()) {
+    return cell.more;
   }
 
   return "";

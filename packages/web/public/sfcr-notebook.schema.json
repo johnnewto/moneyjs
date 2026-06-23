@@ -61,6 +61,9 @@
         "note": {
           "type": "string"
         },
+        "more": {
+          "type": "string"
+        },
         "collapsed": {
           "type": "boolean"
         }
@@ -373,6 +376,7 @@
         "collapsed": { "type": "boolean" },
         "description": { "type": "string" },
         "note": { "type": "string" },
+        "more": { "type": "string" },
         "participantColumnOrder": {
           "type": "array",
           "items": { "type": "string" }

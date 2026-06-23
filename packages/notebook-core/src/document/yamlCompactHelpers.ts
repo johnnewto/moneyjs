@@ -247,6 +247,7 @@ export function buildCompactMatrixDescriptor(
     title: cell.title,
     ...(cell.description ? { description: cell.description } : {}),
     ...(cell.note ? { note: cell.note } : {}),
+    ...(cell.more ? { more: cell.more } : {}),
     columns: cell.columns,
     ...(cell.sectors ? { sectors: cell.sectors } : {}),
     ...(cell.columnBadges ? { columnBadges: cell.columnBadges } : {}),
@@ -272,6 +273,7 @@ export function buildCompactChartDescriptor(
     title: cell.title,
     ...(cell.description ? { description: cell.description } : {}),
     ...(cell.note ? { note: cell.note } : {}),
+    ...(cell.more ? { more: cell.more } : {}),
     ...(cell.variables && cell.variables.length > 0 ? { variables: cell.variables } : {}),
     ...(cell.series && cell.series.length > 0 ? { series: cell.series } : {}),
     ...(cell.axisMode ? { axisMode: cell.axisMode } : {}),
@@ -297,6 +299,7 @@ export function buildCompactTableDescriptor(
     title: cell.title,
     ...(cell.note ? { note: cell.note } : {}),
     ...(cell.description ? { description: cell.description } : {}),
+    ...(cell.more ? { more: cell.more } : {}),
     variables: cell.variables
   };
 }
@@ -417,14 +420,15 @@ export function compactCellTitle(input: unknown, fallback: string): string {
   return isRecord(input) && typeof input.title === "string" ? input.title : fallback;
 }
 
-export function compactCellFlags(input: unknown): Pick<NotebookCell, "collapsed" | "description" | "note"> {
+export function compactCellFlags(input: unknown): Pick<NotebookCell, "collapsed" | "description" | "note" | "more"> {
   if (!isRecord(input)) {
     return {};
   }
   return {
     ...(typeof input.collapsed === "boolean" ? { collapsed: input.collapsed } : {}),
     ...(typeof input.description === "string" ? { description: input.description } : {}),
-    ...(typeof input.note === "string" ? { note: input.note } : {})
+    ...(typeof input.note === "string" ? { note: input.note } : {}),
+    ...(typeof input.more === "string" ? { more: input.more } : {})
   };
 }
 
@@ -851,6 +855,7 @@ export function buildCompactTableCells(tables: unknown, sourceRunCellId: string)
     title: typeof table.title === "string" ? table.title : `Table ${index + 1}`,
     ...(typeof table.note === "string" ? { note: table.note } : {}),
     ...(typeof table.description === "string" ? { description: table.description } : {}),
+    ...(typeof table.more === "string" ? { more: table.more } : {}),
     ...(typeof table.collapsed === "boolean" ? { collapsed: table.collapsed } : {}),
     sourceRunCellId,
     variables: stringArray(table.variables) ?? []

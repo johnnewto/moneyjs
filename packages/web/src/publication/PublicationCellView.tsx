@@ -7,6 +7,7 @@ import { PublicationCaption } from "./components/PublicationCaption";
 import { PublicationChart } from "./components/PublicationChart";
 import { PublicationEquations } from "./components/PublicationEquations";
 import { PublicationMarkdown } from "./components/PublicationMarkdown";
+import { PublicationMore } from "./components/PublicationMore";
 import { PublicationMatrix } from "./components/PublicationMatrix";
 import { PublicationSequence } from "./components/PublicationSequence";
 import { PublicationTable } from "./components/PublicationTable";
@@ -31,6 +32,9 @@ export function PublicationCellView({
   showHeading?: boolean;
 }) {
   const { cell } = section;
+  const moreNode = cell.more?.trim() ? (
+    <PublicationMore interaction={interaction} source={cell.more} />
+  ) : null;
 
   if (section.kind === "prose" && cell.type === "markdown") {
     return (
@@ -39,6 +43,7 @@ export function PublicationCellView({
           <h2 className="publication-section-heading">{cell.title}</h2>
         ) : null}
         <PublicationMarkdown interaction={interaction} source={cell.source} />
+        {moreNode}
       </section>
     );
   }
@@ -51,6 +56,7 @@ export function PublicationCellView({
         {cell.description?.trim() || cell.note?.trim() ? (
           <PublicationCaption description={cell.description} note={cell.note} title={cell.title} />
         ) : null}
+        {moreNode}
       </section>
     );
   }
@@ -65,6 +71,7 @@ export function PublicationCellView({
           onRequestMatrixGraph={onRequestMatrixGraph}
         />
         <PublicationCaption description={cell.description} note={cell.note} title={cell.title} />
+        {moreNode}
       </figure>
     );
   }
@@ -80,6 +87,7 @@ export function PublicationCellView({
           selectedPeriodIndex={selectedPeriodIndex}
         />
         <PublicationCaption description={cell.description} note={cell.note} title={cell.title} />
+        {moreNode}
       </figure>
     );
   }
@@ -96,6 +104,7 @@ export function PublicationCellView({
           selectedPeriodIndex={selectedPeriodIndex}
         />
         <PublicationCaption description={cell.description} note={cell.note} title={cell.title} />
+        {moreNode}
       </figure>
     );
   }
@@ -105,6 +114,7 @@ export function PublicationCellView({
       <figure id={section.anchorId} className="publication-section publication-section-table">
         <PublicationTable cell={cell} cells={cells} interaction={interaction} />
         <PublicationCaption description={cell.description} note={cell.note} title={cell.title} />
+        {moreNode}
       </figure>
     );
   }
@@ -117,6 +127,7 @@ export function PublicationCellView({
           <h2 className="publication-section-heading">{cell.title}</h2>
         ) : null}
         {runText ? <p>{runText}</p> : null}
+        {moreNode}
       </section>
     );
   }
@@ -126,6 +137,7 @@ export function PublicationCellView({
       <section id={section.anchorId} className="publication-section publication-section-appendix">
         <h3 className="publication-appendix-heading">{cell.title}</h3>
         <PublicationAppendixSection cell={cell} />
+        {moreNode}
       </section>
     );
   }

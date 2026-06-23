@@ -130,6 +130,7 @@ export interface NotebookCellBase {
   collapsed?: boolean;
   description?: string;
   id: string;
+  more?: string;
   note?: string;
   title: string;
 }

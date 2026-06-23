@@ -2252,6 +2252,52 @@
 .notebook-cell-note-markdown > * {
   margin: 0;
 }
+.notebook-cell-more {
+  padding: 0 0.45rem 0.45rem;
+}
+.notebook-cell-more-panel {
+  margin-top: 0.5rem;
+  padding: 0.6rem 0.85rem;
+  border-left: 3px solid var(--color-border, #d4d4d8);
+  background: var(--color-surface-subtle, rgba(127, 127, 127, 0.08));
+  border-radius: 0 6px 6px 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.notebook-cell-more-panel img {
+  max-width: 100%;
+  height: auto;
+}
+.notebook-cell-more-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.4rem;
+}
+.notebook-cell-more-toggle {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-accent, #2563eb);
+  cursor: pointer;
+}
+.notebook-cell-more-toggle::before {
+  content: "[";
+}
+.notebook-cell-more-toggle::after {
+  content: "]";
+}
+.notebook-cell-more-toggle:hover {
+  text-decoration: underline;
+}
+.notebook-cell-more-toggle:focus-visible {
+  outline: 2px solid var(--color-accent, #2563eb);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
 .notebook-cell-description-block {
   color: var(--color-text-secondary);
   min-width: 0;
