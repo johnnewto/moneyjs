@@ -9,12 +9,52 @@ cells:
   - markdown:
       id: overview
       title: Overview
-      source: This notebook implements the SIM model from Godley and Lavoie chapter 3. It includes the baseline model, a government-spending shock scenario, accounting matrices, and result views for the main income, consumption, and stock variables.
+      source: |
+        This notebook implements the SIM model from Godley and Lavoie chapter 3.  It includes the baseline model, a government-spending shock scenario,  accounting matrices, and result views for the main income, consumption, and stock variables.
+      more: |
+        The **SIM** model — Godley & Lavoie's _"Simplest model with government money"_
+        (_Monetary Economics_, 2007, chapter 3) — is the smallest complete stock-flow
+        consistent (SFC) model. It strips the economy down to the bare minimum needed to
+        illustrate how money, income and wealth fit together without leaks.
+
+        The economy has three sectors — **households**, **production firms**, and
+        **government** — and a single financial asset: **government money** (`Hh` held by
+        households, `Hs` issued by government). To keep things simple the model assumes
+        away almost everything else:
+
+        - a pure **service/labour** economy: firms hire labour and sell the output in the
+          same period, so there are no inventories and no fixed capital;
+        - **no banks, no loans, no interest, and no private money**;
+        - **no profits**: all of firms' sales revenue is paid out as wages.
+
+        Money is **created** when the government spends (`Gd`) and **destroyed** when it
+        taxes (`TXd`). Because every flow in the model has a matching counter-flow, the
+        system is **"watertight"**: there are no black holes where money leaks out. This
+        is the central pedagogical point of chapter 3 — _all_ monetary flows come from
+        somewhere and go somewhere.
+
+        ![The SIM money circuit: government spending and wages inject money into households, while consumption and taxes flow back to firms and government; the gap accumulates as household money.](figures/sim-circuit.svg)
   - matrix:
       id: balance-sheet
       sourceRunCellId: baseline-run
       title: SIM balance sheet
       description: Compact balance sheet for the SIM model. Household money holdings mirror government money liabilities.
+      more: |
+        This is the SIM **balance sheet** (Table 3.1 in Godley & Lavoie). At any point in
+        time the only asset in the whole economy is government money. Households hold it
+        as wealth (`+Hh`); the government records the same amount as a liability
+        (`-Hs`). Production firms own nothing and owe nothing — in SIM they hold no
+        financial assets, because all revenue is paid straight out as wages.
+
+        Two accounting conventions make the table read cleanly:
+
+        - **assets are positive, liabilities negative**, so each row sums _across_
+          sectors to zero — one sector's asset is another's liability;
+        - the **net-worth (balance) row** closes each column to zero.
+
+        Money is "outside" wealth: it is simultaneously private net worth and public
+        debt. There is no real capital to back it, which is exactly what makes SIM the
+        _simplest_ possible closed financial system.
       columns: [Households, Government, Sum]
       sectors: [Households, Government, ""]
       accountingKind: balance-sheet
@@ -27,6 +67,25 @@ cells:
       sourceRunCellId: baseline-run
       title: SIM transactions-flow matrix
       description: Transactions-flow matrix for the SIM model, arranged around households, production, and government.
+      more: |
+        The **transactions-flow matrix** (Table 3.2 in Godley & Lavoie) is the heart of
+        the SFC method, and the single most important object in chapter 3. Every cell is
+        a payment _out of_ one sector (a minus) that is simultaneously a receipt _into_
+        another (a plus), so:
+
+        - **every row sums to zero** — each transaction has a payer and a payee;
+        - **every column sums to zero** — each sector's outlays plus its saving exhaust
+          its receipts (its budget constraint).
+
+        This is Godley's **quadruple-entry** principle: a single economic event touches
+        four entries at once. When the government spends `Gd`, that is an outlay for the
+        government, a receipt for firms, which pays wages to households, who in turn
+        acquire money. Nothing is lost in transit.
+
+        The final row, the **change in the money stock**, is where stocks and flows meet:
+        household saving `d(Hh)` is exactly mirrored by the change in government-issued
+        money `-d(Hs)`. That mirroring is the model's consistency check (see the solver
+        note below).
       columns: [Households, Production, Government, Sum]
       sectors: [Households, Firms, Government, ""]
       accountingKind: transactions-flow
@@ -44,6 +103,12 @@ cells:
         kind: matrix
         matrixCellId: transactions-flow
       description: Sequence view generated from the SIM transactions-flow matrix.
+      more: |
+        This is the same transactions-flow matrix read **column by column** as each
+        sector's budget identity. Following the columns shows the _circuit_ of money
+        within a single period: government spending and wage payments inject money;
+        consumption and taxes withdraw it; whatever households do not spend or pay in tax
+        accumulates as the change in their money stock.
   - sequence:
       id: equation-dependency-graph
       title: SIM equation dependency graph
@@ -61,6 +126,33 @@ cells:
       title: SIM equations
       modelId: sim
       collapsed: true
+      more: |
+        These eleven equations are model SIM exactly as written in Godley & Lavoie
+        (equations 3.1–3.11). They fall into a few natural groups:
+
+        - **Equilibrium-by-assumption** (`Cs = Cd`, `Gs = Gd`, `TXs = TXd`,
+          `Ns = Nd`): supply equals demand not through a market-clearing price but by
+          _quantity adjustment_ — firms simply produce whatever is demanded. There are no
+          prices and no rationing in SIM.
+        - **Income and taxes**: disposable income `YD = W * Ns - TXs`, with taxes levied
+          as a flat fraction of the wage bill, `TXd = theta * W * Ns`.
+        - **The behavioural core — the consumption function**
+          `Cd = alpha1 * YD + alpha2 * lag(Hh)`. Households consume a fraction `alpha1`
+          out of _current_ disposable income and a smaller fraction `alpha2` out of the
+          _wealth_ they accumulated last period (G&L require `0 < alpha2 < alpha1 < 1`).
+          This single equation is what gives SIM its dynamics: spending out of past
+          wealth is the channel through which the economy converges to a steady state.
+        - **Stock accumulation**: `Hh = lag(Hh) + YD - Cd` (households bank what they do
+          not consume) and `Hs = lag(Hs) + Gd - TXd` (the government deficit issues new
+          money).
+        - **Output and employment**: `Y = Cs + Gs` and `Nd = Y / W`.
+
+        **The redundant equation.** Counting unknowns against equations, the system has
+        one equation more than it strictly needs. Godley & Lavoie show that the missing /
+        redundant relation is `Hh = Hs` (equivalently `d(Hh) = d(Hs)`): household money
+        holdings always equal government-issued money. It is never imposed on the
+        solver — it _emerges_, and checking it holds is how you know the accounting is
+        watertight.
       rows:
         - [TXs, TXd, "Taxes paid by households.", "", "", identity, eq-0-txs]
         - [YD, W * Ns - TXs, "Disposable income.", "", "", definition, eq-1-yd]
@@ -78,6 +170,18 @@ cells:
       title: Solver options
       modelId: sim
       collapsed: true
+      more: |
+        SIM is solved period by period: lagged stocks (`lag(Hh)`, `lag(Hs)`) are known
+        from the previous period, and the within-period equations are solved
+        simultaneously for the current flows and end-of-period stocks.
+
+        The solver's **hidden variables** `Hh` and `Hs` implement the redundant-equation
+        check described above. Because one equation in the system is redundant, the
+        equality `Hh = Hs` is _not_ used to find the solution — instead the solver
+        verifies, to tolerance `hiddenTolerance`, that the independently computed
+        household money stock and government money stock agree every period. If they ever
+        diverged, the model's accounting would be leaking. This is the numerical
+        embodiment of Godley & Lavoie's "watertight" claim.
       method: broyden
       tolerance: "1e-8"
       maxIterations: 350
@@ -91,6 +195,23 @@ cells:
       title: Externals
       modelId: sim
       collapsed: true
+      more: |
+        These are the exogenous parameters and policy levers of SIM, with the values used
+        throughout Godley & Lavoie chapter 3:
+
+        - `Gd` = 20 — government expenditure, the model's main exogenous driver and the
+          variable shocked in Scenario 1.
+        - `W` = 1 — the wage rate. With `W = 1`, output `Y`, the wage bill, and
+          employment `N` all coincide numerically, which keeps the arithmetic transparent.
+        - `alpha1` = 0.6 — propensity to consume out of current disposable income.
+        - `alpha2` = 0.4 — propensity to consume out of accumulated money wealth.
+        - `theta` = 0.2 — the (flat) tax rate.
+
+        Two ratios determined by these numbers govern the whole solution. The **long-run
+        fiscal multiplier** is `1 / theta = 5`, so steady-state output is
+        `Y* = Gd / theta = 100`. The **steady-state wealth norm** is
+        `Hh* / YD* = (1 - alpha1) / alpha2 = 1`, so in the stationary state households
+        hold money equal to one year of disposable income.
       rows:
         - [Gd, 20, "Government expenditure.", "", "", ext-0-gd]
         - [W, 1, "Wage rate.", "", "", ext-1-w]
@@ -111,15 +232,36 @@ cells:
       resultKey: sim_baseline
       sourceModelId: sim
       description: Baseline SIM run with government expenditure fixed at 20.
+      more: |
+        The baseline integrates the model forward for 60 periods starting from zero
+        stocks, with `Gd` held constant at 20. With no money inherited from the past, the
+        economy starts well below its steady state and climbs toward it. This run
+        illustrates Godley & Lavoie's central dynamic result: a constant injection of
+        government money drives the economy to a **stationary state** in which stocks stop
+        growing and the government budget is balanced.
   - chart:
       id: chart-1
       title: Baseline income, consumption, and money
+      more: |
+        In the baseline, government spending `Gd` is held constant at `20`. Output `Y`
+        and disposable income `YD` rise quickly at first and then converge to a steady
+        state. The mechanism is the consumption-out-of-wealth term `alpha2 * lag(Hh)`:
+        as households accumulate money, that extra spending shrinks each period until,
+        in the limit, saving out of income exactly offsets nothing more is added — `Hh`
+        flattens.
+
+        The numbers match the chapter exactly. Output converges to
+        `Y* = Gd / theta = 20 / 0.2 = 100`; disposable income to
+        `YD* = Y* * (1 - theta) = 80`; consumption to `Cd = YD* = 80`; and the money
+        stock to `Hh* = 80` (one year of disposable income, the wealth norm
+        `(1 - alpha1) / alpha2 = 1`). In the steady state `TXd = Gd = 20`: **the budget
+        is balanced and no new money is created.**
       variables:
         - Y
         - YD
         - Cd
         - Hh
-      axisMode: separate
+      axisMode: shared
       referenceTrace: none
       timeRangeInclusive:
         - 1
@@ -128,6 +270,13 @@ cells:
   - table:
       id: table-1
       title: Baseline SIM summary
+      more: |
+        The table makes the convergence concrete. Watch `Hh` flatten as the increments
+        `YD - Cd` shrink toward zero, and watch `TXd` rise from below `Gd` (a deficit
+        that creates money while the economy is growing) up to exactly `Gd = 20` (the
+        balanced budget of the stationary state). The gap `Gd - TXd` in any row _is_ that
+        period's newly created money — and it is what households are simultaneously
+        saving.
       variables:
         - Y
         - YD
@@ -140,6 +289,12 @@ cells:
       id: scenario-note
       title: Scenario 1
       source: Scenario 1 increases government expenditure `Gd` from `20` to `30` from period 5 through period 60, matching the introductory SIM scenario in the R `sfcr` README.
+      more: |
+        Scenario 1 reproduces Godley & Lavoie's first SIM experiment: a permanent
+        **step increase in the fiscal stance**. Holding the tax _rate_ `theta` fixed and
+        raising government spending `Gd` from 20 to 30 moves the economy to a new, higher
+        stationary state. It is the cleanest way to see the long-run multiplier `1/theta`
+        at work.
   - run:
       id: scenario-run
       title: "Scenario 1: government spending shock"
@@ -160,16 +315,33 @@ cells:
       resultKey: sim_scenario_gd_30
       sourceModelId: sim
       description: Scenario run with government expenditure raised to 30 from period 5 onward.
+      more: |
+        The scenario re-solves the model with `Gd` stepped up to 30 from period 5 onward,
+        and is plotted against the baseline as a reference. Because only `Gd` changes,
+        the contrast isolates the pure effect of fiscal policy on output, income, and
+        private wealth.
   - chart:
       id: scenario-chart
       title: Scenario 1 output and fiscal variables
+      more: |
+        Scenario 1 raises `Gd` from `20` to `30` starting in period 5. The economy
+        transitions to a **new, higher** steady state. The long-run multiplier is
+        `1 / theta = 5`, so the `+10` rise in spending lifts steady-state output by
+        `+50`: `Y*` moves from `100` to `Gd / theta = 30 / 0.2 = 150`. Disposable income
+        settles at `YD* = 120` and the household money stock `Hh` rises to a
+        correspondingly higher level of `120`.
+
+        Note the two-speed adjustment Godley & Lavoie emphasise: the _impact_ multiplier
+        in the shock period is much smaller than the eventual `5`, because consumption out
+        of newly accumulated wealth feeds through only gradually. Output approaches the
+        new stationary state asymptotically rather than jumping to it.
       variables:
         - Y
         - YD
         - Cd
         - Hh
         - Gd
-      axisMode: separate
+      axisMode: shared
       referenceTrace: baseline
       timeRangeInclusive:
         - 1
@@ -178,6 +350,13 @@ cells:
   - table:
       id: scenario-table
       title: Scenario 1 SIM summary
+      more: |
+        Compare the closing rows against the baseline: every stationary-state value is
+        exactly `1.5x` its baseline counterpart, since both `Y* = Gd / theta` and
+        `Hh* = YD*` scale linearly with `Gd`. The budget rebalances at the higher level —
+        `TXd` climbs to meet the new `Gd = 30` — confirming that a _permanent_ change in
+        the fiscal stance leaves the long-run budget balanced while permanently raising
+        output, income, and the stock of money.
       variables:
         - Gd
         - Y
@@ -187,3 +366,162 @@ cells:
         - TXd
         - Hs
       sourceRunCellId: scenario-run
+  - markdown:
+      id: growth-note
+      title: "Appendix 3.4: Government deficits in a growing economy"
+      source: |
+        Appendix 3.4 of Godley and Lavoie asks whether sustained government deficits are a problem. In a _growing_ economy they are normal: if government expenditure grows at a constant rate `g`, all stocks and flows eventually grow at `g`, the stock of money (government debt) grows at `g` too, and the government therefore runs a _permanent_ deficit while the debt-to-income ratio settles at a constant level. Here `Gd` grows at 3% per period, starting from the stationary baseline.
+      more: |
+        This section reproduces **Appendix 3.4** of Godley & Lavoie, _"Government
+        deficits in a growing economy"_. The stationary state studied above has a
+        balanced budget (`TXd = Gd`) and a _constant_ money stock — but a stationary
+        economy is a special case. The appendix asks the natural follow-up question:
+        **are continual government deficits sustainable?**
+
+        The answer is that in a growing economy a permanent deficit is not just
+        sustainable, it is _required_. The reasoning is pure stock-flow accounting:
+
+        - private wealth is held entirely as government money, so the stock of money
+          _is_ the public debt: `Hh = Hs`;
+        - if real activity grows at a steady rate `g`, the wealth households wish to hold
+          grows at `g`, so the stock of money/debt must grow at `g`;
+        - a _growing_ stock of government money can only be created by a flow of new
+          money each period — that flow is exactly the government deficit `Gd - TXd`.
+
+        So a steadily growing economy needs a steadily positive deficit. What matters for
+        sustainability is not the deficit itself but the **debt-to-income ratio**, which
+        settles to a constant.
+  - run:
+      id: growth-run
+      title: "Appendix 3.4: government spending growing at 3%"
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 1
+              - 60
+            variables:
+              Gd:
+                kind: series
+                values:
+                  - 20
+                  - 20.6
+                  - 21.218
+                  - 21.8545
+                  - 22.5102
+                  - 23.1855
+                  - 23.881
+                  - 24.5975
+                  - 25.3354
+                  - 26.0955
+                  - 26.8783
+                  - 27.6847
+                  - 28.5152
+                  - 29.3707
+                  - 30.2518
+                  - 31.1593
+                  - 32.0941
+                  - 33.057
+                  - 34.0487
+                  - 35.0701
+                  - 36.1222
+                  - 37.2059
+                  - 38.3221
+                  - 39.4717
+                  - 40.6559
+                  - 41.8756
+                  - 43.1318
+                  - 44.4258
+                  - 45.7586
+                  - 47.1313
+                  - 48.5452
+                  - 50.0016
+                  - 51.5017
+                  - 53.0467
+                  - 54.6381
+                  - 56.2772
+                  - 57.9656
+                  - 59.7045
+                  - 61.4957
+                  - 63.3405
+                  - 65.2408
+                  - 67.198
+                  - 69.2139
+                  - 71.2903
+                  - 73.429
+                  - 75.6319
+                  - 77.9009
+                  - 80.2379
+                  - 82.645
+                  - 85.1244
+                  - 87.6781
+                  - 90.3085
+                  - 93.0177
+                  - 95.8082
+                  - 98.6825
+                  - 101.643
+                  - 104.6923
+                  - 107.833
+                  - 111.068
+                  - 114.4001
+            startPeriodInclusive: 1
+            endPeriodInclusive: 60
+      baselineRunCellId: baseline-run
+      periods: 60
+      resultKey: sim_growth_gd_3pc
+      sourceModelId: sim
+      description: Government expenditure grows at 3% per period, taking the economy onto a steady-growth path with a permanent deficit and a constant debt-to-income ratio.
+      more: |
+        To put a growing economy inside SIM — which has no intrinsic growth engine — we
+        let the only exogenous driver, government expenditure `Gd`, grow at a constant
+        `g = 3%` per period (a `series` shock), starting from the stationary baseline
+        state. Because every flow in SIM is ultimately pinned to `Gd`, this pulls the
+        whole system onto a **steady-growth path** on which output, income, taxes and the
+        money stock all eventually grow at `3%`.
+  - chart:
+      id: growth-chart
+      title: "Appendix 3.4: output, spending, taxes, and money under growth"
+      more: |
+        Government spending `Gd` grows at `3%` per period, and after an initial
+        adjustment `Y`, `TXd` and the money stock `Hh` all settle onto the same `3%`
+        growth path. Two features reproduce Godley & Lavoie's Appendix 3.4 point:
+
+        - **The budget never balances.** `Gd` stays permanently above `TXd`: the
+          government runs a deficit in _every_ period. That deficit is precisely the new
+          money being issued to satisfy households' growing demand for wealth.
+        - **The deficit is benign.** Although the debt stock `Hh` rises without bound in
+          absolute terms, it grows at the same `3%` as income, so the debt-to-income
+          ratio `Hh / YD` is constant. With `g = 0.03` it settles near
+          `(1 - alpha1)(1 + g) / (g + alpha2) ≈ 0.96` — slightly _below_ the stationary
+          norm of `1`, because in a growing economy households are forever rebuilding
+          wealth against a rising income.
+      variables:
+        - Y
+        - Gd
+        - TXd
+        - Hh
+      axisMode: shared
+      referenceTrace: none
+      timeRangeInclusive:
+        - 1
+        - 60
+      sourceRunCellId: growth-run
+  - table:
+      id: growth-table
+      title: "Appendix 3.4: growing-economy summary"
+      more: |
+        Read down the columns and two ratios reveal the steady-growth state. First, the
+        period-to-period ratio of any column (e.g. `Y` to its previous value) approaches
+        `1.03`, confirming a common `3%` growth rate. Second, `Gd - TXd` is positive in
+        every row — the permanent deficit — yet `Hh / YD` (and `Hs`, since `Hh = Hs`)
+        holds steady. This is the heart of Appendix 3.4: **a constant deficit ratio and a
+        constant debt ratio are perfectly consistent with one another once the economy is
+        growing.**
+      variables:
+        - Gd
+        - TXd
+        - Y
+        - YD
+        - Hh
+        - Hs
+      sourceRunCellId: growth-run

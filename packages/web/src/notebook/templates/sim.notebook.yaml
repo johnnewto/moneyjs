@@ -257,7 +257,7 @@ cells:
         - YD
         - Cd
         - Hh
-      axisMode: separate
+      axisMode: shared
       referenceTrace: none
       timeRangeInclusive:
         - 1
@@ -337,7 +337,7 @@ cells:
         - Cd
         - Hh
         - Gd
-      axisMode: separate
+      axisMode: shared
       referenceTrace: baseline
       timeRangeInclusive:
         - 1
@@ -438,7 +438,7 @@ cells:
         - Gd
         - TXd
         - Hh
-      axisMode: separate
+      axisMode: shared
       referenceTrace: none
       timeRangeInclusive:
         - 1

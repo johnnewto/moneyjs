@@ -6,7 +6,7 @@ import type { NotebookDocument } from "./types";
 export const NOTEBOOK_SHARE_QUERY_PARAM = "nbz";
 export const NOTEBOOK_SHARE_CELL_QUERY_PARAM = "cell";
 export const NOTEBOOK_SHARE_HASH_ROUTE = "#/notebook";
-export const NOTEBOOK_SHARE_MAX_COMPRESSED_LENGTH = 12_000;
+export const NOTEBOOK_SHARE_MAX_COMPRESSED_LENGTH = 64_000;
 
 export interface NotebookShareSearchParams {
   cellId: string | null;

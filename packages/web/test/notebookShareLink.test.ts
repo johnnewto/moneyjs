@@ -81,6 +81,19 @@ describe("notebookShareLink", () => {
 
   it("returns an error when the compressed payload exceeds the share limit", () => {
     const document = createNotebookFromTemplate("gl8-growth");
+    // Pad with high-entropy content so the compressed payload reliably exceeds the
+    // share limit regardless of the configured limit value.
+    let filler = "";
+    while (filler.length < NOTEBOOK_SHARE_MAX_COMPRESSED_LENGTH * 4) {
+      filler += Math.random().toString(36).slice(2);
+    }
+    document.cells.push({
+      id: "oversized-filler",
+      type: "markdown",
+      title: "Oversized filler",
+      source: filler
+    });
+
     const compressedLength = compressNotebookSharePayload(notebookToJson(document)).length;
     expect(compressedLength).toBeGreaterThan(NOTEBOOK_SHARE_MAX_COMPRESSED_LENGTH);
 

@@ -68,7 +68,7 @@ describe("chat-builder eval harness", () => {
     expect(result.summary.request.mode).toBe("offline");
     expect(result.summary.request.promptPreview).toContain("SIM model");
     expect(result.summary.response.parsed).toBe(true);
-    expect(result.summary.response.cellCount).toBe(16);
+    expect(result.summary.response.cellCount).toBe(20);
     expect(progressEvents.map((event) => event.stage)).toEqual([
       "start",
       "fixture",
