@@ -20,6 +20,11 @@ import {
 import type { MatrixCell } from "../notebook/types";
 import { buildNotebookPathname, buildNotebookVariableUnitMetadata } from "../notebook/notebookAppHelpers";
 import { useNotebookRunner } from "../notebook/useNotebookRunner";
+import { PeriodScrubber } from "../components/PeriodScrubber";
+import {
+  formatMatrixEntryDisplayMode,
+  type MatrixEntryDisplayMode
+} from "../notebook/matrixEntryDisplay";
 import { buildPublicationViewModel, buildPublicationContentsEntries } from "./buildPublicationViewModel";
 import { PublicationCellView } from "./PublicationCellView";
 import { PublicationContents } from "./PublicationContents";
@@ -86,6 +91,9 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
   const inspectorHistory = useInspectorVariableHistory();
   const [matrixGraphCharts, setMatrixGraphCharts] = useState<MatrixGraphChartEntry[]>([]);
   const matrixGraphChartIdRef = useRef(0);
+  const [periodOverride, setPeriodOverride] = useState<number | null>(null);
+  const [matrixEntryDisplayMode, setMatrixEntryDisplayMode] =
+    useState<MatrixEntryDisplayMode>("equation");
 
   const publicationTemplateId = useMemo(
     () => resolvePublicationTemplateId(notebookDocument),
@@ -178,10 +186,15 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
     return () => window.removeEventListener("keydown", handleRunAllShortcut);
   }, [runPhase, runner]);
 
-  const selectedPeriodIndex = useMemo(
+  const maxPeriodIndex = useMemo(
     () => resolveMaxPeriodIndex(runner.getResult, runCellIds),
     [runCellIds, runner, runPhase]
   );
+
+  // `periodOverride` of null means "follow the final period" (the historical default);
+  // once the reader scrubs, we honour their choice clamped to the available range.
+  const selectedPeriodIndex =
+    periodOverride == null ? maxPeriodIndex : Math.min(periodOverride, maxPeriodIndex);
 
   const variableDescriptions = useMemo(
     () => buildPublicationVariableDescriptions(notebookDocument.cells),
@@ -392,6 +405,52 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
   );
   const showContents = !isEmbed && contentsEntries.length > 1;
 
+  const hasMatrixSection = useMemo(
+    () =>
+      [...viewModel.bodySections, ...viewModel.appendixSections].some(
+        (section) => section.kind === "matrix"
+      ),
+    [viewModel.appendixSections, viewModel.bodySections]
+  );
+  const showControls = runPhase === "done" && !isPrint && (maxPeriodIndex > 0 || hasMatrixSection);
+  const matrixDisplayModes: MatrixEntryDisplayMode[] = ["equation", "value", "both"];
+
+  const controlsBar = showControls ? (
+    <div className="publication-controls publication-no-print">
+      {hasMatrixSection ? (
+        <div className="publication-control-group">
+          <span className="publication-control-label">Matrix cells</span>
+          <div
+            className="publication-display-toggle"
+            role="group"
+            aria-label="Matrix cell display mode"
+          >
+            {matrixDisplayModes.map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                className={`publication-display-toggle-option${
+                  matrixEntryDisplayMode === mode ? " is-active" : ""
+                }`}
+                aria-pressed={matrixEntryDisplayMode === mode}
+                onClick={() => setMatrixEntryDisplayMode(mode)}
+              >
+                {formatMatrixEntryDisplayMode(mode)}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {maxPeriodIndex > 0 ? (
+        <PeriodScrubber
+          maxIndex={maxPeriodIndex}
+          onChange={setPeriodOverride}
+          selectedIndex={selectedPeriodIndex}
+        />
+      ) : null}
+    </div>
+  ) : null;
+
   const mainContent = (
     <>
       {liveSessionMissing ? (
@@ -411,12 +470,15 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
         </p>
       ) : null}
 
+      {controlsBar}
+
       {viewModel.bodySections.map((section) => (
         <PublicationCellView
           key={section.anchorId}
           cells={notebookDocument.cells}
           getResult={runner.getResult}
           interaction={buildCellInteraction(section.cell)}
+          matrixEntryDisplayMode={matrixEntryDisplayMode}
           onRequestMatrixGraph={runPhase === "done" ? handleMatrixGraphRequest : undefined}
           section={section}
           selectedPeriodIndex={selectedPeriodIndex}
@@ -433,6 +495,7 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
               cells={notebookDocument.cells}
               getResult={runner.getResult}
               interaction={buildCellInteraction(section.cell)}
+              matrixEntryDisplayMode={matrixEntryDisplayMode}
               onRequestMatrixGraph={runPhase === "done" ? handleMatrixGraphRequest : undefined}
               section={section}
               selectedPeriodIndex={selectedPeriodIndex}

@@ -11,6 +11,7 @@ import {
 
 import { resolveMatrixCornerLabel, resolveMatrixTableKind } from "../../notebook/matrixSemantics";
 import {
+  evaluateMatrixEntryNumber,
   formatAccountTransactionsSumRowDisplayLabel,
   isEmptyAccountSumRowSource
 } from "../../notebook/matrixAccountSumRow";
@@ -18,20 +19,64 @@ import {
   collectMatrixColumnGraphSeries,
   type MatrixGraphRequest
 } from "../../notebook/matrixSliceGraph";
+import type { MatrixEntryDisplayMode } from "../../notebook/matrixEntryDisplay";
 import type { MatrixCell } from "../../notebook/types";
+import { NumericValueText } from "../../components/NumericValueText";
 import type { PublicationVariableInteraction } from "../publicationInspect";
 import { renderPublicationFormula } from "../publicationFormula";
 
 const EMPTY_COLLAPSED_NODE_IDS = new Set<string>();
 
-function formatPublicationMatrixEntry(source: string, interaction: PublicationVariableInteraction) {
+function PublicationMatrixEntry({
+  source,
+  interaction,
+  mode,
+  result,
+  selectedPeriodIndex
+}: {
+  source: string;
+  interaction: PublicationVariableInteraction;
+  mode: MatrixEntryDisplayMode;
+  result: SimulationResult | null;
+  selectedPeriodIndex: number;
+}) {
   const trimmed = source.trim();
   if (!trimmed || isEmptyAccountSumRowSource(trimmed)) {
-    return trimmed === "0" ? "0" : "";
+    return trimmed === "0" ? <>0</> : null;
+  }
+
+  const equationNode = (
+    <span className="publication-matrix-entry">{renderPublicationFormula(trimmed, interaction)}</span>
+  );
+
+  if (mode === "equation") {
+    return equationNode;
+  }
+
+  const numeric = result ? evaluateMatrixEntryNumber(trimmed, result, selectedPeriodIndex) : null;
+  if (numeric == null) {
+    return equationNode;
+  }
+
+  const valueNode = (
+    <NumericValueText
+      className="publication-matrix-value"
+      prefix=""
+      value={numeric}
+      options={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }}
+    />
+  );
+
+  if (mode === "value") {
+    return valueNode;
   }
 
   return (
-    <span className="publication-matrix-entry">{renderPublicationFormula(trimmed, interaction)}</span>
+    <span className="publication-matrix-entry">
+      {renderPublicationFormula(trimmed, interaction)}
+      <span className="publication-matrix-entry-equals"> = </span>
+      {valueNode}
+    </span>
   );
 }
 
@@ -204,14 +249,18 @@ function PublicationMatrixHeader({
 
 export function PublicationMatrix({
   cell,
+  entryDisplayMode = "equation",
   getResult,
   interaction,
-  onRequestMatrixGraph
+  onRequestMatrixGraph,
+  selectedPeriodIndex = 0
 }: {
   cell: MatrixCell;
+  entryDisplayMode?: MatrixEntryDisplayMode;
   getResult?(runCellId: string): SimulationResult | null;
   interaction: PublicationVariableInteraction;
   onRequestMatrixGraph?(request: MatrixGraphRequest): void;
+  selectedPeriodIndex?: number;
 }) {
   const accountColumnLayout = usesMatrixAccountColumnLayout(cell.columnBadges);
   const matrixKind = resolveMatrixTableKind(cell);
@@ -273,7 +322,13 @@ export function PublicationMatrix({
                     sumColumnIndex
                   )}
                 >
-                  {formatPublicationMatrixEntry(source, interaction)}
+                  <PublicationMatrixEntry
+                    source={source}
+                    interaction={interaction}
+                    mode={entryDisplayMode}
+                    result={result}
+                    selectedPeriodIndex={selectedPeriodIndex}
+                  />
                 </td>
               ))}
             </tr>

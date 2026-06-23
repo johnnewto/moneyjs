@@ -357,6 +357,79 @@ body:has(.publication-root) {
   font-family: inherit;
 }
 
+.publication-matrix-entry-equals {
+  color: #8a8a8a;
+}
+
+.publication-matrix-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: inherit;
+}
+
+.publication-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem 1.5rem;
+  margin: 0 0 1.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e2ded7;
+  border-radius: 8px;
+  background: #fff;
+  font-family: system-ui, sans-serif;
+}
+
+.publication-controls .control-panel,
+.publication-controls .period-scrubber {
+  flex: 1 1 280px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.publication-control-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.publication-control-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #555;
+}
+
+.publication-display-toggle {
+  display: inline-flex;
+  border: 1px solid #cfc8bd;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.publication-display-toggle-option {
+  appearance: none;
+  border: none;
+  border-left: 1px solid #cfc8bd;
+  background: #fff;
+  color: #333;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+}
+
+.publication-display-toggle-option:first-child {
+  border-left: none;
+}
+
+.publication-display-toggle-option.is-active {
+  background: #1f2d3d;
+  color: #fff;
+}
+
 .publication-caption {
   margin-top: 0.65rem;
   font-size: 0.92rem;

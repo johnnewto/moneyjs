@@ -61,4 +61,52 @@ describe("PublicationNotebookApp matrix graph popup", () => {
 
     expect(screen.getByRole("dialog", { name: "Graph" })).toBeInTheDocument();
   });
+
+  it("renders a period scrubber and matrix display-mode toggle", async () => {
+    render(
+      <PublicationNotebookApp
+        route={{
+          mode: "publish",
+          source: "template",
+          templateId: "bmw",
+          cellId: null,
+          embedCellId: null
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Running simulations/i)).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("group", { name: "Matrix cell display mode" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Selected simulation period")).toBeInTheDocument();
+    expect(screen.getByText(/Period \d+ of \d+/)).toBeInTheDocument();
+  });
+
+  it("switches matrix entries to evaluated values when the toggle is used", async () => {
+    const user = userEvent.setup();
+
+    const { container } = render(
+      <PublicationNotebookApp
+        route={{
+          mode: "publish",
+          source: "template",
+          templateId: "bmw",
+          cellId: null,
+          embedCellId: null
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Running simulations/i)).not.toBeInTheDocument();
+    });
+
+    expect(container.querySelector(".publication-matrix-value")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Value" }));
+
+    expect(container.querySelector(".publication-matrix-value")).not.toBeNull();
+  });
 });

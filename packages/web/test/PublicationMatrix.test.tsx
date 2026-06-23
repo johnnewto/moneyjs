@@ -5,13 +5,35 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
+import type { SimulationResult } from "@sfcr/core";
+
 import { createNotebookFromTemplate } from "../src/notebook/templates";
+import type { MatrixCell } from "../src/notebook/types";
 import { PublicationMatrix } from "../src/publication/components/PublicationMatrix";
 import { createTestPublicationInteraction } from "./publicationTestUtils";
 
 afterEach(() => {
   cleanup();
 });
+
+function buildValueMatrixCell(): MatrixCell {
+  return {
+    type: "matrix",
+    id: "matrix-1",
+    title: "Balance sheet",
+    columns: ["Households", "Firms"],
+    sourceRunCellId: "run-1",
+    rows: [{ label: "Deposits", values: ["+Mh", "-Mh"] }]
+  };
+}
+
+function buildResult(): SimulationResult {
+  return {
+    options: { periods: 3 },
+    series: { Mh: [10, 20, 30] },
+    warnings: []
+  } as unknown as SimulationResult;
+}
 
 describe("PublicationMatrix", () => {
   it("renders symbolic matrix entries for bmw balance sheet", () => {
@@ -56,5 +78,40 @@ describe("PublicationMatrix", () => {
       screen.getByRole("rowheader", { name: "initial + ∫ Σ(flows) dt" })
     ).toBeInTheDocument();
     expect(container.querySelector("tbody td.publication-matrix-sector-start")).not.toBeNull();
+  });
+
+  it("renders evaluated values at the selected period in value mode", () => {
+    const { container } = render(
+      <PublicationMatrix
+        cell={buildValueMatrixCell()}
+        entryDisplayMode="value"
+        getResult={() => buildResult()}
+        interaction={createTestPublicationInteraction()}
+        selectedPeriodIndex={1}
+      />
+    );
+
+    const cells = container.querySelectorAll("tbody td");
+    expect(cells[0]?.textContent).toContain("20.00");
+    expect(cells[1]?.textContent).toContain("-20.00");
+    expect(container.querySelector(".publication-matrix-value")).not.toBeNull();
+    expect(container.querySelector(".publication-matrix-entry")).toBeNull();
+  });
+
+  it("renders equation and value together in both mode", () => {
+    const { container } = render(
+      <PublicationMatrix
+        cell={buildValueMatrixCell()}
+        entryDisplayMode="both"
+        getResult={() => buildResult()}
+        interaction={createTestPublicationInteraction()}
+        selectedPeriodIndex={2}
+      />
+    );
+
+    const firstCell = container.querySelector("tbody td");
+    expect(firstCell?.textContent).toContain("Mh");
+    expect(firstCell?.textContent).toContain("=");
+    expect(firstCell?.textContent).toContain("30.00");
   });
 });
