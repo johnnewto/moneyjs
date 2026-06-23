@@ -98,7 +98,7 @@ describe("ResultChart", () => {
     );
 
     fireEvent.click(
-      screen.getByRole("button", { name: /inspect α.*0\.75 → 0\.7/i })
+      screen.getByRole("button", { name: /^Inspect variable alpha1$/i })
     );
     expect(onInspectScenarioShockVariable).toHaveBeenCalledWith("alpha1");
   });
