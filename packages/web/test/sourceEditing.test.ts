@@ -5,7 +5,7 @@ import {
   buildSourceHelpText,
   getNotebookHelpTopicIdForCell
 } from "../src/notebook/sourceEditing";
-import type { MatrixCell } from "../src/notebook/types";
+import type { ChartCell, MatrixCell } from "../src/notebook/types";
 
 function matrixCell(overrides: Partial<MatrixCell> = {}): MatrixCell {
   return {
@@ -56,5 +56,37 @@ describe("sourceEditing matrix help", () => {
     expect(inserts).toContain('"accountingKind": "balance-sheet"');
     expect(inserts).toContain('"accountingKind": "transaction-flow"');
     expect(inserts).toContain('"accountingKind": "account-transactions"');
+  });
+});
+
+function chartCell(overrides: Partial<ChartCell> = {}): ChartCell {
+  return {
+    id: "chart-1",
+    type: "chart",
+    title: "Chart",
+    sourceRunCellId: "run-1",
+    variables: ["Y", "Cd"],
+    ...overrides
+  };
+}
+
+describe("sourceEditing chart axisGroups insert", () => {
+  function axisGroupsInsert(cell: ChartCell, suggestion?: string[][]): string | undefined {
+    return buildSourceHelperActions(cell, { chartAxisGroupSuggestion: suggestion }).find(
+      (action) => action.label === "Axis groups"
+    )?.insert;
+  }
+
+  it("uses the provided suggestion in the insert snippet", () => {
+    expect(axisGroupsInsert(chartCell(), [["Y", "Cd", "Mh"], ["W"]])).toBe(
+      '"axisGroups": [["Y", "Cd", "Mh"], ["W"]]'
+    );
+    expect(axisGroupsInsert(chartCell(), [["ydhs", "c"], ["p"]])).toBe(
+      '"axisGroups": [["ydhs", "c"], ["p"]]'
+    );
+  });
+
+  it("falls back to a generic example when no suggestion is given", () => {
+    expect(axisGroupsInsert(chartCell())).toBe('"axisGroups": [["Y", "Cd", "Mh"], ["W"]]');
   });
 });

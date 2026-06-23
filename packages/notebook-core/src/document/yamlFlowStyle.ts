@@ -11,6 +11,7 @@ export function stringifyCompactYamlEnvelope(envelope: NotebookYamlEnvelope): st
   markWrappedEquationFlowSequences(document);
   markWrappedExternalFlowSequences(document);
   markWrappedInitialValueFlowSequences(document);
+  markWrappedChartAxisGroupFlowSequences(document);
 
   return document.toString({
     collectionStyle: "any",
@@ -69,6 +70,25 @@ export function markWrappedCellRowFlowSequences(
   });
 }
 
+
+export function markWrappedChartAxisGroupFlowSequences(document: YamlDocument): void {
+  const cells = document.get("cells", true);
+  if (!isSeq(cells)) {
+    return;
+  }
+
+  cells.items.forEach((_cell, index) => {
+    const groups = document.getIn(["cells", index, "chart", "axisGroups"], true);
+    if (!isSeq(groups)) {
+      return;
+    }
+    groups.items.forEach((group) => {
+      if (isSeq(group)) {
+        group.flow = true;
+      }
+    });
+  });
+}
 
 export function markMatrixFlowSequences(document: YamlDocument, matrixKey: "balance" | "transactions"): void {
   markMatrixFlowSequencesAtPath(document, [matrixKey]);

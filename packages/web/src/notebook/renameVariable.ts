@@ -441,6 +441,9 @@ function renameVariableInCell(
       return {
         ...cell,
         variables: cell.variables?.map((name) => (name.trim() === oldName ? newName : name)),
+        axisGroups: cell.axisGroups?.map((group) =>
+          group.map((name) => (name.trim() === oldName ? newName : name))
+        ),
         series: cell.series?.map((entry) => ({
           ...entry,
           expression: replaceIdentifierInSource(entry.expression, oldName, newName),

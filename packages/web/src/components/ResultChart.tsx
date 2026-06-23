@@ -43,6 +43,12 @@ export type { ChartAxisRange } from "./ResultChartScales";
 interface ResultChartProps {
   addVariableOptions?: string[];
   axisMode?: ChartAxisMode;
+  /**
+   * Buckets series onto shared axes. Each inner array lists series names (or
+   * highlight keys) that should share one y-axis; series omitted from every group
+   * get their own axis. Implies multiple axes (overrides `axisMode: "shared"`).
+   */
+  axisGroups?: string[][];
   axisSnapTolarance?: number;
   niceScale?: boolean;
   onAddVariable?(variableName: string): void;
@@ -85,6 +91,7 @@ const X_AXIS_TITLE_OFFSET = 12;
 const CHART_VIEWBOX_WIDTH = 900;
 const CHART_MAIN_HEIGHT = 360;
 const CHART_TOP_PADDING = 18;
+const AXIS_TITLE_ROW_OFFSET = 13;
 const CHART_BOTTOM_PADDING = 28;
 const TIME_RANGE_SLIDER_MIN_PERIODS = 10;
 const TIME_RANGE_SLIDER_GAP = 8;
@@ -96,6 +103,7 @@ const SCENARIO_SHOCK_BAND_OPACITY = 0.04;
 const AXIS_TITLE_FONT_SIZE = 12;
 const AXIS_TITLE_AVERAGE_CHAR_WIDTH = AXIS_TITLE_FONT_SIZE * 0.58;
 const CHART_AXIS_TITLE_MAX_LENGTH = 3;
+const CHART_GROUP_AXIS_TITLE_MAX_LENGTH = 14;
 const SCENARIO_SHOCK_LABEL_AXIS_GAP = 4;
 export const DEFAULT_X_AXIS_TITLE = "yr";
 export const DEFAULT_Y_AXIS_TITLE = "Value";
@@ -120,6 +128,12 @@ function renderSeparateAxisTitle(name: string): ReactNode {
     return renderVariableMathSvgLabel(name);
   }
   return formatChartAxisTitlePlain(name);
+}
+
+function formatGroupAxisTitle(label: string): string {
+  return label.length > CHART_GROUP_AXIS_TITLE_MAX_LENGTH
+    ? `${label.slice(0, CHART_GROUP_AXIS_TITLE_MAX_LENGTH - 1)}…`
+    : label;
 }
 
 function resolveYAxisUnit(
@@ -156,7 +170,8 @@ export function formatChartAxisTitlePlain(
 
 export function ResultChart({
   addVariableOptions,
-  axisMode = "shared",
+  axisMode: axisModeProp = "shared",
+  axisGroups,
   axisSnapTolarance,
   niceScale = false,
   onAddVariable,
@@ -224,6 +239,33 @@ export function ResultChart({
       ): entry is ChartSeries & { color: string; finiteValues: number[] } =>
         entry != null && entry.values.length > 1 && entry.finiteValues.length > 0
     );
+
+  const useAxisGroups =
+    Array.isArray(axisGroups) && axisGroups.some((group) => group.some((name) => name.trim() !== ""));
+  const axisMode: ChartAxisMode = useAxisGroups ? "separate" : axisModeProp;
+  const axisGroupIndexByName = new Map<string, number>();
+  if (useAxisGroups) {
+    axisGroups!.forEach((group, groupIndex) => {
+      group.forEach((member) => {
+        const trimmed = member.trim();
+        if (trimmed === "") {
+          return;
+        }
+        normalizedSeries.forEach((entry) => {
+          if (
+            !axisGroupIndexByName.has(entry.name) &&
+            (entry.name === trimmed || entry.highlightKey === trimmed)
+          ) {
+            axisGroupIndexByName.set(entry.name, groupIndex);
+          }
+        });
+      });
+    });
+  }
+  const resolveAxisGroupKey = (name: string): string => {
+    const groupIndex = axisGroupIndexByName.get(name);
+    return groupIndex == null ? `solo:${name}` : `group:${groupIndex}`;
+  };
 
   const hoveredSeriesName = hoveredDatum?.seriesName ?? null;
 
@@ -307,12 +349,19 @@ export function ResultChart({
     : CHART_MAIN_HEIGHT;
   const sliderTop = CHART_MAIN_HEIGHT + TIME_RANGE_SLIDER_GAP;
   const sliderHeight = TIME_RANGE_SLIDER_SECTION_HEIGHT;
-  const topPadding = CHART_TOP_PADDING;
   const bottomPadding = CHART_BOTTOM_PADDING;
   const rightPadding = 20;
   const axisSpacing = 42;
   const primaryAxisWidth = 56;
-  const axisCount = axisMode === "separate" ? normalizedSeries.length : 1;
+  const axisCount =
+    axisMode === "separate"
+      ? useAxisGroups
+        ? new Set(normalizedSeries.map((entry) => resolveAxisGroupKey(entry.name))).size
+        : normalizedSeries.length
+      : 1;
+  // Stagger neighboring axis titles onto two rows so closely spaced labels do not overlap.
+  const staggerAxisTitles = axisMode === "separate" && axisCount >= 2;
+  const topPadding = CHART_TOP_PADDING + (staggerAxisTitles ? AXIS_TITLE_ROW_OFFSET : 0);
   const leftPadding = primaryAxisWidth + axisSpacing * Math.max(axisCount - 1, 0);
   const plotWidth = width - leftPadding - rightPadding;
   const plotHeight = CHART_MAIN_HEIGHT - topPadding - bottomPadding;
@@ -349,10 +398,65 @@ export function ResultChart({
       )
     };
   });
-  const axisMetrics =
-    axisMode === "separate"
-      ? snapAxisMetrics(baseAxisMetrics, axisSnapTolarance, { exactTickCount: true, niceScale })
-      : baseAxisMetrics;
+  let axisMetrics: typeof baseAxisMetrics;
+  if (useAxisGroups) {
+    const groupValuesByKey = new Map<string, number[]>();
+    baseAxisMetrics.forEach((entry) => {
+      const key = resolveAxisGroupKey(entry.name);
+      if (key.startsWith("solo:")) {
+        return;
+      }
+      const collected = groupValuesByKey.get(key) ?? [];
+      collected.push(...entry.visibleScaleValues.filter(Number.isFinite));
+      groupValuesByKey.set(key, collected);
+    });
+    const groupMetricsByKey = new Map<string, ReturnType<typeof buildAxisMetrics>>();
+    groupValuesByKey.forEach((values, key) => {
+      groupMetricsByKey.set(
+        key,
+        buildAxisMetrics(values, undefined, yAxisTickCount, { exactTickCount: true, niceScale })
+      );
+    });
+    axisMetrics = baseAxisMetrics.map((entry) => {
+      const groupMetrics = groupMetricsByKey.get(resolveAxisGroupKey(entry.name));
+      return groupMetrics ? { ...entry, ...groupMetrics } : entry;
+    });
+  } else if (axisMode === "separate") {
+    axisMetrics = snapAxisMetrics(baseAxisMetrics, axisSnapTolarance, { exactTickCount: true, niceScale });
+  } else {
+    axisMetrics = baseAxisMetrics;
+  }
+
+  // One drawn axis per group; solo series keep their own axis and color.
+  const drawnAxisMetrics = useAxisGroups
+    ? (() => {
+        const seenKeys = new Set<string>();
+        return axisMetrics.flatMap((entry) => {
+          const key = resolveAxisGroupKey(entry.name);
+          if (seenKeys.has(key)) {
+            return [];
+          }
+          seenKeys.add(key);
+          const members = axisMetrics.filter((candidate) => resolveAxisGroupKey(candidate.name) === key);
+          if (members.length <= 1) {
+            return [{ ...entry, memberNames: [entry.name], isGroup: false }];
+          }
+          const memberNames = members.map((member) => member.name);
+          const groupUnit = members[0].unit;
+          const allSameUnit = members.every((member) => member.unit === groupUnit);
+          return [
+            {
+              ...entry,
+              memberNames,
+              isGroup: true,
+              name: memberNames.join(", "),
+              color: "#0f172a",
+              unit: allSameUnit ? groupUnit : undefined
+            }
+          ];
+        });
+      })()
+    : axisMetrics.map((entry) => ({ ...entry, memberNames: [entry.name], isGroup: false }));
   const sharedFiniteValues = axisMetrics.flatMap((entry) => entry.visibleScaleValues.filter(Number.isFinite));
   const sharedMetrics = buildAxisMetrics(sharedFiniteValues, sharedRange, yAxisTickCount, {
     niceScale
@@ -985,15 +1089,17 @@ export function ResultChart({
           strokeWidth="1.5"
         />
 
-        {(axisMode === "shared" ? axisMetrics.slice(0, 1) : axisMetrics).map((entry, index) => {
+        {(axisMode === "shared" ? drawnAxisMetrics.slice(0, 1) : drawnAxisMetrics).map((entry, index) => {
           const axisX = leftPadding - axisSpacing * index;
           const labelX = axisX - 12;
           const axisHitLeft = labelX - 34;
           const axisHitWidth = 52;
           const axisPlainLabel = renderVariableMathPlainText(entry.name);
           const hasHoverTarget = hoveredDatum != null;
-          const isAxisActive = axisMode === "shared" || !hasHoverTarget || hoveredDatum?.seriesName === entry.name;
-          const isAxisDimmed = axisMode === "separate" && hasHoverTarget && hoveredDatum?.seriesName !== entry.name;
+          const hoveredInAxis =
+            hoveredDatum != null && entry.memberNames.includes(hoveredDatum.seriesName);
+          const isAxisActive = axisMode === "shared" || !hasHoverTarget || hoveredInAxis;
+          const isAxisDimmed = axisMode === "separate" && hasHoverTarget && !hoveredInAxis;
           const axisStroke = axisMode === "shared" ? "#0f172a" : entry.color;
           const axisOpacity = isAxisDimmed ? 0.28 : 1;
           const axisTicks = axisMode === "shared" ? sharedMetrics.ticks : entry.ticks;
@@ -1025,9 +1131,9 @@ export function ResultChart({
               )}
               <rect
                 x={axisHitLeft}
-                y={topPadding - 18}
+                y={topPadding - 18 - (staggerAxisTitles ? AXIS_TITLE_ROW_OFFSET : 0)}
                 width={axisHitWidth}
-                height={plotHeight + 28}
+                height={plotHeight + 28 + (staggerAxisTitles ? AXIS_TITLE_ROW_OFFSET : 0)}
                 fill="transparent"
               />
               <line
@@ -1042,7 +1148,7 @@ export function ResultChart({
 
               <text
                 x={axisX}
-                y={topPadding - 5}
+                y={topPadding - 5 - (staggerAxisTitles && index % 2 === 1 ? AXIS_TITLE_ROW_OFFSET : 0)}
                 fill={axisMode === "shared" ? "#111827" : entry.color}
                 opacity={axisOpacity}
                 fontSize="12"
@@ -1051,7 +1157,9 @@ export function ResultChart({
               >
                 {axisMode === "shared"
                   ? (yAxis?.title?.trim() || DEFAULT_Y_AXIS_TITLE)
-                  : renderSeparateAxisTitle(entry.name)}
+                  : entry.isGroup
+                    ? formatGroupAxisTitle(entry.name)
+                    : renderSeparateAxisTitle(entry.name)}
               </text>
 
               {axisTicks.map((tick) => {

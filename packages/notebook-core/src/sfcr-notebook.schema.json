@@ -442,6 +442,15 @@
           "minItems": 1
         },
         "axisMode": { "enum": ["shared", "separate"] },
+        "axisGroups": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": { "type": "string" },
+            "minItems": 1
+          },
+          "minItems": 1
+        },
         "axisSnapTolarance": { "type": "number" },
         "niceScale": { "type": "boolean" },
         "referenceTrace": { "enum": ["none", "baseline", "previous-run"] },

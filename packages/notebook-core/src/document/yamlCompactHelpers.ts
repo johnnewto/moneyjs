@@ -277,6 +277,7 @@ export function buildCompactChartDescriptor(
     ...(cell.variables && cell.variables.length > 0 ? { variables: cell.variables } : {}),
     ...(cell.series && cell.series.length > 0 ? { series: cell.series } : {}),
     ...(cell.axisMode ? { axisMode: cell.axisMode } : {}),
+    ...(cell.axisGroups && cell.axisGroups.length > 0 ? { axisGroups: cell.axisGroups } : {}),
     ...(cell.axisSnapTolarance == null ? {} : { axisSnapTolarance: cell.axisSnapTolarance }),
     ...(cell.niceScale == null ? {} : { niceScale: cell.niceScale }),
     ...(cell.referenceTrace ? { referenceTrace: cell.referenceTrace } : {}),
@@ -777,6 +778,7 @@ export function buildCompactChartCells(charts: unknown, sourceRunCellId: string)
   return charts.filter(isRecord).map((chart, index) => {
     const variables = stringArray(chart.variables);
     const series = parseChartSeries(chart.series);
+    const axisGroups = parseChartAxisGroups(chart.axisGroups);
 
     return {
       id: typeof chart.id === "string" ? chart.id : `chart-${index + 1}`,
@@ -788,6 +790,7 @@ export function buildCompactChartCells(charts: unknown, sourceRunCellId: string)
       ...(series && series.length > 0 ? { series } : {}),
       ...(isRecord(chart.sharedRange) ? { sharedRange: chart.sharedRange as Extract<NotebookCell, { type: "chart" }>["sharedRange"] } : {}),
       ...(chart.axisMode === "shared" || chart.axisMode === "separate" ? { axisMode: chart.axisMode } : {}),
+      ...(axisGroups && axisGroups.length > 0 ? { axisGroups } : {}),
       ...(typeof chart.axisSnapTolarance === "number" ? { axisSnapTolarance: chart.axisSnapTolarance } : {}),
       ...(typeof chart.niceScale === "boolean" ? { niceScale: chart.niceScale } : {}),
       ...(chart.referenceTrace === "none" || chart.referenceTrace === "baseline" || chart.referenceTrace === "previous-run" ? { referenceTrace: chart.referenceTrace } : {}),
@@ -818,6 +821,23 @@ function parseChartAxisRange(value: unknown): ChartAxisRange | undefined {
   }
 
   return Object.keys(range).length > 0 ? range : undefined;
+}
+
+function parseChartAxisGroups(value: unknown): string[][] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const groups = value.flatMap((group) => {
+    const names = stringArray(group);
+    if (!names) {
+      return [];
+    }
+    const trimmed = names.map((name) => name.trim()).filter((name) => name !== "");
+    return trimmed.length > 0 ? [trimmed] : [];
+  });
+
+  return groups.length > 0 ? groups : undefined;
 }
 
 function parseChartSeries(value: unknown): ChartSeriesSpec[] | undefined {

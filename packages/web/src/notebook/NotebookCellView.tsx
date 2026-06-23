@@ -68,8 +68,11 @@ import {
 } from "./components/LinkedSectionViews";
 import {
   appendChartVariable,
+  buildResolvedChartSeries,
   moveChartSeriesByDisplayName,
-  removeChartSeriesByDisplayName
+  removeChartSeriesByDisplayName,
+  resolveChartSeriesDisplayNames,
+  suggestChartAxisGroups
 } from "./chartSeries";
 import { ChartCellView, RunCellView } from "./components/RunChartViews";
 import type { MatrixGraphSliceHighlight } from "./graphDocumentHighlight";
@@ -421,6 +424,25 @@ function NotebookCellViewComponent({
       }),
     [cell, cells, getModelCurrentValues, runner, selectedPeriodIndex]
   );
+  const chartAxisGroupSuggestion = useMemo(() => {
+    if (cell.type !== "chart") {
+      return undefined;
+    }
+    const result = runner.getResult(cell.sourceRunCellId);
+    if (result) {
+      try {
+        const grouped = suggestChartAxisGroups(buildResolvedChartSeries(cell, result));
+        if (grouped.length > 0) {
+          return grouped;
+        }
+      } catch {
+        // Fall through to name-based suggestion below.
+      }
+    }
+    // No run result yet: still reflect this chart's actual variables in one group.
+    const names = resolveChartSeriesDisplayNames(cell);
+    return names.length > 0 ? [names] : undefined;
+  }, [cell, runner]);
   const showToolbarHelp = !isLinkedModelEditorCell(cell);
   const toolbarHelpText = showToolbarHelp ? buildNotebookCellHelpText(cell) : null;
   const requestCellHelp = () =>
@@ -1040,7 +1062,7 @@ function NotebookCellViewComponent({
                     className="notebook-source-menu-panel"
                     aria-label="Source insert actions"
                   >
-                    {buildSourceHelperActions(cell).map((action) => (
+                    {buildSourceHelperActions(cell, { chartAxisGroupSuggestion }).map((action) => (
                       <button
                         key={action.label}
                         type="button"

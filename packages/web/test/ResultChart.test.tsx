@@ -147,6 +147,34 @@ describe("ResultChart", () => {
     expect(screen.getByText(hasTextContent(/P: .* to /i))).toBeInTheDocument();
   });
 
+  it("staggers neighboring separate-axis titles onto two rows", () => {
+    render(
+      <ResultChart
+        axisMode="separate"
+        series={[
+          { name: "Yd", values: [2, 3, 5, 4] },
+          { name: "W", values: [10, 15, 25, 20] },
+          { name: "Y", values: [900, 850, 700, 600] }
+        ]}
+      />
+    );
+
+    const axisTitleY = (label: string) => {
+      const node = Array.from(document.querySelectorAll(".chart-axis > text")).find(
+        (candidate) => candidate.textContent?.trim() === label
+      );
+      if (!node) {
+        throw new Error(`Expected axis title ${label}.`);
+      }
+      return Number(node.getAttribute("y"));
+    };
+
+    // The middle axis (index 1) sits on the higher row, outer axes on the lower row.
+    expect(axisTitleY("W")).toBeLessThan(axisTitleY("Yd"));
+    expect(axisTitleY("W")).toBeLessThan(axisTitleY("Y"));
+    expect(axisTitleY("Yd")).toEqual(axisTitleY("Y"));
+  });
+
   it("truncates long separate-axis titles to three characters", () => {
     render(
       <ResultChart
@@ -318,6 +346,40 @@ describe("ResultChart", () => {
     );
 
     expect(tickLabelCounts).toEqual([6, 6]);
+  });
+
+  it("buckets variables onto shared axes with axisGroups", () => {
+    render(
+      <ResultChart
+        axisGroups={[["A", "B"], ["C"]]}
+        series={[
+          { name: "A", values: [10, 12, 14, 16] },
+          { name: "B", values: [20, 22, 24, 26] },
+          { name: "C", values: [900, 850, 700, 600] }
+        ]}
+      />
+    );
+
+    expect(
+      screen.getByRole("img", { name: /simulation result chart with multiple left axes/i })
+    ).toBeInTheDocument();
+
+    expect(document.querySelectorAll(".chart-axis")).toHaveLength(2);
+
+    const axisTitles = Array.from(document.querySelectorAll(".chart-axis > text"))
+      .map((node) => node.textContent?.trim())
+      .filter(Boolean);
+    expect(axisTitles).toEqual(expect.arrayContaining(["A, B", "C"]));
+
+    const scaleEntries = Array.from(document.querySelectorAll(".chart-scale-multi > span"))
+      .map((node) => node.textContent?.trim() ?? "")
+      .filter((text) => /^[ABC]:/.test(text));
+    const boundsFor = (name: string) =>
+      scaleEntries.find((text) => text.startsWith(`${name}:`))?.replace(/^[ABC]:/, "").trim();
+
+    expect(boundsFor("A")).toBeDefined();
+    expect(boundsFor("A")).toEqual(boundsFor("B"));
+    expect(boundsFor("A")).not.toEqual(boundsFor("C"));
   });
 
   it("supports includeZero on a shared auto range", () => {

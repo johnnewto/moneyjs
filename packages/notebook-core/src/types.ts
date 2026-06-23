@@ -197,6 +197,12 @@ export interface ChartCell extends NotebookCellBase {
   /** Derived series evaluated from run results using model/matrix expression syntax. */
   series?: ChartSeriesSpec[];
   axisMode?: "shared" | "separate";
+  /**
+   * Buckets series onto shared axes. Each inner array lists variable/expression
+   * names that should share one y-axis; series omitted from every group get their
+   * own axis. Implies multiple axes (overrides `axisMode: "shared"`).
+   */
+  axisGroups?: string[][];
   axisSnapTolarance?: number;
   niceScale?: boolean;
   referenceTrace?: "none" | "baseline" | "previous-run";

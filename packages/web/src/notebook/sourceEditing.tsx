@@ -218,13 +218,24 @@ export function parseCellSource(cell: NotebookCell, source: string, title?: stri
   return normalizeCellSource(parsed);
 }
 
+function formatAxisGroupsInsert(suggestion?: string[][]): string {
+  const groups = (suggestion ?? []).filter((group) => group.length > 0);
+  const usable = groups.length > 0 ? groups : [["Y", "Cd", "Mh"], ["W"]];
+  const body = usable
+    .map((group) => `[${group.map((name) => JSON.stringify(name)).join(", ")}]`)
+    .join(", ");
+  return `"axisGroups": [${body}]`;
+}
+
 export function buildSourceHelperActions(
-  cell: NotebookCell
+  cell: NotebookCell,
+  options: { chartAxisGroupSuggestion?: string[][] } = {}
 ): Array<{ label: string; insert: string }> {
   switch (cell.type) {
     case "chart":
       return [
         { label: "Add axisMode", insert: '"axisMode": "shared"' },
+        { label: "Axis groups", insert: formatAxisGroupsInsert(options.chartAxisGroupSuggestion) },
         { label: "Collapsed true", insert: '"collapsed": true' },
         { label: "Shared range", insert: '"sharedRange": {\n  "min": 0,\n  "max": 200\n}' },
         { label: "Nice scale", insert: '"niceScale": true' },
@@ -408,6 +419,7 @@ This cell owns the model equation list for one notebook model.`;
 
 Optional:
 - axisMode: "shared" | "separate"
+- axisGroups: string[][] (buckets variables onto shared axes, e.g. [["Y","Cd","Mh"],["W"]]; implies multiple axes)
 - axisSnapTolarance: number
 - niceScale: boolean
 - yAxisTickCount: integer >= 2 (preferred density, actual count may vary slightly to keep nice spacing)
@@ -811,6 +823,18 @@ function validateCellSourceShape(
         !["shared", "separate"].includes(String((parsed as ChartCell).axisMode))
       ) {
         throw new Error("Chart axisMode must be 'shared' or 'separate'.");
+      }
+      if ((parsed as ChartCell).axisGroups != null) {
+        const groups = (parsed as ChartCell).axisGroups;
+        if (
+          !Array.isArray(groups) ||
+          groups.some(
+            (group) =>
+              !Array.isArray(group) || group.some((name) => typeof name !== "string")
+          )
+        ) {
+          throw new Error("Chart axisGroups must be an array of string arrays.");
+        }
       }
       if (
         (parsed as ChartCell).axisSnapTolarance != null &&

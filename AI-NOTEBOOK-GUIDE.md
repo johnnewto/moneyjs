@@ -320,6 +320,7 @@ Visualizes simulation results.
 - `sourceRunCellId`: run cell to visualize
 - `variables`: array of variable names to plot
 - `axisMode`: `"shared"` (one y-axis) or `"separate"` (multiple y-axes)
+- `axisGroups`: optional `string[][]` that buckets variables onto shared axes, e.g. `[["Y", "Cd", "Mh"], ["W"]]`. Series omitted from every group get their own axis. Implies multiple axes (overrides `axisMode: "shared"`).
 - `axisSnapTolarance`: optional snapping for axis alignment
 - `niceScale`: optional, rounds axis bounds to nice numbers
 - `yAxisTickCount`: optional, number of y-axis ticks

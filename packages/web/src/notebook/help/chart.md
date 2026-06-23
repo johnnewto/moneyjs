@@ -75,6 +75,23 @@ Use separate axes when variables have different magnitudes or units. This keeps 
 }
 ```
 
+## Axis Groups
+
+Use `axisGroups` to bucket variables onto shared axes instead of giving each one its own. Each inner array lists the variables (or expression labels) that share one y-axis; any series you leave out of every group keeps its own axis. Providing `axisGroups` implies multiple axes, so you do not also need `axisMode: "separate"`.
+
+This is useful when some variables share a scale and others do not. For example, plot `Y`, `Cd`, and `Mh` together on one axis and `W` on its own:
+
+```json
+{
+  "type": "chart",
+  "sourceRunCellId": "baseline-run",
+  "variables": ["Y", "Cd", "Mh", "W"],
+  "axisGroups": [["Y", "Cd", "Mh"], ["W"]]
+}
+```
+
+The grouped axis scales to the combined range of its members. Group axis labels show the member names; the legend and per-series colors still identify each line.
+
 ## Ranges And Scaling
 
 Useful options include:

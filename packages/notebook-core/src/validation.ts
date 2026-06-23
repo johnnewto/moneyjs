@@ -7,6 +7,7 @@ import { validateMatrixColumnTreeMatchesColumns } from "./matrixColumnTree";
 import { isRecord } from "./document/documentUtils";
 import { isRowComment } from "./rowComments";
 import type {
+  ChartCell,
   MatrixCell,
   NotebookCell,
   NotebookDocument,
@@ -161,6 +162,9 @@ export function validateNotebookDocument(document: NotebookDocument): NotebookVa
     if (cell.type === "matrix") {
       validateMatrixCell(cell, issues);
     }
+    if (cell.type === "chart") {
+      validateChartCell(cell, issues);
+    }
   }
 
   validateModelSectionNames(document.cells, issues);
@@ -301,6 +305,52 @@ function validateSequenceCellReferences(
   const modelId = cell.source.modelId ?? cell.source.sourceModelId;
   if (modelId && !context.sectionModelIds.has(modelId)) {
     context.issues.push(createNotebookIssue(`Sequence cell '${cell.id}' references missing model id '${modelId}'.`));
+  }
+}
+
+function validateChartCell(cell: ChartCell, issues: NotebookValidationIssue[]): void {
+  if (!cell.axisGroups || cell.axisGroups.length === 0) {
+    return;
+  }
+
+  const knownNames = new Set<string>();
+  for (const name of cell.variables ?? []) {
+    knownNames.add(name.trim());
+  }
+  for (const spec of cell.series ?? []) {
+    knownNames.add(spec.expression.trim());
+    if (spec.label) {
+      knownNames.add(spec.label.trim());
+    }
+  }
+
+  const seen = new Set<string>();
+  for (const group of cell.axisGroups) {
+    for (const member of group) {
+      const trimmed = member.trim();
+      if (trimmed === "") {
+        continue;
+      }
+      if (knownNames.size > 0 && !knownNames.has(trimmed)) {
+        issues.push(
+          createNotebookIssue(
+            `Chart cell '${cell.id}' axisGroups references '${trimmed}', which is not one of its variables or series.`,
+            undefined,
+            "warning"
+          )
+        );
+      }
+      if (seen.has(trimmed)) {
+        issues.push(
+          createNotebookIssue(
+            `Chart cell '${cell.id}' axisGroups lists '${trimmed}' in more than one group.`,
+            undefined,
+            "warning"
+          )
+        );
+      }
+      seen.add(trimmed);
+    }
   }
 }
 

@@ -120,6 +120,72 @@ export function buildResolvedChartSeries(
   return buildNamedChartSeriesValues(assignChartSeriesNames(resolveChartSeriesSpecs(cell)), result);
 }
 
+function seriesMagnitude(values: number[]): number | null {
+  let max: number | null = null;
+  for (const value of values) {
+    if (Number.isFinite(value)) {
+      const magnitude = Math.abs(value);
+      if (max == null || magnitude > max) {
+        max = magnitude;
+      }
+    }
+  }
+  return max;
+}
+
+/**
+ * Suggests axis groupings by bucketing series whose magnitudes are within a
+ * factor of `ratioThreshold` of each other. Series are scaled by their largest
+ * absolute value, so variables of similar order of magnitude land on one axis.
+ * Group and member order follow the input (chart) order.
+ */
+export function suggestChartAxisGroups(
+  series: Array<Pick<ResolvedChartSeries, "name" | "values">>,
+  options: { ratioThreshold?: number } = {}
+): string[][] {
+  const ratioThreshold = options.ratioThreshold ?? 10;
+  const entries = series
+    .map((entry, index) => ({ name: entry.name, index, magnitude: seriesMagnitude(entry.values) }))
+    .filter(
+      (entry): entry is { name: string; index: number; magnitude: number } => entry.magnitude != null
+    );
+  if (entries.length === 0) {
+    return [];
+  }
+
+  const groupIdByName = new Map<string, number>();
+  let groupId = 0;
+  let base = Number.POSITIVE_INFINITY;
+  [...entries]
+    .sort((left, right) => left.magnitude - right.magnitude)
+    .forEach((entry, position) => {
+      if (position === 0) {
+        base = entry.magnitude;
+      } else if (entry.magnitude > base * ratioThreshold) {
+        groupId += 1;
+        base = entry.magnitude;
+      }
+      groupIdByName.set(entry.name, groupId);
+    });
+
+  const groupOrder: number[] = [];
+  const membersByGroup = new Map<number, string[]>();
+  [...entries]
+    .sort((left, right) => left.index - right.index)
+    .forEach((entry) => {
+      const id = groupIdByName.get(entry.name) ?? 0;
+      const members = membersByGroup.get(id);
+      if (members) {
+        members.push(entry.name);
+      } else {
+        membersByGroup.set(id, [entry.name]);
+        groupOrder.push(id);
+      }
+    });
+
+  return groupOrder.map((id) => membersByGroup.get(id) ?? []);
+}
+
 export function buildResolvedChartSeriesRanges(
   cell: Pick<ChartCell, "series" | "variables" | "seriesRanges">,
   resolvedSeries: Pick<ResolvedChartSeries, "highlightKey" | "name">[]

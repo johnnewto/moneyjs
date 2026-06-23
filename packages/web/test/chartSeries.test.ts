@@ -10,7 +10,8 @@ import {
   removeChartSeriesByDisplayName,
   resolveChartSeriesDisplayNames,
   resolveChartSeriesSpecs,
-  resolveChartSeriesUnit
+  resolveChartSeriesUnit,
+  suggestChartAxisGroups
 } from "../src/notebook/chartSeries";
 import type { ChartCell } from "../src/notebook/types";
 
@@ -202,5 +203,60 @@ describe("chartSeries", () => {
       axisMode: "separate"
     });
     expect(cell.variables).toBeUndefined();
+  });
+
+  it("parses axisGroups from compact chart YAML and trims blanks", () => {
+    const [cell] = buildCompactChartCells(
+      [
+        {
+          title: "Baseline headline variables",
+          variables: ["Y", "Cd", "Mh", "W"],
+          axisGroups: [["Y", " Cd ", "Mh"], ["W"], ["  "]]
+        }
+      ],
+      "baseline-run"
+    );
+
+    expect(cell?.axisGroups).toEqual([["Y", "Cd", "Mh"], ["W"]]);
+  });
+
+  it("suggests axis groups by clustering similar magnitudes", () => {
+    const suggestion = suggestChartAxisGroups([
+      { name: "Y", values: [100, 110, 120] },
+      { name: "Cd", values: [80, 85, 90] },
+      { name: "Mh", values: [95, 100, 105] },
+      { name: "W", values: [1.1, 1.2, 1.3] }
+    ]);
+
+    expect(suggestion).toEqual([["Y", "Cd", "Mh"], ["W"]]);
+  });
+
+  it("preserves chart order across and within suggested groups", () => {
+    const suggestion = suggestChartAxisGroups([
+      { name: "big1", values: [900, 950] },
+      { name: "small1", values: [2, 3] },
+      { name: "big2", values: [800, 850] },
+      { name: "small2", values: [1, 4] }
+    ]);
+
+    expect(suggestion).toEqual([["big1", "big2"], ["small1", "small2"]]);
+  });
+
+  it("returns a single group when all magnitudes are comparable", () => {
+    const suggestion = suggestChartAxisGroups([
+      { name: "A", values: [10, 12] },
+      { name: "B", values: [14, 16] }
+    ]);
+
+    expect(suggestion).toEqual([["A", "B"]]);
+  });
+
+  it("ignores series without finite values", () => {
+    const suggestion = suggestChartAxisGroups([
+      { name: "A", values: [10, 12] },
+      { name: "B", values: [Number.NaN, Number.NaN] }
+    ]);
+
+    expect(suggestion).toEqual([["A"]]);
   });
 });

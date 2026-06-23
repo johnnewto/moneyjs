@@ -316,7 +316,7 @@ Use a `run` cell for the main simulation.
       sourceModelId: sim
 ```
 
-Use `chart` and `table` cells for result views.
+Use `chart` and `table` cells for result views. To bucket variables onto shared axes instead of one axis per variable, add `axisGroups` (each inner array shares a y-axis; omitted variables get their own axis), e.g. `axisGroups: [[Y, Cd, Mh], [W]]`.
 
 ```yaml
   - chart:

@@ -237,6 +237,7 @@ export function ChartCellView({
     <ResultChart
       addVariableOptions={addVariableOptions}
       axisMode={cell.axisMode ?? "shared"}
+      axisGroups={cell.axisGroups}
       axisSnapTolarance={cell.axisSnapTolarance}
       niceScale={cell.niceScale}
       onAddVariable={onAddVariable}

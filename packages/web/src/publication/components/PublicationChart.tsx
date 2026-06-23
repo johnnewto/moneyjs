@@ -41,6 +41,7 @@ export function PublicationChart({
     <div className="publication-chart">
       <ResultChart
         axisMode={cell.axisMode ?? "shared"}
+        axisGroups={cell.axisGroups}
         axisSnapTolarance={cell.axisSnapTolarance}
         niceScale={cell.niceScale}
         highlightedVariable={interaction.highlightedVariable}
