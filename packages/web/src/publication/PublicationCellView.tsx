@@ -104,6 +104,7 @@ export function PublicationCellView({
         <PublicationChart
           cell={cell}
           cells={cells}
+          getResult={getResult}
           interaction={interaction}
           result={result}
           selectedPeriodIndex={selectedPeriodIndex}

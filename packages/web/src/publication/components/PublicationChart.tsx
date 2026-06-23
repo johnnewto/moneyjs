@@ -6,19 +6,25 @@ import {
   buildResolvedChartSeriesRanges,
   buildResolvedChartSeriesWithUnits
 } from "../../notebook/chartSeries";
-import type { ChartCell, NotebookCell } from "../../notebook/types";
+import type { ChartCell, NotebookCell, RunCell } from "../../notebook/types";
+import {
+  buildScenarioShockMarkers,
+  resolveShowScenarioShocks
+} from "../../lib/scenarioShockMarkers";
 import { buildPublicationVariableDescriptions } from "../publicationVariables";
 import type { PublicationVariableInteraction } from "../publicationInspect";
 
 export function PublicationChart({
   cell,
   cells,
+  getResult,
   interaction,
   result,
   selectedPeriodIndex
 }: {
   cell: ChartCell;
   cells: NotebookCell[];
+  getResult(runCellId: string): SimulationResult | null;
   interaction: PublicationVariableInteraction;
   result: SimulationResult | null;
   selectedPeriodIndex: number;
@@ -37,6 +43,22 @@ export function PublicationChart({
   const variableDescriptions = buildPublicationVariableDescriptions(cells);
   const seriesLength = Math.max(...series.map((entry) => entry.values.length), 1);
 
+  const sourceRunCell = cells.find(
+    (candidate): candidate is RunCell =>
+      candidate.type === "run" && candidate.id === cell.sourceRunCellId
+  );
+  const baselineRunCell =
+    sourceRunCell?.mode === "scenario" && sourceRunCell.baselineRunCellId
+      ? cells.find(
+          (candidate): candidate is RunCell =>
+            candidate.type === "run" && candidate.id === sourceRunCell.baselineRunCellId
+        )
+      : null;
+  const baselineResult = baselineRunCell ? getResult(baselineRunCell.id) : null;
+  const scenarioShocks = resolveShowScenarioShocks(cell, sourceRunCell)
+    ? buildScenarioShockMarkers(sourceRunCell, result, baselineResult)
+    : [];
+
   return (
     <div className="publication-chart">
       <ResultChart
@@ -47,6 +69,7 @@ export function PublicationChart({
         highlightedVariable={interaction.highlightedVariable}
         onInspectScenarioShockVariable={interaction.onSelectVariable}
         periodLabelOffset={0}
+        scenarioShocks={scenarioShocks}
         selectedIndex={Math.min(selectedPeriodIndex, seriesLength - 1)}
         series={series}
         seriesRanges={seriesRanges}

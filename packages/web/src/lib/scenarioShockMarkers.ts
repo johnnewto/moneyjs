@@ -121,7 +121,8 @@ function resolveOriginalShockValue(
     }
   }
 
-  const external = baselineResult?.model.externals[variable] ?? result?.model.externals[variable];
+  const external =
+    baselineResult?.model?.externals?.[variable] ?? result?.model?.externals?.[variable];
   if (external?.kind === "constant") {
     return formatNumericValue(external.value);
   }
