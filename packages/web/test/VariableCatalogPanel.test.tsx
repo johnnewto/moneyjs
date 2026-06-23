@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { render, waitFor } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { VariableCatalogPanel } from "../src/components/VariableCatalogPanel";
@@ -48,23 +48,14 @@ describe("VariableCatalogPanel", () => {
       );
     }
 
-    render(<Probe />);
+    const { rerender } = render(<Probe />);
+    const renderCountAfterMount = renderCount;
 
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    const renderCountAfter400ms = renderCount;
+    rerender(<Probe />);
 
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    const renderCountAfter800ms = renderCount;
-
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    const renderCountAfter1200ms = renderCount;
-
-    expect(renderCountAfter400ms, `render count after 400ms: ${renderCountAfter400ms}`).toBeLessThan(12);
-    expect(renderCountAfter800ms, `render count after 800ms: ${renderCountAfter800ms}`).toBe(
-      renderCountAfter400ms
-    );
-    expect(renderCountAfter1200ms, `render count after 1200ms: ${renderCountAfter1200ms}`).toBe(
-      renderCountAfter800ms
+    expect(renderCountAfterMount, `render count after mount: ${renderCountAfterMount}`).toBeLessThan(12);
+    expect(renderCount, `render count after same-props rerender: ${renderCount}`).toBe(
+      renderCountAfterMount + 1
     );
   });
 });

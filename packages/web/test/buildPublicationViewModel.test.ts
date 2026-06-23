@@ -53,10 +53,10 @@ describe("buildPublicationViewModel", () => {
   });
 
   it("filters embed mode to a single eligible cell", () => {
-    const document = createNotebookFromTemplate("werner-qtc-explainer");
+    const document = createNotebookFromTemplate("bmw");
     const viewModel = buildPublicationViewModel({
       document,
-      templateId: "werner-qtc-explainer",
+      templateId: "bmw",
       mode: "embed",
       embedCellId: "intro"
     });

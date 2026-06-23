@@ -14,8 +14,7 @@ type TemplateId =
   | "opensimplest"
   | "opensimplest-levy"
   | "pc-two-class"
-  | "predator-prey"
-  | "werner-qtc-explainer";
+  | "predator-prey";
 
 interface TemplateSmokeCase {
   baselineExpectations(result: ReturnType<typeof runBaseline>): void;
@@ -57,27 +56,6 @@ const TEMPLATE_CASES: TemplateSmokeCase[] = [
       expect(result.series.Gov_Bonds.at(-1) ?? NaN).toBeGreaterThan(
         baselineResult.series.Gov_Bonds.at(-1) ?? NaN
       );
-    }
-  },
-  {
-    templateId: "werner-qtc-explainer",
-    baselineRunCellId: "baseline-run",
-    scenarioRunCellId: "asset-bubble-run",
-    baselineExpectations(result) {
-      expect(result.options.periods).toBe(60);
-      expect(result.series.Y.length).toBe(60);
-      expect(result.series.PA.length).toBe(60);
-      expect(result.series.DebtToGDP.length).toBe(60);
-      expect(Number.isFinite(result.series.Y.at(-1) ?? NaN)).toBe(true);
-      expect(Number.isFinite(result.series.PA.at(-1) ?? NaN)).toBe(true);
-      expect(Number.isFinite(result.series.AssetToGDP.at(-1) ?? NaN)).toBe(true);
-    },
-    scenarioExpectations(result, baselineResult) {
-      expect(result.options.periods).toBe(60);
-      expect(result.series.PA.length).toBe(60);
-      expect(Number.isFinite(result.series.PA.at(-1) ?? NaN)).toBe(true);
-      expect(Number.isFinite(result.series.Y.at(-1) ?? NaN)).toBe(true);
-      expect(result.series.PA[10] ?? NaN).toBeGreaterThan(baselineResult.series.PA[10] ?? NaN);
     }
   },
   {

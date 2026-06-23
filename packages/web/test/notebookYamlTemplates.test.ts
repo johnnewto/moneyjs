@@ -4,22 +4,49 @@ import { describe, expect, it } from "vitest";
 
 import { notebookFromJson, notebookFromYaml, notebookToCompactYaml, notebookToJson } from "../src/notebook/document";
 import { validateNotebookModels } from "../src/notebook/notebookSourceWorkflow";
-import { getNotebookTemplateDocument, NOTEBOOK_TEMPLATES } from "../src/notebook/templates";
+import {
+  createNotebookFromTemplateWithFallback,
+  getNotebookTemplateDocument,
+  loadNotebookTemplate,
+  NOTEBOOK_TEMPLATES
+} from "../src/notebook/templates";
+import type { NotebookDocument } from "../src/notebook/types";
 import { validateNotebookDocument } from "../src/notebook/validation";
 
 const templateRoot = path.resolve(__dirname, "../src/notebook/templates");
 const publicExamplesRoot = path.resolve(__dirname, "../public/notebook-examples");
-const PILOT_TEMPLATE_IDS = ["bmw", "sim", "werner_quantity_theory_credit", "werner_qtc_explainer"] as const;
+const PILOT_TEMPLATE_IDS = ["bmw", "sim"] as const;
 const PILOT_PUBLIC_EXAMPLE_IDS = ["bmw", "sim"] as const;
 
 describe("shipped notebook templates", () => {
+  it("imports template metadata without parsing YAML eagerly", () => {
+    expect(Object.keys(NOTEBOOK_TEMPLATES)).toContain("bmw");
+    expect(NOTEBOOK_TEMPLATES.bmw.label).toBe("BMW");
+  });
+
   for (const [templateId] of Object.entries(NOTEBOOK_TEMPLATES)) {
-    it(`validates ${templateId} document schema and models`, () => {
+    it(`loads and validates ${templateId} document schema and models`, () => {
+      const loaded = loadNotebookTemplate(templateId as keyof typeof NOTEBOOK_TEMPLATES);
+      expect(loaded.ok).toBe(true);
+      if (!loaded.ok) {
+        throw new Error(`Expected ${templateId} to load.`);
+      }
+
       const document = getNotebookTemplateDocument(templateId as keyof typeof NOTEBOOK_TEMPLATES);
+      expect(loaded.document).toBe(document);
       expect(validateNotebookDocument(document)).toEqual([]);
       expect(validateNotebookModels(document).issueCount).toBe(0);
+      expectRunPeriodsOnRunCells(document, `template:${templateId}`);
     });
   }
+
+  it("returns the requested template when load succeeds", () => {
+    const loaded = createNotebookFromTemplateWithFallback("sim");
+    expect(loaded.requestedTemplateId).toBe("sim");
+    expect(loaded.resolvedTemplateId).toBe("sim");
+    expect(loaded.loadError).toBeNull();
+    expect(loaded.document.metadata.template).toBe("sim");
+  });
 });
 
 describe("pilot YAML constraints", () => {
@@ -187,3 +214,17 @@ const REFERENCE_ID_KEYS = new Set([
   "balanceMatrixCellId",
   "cellOrder"
 ]);
+
+function expectRunPeriodsOnRunCells(document: NotebookDocument, name: string): void {
+  const runCells = document.cells.filter((cell) => cell.type === "run");
+  const solverCells = document.cells.filter((cell) => cell.type === "solver");
+
+  expect(runCells.length, `${name} should include at least one run cell`).toBeGreaterThan(0);
+  for (const cell of runCells) {
+    expect(Number.isInteger(cell.periods), `${name}:${cell.title} should define integer periods`).toBe(true);
+    expect(cell.periods, `${name}:${cell.title} should define positive periods`).toBeGreaterThanOrEqual(1);
+  }
+  for (const cell of solverCells) {
+    expect(cell.options.periods, `${name}:${cell.title} should not define solver periods`).toBeUndefined();
+  }
+}

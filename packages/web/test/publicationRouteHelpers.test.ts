@@ -31,10 +31,10 @@ describe("publicationRouteHelpers", () => {
       cellId: "balance-sheet",
       embedCellId: null
     });
-    expect(parsePublicationPathname("/print/werner-qtc-explainer")).toEqual({
+    expect(parsePublicationPathname("/print/sim")).toEqual({
       mode: "print",
       source: "template",
-      templateId: "werner-qtc-explainer",
+      templateId: "sim",
       cellId: null,
       embedCellId: null
     });

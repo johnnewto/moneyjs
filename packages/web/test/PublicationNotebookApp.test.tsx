@@ -27,23 +27,21 @@ afterEach(() => {
 });
 
 describe("PublicationNotebookApp", () => {
-  it("renders werner-qtc-explainer markdown and auto-runs simulations", async () => {
+  it("renders template markdown and auto-runs simulations", async () => {
     render(
       <PublicationNotebookApp
         route={{
           mode: "publish",
           source: "template",
-          templateId: "werner-qtc-explainer",
+          templateId: "bmw",
           cellId: null,
           embedCellId: null
         }}
       />
     );
 
-    expect(screen.getByRole("heading", { level: 1, name: /Werner QTC/i })).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Richard A. Werner's Quantity Theory of Credit" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: /BMW/i })).toBeInTheDocument();
+    expect(screen.getByText(/adapts the BMW vignette/i)).toBeInTheDocument();
     expect(runAllMock).toHaveBeenCalledTimes(1);
 
     await waitFor(() => {
@@ -60,16 +58,14 @@ describe("PublicationNotebookApp", () => {
         route={{
           mode: "embed",
           source: "template",
-          templateId: "werner-qtc-explainer",
+          templateId: "bmw",
           cellId: null,
           embedCellId: "intro"
         }}
       />
     );
 
-    expect(
-      screen.getByRole("heading", { name: "Richard A. Werner's Quantity Theory of Credit" })
-    ).toBeInTheDocument();
+    expect(screen.getByText(/adapts the BMW vignette/i)).toBeInTheDocument();
     expect(screen.queryByText(/MoneyJS publication/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/^Appendix$/)).not.toBeInTheDocument();
     expect(screen.queryByRole("complementary", { name: "Contents" })).not.toBeInTheDocument();
