@@ -9,7 +9,14 @@ import {
   type MatrixColumnHeaderCell
 } from "@sfcr/notebook-core";
 
-import { resolveMatrixCornerLabel, resolveMatrixTableKind } from "../../notebook/matrixSemantics";
+import {
+  classifyMatrixStockRole,
+  formatStockRoleLabel,
+  formatStockRoleTitle,
+  resolveMatrixCornerLabel,
+  resolveMatrixTableKind,
+  type MatrixStockRole
+} from "../../notebook/matrixSemantics";
 import {
   evaluateMatrixEntryNumber,
   formatAccountTransactionsSumRowDisplayLabel,
@@ -26,6 +33,18 @@ import type { PublicationVariableInteraction } from "../publicationInspect";
 import { renderPublicationFormula } from "../publicationFormula";
 
 const EMPTY_COLLAPSED_NODE_IDS = new Set<string>();
+
+function PublicationMatrixRoleBadge({ role }: { role: MatrixStockRole }) {
+  return (
+    <span
+      className={`publication-matrix-role-badge publication-matrix-role-badge-${role}`}
+      aria-hidden="true"
+      title={formatStockRoleTitle(role)}
+    >
+      {formatStockRoleLabel(role)}
+    </span>
+  );
+}
 
 function PublicationMatrixEntry({
   source,
@@ -129,6 +148,12 @@ function resolvePublicationMatrixColumnClassName(
             return "publication-matrix-intra-sector-divider";
           case "notebook-matrix-sum-column":
             return "publication-matrix-sum-column";
+          case "notebook-matrix-cell-asset":
+            return "publication-matrix-cell-asset";
+          case "notebook-matrix-cell-liability":
+            return "publication-matrix-cell-liability";
+          case "notebook-matrix-cell-equity":
+            return "publication-matrix-cell-equity";
           default:
             return null;
         }
@@ -228,6 +253,9 @@ function PublicationMatrixHeader({
                     )
               }
             >
+              {headerCell.stockRole ? (
+                <PublicationMatrixRoleBadge role={headerCell.stockRole} />
+              ) : null}
               <PublicationMatrixColumnHeaderLabel
                 canGraph={canGraph && headerCell.columnIndex !== sumColumnIndex}
                 columnIndex={headerCell.columnIndex}
@@ -267,6 +295,7 @@ export function PublicationMatrix({
   const cornerLabel = resolveMatrixCornerLabel(accountColumnLayout, matrixKind);
   const headerRows = useMemo(() => resolvePublicationMatrixHeaderRows(cell), [cell]);
   const sumColumnIndex = cell.columns.findIndex((column) => column.trim().toLowerCase() === "sum");
+  const sumRowIndex = cell.rows.findIndex((row) => row.label.trim().toLowerCase() === "sum");
   const usesSectorColumns = headerRows.length > 0;
 
   const result = cell.sourceRunCellId && getResult ? getResult(cell.sourceRunCellId) : null;
@@ -310,18 +339,22 @@ export function PublicationMatrix({
           onGraphColumn={handleGraphColumn}
         />
         <tbody>
-          {cell.rows.map((row) => (
+          {cell.rows.map((row, rowIndex) => (
             <tr key={`${row.label}-${row.band ?? ""}`}>
               <th scope="row">{formatAccountTransactionsSumRowDisplayLabel(cell, row.label)}</th>
-              {row.values.map((source, columnIndex) => (
-                <td
-                  key={`${row.label}-${columnIndex}`}
-                  className={resolvePublicationMatrixColumnClassName(
-                    cell,
-                    columnIndex,
-                    sumColumnIndex
-                  )}
-                >
+              {row.values.map((source, columnIndex) => {
+                const isSumCell = columnIndex === sumColumnIndex || rowIndex === sumRowIndex;
+                const stockRole =
+                  matrixKind === "stocks" && !isSumCell
+                    ? classifyMatrixStockRole(
+                        row.label,
+                        source,
+                        result
+                          ? evaluateMatrixEntryNumber(source.trim(), result, selectedPeriodIndex)
+                          : null
+                      )
+                    : null;
+                const entry = (
                   <PublicationMatrixEntry
                     source={source}
                     interaction={interaction}
@@ -329,8 +362,27 @@ export function PublicationMatrix({
                     result={result}
                     selectedPeriodIndex={selectedPeriodIndex}
                   />
-                </td>
-              ))}
+                );
+                return (
+                  <td
+                    key={`${row.label}-${columnIndex}`}
+                    className={resolvePublicationMatrixColumnClassName(
+                      cell,
+                      columnIndex,
+                      sumColumnIndex
+                    )}
+                  >
+                    {stockRole ? (
+                      <span className="publication-matrix-cell-inline">
+                        <PublicationMatrixRoleBadge role={stockRole} />
+                        {entry}
+                      </span>
+                    ) : (
+                      entry
+                    )}
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>

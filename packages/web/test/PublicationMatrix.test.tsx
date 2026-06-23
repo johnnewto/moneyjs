@@ -55,6 +55,53 @@ describe("PublicationMatrix", () => {
     expect(container.textContent).not.toMatch(/\d+\.\d{3,}/);
   });
 
+  it("renders A/L/E stock-role badges in balance-sheet body cells", () => {
+    const document = createNotebookFromTemplate("bmw");
+    const matrixCell = document.cells.find((cell) => cell.id === "balance-sheet");
+    expect(matrixCell?.type).toBe("matrix");
+
+    if (matrixCell?.type !== "matrix") {
+      return;
+    }
+
+    const { container } = render(
+      <PublicationMatrix cell={matrixCell} interaction={createTestPublicationInteraction()} />
+    );
+
+    expect(
+      container.querySelectorAll("tbody .publication-matrix-role-badge").length
+    ).toBeGreaterThan(0);
+    expect(container.querySelector("tbody .publication-matrix-role-badge-asset")).not.toBeNull();
+    expect(
+      container.querySelector("tbody .publication-matrix-role-badge-liability")
+    ).not.toBeNull();
+    expect(container.querySelector("tbody .publication-matrix-role-badge-equity")).not.toBeNull();
+  });
+
+  it("renders A/L/E badges and column color coding for account-transactions headers", () => {
+    const document = createNotebookFromTemplate("bmw");
+    const matrixCell = document.cells.find((cell) => cell.id === "account-transactions");
+    expect(matrixCell?.type).toBe("matrix");
+
+    if (matrixCell?.type !== "matrix") {
+      return;
+    }
+
+    const { container } = render(
+      <PublicationMatrix cell={matrixCell} interaction={createTestPublicationInteraction()} />
+    );
+
+    expect(
+      container.querySelectorAll("thead .publication-matrix-role-badge").length
+    ).toBeGreaterThan(0);
+    expect(container.querySelector("thead th.publication-matrix-cell-asset")).not.toBeNull();
+    expect(container.querySelector("thead th.publication-matrix-cell-liability")).not.toBeNull();
+    expect(container.querySelector("thead th.publication-matrix-cell-equity")).not.toBeNull();
+    expect(container.querySelector("tbody td.publication-matrix-cell-asset")).not.toBeNull();
+    expect(container.querySelector("tbody td.publication-matrix-cell-liability")).not.toBeNull();
+    expect(container.querySelector("tbody td.publication-matrix-cell-equity")).not.toBeNull();
+  });
+
   it("renders grouped sector headers for account-transactions matrices", () => {
     const document = createNotebookFromTemplate("bmw");
     const matrixCell = document.cells.find((cell) => cell.id === "account-transactions");

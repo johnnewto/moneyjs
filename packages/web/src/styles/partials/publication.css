@@ -336,6 +336,10 @@ body:has(.publication-root) {
   border-left: 3px double rgba(71, 85, 105, 0.42);
 }
 
+.publication-matrix thead tr:first-child th.publication-matrix-sector-start {
+  text-align: center;
+}
+
 .publication-matrix-sector-columns th.publication-matrix-intra-sector-divider,
 .publication-matrix-sector-columns td.publication-matrix-intra-sector-divider {
   border-right: 1.5px solid rgba(100, 116, 139, 0.55);
@@ -344,6 +348,67 @@ body:has(.publication-root) {
 .publication-matrix-sector-columns th.publication-matrix-sum-column,
 .publication-matrix-sector-columns td.publication-matrix-sum-column {
   border-left: 2px solid rgba(51, 65, 85, 0.55);
+}
+
+.publication-matrix td.publication-matrix-cell-asset {
+  background: rgba(220, 252, 231, 0.5);
+}
+
+.publication-matrix td.publication-matrix-cell-liability {
+  background: rgba(254, 226, 226, 0.5);
+}
+
+.publication-matrix td.publication-matrix-cell-equity {
+  background: rgba(219, 234, 254, 0.5);
+}
+
+.publication-matrix thead th.publication-matrix-cell-asset {
+  background: rgba(195, 245, 213, 0.85);
+}
+
+.publication-matrix thead th.publication-matrix-cell-liability {
+  background: rgba(252, 205, 205, 0.85);
+}
+
+.publication-matrix thead th.publication-matrix-cell-equity {
+  background: rgba(201, 222, 254, 0.85);
+}
+
+.publication-matrix-cell-inline {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.publication-matrix-role-badge {
+  flex: none;
+  border-radius: 999px;
+  font-family: system-ui, sans-serif;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 0.05rem 0.4rem;
+}
+
+.publication-matrix thead th .publication-matrix-role-badge {
+  margin-right: 0.3rem;
+}
+
+.publication-matrix-role-badge-asset {
+  background: rgba(220, 252, 231, 0.9);
+  color: #166534;
+}
+
+.publication-matrix-role-badge-liability {
+  background: rgba(254, 226, 226, 0.9);
+  color: #991b1b;
+}
+
+.publication-matrix-role-badge-equity {
+  background: rgba(219, 234, 254, 0.92);
+  color: #1d4ed8;
 }
 
 .publication-matrix-entry {
