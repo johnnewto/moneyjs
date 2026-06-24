@@ -51,6 +51,7 @@ export interface ExternalRow {
   desc?: string;
   kind: ExternalDef["kind"];
   valueText: string;
+  observed?: boolean;
   unitMeta?: UnitMeta;
 }
 
@@ -132,7 +133,8 @@ export function editorStateFromModel(
       valueText:
         external.kind === "constant"
           ? String(external.value)
-          : external.values.join(", ")
+          : external.values.join(", "),
+      observed: name in (model.observed ?? {})
     })),
     initialValues: Object.entries(model.initialValues).map(([name, value], index) => ({
       id: `init-${index}-${name}`,
@@ -214,6 +216,18 @@ export function buildRuntimeConfig(
       .map((external) => [external.name.trim(), parseExternal(external.kind, external.valueText)])
   );
 
+  const observed = Object.fromEntries(
+    externalRowsOnly(editor.externals)
+      .filter(
+        (external) =>
+          external.observed === true &&
+          external.kind === "series" &&
+          external.name.trim() !== "" &&
+          external.valueText.trim() !== ""
+      )
+      .map((external) => [external.name.trim(), parseNumberList(external.valueText)])
+  );
+
   const cellInitialValues = Object.fromEntries(
     initialValueRowsOnly(editor.initialValues)
       .filter(
@@ -255,6 +269,7 @@ export function buildRuntimeConfig(
     equations,
     externals,
     initialValues,
+    ...(Object.keys(observed).length > 0 ? { observed } : {}),
     ...(matrixColumnSumBundle && Object.keys(matrixColumnSumBundle.bindings).length > 0
       ? {
           matrixColumnSums: matrixColumnSumBundle.bindings,
@@ -265,6 +280,13 @@ export function buildRuntimeConfig(
 
   const hiddenLeft = editor.options.hiddenLeftVariable.trim();
   const hiddenRight = editor.options.hiddenRightVariable.trim();
+  const runCell =
+    runtimeOptions?.notebookCells && runtimeOptions.runCellId
+      ? runtimeOptions.notebookCells.find(
+          (cell): cell is Extract<NotebookCell, { type: "run" }> =>
+            cell.type === "run" && cell.id === runtimeOptions.runCellId
+        )
+      : undefined;
 
   const options: SimulationOptions = {
     periods: editor.options.periods,
@@ -272,6 +294,7 @@ export function buildRuntimeConfig(
     tolerance: parseNumber(editor.options.toleranceText),
     maxIterations: editor.options.maxIterations,
     defaultInitialValue: parseNumber(editor.options.defaultInitialValueText),
+    simType: runCell?.simType,
     hiddenEquation:
       hiddenLeft && hiddenRight
         ? {

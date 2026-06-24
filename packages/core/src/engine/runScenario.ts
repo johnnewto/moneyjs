@@ -13,6 +13,7 @@ export function runScenario(
   const scenarioModel: ModelDefinition = {
     ...model,
     externals: { ...model.externals },
+    observed: model.observed ? { ...model.observed } : undefined,
     initialValues: {}
   };
 

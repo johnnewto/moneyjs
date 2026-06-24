@@ -65,6 +65,7 @@ const ALLOWED_CELL_PROPERTIES = new Set([
   "sectors",
   "seriesRanges",
   "sharedRange",
+  "simType",
   "source",
   "sourceModelCellId",
   "sourceModelId",

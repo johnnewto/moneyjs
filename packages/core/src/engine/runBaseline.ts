@@ -28,6 +28,7 @@ export function runBaseline(
   const endogenousNames = parsed.map((equation) => equation.name);
   const externalNames = Object.keys(model.externals);
   const series = SeriesStore.createForModel(endogenousNames, externalNames, options);
+  const observed = buildObservedSeries(model.observed, options.periods);
 
   for (const variable of Object.keys(series)) {
     series[variable]?.fill(options.defaultInitialValue ?? 1e-15);
@@ -59,7 +60,10 @@ export function runBaseline(
   try {
     for (let period = 1; period < options.periods; period += 1) {
       const context = wrapContextWithMatrixColumnSums(
-        SeriesStore.forPeriod(series, period),
+        SeriesStore.forPeriod(series, period, {
+          simType: options.simType ?? "DYNAMIC",
+          observed
+        }),
         matrixColumnSums,
         matrixColumnSumLocations
       );
@@ -96,6 +100,19 @@ export function runBaseline(
   const warnings = validateHiddenEquation(result);
   if (warnings.length > 0) {
     result.warnings = warnings;
+  }
+  return result;
+}
+
+function buildObservedSeries(
+  observed: Record<string, number[]> | undefined,
+  periods: number
+): Record<string, Float64Array> {
+  const result: Record<string, Float64Array> = {};
+  for (const [name, values] of Object.entries(observed ?? {})) {
+    const array = new Float64Array(periods);
+    array.set(values.slice(0, periods));
+    result[name] = array;
   }
   return result;
 }

@@ -7,13 +7,9 @@
 # an empirical bimets stock-flow consistent model for Italy (Canelli, Fontana,
 # Realfonzo & Veronese Passarella 2021/2022/2024).
 #
-# The SFCR notebook engine performs a pure DYNAMIC forward solve and cannot
-# estimate coefficients. We therefore mirror the repo's in-sample baseline:
-# estimate the behavioural coefficients in R, then run a DYNAMIC simulation over
-# 1998-2021 in which every behavioural variable is exogenised to its observed
-# series. Only the accounting identities stay endogenous - exactly the variables
-# the SFCR notebook keeps as equations. This makes the R simulation reproducible
-# by the SFCR forward solver.
+# The SFCR notebook engine cannot estimate coefficients. We therefore estimate
+# the behavioural coefficients in R, bake them into notebook equations, and emit
+# the STATIC in-sample baseline used by 4_In_sample_pred (type_pred = 0).
 #
 # Outputs:
 #   packages/web/test/fixtures/r-regressions/italy-sfc.json  (regression checkpoints)
@@ -68,30 +64,51 @@ behaviourals <- names(S_model$behaviorals)
 identities <- names(S_model$identities)
 message(sprintf("Model loaded: %d behaviourals, %d identities", length(behaviourals), length(identities)))
 
-# Firms' "other payments" opf is an accounting residual that feeds back into the
-# firms' profit block (ff -> opf -> fdf -> ff), which is singular once fuf is
-# exogenised. The repo's in-sample script (4_In_sample_pred) exogenises opf for
-# the same reason, so we treat it as an observed exogenous series here too. This
-# keeps the SFCR equation system an acyclic DAG of identities.
-extra_exo <- c("opf")
-exo_vars <- sort(unique(c(behaviourals, extra_exo)))
-endo_identities <- setdiff(identities, exo_vars)
+# Minimal exogenize list from references/Italy-SFC-Model/4_In_sample_pred when
+# type_pred = 0. The remaining behaviourals become live notebook equations.
+static_exo_vars <- c(
+  "oph", "opf", "opb", "opcb", "oacb", "oaf", "oab", "oag", "oah",
+  "rstar", "Lp_row", "Lp_en"
+)
+live_behaviourals <- setdiff(behaviourals, static_exo_vars)
+endogenous_vars <- sort(unique(c(identities, live_behaviourals)))
+endogenous_vars <- setdiff(endogenous_vars, static_exo_vars)
 
-# ---- DYNAMIC simulation with behaviourals (+ opf) exogenised to observed data ----
-exo <- stats::setNames(as.list(rep(TRUE, length(exo_vars))), exo_vars)
+# Keep the old all-exogenized DYNAMIC run available as a diagnostic sidecar.
+dynamic_exo_vars <- sort(unique(c(behaviourals, "opf")))
 
-message("Running DYNAMIC simulation 1998-2021 (behaviourals exogenised) ...")
-S_model <- SIMULATE(
-  S_model,
+estimated_model <- S_model
+
+# ---- STATIC simulation matching 4_In_sample_pred type_pred = 0 ----
+static_exo <- stats::setNames(as.list(rep(TRUE, length(static_exo_vars))), static_exo_vars)
+
+message("Running STATIC simulation 1998-2021 (minimal exogenize list) ...")
+S_model_static <- SIMULATE(
+  estimated_model,
+  simType = "STATIC",
+  TSRANGE = c(1998, 1, 2021, 1),
+  simConvergence = 1e-8,
+  simIterLimit = 1000,
+  Exogenize = static_exo,
+  quietly = TRUE
+)
+
+# ---- DYNAMIC identity-only diagnostic with behaviourals (+ opf) exogenised ----
+dynamic_exo <- stats::setNames(as.list(rep(TRUE, length(dynamic_exo_vars))), dynamic_exo_vars)
+
+message("Running DYNAMIC simulation 1998-2021 (behaviourals exogenised diagnostic) ...")
+S_model_dynamic <- SIMULATE(
+  estimated_model,
   simType = "DYNAMIC",
   TSRANGE = c(1998, 1, 2021, 1),
   simConvergence = 1e-11,
   simIterLimit = 5000,
-  Exogenize = exo,
+  Exogenize = dynamic_exo,
   quietly = TRUE
 )
 
-sim <- S_model$simulation
+sim_static <- S_model_static$simulation
+sim_dynamic <- S_model_dynamic$simulation
 
 year_value <- function(ts, year) {
   if (is.null(ts)) return(NA_real_)
@@ -119,7 +136,7 @@ for (yr in check_years) {
   key <- as.character(yr - 1996)
   vals <- list()
   for (v in check_vars) {
-    x <- year_value(sim[[v]], yr)
+    x <- year_value(sim_static[[v]], yr)
     if (is.finite(x)) vals[[v]] <- x
   }
   periods[[key]] <- vals
@@ -128,8 +145,10 @@ for (yr in check_years) {
 fixture <- list(
   templateId = "italy-sfc",
   sourceScript = "references/Italy-SFC-Model/1_Model_upload (+ scripts/generate_italy_sfc_r_fixture.R)",
-  note = "Baseline = DYNAMIC in-sample simulation with all behaviourals exogenised to observed Eurostat series; only identities are endogenous. Period index 0 = 1997 initial values, index i = year 1997 + i.",
-  checkpoints = list("baseline-run" = list(periods = periods))
+  note = "Baseline = STATIC in-sample simulation matching 4_In_sample_pred type_pred=0. Lags read from observed modelData, while only the minimal 12-variable exogenize list remains external. Period index 0 = 1997 initial values, index i = year 1997 + i.",
+  checkpoints = list(
+    "baseline-run" = list(periods = periods)
+  )
 )
 
 dir.create(dirname(fixture_path), recursive = TRUE, showWarnings = FALSE)
@@ -141,7 +160,7 @@ message(sprintf("Wrote fixture: %s", fixture_path))
 sfcr_years <- 1997:2021
 
 obs_series <- function(name) {
-  ts <- S_model$modelData[[name]]
+  ts <- estimated_model$modelData[[name]]
   sapply(sfcr_years, function(y) year_value(ts, y))
 }
 
@@ -152,25 +171,76 @@ fmt_num <- function(x) {
 dir.create(fragments_dir, recursive = TRUE, showWarnings = FALSE)
 con <- file(fragments_path, "w")
 writeLines("# ===== EXTERNALS (behavioural variables + opf exogenised to observed series) =====", con)
-writeLines("# Each row: { name, kind: series, valueText: \"1997..2021\", desc }", con)
-for (b in exo_vars) {
+writeLines("# Minimal STATIC exogenous variables from 4_In_sample_pred type_pred=0.", con)
+for (b in static_exo_vars) {
   vals <- obs_series(b)
-  writeLines(sprintf('      - { name: %s, kind: series, valueText: "%s" }',
+  writeLines(sprintf('      - { name: %s, kind: series, observed: true, valueText: "%s" }',
                      b, paste(fmt_num(vals), collapse = ", ")), con)
 }
 
 writeLines("", con)
-writeLines("# ===== INITIAL VALUES (endogenous identities at 1997, index 0) =====", con)
-for (i in sort(endo_identities)) {
-  v1997 <- year_value(S_model$modelData[[i]], 1997)
-  if (!is.finite(v1997)) v1997 <- year_value(sim[[i]], 1998) # fallback
+writeLines("# ===== OBSERVED HISTORY (all modelData series, 1997..2021) =====", con)
+writeLines("# Rows whose names also have equations seed STATIC lags; equations overwrite the simulated current path.", con)
+for (b in sort(setdiff(names(estimated_model$modelData), static_exo_vars))) {
+  vals <- obs_series(b)
+  if (all(!is.finite(vals))) next
+  writeLines(sprintf('      - { name: %s, kind: series, observed: true, valueText: "%s" }',
+                     b, paste(fmt_num(vals), collapse = ", ")), con)
+}
+
+writeLines("", con)
+writeLines("# ===== OBSERVED OVERLAY SERIES (suffixed _obs, no equation) =====", con)
+writeLines("# Plain externals carrying observed paths so charts can overlay observed vs simulated (Fig. 1).", con)
+overlay_vars <- c("y", "cons", "id", "gov", "nx", "im", "x", "nd", "rb", "p", "un", "deb")
+for (b in overlay_vars) {
+  vals <- obs_series(b)
+  if (all(!is.finite(vals))) next
+  writeLines(sprintf('      - { name: %s_obs, kind: series, valueText: "%s" }',
+                     b, paste(fmt_num(vals), collapse = ", ")), con)
+}
+
+writeLines("", con)
+writeLines("# ===== LIVE BEHAVIOURAL EQUATIONS (coefficients baked in) =====", con)
+
+escape_regex <- function(x) gsub("([][{}()+*^$|\\\\.?])", "\\\\\\1", x)
+substitute_coefficients <- function(eq, co) {
+  if (is.null(co)) return(eq)
+  cn <- rownames(co)
+  cv <- as.numeric(co)
+  order <- order(nchar(cn), decreasing = TRUE)
+  out <- eq
+  for (idx in order) {
+    name <- cn[idx]
+    value <- fmt_num(cv[idx])
+    pattern <- sprintf("(?<![A-Za-z0-9_.])%s(?![A-Za-z0-9_.])", escape_regex(name))
+    out <- gsub(pattern, value, out, perl = TRUE)
+  }
+  out
+}
+
+for (b in live_behaviourals) {
+  eq <- substitute_coefficients(estimated_model$behaviorals[[b]]$eq, estimated_model$behaviorals[[b]]$coefficients)
+  pieces <- strsplit(eq, "=", fixed = TRUE)[[1]]
+  lhs <- trimws(pieces[1])
+  rhs <- trimws(paste(pieces[-1], collapse = "="))
+  rhs <- gsub('"', '\\"', rhs, fixed = TRUE)
+  lhs <- gsub('"', '\\"', lhs, fixed = TRUE)
+  writeLines(sprintf('      - { name: "%s", expression: "%s", desc: "Estimated behavioural: %s" }',
+                     lhs, rhs, b), con)
+}
+
+writeLines("", con)
+writeLines("# ===== INITIAL VALUES (endogenous variables at 1997, index 0) =====", con)
+for (i in endogenous_vars) {
+  v1997 <- year_value(estimated_model$modelData[[i]], 1997)
+  if (!is.finite(v1997)) v1997 <- year_value(sim_static[[i]], 1998) # fallback
   writeLines(sprintf('      - [%s, %s]', i, fmt_num(v1997)), con)
 }
 
 writeLines("", con)
 writeLines("# ===== ESTIMATED COEFFICIENTS (OLS in R, 1998-2019) - for display =====", con)
 for (b in behaviourals) {
-  co <- S_model$behaviorals[[b]]$coefficients
+  co <- estimated_model$behaviorals[[b]]$coefficients
   if (is.null(co)) next
   cv <- as.numeric(co)
   cn <- rownames(co)
@@ -185,10 +255,10 @@ message(sprintf("Wrote YAML fragments: %s", fragments_path))
 report_vars <- c("y", "cons", "deb", "vh", "bs")
 message("\nSimulated vs observed (2021):")
 for (v in report_vars) {
-  s <- year_value(sim[[v]], 2021)
-  o <- year_value(S_model$modelData[[v]], 2021)
+  s <- year_value(sim_static[[v]], 2021)
+  o <- year_value(estimated_model$modelData[[v]], 2021)
   message(sprintf("  %-6s sim=%14.2f obs=%14.2f rel.diff=%.2e", v, s, o, abs(s - o) / max(abs(o), 1)))
 }
-hs <- sapply(1998:2021, function(y) year_value(sim[["hs"]], y))
-hd <- sapply(1998:2021, function(y) year_value(sim[["hd"]], y))
+hs <- sapply(1998:2021, function(y) year_value(sim_static[["hs"]], y))
+hd <- sapply(1998:2021, function(y) year_value(sim_static[["hd"]], y))
 message(sprintf("Max |hs - hd| over 1998-2021: %.3e", max(abs(hs - hd), na.rm = TRUE)))

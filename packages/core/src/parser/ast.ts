@@ -22,7 +22,10 @@ export interface VariableExpr {
 
 export interface LagExpr {
   type: "Lag";
+  /** Bare variable name for lag(variable) compatibility with display/unit visitors. */
   name: string;
+  expr: Expr;
+  offset: number;
 }
 
 export interface DiffExpr {

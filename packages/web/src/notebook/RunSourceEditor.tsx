@@ -173,6 +173,19 @@ export function RunSourceEditor({
             placeholder="100"
           />
         </RunField>
+        <RunField label="Simulation">
+          <select
+            className="scenario-pill-input"
+            aria-label="Simulation type"
+            value={runCell.simType ?? "DYNAMIC"}
+            onChange={(event) =>
+              updateCell({ simType: event.target.value as RunCellSourceDraft["simType"] })
+            }
+          >
+            <option value="DYNAMIC">DYNAMIC</option>
+            <option value="STATIC">STATIC</option>
+          </select>
+        </RunField>
         {runCell.mode === "scenario" ? (
           <>
             <RunField label="Baseline">

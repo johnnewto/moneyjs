@@ -169,6 +169,7 @@
           "enum": ["constant", "series"]
         },
         "valueText": { "type": "string" },
+        "observed": { "type": "boolean" },
         "unitMeta": {
           "$ref": "#/$defs/unitMeta"
         }
@@ -427,6 +428,7 @@
         "baselineRunCellId": { "type": "string" },
         "baselineStartPeriod": { "type": "integer" },
         "mode": { "enum": ["baseline", "scenario"] },
+        "simType": { "enum": ["DYNAMIC", "STATIC"] },
         "scenario": { "$ref": "#/$defs/scenario" },
         "resultKey": { "type": "string" },
         "periods": { "type": "integer", "minimum": 1 },

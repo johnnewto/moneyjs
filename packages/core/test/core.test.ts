@@ -70,9 +70,35 @@ describe("parser", () => {
   });
 
   it("normalizes R-style lag and diff syntax", () => {
-    const equation = parseEquation("x", "a[-1] + d(b)");
+    const equation = parseEquation("x", "a[-2] + d(b)");
     expect(new Set(equation.currentDependencies)).toEqual(new Set(["b"]));
     expect(new Set(equation.lagDependencies)).toEqual(new Set(["a", "b"]));
+  });
+
+  it("parses lagged expressions and bimets-style time-series operators", () => {
+    const equation = parseEquation(
+      "x",
+      "lag(a / b, 2) + TSDELTA(c, 3) + TSDELTALOG(d, 2) + TSDELTAP(e, 1) + MOVAVG(f, 3)"
+    );
+
+    expect(new Set(equation.currentDependencies)).toEqual(
+      new Set(["c", "d", "e", "f"])
+    );
+    expect(new Set(equation.lagDependencies)).toEqual(
+      new Set(["a", "b", "c", "d", "e", "f"])
+    );
+  });
+
+  it("rewrites supported transformed left-hand sides to level equations", () => {
+    const logEquation = parseEquation("TSDELTALOG(prod, 1)", "g");
+    const deltaEquation = parseEquation("TSDELTA(lh, 2)", "credit");
+
+    expect(logEquation.name).toBe("prod");
+    expect(new Set(logEquation.currentDependencies)).toEqual(new Set(["g"]));
+    expect(new Set(logEquation.lagDependencies)).toEqual(new Set(["prod"]));
+    expect(deltaEquation.name).toBe("lh");
+    expect(new Set(deltaEquation.currentDependencies)).toEqual(new Set(["credit"]));
+    expect(new Set(deltaEquation.lagDependencies)).toEqual(new Set(["lh"]));
   });
 
   it("normalizes prime lag syntax", () => {
@@ -249,7 +275,7 @@ describe("parser", () => {
     expect(equation.expression).toEqual({
       type: "Binary",
       op: "+",
-      left: { type: "Lag", name: "Bs" },
+      left: { type: "Lag", name: "Bs", expr: { type: "Variable", name: "Bs" }, offset: 1 },
       right: {
         type: "Binary",
         op: "*",
@@ -331,6 +357,50 @@ describe("parser", () => {
 
     expect(analyzeParsedEquation(equation).role).toBe("behavioral");
     expect(analyzeParsedEquation(equation, { explicitRole: "definition" }).role).toBe("definition");
+  });
+});
+
+describe("simulation modes", () => {
+  it("uses observed history for lags in STATIC mode", () => {
+    const dynamic = runBaseline(
+      {
+        equations: [
+          { name: "x", expression: "lag(x) + 1" },
+          { name: "z", expression: "lag(x + y, 2)" }
+        ],
+        externals: { y: { kind: "series", values: [10, 20, 30, 40] } },
+        initialValues: { x: 1, z: 0 },
+        observed: { x: [1, 100, 200, 300], y: [10, 20, 30, 40] }
+      },
+      {
+        periods: 4,
+        solverMethod: "GAUSS_SEIDEL",
+        tolerance: 1e-9,
+        maxIterations: 100
+      }
+    );
+    const staticRun = runBaseline(
+      {
+        equations: [
+          { name: "x", expression: "lag(x) + 1" },
+          { name: "z", expression: "lag(x + y, 2)" }
+        ],
+        externals: { y: { kind: "series", values: [10, 20, 30, 40] } },
+        initialValues: { x: 1, z: 0 },
+        observed: { x: [1, 100, 200, 300], y: [10, 20, 30, 40] }
+      },
+      {
+        periods: 4,
+        solverMethod: "GAUSS_SEIDEL",
+        tolerance: 1e-9,
+        maxIterations: 100,
+        simType: "STATIC"
+      }
+    );
+
+    expect([...dynamic.series.x!]).toEqual([1, 2, 3, 4]);
+    expect([...staticRun.series.x!]).toEqual([1, 2, 101, 201]);
+    expect(staticRun.series.z?.[3]).toBe(120);
   });
 });
 

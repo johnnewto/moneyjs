@@ -25,9 +25,8 @@ export interface ParsedEquation {
 }
 
 const IDENTIFIER_SOURCE = String.raw`[A-Za-z_][A-Za-z0-9_\.\^\{\}]*`;
-const LAG_PATTERN = new RegExp(`(${IDENTIFIER_SOURCE})\\[-1\\]`, "g");
+const LAG_PATTERN = new RegExp(`(${IDENTIFIER_SOURCE})\\[-(\\d+)\\]`, "g");
 const PRIME_LAG_PATTERN = new RegExp(`(${IDENTIFIER_SOURCE})'`, "g");
-const DIFF_PATTERN = new RegExp(`\\bd\\(\\s*(${IDENTIFIER_SOURCE})\\s*\\)`, "g");
 
 class Lexer {
   private index = 0;
@@ -316,16 +315,51 @@ class Parser {
 
   private parseFunctionCall(identifier: string): Expr {
     this.expect("LPAREN");
-    switch (identifier) {
-      case "lag": {
-        const argument = this.expect("IDENTIFIER").text;
+    switch (identifier.toUpperCase()) {
+      case "LAG":
+      case "TSLAG": {
+        const argument = this.parseTopLevelExpression();
+        const offset = this.parseOptionalPositiveIntegerArgument(1);
         this.expect("RPAREN");
-        return { type: "Lag", name: argument };
+        return lag(argument, offset);
       }
-      case "diff": {
+      case "DIFF":
+      case "TSDELTA": {
+        const argument = this.parseTopLevelExpression();
+        const offset = this.parseOptionalPositiveIntegerArgument(1);
+        this.expect("RPAREN");
+        return binary("-", argument, lag(argument, offset));
+      }
+      case "D": {
         const argument = this.expect("IDENTIFIER").text;
         this.expect("RPAREN");
         return { type: "Diff", name: argument };
+      }
+      case "TSDELTALOG": {
+        const argument = this.parseTopLevelExpression();
+        const offset = this.parseOptionalPositiveIntegerArgument(1);
+        this.expect("RPAREN");
+        return binary("-", fn("log", [argument]), fn("log", [lag(argument, offset)]));
+      }
+      case "TSDELTAP": {
+        const argument = this.parseTopLevelExpression();
+        const offset = this.parseOptionalPositiveIntegerArgument(1);
+        this.expect("RPAREN");
+        const previous = lag(argument, offset);
+        return binary("*", { type: "Number", value: 100 }, binary("/", binary("-", argument, previous), previous));
+      }
+      case "MOVAVG": {
+        const argument = this.parseTopLevelExpression();
+        this.expect("COMMA");
+        const periods = this.expectPositiveIntegerLiteral();
+        this.expect("RPAREN");
+        const terms = Array.from({ length: periods }, (_, offset) =>
+          offset === 0 ? argument : lag(argument, offset)
+        );
+        return binary("/", terms.reduce((sum, term) => binary("+", sum, term)), {
+          type: "Number",
+          value: periods
+        });
       }
       case "I": {
         if (this.peekType() === "RPAREN") {
@@ -335,37 +369,54 @@ class Parser {
         this.expect("RPAREN");
         return { type: "Integral", expr: argument };
       }
-      case "sum": {
+      case "SUM": {
         const argument = this.expect("IDENTIFIER").text;
         this.expect("RPAREN");
         return { type: "MatrixColumnSum", columnRef: argument };
       }
-      case "exp":
-      case "log":
-      case "abs":
-      case "sqrt": {
+      case "EXP":
+      case "LOG":
+      case "ABS":
+      case "SQRT": {
         const argument = this.parseTopLevelExpression();
         this.expect("RPAREN");
-        return { type: "Function", name: identifier, args: [argument] };
+        return fn(identifier.toLowerCase() as "exp" | "log" | "abs" | "sqrt", [argument]);
       }
-      case "min":
-      case "max": {
+      case "MIN":
+      case "MAX": {
         const first = this.parseTopLevelExpression();
         this.expect("COMMA");
         const second = this.parseTopLevelExpression();
         this.expect("RPAREN");
-        return { type: "Function", name: identifier, args: [first, second] };
+        return fn(identifier.toLowerCase() as "min" | "max", [first, second]);
       }
-      case "pow": {
+      case "POW": {
         const base = this.parseTopLevelExpression();
         this.expect("COMMA");
         const exponent = this.parseTopLevelExpression();
         this.expect("RPAREN");
-        return { type: "Function", name: identifier, args: [base, exponent] };
+        return fn("pow", [base, exponent]);
       }
       default:
         throw new Error(`Unsupported function: ${identifier}`);
     }
+  }
+
+  private parseOptionalPositiveIntegerArgument(defaultValue: number): number {
+    if (this.peekType() !== "COMMA") {
+      return defaultValue;
+    }
+    this.advance();
+    return this.expectPositiveIntegerLiteral();
+  }
+
+  private expectPositiveIntegerLiteral(): number {
+    const token = this.expect("NUMBER");
+    const value = Number(token.text);
+    if (!Number.isInteger(value) || value < 1) {
+      throw expressionParseError(this.source, token, "expected", "positive integer");
+    }
+    return value;
   }
 
   private advance(): void {
@@ -394,9 +445,10 @@ export function parseEquation(
   source: string,
   options?: { matrixColumnSums?: Record<string, string[]> }
 ): ParsedEquation {
+  const normalizedTarget = normalizeTransformedTarget(name, source);
   const { name: equationName, source: equationSource } = normalizeDerivativeBalanceTarget(
-    name,
-    source
+    normalizedTarget.name,
+    normalizedTarget.source
   );
   let sourceExpression: Expr;
   try {
@@ -420,7 +472,7 @@ function lowerIntegrals(equationName: string, expression: Expr): Expr {
     return {
       type: "Binary",
       op: "+",
-      left: { type: "Lag", name: equationName },
+      left: lag({ type: "Variable", name: equationName }),
       right: {
         type: "Binary",
         op: "*",
@@ -459,18 +511,46 @@ function containsIntegral(expression: Expr): boolean {
       return false;
     case "Number":
     case "Variable":
-    case "Lag":
     case "Diff":
       return false;
+    case "Lag":
+      return containsIntegral(expression.expr);
   }
 }
 
 function normalize(source: string): string {
   return source
     .replace(/•/g, "*")
-    .replace(LAG_PATTERN, "lag($1)")
-    .replace(PRIME_LAG_PATTERN, "lag($1)")
-    .replace(DIFF_PATTERN, "diff($1)");
+    .replace(LAG_PATTERN, "lag($1,$2)")
+    .replace(PRIME_LAG_PATTERN, "lag($1)");
+}
+
+function normalizeTransformedTarget(name: string, source: string): { name: string; source: string } {
+  const target = name.trim();
+  const match = /^(TSDELTA|TSDELTALOG)\(\s*([A-Za-z_][A-Za-z0-9_\.\^\{\}]*)\s*(?:,\s*(\d+)\s*)?\)$/i.exec(target);
+  if (!match) {
+    return { name, source };
+  }
+
+  const operator = (match[1] ?? "").toUpperCase();
+  const variable = match[2] ?? name;
+  const offset = Number(match[3] ?? "1");
+  if (operator === "TSDELTALOG") {
+    return { name: variable, source: `lag(${variable},${offset}) * exp(${source})` };
+  }
+  return { name: variable, source: `lag(${variable},${offset}) + (${source})` };
+}
+
+function lag(expr: Expr, offset = 1): Expr {
+  return { type: "Lag", name: expr.type === "Variable" ? expr.name : "", expr, offset };
+}
+
+function binary(op: "+" | "-" | "*" | "/", left: Expr, right: Expr): Expr {
+  return { type: "Binary", op, left, right };
+}
+
+function fn(name: "exp" | "log" | "abs" | "sqrt" | "min" | "max" | "pow", args: Expr[]): Expr {
+  return { type: "Function", name, args };
 }
 
 function isNumberStart(char: string): boolean {

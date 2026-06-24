@@ -128,10 +128,16 @@ export function evaluateExpression(expr: Expr, context: SolverContext): number {
       }
       return context.currentValue(expr.name);
     case "Lag":
-      if (expr.name === DT_VARIABLE) {
+      if (expr.expr.type === "Variable" && expr.expr.name === DT_VARIABLE) {
         return 1;
       }
-      return context.lagValue(expr.name);
+      if (expr.expr.type === "Variable") {
+        return context.lagValue(expr.expr.name, expr.offset);
+      }
+      if (!context.shifted) {
+        throw new Error("lag(<expression>) requires a period-aware solver context.");
+      }
+      return evaluateExpression(expr.expr, context.shifted(expr.offset));
     case "Diff":
       if (expr.name === DT_VARIABLE) {
         return 0;
@@ -193,6 +199,7 @@ export function collectCurrentDependencies(
 ): Set<string> {
   switch (expr.type) {
     case "Number":
+      return new Set<string>();
     case "Lag":
       return new Set<string>();
     case "Variable":
@@ -252,10 +259,13 @@ export function collectLagDependencies(
       }
       return new Set<string>();
     case "Lag":
-      if (expr.name === DT_VARIABLE) {
+      if (expr.expr.type === "Variable" && expr.expr.name === DT_VARIABLE) {
         return new Set<string>();
       }
-      return new Set<string>([expr.name]);
+      return unionSets(
+        collectCurrentDependencies(expr.expr, matrixColumnSums),
+        collectLagDependencies(expr.expr, matrixColumnSums)
+      );
     case "Diff":
       if (expr.name === DT_VARIABLE) {
         return new Set<string>();

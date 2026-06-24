@@ -123,6 +123,7 @@ export function buildCompactExternalRow(external: ExternalRow, index: number): u
       ...(external.desc ? { desc: external.desc } : {}),
       kind: external.kind,
       valueText: external.valueText,
+      ...(external.observed ? { observed: true } : {}),
       ...compactUnitFields(external.unitMeta)
     };
   }
@@ -593,6 +594,7 @@ export function parseCompactExternalRows(rows: unknown[], variables: unknown): E
         ...(typeof meta.description === "string" ? { desc: meta.description } : {}),
         kind: row.kind === "series" ? "series" : "constant",
         valueText: stringValue(row.value ?? row.valueText, ""),
+        ...(row.observed === true ? { observed: true } : {}),
         ...(buildUnitMeta(meta) ? { unitMeta: buildUnitMeta(meta) } : {})
       };
     }
@@ -984,4 +986,3 @@ export function normalizeSolverMethod(value: unknown): "GAUSS_SEIDEL" | "BROYDEN
   }
   return "NEWTON";
 }
-

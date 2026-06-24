@@ -67,10 +67,13 @@ export function wrapContextWithMatrixColumnSums(
 
   return {
     currentValue: (variable) => context.currentValue(variable),
-    lagValue: (variable) => context.lagValue(variable),
+    lagValue: (variable, offset) => context.lagValue(variable, offset),
     diffValue: (variable) => context.diffValue(variable),
     setCurrentValue: (variable, value) => context.setCurrentValue(variable, value),
     hasSeries: (variable) => context.hasSeries(variable),
+    shifted: context.shifted
+      ? (offset) => wrapContextWithMatrixColumnSums(context.shifted!(offset), bindings, locations)
+      : undefined,
     evaluateMatrixColumnSum: (columnRef) =>
       evaluateMatrixColumnSum(columnRef, bindings, context, locations),
     matrixColumnSums: bindings,

@@ -138,6 +138,10 @@ function collectSignedEndogenousRefs(
       return [{ variable: expr.name, sign, lagged: false }];
     }
     case "Lag":
+      return collectSignedEndogenousRefs(expr.expr, sign, matrixColumnSums).map((ref) => ({
+        ...ref,
+        lagged: true
+      }));
     case "Diff":
       return [{ variable: expr.name, sign, lagged: true }];
     case "Unary":

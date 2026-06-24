@@ -127,6 +127,9 @@ export function compileYamlNotebookSource(source: NotebookYamlEnvelope): Partial
     periods: numberValue(baselineRunInput.periods, numberValue((source.solver as Record<string, unknown> | undefined)?.periods, 50)),
     resultKey: stringValue(baselineRunInput.resultKey, "baseline"),
     sourceModelId: modelId,
+    ...(baselineRunInput.simType === "STATIC" || baselineRunInput.simType === "DYNAMIC"
+      ? { simType: baselineRunInput.simType }
+      : {}),
     ...(typeof baselineRunInput.baselineStartPeriod === "number" ? { baselineStartPeriod: baselineRunInput.baselineStartPeriod } : {})
   });
 

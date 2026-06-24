@@ -24,11 +24,14 @@ export interface ModelDefinition {
   equations: EquationDef[];
   externals: Record<string, ExternalDef>;
   initialValues: Record<string, number>;
+  observed?: Record<string, number[]>;
   /** Maps sum(columnRef) keys to matrix cell expression strings summed at runtime. */
   matrixColumnSums?: Record<string, string[]>;
   /** Row/column labels parallel to each matrixColumnSums entry (same order). */
   matrixColumnSumLocations?: MatrixColumnSumLocations;
 }
+
+export type SimulationType = "DYNAMIC" | "STATIC";
 
 export interface SimulationOptions {
   periods: number;
@@ -36,6 +39,7 @@ export interface SimulationOptions {
   tolerance: number;
   maxIterations: number;
   defaultInitialValue?: number;
+  simType?: SimulationType;
   hiddenEquation?: HiddenEquationDef;
 }
 

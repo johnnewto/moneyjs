@@ -211,6 +211,7 @@ const CELL_TYPE_PROPERTY_KEYS: Record<string, string[]> = {
     "baselineRunCellId",
     "baselineStartPeriod",
     "mode",
+    "simType",
     "scenario",
     "resultKey",
     "periods"
@@ -248,7 +249,7 @@ const CONTEXT_PROPERTY_KEYS: Array<{ property: string; pattern: RegExp; keys: st
   { property: "source", pattern: /"source"\s*:\s*\{[^{}]*$/s, keys: ["kind", "source", "matrixCellId", "sourceRunCellId", "includeZeroFlows", "aliases", "modelId", "sourceModelId", "sourceModelCellId", "stripSectorSource", "showAccountingStrips", "ignoreInferredBandsForPlacement", "showExogenous", "showDebugOverlay", "stripMapping"] },
   { property: "rows", pattern: /"rows"\s*:\s*\[[\s\S]*\{[\s\S]*$/s, keys: ["band", "label", "values"] },
   { property: "equations", pattern: /"equations"\s*:\s*\[[\s\S]*\{[\s\S]*$/s, keys: ["id", "name", "desc", "expression", "role", "unitMeta"] },
-  { property: "externals", pattern: /"externals"\s*:\s*\[[\s\S]*\{[\s\S]*$/s, keys: ["id", "name", "desc", "kind", "valueText", "unitMeta"] },
+  { property: "externals", pattern: /"externals"\s*:\s*\[[\s\S]*\{[\s\S]*$/s, keys: ["id", "name", "desc", "kind", "valueText", "observed", "unitMeta"] },
   { property: "initialValues", pattern: /"initialValues"\s*:\s*\[[\s\S]*\{[\s\S]*$/s, keys: ["id", "name", "valueText"] },
   {
     property: "options",

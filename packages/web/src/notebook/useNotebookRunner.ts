@@ -65,6 +65,7 @@ export function buildNotebookRunnerResetKey(document: NotebookDocument): string 
           periods: cell.periods,
           resultKey: cell.resultKey,
           scenario: cell.scenario ?? null,
+          simType: cell.simType,
           sourceModelCellId: cell.sourceModelCellId,
           sourceModelId: cell.sourceModelId,
           type: cell.type
@@ -93,7 +94,8 @@ export function resolvePreviousRunResult(
 export function resolveRunCellOptions(options: SimulationOptions, cell: RunCell): SimulationOptions {
   return {
     ...options,
-    periods: cell.periods
+    periods: cell.periods,
+    simType: cell.simType ?? options.simType
   };
 }
 
@@ -118,7 +120,8 @@ export function buildRunHistorySignatures(document: NotebookDocument): Record<st
             externals: editor?.externals ?? [],
             initialValues: editor?.initialValues ?? [],
             mode: cell.mode,
-            scenario: cell.scenario ?? null
+            scenario: cell.scenario ?? null,
+            simType: cell.simType
           })
         ];
       })

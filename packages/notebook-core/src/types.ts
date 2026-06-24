@@ -26,6 +26,7 @@ export interface ExternalRow {
   desc?: string;
   kind: ExternalDef["kind"];
   valueText: string;
+  observed?: boolean;
   unitMeta?: UnitMeta;
 }
 
@@ -179,6 +180,7 @@ export interface RunCell extends NotebookCellBase {
   scenario?: ScenarioDefinition | NotebookScenarioDefinition | null;
   resultKey: string;
   periods: number;
+  simType?: "DYNAMIC" | "STATIC";
 }
 
 export interface ChartSeriesSpec {
