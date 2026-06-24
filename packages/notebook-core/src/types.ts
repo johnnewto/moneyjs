@@ -181,6 +181,12 @@ export interface RunCell extends NotebookCellBase {
   resultKey: string;
   periods: number;
   simType?: "DYNAMIC" | "STATIC";
+  /**
+   * Variables held exogenous for this run (R `bimets` Exogenize semantics): each
+   * listed variable that also has a data series drops its equation so the run
+   * uses the supplied/observed values instead of solving it.
+   */
+  exogenize?: string[];
 }
 
 export interface ChartSeriesSpec {
@@ -207,7 +213,7 @@ export interface ChartCell extends NotebookCellBase {
   axisGroups?: string[][];
   axisSnapTolarance?: number;
   niceScale?: boolean;
-  referenceTrace?: "none" | "baseline" | "previous-run";
+  referenceTrace?: "none" | "baseline" | "previous-run" | "observed";
   /** When `"auto"` (default), show shock bands on charts sourced from scenario runs. */
   showScenarioShocks?: boolean | "auto";
   yAxisTickCount?: number;

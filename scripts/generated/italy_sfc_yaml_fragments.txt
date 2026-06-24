@@ -1,17 +1,41 @@
 # ===== EXTERNALS (behavioural variables + opf exogenised to observed series) =====
 # Minimal STATIC exogenous variables from 4_In_sample_pred type_pred=0.
-      - { name: oph, kind: series, observed: true, valueText: "  91702.431,  -15192.525,  126602.754,  129052.913, -177595.112,   24775.706,  -96621.539, -127976.154,   -4679.641,  227676.881, -272211.731, -150061.578,  -20882.158,  -73383.264, -198504.369,  122959.994,   39870.735,   -7153.324,  126440.409,  -66586.909,  179170.011, -419352.251,  189603.392,  -107752.74, -60674.87011" }
-      - { name: opf, kind: series, observed: true, valueText: "      34697,      108026,     -190861,      -16457,      -14886,      -51423,      100881,      120525,       24228,     -295739,       -9792,      -87738,       47923,       11535,      146106,       20845,      -96221,       67588,     -112034,       54297,      -84710,      222355,      -29822,      112818, 55160.28211" }
-      - { name: opb, kind: series, observed: true, valueText: "     -41340,     -124795,       12396,     -241870,      192428,      -59291,      -78778,      -22910,       14648,     -108750,      144725,      290011,       65986,        4682,      111366,      -83650,     -118788,      -39772,        9458,      150612,      -57156,      220437,      -98786,      130876,     -151307" }
-      - { name: opcb, kind: series, observed: true, valueText: "        407,       -1730,       -1685,        -274,       -1733,        -933,        -279,         694,       -8930,       -3773,       -6743,       -4201,      -11416,      -22786,      -12726,       -3494,       30741,       -9189,         951,       -9643,        1275,       -3082,      -18379,      -14959,       -5171" }
-      - { name: oacb, kind: series, observed: true, valueText: "     -59590,      -43439,      -36465,      -42556,      -54386,      -28786,      -21619,      -15164,      -18610,      -17550,      -14271,      -17624,      -38854,      -89941,     -118956,     -140462,     -103029,     -126480,     -210205,     -341631,     -441211,     -455588,     -501746,     -689767,     -783662" }
-      - { name: oaf, kind: series, observed: true, valueText: "     109224,       99819,      119913,      146758,      118037,      112972,      109856,      112319,      121381,      126710,      134894,      137587,      148886,      144560,      137492,      126115,      106538,      103109,      128309,      149481,      153462,      171179,      186937,      269617,      284629" }
-      - { name: oab, kind: series, observed: true, valueText: "    -630885,     -949250,    -1071386,    -1343237,    -1147766,    -1219280,    -1352390,    -1398613,    -1491229,    -1672959,    -1646395,    -1394854,    -1485583,    -1555046,    -1371802,    -1597634,    -1837834,    -2121132,    -2150302,    -1894223,    -1841204,    -1580695,    -1780685,    -1690684,    -1563895" }
-      - { name: oag, kind: series, observed: true, valueText: " 160862.312,  117676.837,  176007.083,   190874.17,  191728.282,  170251.576,  199516.115,  184800.269,   194282.91,  243696.029,   270381.76,  260051.338,  242284.496,   313466.76,  418742.129,  257426.135,    251463.4,  106908.724,   84170.315,  125498.224,  164923.213,  264149.464,  139239.072,   47705.812,    323282.4" }
-      - { name: oah, kind: series, observed: true, valueText: "     457543,      708705,      840013,      961384,      835553,      786643,      860187,      866444,      989547,     1023462,      827606,      577420,      709095,      771981,      755979,      915462,      968231,     1163011,     1280495,     1324893,     1480979,     1367631,     1541288,     1651571,     1583746" }
-      - { name: rstar, kind: series, observed: true, valueText: "0.063958333, 0.047916667, 0.027083333, 0.040416667,      0.0425, 0.032083333,      0.0225,        0.02, 0.020208333, 0.027916667, 0.038541667, 0.038541667, 0.012291667,        0.01,      0.0125,     0.00875, 0.005416667, 0.001583333,      0.0005,    8.33e-05,           0,           0,           0,           0,           0" }
-      - { name: Lp_row, kind: series, observed: true, valueText: "4.117827552, 4.159230237, 4.195960737, 4.221758283, 4.267458186, 4.302462535, 4.333655423, 4.363938694, 4.388984615,  4.41454347, 4.447309109,  4.47921749, 4.500427457, 4.511583837, 4.532060291, 4.540540217, 4.560501598, 4.583645797, 4.605170186, 4.628860919, 4.643048948, 4.665999805, 4.689293621, 4.718485747, 4.737956775" }
-      - { name: Lp_en, kind: series, observed: true, valueText: "4.098224469, 4.121960015, 4.137213247, 4.154969184, 4.107754249, 4.145512849, 4.164803026, 4.232801305, 4.339771322, 4.369194656, 4.457018145,  4.42208834,  4.44041346, 4.545314019, 4.637830968, 4.688683786, 4.688591794, 4.623501143, 4.563305982, 4.588532545, 4.617592706, 4.670864289, 4.673015733, 4.601162165,  4.83142888" }
+      - { name: oph, kind: series, observed: true, desc: "Other payments or receipts of households", valueText: "  91702.431,  -15192.525,  126602.754,  129052.913, -177595.112,   24775.706,  -96621.539, -127976.154,   -4679.641,  227676.881, -272211.731, -150061.578,  -20882.158,  -73383.264, -198504.369,  122959.994,   39870.735,   -7153.324,  126440.409,  -66586.909,  179170.011, -419352.251,  189603.392,  -107752.74, -60674.87011" }
+      - { name: opf, kind: series, observed: true, desc: "Other payments or receipts received by firms", valueText: "      34697,      108026,     -190861,      -16457,      -14886,      -51423,      100881,      120525,       24228,     -295739,       -9792,      -87738,       47923,       11535,      146106,       20845,      -96221,       67588,     -112034,       54297,      -84710,      222355,      -29822,      112818, 55160.28211" }
+      - { name: opb, kind: series, observed: true, desc: "Other payments or receipts received by banks", valueText: "     -41340,     -124795,       12396,     -241870,      192428,      -59291,      -78778,      -22910,       14648,     -108750,      144725,      290011,       65986,        4682,      111366,      -83650,     -118788,      -39772,        9458,      150612,      -57156,      220437,      -98786,      130876,     -151307" }
+      - { name: opcb, kind: series, observed: true, desc: "Other payments or receipts received by CB", valueText: "        407,       -1730,       -1685,        -274,       -1733,        -933,        -279,         694,       -8930,       -3773,       -6743,       -4201,      -11416,      -22786,      -12726,       -3494,       30741,       -9189,         951,       -9643,        1275,       -3082,      -18379,      -14959,       -5171" }
+      - { name: oacb, kind: series, observed: true, desc: "Other financial assets held by ECB", valueText: "     -59590,      -43439,      -36465,      -42556,      -54386,      -28786,      -21619,      -15164,      -18610,      -17550,      -14271,      -17624,      -38854,      -89941,     -118956,     -140462,     -103029,     -126480,     -210205,     -341631,     -441211,     -455588,     -501746,     -689767,     -783662" }
+      - { name: oaf, kind: series, observed: true, desc: "Other financial assets/liabilities of firms", valueText: "     109224,       99819,      119913,      146758,      118037,      112972,      109856,      112319,      121381,      126710,      134894,      137587,      148886,      144560,      137492,      126115,      106538,      103109,      128309,      149481,      153462,      171179,      186937,      269617,      284629" }
+      - { name: oab, kind: series, observed: true, desc: "Other financial assets held by banks", valueText: "    -630885,     -949250,    -1071386,    -1343237,    -1147766,    -1219280,    -1352390,    -1398613,    -1491229,    -1672959,    -1646395,    -1394854,    -1485583,    -1555046,    -1371802,    -1597634,    -1837834,    -2121132,    -2150302,    -1894223,    -1841204,    -1580695,    -1780685,    -1690684,    -1563895" }
+      - { name: oag, kind: series, observed: true, desc: "Other financial assets/liabilities of government", valueText: " 160862.312,  117676.837,  176007.083,   190874.17,  191728.282,  170251.576,  199516.115,  184800.269,   194282.91,  243696.029,   270381.76,  260051.338,  242284.496,   313466.76,  418742.129,  257426.135,    251463.4,  106908.724,   84170.315,  125498.224,  164923.213,  264149.464,  139239.072,   47705.812,    323282.4" }
+      - { name: oah, kind: series, observed: true, desc: "Other assets of households", valueText: "     457543,      708705,      840013,      961384,      835553,      786643,      860187,      866444,      989547,     1023462,      827606,      577420,      709095,      771981,      755979,      915462,      968231,     1163011,     1280495,     1324893,     1480979,     1367631,     1541288,     1651571,     1583746" }
+      - { name: rstar, kind: series, observed: true, desc: "Policy rate", valueText: "0.063958333, 0.047916667, 0.027083333, 0.040416667,      0.0425, 0.032083333,      0.0225,        0.02, 0.020208333, 0.027916667, 0.038541667, 0.038541667, 0.012291667,        0.01,      0.0125,     0.00875, 0.005416667, 0.001583333,      0.0005,    8.33e-05,           0,           0,           0,           0,           0" }
+      - { name: Lp_row, kind: series, observed: true, desc: "Log foreign price level", valueText: "4.117827552, 4.159230237, 4.195960737, 4.221758283, 4.267458186, 4.302462535, 4.333655423, 4.363938694, 4.388984615,  4.41454347, 4.447309109,  4.47921749, 4.500427457, 4.511583837, 4.532060291, 4.540540217, 4.560501598, 4.583645797, 4.605170186, 4.628860919, 4.643048948, 4.665999805, 4.689293621, 4.718485747, 4.737956775" }
+      - { name: Lp_en, kind: series, observed: true, desc: "Log of energy price", valueText: "4.098224469, 4.121960015, 4.137213247, 4.154969184, 4.107754249, 4.145512849, 4.164803026, 4.232801305, 4.339771322, 4.369194656, 4.457018145,  4.42208834,  4.44041346, 4.545314019, 4.637830968, 4.688683786, 4.688591794, 4.623501143, 4.563305982, 4.588532545, 4.617592706, 4.670864289, 4.673015733, 4.601162165,  4.83142888" }
+
+# ===== MARKDOWN: exogenization list table (paste as a markdown cell) =====
+  - markdown:
+      id: exogenization-list
+      title: Exogenization list (STATIC, type_pred = 0)
+      source: |
+        The STATIC in-sample run holds the following 12 variables exogenous to their
+        observed Eurostat paths (matching `exogenizeList` in `4_In_sample_pred` with
+        `type_pred = 0`). Every other behavioural equation solves endogenously.
+
+        | Variable | Description |
+        | --- | --- |
+        | `oph` | Other payments or receipts of households |
+        | `opf` | Other payments or receipts received by firms |
+        | `opb` | Other payments or receipts received by banks |
+        | `opcb` | Other payments or receipts received by CB |
+        | `oacb` | Other financial assets held by ECB |
+        | `oaf` | Other financial assets/liabilities of firms |
+        | `oab` | Other financial assets held by banks |
+        | `oag` | Other financial assets/liabilities of government |
+        | `oah` | Other assets of households |
+        | `rstar` | Policy rate |
+        | `Lp_row` | Log foreign price level |
+        | `Lp_en` | Log of energy price |
 
 # ===== OBSERVED HISTORY (all modelData series, 1997..2021) =====
 # Rows whose names also have equations seed STATIC lags; equations overwrite the simulated current path.
@@ -141,37 +165,52 @@
       - { name: yR, kind: series, observed: true, valueText: "1546133.813, 1574137.502, 1599715.491, 1660309.458, 1692696.476,  1697008.81, 1699353.007, 1723554.822, 1737633.495, 1768758.544, 1795064.473, 1777788.754, 1683915.188, 1712761.095, 1724875.768, 1673458.266, 1642648.197, 1642566.892,     1655355,  1676773.39, 1704731.567, 1720515.361,  1728826.15, 1572542.874, 1678488.274" }
 
 # ===== LIVE BEHAVIOURAL EQUATIONS (coefficients baked in) =====
-      - { name: "fuf", expression: "0.2645868325*ff", desc: "Estimated behavioural: fuf" }
-      - { name: "TSDELTALOG(lh,1)", expression: "0.05829971282*TSLAG(cons/yd,1)", desc: "Estimated behavioural: lh" }
-      - { name: "mubh", expression: "0.7925009699*TSLAG(mubh,1)+0.8039101157*mub", desc: "Estimated behavioural: mubh" }
-      - { name: "mul", expression: "-0.01352819727+0.4904592188*TSLAG(mub,1)", desc: "Estimated behavioural: mul" }
-      - { name: "mulh", expression: "0.02902256245+0.2297245242*TSLAG(mub,1)", desc: "Estimated behavioural: mulh" }
-      - { name: "Lbb", expression: "0.9184678492*TSLAG(log(ls+hbd+bb),1)+0.3810144635*dum", desc: "Estimated behavioural: Lbb" }
-      - { name: "tax", expression: "0.5140981384*(TSLAG(wb,1))+0.06132552397*(TSLAG((yd-wb),1))+0.04162683316*(TSLAG(vh,1))", desc: "Estimated behavioural: tax" }
-      - { name: "tr", expression: "1.043369861*TSLAG(tr,1)+374169.8585*TSDELTA(un,1)", desc: "Estimated behavioural: tr" }
-      - { name: "Lbh", expression: "0.9033685467*TSLAG(log(vh),1)+-0.7748525636*dum", desc: "Estimated behavioural: Lbh" }
-      - { name: "Leh", expression: "0.9245377119*TSLAG(log(vh),1)", desc: "Estimated behavioural: Leh" }
-      - { name: "TSDELTA(Lhh,1)", expression: "0.006220519043*log(cons/pc)", desc: "Estimated behavioural: Lhh" }
-      - { name: "rho", expression: "1.003838554*TSLAG(rho,1)", desc: "Estimated behavioural: rho" }
-      - { name: "yf", expression: "1.036662756*TSLAG(yf,1)", desc: "Estimated behavioural: yf" }
-      - { name: "exr", expression: "0.999754368*MOVAVG(exr,2)", desc: "Estimated behavioural: exr" }
-      - { name: "lambdarow", expression: "0.8752750723*TSLAG(lambdarow,1)+0.252528926*TSLAG(rbrow,1)", desc: "Estimated behavioural: lambdarow" }
-      - { name: "mubb", expression: "0.9244328851*TSLAG(mubb,1)+0.2481936746*mub", desc: "Estimated behavioural: mubb" }
-      - { name: "mubrow", expression: "0.5537887521*TSLAG(mubrow,1)+0.9163600321*mub", desc: "Estimated behavioural: mubrow" }
-      - { name: "intmh", expression: "-69139.3257+0.05465478104*mh", desc: "Estimated behavioural: intmh" }
-      - { name: "TSDELTALOG(prod,1)", expression: "-0.003662952028+0.3966443515*TSDELTALOG(100*w/p,1)+0.1826436653*TSDELTALOG(100*y/p,2)", desc: "Estimated behavioural: prod" }
-      - { name: "Lns", expression: "1.000845923*TSLAG(Lns,1)+0.03062052672*(log(nd)-TSLAG(Lns,1))", desc: "Estimated behavioural: Lns" }
-      - { name: "gw", expression: "0.008641812243*TSDELTAP(p/100,1)+-0.7855263998*TSDELTA(un,1)", desc: "Estimated behavioural: gw" }
-      - { name: "perc_en", expression: "-0.002156806238*infl_en+0.01263026888*TSLAG(log(y/p),1)", desc: "Estimated behavioural: perc_en" }
-      - { name: "LconsR", expression: "0.9063428643*TSLAG(log(y*100/pc),1)+0.05500181197*TSLAG(log(vh*100/pc),1)", desc: "Estimated behavioural: LconsR" }
-      - { name: "gov", expression: "1.01*TSLAG((gov/p),1)*p", desc: "Estimated behavioural: gov" }
-      - { name: "LidR", expression: "-117.5121355+138.6163422*TSLAG(log(y)/log(k),1)", desc: "Estimated behavioural: LidR" }
-      - { name: "LxR", expression: "7.878563023+0.5119948292*TSLAG(log(yf),1)+0.07953035772*TSLAG(exr*p/p_row,1)", desc: "Estimated behavioural: LxR" }
-      - { name: "LimR", expression: "4.092185889+0.633165807*TSLAG(log(y),1)+-0.1058226447*TSLAG(p_im/p,1)", desc: "Estimated behavioural: LimR" }
-      - { name: "Lp_im", expression: "2.169566159+0.1879363716*TSLAG(exr,1)+0.4874950883*TSLAG(Lp_row,1)", desc: "Estimated behavioural: Lp_im" }
-      - { name: "Lp", expression: "0.05816269859*TSLAG(Lp_en,1)+0.6192720172*TSLAG(Lp_row,1)+0.1044414215*TSLAG(log(100*y/p),1)", desc: "Estimated behavioural: Lp" }
-      - { name: "Lpc", expression: "0.181837429*TSLAG(Lp_en,1)+0.5047636088*TSLAG(Lp_row,1)+0.1010135865*TSLAG(log(100*y/p),1)", desc: "Estimated behavioural: Lpc" }
-      - { name: "mub", expression: "0.03222812595*TSLAG(deb/y,1)+-0.07942628589*bcb/bs+-0.4223383907*rstar", desc: "Estimated behavioural: mub" }
+      - { name: "fuf", expression: "0.2645868325*ff", desc: "Firms' undistributed profit" }
+      - { name: "TSDELTALOG(lh,1)", expression: "0.05829971282*TSLAG(cons/yd,1)", desc: "Loans to households" }
+      - { name: "mubh", expression: "0.7925009699*TSLAG(mubh,1)+0.8039101157*mub", desc: "Premium on government bills held by households" }
+      - { name: "mul", expression: "-0.01352819727+0.4904592188*TSLAG(mub,1)", desc: "Markup on loans to firms" }
+      - { name: "mulh", expression: "0.02902256245+0.2297245242*TSLAG(mub,1)", desc: "Markup on personal loans to households" }
+      - { name: "Lbb", expression: "0.9184678492*TSLAG(log(ls+hbd+bb),1)+0.3810144635*dum", desc: "Stock of bills held by banks (log)" }
+      - { name: "tax", expression: "0.5140981384*(TSLAG(wb,1))+0.06132552397*(TSLAG((yd-wb),1))+0.04162683316*(TSLAG(vh,1))", desc: "Tax revenue" }
+      - { name: "tr", expression: "1.043369861*TSLAG(tr,1)+374169.8585*TSDELTA(un,1)", desc: "Transfers and benefits" }
+      - { name: "Lbh", expression: "0.9033685467*TSLAG(log(vh),1)+-0.7748525636*dum", desc: "Holdings of government bills (log)" }
+      - { name: "Leh", expression: "0.9245377119*TSLAG(log(vh),1)", desc: "Holdings of shares (log)" }
+      - { name: "TSDELTA(Lhh,1)", expression: "0.006220519043*log(cons/pc)", desc: "Holdings of cash (log)" }
+      - { name: "rho", expression: "1.003838554*TSLAG(rho,1)", desc: "Reserve ratio" }
+      - { name: "yf", expression: "1.036662756*TSLAG(yf,1)", desc: "Foreign income (yf1 = 1 + gF)" }
+      - { name: "exr", expression: "0.999754368*MOVAVG(exr,2)", desc: "Exchange rate: dollars per 1 euro" }
+      - { name: "lambdarow", expression: "0.8752750723*TSLAG(lambdarow,1)+0.252528926*TSLAG(rbrow,1)", desc: "Share of government bills purchased by foreign agents" }
+      - { name: "mubb", expression: "0.9244328851*TSLAG(mubb,1)+0.2481936746*mub", desc: "Premium on government bills held by banks" }
+      - { name: "mubrow", expression: "0.5537887521*TSLAG(mubrow,1)+0.9163600321*mub", desc: "Premium on government bills held by RoW" }
+      - { name: "intmh", expression: "-69139.3257+0.05465478104*mh", desc: "Interests paid by banks to households on deposits and other A/L" }
+      - { name: "TSDELTALOG(prod,1)", expression: "-0.003662952028+0.3966443515*TSDELTALOG(100*w/p,1)+0.1826436653*TSDELTALOG(100*y/p,2)", desc: "Labour productivity (real value added per employee)" }
+      - { name: "Lns", expression: "1.000845923*TSLAG(Lns,1)+0.03062052672*(log(nd)-TSLAG(Lns,1))", desc: "Labour force (log)" }
+      - { name: "gw", expression: "0.008641812243*TSDELTAP(p/100,1)+-0.7855263998*TSDELTA(un,1)", desc: "Wage rate growth" }
+      - { name: "perc_en", expression: "-0.002156806238*infl_en+0.01263026888*TSLAG(log(y/p),1)", desc: "Share of energy products to total import" }
+      - { name: "LconsR", expression: "0.9063428643*TSLAG(log(y*100/pc),1)+0.05500181197*TSLAG(log(vh*100/pc),1)", desc: "Real consumption (log); y used in place of yd for stability" }
+      - { name: "gov", expression: "1.01*TSLAG((gov/p),1)*p", desc: "Government consumption" }
+      - { name: "LidR", expression: "-117.5121355+138.6163422*TSLAG(log(y)/log(k),1)", desc: "Real investment net of capital depreciation (log)" }
+      - { name: "LxR", expression: "7.878563023+0.5119948292*TSLAG(log(yf),1)+0.07953035772*TSLAG(exr*p/p_row,1)", desc: "Log of real export" }
+      - { name: "LimR", expression: "4.092185889+0.633165807*TSLAG(log(y),1)+-0.1058226447*TSLAG(p_im/p,1)", desc: "Log of real import" }
+      - { name: "Lp_im", expression: "2.169566159+0.1879363716*TSLAG(exr,1)+0.4874950883*TSLAG(Lp_row,1)", desc: "Log of price of import" }
+      - { name: "Lp", expression: "0.05816269859*TSLAG(Lp_en,1)+0.6192720172*TSLAG(Lp_row,1)+0.1044414215*TSLAG(log(100*y/p),1)", desc: "Log of price level (GDP deflator)" }
+      - { name: "Lpc", expression: "0.181837429*TSLAG(Lp_en,1)+0.5047636088*TSLAG(Lp_row,1)+0.1010135865*TSLAG(log(100*y/p),1)", desc: "Log of consumer price index" }
+      - { name: "mub", expression: "0.03222812595*TSLAG(deb/y,1)+-0.07942628589*bcb/bs+-0.4223383907*rstar", desc: "Average premium on government bills" }
+
+# ===== EXOGENIZED-VARIABLE EQUATIONS (R behaviourals/identities; held to data via run exogenize) =====
+# Ported so the model matches R structurally; the baseline run keeps these in `exogenize`.
+      - { name: "TSDELTAP(oph,1)", expression: "1*TSDELTAP(oph,1)", desc: "Other payments or receipts of households (exogenized in baseline run)" }
+      - { name: "opf", expression: "vf-TSLAG(vf,1)-(cons+gov+nx-wb-intf-fdf)", desc: "Other payments or receipts received by firms (exogenized in baseline run)" }
+      - { name: "opb", expression: "fb-intb+(vb-tslag(vb,1))", desc: "Other payments or receipts received by banks (exogenized in baseline run)" }
+      - { name: "opcb", expression: "vcb-TSLAG(vcb,1)", desc: "Other payments or receipts received by CB (exogenized in baseline run)" }
+      - { name: "oacb", expression: "-4533.844042+1.140538927*TSLAG(oacb,1)", desc: "Other financial assets held by ECB (exogenized in baseline run)" }
+      - { name: "oaf", expression: "16702.34113+0.8972048528*TSLAG(oaf,1)", desc: "Other financial assets/liabilities of firms (exogenized in baseline run)" }
+      - { name: "oab", expression: "-431517.0761+0.7452631022*TSLAG(oab,1)", desc: "Other financial assets held by banks (exogenized in baseline run)" }
+      - { name: "oag", expression: "86022.61571+0.5829040298*TSLAG(oag,1)", desc: "Other financial assets/liabilities of government (exogenized in baseline run)" }
+      - { name: "oah", expression: "134828.9666+0.9080466985*TSLAG(oah,1)", desc: "Other assets of households (exogenized in baseline run)" }
+      - { name: "rstar", expression: "0.01858333186", desc: "Policy rate (exogenized in baseline run)" }
+      - { name: "Lp_row", expression: "0.206831466+0.9591765307*TSLAG(Lp_row,1)", desc: "Log foreign price level (exogenized in baseline run)" }
+      - { name: "Lp_en", expression: "1.005825582*TSLAG(Lp_en,1)", desc: "Log of energy price (exogenized in baseline run)" }
 
 # ===== INITIAL VALUES (endogenous variables at 1997, index 0) =====
       - [bb,      441022]

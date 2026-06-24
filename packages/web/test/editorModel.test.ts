@@ -8,7 +8,7 @@ import {
   runtimeDocumentToJson,
   validateEditorState
 } from "../src/lib/editorModel";
-import type { EquationsCell, MatrixCell, NotebookCell, RunCell } from "../src/notebook/types";
+import type { EquationsCell, ExternalsCell, MatrixCell, NotebookCell, RunCell } from "../src/notebook/types";
 import {
   simBaselineModel,
   simBaselineOptions,
@@ -508,5 +508,244 @@ describe("editor model validation", () => {
     );
     expect(runtime.model.equations.some((equation) => equation.name === "Mh")).toBe(false);
     expect(runtime.model.matrixColumnSums).toBeUndefined();
+  });
+
+  it("drops a run cell's exogenized equations that have a fallback data series", () => {
+    const modelId = "exo-model";
+    const equationsCell: EquationsCell = {
+      id: "equations",
+      type: "equations",
+      title: "Equations",
+      modelId,
+      equations: [
+        { id: "eq-y", name: "y", expression: "cons + opb" },
+        { id: "eq-opb", name: "opb", expression: "fb - intb" },
+        { id: "eq-fb", name: "fb", expression: "10" }
+      ]
+    };
+    const externalsCell: ExternalsCell = {
+      id: "externals",
+      type: "externals",
+      title: "Externals",
+      modelId,
+      externals: [
+        { id: "x-cons", name: "cons", kind: "series", valueText: "1, 2, 3" },
+        { id: "x-intb", name: "intb", kind: "series", valueText: "1, 1, 1" },
+        { id: "x-opb", name: "opb", kind: "series", valueText: "5, 6, 7" }
+      ]
+    };
+    const runCell: RunCell = {
+      id: "baseline-run",
+      type: "run",
+      title: "Baseline",
+      sourceModelId: modelId,
+      mode: "baseline",
+      resultKey: "baseline",
+      periods: 3,
+      exogenize: ["opb"]
+    };
+    const cells: NotebookCell[] = [equationsCell, externalsCell, runCell];
+    const editor = {
+      equations: equationsCell.equations,
+      externals: externalsCell.externals,
+      initialValues: [],
+      options: {
+        periods: 3,
+        solverMethod: "GAUSS_SEIDEL" as const,
+        toleranceText: "1e-9",
+        maxIterations: 20,
+        defaultInitialValueText: "1e-15",
+        hiddenLeftVariable: "",
+        hiddenRightVariable: "",
+        hiddenToleranceText: "1e-5",
+        relativeHiddenTolerance: false
+      },
+      scenario: { shocks: [] }
+    };
+
+    const runtime = buildRuntimeConfig(editor, {
+      notebookCells: cells,
+      modelId,
+      runCellId: "baseline-run"
+    });
+
+    expect(runtime.model.equations.some((equation) => equation.name === "opb")).toBe(false);
+    expect(runtime.model.equations.some((equation) => equation.name === "y")).toBe(true);
+    expect(runtime.model.externals.opb).toEqual({ kind: "series", values: [5, 6, 7] });
+  });
+
+  it("keeps an exogenized equation when there is no data series to hold it", () => {
+    const modelId = "exo-model-no-series";
+    const equationsCell: EquationsCell = {
+      id: "equations",
+      type: "equations",
+      title: "Equations",
+      modelId,
+      equations: [{ id: "eq-opb", name: "opb", expression: "fb - intb" }]
+    };
+    const runCell: RunCell = {
+      id: "baseline-run",
+      type: "run",
+      title: "Baseline",
+      sourceModelId: modelId,
+      mode: "baseline",
+      resultKey: "baseline",
+      periods: 3,
+      exogenize: ["opb"]
+    };
+    const cells: NotebookCell[] = [equationsCell, runCell];
+    const editor = {
+      equations: equationsCell.equations,
+      externals: [],
+      initialValues: [],
+      options: {
+        periods: 3,
+        solverMethod: "GAUSS_SEIDEL" as const,
+        toleranceText: "1e-9",
+        maxIterations: 20,
+        defaultInitialValueText: "1e-15",
+        hiddenLeftVariable: "",
+        hiddenRightVariable: "",
+        hiddenToleranceText: "1e-5",
+        relativeHiddenTolerance: false
+      },
+      scenario: { shocks: [] }
+    };
+
+    const runtime = buildRuntimeConfig(editor, {
+      notebookCells: cells,
+      modelId,
+      runCellId: "baseline-run"
+    });
+
+    expect(runtime.model.equations.some((equation) => equation.name === "opb")).toBe(true);
+  });
+
+  it("wildcard '*' pins data-backed behaviourals but keeps accounting identities solving", () => {
+    const modelId = "exo-model-wildcard";
+    const equationsCell: EquationsCell = {
+      id: "equations",
+      type: "equations",
+      title: "Equations",
+      modelId,
+      equations: [
+        // Behavioural (has a product / data) -> pinned to data.
+        { id: "eq-cons", name: "cons", expression: "0.8 * yd" },
+        { id: "eq-id", name: "id", expression: "idR * p" },
+        // Pure accounting identity (sum) -> keeps solving even though it has data.
+        { id: "eq-y", name: "y", expression: "cons + id" }
+      ]
+    };
+    const externalsCell: ExternalsCell = {
+      id: "externals",
+      type: "externals",
+      title: "Externals",
+      modelId,
+      externals: [
+        { id: "x-yd", name: "yd", kind: "series", valueText: "10, 11, 12" },
+        { id: "x-idR", name: "idR", kind: "series", valueText: "1, 1, 1" },
+        { id: "x-p", name: "p", kind: "series", valueText: "1, 1, 1" },
+        { id: "x-cons", name: "cons", kind: "series", observed: true, valueText: "8, 9, 10" },
+        { id: "x-id", name: "id", kind: "series", observed: true, valueText: "1, 1, 1" },
+        { id: "x-y", name: "y", kind: "series", observed: true, valueText: "9, 10, 11" }
+      ]
+    };
+    const runCell: RunCell = {
+      id: "baseline-run",
+      type: "run",
+      title: "Baseline",
+      sourceModelId: modelId,
+      mode: "baseline",
+      resultKey: "baseline",
+      periods: 3,
+      exogenize: ["*"]
+    };
+    const cells: NotebookCell[] = [equationsCell, externalsCell, runCell];
+    const editor = {
+      equations: equationsCell.equations,
+      externals: externalsCell.externals,
+      initialValues: [],
+      options: {
+        periods: 3,
+        solverMethod: "GAUSS_SEIDEL" as const,
+        toleranceText: "1e-9",
+        maxIterations: 20,
+        defaultInitialValueText: "1e-15",
+        hiddenLeftVariable: "",
+        hiddenRightVariable: "",
+        hiddenToleranceText: "1e-5",
+        relativeHiddenTolerance: false
+      },
+      scenario: { shocks: [] }
+    };
+
+    const runtime = buildRuntimeConfig(editor, {
+      notebookCells: cells,
+      modelId,
+      runCellId: "baseline-run"
+    });
+
+    expect(runtime.model.equations.some((equation) => equation.name === "cons")).toBe(false);
+    expect(runtime.model.equations.some((equation) => equation.name === "id")).toBe(false);
+    // Pure adding-up identity remains so the solver still has work to do.
+    expect(runtime.model.equations.some((equation) => equation.name === "y")).toBe(true);
+  });
+
+  it("matches a transformed left-hand side by its base variable when exogenizing", () => {
+    const modelId = "exo-model-transformed";
+    const equationsCell: EquationsCell = {
+      id: "equations",
+      type: "equations",
+      title: "Equations",
+      modelId,
+      equations: [{ id: "eq-lh", name: "TSDELTALOG(lh,1)", expression: "0.05*TSLAG(cons,1)" }]
+    };
+    const externalsCell: ExternalsCell = {
+      id: "externals",
+      type: "externals",
+      title: "Externals",
+      modelId,
+      externals: [
+        { id: "x-cons", name: "cons", kind: "series", valueText: "1, 2, 3" },
+        { id: "x-lh", name: "lh", kind: "series", observed: true, valueText: "5, 6, 7" }
+      ]
+    };
+    const runCell: RunCell = {
+      id: "baseline-run",
+      type: "run",
+      title: "Baseline",
+      sourceModelId: modelId,
+      mode: "baseline",
+      resultKey: "baseline",
+      periods: 3,
+      exogenize: ["lh"]
+    };
+    const cells: NotebookCell[] = [equationsCell, externalsCell, runCell];
+    const editor = {
+      equations: equationsCell.equations,
+      externals: externalsCell.externals,
+      initialValues: [],
+      options: {
+        periods: 3,
+        solverMethod: "GAUSS_SEIDEL" as const,
+        toleranceText: "1e-9",
+        maxIterations: 20,
+        defaultInitialValueText: "1e-15",
+        hiddenLeftVariable: "",
+        hiddenRightVariable: "",
+        hiddenToleranceText: "1e-5",
+        relativeHiddenTolerance: false
+      },
+      scenario: { shocks: [] }
+    };
+
+    const runtime = buildRuntimeConfig(editor, {
+      notebookCells: cells,
+      modelId,
+      runCellId: "baseline-run"
+    });
+
+    expect(runtime.model.equations.some((equation) => equation.name === "lh")).toBe(false);
+    expect(runtime.model.equations.length).toBe(0);
   });
 });

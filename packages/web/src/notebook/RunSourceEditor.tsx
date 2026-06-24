@@ -11,6 +11,9 @@ import {
 } from "./useRunShockVariableRename";
 import { VariableRenameDialog } from "./components/EquationRowInlineEditor";
 
+/** Wildcard token mirroring `EXOGENIZE_ALL_TOKEN` in the editor-model transform. */
+const EXOGENIZE_ALL_TOKEN = "*";
+
 type ScenarioShockDraft = ScenarioDefinition["shocks"][number] & {
   rangeInclusive?: [number, number];
 };
@@ -57,6 +60,7 @@ export function RunSourceEditor({
 
   const runCell = parsed;
   const scenario = runCell.scenario ?? { shocks: [] };
+  const exogenizeAll = (runCell.exogenize ?? []).some((name) => name.trim() === EXOGENIZE_ALL_TOKEN);
   const baselineStartPeriodMax = resolveBaselineStartPeriodMax(cells, runCell);
 
   function commit(next: RunCellSourceDraft): void {
@@ -216,6 +220,29 @@ export function RunSourceEditor({
           </>
         ) : null}
       </div>
+
+      <RunField label="Exogenize">
+        <div className="scenario-source-exogenize">
+          <input
+            className="scenario-pill-input scenario-pill-input-mono"
+            aria-label="Exogenize variables"
+            value={(runCell.exogenize ?? []).join(", ")}
+            onChange={(event) => updateCell({ exogenize: parseExogenizeList(event.target.value) })}
+            placeholder={`e.g. oph, opf, rstar (or ${EXOGENIZE_ALL_TOKEN} for all behaviourals)`}
+          />
+          <button
+            type="button"
+            className="secondary-button"
+            aria-pressed={exogenizeAll}
+            title="Pin every estimated (behavioural) variable to its observed data; accounting identities keep solving"
+            onClick={() =>
+              updateCell({ exogenize: exogenizeAll ? undefined : [EXOGENIZE_ALL_TOKEN] })
+            }
+          >
+            {exogenizeAll ? "Clear all" : "Exogenize all"}
+          </button>
+        </div>
+      </RunField>
 
       {runCell.mode === "scenario" ? (
         <>
@@ -493,6 +520,14 @@ function parseRunCellSource(source: string): RunCellSourceDraft | null {
   } catch {
     return null;
   }
+}
+
+function parseExogenizeList(text: string): string[] | undefined {
+  const names = text
+    .split(",")
+    .map((name) => name.trim())
+    .filter((name) => name !== "");
+  return names.length > 0 ? names : undefined;
 }
 
 function getShockRange(shock: ScenarioShockDraft): [number, number] {

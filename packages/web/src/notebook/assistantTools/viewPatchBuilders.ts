@@ -234,7 +234,7 @@ export function createUpdateChartOptionsPatch(
     axisMode?: "shared" | "separate";
     chartId: string;
     niceScale?: boolean;
-    referenceTrace?: "none" | "baseline" | "previous-run";
+    referenceTrace?: "none" | "baseline" | "previous-run" | "observed";
     showScenarioShocks?: boolean | "auto";
     seriesRanges?: Record<string, unknown>;
     sharedRange?: Record<string, unknown>;

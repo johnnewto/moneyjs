@@ -1,3 +1,5 @@
+import type { SimulationResult } from "@sfcr/core";
+
 import { ResultChart } from "../../components/ResultChart";
 import { ScenarioShockVariableLine } from "../../components/ScenarioShockVariableLine";
 import type { EditorState } from "../../lib/editorModel";
@@ -203,12 +205,15 @@ export function ChartCellView({
     baselineStartPeriod != null
       ? Math.max(selectedPeriodIndex - periodLabelOffset, 0)
       : selectedPeriodIndex;
-  const referenceTrace = resolveReferenceTrace(cell, sourceRunCell);
+  const hasObserved = result.observed != null && Object.keys(result.observed).length > 0;
+  const referenceTrace = resolveReferenceTrace(cell, sourceRunCell, hasObserved);
   const overlaySeries = referenceTrace === "previous-run"
     ? buildPreviousRunOverlaySeries(cell, previousResult, series)
     : referenceTrace === "baseline"
       ? buildBaselineOverlaySeries(cell, sourceRunCell, baselineStartPeriod, baselineResult, series)
-      : [];
+      : referenceTrace === "observed"
+        ? buildObservedOverlaySeries(cell, result, series)
+        : [];
   const timeRangeDefaults = resolveChartTimeRangeDefaults(series[0]?.values.length ?? 0);
   const addVariableOptions = Object.entries(result.series)
     .filter(([, values]) => values.length > 1 && Array.from(values).some(Number.isFinite))
@@ -314,12 +319,39 @@ function buildPreviousRunOverlaySeries(
   });
 }
 
+function buildObservedOverlaySeries(
+  cell: ChartCell,
+  result: SimulationResult,
+  resolvedSeries: ResolvedChartSeries[]
+) {
+  const observed = result.observed;
+  if (!observed || Object.keys(observed).length === 0) {
+    return [];
+  }
+
+  const observedResult: SimulationResult = { ...result, series: observed };
+  const specs = resolveChartSeriesSpecs(cell);
+  const overlayByHighlightKey = new Map(
+    buildOverlaySeriesFromSpecs(specs, observedResult).map((entry) => [entry.highlightKey, entry])
+  );
+
+  return resolvedSeries.flatMap((entry) => {
+    const overlay = overlayByHighlightKey.get(entry.highlightKey);
+    return overlay ? [{ ...overlay, name: entry.name }] : [];
+  });
+}
+
 function resolveReferenceTrace(
   cell: ChartCell,
-  sourceRunCell: RunCell | null | undefined
-): "none" | "baseline" | "previous-run" {
+  sourceRunCell: RunCell | null | undefined,
+  hasObserved: boolean
+): "none" | "baseline" | "previous-run" | "observed" {
   if (cell.referenceTrace) {
     return cell.referenceTrace;
+  }
+
+  if (hasObserved && sourceRunCell?.simType === "STATIC") {
+    return "observed";
   }
 
   return "previous-run";

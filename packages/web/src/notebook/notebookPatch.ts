@@ -52,6 +52,7 @@ const ALLOWED_CELL_PROPERTIES = new Set([
   "columns",
   "description",
   "equations",
+  "exogenize",
   "externals",
   "initialValues",
   "niceScale",

@@ -1,5 +1,6 @@
 import {
   derivativeBalanceStockName,
+  isIdentityLike,
   normalizeDerivativeBalanceTarget,
   parseEquation,
   type EquationRole,
@@ -265,8 +266,18 @@ export function buildRuntimeConfig(
         })
       : undefined;
 
+  const runCell =
+    runtimeOptions?.notebookCells && runtimeOptions.runCellId
+      ? runtimeOptions.notebookCells.find(
+          (cell): cell is Extract<NotebookCell, { type: "run" }> =>
+            cell.type === "run" && cell.id === runtimeOptions.runCellId
+        )
+      : undefined;
+
+  const runtimeEquations = applyExogenizeToEquations(equations, runCell?.exogenize, externals, observed);
+
   const model: ModelDefinition = {
-    equations,
+    equations: runtimeEquations,
     externals,
     initialValues,
     ...(Object.keys(observed).length > 0 ? { observed } : {}),
@@ -280,13 +291,6 @@ export function buildRuntimeConfig(
 
   const hiddenLeft = editor.options.hiddenLeftVariable.trim();
   const hiddenRight = editor.options.hiddenRightVariable.trim();
-  const runCell =
-    runtimeOptions?.notebookCells && runtimeOptions.runCellId
-      ? runtimeOptions.notebookCells.find(
-          (cell): cell is Extract<NotebookCell, { type: "run" }> =>
-            cell.type === "run" && cell.id === runtimeOptions.runCellId
-        )
-      : undefined;
 
   const options: SimulationOptions = {
     periods: editor.options.periods,
@@ -689,6 +693,98 @@ function parseExternal(kind: ExternalDef["kind"], valueText: string): ExternalDe
   return kind === "constant"
     ? { kind, value: parseNumber(valueText) }
     : { kind, values: parseNumberList(valueText) };
+}
+
+/** Wildcard token in a run's `exogenize` list: hold every variable that has data. */
+export const EXOGENIZE_ALL_TOKEN = "*";
+
+const TRANSFORMED_LHS_PATTERN =
+  /^(?:TSDELTALOG|TSDELTAP|TSDELTA|TSLAG|MOVAVG|DIFF|LAG|log|diff|lag)\(\s*([A-Za-z_][A-Za-z0-9_.^{}]*)\s*(?:,[^)]*)?\)$/i;
+
+/**
+ * Resolve the base variable an equation defines, unwrapping a transformed left-hand
+ * side (e.g. `TSDELTALOG(lh,1)` -> `lh`, `d(K)` -> `K`) so exogenize matching and
+ * fallback-series lookups work for variables written through a transform.
+ */
+function exogenizeBaseVariable(name: string): string {
+  const trimmed = name.trim();
+  const stockVar = derivativeBalanceStockName(trimmed);
+  if (stockVar != null) {
+    return stockVar;
+  }
+  const match = TRANSFORMED_LHS_PATTERN.exec(trimmed);
+  return match ? match[1] : trimmed;
+}
+
+/**
+ * A pure accounting identity is an adding-up relation (sums/differences of levels
+ * and lags). Under the `*` wildcard these keep solving so the model never collapses
+ * to zero equations — only the estimated/behavioural relations get pinned to data.
+ */
+function isPureAccountingIdentity(equation: { name: string; expression: string; role?: EquationRole }): boolean {
+  if (equation.role === "identity" || equation.role === "accumulation") {
+    return true;
+  }
+  if (equation.role === "behavioral" || equation.role === "target" || equation.role === "definition") {
+    return false;
+  }
+  try {
+    return isIdentityLike(parseEquation(equation.name, equation.expression).sourceExpression);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Per-run exogenization (R `bimets` Exogenize semantics): drop the equation for
+ * each listed variable that also has a data series, so the solver uses the
+ * supplied/observed values instead of computing it. Variables without a fallback
+ * series keep their equation (exogenizing them would leave them undefined).
+ *
+ * The wildcard token `*` exogenizes every data-backed equation **except** pure
+ * accounting identities — i.e. "make all behaviourals exogenous". This pins every
+ * estimated relation to its observed data while the accounting core keeps solving,
+ * so the model is never reduced to zero equations (a fully-exogenous replay cannot
+ * run). Explicitly-listed names are always dropped when they have data, identity
+ * or not.
+ */
+function applyExogenizeToEquations<T extends { name: string; expression: string; role?: EquationRole }>(
+  equations: T[],
+  exogenize: readonly string[] | undefined,
+  externals: Record<string, ExternalDef>,
+  observed: Record<string, number[]>
+): T[] {
+  const rawTargets = (exogenize ?? []).map((name) => name.trim()).filter((name) => name !== "");
+  if (rawTargets.length === 0) {
+    return equations;
+  }
+
+  const exogenizeAll = rawTargets.includes(EXOGENIZE_ALL_TOKEN);
+  const targets = new Set(rawTargets);
+  const hasFallbackSeries = (name: string): boolean => name in externals || name in observed;
+
+  const filtered = equations.filter((equation) => {
+    const definedVar = equation.name.trim();
+    const baseVar = exogenizeBaseVariable(definedVar);
+    const matchesTarget = exogenizeAll || targets.has(definedVar) || targets.has(baseVar);
+    if (!matchesTarget) {
+      return true;
+    }
+    const heldToData = hasFallbackSeries(definedVar) || hasFallbackSeries(baseVar);
+    if (!heldToData) {
+      return true;
+    }
+    if (exogenizeAll && isPureAccountingIdentity(equation)) {
+      return true;
+    }
+    return false;
+  });
+
+  // Safety net: never hand the solver an empty model via the wildcard.
+  if (exogenizeAll && filtered.length === 0 && equations.length > 0) {
+    return equations;
+  }
+  return filtered;
 }
 
 function parseShockVariable(kind: ShockVariableDef["kind"], valueText: string): ShockVariableDef {

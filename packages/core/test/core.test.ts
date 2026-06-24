@@ -402,6 +402,45 @@ describe("simulation modes", () => {
     expect([...staticRun.series.x!]).toEqual([1, 2, 101, 201]);
     expect(staticRun.series.z?.[3]).toBe(120);
   });
+
+  it("exposes observed series on the result for overlay rendering", () => {
+    const result = runBaseline(
+      {
+        equations: [{ name: "x", expression: "lag(x) + 1" }],
+        externals: {},
+        initialValues: { x: 1 },
+        observed: { x: [1, 100, 200, 300] }
+      },
+      {
+        periods: 4,
+        solverMethod: "GAUSS_SEIDEL",
+        tolerance: 1e-9,
+        maxIterations: 100,
+        simType: "STATIC"
+      }
+    );
+
+    expect(result.observed).toBeDefined();
+    expect([...result.observed!.x!]).toEqual([1, 100, 200, 300]);
+  });
+
+  it("omits observed from the result when no observed data is supplied", () => {
+    const result = runBaseline(
+      {
+        equations: [{ name: "x", expression: "lag(x) + 1" }],
+        externals: {},
+        initialValues: { x: 1 }
+      },
+      {
+        periods: 3,
+        solverMethod: "GAUSS_SEIDEL",
+        tolerance: 1e-9,
+        maxIterations: 100
+      }
+    );
+
+    expect(result.observed).toBeUndefined();
+  });
 });
 
 describe("graph", () => {

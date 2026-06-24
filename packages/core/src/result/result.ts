@@ -19,6 +19,8 @@ export interface SimulationWarning {
 
 export interface SimulationResult {
   series: SeriesMap;
+  /** Observed (historical) series supplied to the run, keyed by variable. Present for STATIC runs. */
+  observed?: SeriesMap;
   blocks: EquationBlock[];
   model: ModelDefinition;
   options: SimulationOptions;

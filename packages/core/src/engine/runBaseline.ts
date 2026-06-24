@@ -93,6 +93,7 @@ export function runBaseline(
 
   const result: SimulationResult = {
     series,
+    ...(Object.keys(observed).length > 0 ? { observed } : {}),
     blocks: ordered.blocks,
     model,
     options

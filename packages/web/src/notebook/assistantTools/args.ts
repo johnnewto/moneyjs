@@ -283,13 +283,13 @@ export function optionalChartAxisMode(
 export function optionalReferenceTrace(
   args: Record<string, unknown> | undefined,
   key: string
-): "none" | "baseline" | "previous-run" | undefined {
+): "none" | "baseline" | "previous-run" | "observed" | undefined {
   const value = optionalString(args, key);
   if (value == null) {
     return undefined;
   }
-  if (value !== "none" && value !== "baseline" && value !== "previous-run") {
-    throw new Error(`Tool argument '${key}' must be none, baseline, or previous-run.`);
+  if (value !== "none" && value !== "baseline" && value !== "previous-run" && value !== "observed") {
+    throw new Error(`Tool argument '${key}' must be none, baseline, previous-run, or observed.`);
   }
   return value;
 }

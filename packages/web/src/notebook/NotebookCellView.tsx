@@ -1792,6 +1792,8 @@ function getNextChartReferenceTrace(
     case "baseline":
       return "previous-run";
     case "previous-run":
+      return "observed";
+    case "observed":
       return "none";
   }
 }
@@ -1804,6 +1806,8 @@ function formatChartReferenceTrace(trace: NonNullable<ChartCell["referenceTrace"
       return "Baseline";
     case "previous-run":
       return "Previous";
+    case "observed":
+      return "Observed";
   }
 }
 

@@ -500,13 +500,13 @@ describe("App per-cell source editors", () => {
     });
 
     await user.click(referenceButton);
-    expect(within(chartArticle).getByRole("button", { name: /reference: none/i })).toBeInTheDocument();
+    expect(within(chartArticle).getByRole("button", { name: /reference: observed/i })).toBeInTheDocument();
 
     await user.click(within(chartArticle).getByRole("button", { name: /^edit$/i }));
     const sourceEditor = screen.getByRole("textbox", {
       name: /source editor for baseline headline variables/i
     }) as HTMLTextAreaElement;
-    expect(sourceEditor.value).toContain('"referenceTrace": "none"');
+    expect(sourceEditor.value).toContain('"referenceTrace": "observed"');
   });
 
   it("can switch the notebook source editor into compact mode", async () => {

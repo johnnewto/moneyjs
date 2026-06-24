@@ -795,7 +795,7 @@ export function buildCompactChartCells(charts: unknown, sourceRunCellId: string)
       ...(axisGroups && axisGroups.length > 0 ? { axisGroups } : {}),
       ...(typeof chart.axisSnapTolarance === "number" ? { axisSnapTolarance: chart.axisSnapTolarance } : {}),
       ...(typeof chart.niceScale === "boolean" ? { niceScale: chart.niceScale } : {}),
-      ...(chart.referenceTrace === "none" || chart.referenceTrace === "baseline" || chart.referenceTrace === "previous-run" ? { referenceTrace: chart.referenceTrace } : {}),
+      ...(chart.referenceTrace === "none" || chart.referenceTrace === "baseline" || chart.referenceTrace === "previous-run" || chart.referenceTrace === "observed" ? { referenceTrace: chart.referenceTrace } : {}),
       ...(chart.showScenarioShocks === false || chart.showScenarioShocks === true || chart.showScenarioShocks === "auto"
         ? { showScenarioShocks: chart.showScenarioShocks }
         : {}),

@@ -212,6 +212,7 @@ const CELL_TYPE_PROPERTY_KEYS: Record<string, string[]> = {
     "baselineStartPeriod",
     "mode",
     "simType",
+    "exogenize",
     "scenario",
     "resultKey",
     "periods"
@@ -427,7 +428,7 @@ function buildCompletionData(document: NotebookDocument, format: NotebookSourceF
       axisMode: ["shared", "separate"],
       kind: ["constant", "series", "matrix", "dependency", "cld", "plantuml"],
       mode: ["baseline", "scenario"],
-      referenceTrace: ["none", "baseline", "previous-run"],
+      referenceTrace: ["none", "baseline", "previous-run", "observed"],
       showScenarioShocks: ["auto", "true", "false"],
       solverMethod: ["GAUSS_SEIDEL", "BROYDEN", "NEWTON"],
       stripSectorSource: ["columns", "sectors"],

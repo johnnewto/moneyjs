@@ -220,6 +220,76 @@ describe("ChartCellView", () => {
     expect(runner.getPreviousResult).toHaveBeenCalledWith("run-1");
   });
 
+  it("overlays observed data as a dashed reference trace when requested", () => {
+    const chart: ChartCell = {
+      id: "chart-1",
+      referenceTrace: "observed",
+      sourceRunCellId: "run-1",
+      title: "Chart",
+      type: "chart",
+      variables: ["Y"]
+    };
+    const result: SimulationResult = {
+      ...createResult([20, 22, 24]),
+      observed: { Y: new Float64Array([18, 19, 30]) }
+    };
+    const runner = createRunner({ current: result });
+
+    render(
+      <ChartCellView
+        cell={chart}
+        cells={cells}
+        runner={runner}
+        selectedPeriodIndex={0}
+        variableDescriptions={new Map()}
+        variableUnitMetadata={new Map()}
+      />
+    );
+
+    expect(screen.getByRole("img", { name: /simulation result chart with shared left axis/i })).toBeInTheDocument();
+    expect(document.querySelector('polyline[stroke-dasharray="5 5"]')).not.toBeNull();
+  });
+
+  it("auto-selects the observed reference trace for STATIC runs without an explicit setting", () => {
+    const staticCells: NotebookCell[] = [
+      {
+        id: "run-1",
+        mode: "baseline",
+        periods: 3,
+        resultKey: "baseline",
+        simType: "STATIC",
+        sourceModelId: "model-1",
+        title: "Run",
+        type: "run"
+      }
+    ];
+    const chart: ChartCell = {
+      id: "chart-1",
+      sourceRunCellId: "run-1",
+      title: "Chart",
+      type: "chart",
+      variables: ["Y"]
+    };
+    const result: SimulationResult = {
+      ...createResult([20, 22, 24]),
+      observed: { Y: new Float64Array([18, 19, 30]) }
+    };
+    const runner = createRunner({ current: result });
+
+    render(
+      <ChartCellView
+        cell={chart}
+        cells={staticCells}
+        runner={runner}
+        selectedPeriodIndex={0}
+        variableDescriptions={new Map()}
+        variableUnitMetadata={new Map()}
+      />
+    );
+
+    expect(document.querySelector('polyline[stroke-dasharray="5 5"]')).not.toBeNull();
+  });
+
   it("renders expression series from run results", () => {
     const chart: ChartCell = {
       id: "chart-1",

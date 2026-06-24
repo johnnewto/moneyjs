@@ -57,6 +57,18 @@
   display: flex;
   justify-content: flex-start;
 }
+.scenario-source-exogenize {
+  align-items: center;
+  display: flex;
+  gap: 0.4rem;
+  min-width: 0;
+}
+.scenario-source-exogenize > input {
+  flex: 1 1 auto;
+}
+.scenario-source-exogenize > .secondary-button {
+  flex: 0 0 auto;
+}
 .scenario-source-editor .secondary-button,
 .scenario-source-remove {
   align-items: center;

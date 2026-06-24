@@ -64,12 +64,73 @@ behaviourals <- names(S_model$behaviorals)
 identities <- names(S_model$identities)
 message(sprintf("Model loaded: %d behaviourals, %d identities", length(behaviourals), length(identities)))
 
+# Human-readable descriptions taken from the COMMENT> lines in the R source model
+# (references/Italy-SFC-Model/1_Model_upload), keyed by variable name. These drive
+# the desc: fields on emitted equations and externals so the notebook mirrors the
+# economic naming used in the reference model.
+r_desc_map <- c(
+  fuf = "Firms' undistributed profit",
+  lh = "Loans to households",
+  mubh = "Premium on government bills held by households",
+  mul = "Markup on loans to firms",
+  mulh = "Markup on personal loans to households",
+  oah = "Other assets of households",
+  Lbb = "Stock of bills held by banks (log)",
+  tax = "Tax revenue",
+  tr = "Transfers and benefits",
+  Lbh = "Holdings of government bills (log)",
+  Leh = "Holdings of shares (log)",
+  Lhh = "Holdings of cash (log)",
+  rho = "Reserve ratio",
+  yf = "Foreign income (yf1 = 1 + gF)",
+  exr = "Exchange rate: dollars per 1 euro",
+  lambdarow = "Share of government bills purchased by foreign agents",
+  rstar = "Policy rate",
+  mubb = "Premium on government bills held by banks",
+  mubrow = "Premium on government bills held by RoW",
+  intmh = "Interests paid by banks to households on deposits and other A/L",
+  prod = "Labour productivity (real value added per employee)",
+  Lns = "Labour force (log)",
+  gw = "Wage rate growth",
+  Lp_row = "Log foreign price level",
+  perc_en = "Share of energy products to total import",
+  Lp_en = "Log of energy price",
+  oph = "Other payments or receipts of households",
+  oaf = "Other financial assets/liabilities of firms",
+  oag = "Other financial assets/liabilities of government",
+  oab = "Other financial assets held by banks",
+  oacb = "Other financial assets held by ECB",
+  LconsR = "Real consumption (log); y used in place of yd for stability",
+  gov = "Government consumption",
+  LidR = "Real investment net of capital depreciation (log)",
+  LxR = "Log of real export",
+  LimR = "Log of real import",
+  Lp_im = "Log of price of import",
+  Lp = "Log of price level (GDP deflator)",
+  Lpc = "Log of consumer price index",
+  mub = "Average premium on government bills",
+  opf = "Other payments or receipts received by firms",
+  opb = "Other payments or receipts received by banks",
+  opcb = "Other payments or receipts received by CB"
+)
+desc_for <- function(b) {
+  d <- unname(r_desc_map[b])
+  if (is.na(d)) b else d
+}
+
 # Minimal exogenize list from references/Italy-SFC-Model/4_In_sample_pred when
 # type_pred = 0. The remaining behaviourals become live notebook equations.
-static_exo_vars <- c(
-  "oph", "opf", "opb", "opcb", "oacb", "oaf", "oab", "oag", "oah",
-  "rstar", "Lp_row", "Lp_en"
+# This name+description table is the single source of truth: it drives the
+# Exogenize list, the desc: field on the emitted externals, and the rendered
+# "Exogenization list" markdown table fragment.
+static_exo_table <- data.frame(
+  var = c("oph", "opf", "opb", "opcb", "oacb", "oaf", "oab", "oag", "oah",
+          "rstar", "Lp_row", "Lp_en"),
+  stringsAsFactors = FALSE
 )
+static_exo_table$desc <- vapply(static_exo_table$var, desc_for, character(1))
+static_exo_vars <- static_exo_table$var
+static_exo_desc <- function(v) static_exo_table$desc[match(v, static_exo_table$var)]
 live_behaviourals <- setdiff(behaviourals, static_exo_vars)
 endogenous_vars <- sort(unique(c(identities, live_behaviourals)))
 endogenous_vars <- setdiff(endogenous_vars, static_exo_vars)
@@ -174,8 +235,24 @@ writeLines("# ===== EXTERNALS (behavioural variables + opf exogenised to observe
 writeLines("# Minimal STATIC exogenous variables from 4_In_sample_pred type_pred=0.", con)
 for (b in static_exo_vars) {
   vals <- obs_series(b)
-  writeLines(sprintf('      - { name: %s, kind: series, observed: true, valueText: "%s" }',
-                     b, paste(fmt_num(vals), collapse = ", ")), con)
+  writeLines(sprintf('      - { name: %s, kind: series, observed: true, desc: "%s", valueText: "%s" }',
+                     b, static_exo_desc(b), paste(fmt_num(vals), collapse = ", ")), con)
+}
+
+writeLines("", con)
+writeLines("# ===== MARKDOWN: exogenization list table (paste as a markdown cell) =====", con)
+writeLines("  - markdown:", con)
+writeLines("      id: exogenization-list", con)
+writeLines("      title: Exogenization list (STATIC, type_pred = 0)", con)
+writeLines("      source: |", con)
+writeLines("        The STATIC in-sample run holds the following 12 variables exogenous to their", con)
+writeLines("        observed Eurostat paths (matching `exogenizeList` in `4_In_sample_pred` with", con)
+writeLines("        `type_pred = 0`). Every other behavioural equation solves endogenously.", con)
+writeLines("", con)
+writeLines("        | Variable | Description |", con)
+writeLines("        | --- | --- |", con)
+for (i in seq_len(nrow(static_exo_table))) {
+  writeLines(sprintf("        | `%s` | %s |", static_exo_table$var[i], static_exo_table$desc[i]), con)
 }
 
 writeLines("", con)
@@ -185,17 +262,6 @@ for (b in sort(setdiff(names(estimated_model$modelData), static_exo_vars))) {
   vals <- obs_series(b)
   if (all(!is.finite(vals))) next
   writeLines(sprintf('      - { name: %s, kind: series, observed: true, valueText: "%s" }',
-                     b, paste(fmt_num(vals), collapse = ", ")), con)
-}
-
-writeLines("", con)
-writeLines("# ===== OBSERVED OVERLAY SERIES (suffixed _obs, no equation) =====", con)
-writeLines("# Plain externals carrying observed paths so charts can overlay observed vs simulated (Fig. 1).", con)
-overlay_vars <- c("y", "cons", "id", "gov", "nx", "im", "x", "nd", "rb", "p", "un", "deb")
-for (b in overlay_vars) {
-  vals <- obs_series(b)
-  if (all(!is.finite(vals))) next
-  writeLines(sprintf('      - { name: %s_obs, kind: series, valueText: "%s" }',
                      b, paste(fmt_num(vals), collapse = ", ")), con)
 }
 
@@ -218,15 +284,32 @@ substitute_coefficients <- function(eq, co) {
   out
 }
 
-for (b in live_behaviourals) {
-  eq <- substitute_coefficients(estimated_model$behaviorals[[b]]$eq, estimated_model$behaviorals[[b]]$coefficients)
+emit_equation_row <- function(b, desc_suffix = "") {
+  if (!is.null(estimated_model$behaviorals[[b]])) {
+    eq <- substitute_coefficients(estimated_model$behaviorals[[b]]$eq, estimated_model$behaviorals[[b]]$coefficients)
+  } else if (!is.null(estimated_model$identities[[b]])) {
+    eq <- sub(";\\s*$", "", estimated_model$identities[[b]]$eqRaw)
+  } else {
+    return(invisible())
+  }
   pieces <- strsplit(eq, "=", fixed = TRUE)[[1]]
   lhs <- trimws(pieces[1])
   rhs <- trimws(paste(pieces[-1], collapse = "="))
   rhs <- gsub('"', '\\"', rhs, fixed = TRUE)
   lhs <- gsub('"', '\\"', lhs, fixed = TRUE)
-  writeLines(sprintf('      - { name: "%s", expression: "%s", desc: "Estimated behavioural: %s" }',
-                     lhs, rhs, b), con)
+  writeLines(sprintf('      - { name: "%s", expression: "%s", desc: "%s%s" }',
+                     lhs, rhs, desc_for(b), desc_suffix), con)
+}
+
+for (b in live_behaviourals) {
+  emit_equation_row(b)
+}
+
+writeLines("", con)
+writeLines("# ===== EXOGENIZED-VARIABLE EQUATIONS (R behaviourals/identities; held to data via run exogenize) =====", con)
+writeLines("# Ported so the model matches R structurally; the baseline run keeps these in `exogenize`.", con)
+for (b in static_exo_vars) {
+  emit_equation_row(b, " (exogenized in baseline run)")
 }
 
 writeLines("", con)

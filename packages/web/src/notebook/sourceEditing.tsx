@@ -850,9 +850,9 @@ function validateCellSourceShape(
       }
       if (
         (parsed as ChartCell).referenceTrace != null &&
-        !["none", "baseline", "previous-run"].includes(String((parsed as ChartCell).referenceTrace))
+        !["none", "baseline", "previous-run", "observed"].includes(String((parsed as ChartCell).referenceTrace))
       ) {
-        throw new Error("Chart referenceTrace must be 'none', 'baseline', or 'previous-run'.");
+        throw new Error("Chart referenceTrace must be 'none', 'baseline', 'previous-run', or 'observed'.");
       }
       if (
         (parsed as ChartCell).showScenarioShocks != null &&

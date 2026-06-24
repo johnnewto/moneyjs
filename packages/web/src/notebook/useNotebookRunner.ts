@@ -121,7 +121,8 @@ export function buildRunHistorySignatures(document: NotebookDocument): Record<st
             initialValues: editor?.initialValues ?? [],
             mode: cell.mode,
             scenario: cell.scenario ?? null,
-            simType: cell.simType
+            simType: cell.simType,
+            exogenize: cell.exogenize ?? null
           })
         ];
       })
