@@ -5,6 +5,7 @@ title: ECO-3IO-PC Notebook
 metadata:
   version: 1
   template: eco-3io-pc
+  sourceFileName: eco-3io-pc-notebook (1).notebook.yaml
 cells:
   - markdown:
       id: intro
@@ -182,16 +183,16 @@ cells:
       modelId: eco-3io-pc
       collapsed: false
       rows:
-        - [p1, 1, Initial agriculture price., aux]
-        - [p2, 1, Initial manufacturing price., aux]
-        - [p3, 1, Initial services price., aux]
-        - [p_c, 1, Initial consumer price index., aux]
-        - [p_g, 1, Initial government price index., aux]
-        - [beta_e, 0.07, Initial CO2 intensity., aux]
-        - [k_m, 6000, Initial matter reserves., aux]
-        - [res_m, 388889, Initial matter resources., aux]
-        - [k_e, 37000, Initial energy reserves., aux]
-        - [res_e, 542000, Initial energy resources., aux]
+        - [p1, 1, Initial agriculture price.]
+        - [p2, 1, Initial manufacturing price.]
+        - [p3, 1, Initial services price.]
+        - [p_c, 1, Initial consumer price index.]
+        - [p_g, 1, Initial government price index.]
+        - [beta_e, 0.07, Initial CO2 intensity.]
+        - [k_m, 6000, Initial matter reserves.]
+        - [res_m, 388889, Initial matter resources.]
+        - [k_e, 37000, Initial energy reserves.]
+        - [res_e, 542000, Initial energy resources.]
   - run:
       id: baseline-run
       title: Baseline run
@@ -211,7 +212,9 @@ cells:
         - v
         - temp
         - emis
-      axisMode: separate
+      axisGroups:
+        - [infl]
+        - [y, yd, cons, v, temp, emis]
       axisSnapTolarance: 0.5
       sourceRunCellId: baseline-run
   - table:
@@ -266,6 +269,10 @@ cells:
         - alpha1
         - temp
       axisMode: separate
+      axisGroups:
+        - [y, yd, cons, v]
+        - [temp]
+        - [alpha1]
       axisSnapTolarance: 0.5
       sourceRunCellId: scenario-1-run
   - markdown:
@@ -315,7 +322,7 @@ cells:
       variables:
         - k_m
         - k_e
-      axisMode: separate
+      axisMode: shared
       axisSnapTolarance: 0.5
       sourceRunCellId: baseline-run
   - chart:

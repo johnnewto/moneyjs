@@ -20,3 +20,6 @@ references/java/**/*.class
 devdocs/results_*.png
 packages/chat-api/.wrangler/cache/wrangler-account.json
 packages/chat-api/.wrangler/cache/cf.json
+
+# R library
+.rlib/

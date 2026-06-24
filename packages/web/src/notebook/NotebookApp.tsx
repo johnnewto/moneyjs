@@ -1,4 +1,4 @@
-import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 
 import { externalRowsOnly, isRowComment, type EquationRow } from "@sfcr/notebook-core";
 
@@ -758,6 +758,9 @@ export function NotebookApp() {
     serializeNotebookSource(notebookDocument, sourceFormat)
   );
   const [selectedPeriodIndex, setSelectedPeriodIndex] = useState(0);
+  // Render the heavy notebook canvas at a lower priority so period scrubbing
+  // stays responsive; period-sensitive cells catch up to the deferred value.
+  const deferredPeriodIndex = useDeferredValue(selectedPeriodIndex);
   const [isNotebookCommandsPanelOpen, setIsNotebookCommandsPanelOpen] = useState(false);
   const [autoRunRevision, setAutoRunRevision] = useState(0);
   const [activeEditorCellId, setActiveEditorCellId] = useState<string | null>(null);
@@ -3524,29 +3527,35 @@ export function NotebookApp() {
     void handleAskNotebookAssistant({ mode: test.mode, question: test.question });
   }
 
-  function getCurrentValueMapForModelRef(ref: {
-    modelId?: string;
-    sourceModelId?: string;
-    sourceModelCellId?: string;
-  }): Record<string, number | undefined> {
+  function getCurrentValueMapForModelRef(
+    ref: {
+      modelId?: string;
+      sourceModelId?: string;
+      sourceModelCellId?: string;
+    },
+    periodIndex: number = selectedPeriodIndex
+  ): Record<string, number | undefined> {
     return buildModelCurrentValues({
       document: notebookDocument,
       getResult: (runCellId) => runner.getResult(runCellId),
       modelRef: ref,
-      selectedPeriodIndex
+      selectedPeriodIndex: periodIndex
     });
   }
 
-  function getLaggedValueMapForModelRef(ref: {
-    modelId?: string;
-    sourceModelId?: string;
-    sourceModelCellId?: string;
-  }): Record<string, number | undefined> {
+  function getLaggedValueMapForModelRef(
+    ref: {
+      modelId?: string;
+      sourceModelId?: string;
+      sourceModelCellId?: string;
+    },
+    periodIndex: number = selectedPeriodIndex
+  ): Record<string, number | undefined> {
     return buildModelLaggedCurrentValues({
       document: notebookDocument,
       getResult: (runCellId) => runner.getResult(runCellId),
       modelRef: ref,
-      selectedPeriodIndex
+      selectedPeriodIndex: periodIndex
     });
   }
 
@@ -3625,8 +3634,8 @@ export function NotebookApp() {
         cell,
         cells: notebookDocument.cells,
         notebookScopeId,
-        getModelCurrentValues: getCurrentValueMapForModelRef,
-        getModelLaggedCurrentValues: getLaggedValueMapForModelRef,
+        getModelCurrentValues: (ref) => getCurrentValueMapForModelRef(ref, deferredPeriodIndex),
+        getModelLaggedCurrentValues: (ref) => getLaggedValueMapForModelRef(ref, deferredPeriodIndex),
         maxPeriodIndex: maxResultPeriodIndex,
         onPinCellRequest: handlePinCellRequest,
         onSelectedCellIdChange: selectNotebookCell,
@@ -3653,7 +3662,7 @@ export function NotebookApp() {
         graphSliceHighlight:
           cell.id === graphSliceHighlight?.matrixCellId ? graphSliceHighlight : null,
         selectedCellId,
-        selectedPeriodIndex,
+        selectedPeriodIndex: deferredPeriodIndex,
         viewportRoot: mainColumnElement,
         onRunTourRequest: handleRunTourRequest,
         showRunTourButton: cell.id === firstMarkdownCellId,
@@ -3686,7 +3695,7 @@ export function NotebookApp() {
       runner,
       selectNotebookCell,
       selectedCellId,
-      selectedPeriodIndex,
+      deferredPeriodIndex,
       setNotebookCellUrl,
       updateCell,
       updateModelCell
