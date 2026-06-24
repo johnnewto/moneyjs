@@ -20,6 +20,7 @@ body:has(.publication-root) {
 .publication-header,
 .publication-page-shell,
 .publication-footer {
+  box-sizing: border-box;
   width: 100%;
   max-width: 1170px;
   margin: 0 auto;
@@ -48,6 +49,13 @@ body:has(.publication-root) {
   .publication-footer {
     max-width: 1170px;
   }
+}
+
+.publication-root-wide .publication-header,
+.publication-root-wide .publication-page-shell,
+.publication-root-wide .publication-footer {
+  max-width: none;
+  padding: 0 15px;
 }
 
 .publication-page-shell {
@@ -154,6 +162,31 @@ body:has(.publication-root) {
 .publication-header {
   padding-top: 2.5rem;
   padding-bottom: 1.5rem;
+}
+
+.publication-width-toggle {
+  margin-left: auto;
+  appearance: none;
+  border: 1px solid #cfc8bd;
+  border-radius: 6px;
+  background: #fff;
+  color: #333;
+  font-family: system-ui, sans-serif;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.publication-width-toggle:hover {
+  border-color: #b3a994;
+  background: #f7f4ee;
+}
+
+.publication-width-toggle[aria-pressed="true"] {
+  border-color: #1f2d3d;
+  background: #1f2d3d;
+  color: #fff;
 }
 
 .publication-eyebrow {
@@ -432,6 +465,9 @@ body:has(.publication-root) {
 }
 
 .publication-controls {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -453,31 +489,16 @@ body:has(.publication-root) {
   background: transparent;
 }
 
-.publication-control-group {
+.publication-matrix-controls {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-bottom: 0.5rem;
 }
 
-.publication-control-label {
-  font-size: 0.78rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #555;
-}
-
-.publication-display-toggle {
-  display: inline-flex;
+.publication-matrix-display-toggle {
+  appearance: none;
   border: 1px solid #cfc8bd;
   border-radius: 6px;
-  overflow: hidden;
-}
-
-.publication-display-toggle-option {
-  appearance: none;
-  border: none;
-  border-left: 1px solid #cfc8bd;
   background: #fff;
   color: #333;
   font: inherit;
@@ -486,13 +507,9 @@ body:has(.publication-root) {
   cursor: pointer;
 }
 
-.publication-display-toggle-option:first-child {
-  border-left: none;
-}
-
-.publication-display-toggle-option.is-active {
-  background: #1f2d3d;
-  color: #fff;
+.publication-matrix-display-toggle:hover {
+  border-color: #b3a994;
+  background: #f7f4ee;
 }
 
 .publication-caption {

@@ -12,7 +12,11 @@ import { PublicationMatrix } from "./components/PublicationMatrix";
 import { PublicationSequence } from "./components/PublicationSequence";
 import { PublicationTable } from "./components/PublicationTable";
 import type { MatrixGraphRequest } from "../notebook/matrixSliceGraph";
-import type { MatrixEntryDisplayMode } from "../notebook/matrixEntryDisplay";
+import {
+  cycleMatrixEntryDisplayMode,
+  formatMatrixEntryDisplayMode,
+  type MatrixEntryDisplayMode
+} from "../notebook/matrixEntryDisplay";
 import type { PublicationVariableInteraction } from "./publicationInspect";
 
 export function PublicationCellView({
@@ -21,6 +25,7 @@ export function PublicationCellView({
   interaction,
   interactiveCharts = false,
   matrixEntryDisplayMode = "equation",
+  onMatrixEntryDisplayModeChange,
   onRequestMatrixGraph,
   section,
   selectedPeriodIndex,
@@ -31,6 +36,7 @@ export function PublicationCellView({
   interaction: PublicationVariableInteraction;
   interactiveCharts?: boolean;
   matrixEntryDisplayMode?: MatrixEntryDisplayMode;
+  onMatrixEntryDisplayModeChange?(mode: MatrixEntryDisplayMode): void;
   onRequestMatrixGraph?(request: MatrixGraphRequest): void;
   section: PublicationSection;
   selectedPeriodIndex: number;
@@ -67,8 +73,24 @@ export function PublicationCellView({
   }
 
   if (section.kind === "matrix" && cell.type === "matrix") {
+    const matrixDisplayLabel = formatMatrixEntryDisplayMode(matrixEntryDisplayMode);
     return (
       <figure id={section.anchorId} className="publication-section publication-section-matrix">
+        {onMatrixEntryDisplayModeChange ? (
+          <div className="publication-matrix-controls publication-no-print">
+            <button
+              type="button"
+              className="publication-matrix-display-toggle"
+              aria-label={`Matrix cell display: ${matrixDisplayLabel}. Activate to change.`}
+              title={`Matrix cells show ${matrixDisplayLabel.toLowerCase()}`}
+              onClick={() =>
+                onMatrixEntryDisplayModeChange(cycleMatrixEntryDisplayMode(matrixEntryDisplayMode))
+              }
+            >
+              Cells: {matrixDisplayLabel}
+            </button>
+          </div>
+        ) : null}
         <PublicationMatrix
           cell={cell}
           entryDisplayMode={matrixEntryDisplayMode}

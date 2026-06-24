@@ -79,7 +79,9 @@ describe("PublicationNotebookApp matrix graph popup", () => {
       expect(screen.queryByText(/Running simulations/i)).not.toBeInTheDocument();
     });
 
-    expect(screen.getByRole("group", { name: "Matrix cell display mode" })).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: /Matrix cell display:/i }).length
+    ).toBeGreaterThan(0);
     expect(screen.getByLabelText("Selected simulation period")).toBeInTheDocument();
     expect(screen.getByText(/Period \d+ of \d+/)).toBeInTheDocument();
   });
@@ -105,7 +107,8 @@ describe("PublicationNotebookApp matrix graph popup", () => {
 
     expect(container.querySelector(".publication-matrix-value")).toBeNull();
 
-    await user.click(screen.getByRole("button", { name: "Value" }));
+    const [matrixToggle] = screen.getAllByRole("button", { name: /Matrix cell display:/i });
+    await user.click(matrixToggle);
 
     expect(container.querySelector(".publication-matrix-value")).not.toBeNull();
   });

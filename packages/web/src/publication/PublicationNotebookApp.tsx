@@ -21,10 +21,7 @@ import type { MatrixCell } from "../notebook/types";
 import { buildNotebookPathname, buildNotebookVariableUnitMetadata } from "../notebook/notebookAppHelpers";
 import { useNotebookRunner } from "../notebook/useNotebookRunner";
 import { PeriodScrubber } from "../components/PeriodScrubber";
-import {
-  formatMatrixEntryDisplayMode,
-  type MatrixEntryDisplayMode
-} from "../notebook/matrixEntryDisplay";
+import { type MatrixEntryDisplayMode } from "../notebook/matrixEntryDisplay";
 import { buildPublicationViewModel, buildPublicationContentsEntries } from "./buildPublicationViewModel";
 import { PublicationCellView } from "./PublicationCellView";
 import { PublicationContents } from "./PublicationContents";
@@ -51,6 +48,32 @@ import {
   subscribeLivePublicationDocument
 } from "./resolvePublicationDocument";
 import "../styles/partials/publication.css";
+
+const PUBLICATION_WIDE_WIDTH_STORAGE_KEY = "sfcr.publication.wideWidth";
+
+function readPublicationWideWidthPreference(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  try {
+    return window.localStorage.getItem(PUBLICATION_WIDE_WIDTH_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writePublicationWideWidthPreference(wideWidth: boolean): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(PUBLICATION_WIDE_WIDTH_STORAGE_KEY, wideWidth ? "1" : "0");
+  } catch {
+    // Ignore storage failures (private mode, disabled storage, etc.).
+  }
+}
 
 function isEditableKeyboardTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
@@ -92,8 +115,10 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
   const [matrixGraphCharts, setMatrixGraphCharts] = useState<MatrixGraphChartEntry[]>([]);
   const matrixGraphChartIdRef = useRef(0);
   const [periodOverride, setPeriodOverride] = useState<number | null>(null);
-  const [matrixEntryDisplayMode, setMatrixEntryDisplayMode] =
-    useState<MatrixEntryDisplayMode>("equation");
+  const [matrixEntryDisplayModes, setMatrixEntryDisplayModes] = useState<
+    Record<string, MatrixEntryDisplayMode>
+  >({});
+  const [wideWidth, setWideWidth] = useState<boolean>(readPublicationWideWidthPreference);
 
   const publicationTemplateId = useMemo(
     () => resolvePublicationTemplateId(notebookDocument),
@@ -122,6 +147,10 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
       setDocumentRevision((current) => (current ?? -1) + 1);
     });
   }, [route.source]);
+
+  useEffect(() => {
+    writePublicationWideWidthPreference(wideWidth);
+  }, [wideWidth]);
 
   const viewModel = useMemo(
     () =>
@@ -352,6 +381,13 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
     setMatrixGraphCharts([]);
   }, []);
 
+  const handleMatrixEntryDisplayModeChange = useCallback(
+    (cellId: string, mode: MatrixEntryDisplayMode) => {
+      setMatrixEntryDisplayModes((current) => ({ ...current, [cellId]: mode }));
+    },
+    []
+  );
+
   useEffect(() => {
     if (route.mode === "embed" || !route.cellId || runPhase !== "done") {
       return;
@@ -405,48 +441,29 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
   );
   const showContents = !isEmbed && contentsEntries.length > 1;
 
-  const hasMatrixSection = useMemo(
-    () =>
-      [...viewModel.bodySections, ...viewModel.appendixSections].some(
-        (section) => section.kind === "matrix"
-      ),
-    [viewModel.appendixSections, viewModel.bodySections]
-  );
-  const showControls = runPhase === "done" && !isPrint && (maxPeriodIndex > 0 || hasMatrixSection);
-  const matrixDisplayModes: MatrixEntryDisplayMode[] = ["equation", "value", "both"];
+  const showScrubber = maxPeriodIndex > 0;
+  const showWidthToggle = !isEmbed && !isPrint;
+  const showControls = runPhase === "done" && !isPrint && (showScrubber || showWidthToggle);
 
   const controlsBar = showControls ? (
     <div className="publication-controls publication-no-print">
-      {hasMatrixSection ? (
-        <div className="publication-control-group">
-          <span className="publication-control-label">Matrix cells</span>
-          <div
-            className="publication-display-toggle"
-            role="group"
-            aria-label="Matrix cell display mode"
-          >
-            {matrixDisplayModes.map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                className={`publication-display-toggle-option${
-                  matrixEntryDisplayMode === mode ? " is-active" : ""
-                }`}
-                aria-pressed={matrixEntryDisplayMode === mode}
-                onClick={() => setMatrixEntryDisplayMode(mode)}
-              >
-                {formatMatrixEntryDisplayMode(mode)}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
-      {maxPeriodIndex > 0 ? (
+      {showScrubber ? (
         <PeriodScrubber
           maxIndex={maxPeriodIndex}
           onChange={setPeriodOverride}
           selectedIndex={selectedPeriodIndex}
         />
+      ) : null}
+      {showWidthToggle ? (
+        <button
+          type="button"
+          className="publication-width-toggle"
+          aria-pressed={wideWidth}
+          title={wideWidth ? "Switch to standard width" : "Switch to wide width"}
+          onClick={() => setWideWidth((current) => !current)}
+        >
+          {wideWidth ? "Standard width" : "Wide width"}
+        </button>
       ) : null}
     </div>
   ) : null;
@@ -478,7 +495,10 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
           cells={notebookDocument.cells}
           getResult={runner.getResult}
           interaction={buildCellInteraction(section.cell)}
-          matrixEntryDisplayMode={matrixEntryDisplayMode}
+          matrixEntryDisplayMode={matrixEntryDisplayModes[section.cell.id] ?? "equation"}
+          onMatrixEntryDisplayModeChange={(mode) =>
+            handleMatrixEntryDisplayModeChange(section.cell.id, mode)
+          }
           onRequestMatrixGraph={runPhase === "done" ? handleMatrixGraphRequest : undefined}
           section={section}
           selectedPeriodIndex={selectedPeriodIndex}
@@ -495,7 +515,10 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
               cells={notebookDocument.cells}
               getResult={runner.getResult}
               interaction={buildCellInteraction(section.cell)}
-              matrixEntryDisplayMode={matrixEntryDisplayMode}
+              matrixEntryDisplayMode={matrixEntryDisplayModes[section.cell.id] ?? "equation"}
+              onMatrixEntryDisplayModeChange={(mode) =>
+                handleMatrixEntryDisplayModeChange(section.cell.id, mode)
+              }
               onRequestMatrixGraph={runPhase === "done" ? handleMatrixGraphRequest : undefined}
               section={section}
               selectedPeriodIndex={selectedPeriodIndex}
@@ -509,7 +532,7 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
     <div
       className={`publication-root publication-mode-${route.mode}${
         runPhase !== "done" ? " publication-is-loading" : ""
-      }`}
+      }${wideWidth ? " publication-root-wide" : ""}`}
     >
       {!isEmbed ? (
         <header className="publication-header publication-no-print">
