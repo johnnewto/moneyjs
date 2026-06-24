@@ -4,6 +4,7 @@ import {
   isNotebookTemplateId,
   type NotebookTemplateId
 } from "../notebook/templates";
+import { tryLoadNotebookFromShareSearch } from "../notebook/notebookShareLink";
 import type { NotebookDocument } from "../notebook/types";
 import {
   readPublicationLiveSession,
@@ -25,6 +26,16 @@ export function resolveInitialPublicationDocument(route: PublicationRouteLocatio
   liveSessionMissing: boolean;
 } {
   if (route.source === "live") {
+    // A shared publish link carries the document in the `nbz` query parameter,
+    // so it renders in any browser without the live sessionStorage handoff.
+    const sharedDocument =
+      typeof window === "undefined"
+        ? null
+        : tryLoadNotebookFromShareSearch(window.location.search);
+    if (sharedDocument) {
+      return { document: sharedDocument, liveSessionMissing: false };
+    }
+
     const session = readPublicationLiveSession();
     if (session) {
       return { document: session.document, liveSessionMissing: false };

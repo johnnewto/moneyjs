@@ -38,10 +38,13 @@ import {
 import { buildPublicationVariableDescriptions } from "./publicationVariables";
 import { PublicationVariableInspectorPopup } from "./PublicationVariableInspectorPopup";
 import { PublicationMatrixGraphPopup } from "./PublicationMatrixGraphPopup";
+import { hasNotebookShareSearch } from "../notebook/notebookShareLink";
 import {
   readPublicationLiveReturnUrl,
   readPublicationLiveSession
 } from "./publicationLiveSession";
+import { buildPublicationShareUrl } from "./publicationShareLink";
+import type { PublicationShareResult } from "./PublicationActionLinks";
 import {
   resolveInitialPublicationDocument,
   resolvePublicationTemplateId,
@@ -138,6 +141,12 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
 
   useEffect(() => {
     if (route.source !== "live") {
+      return;
+    }
+
+    // When the document came from a shared `?nbz=` link we are viewing a static
+    // snapshot, so we must not let the local live session overwrite it.
+    if (typeof window !== "undefined" && hasNotebookShareSearch(window.location.search)) {
       return;
     }
 
@@ -388,6 +397,27 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
     []
   );
 
+  const handleSharePublication = useCallback(async (): Promise<PublicationShareResult> => {
+    const result = buildPublicationShareUrl({
+      document: notebookDocument,
+      origin: window.location.origin,
+      cellId: route.cellId
+    });
+    if ("error" in result) {
+      return { ok: false, message: result.error };
+    }
+
+    try {
+      await navigator.clipboard.writeText(result.url);
+      return {
+        ok: true,
+        message: `Copied publish share link (${result.url.length.toLocaleString()} characters).`
+      };
+    } catch {
+      return { ok: false, message: "Could not copy share link to the clipboard." };
+    }
+  }, [notebookDocument, route.cellId]);
+
   useEffect(() => {
     if (route.mode === "embed" || !route.cellId || runPhase !== "done") {
       return;
@@ -556,6 +586,7 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
                 entries={contentsEntries}
                 interactiveNotebookHref={interactiveNotebookHref}
                 isPrint={isPrint}
+                onShare={handleSharePublication}
                 route={route}
                 printHref={printHref}
               />
@@ -569,6 +600,7 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
           <PublicationActionLinks
             interactiveNotebookHref={interactiveNotebookHref}
             isPrint={isPrint}
+            onShare={handleSharePublication}
             printHref={printHref}
             variant="footer"
           />

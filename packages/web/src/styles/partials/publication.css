@@ -691,7 +691,8 @@ body:has(.publication-root) {
 
 .publication-interactive-link,
 .publication-print-link,
-.publication-print-button {
+.publication-print-button,
+.publication-share-button {
   color: #1a4b8c;
   text-decoration: none;
   background: none;
@@ -703,8 +704,20 @@ body:has(.publication-root) {
 
 .publication-interactive-link:hover,
 .publication-print-link:hover,
-.publication-print-button:hover {
+.publication-print-button:hover,
+.publication-share-button:hover {
   text-decoration: underline;
+}
+
+.publication-share-button:disabled {
+  color: #6b7280;
+  cursor: progress;
+  text-decoration: none;
+}
+
+.publication-share-status {
+  color: #15803d;
+  font-size: 0.82rem;
 }
 
 .publication-inspector-popup {

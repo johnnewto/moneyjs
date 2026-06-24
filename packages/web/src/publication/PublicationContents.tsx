@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type MouseEvent } from "react";
 
 import type { PublicationContentsEntry } from "./buildPublicationViewModel";
-import { PublicationActionLinks } from "./PublicationActionLinks";
+import { PublicationActionLinks, type PublicationShareResult } from "./PublicationActionLinks";
 import type { PublicationRouteLocation } from "./publicationRouteHelpers";
 import { buildPublicationPathnameFromRoute } from "./publicationRouteHelpers";
 
@@ -10,6 +10,7 @@ export function PublicationContents({
   entries,
   interactiveNotebookHref,
   isPrint,
+  onShare,
   printHref,
   route
 }: {
@@ -17,6 +18,7 @@ export function PublicationContents({
   entries: PublicationContentsEntry[];
   interactiveNotebookHref: string;
   isPrint: boolean;
+  onShare?: () => Promise<PublicationShareResult>;
   printHref: string;
   route: PublicationRouteLocation;
 }) {
@@ -117,6 +119,7 @@ export function PublicationContents({
         <PublicationActionLinks
           interactiveNotebookHref={interactiveNotebookHref}
           isPrint={isPrint}
+          onShare={onShare}
           printHref={printHref}
           variant="sidebar"
         />
