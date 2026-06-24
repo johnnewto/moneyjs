@@ -12,7 +12,7 @@ Each `*.json` file has:
 - optional `matrixValidation` — expected `sfcr_validate` messages (r-sfcr templates only)
 
 Regression harness: `packages/web/test/notebookTemplateRegressionHarness.ts`  
-Tolerance: `5e-3` per variable.
+Tolerance: per variable `max(5e-3 absolute, 1e-6 * |expected|)`. The absolute term keeps the small-magnitude theoretical templates strict; the relative term lets large-magnitude empirical templates (e.g. `italy-sfc`, whose flows/stocks are in the millions) match without weakening the absolute check.
 
 | Fixture | Template | Generator | Test suite |
 |---------|----------|-----------|------------|
@@ -23,6 +23,7 @@ Tolerance: `5e-3` per variable.
 | `gl8-growth.json` | `gl8-growth` | `scripts/generate_notebook_r_fixtures.R` | `notebookTemplateRegression.extended.test.ts` |
 | `eco-3io-pc.json` | `eco-3io-pc` | baseline: `scripts/generate_florence_r_fixture.R`; scenario: TypeScript (see below) | `notebookTemplateRegression.extended.test.ts` |
 | `io-pc.json` | `io-pc` | baseline: `scripts/generate_iopc_r_fixture.R`; scenarios: TypeScript (see below) | `notebookTemplateRegression.extended.test.ts` |
+| `italy-sfc.json` | `italy-sfc` | `scripts/generate_italy_sfc_r_fixture.R` | `notebookTemplateRegression.extended.test.ts` |
 
 ## Refresh Godley-Lavoie / r-sfcr fixtures
 
@@ -117,12 +118,46 @@ To refresh scenario checkpoints after changing the notebook or scenario definiti
 2. Run a one-off dump from the TypeScript engine (same imports as `notebookTemplateRegressionHarness.ts`): `runBaseline` on `baseline-run`, then `runScenario` for each scenario run cell.
 3. Update `checkpoints.scenario-1-run` and `checkpoints.scenario-2-run` in `io-pc.json` and keep `sourceScenarioScript` accurate.
 
+## Refresh Italy SFC (empirical Eurostat model)
+
+Reference code: `references/Italy-SFC-Model/` (cloned from [marcoverpas/Italy-SFC-Model](https://github.com/marcoverpas/Italy-SFC-Model)). The dataset `Data_Aalborg.csv` is kept alongside the cloned scripts (the upstream repo fetches it from Dropbox; a local copy makes generation reproducible offline).
+
+Requires R 4.x with `bimets` and `jsonlite`. If `bimets` is not in the default library, install it into a repo-local `.rlib/` (the generator adds `./.rlib` to `.libPaths()` automatically):
+
+```r
+install.packages("bimets", lib = ".rlib")
+```
+
+Generate from repo root:
+
+```bash
+Rscript scripts/generate_italy_sfc_r_fixture.R
+```
+
+The script:
+
+1. Sources a preprocessed copy of `references/Italy-SFC-Model/1_Model_upload` (Dropbox read swapped for the local CSV) to build and OLS-estimate the model with `bimets::ESTIMATE` over 1998-2019.
+2. Runs a DYNAMIC `bimets::SIMULATE` over 1998-2021 with every behavioural variable (plus the firms' residual `opf`) exogenised to its observed series, so only the accounting identities are endogenous — exactly the variables the SFCR notebook keeps as equations.
+3. Writes `packages/web/test/fixtures/r-regressions/italy-sfc.json` (baseline checkpoints at 1999/2008/2021, i.e. period keys `3`/`12`/`25`).
+4. Writes `scripts/generated/italy_sfc_yaml_fragments.txt` — the observed external series, 1997 initial values, and estimated coefficients used to author/refresh `italy_sfc.notebook.yaml`.
+
+The model is a forward DAG of identities, so the SFCR solve and the R simulation agree to ~9 significant figures; the relative tolerance term in the harness covers the million-scale magnitudes.
+
+After editing the notebook YAML:
+
+```bash
+pnpm --filter @sfcr/web compile:notebook-yaml -- --write italy_sfc
+```
+
+This template has no scenario cell; the baseline is a pure in-sample reproduction.
+
 ## When to regenerate
 
 - Changed equations, externals, solver options, or run periods in a template YAML → re-run the matching generator, then regression tests.
 - Changed `references/r-sfcr` or Java growth model source → `generate_notebook_r_fixtures.R`.
 - Changed Florence R model → `generate_florence_r_fixture.R` (baseline only unless you also refresh scenario JSON manually).
 - Changed Six Lectures IO-PC R model → `generate_iopc_r_fixture.R` (baseline only unless you also refresh scenario JSON manually).
+- Changed Italy SFC R model or `Data_Aalborg.csv` → `generate_italy_sfc_r_fixture.R`, then re-embed the regenerated externals/initial values from `scripts/generated/italy_sfc_yaml_fragments.txt` into `italy_sfc.notebook.yaml`.
 - Intentional solver/port change that diverges from R → update fixture JSON and document why in the PR.
 
 ## Prerequisites
@@ -131,3 +166,4 @@ To refresh scenario checkpoints after changing the notebook or scenario definiti
 - **r-sfcr fixtures**: submodule at `references/r-sfcr`, plus R deps used by that package (`pkgload`, etc.)
 - **Florence fixture**: clone under `references/keynote_speech_Florence/` (see `references/README.md`)
 - **IO-PC fixture**: clone under `references/six_lectures_on_sfc_models/` (see `references/README.md`)
+- **Italy SFC fixture**: clone under `references/Italy-SFC-Model/` with `Data_Aalborg.csv`; R deps `bimets` and `jsonlite` (a repo-local `.rlib/` is supported)

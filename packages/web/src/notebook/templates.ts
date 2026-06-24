@@ -10,6 +10,7 @@ import gl6DisRentierV2NotebookYaml from "./templates/gl6-dis-rentier-v2.notebook
 import gl7InsoutNotebookYaml from "./templates/gl7-insout.notebook.yaml?raw";
 import gl8GrowthNotebookYaml from "./templates/gl8-growth.notebook.yaml?raw";
 import interbankLiquidityRiskNotebookYaml from "./templates/interbank-liquidity-risk.notebook.yaml?raw";
+import italySfcNotebookYaml from "./templates/italy_sfc.notebook.yaml?raw";
 import opensimplestLevyNotebookYaml from "./templates/opensimplest-levy.notebook.yaml?raw";
 import opensimplestNotebookYaml from "./templates/opensimplest.notebook.yaml?raw";
 import predatorPreyNotebookYaml from "./templates/predator-prey.notebook.yaml?raw";
@@ -34,6 +35,7 @@ export type NotebookTemplateId =
   | "gl7-insout"
   | "gl8-growth"
   | "interbank-liquidity-risk"
+  | "italy-sfc"
   | "opensimplest-levy"
   | "opensimplest"
   | "predator-prey"
@@ -68,6 +70,7 @@ const NOTEBOOK_TEMPLATE_YAML: Record<NotebookTemplateId, string> = {
   "gl7-insout": gl7InsoutNotebookYaml,
   "gl8-growth": gl8GrowthNotebookYaml,
   "interbank-liquidity-risk": interbankLiquidityRiskNotebookYaml,
+  "italy-sfc": italySfcNotebookYaml,
   opensimplest: opensimplestNotebookYaml,
   "opensimplest-levy": opensimplestLevyNotebookYaml,
   "predator-prey": predatorPreyNotebookYaml,
@@ -152,6 +155,12 @@ export const NOTEBOOK_TEMPLATES: Record<NotebookTemplateId, NotebookTemplateDefi
     label: "Interbank liquidity risk",
     description:
       "Runnable starter notebook inspired by Reale's interbank-market SFC paper, with two-bank funding choice, reserve management, and a liquidity-stress scenario."
+  },
+  "italy-sfc": {
+    id: "italy-sfc",
+    label: "Italy SFC",
+    description:
+      "Empirical six-sector SFC model for Italy (Canelli & Veronese Passarella), reproducing the observed balance-sheet and transactions-flow matrices and a dynamic in-sample simulation over 1998-2021."
   },
   opensimplest: {
     id: "opensimplest",

@@ -3,6 +3,7 @@ import gl6DisRegressionFixture from "./fixtures/r-regressions/gl6-dis.json";
 import gl7InsoutRegressionFixture from "./fixtures/r-regressions/gl7-insout.json";
 import gl8GrowthRegressionFixture from "./fixtures/r-regressions/gl8-growth.json";
 import ioPcRegressionFixture from "./fixtures/r-regressions/io-pc.json";
+import italySfcRegressionFixture from "./fixtures/r-regressions/italy-sfc.json";
 import { runNotebookTemplateRegressionFixtures } from "./notebookTemplateRegressionHarness";
 
 runNotebookTemplateRegressionFixtures("extended notebook template regressions against R fixtures", [
@@ -10,5 +11,6 @@ runNotebookTemplateRegressionFixtures("extended notebook template regressions ag
   gl7InsoutRegressionFixture,
   gl8GrowthRegressionFixture,
   eco3IoPcRegressionFixture,
-  ioPcRegressionFixture
+  ioPcRegressionFixture,
+  italySfcRegressionFixture
 ]);

@@ -1,0 +1,400 @@
+format: sfcr-notebook-yaml
+formatVersion: 1
+id: italy-sfc-notebook
+title: Empirical SFC Model for Italy
+metadata:
+  version: 1
+  template: italy-sfc
+cells:
+  - markdown:
+      id: intro
+      title: Overview
+      source: >
+        This notebook replicates the empirical stock-flow consistent (SFC) model for Italy by
+        Rosa Canelli and Marco Veronese Passarella (Canelli, Fontana, Realfonzo & Veronese
+        Passarella 2021, 2022, 2024), ported from the R/`bimets` code in
+        `references/Italy-SFC-Model` (marcoverpas/Italy-SFC-Model). The model covers six
+        sectors - households, firms, banks, the central bank (ECB), the government and the rest
+        of the world - over 1998-2021, calibrated on (an elaboration of) Eurostat data.
+
+
+        The original model has 40 behavioural equations whose coefficients are estimated by OLS
+        in R, plus ~80 accounting identities. The SFCR engine performs a pure dynamic forward
+        solve and does not estimate coefficients, so this port mirrors the repo's in-sample
+        baseline: every behavioural variable is supplied as its observed Eurostat series
+        (externals), and the accounting identities are solved forward. With the behavioural
+        block pinned to data, the identities reproduce the observed balance sheet and
+        transactions-flow matrices and the macro aggregates (real GDP, the debt-to-GDP ratio,
+        the deficit, employment, prices). The estimated behavioural coefficients themselves are
+        listed in the "Estimated behavioural equations" cell for reference.
+
+
+        Period index 0 corresponds to 1997 (initial values); period index i corresponds to
+        year 1997 + i, so the run spans 1997-2021.
+  - matrix:
+      id: balance-sheet
+      sourceRunCellId: baseline-run
+      title: Balance sheet (observed)
+      description: Aggregate balance sheet of the Italian economy by sector. Asset holdings are positive, liabilities negative; each column sums to zero once net worth is netted out, and each financial-instrument row sums to zero across sectors.
+      note: Reproduced from observed Eurostat series (the repo's 2_BS_obs view). Select a period to inspect a given year.
+      columns: [Households, Firms, Government, Banks, ECB, Foreign, Sum]
+      sectors: [Households, Firms, Government, Banks, ECB, Foreign, ""]
+      accountingKind: balance-sheet
+      rows:
+        - [Cash, Cash and reserves, +hh, "", "", +hbd, -hs, "", "0"]
+        - [Deposits, Deposits, +mh, "", "", -ms, "", "", "0"]
+        - [Securities, Securities (bills), +bh, "", -bs, +bb, +bcb, +brow, "0"]
+        - [Loans, Loans, -lh, -lf, "", +ls, "", "", "0"]
+        - [Shares, Shares, +eh, -es, "", "", "", "", "0"]
+        - [OtherFA, Other net financial assets, +oah, +oaf, +oag, +oab, +oacb, +oarow, "0"]
+        - [NetWorth, Net worth (balancing item), -vh, -vf, -vg, -vb, -vcb, -vrow, "0"]
+        - [Sum, Sum, "0", "0", "0", "0", "0", "0", "0"]
+  - matrix:
+      id: transaction-flow
+      sourceRunCellId: baseline-run
+      title: Transactions-flow matrix (observed)
+      description: Transactions-flow matrix of the Italian economy by sector. Current flows (income positive, expenditure negative) plus the financing counterparts (changes in assets negative, changes in liabilities positive) sum to zero in every column and every row.
+      note: Reproduced from observed Eurostat series (the repo's 3_TFM_obs view), with the firms current and capital accounts combined into a single firms column.
+      columns: [Households, Firms, Government, Banks, ECB, Foreign, Sum]
+      sectors: [Households, Firms, Government, Banks, ECB, Foreign, ""]
+      accountingKind: transaction-flow
+      rows:
+        - [Consumption, Consumption, -cons, +cons, "", "", "", "", "0"]
+        - [Government, Government spending, "", +gov, -gov, "", "", "", "0"]
+        - [Export, Exports, "", +x, "", "", "", -x, "0"]
+        - [Import, Imports, "", -im, "", "", "", +im, "0"]
+        - [Wages, Wages, +wb, -wb, "", "", "", "", "0"]
+        - [Taxes, Taxes, -tax, "", +tax, "", "", "", "0"]
+        - [Transfers, Transfers, +tr, "", -tr, "", "", "", "0"]
+        - [Interest, Interest payments, +inth, -intf, -intg, +intb, +fcb, +introw, "0"]
+        - [CorpProfit, Corporate profit (distributed), +fdf, -fdf, "", "", "", "", "0"]
+        - [BankProfit, Bank profit, +fb, "", "", -fb, "", "", "0"]
+        - [Seigniorage, CB seigniorage, "", "", +fcb, "", -fcb, "", "0"]
+        - [OtherPay, Other payments, +oph, +opf, +opg, +opb, +opcb, +oprow, "0"]
+        - [dCash, Change in cash and reserves, -d(hh), "", "", -d(hbd), +d(hs), "", "0"]
+        - [dDeposits, Change in deposits, -d(mh), "", "", +d(ms), "", "", "0"]
+        - [dSecurities, Change in securities, -d(bh), "", +d(bs), -d(bb), -d(bcb), -d(brow), "0"]
+        - [dLoans, Change in loans, +d(lh), +d(lf), "", -d(ls), "", "", "0"]
+        - [dShares, Change in shares, -d(eh), +d(es), "", "", "", "", "0"]
+        - [dOtherFA, Change in other net FA, -d(oah), -d(oaf), -d(oag), -d(oab), -d(oacb), -d(oarow), "0"]
+        - [Sum, Sum, "0", "0", "0", "0", "0", "0", "0"]
+  - sequence:
+      id: transaction-flow-sequence
+      title: Transaction-flow sequence
+      source:
+        kind: matrix
+        matrixCellId: transaction-flow
+      description: Sequence view generated from the transactions-flow matrix at the selected simulation period.
+  - equations:
+      id: equations
+      title: Accounting identities
+      modelId: italy-sfc
+      collapsed: false
+      rows:
+        - [y, cons + id + gov + nx, "Nominal GDP (expenditure)."]
+        - [gy, y / lag(y) - 1, "Nominal GDP growth rate."]
+        - [deltak, 0.046, "Capital depreciation rate (1996-2019 average)."]
+        - [idR, exp(LidR), "Real net investment."]
+        - [id, idR * p / 100 + deltak * lag(k), "Nominal gross investment."]
+        - [k, lag(k) * (1 - deltak) + id, "Nominal capital stock."]
+        - [ff, y - intf - wb + opf, "Firms' total profit."]
+        - [intf, rl * lf, "Interest paid on loans to firms."]
+        - [rl, rstar + mul, "Interest rate on loans to firms."]
+        - [fdf, ff - fuf, "Firms' distributed profit."]
+        - [lf, lag(lf) + id - fuf - (es - lag(es)) + (oaf - lag(oaf)), "Bank loans to firms."]
+        - [es, eh, "Supply of shares."]
+        - [vf, oaf - (lf + es), "Net wealth of firms."]
+        - [yd, wb - tax + tr + inth + fdf + fb + oph, "Household disposable income."]
+        - [consR, exp(LconsR), "Real consumption."]
+        - [cons, consR * p / 100, "Nominal consumption."]
+        - [vh, lag(vh) + yd - cons, "Net wealth of households."]
+        - [intlh, rlh * lag(lh), "Interest paid by households on personal loans."]
+        - [rbh, rstar + mubh, "Interest rate received by households on bills."]
+        - [intgh, rbh * lag(bh), "Interest received by households on government debt."]
+        - [inth, intgh + intmh - intlh, "Net interest received by households."]
+        - [rlh, rstar + mulh, "Interest rate on loans to households."]
+        - [Omega, wb / y, "Wage share."]
+        - [ls, lf + lh, "Total supply of loans."]
+        - [ms, mh, "Supply of bank deposits."]
+        - [fb, intb, "Banks' profit."]
+        - [intb, intgb + intf + intlh - intmh, "Total net interest received by banks."]
+        - [intgb, rbb * lag(bb), "Interest received by banks on government debt."]
+        - [bb, exp(Lbb), "Stock of bills held by banks."]
+        - [vb, oab + hbd + bb + ls - ms, "Net wealth of banks."]
+        - [def, gov + tr + intg - tax - fcb, "Government deficit."]
+        - [deb, bs, "Government debt stock."]
+        - [intg, rb * lag(deb), "Interest payments on government debt."]
+        - [bs, lag(bs) + def, "Supply of government bills."]
+        - [vg, -bs + oag, "Net wealth of government."]
+        - [eh, exp(Leh), "Household holdings of shares."]
+        - [bh, exp(Lbh), "Household holdings of government bills."]
+        - [hh, exp(Lhh), "Household holdings of cash."]
+        - [mh, vh + lh - hh - bh - eh - oah, "Household holdings of deposits."]
+        - [bcb, bs - bh - bb - brow, "Central bank holdings of government bills."]
+        - [hs, bcb + oacb - vcb, "Supply of cash (high-powered money)."]
+        - [fcb, intg - intgh - intgb - introw, "Central bank profit (remitted to government)."]
+        - [hbd, rho * ms, "Reserve requirement demanded by banks."]
+        - [hd, hbd + hh, "Total demand for cash and reserves."]
+        - [im, exp(LimR) * p / 100, "Nominal imports."]
+        - [x, exp(LxR) * p / 100, "Nominal exports."]
+        - [nx, x - im, "Net exports."]
+        - [brow, lambdarow * bs, "Government bills held by the foreign sector."]
+        - [vrow, brow + oarow, "Net wealth of the rest of the world."]
+        - [introw, rbrow * lag(brow), "Interest received by the foreign sector."]
+        - [re, fdf / lag(eh), "Return rate on shares."]
+        - [rb, rstar + mub, "Average yield on government securities."]
+        - [rbb, rstar + mubb, "Yield on bills held by banks."]
+        - [rbrow, rstar + mubrow, "Yield on bills held by the foreign sector."]
+        - [wb, w * nd, "Wage bill."]
+        - [nd, 100 * y / (prod * p), "Employment (labour demand)."]
+        - [ns, exp(Lns), "Labour force."]
+        - [w, lag(w) * (1 + gw), "Nominal wage rate."]
+        - [un, 1 - nd / ns, "Unemployment rate."]
+        - [p, exp(Lp), "GDP deflator."]
+        - [pc, exp(Lpc), "Consumer price index."]
+        - [p_row, exp(Lp_row), "Foreign price level."]
+        - [p_im, exp(Lp_im), "Import price level."]
+        - [infl, (p - lag(p)) / lag(p), "GDP-deflator inflation."]
+        - [inflc, (pc - lag(pc)) / lag(pc), "CPI inflation."]
+        - [def_ratio, def / y, "Deficit-to-GDP ratio."]
+        - [deb_ratio, deb / y, "Debt-to-GDP ratio."]
+        - [p_en, exp(Lp_en), "Energy price level."]
+        - [im_en, im * perc_en, "Energy imports."]
+        - [infl_en, (p_en - lag(p_en)) / lag(p_en), "Energy-price inflation."]
+        - [opb, fb - intb + (vb - lag(vb)), "Other payments of banks."]
+        - [opg, vg - lag(vg) - (-gov + tax - tr - intg + fcb), "Other payments of government."]
+        - [opcb, vcb - lag(vcb), "Other payments of the central bank."]
+        - [oprow, -(oph + opf + opg + opb + opcb), "Other payments of the rest of the world."]
+        - [oarow, -(oah + oaf + oab + oacb + oag), "Other net financial assets of the rest of the world."]
+        - [vcb, -(vh + vf + vrow + vg + vb), "Net wealth of the central bank."]
+        - [yR, 100 * y / p, "Real GDP."]
+        - [iddR, 100 * id / p, "Real gross investment."]
+        - [xR, 100 * x / p, "Real exports."]
+        - [imR, 100 * im / p, "Real imports."]
+  - solver:
+      id: solver
+      title: Solver
+      modelId: italy-sfc
+      collapsed: true
+      method: gauss-seidel
+      tolerance: "1e-6"
+      maxIterations: 500
+      defaultInitialValue: "1"
+  - externals:
+      id: externals
+      title: Externals (observed behavioural series)
+      modelId: italy-sfc
+      collapsed: true
+      rows:
+        - { name: exr, kind: series, valueText: "1.134, 1.121, 1.066, 0.924, 0.896, 0.946, 1.131, 1.244, 1.244, 1.256, 1.371, 1.471, 1.395, 1.326, 1.392, 1.285, 1.328, 1.329, 1.11, 1.107, 1.13, 1.181, 1.12, 1.142, 1.183" }
+        - { name: fuf, kind: series, valueText: "133986, 89884, 1952, 219658, 207394, 217215, 265522, 167104, 55641, 36742, 340665, 353150, 452187, 399938, 381335, 223852, 183430, 276222, 233834, 367040, 316724, 419151, 212554, 325056, 403112" }
+        - { name: gov, kind: series, valueText: "193160, 199624, 206206, 220195, 239959, 250419, 264649, 278255, 292969, 302522, 307266, 320333, 326155, 331166, 326718, 321754, 319441, 317979, 316344, 322650, 327002, 334454, 334512, 343580, 352718" }
+        - { name: gw, kind: series, valueText: "0.044648077, -0.013600757, 0.025470815, 0.0256937, 0.033848705, 0.023527897, 0.029972162, 0.020881782, 0.04406568, 0.028902034, 0.030718159, 0.024712593, 0.008425195, 0.022561804, 0.011822996, -0.01134491, 0.006889362, -0.000602018, 0.014278613, 0.012624251, 0.015380515, 0.027562782, 0.017457043, -0.037382413, 0.095301693" }
+        - { name: intmh, kind: series, valueText: "-55775.28619, -43925.80025, -47514.58213, -37942.93688, -27172.08436, -15749.54702, -23016.71312, -18005.2603, -20924.20408, -24623.58098, -27685.1869, -40328.86402, -17603.59708, 1157.170637, 3531.009403, 4993.693761, -12189.62473, -22638.72913, -20033.36478, -7601.749576, -4811.745452, 5302.096182, 3134.525981, 8263.329099, 13199.6451" }
+        - { name: lambdarow, kind: series, valueText: "0.1439633719, 0.09991092542, 0.1557810606, 0.1530628465, 0.1632828167, 0.1548704382, 0.1690573104, 0.164842353, 0.1726544, 0.2051611851, 0.213699339, 0.2019825198, 0.1800402412, 0.2076893971, 0.2687633296, 0.1847520554, 0.1591042972, 0.08643796522, 0.07464824071, 0.08278462933, 0.09717107964, 0.135892648, 0.07298040633, 0.0391403615, 0.07861096341" }
+        - { name: Lbb, kind: series, valueText: "12.99685004, 13.26650701, 13.32123227, 13.23083924, 13.1890234, 13.14499729, 13.14508331, 13.08567035, 13.12112661, 13.09737372, 13.04528361, 13.0667513, 13.32019897, 13.3666326, 13.1681242, 13.52304908, 13.78063439, 14.05710995, 14.12430323, 14.08991208, 14.0372339, 13.99970037, 14.13080512, 14.18289436, 14.12761252" }
+        - { name: Lbh, kind: series, valueText: "13.23420524, 13.14989294, 12.99054708, 13.12900328, 13.24805462, 13.36504285, 13.37287459, 13.48459108, 13.50859809, 13.50813449, 13.54440762, 13.60472656, 13.56614109, 13.50360546, 13.51888595, 13.50977042, 13.37513408, 13.19358017, 12.95037624, 12.80436229, 12.70858582, 12.65440885, 12.57658392, 12.48118226, 12.35992185" }
+        - { name: LconsR, kind: series, valueText: "13.72540133, 13.75344369, 13.78179863, 13.8208057, 13.82253109, 13.81887438, 13.82470879, 13.83207857, 13.84572605, 13.864573, 13.87403112, 13.87049082, 13.83299816, 13.8548069, 13.86827572, 13.84099036, 13.81590771, 13.81099885, 13.82142901, 13.82362417, 13.84229334, 13.85043929, 13.84905345, 13.72406465, 13.78531834" }
+        - { name: Leh, kind: series, valueText: "13.01325585, 13.24090168, 13.52797381, 13.5241524, 13.50901936, 13.5634234, 13.52445346, 13.6622335, 13.87166213, 14.06974261, 13.99724528, 13.94817257, 13.81287007, 13.72776182, 13.64703273, 13.72348298, 13.85112381, 13.87126593, 13.95904624, 13.93464734, 13.96167025, 13.88833807, 14.02146075, 14.02588007, 14.13239943" }
+        - { name: lh, kind: series, valueText: "188351, 205507, 239433, 273340, 303134, 336487, 371352, 421412, 479078, 541251, 602022, 624988, 654677, 686301, 704239, 697100, 684676, 679562, 679918, 686157, 697152, 711907, 728244, 736292, 763488" }
+        - { name: Lhh, kind: series, valueText: "10.75626324, 10.82585975, 10.93903579, 10.99194849, 10.80297795, 10.88571583, 11.07080156, 11.23940925, 11.39803075, 11.55183844, 11.63499264, 11.72202689, 11.76905495, 11.80138474, 11.86244084, 11.83323928, 11.84934056, 11.85901559, 11.88169201, 11.92254194, 11.95602028, 11.99794701, 12.0190802, 12.13044891, 12.20948183" }
+        - { name: LidR, kind: series, valueText: "11.5539826, 11.63748524, 11.7292226, 11.88305978, 11.92279739, 12.00524664, 11.95980138, 11.99032509, 11.97882008, 12.08409543, 12.12893717, 12.04180007, 11.58011335, 11.75184301, 11.73902166, 11.12449693, 10.7604378, 10.78186901, 10.87223184, 11.0690311, 11.24111831, 11.36411721, 11.30186889, 10.68419025, 11.52695175" }
+        - { name: LimR, kind: series, valueText: "12.66351917, 12.70997855, 12.74448589, 12.92729699, 12.93065636, 12.90258866, 12.86939677, 12.90834284, 12.96966816, 13.07625836, 13.11682785, 13.10461673, 12.86780789, 13.04176706, 13.09739825, 13.03122145, 12.97371968, 12.97286791, 12.99910136, 12.98683377, 13.0713165, 13.11853505, 13.09981769, 12.91507811, 13.13981962" }
+        - { name: Lns, kind: series, valueText: "10.03739325, 10.04807263, 10.05531983, 10.0612944, 10.06789545, 10.0817216, 10.09167935, 10.09730527, 10.09570993, 10.10087012, 10.09934212, 10.11469616, 10.1087115, 10.10757468, 10.11077811, 10.1346707, 10.13478973, 10.14435314, 10.14361407, 10.1538532, 10.16033664, 10.16195578, 10.16051066, 10.13223935, 10.11978774" }
+        - { name: Lp, kind: series, valueText: "4.257752263, 4.281487809, 4.29674104, 4.314496978, 4.344389667, 4.376599434, 4.407596911, 4.43394286, 4.453858805, 4.474879252, 4.499365127, 4.523092075, 4.539735263, 4.544092336, 4.560036828, 4.575391159, 4.586802529, 4.595897326, 4.605170186, 4.61644637, 4.623687674, 4.634311425, 4.64365024, 4.659667841, 4.665041583" }
+        - { name: Lp_en, kind: series, valueText: "4.098224469, 4.121960015, 4.137213247, 4.154969184, 4.107754249, 4.145512849, 4.164803026, 4.232801305, 4.339771322, 4.369194656, 4.457018145, 4.42208834, 4.44041346, 4.545314019, 4.637830968, 4.688683786, 4.688591794, 4.623501143, 4.563305982, 4.588532545, 4.617592706, 4.670864289, 4.673015733, 4.601162165, 4.83142888" }
+        - { name: Lp_im, kind: series, valueText: "4.274263118, 4.315665803, 4.352396303, 4.37819385, 4.423893752, 4.458898101, 4.49009099, 4.520374261, 4.545420182, 4.589040804, 4.594109239, 4.64053733, 4.549657476, 4.600157644, 4.679349584, 4.709530201, 4.684905154, 4.653007515, 4.605170186, 4.564348191, 4.599152114, 4.628886713, 4.620058798, 4.567468319, 4.65396035" }
+        - { name: Lp_row, kind: series, valueText: "4.117827552, 4.159230237, 4.195960737, 4.221758283, 4.267458186, 4.302462535, 4.333655423, 4.363938694, 4.388984615, 4.41454347, 4.447309109, 4.47921749, 4.500427457, 4.511583837, 4.532060291, 4.540540217, 4.560501598, 4.583645797, 4.605170186, 4.628860919, 4.643048948, 4.665999805, 4.689293621, 4.718485747, 4.737956775" }
+        - { name: Lpc, kind: series, valueText: "4.24563401, 4.265492818, 4.280824129, 4.30676415, 4.329416684, 4.355425953, 4.383275854, 4.405498991, 4.427238977, 4.449685283, 4.469350463, 4.504244267, 4.511957804, 4.528289142, 4.557029811, 4.589040804, 4.602165677, 4.604169686, 4.605170186, 4.604169686, 4.618086411, 4.629862799, 4.636668853, 4.634728988, 4.65396035" }
+        - { name: LxR, kind: series, valueText: "12.83037202, 12.84471903, 12.82434767, 12.9610206, 12.9811667, 12.9340966, 12.88913527, 12.93319169, 12.96565664, 13.04536442, 13.10450137, 13.07645356, 12.84048511, 12.97028018, 13.0465961, 13.07089113, 13.06121802, 13.07764246, 13.10604089, 13.10575098, 13.16910915, 13.19829181, 13.21101629, 13.04549945, 13.21468417" }
+        - { name: mub, kind: series, valueText: "0.011828731, 0.018841424, 0.028112929, 0.01409474, 0.013038922, 0.017317237, 0.023525005, 0.023894897, 0.022052895, 0.013295734, 0.005525605, 0.007165296, 0.025865884, 0.026033224, 0.025614264, 0.032205894, 0.030978352, 0.031825399, 0.029054695, 0.028236624, 0.027309766, 0.026346512, 0.023887824, 0.022529526, 0.023582902" }
+        - { name: mubb, kind: series, valueText: "-0.088095671, -0.050253014, -0.035802432, -0.054345533, -0.055332366, -0.04990744, -0.050513455, -0.049240572, -0.054162763, -0.076820527, -0.131078736, -0.163638037, -0.07368592, -0.033280007, -0.045070412, -0.040667267, -0.036435212, -0.023832834, -0.011083511, 0.0007112, 0.006590628, 0.013158936, 0.010643114, 0.011754933, 0.01737685" }
+        - { name: mubh, kind: series, valueText: "0.249732389, 0.171466741, 0.197737625, 0.207321953, 0.15442294, 0.111826401, 0.118941769, 0.111935406, 0.106236665, 0.110157571, 0.123058844, 0.154798172, 0.101767605, 0.066234869, 0.078952805, 0.084761418, 0.111208606, 0.139837102, 0.142905056, 0.127426091, 0.128427831, 0.090604758, 0.094225457, 0.066451332, 0.047931408" }
+        - { name: mubrow, kind: series, valueText: "-0.032043597, -0.007307848, 0.040128755, 0.009951176, 0.007535685, 0.027611715, 0.037374541, 0.031461076, 0.023414168, 0.019667406, 0.040841899, 0.038145253, 0.046413923, 0.050064904, 0.046452449, 0.034672101, 0.058392641, 0.07039244, 0.113105146, 0.097213588, 0.062598016, 0.04275944, 0.035347303, 0.060642737, 0.096964642" }
+        - { name: mul, kind: series, valueText: "-0.006660457, -0.016769705, -0.00425996, -0.013794661, -0.018502021, -0.008040679, -0.003896901, -0.002433853, -0.003012054, -0.007836868, -0.010497863, -0.004093909, 0.003147828, -0.0009393, -0.001691503, 0.002170194, 0.005117665, 0.005855136, 0.004534182, 0.004923872, 0.003538613, 0.001899746, 0.003443494, 0.00362841, 0.002667731" }
+        - { name: mulh, kind: series, valueText: "0.0411365, 0.038514416, 0.036371917, 0.02981075, 0.0303775, 0.03328175, 0.0358035, 0.035061667, 0.032931017, 0.028301125, 0.024805333, 0.029831433, 0.035275, 0.030316667, 0.033491667, 0.043475, 0.046025, 0.047083334, 0.0407925, 0.034878367, 0.030008333, 0.0268, 0.026025, 0.023283333, 0.020259167" }
+        - { name: oab, kind: series, valueText: "-630885, -949250, -1071386, -1343237, -1147766, -1219280, -1352390, -1398613, -1491229, -1672959, -1646395, -1394854, -1485583, -1555046, -1371802, -1597634, -1837834, -2121132, -2150302, -1894223, -1841204, -1580695, -1780685, -1690684, -1563895" }
+        - { name: oacb, kind: series, valueText: "-59590, -43439, -36465, -42556, -54386, -28786, -21619, -15164, -18610, -17550, -14271, -17624, -38854, -89941, -118956, -140462, -103029, -126480, -210205, -341631, -441211, -455588, -501746, -689767, -783662" }
+        - { name: oaf, kind: series, valueText: "109224, 99819, 119913, 146758, 118037, 112972, 109856, 112319, 121381, 126710, 134894, 137587, 148886, 144560, 137492, 126115, 106538, 103109, 128309, 149481, 153462, 171179, 186937, 269617, 284629" }
+        - { name: oag, kind: series, valueText: "160862.312, 117676.837, 176007.083, 190874.17, 191728.282, 170251.576, 199516.115, 184800.269, 194282.91, 243696.029, 270381.76, 260051.338, 242284.496, 313466.76, 418742.129, 257426.135, 251463.4, 106908.724, 84170.315, 125498.224, 164923.213, 264149.464, 139239.072, 47705.812, 323282.4" }
+        - { name: oah, kind: series, valueText: "457543, 708705, 840013, 961384, 835553, 786643, 860187, 866444, 989547, 1023462, 827606, 577420, 709095, 771981, 755979, 915462, 968231, 1163011, 1280495, 1324893, 1480979, 1367631, 1541288, 1651571, 1583746" }
+        - { name: opf, kind: series, valueText: "34697, 108026, -190861, -16457, -14886, -51423, 100881, 120525, 24228, -295739, -9792, -87738, 47923, 11535, 146106, 20845, -96221, 67588, -112034, 54297, -84710, 222355, -29822, 112818, 55160.28211" }
+        - { name: oph, kind: series, valueText: "91702.431, -15192.525, 126602.754, 129052.913, -177595.112, 24775.706, -96621.539, -127976.154, -4679.641, 227676.881, -272211.731, -150061.578, -20882.158, -73383.264, -198504.369, 122959.994, 39870.735, -7153.324, 126440.409, -66586.909, 179170.011, -419352.251, 189603.392, -107752.74, -60674.87011" }
+        - { name: perc_en, kind: series, valueText: "0.09129386102, 0.05288759358, 0.06579319551, 0.1134457986, 0.1078173208, 0.1022512698, 0.1073035884, 0.114206238, 0.1299447589, 0.147160277, 0.1335389444, 0.1688626248, 0.1434441084, 0.1523901722, 0.1636189346, 0.1888361637, 0.1706481996, 0.1213229582, 0.1005802505, 0.0832525624, 0.1078380858, 0.1163108549, 0.1085577061, 0.07396233537, 0.1200652261" }
+        - { name: prod, kind: series, valueText: "76.8524924, 77.52271562, 77.83026537, 79.53044862, 79.44880318, 78.21867053, 77.25912151, 77.06758223, 77.70648192, 77.88491115, 78.57203081, 77.16398444, 74.34701087, 76.21620721, 76.50643222, 74.3402396, 74.20675716, 73.95285635, 73.91660601, 73.93865348, 74.27991891, 74.34151252, 74.26229167, 68.88024466, 74.72335354" }
+        - { name: rho, kind: series, valueText: "0.007679399, 0.009054382, 0.009490012, 0.010516319, 0.011816197, 0.012510495, 0.011902646, 0.011009584, 0.010624753, 0.011740379, 0.012419401, 0.013490381, 0.01173181, 0.011297664, 0.011719822, 0.012787027, 0.012113281, 0.01159736, 0.010413187, 0.009675109, 0.009945652, 0.00999077, 0.009839324, 0.00836872, 0.007572628" }
+        - { name: rstar, kind: series, valueText: "0.063958333, 0.047916667, 0.027083333, 0.040416667, 0.0425, 0.032083333, 0.0225, 0.02, 0.020208333, 0.027916667, 0.038541667, 0.038541667, 0.012291667, 0.01, 0.0125, 0.00875, 0.005416667, 0.001583333, 0.0005, 8.33e-05, 0, 0, 0, 0, 0" }
+        - { name: tax, kind: series, valueText: "348240.7178, 363999.2758, 356021.3367, 375224.8494, 343517.9719, 391298.2531, 393258.1745, 380777.1062, 388702.5627, 412935.4616, 465321.4558, 457702.286, 410194.439, 421807.5657, 454145.6216, 436848.3013, 455823.3594, 487469.4046, 506679.773, 492490.8411, 493832.7575, 480055.6522, 506154.8658, 428608.9298, 483365.7672" }
+        - { name: tr, kind: series, valueText: "35143, 58835, 62587, 66311, 68186, 71440, 74195, 74916, 76130, 84673, 78465, 81770, 99915, 107096, 110671, 120511, 131490, 142072, 141366, 145038, 142440, 141572, 146882, 202196, 188601" }
+        - { name: yf, kind: series, valueText: "13182.5389, 13879.20432, 14675.56604, 17137.54371, 18063.01694, 17984.691, 16579.85478, 16589.58629, 17493.1095, 18391.49159, 18332.62293, 17674.3239, 17578.90382, 18852.95448, 18926.14673, 20616.64733, 20727.02291, 21619.70553, 25354.51233, 25801.94397, 26323.89753, 26726.26467, 28774.4619, 26993.2133, 29441.49775" }
+  - initial-values:
+      id: initial-values
+      title: Initial values (1997)
+      modelId: italy-sfc
+      collapsed: true
+      rows:
+        - [bb, 441022]
+        - [bcb, 92006]
+        - [bh, 559168]
+        - [brow, 183679.312]
+        - [bs, 1275875.312]
+        - [cons, 645631]
+        - [consR, 913831.3683]
+        - [deb, 1275875.312]
+        - [deb_ratio, 1.168]
+        - [def, 30240.569]
+        - [def_ratio, 0.0276837276]
+        - [deltak, 0.046]
+        - [eh, 448317]
+        - [es, 448317]
+        - [fb, 92022.28678]
+        - [fcb, -55775.28619]
+        - [fdf, 567744]
+        - [ff, 701730]
+        - [gy, 0.044447079]
+        - [hbd, 4901]
+        - [hd, 51824]
+        - [hh, 46923]
+        - [hs, 51824]
+        - [id, 213028]
+        - [iddR, 301521.5637]
+        - [idR, 104191.163]
+        - [im, 223262]
+        - [im_en, 20382.45]
+        - [imR, 316006.8506]
+        - [infl, 0.0256816]
+        - [infl_en, 0.018978102]
+        - [inflc, 0.018978102]
+        - [intb, 92022.28678]
+        - [intf, 28260]
+        - [intg, 94403.00059]
+        - [intgb, -10613.83906]
+        - [intgh, 153836.1258]
+        - [inth, 79460]
+        - [intlh, 18600.83965]
+        - [introw, 6956]
+        - [k, 3104392.565]
+        - [lf, 493212]
+        - [ls, 681563]
+        - [mh, 638201]
+        - [ms, 638201]
+        - [nd, 20118.2]
+        - [ns, 22865.7]
+        - [nx, 40540]
+        - [oarow, -37154.312]
+        - [Omega, 0.3634940528]
+        - [opb, -41340]
+        - [opcb, 407]
+        - [opg, -29706.431]
+        - [oprow, -55760]
+        - [p, 70.651]
+        - [p_en, 60.23324663]
+        - [p_im, 71.82719165]
+        - [p_row, 61.42565315]
+        - [pc, 69.8]
+        - [rb, 0.075787064]
+        - [rbb, -0.024137338]
+        - [rbh, 0.313690722]
+        - [rbrow, 0.031914736]
+        - [re, 1.532169834]
+        - [rl, 0.057297876]
+        - [rlh, 0.105094833]
+        - [un, 0.1201581408]
+        - [vb, -141600]
+        - [vcb, -19408]
+        - [vf, -832305]
+        - [vg, -1115013]
+        - [vh, 1961801]
+        - [vrow, 146525]
+        - [w, 19.73665636]
+        - [wb, 397066]
+        - [x, 263802]
+        - [xR, 373387.4963]
+        - [y, 1092359]
+        - [yd, 914897]
+        - [yR, 1546133.813]
+  - markdown:
+      id: estimated-coefficients
+      title: Estimated behavioural equations
+      source: >
+        The 40 behavioural equations of the original model are estimated by OLS in R over
+        1998-2019 (`bimets::ESTIMATE`). Because the SFCR engine does not estimate, each
+        behavioural variable is supplied here as its observed series (see the Externals cell).
+        For reference, the fitted coefficients (regenerated by
+        `scripts/generate_italy_sfc_r_fixture.R`) include:
+
+
+        - Real consumption: `LconsR = 0.906*log(y*100/pc)[-1] + 0.055*log(vh*100/pc)[-1]`
+
+        - Real net investment: `LidR = -117.5 + 138.6*(log(y)/log(k))[-1]`
+
+        - Real exports: `LxR = 7.879 + 0.512*log(yf)[-1] + 0.080*(exr*p/p_row)[-1]`
+
+        - Real imports: `LimR = 4.092 + 0.633*log(y)[-1] - 0.106*(p_im/p)[-1]`
+
+        - GDP deflator: `Lp = 0.058*Lp_en[-1] + 0.619*Lp_row[-1] + 0.104*log(100*y/p)[-1]`
+
+        - Consumer prices: `Lpc = 0.182*Lp_en[-1] + 0.505*Lp_row[-1] + 0.101*log(100*y/p)[-1]`
+
+        - Tax revenue: `tax = 0.514*wb[-1] + 0.061*(yd-wb)[-1] + 0.042*vh[-1]`
+
+        - Average bill premium: `mub = 0.032*(deb/y)[-1] - 0.079*(bcb/bs) - 0.422*rstar`
+
+        - Firms' retained profit: `fuf = 0.265*ff`; Government consumption: `gov = 1.01*(gov/p)[-1]*p`.
+
+
+        Full coefficient values are in `scripts/generated/italy_sfc_yaml_fragments.txt`.
+  - run:
+      id: baseline-run
+      title: Baseline run (1997-2021)
+      description: Dynamic in-sample simulation. With the behavioural block exogenised to observed Eurostat series, the accounting identities reproduce the observed Italian economy over 1998-2021.
+      mode: baseline
+      periods: 25
+      resultKey: italy_sfc_baseline
+      sourceModelId: italy-sfc
+  - chart:
+      id: chart-gdp
+      title: GDP and demand components (nominal)
+      variables:
+        - y
+        - cons
+        - id
+        - gov
+        - nx
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      sourceRunCellId: baseline-run
+  - chart:
+      id: chart-fiscal
+      title: Public finances and labour market
+      series:
+        - expression: 100 * deb / y
+          label: Debt-to-GDP ratio
+          unit: "%"
+        - expression: 100 * def / y
+          label: Deficit-to-GDP ratio
+          unit: "%"
+        - expression: 100 * un
+          label: Unemployment rate
+          unit: "%"
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      sourceRunCellId: baseline-run
+  - table:
+      id: baseline-table
+      title: Key macro aggregates
+      variables:
+        - y
+        - yR
+        - cons
+        - id
+        - nx
+        - deb
+        - def
+        - deb_ratio
+        - p
+        - pc
+        - nd
+        - un
+        - rb
+      sourceRunCellId: baseline-run

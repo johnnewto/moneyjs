@@ -17,7 +17,12 @@ interface RegressionFixture {
   >;
 }
 
-const TOLERANCE = 5e-3;
+// Absolute tolerance suits small-magnitude theoretical models; the relative
+// term lets large-magnitude empirical models (e.g. the Italy SFC model, whose
+// flows and stocks are in the millions) match without weakening the absolute
+// check used by the smaller templates.
+const TOLERANCE_ABS = 5e-3;
+const TOLERANCE_REL = 1e-6;
 
 export function runNotebookTemplateRegressionFixtures(
   suiteName: string,
@@ -86,10 +91,11 @@ export function runNotebookTemplateRegressionFixtures(
               expect(actualValue, `${fixture.templateId}:${cellId}:${periodText}:${variable}`).toBeTypeOf(
                 "number"
               );
+              const tolerance = Math.max(TOLERANCE_ABS, TOLERANCE_REL * Math.abs(expectedValue));
               expect(
                 Math.abs((actualValue ?? NaN) - expectedValue),
                 `${fixture.templateId}:${cellId}:${periodText}:${variable}`
-              ).toBeLessThanOrEqual(TOLERANCE);
+              ).toBeLessThanOrEqual(tolerance);
             }
           }
         }

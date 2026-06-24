@@ -68,16 +68,25 @@ behaviourals <- names(S_model$behaviorals)
 identities <- names(S_model$identities)
 message(sprintf("Model loaded: %d behaviourals, %d identities", length(behaviourals), length(identities)))
 
-# ---- DYNAMIC simulation with every behavioural exogenised to observed data ----
-exo <- stats::setNames(as.list(rep(TRUE, length(behaviourals))), behaviourals)
+# Firms' "other payments" opf is an accounting residual that feeds back into the
+# firms' profit block (ff -> opf -> fdf -> ff), which is singular once fuf is
+# exogenised. The repo's in-sample script (4_In_sample_pred) exogenises opf for
+# the same reason, so we treat it as an observed exogenous series here too. This
+# keeps the SFCR equation system an acyclic DAG of identities.
+extra_exo <- c("opf")
+exo_vars <- sort(unique(c(behaviourals, extra_exo)))
+endo_identities <- setdiff(identities, exo_vars)
+
+# ---- DYNAMIC simulation with behaviourals (+ opf) exogenised to observed data ----
+exo <- stats::setNames(as.list(rep(TRUE, length(exo_vars))), exo_vars)
 
 message("Running DYNAMIC simulation 1998-2021 (behaviourals exogenised) ...")
 S_model <- SIMULATE(
   S_model,
   simType = "DYNAMIC",
   TSRANGE = c(1998, 1, 2021, 1),
-  simConvergence = 1e-7,
-  simIterLimit = 1000,
+  simConvergence = 1e-11,
+  simIterLimit = 5000,
   Exogenize = exo,
   quietly = TRUE
 )
@@ -142,9 +151,9 @@ fmt_num <- function(x) {
 
 dir.create(fragments_dir, recursive = TRUE, showWarnings = FALSE)
 con <- file(fragments_path, "w")
-writeLines("# ===== EXTERNALS (behavioural variables exogenised to observed series) =====", con)
+writeLines("# ===== EXTERNALS (behavioural variables + opf exogenised to observed series) =====", con)
 writeLines("# Each row: { name, kind: series, valueText: \"1997..2021\", desc }", con)
-for (b in sort(behaviourals)) {
+for (b in exo_vars) {
   vals <- obs_series(b)
   writeLines(sprintf('      - { name: %s, kind: series, valueText: "%s" }',
                      b, paste(fmt_num(vals), collapse = ", ")), con)
@@ -152,7 +161,7 @@ for (b in sort(behaviourals)) {
 
 writeLines("", con)
 writeLines("# ===== INITIAL VALUES (endogenous identities at 1997, index 0) =====", con)
-for (i in sort(identities)) {
+for (i in sort(endo_identities)) {
   v1997 <- year_value(S_model$modelData[[i]], 1997)
   if (!is.finite(v1997)) v1997 <- year_value(sim[[i]], 1998) # fallback
   writeLines(sprintf('      - [%s, %s]', i, fmt_num(v1997)), con)
