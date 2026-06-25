@@ -3,10 +3,16 @@
 import "@testing-library/jest-dom/vitest";
 
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { RunSourceEditor } from "../src/notebook/RunSourceEditor";
 import type { NotebookCell } from "../src/notebook/types";
+
+function ControlledRunSourceEditor({ initialValue }: { initialValue: string }) {
+  const [value, setValue] = useState(initialValue);
+  return <RunSourceEditor value={value} onChange={setValue} />;
+}
 
 afterEach(() => {
   cleanup();
@@ -96,6 +102,173 @@ describe("RunSourceEditor", () => {
     const nextSource = onChange.mock.calls[0]?.[0];
     expect(nextSource).toEqual(expect.any(String));
     expect(JSON.parse(nextSource).baselineStartPeriod).toBe(50);
+  });
+
+  const windowedRunSource = JSON.stringify({
+    id: "windowed-run",
+    type: "run",
+    title: "Windowed run",
+    mode: "baseline",
+    periods: 32,
+    resultKey: "windowed_result",
+    sourceModelId: "main",
+    exogenize: [
+      { name: "Lpc", throughPeriod: 25 },
+      { name: "rstar", throughPeriod: 25 },
+      "oph",
+      "opf"
+    ]
+  });
+
+  it("renders windowed exogenize entries as a scrolling table without [object Object]", () => {
+    const { container } = render(<RunSourceEditor value={windowedRunSource} onChange={vi.fn()} />);
+
+    expect((screen.getByLabelText("Exogenize variable 1") as HTMLInputElement).value).toBe("Lpc");
+    expect((screen.getByLabelText("Exogenize variable 3") as HTMLInputElement).value).toBe("oph");
+    expect((screen.getByLabelText(/throughPeriod for Lpc/i) as HTMLInputElement).value).toBe("25");
+    expect((screen.getByLabelText(/throughPeriod for oph/i) as HTMLInputElement).value).toBe("");
+    expect(container.textContent).not.toContain("[object Object]");
+  });
+
+  it("preserves a throughPeriod window when a variable name cell is edited", () => {
+    const onChange = vi.fn();
+
+    render(<RunSourceEditor value={windowedRunSource} onChange={onChange} />);
+
+    fireEvent.change(screen.getByLabelText("Exogenize variable 1"), {
+      target: { value: "LpcRenamed" }
+    });
+
+    const nextCell = JSON.parse(onChange.mock.calls[0]?.[0]);
+    expect(nextCell.exogenize[0]).toEqual({ name: "LpcRenamed", throughPeriod: 25 });
+  });
+
+  it("rezips a throughPeriod cell edit into a windowed exogenize entry", () => {
+    const onChange = vi.fn();
+
+    render(<RunSourceEditor value={windowedRunSource} onChange={onChange} />);
+
+    fireEvent.change(screen.getByLabelText(/throughPeriod for oph/i), {
+      target: { value: "30" }
+    });
+
+    const nextCell = JSON.parse(onChange.mock.calls[0]?.[0]);
+    expect(nextCell.exogenize).toEqual([
+      { name: "Lpc", throughPeriod: 25 },
+      { name: "rstar", throughPeriod: 25 },
+      { name: "oph", throughPeriod: 30 },
+      "opf"
+    ]);
+  });
+
+  it("clears a throughPeriod cell back to a whole-run (bare) entry", () => {
+    const onChange = vi.fn();
+
+    render(<RunSourceEditor value={windowedRunSource} onChange={onChange} />);
+
+    fireEvent.change(screen.getByLabelText(/throughPeriod for rstar/i), {
+      target: { value: "" }
+    });
+
+    const nextCell = JSON.parse(onChange.mock.calls[0]?.[0]);
+    expect(nextCell.exogenize[1]).toBe("rstar");
+  });
+
+  it("appends comma-separated variables from the add cell", () => {
+    const onChange = vi.fn();
+    const runSource = JSON.stringify({
+      id: "run",
+      type: "run",
+      title: "Run",
+      mode: "baseline",
+      periods: 10,
+      resultKey: "result",
+      sourceModelId: "main",
+      exogenize: ["Lpc"]
+    });
+
+    render(<RunSourceEditor value={runSource} onChange={onChange} />);
+
+    const addInput = screen.getByLabelText("Add exogenize variable");
+    fireEvent.change(addInput, { target: { value: "rstar, oph" } });
+    fireEvent.blur(addInput);
+
+    const nextCell = JSON.parse(onChange.mock.calls[0]?.[0]);
+    expect(nextCell.exogenize).toEqual(["Lpc", "rstar", "oph"]);
+  });
+
+  it("keeps the table after removing the last item (controlled round-trip)", () => {
+    const runSource = JSON.stringify({
+      id: "run",
+      type: "run",
+      title: "Run",
+      mode: "baseline",
+      periods: 10,
+      resultKey: "result",
+      sourceModelId: "main",
+      exogenize: ["Lpc", "rstar", "oph"]
+    });
+
+    render(<ControlledRunSourceEditor initialValue={runSource} />);
+
+    fireEvent.click(screen.getByLabelText("Remove oph"));
+
+    expect((screen.getByLabelText("Exogenize variable 1") as HTMLInputElement).value).toBe("Lpc");
+    expect((screen.getByLabelText("Exogenize variable 2") as HTMLInputElement).value).toBe("rstar");
+    expect(screen.queryByLabelText("Exogenize variable 3")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Add exogenize variable")).toBeInTheDocument();
+  });
+
+  it("keeps the table after adding an item (controlled round-trip)", () => {
+    const runSource = JSON.stringify({
+      id: "run",
+      type: "run",
+      title: "Run",
+      mode: "baseline",
+      periods: 10,
+      resultKey: "result",
+      sourceModelId: "main",
+      exogenize: ["Lpc"]
+    });
+
+    render(<ControlledRunSourceEditor initialValue={runSource} />);
+
+    const addInput = screen.getByLabelText("Add exogenize variable");
+    fireEvent.change(addInput, { target: { value: "rstar" } });
+    fireEvent.keyDown(addInput, { key: "Enter" });
+
+    expect((screen.getByLabelText("Exogenize variable 1") as HTMLInputElement).value).toBe("Lpc");
+    expect((screen.getByLabelText("Exogenize variable 2") as HTMLInputElement).value).toBe("rstar");
+    expect(screen.getByLabelText("Add exogenize variable")).toBeInTheDocument();
+  });
+
+  it("keeps every column after editing a window cell (controlled round-trip)", () => {
+    render(<ControlledRunSourceEditor initialValue={windowedRunSource} />);
+
+    expect(screen.getByLabelText("Exogenize variable 4")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/throughPeriod for oph/i), {
+      target: { value: "30" }
+    });
+
+    expect((screen.getByLabelText("Exogenize variable 1") as HTMLInputElement).value).toBe("Lpc");
+    expect((screen.getByLabelText("Exogenize variable 4") as HTMLInputElement).value).toBe("opf");
+    expect((screen.getByLabelText(/throughPeriod for oph/i) as HTMLInputElement).value).toBe("30");
+  });
+
+  it("removes a variable column", () => {
+    const onChange = vi.fn();
+
+    render(<RunSourceEditor value={windowedRunSource} onChange={onChange} />);
+
+    fireEvent.click(screen.getByLabelText("Remove oph"));
+
+    const nextCell = JSON.parse(onChange.mock.calls[0]?.[0]);
+    expect(nextCell.exogenize).toEqual([
+      { name: "Lpc", throughPeriod: 25 },
+      { name: "rstar", throughPeriod: 25 },
+      "opf"
+    ]);
   });
 
   it("offers notebook-wide rename when a scenario shock variable is renamed", () => {

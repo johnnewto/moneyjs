@@ -13,6 +13,7 @@ import type {
   ChartSeriesSpec,
   EquationListItem,
   EquationRow,
+  ExogenizeEntry,
   ExternalListItem,
   ExternalRow,
   InitialValueListItem,
@@ -25,6 +26,55 @@ import { isRecord, numberValue, slugifyIdentifier, stringArray, stringValue } fr
 
 export function generatedCompactModelId(document: NotebookDocument): string {
   return document.metadata.template ?? slugifyIdentifier(document.id.replace(/-?notebook$/i, "")) ?? "main";
+}
+
+/**
+ * Normalize a run cell's exogenize input into the canonical `ExogenizeEntry[]`
+ * form. Supports an authoring-only shorthand where `exogenize` is a flat list of
+ * variable names paired with a sibling `throughPeriod` array (or single scalar):
+ *
+ *   exogenize: [Lpc, Lp_en, ..., oph, opf]
+ *   throughPeriod: [25, 25, ...]
+ *
+ * `throughPeriod[i]` windows `exogenize[i]` to periods `1..throughPeriod[i]`. A
+ * `null` entry, or a name with no matching `throughPeriod` index (shorter array),
+ * stays pinned for the whole run (a bare string). A scalar `throughPeriod`
+ * applies to every listed name. The sibling `throughPeriod` field is consumed and
+ * dropped so the resulting cell matches the notebook schema.
+ */
+export function normalizeRunCellExogenize(cell: NotebookCell): NotebookCell {
+  if (cell.type !== "run") {
+    return cell;
+  }
+  const raw = cell as unknown as Record<string, unknown>;
+  if (!("throughPeriod" in raw)) {
+    return cell;
+  }
+  const { throughPeriod, exogenize, ...rest } = raw;
+  const names = Array.isArray(exogenize) ? exogenize : [];
+  const windows = resolveThroughPeriodWindows(throughPeriod, names.length);
+  const entries: ExogenizeEntry[] = names.map((name, index) => {
+    if (name !== null && typeof name === "object") {
+      return name as ExogenizeEntry;
+    }
+    const variable = String(name);
+    const window = windows[index];
+    return typeof window === "number" ? { name: variable, throughPeriod: window } : variable;
+  });
+  return (entries.length > 0 ? { ...rest, exogenize: entries } : rest) as unknown as NotebookCell;
+}
+
+function resolveThroughPeriodWindows(throughPeriod: unknown, length: number): Array<number | undefined> {
+  if (typeof throughPeriod === "number") {
+    return Array.from({ length }, () => throughPeriod);
+  }
+  if (!Array.isArray(throughPeriod)) {
+    return Array.from({ length }, () => undefined);
+  }
+  return Array.from({ length }, (_unused, index) => {
+    const value = throughPeriod[index];
+    return typeof value === "number" ? value : undefined;
+  });
 }
 
 export function buildCompactCellDescriptor(

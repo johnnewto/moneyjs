@@ -1,9 +1,9 @@
 import type { ScenarioDefinition, ShockVariableDef } from "@sfcr/core";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import { formatCellBody } from "./sourceEditing";
-import type { NotebookCell, RunCell } from "./types";
+import type { ExogenizeEntry, NotebookCell, RunCell } from "./types";
 import {
   applyShockVariableRenameToRunCell,
   resolveRunCellRenameScope,
@@ -49,6 +49,19 @@ export function RunSourceEditor({
     scope,
     value
   });
+  const [exogenizeDraft, setExogenizeDraft] = useState("");
+  const exogenizeScrollRef = useRef<HTMLDivElement | null>(null);
+  const exogenizeScrollLeftRef = useRef(0);
+
+  // Editing a cell round-trips the run JSON through the parent, which can re-render
+  // (or remount) this table and reset its horizontal scroll. Restore the last
+  // user scroll position after every render so edits don't snap the table back to 0.
+  useLayoutEffect(() => {
+    const node = exogenizeScrollRef.current;
+    if (node && node.scrollLeft !== exogenizeScrollLeftRef.current) {
+      node.scrollLeft = exogenizeScrollLeftRef.current;
+    }
+  });
 
   if (!parsed) {
     return (
@@ -60,9 +73,7 @@ export function RunSourceEditor({
 
   const runCell = parsed;
   const scenario = runCell.scenario ?? { shocks: [] };
-  const exogenizeAll = (runCell.exogenize ?? []).some(
-    (entry) => typeof entry === "string" && entry.trim() === EXOGENIZE_ALL_TOKEN
-  );
+  const exogenizeEntries = runCell.exogenize ?? [];
   const baselineStartPeriodMax = resolveBaselineStartPeriodMax(cells, runCell);
 
   function commit(next: RunCellSourceDraft): void {
@@ -154,6 +165,43 @@ export function RunSourceEditor({
     updateCell({ baselineStartPeriod: clampBaselineStartPeriod(nextValue, baselineStartPeriodMax) });
   }
 
+  function setExogenizeEntries(next: ExogenizeEntry[]): void {
+    updateCell({ exogenize: next.length > 0 ? next : undefined });
+  }
+
+  function updateExogenizeName(index: number, nextName: string): void {
+    setExogenizeEntries(
+      exogenizeEntries.map((entry, position) =>
+        position === index ? buildExogenizeEntry(nextName, exogenizeEntryWindow(entry)) : entry
+      )
+    );
+  }
+
+  function updateExogenizeWindow(index: number, nextWindowText: string): void {
+    const trimmed = nextWindowText.trim();
+    const window = trimmed === "" ? undefined : Number(trimmed);
+    setExogenizeEntries(
+      exogenizeEntries.map((entry, position) =>
+        position === index ? buildExogenizeEntry(exogenizeEntryName(entry), window) : entry
+      )
+    );
+  }
+
+  function removeExogenizeEntry(index: number): void {
+    setExogenizeEntries(exogenizeEntries.filter((_entry, position) => position !== index));
+  }
+
+  function commitExogenizeDraft(): void {
+    const added = exogenizeDraft
+      .split(",")
+      .map((name) => name.trim())
+      .filter((name) => name !== "");
+    setExogenizeDraft("");
+    if (added.length > 0) {
+      setExogenizeEntries([...exogenizeEntries, ...added]);
+    }
+  }
+
   return (
     <div className="scenario-source-editor">
       <div className="scenario-source-meta-grid" aria-label="Run settings">
@@ -224,25 +272,81 @@ export function RunSourceEditor({
       </div>
 
       <RunField label="Exogenize">
-        <div className="scenario-source-exogenize">
-          <input
-            className="scenario-pill-input scenario-pill-input-mono"
-            aria-label="Exogenize variables"
-            value={(runCell.exogenize ?? []).join(", ")}
-            onChange={(event) => updateCell({ exogenize: parseExogenizeList(event.target.value) })}
-            placeholder={`e.g. oph, opf, rstar (or ${EXOGENIZE_ALL_TOKEN} for all behaviourals)`}
-          />
-          <button
-            type="button"
-            className="secondary-button"
-            aria-pressed={exogenizeAll}
-            title="Pin every estimated (behavioural) variable to its observed data; accounting identities keep solving"
-            onClick={() =>
-              updateCell({ exogenize: exogenizeAll ? undefined : [EXOGENIZE_ALL_TOKEN] })
-            }
+        <div className="scenario-source-exogenize-table">
+          <div
+            className="scenario-source-exogenize-scroll"
+            ref={exogenizeScrollRef}
+            onScroll={(event) => {
+              exogenizeScrollLeftRef.current = event.currentTarget.scrollLeft;
+            }}
           >
-            {exogenizeAll ? "Clear all" : "Exogenize all"}
-          </button>
+            <table className="scenario-source-exogenize-grid">
+              <tbody>
+                <tr className="scenario-source-exogenize-grid-remove-row">
+                  <th scope="row" aria-hidden="true" />
+                  {exogenizeEntries.map((entry, index) => (
+                    <td key={`remove-${index}`}>
+                      <button
+                        type="button"
+                        className="scenario-source-exogenize-remove"
+                        aria-label={`Remove ${exogenizeEntryName(entry) || `variable ${index + 1}`}`}
+                        title="Remove variable"
+                        onClick={() => removeExogenizeEntry(index)}
+                      >
+                        ×
+                      </button>
+                    </td>
+                  ))}
+                  <td />
+                </tr>
+                <tr>
+                  <th scope="row">exogenize</th>
+                  {exogenizeEntries.map((entry, index) => (
+                    <td key={`name-${index}`}>
+                      <input
+                        className="scenario-pill-input scenario-pill-input-mono scenario-source-exogenize-cell"
+                        aria-label={`Exogenize variable ${index + 1}`}
+                        value={exogenizeEntryName(entry)}
+                        onChange={(event) => updateExogenizeName(index, event.target.value)}
+                      />
+                    </td>
+                  ))}
+                  <td>
+                    <input
+                      className="scenario-pill-input scenario-pill-input-mono scenario-source-exogenize-cell scenario-source-exogenize-add"
+                      aria-label="Add exogenize variable"
+                      value={exogenizeDraft}
+                      onChange={(event) => setExogenizeDraft(event.target.value)}
+                      onBlur={commitExogenizeDraft}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          commitExogenizeDraft();
+                        }
+                      }}
+                      placeholder={`add… (${EXOGENIZE_ALL_TOKEN} = all)`}
+                    />
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">throughPeriod</th>
+                  {exogenizeEntries.map((entry, index) => (
+                    <td key={`window-${index}`}>
+                      <input
+                        className="scenario-pill-input scenario-pill-input-mono scenario-source-exogenize-cell"
+                        inputMode="numeric"
+                        aria-label={`throughPeriod for ${exogenizeEntryName(entry) || `variable ${index + 1}`}`}
+                        value={exogenizeEntryWindowText(entry)}
+                        onChange={(event) => updateExogenizeWindow(index, event.target.value)}
+                        placeholder="∞"
+                      />
+                    </td>
+                  ))}
+                  <td />
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </RunField>
 
@@ -524,12 +628,29 @@ function parseRunCellSource(source: string): RunCellSourceDraft | null {
   }
 }
 
-function parseExogenizeList(text: string): string[] | undefined {
-  const names = text
-    .split(",")
-    .map((name) => name.trim())
-    .filter((name) => name !== "");
-  return names.length > 0 ? names : undefined;
+function exogenizeEntryName(entry: ExogenizeEntry): string {
+  return typeof entry === "string" ? entry : entry.name;
+}
+
+function exogenizeEntryWindow(entry: ExogenizeEntry): number | undefined {
+  return typeof entry === "string" ? undefined : entry.throughPeriod;
+}
+
+function exogenizeEntryWindowText(entry: ExogenizeEntry): string {
+  const window = exogenizeEntryWindow(entry);
+  return window == null ? "" : String(window);
+}
+
+/**
+ * Build a canonical `ExogenizeEntry` from an editable cell pair. A finite numeric
+ * window pins the variable through that period; anything else leaves it pinned for
+ * the whole run (a bare string).
+ */
+function buildExogenizeEntry(name: string, window: number | undefined): ExogenizeEntry {
+  const trimmedName = name.trim();
+  return window != null && Number.isFinite(window)
+    ? { name: trimmedName, throughPeriod: window }
+    : trimmedName;
 }
 
 function getShockRange(shock: ScenarioShockDraft): [number, number] {

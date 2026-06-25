@@ -610,26 +610,20 @@ cells:
   - markdown:
       id: exogenization-list
       title: Unadjusted STATIC exogenization list
-      source: |
+      source: >
         The STATIC in-sample run holds the following 12 variables exogenous to their
         observed Eurostat paths (matching `exogenizeList` in `4_In_sample_pred` with
         `type_pred = 0`). Every other behavioural equation solves endogenously, so the
         simulated traces are free to diverge from observed history.
       more: |
-        | Variable | Description |
-        | --- | --- |
-        | `oph` | Other payments or receipts of households |
-        | `opf` | Other payments or receipts received by firms |
-        | `opb` | Other payments or receipts received by banks |
-        | `opcb` | Other payments or receipts received by CB |
-        | `oacb` | Other financial assets held by ECB |
-        | `oaf` | Other financial assets/liabilities of firms |
-        | `oab` | Other financial assets held by banks |
-        | `oag` | Other financial assets/liabilities of government |
-        | `oah` | Other assets of households |
-        | `rstar` | Policy rate |
-        | `Lp_row` | Log foreign price level |
-        | `Lp_en` | Log of energy price |
+        | Variable | Description | Variable | Description |
+        | --- | --- | --- | --- |
+        | `oph` | Other payments or receipts of households | `opf` | Other payments or receipts received by firms |
+        | `opb` | Other payments or receipts received by banks | `opcb` | Other payments or receipts received by CB |
+        | `oacb` | Other financial assets held by ECB | `oaf` | Other financial assets/liabilities of firms |
+        | `oab` | Other financial assets held by banks | `oag` | Other financial assets/liabilities of government |
+        | `oah` | Other assets of households | `rstar` | Policy rate |
+        | `Lp_row` | Log foreign price level | `Lp_en` | Log of energy price |
   - run:
       id: baseline-run
       title: Baseline run (1997-2021)
@@ -717,7 +711,7 @@ cells:
   - chart-grid:
       id: adjusted-charts-grid
       title: Fig. 2 Adjusted in-sample run vs observed (1997-2021)
-      gridColumns: 3
+      gridColumns: 2
       charts:
         - { type: chart, id: chart-gdp-adjusted, title: Fig. 2(a) Nominal GDP (current prices), variables: [y], axisMode: shared, referenceTrace: observed, sourceRunCellId: adjusted-run }
         - { type: chart, id: chart-cons-adjusted, title: Fig. 2(b) Nominal consumption (current prices), variables: [cons], axisMode: shared, referenceTrace: observed, sourceRunCellId: adjusted-run }
@@ -773,49 +767,10 @@ cells:
       mode: baseline
       periods: 32
       simType: DYNAMIC
-      exogenize:
-        - oph
-        - opf
-        - { name: Lpc, throughPeriod: 25 }
-        - { name: Lp_en, throughPeriod: 25 }
-        - { name: mul, throughPeriod: 25 }
-        - { name: mulh, throughPeriod: 25 }
-        - { name: mubb, throughPeriod: 25 }
-        - { name: mubrow, throughPeriod: 25 }
-        - { name: mubh, throughPeriod: 25 }
-        - { name: fuf, throughPeriod: 25 }
-        - { name: lh, throughPeriod: 25 }
-        - { name: gov, throughPeriod: 25 }
-        - { name: tr, throughPeriod: 25 }
-        - { name: Leh, throughPeriod: 25 }
-        - { name: Lbh, throughPeriod: 25 }
-        - { name: Lhh, throughPeriod: 25 }
-        - { name: Lbb, throughPeriod: 25 }
-        - { name: prod, throughPeriod: 25 }
-        - { name: Lns, throughPeriod: 25 }
-        - { name: gw, throughPeriod: 25 }
-        - { name: Lp, throughPeriod: 25 }
-        - { name: LidR, throughPeriod: 25 }
-        - { name: LimR, throughPeriod: 25 }
-        - { name: LconsR, throughPeriod: 25 }
-        - { name: intmh, throughPeriod: 25 }
-        - { name: rstar, throughPeriod: 25 }
-        - { name: tax, throughPeriod: 25 }
-        - { name: LxR, throughPeriod: 25 }
-        - { name: Lp_im, throughPeriod: 25 }
-        - { name: Lp_row, throughPeriod: 25 }
-        - { name: opb, throughPeriod: 25 }
-        - { name: opcb, throughPeriod: 25 }
-        - { name: oacb, throughPeriod: 25 }
-        - { name: oaf, throughPeriod: 25 }
-        - { name: oab, throughPeriod: 25 }
-        - { name: oag, throughPeriod: 25 }
-        - { name: oah, throughPeriod: 25 }
-        - { name: mub, throughPeriod: 25 }
-        - { name: perc_en, throughPeriod: 25 }
-        - { name: lambdarow, throughPeriod: 25 }
-        - { name: yf, throughPeriod: 25 }
-        - { name: rho, throughPeriod: 25 }
+      # Windowed vars are pinned to data through period 25 (throughPeriod, by index);
+      # oph and opf have no throughPeriod entry, so they stay exogenous for the whole run.
+      exogenize: [Lpc, Lp_en, mul, mulh, mubb, mubrow, mubh, fuf, lh, gov, tr, Leh, Lbh, Lhh, Lbb, prod, Lns, gw, Lp, LidR, LimR, LconsR, intmh, rstar, tax, LxR, Lp_im, Lp_row, opb, opcb, oacb, oaf, oab, oag, oah, mub, perc_en, lambdarow, yf, rho, oph, opf]
+      throughPeriod: [25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25]
       resultKey: italy_sfc_out_of_sample
       sourceModelId: italy-sfc
   - chart-grid:

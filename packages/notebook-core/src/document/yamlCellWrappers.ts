@@ -13,6 +13,7 @@ import {
   compactCellId,
   compactCellTitle,
   isNotebookCellType,
+  normalizeRunCellExogenize,
   parseCompactEquationRows,
   parseCompactEquations,
   parseCompactExternalRows,
@@ -35,6 +36,10 @@ export function normalizeYamlCellEntries(cells: unknown): NotebookCell[] {
 }
 
 export function normalizeYamlCellEntry(cell: unknown): NotebookCell {
+  return normalizeRunCellExogenize(normalizeYamlCellEntryShape(cell));
+}
+
+function normalizeYamlCellEntryShape(cell: unknown): NotebookCell {
   if (!isRecord(cell)) {
     return cell as unknown as NotebookCell;
   }

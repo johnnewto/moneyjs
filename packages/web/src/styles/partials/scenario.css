@@ -69,6 +69,64 @@
 .scenario-source-exogenize > .secondary-button {
   flex: 0 0 auto;
 }
+.scenario-source-exogenize-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+  width: 100%;
+}
+.scenario-source-exogenize-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: 0.2rem;
+}
+.scenario-source-exogenize-grid {
+  border-collapse: separate;
+  border-spacing: 0.3rem 0.25rem;
+}
+.scenario-source-exogenize-grid th[scope="row"] {
+  background: var(--color-surface, #fff);
+  color: var(--color-text-subtle);
+  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  left: 0;
+  padding-right: 0.45rem;
+  position: sticky;
+  text-align: right;
+  white-space: nowrap;
+  z-index: 1;
+}
+.scenario-source-exogenize-grid td {
+  padding: 0;
+}
+.scenario-source-exogenize-cell {
+  text-align: center;
+  width: 6rem;
+}
+.scenario-source-exogenize-add {
+  text-align: left;
+}
+.scenario-source-exogenize-grid-remove-row th,
+.scenario-source-exogenize-grid-remove-row td {
+  height: 1.1rem;
+  text-align: center;
+}
+.scenario-source-exogenize-remove {
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-pill);
+  color: var(--color-text-subtle);
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0 0.25rem;
+}
+.scenario-source-exogenize-remove:hover {
+  color: #dc2626;
+}
 .scenario-source-editor .secondary-button,
 .scenario-source-remove {
   align-items: center;
