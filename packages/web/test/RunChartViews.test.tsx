@@ -247,7 +247,89 @@ describe("ChartCellView", () => {
     );
 
     expect(screen.getByRole("img", { name: /simulation result chart with shared left axis/i })).toBeInTheDocument();
-    expect(document.querySelector('polyline[stroke-dasharray="5 5"]')).not.toBeNull();
+    expect(screen.getByText("• Observed").closest(".chart-legend")).not.toBeNull();
+
+    const observedPoints = document.querySelectorAll("circle.chart-observed-point");
+    expect(observedPoints.length).toBe(3);
+    expect(observedPoints[0]?.getAttribute("fill")).toBe("#dc2626");
+  });
+
+  it("finishes the observed trace early when observed data is shorter than the run", () => {
+    const chart: ChartCell = {
+      id: "chart-1",
+      referenceTrace: "observed",
+      sourceRunCellId: "run-1",
+      title: "Chart",
+      type: "chart",
+      variables: ["Y"]
+    };
+    const result: SimulationResult = {
+      ...createResult([20, 22, 24, 26, 28, 30]),
+      observed: { Y: new Float64Array([18, 19, 30]) }
+    };
+    const runner = createRunner({ current: result });
+
+    render(
+      <ChartCellView
+        cell={chart}
+        cells={cells}
+        runner={runner}
+        selectedPeriodIndex={0}
+        variableDescriptions={new Map()}
+        variableUnitMetadata={new Map()}
+      />
+    );
+
+    // Observed covers only 3 of the 6 simulated periods, so only 3 observed
+    // dots should be drawn rather than spanning the full width.
+    const observedPoints = document.querySelectorAll("circle.chart-observed-point");
+    expect(observedPoints.length).toBe(3);
+  });
+
+  it("draws a green simulated trace and legend for windowed-exogenize out-of-sample runs", () => {
+    const windowedCells: NotebookCell[] = [
+      {
+        id: "run-1",
+        mode: "baseline",
+        periods: 6,
+        resultKey: "baseline",
+        simType: "DYNAMIC",
+        sourceModelId: "model-1",
+        title: "Run",
+        type: "run",
+        exogenize: [{ name: "Y", throughPeriod: 4 }]
+      }
+    ];
+    const chart: ChartCell = {
+      id: "chart-1",
+      sourceRunCellId: "run-1",
+      title: "Chart",
+      type: "chart",
+      variables: ["Y"]
+    };
+    const result = createResult([20, 22, 24, 26, 28, 30]);
+    const runner = createRunner({ current: result });
+
+    render(
+      <ChartCellView
+        cell={chart}
+        cells={windowedCells}
+        runner={runner}
+        selectedPeriodIndex={0}
+        variableDescriptions={new Map()}
+        variableUnitMetadata={new Map()}
+      />
+    );
+
+    const simulatedTrace = document.querySelector<SVGPolylineElement>("polyline.chart-out-of-sample-trace");
+    expect(simulatedTrace).not.toBeNull();
+    expect(simulatedTrace?.getAttribute("stroke")).toBe("#16a34a");
+    // Solid green line (no dash pattern).
+    expect(simulatedTrace?.getAttribute("stroke-dasharray")).toBeNull();
+    // Connects the last in-sample point (index 3) through the 2 out-of-sample
+    // points, so 3 coordinate pairs.
+    expect(simulatedTrace?.getAttribute("points")?.trim().split(/\s+/).length).toBe(3);
+    expect(screen.getByText(/Simulated$/).closest(".chart-legend")).not.toBeNull();
   });
 
   it("auto-selects the observed reference trace for STATIC runs without an explicit setting", () => {
@@ -287,7 +369,7 @@ describe("ChartCellView", () => {
       />
     );
 
-    expect(document.querySelector('polyline[stroke-dasharray="5 5"]')).not.toBeNull();
+    expect(document.querySelectorAll("circle.chart-observed-point").length).toBe(3);
   });
 
   it("renders expression series from run results", () => {

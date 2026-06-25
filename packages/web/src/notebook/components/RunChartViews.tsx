@@ -11,7 +11,9 @@ import {
 } from "../../lib/scenarioShockMarkers";
 import {
   buildReferenceTraceOverlaySeries,
+  formatChartReferenceTraceLegend,
   resolveEffectiveScenarioStartPeriod,
+  resolveOutOfSampleStartIndex,
   resolveReferenceTrace
 } from "../chartReferenceTrace";
 import {
@@ -217,6 +219,11 @@ export function ChartCellView({
     baselineResult,
     previousResult
   });
+  const referenceTraceLegendLabel =
+    referenceTrace !== "none" && overlaySeries.length > 0
+      ? formatChartReferenceTraceLegend(referenceTrace)
+      : undefined;
+  const outOfSampleStartIndex = resolveOutOfSampleStartIndex(sourceRunCell);
   const timeRangeDefaults = resolveChartTimeRangeDefaults(series[0]?.values.length ?? 0);
   const addVariableOptions = Object.entries(result.series)
     .filter(([, values]) => values.length > 1 && Array.from(values).some(Number.isFinite))
@@ -252,8 +259,11 @@ export function ChartCellView({
       onInspectScenarioShockVariable={handleInspectScenarioShockVariable}
       onMoveVariable={onMoveVariable}
       onRemoveVariable={onRemoveVariable}
+      outOfSampleStartIndex={outOfSampleStartIndex}
       overlaySeries={overlaySeries}
       periodLabelOffset={periodLabelOffset}
+      referenceTraceKind={referenceTrace}
+      referenceTraceLegendLabel={referenceTraceLegendLabel}
       scenarioShocks={scenarioShocks}
       seriesRanges={seriesRanges}
       selectedIndex={chartSelectedIndex}

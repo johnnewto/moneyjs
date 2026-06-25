@@ -23,6 +23,10 @@ export function formatChartReferenceTrace(trace: ReferenceTraceKind): string {
 }
 
 export function formatChartReferenceTraceLegend(trace: ReferenceTraceKind): string {
+  // Observed is drawn as dots; other traces as dashed lines.
+  if (trace === "observed") {
+    return `• ${formatChartReferenceTrace(trace)}`;
+  }
   return `----: ${formatChartReferenceTrace(trace).toLowerCase()}`;
 }
 
@@ -40,6 +44,30 @@ export function resolveReferenceTrace(
   }
 
   return "previous-run";
+}
+
+/**
+ * For runs that use windowed `exogenize` (`throughPeriod`), return the 0-based
+ * series index where the out-of-sample (forecast) segment begins. In-sample
+ * periods are `1..throughPeriod` (1-based, inclusive), so the first
+ * out-of-sample period sits at 0-based index `throughPeriod`. Returns
+ * `undefined` for ordinary runs without a windowed boundary.
+ */
+export function resolveOutOfSampleStartIndex(
+  sourceRunCell: RunCell | null | undefined
+): number | undefined {
+  if (!sourceRunCell || !Array.isArray(sourceRunCell.exogenize)) {
+    return undefined;
+  }
+  const throughPeriods = sourceRunCell.exogenize
+    .map((entry) =>
+      typeof entry === "string" || entry.throughPeriod == null ? undefined : entry.throughPeriod
+    )
+    .filter((value): value is number => typeof value === "number" && Number.isFinite(value) && value >= 1);
+  if (throughPeriods.length === 0) {
+    return undefined;
+  }
+  return Math.max(...throughPeriods);
 }
 
 export function resolveEffectiveScenarioStartPeriod(

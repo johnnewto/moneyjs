@@ -7,6 +7,7 @@ import {
   buildReferenceTraceOverlaySeries,
   formatChartReferenceTraceLegend,
   resolveEffectiveScenarioStartPeriod,
+  resolveOutOfSampleStartIndex,
   resolveReferenceTrace
 } from "../../notebook/chartReferenceTrace";
 import { buildNotebookVariableUnitMetadata } from "../../notebook/notebookAppHelpers";
@@ -100,6 +101,7 @@ export function PublicationChart({
     referenceTrace !== "none" && overlaySeries.length > 0
       ? formatChartReferenceTraceLegend(referenceTrace)
       : undefined;
+  const outOfSampleStartIndex = resolveOutOfSampleStartIndex(sourceRunCell);
 
   return (
     <div className="publication-chart">
@@ -131,8 +133,10 @@ export function PublicationChart({
                 setChartCell((current) => removeChartSeriesByDisplayName(current, variableName))
             : undefined
         }
+        outOfSampleStartIndex={outOfSampleStartIndex}
         overlaySeries={overlaySeries}
         periodLabelOffset={0}
+        referenceTraceKind={referenceTrace}
         referenceTraceLegendLabel={referenceTraceLegendLabel}
         scenarioShocks={scenarioShocks}
         selectedIndex={Math.min(selectedPeriodIndex, seriesLength - 1)}

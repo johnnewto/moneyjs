@@ -7,6 +7,7 @@ import { documentHighlightClassName } from "../lib/variableHighlight";
 import { InstantTooltip } from "./InstantTooltip";
 import { PinToggleIcon } from "./PinToggleIcon";
 import type { MatrixGraphSliceHighlight } from "../notebook/graphDocumentHighlight";
+import type { ReferenceTraceKind } from "../notebook/chartReferenceTrace";
 import {
   DEFAULT_AXIS_TICK_COUNT,
   applyTimeRangeDrag,
@@ -55,7 +56,14 @@ interface ResultChartProps {
   onMoveVariable?(variableName: string, direction: "left" | "right"): void;
   onRemoveVariable?(variableName: string): void;
   overlaySeries?: ChartSeries[];
+  /**
+   * 0-based series index at which the out-of-sample (forecast) segment begins.
+   * When set, the simulated series is overlaid with a green dashed trace from
+   * the boundary onward and a `----: Simulated` legend entry is shown.
+   */
+  outOfSampleStartIndex?: number;
   periodLabelOffset?: number;
+  referenceTraceKind?: ReferenceTraceKind;
   referenceTraceLegendLabel?: string;
   scenarioShocks?: ScenarioShockMarker[];
   seriesRanges?: Record<string, ChartAxisRange | undefined>;
@@ -87,6 +95,9 @@ interface ResultChartProps {
 }
 
 const SERIES_COLORS = ["#111827", "#ec4899", "#ea580c", "#6366f1", "#059669", "#0284c7"];
+const OBSERVED_TRACE_COLOR = "#dc2626";
+const OUT_OF_SAMPLE_TRACE_COLOR = "#16a34a";
+const OUT_OF_SAMPLE_LEGEND_LABEL = "－ Simulated";
 const X_TICK_LABEL_OFFSET = 10;
 const X_AXIS_TITLE_OFFSET = 12;
 const CHART_VIEWBOX_WIDTH = 900;
@@ -179,7 +190,9 @@ export function ResultChart({
   onMoveVariable,
   onRemoveVariable,
   overlaySeries = [],
+  outOfSampleStartIndex,
   periodLabelOffset = 0,
+  referenceTraceKind,
   referenceTraceLegendLabel,
   scenarioShocks = [],
   seriesRanges,
@@ -227,13 +240,29 @@ export function ResultChart({
   const normalizedOverlaySeries = overlaySeries
     .map((entry) => {
       const matchingSeries = normalizedSeries.find((candidate) => candidate.name === entry.name);
-      return matchingSeries
-        ? {
-            ...entry,
-            color: matchingSeries.color,
-            finiteValues: entry.values.filter(Number.isFinite)
-          }
-        : null;
+      if (!matchingSeries) {
+        return null;
+      }
+      // Reference traces (e.g. observed data) may cover fewer periods than the
+      // simulation. Pad the trailing periods with NaN so the trace shares the
+      // main series' period axis and simply finishes at its last real point
+      // instead of stretching across the full width.
+      const alignedValues =
+        entry.values.length < matchingSeries.values.length
+          ? [
+              ...entry.values,
+              ...Array.from(
+                { length: matchingSeries.values.length - entry.values.length },
+                () => Number.NaN
+              )
+            ]
+          : entry.values;
+      return {
+        ...entry,
+        values: alignedValues,
+        color: matchingSeries.color,
+        finiteValues: alignedValues.filter(Number.isFinite)
+      };
     })
     .filter(
       (
@@ -339,6 +368,7 @@ export function ResultChart({
   const visibleSeries = normalizedSeries.filter((entry) => !hiddenSeriesNames.has(entry.name));
   const visibleSeriesNames = new Set(visibleSeries.map((entry) => entry.name));
   const visibleOverlaySeries = normalizedOverlaySeries.filter((entry) => visibleSeriesNames.has(entry.name));
+  const isObservedTrace = referenceTraceKind === "observed";
 
   const width = CHART_VIEWBOX_WIDTH;
   const seriesLength = Math.max(...visibleSeries.map((entry) => entry.values.length));
@@ -378,6 +408,10 @@ export function ResultChart({
   const xTicks = buildIntegerTicks(visibleLength, xTickCount).map((tick) => visibleStartIndex + tick);
   const activeIndex = Math.min(Math.max(selectedIndex, visibleStartIndex), visibleEndIndex);
   const activeVisibleIndex = activeIndex - visibleStartIndex;
+  const hasOutOfSample =
+    outOfSampleStartIndex != null &&
+    outOfSampleStartIndex > visibleStartIndex &&
+    outOfSampleStartIndex <= visibleEndIndex;
 
   const baseAxisMetrics = visibleSeries.map((entry) => {
     const visibleValues = entry.values.slice(visibleStartIndex, visibleEndIndex + 1);
@@ -946,7 +980,19 @@ export function ResultChart({
           })}
           {referenceTraceLegendLabel ? (
             <span className="legend-item legend-item-reference-trace">
-              <span className="legend-label">{referenceTraceLegendLabel}</span>
+              <span
+                className="legend-label"
+                style={isObservedTrace ? { color: OBSERVED_TRACE_COLOR } : undefined}
+              >
+                {referenceTraceLegendLabel}
+              </span>
+            </span>
+          ) : null}
+          {hasOutOfSample ? (
+            <span className="legend-item legend-item-out-of-sample">
+              <span className="legend-label" style={{ color: OUT_OF_SAMPLE_TRACE_COLOR }}>
+                {OUT_OF_SAMPLE_LEGEND_LABEL}
+              </span>
             </span>
           ) : null}
           </div>
@@ -1227,34 +1273,37 @@ export function ResultChart({
               hoveredDatum ? (hoveredDatum.seriesName === entry.name ? " is-active" : " is-dimmed") : ""
             }`}
           >
-            {visibleOverlaySeries
-              .filter((overlay) => overlay.name === entry.name)
-              .map((overlay) => (
-                <polyline
-                  key={`overlay-${entry.name}`}
-                  fill="none"
-                  points={toPolylinePoints(
-                    overlay.values.slice(visibleStartIndex, visibleEndIndex + 1),
-                    leftPadding,
-                    topPadding,
-                    plotWidth,
-                    plotHeight,
-                    axisMode === "shared" ? sharedMetrics.min : entry.min,
-                    axisMode === "shared" ? sharedMetrics.range : entry.range
-                  )}
-                  pointerEvents="none"
-                  stroke={entry.color}
-                  strokeDasharray="5 5"
-                  strokeOpacity={hoveredDatum ? (hoveredDatum.seriesName === entry.name ? 0.28 : 0.12) : 0.18}
-                  strokeWidth={
-                    hoveredDatum
-                      ? hoveredDatum.seriesName === entry.name
-                        ? 3
-                        : 1.5
-                      : 2
-                  }
-                />
-              ))}
+            {isObservedTrace
+              ? null
+              : visibleOverlaySeries
+                  .filter((overlay) => overlay.name === entry.name)
+                  .map((overlay) => (
+                    <polyline
+                      key={`overlay-${entry.name}`}
+                      fill="none"
+                      points={toPolylinePoints(
+                        overlay.values.slice(visibleStartIndex, visibleEndIndex + 1),
+                        leftPadding,
+                        topPadding,
+                        plotWidth,
+                        plotHeight,
+                        axisMode === "shared" ? sharedMetrics.min : entry.min,
+                        axisMode === "shared" ? sharedMetrics.range : entry.range,
+                        { skipNonFinite: true }
+                      )}
+                      pointerEvents="none"
+                      stroke={entry.color}
+                      strokeDasharray="5 5"
+                      strokeOpacity={hoveredDatum ? (hoveredDatum.seriesName === entry.name ? 0.28 : 0.12) : 0.18}
+                      strokeWidth={
+                        hoveredDatum
+                          ? hoveredDatum.seriesName === entry.name
+                            ? 3
+                            : 1.5
+                          : 2
+                      }
+                    />
+                  ))}
             <polyline
               fill="none"
               points={toPolylinePoints(
@@ -1297,6 +1346,73 @@ export function ResultChart({
             />
           </g>
         ))}
+
+        {isObservedTrace
+          ? axisMetrics.map((entry) => {
+              const min = axisMode === "shared" ? sharedMetrics.min : entry.min;
+              const range = axisMode === "shared" ? sharedMetrics.range : entry.range;
+              const isActive = hoveredDatum?.seriesName === entry.name;
+              return visibleOverlaySeries
+                .filter((overlay) => overlay.name === entry.name)
+                .flatMap((overlay) =>
+                  overlay.values
+                    .slice(visibleStartIndex, visibleEndIndex + 1)
+                    .map((value, localIndex) =>
+                      Number.isFinite(value) ? (
+                        <circle
+                          key={`observed-point-${entry.name}-${localIndex}`}
+                          className="chart-observed-point"
+                          cx={toX(localIndex, leftPadding, plotWidth, visibleLength)}
+                          cy={toY(value, topPadding, plotHeight, min, range)}
+                          r={isActive ? 4.5 : 3.5}
+                          fill={OBSERVED_TRACE_COLOR}
+                          fillOpacity={hoveredDatum ? (isActive ? 1 : 0.5) : 0.95}
+                          pointerEvents="none"
+                        />
+                      ) : null
+                    )
+                );
+            })
+          : null}
+
+        {hasOutOfSample
+          ? axisMetrics.map((entry) => {
+              // Local window index of the first out-of-sample period. Start one
+              // point earlier (the last in-sample value) so the dashed forecast
+              // connects to the solid in-sample line.
+              const connectLocalIndex = Math.max(
+                outOfSampleStartIndex! - 1 - visibleStartIndex,
+                0
+              );
+              const maskedValues = entry.visibleValues.map((value, localIndex) =>
+                localIndex >= connectLocalIndex ? value : Number.NaN
+              );
+              if (!maskedValues.some(Number.isFinite)) {
+                return null;
+              }
+              return (
+                <polyline
+                  key={`out-of-sample-${entry.name}`}
+                  className="chart-out-of-sample-trace"
+                  fill="none"
+                  points={toPolylinePoints(
+                    maskedValues,
+                    leftPadding,
+                    topPadding,
+                    plotWidth,
+                    plotHeight,
+                    axisMode === "shared" ? sharedMetrics.min : entry.min,
+                    axisMode === "shared" ? sharedMetrics.range : entry.range,
+                    { skipNonFinite: true }
+                  )}
+                  pointerEvents="none"
+                  stroke={OUT_OF_SAMPLE_TRACE_COLOR}
+                  strokeOpacity={hoveredDatum ? (hoveredDatum.seriesName === entry.name ? 1 : 0.5) : 0.95}
+                  strokeWidth={hoveredDatum && hoveredDatum.seriesName === entry.name ? 3.5 : 2.75}
+                />
+              );
+            })
+          : null}
 
         {hoverTooltip ? (
           <g className="chart-hover" pointerEvents="none">

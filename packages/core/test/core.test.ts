@@ -424,6 +424,27 @@ describe("simulation modes", () => {
     expect([...result.observed!.x!]).toEqual([1, 100, 200, 300]);
   });
 
+  it("pads observed periods beyond the supplied data with NaN", () => {
+    const result = runBaseline(
+      {
+        equations: [{ name: "x", expression: "lag(x) + 1" }],
+        externals: {},
+        initialValues: { x: 1 },
+        observed: { x: [10, 20, 30] }
+      },
+      {
+        periods: 6,
+        solverMethod: "GAUSS_SEIDEL",
+        tolerance: 1e-9,
+        maxIterations: 100
+      }
+    );
+
+    const observed = Array.from(result.observed!.x!);
+    expect(observed.slice(0, 3)).toEqual([10, 20, 30]);
+    expect(observed.slice(3).every(Number.isNaN)).toBe(true);
+  });
+
   it("omits observed from the result when no observed data is supplied", () => {
     const result = runBaseline(
       {

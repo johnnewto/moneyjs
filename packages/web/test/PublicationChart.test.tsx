@@ -237,8 +237,8 @@ describe("PublicationChart", () => {
     );
 
     expect(screen.getByRole("img", { name: /simulation result chart with shared left axis/i })).toBeInTheDocument();
-    expect(screen.getByText("----: observed").closest(".chart-legend")).not.toBeNull();
-    expect(document.querySelector('polyline[stroke-dasharray="5 5"]')).not.toBeNull();
+    expect(screen.getByText("• Observed").closest(".chart-legend")).not.toBeNull();
+    expect(document.querySelectorAll("circle.chart-observed-point").length).toBe(3);
   });
 
   it("auto-selects the observed reference trace for STATIC runs without an explicit setting", () => {
@@ -275,8 +275,8 @@ describe("PublicationChart", () => {
       />
     );
 
-    expect(screen.getByText("----: observed").closest(".chart-legend")).not.toBeNull();
-    expect(document.querySelector('polyline[stroke-dasharray="5 5"]')).not.toBeNull();
+    expect(screen.getByText("• Observed").closest(".chart-legend")).not.toBeNull();
+    expect(document.querySelectorAll("circle.chart-observed-point").length).toBe(3);
   });
 
   it("forwards axisGroups in both modes", () => {

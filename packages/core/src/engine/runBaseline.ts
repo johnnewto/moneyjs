@@ -127,7 +127,11 @@ function buildObservedSeries(
 ): Record<string, Float64Array> {
   const result: Record<string, Float64Array> = {};
   for (const [name, values] of Object.entries(observed ?? {})) {
-    const array = new Float64Array(periods);
+    // Periods beyond the supplied observations have no data. Fill them with NaN
+    // (rather than the Float64Array default of 0) so consumers can tell where
+    // the observed series actually ends instead of treating trailing zeros as
+    // real out-of-sample data points.
+    const array = new Float64Array(periods).fill(Number.NaN);
     array.set(values.slice(0, periods));
     result[name] = array;
   }

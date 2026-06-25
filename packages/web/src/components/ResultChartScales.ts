@@ -249,15 +249,21 @@ export function toPolylinePoints(
   plotWidth: number,
   plotHeight: number,
   min: number,
-  range: number
+  range: number,
+  options?: { skipNonFinite?: boolean }
 ): string {
+  const skipNonFinite = options?.skipNonFinite ?? false;
   return values
     .map((value, index) => {
+      if (skipNonFinite && !Number.isFinite(value)) {
+        return null;
+      }
       const x = toX(index, leftPadding, plotWidth, values.length);
       const safeValue = Number.isFinite(value) ? value : min;
       const y = toY(safeValue, topPadding, plotHeight, min, range);
       return `${x},${y}`;
     })
+    .filter((point): point is string => point != null)
     .join(" ");
 }
 
