@@ -166,7 +166,7 @@
         "name": { "type": "string" },
         "desc": { "type": "string" },
         "kind": {
-          "enum": ["constant", "series"]
+          "enum": ["constant", "series", "coefficient"]
         },
         "valueText": { "type": "string" },
         "observed": { "type": "boolean" },
@@ -365,9 +365,11 @@
             "equations",
             "solver",
             "externals",
+            "observed",
             "initial-values",
             "run",
             "chart",
+            "chart-grid",
             "table",
             "matrix",
             "sequence"
@@ -429,7 +431,23 @@
         "baselineStartPeriod": { "type": "integer" },
         "mode": { "enum": ["baseline", "scenario"] },
         "simType": { "enum": ["DYNAMIC", "STATIC"] },
-        "exogenize": { "type": "array", "items": { "type": "string" } },
+        "exogenize": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "throughPeriod": { "type": "integer", "minimum": 1 }
+                },
+                "required": ["name"],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
         "scenario": { "$ref": "#/$defs/scenario" },
         "resultKey": { "type": "string" },
         "periods": { "type": "integer", "minimum": 1 },
@@ -488,6 +506,11 @@
           "minItems": 2,
           "maxItems": 2
         },
+        "gridColumns": { "type": "integer", "minimum": 1 },
+        "charts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/cell" }
+        },
         "accountingKind": {
           "type": "string",
           "enum": ["balance-sheet", "transaction-flow", "account-transactions"]
@@ -535,6 +558,10 @@
           "then": { "required": ["modelId", "externals"] }
         },
         {
+          "if": { "properties": { "type": { "const": "observed" } } },
+          "then": { "required": ["modelId", "externals"] }
+        },
+        {
           "if": { "properties": { "type": { "const": "initial-values" } } },
           "then": { "required": ["modelId", "initialValues"] }
         },
@@ -551,6 +578,10 @@
               { "required": ["series"] }
             ]
           }
+        },
+        {
+          "if": { "properties": { "type": { "const": "chart-grid" } } },
+          "then": { "required": ["gridColumns", "charts"] }
         },
         {
           "if": { "properties": { "type": { "const": "table" } } },

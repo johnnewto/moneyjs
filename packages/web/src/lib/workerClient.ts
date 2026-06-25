@@ -5,6 +5,7 @@ import type {
   InitialValueProbeResult,
   ModelDefinition,
   ScenarioDefinition,
+  SegmentedExogenizeOptions,
   SimulationOptions,
   SimulationResult,
   StabilityAnalysis
@@ -19,6 +20,11 @@ export interface SolverClient {
     baseline: SimulationResult,
     scenario: ScenarioDefinition,
     options: SimulationOptions
+  ): Promise<SimulationResult>;
+  runSegmentedExogenize(
+    model: ModelDefinition,
+    options: SimulationOptions,
+    segmentation: SegmentedExogenizeOptions
   ): Promise<SimulationResult>;
   validateRunnable(model: ModelDefinition, options: SimulationOptions): Promise<void>;
   computeStabilityMetrics(result: SimulationResult, period: number): Promise<StabilityAnalysis>;
@@ -162,6 +168,17 @@ class BrowserWorkerClient implements SolverClient {
     });
   }
 
+  async runSegmentedExogenize(
+    model: ModelDefinition,
+    options: SimulationOptions,
+    segmentation: SegmentedExogenizeOptions
+  ): Promise<SimulationResult> {
+    return this.request({
+      type: "runSegmentedExogenize",
+      payload: { model, options, segmentation }
+    });
+  }
+
   async validateRunnable(model: ModelDefinition, options: SimulationOptions): Promise<void> {
     return this.requestVoid({
       type: "validateRunnable",
@@ -217,7 +234,10 @@ class BrowserWorkerClient implements SolverClient {
   }
 
   private request(
-    message: Omit<Extract<WorkerRequest, { type: "runBaseline" | "runScenario" }>, "id">
+    message: Omit<
+      Extract<WorkerRequest, { type: "runBaseline" | "runScenario" | "runSegmentedExogenize" }>,
+      "id"
+    >
   ): Promise<SimulationResult> {
     const id = crypto.randomUUID();
     return new Promise<SimulationResult>((resolve, reject) => {

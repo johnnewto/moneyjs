@@ -109,6 +109,20 @@ export function buildYamlWrappedCell(type: NotebookCell["type"], body: Record<st
           : buildCompactParameters(body.values ?? body.parameters ?? body.externals, body.variables),
         ...compactCellFlags(body)
       };
+    case "observed":
+      if (Array.isArray(body.externals)) {
+        return normalizeRawYamlWrappedCell(type, body);
+      }
+      return {
+        id: compactCellId(body, "observed"),
+        type,
+        title: compactCellTitle(body, "Observed"),
+        modelId: stringValue(body.modelId, "main"),
+        externals: Array.isArray(body.rows)
+          ? parseCompactExternalRows(body.rows, body.variables)
+          : buildCompactParameters(body.values ?? body.parameters ?? body.externals, body.variables),
+        ...compactCellFlags(body)
+      };
     case "initial-values":
       if (Array.isArray(body.initialValues)) {
         return normalizeRawYamlWrappedCell(type, body);

@@ -59,7 +59,7 @@ export interface VariableCatalogRow {
   equationRole: EquationRole | null;
   modelId: string;
   modelTitle: string;
-  externalKind: "constant" | "series" | null;
+  externalKind: ExternalRow["kind"] | null;
   externalValueText: string | null;
   initialValue: number | null;
   currentDependencies: string[];

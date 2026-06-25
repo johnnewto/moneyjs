@@ -572,6 +572,134 @@ describe("editor model validation", () => {
     expect(runtime.model.equations.some((equation) => equation.name === "opb")).toBe(false);
     expect(runtime.model.equations.some((equation) => equation.name === "y")).toBe(true);
     expect(runtime.model.externals.opb).toEqual({ kind: "series", values: [5, 6, 7] });
+    expect(runtime.segmentation).toBeNull();
+  });
+
+  it("treats windowed exogenize entries as a segmented run that releases equations after the boundary", () => {
+    const modelId = "windowed-model";
+    const equationsCell: EquationsCell = {
+      id: "equations",
+      type: "equations",
+      title: "Equations",
+      modelId,
+      equations: [
+        { id: "eq-y", name: "y", expression: "cons + opb" },
+        { id: "eq-opb", name: "opb", expression: "fb - intb" },
+        { id: "eq-fb", name: "fb", expression: "10" }
+      ]
+    };
+    const externalsCell: ExternalsCell = {
+      id: "externals",
+      type: "externals",
+      title: "Externals",
+      modelId,
+      externals: [
+        { id: "x-cons", name: "cons", kind: "series", valueText: "1, 2, 3" },
+        { id: "x-intb", name: "intb", kind: "series", valueText: "1, 1, 1" },
+        { id: "x-opb", name: "opb", kind: "series", valueText: "5, 6, 7" }
+      ]
+    };
+    const runCell: RunCell = {
+      id: "baseline-run",
+      type: "run",
+      title: "Baseline",
+      sourceModelId: modelId,
+      mode: "baseline",
+      resultKey: "baseline",
+      periods: 3,
+      exogenize: [{ name: "opb", throughPeriod: 2 }]
+    };
+    const cells: NotebookCell[] = [equationsCell, externalsCell, runCell];
+    const editor = {
+      equations: equationsCell.equations,
+      externals: externalsCell.externals,
+      initialValues: [],
+      options: {
+        periods: 3,
+        solverMethod: "GAUSS_SEIDEL" as const,
+        toleranceText: "1e-9",
+        maxIterations: 20,
+        defaultInitialValueText: "1e-15",
+        hiddenLeftVariable: "",
+        hiddenRightVariable: "",
+        hiddenToleranceText: "1e-5",
+        relativeHiddenTolerance: false
+      },
+      scenario: { shocks: [] }
+    };
+
+    const runtime = buildRuntimeConfig(editor, {
+      notebookCells: cells,
+      modelId,
+      runCellId: "baseline-run"
+    });
+
+    // The released (out-of-sample) model keeps opb's equation.
+    expect(runtime.model.equations.some((equation) => equation.name === "opb")).toBe(true);
+    expect(runtime.segmentation).toEqual({
+      splitPeriod: 2,
+      segment1ExogenizedEquationNames: ["opb"]
+    });
+  });
+
+  it("rejects windowed exogenize entries that disagree on the boundary", () => {
+    const modelId = "windowed-conflict-model";
+    const equationsCell: EquationsCell = {
+      id: "equations",
+      type: "equations",
+      title: "Equations",
+      modelId,
+      equations: [
+        { id: "eq-opb", name: "opb", expression: "fb - intb" },
+        { id: "eq-fb", name: "fb", expression: "intb" }
+      ]
+    };
+    const externalsCell: ExternalsCell = {
+      id: "externals",
+      type: "externals",
+      title: "Externals",
+      modelId,
+      externals: [
+        { id: "x-intb", name: "intb", kind: "series", valueText: "1, 1, 1" },
+        { id: "x-opb", name: "opb", kind: "series", valueText: "5, 6, 7" },
+        { id: "x-fb", name: "fb", kind: "series", valueText: "2, 2, 2" }
+      ]
+    };
+    const runCell: RunCell = {
+      id: "baseline-run",
+      type: "run",
+      title: "Baseline",
+      sourceModelId: modelId,
+      mode: "baseline",
+      resultKey: "baseline",
+      periods: 3,
+      exogenize: [
+        { name: "opb", throughPeriod: 2 },
+        { name: "fb", throughPeriod: 1 }
+      ]
+    };
+    const cells: NotebookCell[] = [equationsCell, externalsCell, runCell];
+    const editor = {
+      equations: equationsCell.equations,
+      externals: externalsCell.externals,
+      initialValues: [],
+      options: {
+        periods: 3,
+        solverMethod: "GAUSS_SEIDEL" as const,
+        toleranceText: "1e-9",
+        maxIterations: 20,
+        defaultInitialValueText: "1e-15",
+        hiddenLeftVariable: "",
+        hiddenRightVariable: "",
+        hiddenToleranceText: "1e-5",
+        relativeHiddenTolerance: false
+      },
+      scenario: { shocks: [] }
+    };
+
+    expect(() =>
+      buildRuntimeConfig(editor, { notebookCells: cells, modelId, runCellId: "baseline-run" })
+    ).toThrow(/single throughPeriod/);
   });
 
   it("keeps an exogenized equation when there is no data series to hold it", () => {

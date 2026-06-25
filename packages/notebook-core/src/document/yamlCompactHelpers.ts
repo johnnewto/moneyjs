@@ -117,13 +117,14 @@ export function buildCompactExternalListRow(item: ExternalListItem, index: numbe
 
 export function buildCompactExternalRow(external: ExternalRow, index: number): unknown[] | Record<string, unknown> {
   if (external.kind !== "constant") {
+    const fallbackId = `ext-${index}-${slugifyIdentifier(external.name)}`;
     return {
-      id: external.id,
+      ...(external.id === fallbackId ? {} : { id: external.id }),
       name: external.name,
-      ...(external.desc ? { desc: external.desc } : {}),
       kind: external.kind,
-      valueText: external.valueText,
       ...(external.observed ? { observed: true } : {}),
+      ...(external.desc ? { desc: external.desc } : {}),
+      valueText: external.valueText,
       ...compactUnitFields(external.unitMeta)
     };
   }
@@ -592,7 +593,7 @@ export function parseCompactExternalRows(rows: unknown[], variables: unknown): E
         id: stringValue(row.id, `ext-${index}-${slugifyIdentifier(name)}`),
         name,
         ...(typeof meta.description === "string" ? { desc: meta.description } : {}),
-        kind: row.kind === "series" ? "series" : "constant",
+        kind: row.kind === "series" ? "series" : row.kind === "coefficient" ? "coefficient" : "constant",
         valueText: stringValue(row.value ?? row.valueText, ""),
         ...(row.observed === true ? { observed: true } : {}),
         ...(buildUnitMeta(meta) ? { unitMeta: buildUnitMeta(meta) } : {})

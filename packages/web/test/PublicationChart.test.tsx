@@ -201,6 +201,84 @@ describe("PublicationChart", () => {
     expect(Object.keys(result.series)).toEqual(originalSeriesKeys);
   });
 
+  it("overlays observed data as a dashed reference trace when requested", () => {
+    const baselineRun: RunCell = {
+      id: "baseline-run",
+      mode: "baseline",
+      periods: 3,
+      resultKey: "baseline",
+      simType: "STATIC",
+      sourceModelId: "model",
+      title: "Baseline",
+      type: "run"
+    };
+    const observedChart: ChartCell = {
+      id: "chart",
+      referenceTrace: "observed",
+      sourceRunCellId: "baseline-run",
+      title: "Consumption",
+      type: "chart",
+      variables: ["cons"]
+    };
+    const result: SimulationResult = {
+      ...createResult({ cons: [20, 22, 24] }),
+      observed: { cons: new Float64Array([18, 19, 30]) }
+    };
+
+    render(
+      <PublicationChart
+        cell={observedChart}
+        cells={[baselineRun, observedChart]}
+        getResult={() => result}
+        interaction={interaction}
+        result={result}
+        selectedPeriodIndex={0}
+      />
+    );
+
+    expect(screen.getByRole("img", { name: /simulation result chart with shared left axis/i })).toBeInTheDocument();
+    expect(screen.getByText("----: observed").closest(".chart-legend")).not.toBeNull();
+    expect(document.querySelector('polyline[stroke-dasharray="5 5"]')).not.toBeNull();
+  });
+
+  it("auto-selects the observed reference trace for STATIC runs without an explicit setting", () => {
+    const baselineRun: RunCell = {
+      id: "baseline-run",
+      mode: "baseline",
+      periods: 3,
+      resultKey: "baseline",
+      simType: "STATIC",
+      sourceModelId: "model",
+      title: "Baseline",
+      type: "run"
+    };
+    const observedChart: ChartCell = {
+      id: "chart",
+      sourceRunCellId: "baseline-run",
+      title: "Consumption",
+      type: "chart",
+      variables: ["cons"]
+    };
+    const result: SimulationResult = {
+      ...createResult({ cons: [20, 22, 24] }),
+      observed: { cons: new Float64Array([18, 19, 30]) }
+    };
+
+    render(
+      <PublicationChart
+        cell={observedChart}
+        cells={[baselineRun, observedChart]}
+        getResult={() => result}
+        interaction={interaction}
+        result={result}
+        selectedPeriodIndex={0}
+      />
+    );
+
+    expect(screen.getByText("----: observed").closest(".chart-legend")).not.toBeNull();
+    expect(document.querySelector('polyline[stroke-dasharray="5 5"]')).not.toBeNull();
+  });
+
   it("forwards axisGroups in both modes", () => {
     const result = createResult({
       Y: [100, 105, 110, 115, 120, 125, 130, 135],

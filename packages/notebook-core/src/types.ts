@@ -20,11 +20,18 @@ export interface EquationRow {
   unitMeta?: UnitMeta;
 }
 
+/**
+ * `constant` and `series` populate the engine `externals` namespace. `coefficient`
+ * rows populate the separate `coefficients` namespace (scalar parameters held
+ * across every period), so they cannot collide with equations or externals.
+ */
+export type ExternalRowKind = ExternalDef["kind"] | "coefficient";
+
 export interface ExternalRow {
   id: string;
   name: string;
   desc?: string;
-  kind: ExternalDef["kind"];
+  kind: ExternalRowKind;
   valueText: string;
   observed?: boolean;
   unitMeta?: UnitMeta;
@@ -120,9 +127,11 @@ export type NotebookCell =
   | EquationsCell
   | SolverCell
   | ExternalsCell
+  | ObservedCell
   | InitialValuesCell
   | RunCell
   | ChartCell
+  | ChartGridCell
   | TableCell
   | MatrixCell
   | SequenceCell;
@@ -164,6 +173,19 @@ export interface ExternalsCell extends NotebookCellBase {
   externals: ExternalListItem[];
 }
 
+/**
+ * Observed/empirical input series for a model. Structurally identical to an
+ * {@link ExternalsCell} (same `externals` row shape) but authored as a separate
+ * category so large empirical datasets do not crowd the externals section. At
+ * compile time these rows are merged into the model externals with `observed`
+ * forced on, so they feed both `model.externals` and `model.observed`.
+ */
+export interface ObservedCell extends NotebookCellBase {
+  type: "observed";
+  modelId: string;
+  externals: ExternalListItem[];
+}
+
 export interface InitialValuesCell extends NotebookCellBase {
   type: "initial-values";
   modelId: string;
@@ -185,9 +207,21 @@ export interface RunCell extends NotebookCellBase {
    * Variables held exogenous for this run (R `bimets` Exogenize semantics): each
    * listed variable that also has a data series drops its equation so the run
    * uses the supplied/observed values instead of solving it.
+   *
+   * A bare string pins the variable for the whole run (`Exogenize = TRUE`). An
+   * object with `throughPeriod` pins it only for periods `1..throughPeriod` and
+   * releases it afterwards (`Exogenize = c(start, end)`), turning the run into a
+   * segmented in-sample/out-of-sample simulation.
    */
-  exogenize?: string[];
+  exogenize?: ExogenizeEntry[];
 }
+
+/**
+ * A run's exogenize entry: either a whole-run variable name, or a window that
+ * pins the variable to data through `throughPeriod` (1-based, inclusive) and
+ * releases it for later periods.
+ */
+export type ExogenizeEntry = string | { name: string; throughPeriod?: number };
 
 export interface ChartSeriesSpec {
   expression: string;
@@ -224,6 +258,19 @@ export interface ChartCell extends NotebookCellBase {
   sharedRange?: ChartAxisRange;
   seriesRanges?: Record<string, ChartAxisRange | undefined>;
   timeRangeInclusive?: [number, number];
+}
+
+/**
+ * Container cell that arranges several inlined {@link ChartCell} specs into a
+ * CSS grid (e.g. 2x2, 3x2). Charts flow row-major into `gridColumns` columns;
+ * rows wrap automatically based on how many charts are supplied.
+ */
+export interface ChartGridCell extends NotebookCellBase {
+  type: "chart-grid";
+  /** Number of columns in the grid. Charts fill left-to-right, top-to-bottom. */
+  gridColumns: number;
+  /** Inlined chart specs rendered into the grid, in order. */
+  charts: ChartCell[];
 }
 
 export interface TableCell extends NotebookCellBase {

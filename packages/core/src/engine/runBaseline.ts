@@ -27,11 +27,20 @@ export function runBaseline(
   const equationsByName = new Map(parsed.map((equation) => [equation.name, equation]));
   const endogenousNames = parsed.map((equation) => equation.name);
   const externalNames = Object.keys(model.externals);
-  const series = SeriesStore.createForModel(endogenousNames, externalNames, options);
+  const coefficientEntries = Object.entries(model.coefficients ?? {});
+  const series = SeriesStore.createForModel(
+    endogenousNames,
+    [...externalNames, ...coefficientEntries.map(([name]) => name)],
+    options
+  );
   const observed = buildObservedSeries(model.observed, options.periods);
 
   for (const variable of Object.keys(series)) {
     series[variable]?.fill(options.defaultInitialValue ?? 1e-15);
+  }
+
+  for (const [name, value] of coefficientEntries) {
+    series[name]?.fill(value);
   }
 
   for (const [name, external] of Object.entries(model.externals)) {
@@ -56,9 +65,16 @@ export function runBaseline(
     }
   }
 
+  for (const [name, history] of Object.entries(options.initialSeries ?? {})) {
+    const values = series[name];
+    if (values) {
+      values.set(Array.from(history).slice(0, options.periods));
+    }
+  }
+
   const solver = selectSolver(options);
   try {
-    for (let period = 1; period < options.periods; period += 1) {
+    for (let period = options.startPeriod ?? 1; period < options.periods; period += 1) {
       const context = wrapContextWithMatrixColumnSums(
         SeriesStore.forPeriod(series, period, {
           simType: options.simType ?? "DYNAMIC",

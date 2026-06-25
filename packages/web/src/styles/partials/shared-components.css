@@ -628,3 +628,7 @@
 .legend-item.is-hidden .legend-swatch path {
   stroke-width: 1.65;
 }
+.legend-item-reference-trace {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+}

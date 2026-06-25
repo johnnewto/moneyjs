@@ -569,6 +569,80 @@ describe("simulation", () => {
     expectClose(result.series.Cd[9] ?? NaN, 103.05791032826815, 1e-4);
   });
 
+  it("seeds scenario initial values for transformed equation targets", () => {
+    const options = {
+      periods: 4,
+      solverMethod: "GAUSS_SEIDEL" as const,
+      tolerance: 1e-9,
+      maxIterations: 100,
+      defaultInitialValue: 1
+    };
+    const baseline = runBaseline(
+      {
+        equations: [{ name: "prod", expression: "lag(prod) * exp(g)" }],
+        externals: { g: { kind: "constant", value: 0.1 } },
+        initialValues: { prod: 100 }
+      },
+      options
+    );
+    const result = runScenario(
+      {
+        ...baseline,
+        model: {
+          ...baseline.model,
+          equations: [{ name: "TSDELTALOG(prod,2)", expression: "g" }]
+        }
+      },
+      { shocks: [] },
+      { ...options, periods: 3 }
+    );
+
+    expectClose(result.series.prod[0] ?? NaN, baseline.series.prod[3] ?? NaN, 1e-9);
+    expect(Number.isFinite(result.series.prod[1] ?? NaN)).toBe(true);
+    expect(result.series.prod[2] ?? NaN).toBeGreaterThan(result.series.prod[1] ?? NaN);
+  });
+
+  it("resolves named coefficients as constants held across every period", () => {
+    const result = runBaseline(
+      {
+        equations: [
+          { name: "x", expression: "slope * lag(x) + intercept" }
+        ],
+        externals: {},
+        initialValues: { x: 1 },
+        coefficients: { slope: 2, intercept: 3 }
+      },
+      {
+        periods: 4,
+        solverMethod: "GAUSS_SEIDEL",
+        tolerance: 1e-9,
+        maxIterations: 100
+      }
+    );
+
+    expect(result.series.slope?.[2]).toBe(2);
+    expect(result.series.x?.[0]).toBe(1);
+    expect(result.series.x?.[1]).toBe(5);
+    expect(result.series.x?.[2]).toBe(13);
+    expect(result.series.x?.[3]).toBe(29);
+  });
+
+  it("rejects a coefficient that collides with an equation or external", () => {
+    const base = {
+      equations: [{ name: "x", expression: "lag(x) + 1" }],
+      externals: { g: { kind: "constant" as const, value: 1 } },
+      initialValues: { x: 0 }
+    };
+    const options = { periods: 3, solverMethod: "GAUSS_SEIDEL" as const, tolerance: 1e-9, maxIterations: 50 };
+
+    expect(() => runBaseline({ ...base, coefficients: { x: 1 } }, options)).toThrow(
+      "collides with an equation"
+    );
+    expect(() => runBaseline({ ...base, coefficients: { g: 1 } }, options)).toThrow(
+      "collides with an external"
+    );
+  });
+
   it("matches BMW baseline checkpoints with Newton", () => {
     const result = runBaseline(bmwBaselineModel, bmwBaselineOptions);
 

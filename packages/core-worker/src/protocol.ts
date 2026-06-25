@@ -5,6 +5,7 @@ import type {
   InitialValueProbeResult,
   ModelDefinition,
   ScenarioDefinition,
+  SegmentedExogenizeOptions,
   SimulationOptions,
   SimulationResult,
   StabilityAnalysis
@@ -23,6 +24,15 @@ export type WorkerRequest =
         baseline: SimulationResult;
         scenario: ScenarioDefinition;
         options: SimulationOptions;
+      };
+    }
+  | {
+      id: string;
+      type: "runSegmentedExogenize";
+      payload: {
+        model: ModelDefinition;
+        options: SimulationOptions;
+        segmentation: SegmentedExogenizeOptions;
       };
     }
   | {

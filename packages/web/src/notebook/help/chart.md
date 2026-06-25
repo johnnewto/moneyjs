@@ -148,6 +148,38 @@ A good scenario chart often includes:
 
 Keep charts focused. Several small charts are usually easier to read than one crowded chart.
 
+## Chart Grids
+
+When you want several focused charts side by side, use a `chart-grid` cell instead of one crowded chart. A grid arranges inlined chart specs into rows and columns.
+
+Set `gridColumns` to the number of columns and list the charts in `charts`. Charts fill left-to-right, top-to-bottom, and rows wrap automatically: `gridColumns: 2` with 4 charts gives a 2x2, `gridColumns: 3` with 6 charts gives a 3x2.
+
+```json
+{
+  "type": "chart-grid",
+  "title": "Scenario overview",
+  "gridColumns": 2,
+  "charts": [
+    {
+      "id": "grid-output",
+      "type": "chart",
+      "title": "Output",
+      "sourceRunCellId": "baseline-run",
+      "variables": ["Y"]
+    },
+    {
+      "id": "grid-consumption",
+      "type": "chart",
+      "title": "Consumption",
+      "sourceRunCellId": "baseline-run",
+      "variables": ["Cd"]
+    }
+  ]
+}
+```
+
+Each entry in `charts` is a normal chart cell, so it supports every field above (`series`, `axisMode`, `axisGroups`, `seriesRanges`, `timeRangeInclusive`, and so on) and needs its own `id` and `sourceRunCellId`. Insert a grid with **Add cell → Chart grid**, then edit its source to tune the layout and the individual charts.
+
 ## Reading A Chart
 
 When inspecting a chart, ask:

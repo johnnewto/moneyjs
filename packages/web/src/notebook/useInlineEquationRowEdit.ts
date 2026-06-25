@@ -1,10 +1,11 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { isRowComment, type EquationListItem } from "@sfcr/notebook-core";
 
 import type { EquationRow } from "../lib/editorModel";
 import {
-  isModelVariableNameAvailable,
+  findModelVariableDefinition,
+  formatVariableAlreadyDefinedWarning,
   patchEquationInNotebook,
   replaceIdentifierInSource,
   type ModelRenameScope
@@ -40,6 +41,33 @@ export function useInlineEquationRowEdit({
   const [validationError, setValidationError] = useState<string | null>(null);
   const [pendingApply, setPendingApply] = useState<PendingRowApply | null>(null);
   const renameConfirm = useVariableRenameConfirm({ cells, onReplaceCells, scope });
+
+  const validationWarning = useMemo(() => {
+    if (!editingEquationId) {
+      return null;
+    }
+
+    const trimmedName = draftName.trim();
+    if (!trimmedName) {
+      return null;
+    }
+
+    const equation = equations.find((entry) => entry.id === editingEquationId);
+    const currentName =
+      equation && !isRowComment(equation) ? equation.name.trim() : "";
+    if (trimmedName === currentName) {
+      return null;
+    }
+
+    const definition = findModelVariableDefinition(cells, scope, trimmedName, {
+      excludeEquationId: editingEquationId
+    });
+    if (!definition) {
+      return null;
+    }
+
+    return formatVariableAlreadyDefinedWarning(trimmedName, definition);
+  }, [cells, draftName, editingEquationId, equations, scope]);
 
   const cancelRowEdit = useCallback(() => {
     setEditingEquationId(null);
@@ -123,16 +151,20 @@ export function useInlineEquationRowEdit({
       return;
     }
 
-    if (
-      !isModelVariableNameAvailable(cells, scope, trimmedName, {
-        excludeEquationId: editingEquationId
-      })
-    ) {
-      setValidationError(`Variable '${trimmedName}' is already defined in this model.`);
+    setValidationError(null);
+
+    // A brand-new definition (no prior name) has no existing references to
+    // rename, so commit it directly even when the name collides with another
+    // variable. The collision is surfaced as a non-blocking warning instead.
+    if (!oldName) {
+      commitRowOnly({
+        equationId: editingEquationId,
+        name: trimmedName,
+        expression: trimmedExpression
+      });
       return;
     }
 
-    setValidationError(null);
     const nextPendingApply = {
       equationId: editingEquationId,
       expression: trimmedExpression,
@@ -143,14 +175,12 @@ export function useInlineEquationRowEdit({
     renameConfirm.openRenameDialog(oldName, trimmedName);
   }, [
     cancelRowEdit,
-    cells,
     commitRowOnly,
     draftExpression,
     draftName,
     editingEquationId,
     equations,
-    renameConfirm,
-    scope
+    renameConfirm
   ]);
 
   const confirmRenameNo = useCallback(() => {
@@ -194,6 +224,7 @@ export function useInlineEquationRowEdit({
     renameReferenceCount: renameConfirm.renameReferenceCount,
     setDraftExpression,
     setDraftName,
-    validationError
+    validationError,
+    validationWarning
   };
 }

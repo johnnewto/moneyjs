@@ -13,6 +13,7 @@ export * from "./engine/matrixColumnSum";
 export * from "./engine/runBaseline";
 export * from "./engine/partialResult";
 export * from "./engine/runScenario";
+export * from "./engine/runSegmentedExogenize";
 export * from "./engine/validateRunnable";
 export * from "./solver/types";
 export * from "./solver/gaussSeidel";

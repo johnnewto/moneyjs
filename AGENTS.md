@@ -100,6 +100,12 @@ Package-specific: `pnpm --filter @sfcr/core test`, `pnpm --filter @sfcr/chat-api
 
 `pnpm --filter @sfcr/web test` is not the same as `web:test:fast` — prefer root shortcuts for iteration.
 
+### Scope tests to the change
+
+Run only the narrow tests that exercise what you changed (rung 1, and rung 2/3 only for the matching area). Do **not** run the heavy/broad suites yourself — `pnpm test`, `pnpm web:test:integration`, and `pnpm web:test:templates` are slow and flaky under parallel load. Leave those to the operator: report the targeted commands you ran and suggest the operator run the heavy suites before handoff.
+
+Timeouts in heavy/broad runs are usually load artifacts, not real failures. If a test times out (rather than failing an assertion) in an area unrelated to your change, treat it as a likely load artifact: re-run just that file in isolation to confirm, and do not chase it as a regression.
+
 After pilot notebook YAML edits: `pnpm --filter @sfcr/web compile:notebook-yaml -- --write`.
 
 If a task affects browser behavior, prefer validating through the web app path rather than only the references.

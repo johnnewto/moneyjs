@@ -1,9 +1,17 @@
+// @vitest-environment jsdom
+
+import "@testing-library/jest-dom/vitest";
+
+import { createElement } from "react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { notebookToCompactYaml, notebookToJson } from "../src/notebook/document";
 import { createNotebookFromTemplate } from "../src/notebook/templates";
 import type { NotebookDocument } from "../src/notebook/types";
 import {
+  SourceCodeEditor,
   resolveCompletionLabelsForSource,
   resolveCompletionKeyPrefix,
   resolveCompletionKeys,
@@ -72,6 +80,7 @@ describe("resolveSelectedCellSourceRange", () => {
     });
 
     expect(range).not.toBeNull();
+    expect(source.slice(range!.from, range!.from + 20)).toContain("- equations:");
     expect(source.slice(range!.from, range!.to)).toContain("id: equations-newton");
     expect(source.slice(range!.from, range!.to)).toContain("title: BMW model");
   });
@@ -104,6 +113,51 @@ describe("resolveSelectedCellSourceRange", () => {
     expect(() => JSON.parse(source)).not.toThrow();
     expect(source).not.toContain('"unitMeta": undefined');
     expect(source).not.toContain("undefined");
+  });
+});
+
+describe("SourceCodeEditor folding", () => {
+  it("folds notebook cells by default and expands them on demand", async () => {
+    const user = userEvent.setup();
+    const document = createNotebookFromTemplate("bmw");
+    const source = notebookToCompactYaml(document, { preserveIds: true });
+
+    const { container } = render(
+      createElement(SourceCodeEditor, {
+        diagnostics: { issues: [], parseValid: true, schemaValid: true },
+        document,
+        format: "yaml",
+        onChange: () => {},
+        placeholderText: "Notebook source",
+        selectedCellId: null,
+        validationSummary: {
+          parseMessage: "valid",
+          parseStatus: "valid",
+          schemaMessage: "valid",
+          schemaStatus: "valid",
+          notebookChecksMessage: "valid",
+          notebookChecksStatus: "valid"
+        },
+        value: source
+      })
+    );
+
+    expect(screen.getByRole("button", { name: /expand cells/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/notebook source validation summary/i)).toHaveTextContent("Parse");
+    expect(screen.getByLabelText(/notebook source validation summary/i)).toHaveTextContent("Schema");
+    expect(screen.getByLabelText(/notebook source validation summary/i)).toHaveTextContent("Notebook checks");
+
+    await waitFor(() => {
+      expect(container.querySelectorAll(".cm-foldPlaceholder").length).toBeGreaterThan(0);
+    });
+
+    await user.click(screen.getByRole("button", { name: /expand cells/i }));
+
+    expect(screen.getByRole("button", { name: /fold cells/i })).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(container.querySelector(".cm-foldPlaceholder")).toBeNull();
+    });
   });
 });
 

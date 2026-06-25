@@ -56,6 +56,7 @@ interface ResultChartProps {
   onRemoveVariable?(variableName: string): void;
   overlaySeries?: ChartSeries[];
   periodLabelOffset?: number;
+  referenceTraceLegendLabel?: string;
   scenarioShocks?: ScenarioShockMarker[];
   seriesRanges?: Record<string, ChartAxisRange | undefined>;
   selectedIndex?: number;
@@ -179,6 +180,7 @@ export function ResultChart({
   onRemoveVariable,
   overlaySeries = [],
   periodLabelOffset = 0,
+  referenceTraceLegendLabel,
   scenarioShocks = [],
   seriesRanges,
   series,
@@ -942,6 +944,11 @@ export function ResultChart({
               </InstantTooltip>
             );
           })}
+          {referenceTraceLegendLabel ? (
+            <span className="legend-item legend-item-reference-trace">
+              <span className="legend-label">{referenceTraceLegendLabel}</span>
+            </span>
+          ) : null}
           </div>
         </div>
 

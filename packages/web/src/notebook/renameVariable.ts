@@ -78,7 +78,7 @@ export function isModelVariableNameAvailable(
       }
     }
 
-    if (cell.type === "externals") {
+    if (cell.type === "externals" || cell.type === "observed") {
       if (
         cell.externals.some(
           (external) =>
@@ -139,6 +139,117 @@ export function isModelVariableNameAvailable(
   }
 
   return true;
+}
+
+export interface ModelVariableDefinition {
+  kind: "equation" | "external" | "initial value";
+  cellTitle: string;
+}
+
+export function findModelVariableDefinition(
+  cells: NotebookCell[],
+  scope: ModelRenameScope,
+  variable: string,
+  options?: {
+    excludeEquationId?: string;
+    excludeExternalId?: string;
+    excludeInitialValueId?: string;
+  }
+): ModelVariableDefinition | null {
+  const normalizedVariable = variable.trim();
+  if (!normalizedVariable) {
+    return null;
+  }
+
+  for (const cell of cells) {
+    if (!cellMatchesScope(cell, cells, scope)) {
+      continue;
+    }
+
+    const cellTitle = cell.title.trim();
+
+    if (cell.type === "equations") {
+      if (
+        cell.equations.some(
+          (equation) =>
+            !isRowComment(equation) &&
+            equationNameDefinesVariable(equation.name, normalizedVariable) &&
+            equation.id !== options?.excludeEquationId
+        )
+      ) {
+        return { kind: "equation", cellTitle };
+      }
+    }
+
+    if (cell.type === "externals" || cell.type === "observed") {
+      if (
+        cell.externals.some(
+          (external) =>
+            !isRowComment(external) &&
+            external.name.trim() === normalizedVariable &&
+            external.id !== options?.excludeExternalId
+        )
+      ) {
+        return { kind: "external", cellTitle };
+      }
+    }
+
+    if (cell.type === "initial-values") {
+      if (
+        cell.initialValues.some(
+          (row) =>
+            !isRowComment(row) &&
+            row.name.trim() === normalizedVariable &&
+            row.id !== options?.excludeInitialValueId
+        )
+      ) {
+        return { kind: "initial value", cellTitle };
+      }
+    }
+
+    if (cell.type === "model") {
+      if (
+        cell.editor.equations.some(
+          (equation) =>
+            !isRowComment(equation) &&
+            equationNameDefinesVariable(equation.name, normalizedVariable) &&
+            equation.id !== options?.excludeEquationId
+        )
+      ) {
+        return { kind: "equation", cellTitle };
+      }
+      if (
+        cell.editor.externals.some(
+          (external) =>
+            !isRowComment(external) &&
+            external.name.trim() === normalizedVariable &&
+            external.id !== options?.excludeExternalId
+        )
+      ) {
+        return { kind: "external", cellTitle };
+      }
+      if (
+        cell.editor.initialValues.some(
+          (row) =>
+            !isRowComment(row) &&
+            row.name.trim() === normalizedVariable &&
+            row.id !== options?.excludeInitialValueId
+        )
+      ) {
+        return { kind: "initial value", cellTitle };
+      }
+    }
+  }
+
+  return null;
+}
+
+export function formatVariableAlreadyDefinedWarning(
+  variable: string,
+  definition: ModelVariableDefinition
+): string {
+  const location = definition.cellTitle ? ` in "${definition.cellTitle}"` : "";
+  return `Variable '${variable.trim()}' is already defined in this model as an ${definition.kind}${location}.`;
 }
 
 export function countVariableReferences(
@@ -280,7 +391,7 @@ export function patchExternalInNotebook(
   patch: Pick<ExternalRow, "name" | "valueText">
 ): NotebookCell[] {
   return cells.map((cell) => {
-    if (cell.type === "externals" && cellMatchesScope(cell, cells, scope)) {
+    if ((cell.type === "externals" || cell.type === "observed") && cellMatchesScope(cell, cells, scope)) {
       return {
         ...cell,
         externals: cell.externals.map((external) =>
@@ -343,6 +454,7 @@ function renameVariableInCell(
         )
       };
     case "externals":
+    case "observed":
       return {
         ...cell,
         externals: cell.externals.map((external) =>
@@ -546,6 +658,7 @@ function countReferencesInCell(
         );
       }, 0);
     case "externals":
+    case "observed":
       return cell.externals.reduce(
         (total, external) =>
           isRowComment(external) ? total : total + countExactNameMatch(external.name, variable),
@@ -688,6 +801,7 @@ function cellMatchesModelId(cell: NotebookCell, cells: NotebookCell[], modelId: 
   switch (cell.type) {
     case "equations":
     case "externals":
+    case "observed":
     case "initial-values":
     case "solver":
       return cell.modelId === modelId;

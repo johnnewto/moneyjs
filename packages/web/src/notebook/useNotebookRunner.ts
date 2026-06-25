@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import type { SimulationOptions, SimulationResult } from "@sfcr/core";
+import type { ModelDefinition, SimulationOptions, SimulationResult } from "@sfcr/core";
 
 import {
   applyConstantExternalOverrides,
@@ -60,6 +60,7 @@ export function buildNotebookRunnerResetKey(document: NotebookDocument): string 
         resetState.push({
           baselineRunCellId: cell.baselineRunCellId,
           baselineStartPeriod: cell.baselineStartPeriod,
+          exogenize: cell.exogenize ?? null,
           id: cell.id,
           mode: cell.mode,
           periods: cell.periods,
@@ -97,6 +98,44 @@ export function resolveRunCellOptions(options: SimulationOptions, cell: RunCell)
     periods: cell.periods,
     simType: cell.simType ?? options.simType
   };
+}
+
+export function createScenarioBaselineSnapshot(
+  baseline: SimulationResult,
+  baselineStartPeriod?: number,
+  modelOverride?: ModelDefinition
+): SimulationResult {
+  const snapshot =
+    baselineStartPeriod == null
+      ? baseline
+      : (() => {
+          if (!Number.isInteger(baselineStartPeriod) || baselineStartPeriod < 1) {
+            throw new Error("baselineStartPeriod must be an integer >= 1.");
+          }
+
+          const availablePeriods = baseline.options.periods;
+          if (baselineStartPeriod > availablePeriods) {
+            throw new Error(
+              `baselineStartPeriod ${baselineStartPeriod} exceeds baseline length ${availablePeriods}.`
+            );
+          }
+
+          return {
+            ...baseline,
+            options: {
+              ...baseline.options,
+              periods: baselineStartPeriod
+            },
+            series: Object.fromEntries(
+              Object.entries(baseline.series).map(([name, values]) => [
+                name,
+                values.slice(0, baselineStartPeriod)
+              ])
+            )
+          };
+        })();
+
+  return modelOverride ? { ...snapshot, model: modelOverride } : snapshot;
 }
 
 export function resolveModelIdFromRunCellKey(modelKey: string | null): string | null {
@@ -262,37 +301,6 @@ export function useNotebookRunner(
     );
   }
 
-  function createScenarioBaselineSnapshot(
-    baseline: SimulationResult,
-    baselineStartPeriod?: number
-  ): SimulationResult {
-    if (baselineStartPeriod == null) {
-      return baseline;
-    }
-
-    if (!Number.isInteger(baselineStartPeriod) || baselineStartPeriod < 1) {
-      throw new Error("baselineStartPeriod must be an integer >= 1.");
-    }
-
-    const availablePeriods = baseline.options.periods;
-    if (baselineStartPeriod > availablePeriods) {
-      throw new Error(
-        `baselineStartPeriod ${baselineStartPeriod} exceeds baseline length ${availablePeriods}.`
-      );
-    }
-
-    return {
-      ...baseline,
-      options: {
-        ...baseline.options,
-        periods: baselineStartPeriod
-      },
-      series: Object.fromEntries(
-        Object.entries(baseline.series).map(([name, values]) => [name, values.slice(0, baselineStartPeriod)])
-      )
-    };
-  }
-
   async function runCell(cellId: string): Promise<boolean> {
     const cell = document.cells.find((entry) => entry.id === cellId);
     if (!cell || cell.type !== "run") {
@@ -341,8 +349,15 @@ export function useNotebookRunner(
       let result: SimulationResult;
 
       if (cell.mode === "baseline") {
-        result = await client.runBaseline(runtime.model, runOptions);
+        result = runtime.segmentation
+          ? await client.runSegmentedExogenize(runtime.model, runOptions, runtime.segmentation)
+          : await client.runBaseline(runtime.model, runOptions);
       } else {
+        if (runtime.segmentation) {
+          throw new Error(
+            "Windowed exogenize (throughPeriod) is only supported on baseline-mode runs."
+          );
+        }
         let baseline: SimulationResult | null = null;
         const baselineCell = resolveBaselineRunCell(cell);
 
@@ -355,7 +370,11 @@ export function useNotebookRunner(
           if (baselineResult?.type !== "result") {
             throw new Error(`Baseline run '${baselineCell.id}' did not produce a result.`);
           }
-          baseline = createScenarioBaselineSnapshot(baselineResult.result, cell.baselineStartPeriod);
+          baseline = createScenarioBaselineSnapshot(
+            baselineResult.result,
+            cell.baselineStartPeriod,
+            runtime.model
+          );
         } else {
           const baselineOptions = buildRunOptions({
             ...cell,
@@ -364,10 +383,7 @@ export function useNotebookRunner(
           if (!baselineOptions) {
             throw new Error("Source model sections not found.");
           }
-          baseline = createScenarioBaselineSnapshot(
-            await client.runBaseline(runtime.model, baselineOptions),
-            cell.baselineStartPeriod
-          );
+          baseline = createScenarioBaselineSnapshot(await client.runBaseline(runtime.model, baselineOptions), cell.baselineStartPeriod);
         }
 
         if (!cell.scenario) {

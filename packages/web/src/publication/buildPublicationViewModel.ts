@@ -50,10 +50,12 @@ function classifyCellPlacement(cell: NotebookCell): "body" | "appendix" | "skip"
     case "model":
     case "matrix":
     case "chart":
+    case "chart-grid":
     case "table":
     case "run":
       return "body";
     case "externals":
+    case "observed":
     case "initial-values":
     case "solver":
       return "appendix";
@@ -75,6 +77,7 @@ function resolveSectionKind(cell: NotebookCell): PublicationSectionKind {
     case "matrix":
       return "matrix";
     case "chart":
+    case "chart-grid":
       return "chart";
     case "table":
       return "table";

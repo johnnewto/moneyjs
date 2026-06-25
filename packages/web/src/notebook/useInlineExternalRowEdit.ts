@@ -263,7 +263,7 @@ export function useExternalBatchRename({
       },
       patch: (nextCells) =>
         nextCells.map((entry) =>
-          entry.id === cellId && entry.type === "externals"
+          entry.id === cellId && (entry.type === "externals" || entry.type === "observed")
             ? { ...entry, externals: pendingDraft }
             : entry
         )

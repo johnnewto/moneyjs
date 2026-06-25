@@ -77,16 +77,40 @@ function resolveYamlCellSourceRange(source: string, cellId: string): SourceRange
     return null;
   }
 
-  const start = match.index + match[1].length;
-  const indentMatch = match[2].match(/^(\s*)/);
-  const indent = indentMatch?.[1] ?? "";
-  const nextCellPattern = new RegExp(`\\n${escapeRegExp(indent)}-\\s+id:\\s+`, "g");
-  nextCellPattern.lastIndex = start + match[0].length;
+  const idLineStart = match.index + match[1].length;
+  const wrapperStart = findYamlWrappedCellStart(source, idLineStart) ?? idLineStart;
+  const wrapperIndent = resolveYamlWrapperIndent(source, wrapperStart);
+  const nextCellPattern = new RegExp(`\\n${escapeRegExp(wrapperIndent)}-\\s+[A-Za-z][\\w-]*:\\s*`, "g");
+  nextCellPattern.lastIndex = wrapperStart + 1;
   const nextMatch = nextCellPattern.exec(source);
   return {
-    from: start,
+    from: wrapperStart,
     to: nextMatch?.index ?? source.length
   };
+}
+
+function findYamlWrappedCellStart(source: string, from: number): number | null {
+  let scanIndex = from;
+  while (scanIndex > 0) {
+    const lineStart = source.lastIndexOf("\n", scanIndex - 1) + 1;
+    const lineEnd = source.indexOf("\n", lineStart);
+    const line = source.slice(lineStart, lineEnd >= 0 ? lineEnd : source.length);
+    if (/^\s*-\s+[A-Za-z][\w-]*:\s*$/.test(line)) {
+      return lineStart;
+    }
+    if (lineStart === 0) {
+      break;
+    }
+    scanIndex = lineStart - 1;
+  }
+  return null;
+}
+
+function resolveYamlWrapperIndent(source: string, wrapperStart: number): string {
+  const lineEnd = source.indexOf("\n", wrapperStart);
+  const line = source.slice(wrapperStart, lineEnd >= 0 ? lineEnd : source.length);
+  const indentMatch = line.match(/^(\s*)-\s+/);
+  return indentMatch?.[1] ?? "";
 }
 
 function escapeRegExp(value: string): string {

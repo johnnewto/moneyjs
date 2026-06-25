@@ -5,6 +5,7 @@ import type { PublicationSection } from "./buildPublicationViewModel";
 import { PublicationAppendixSection } from "./components/PublicationAppendix";
 import { PublicationCaption } from "./components/PublicationCaption";
 import { PublicationChart } from "./components/PublicationChart";
+import { PublicationChartGrid } from "./components/PublicationChartGrid";
 import { PublicationEquations } from "./components/PublicationEquations";
 import { PublicationMarkdown } from "./components/PublicationMarkdown";
 import { PublicationMore } from "./components/PublicationMore";
@@ -121,19 +122,29 @@ export function PublicationCellView({
     );
   }
 
-  if (section.kind === "chart" && cell.type === "chart") {
-    const result = getResult(cell.sourceRunCellId);
+  if (section.kind === "chart" && (cell.type === "chart" || cell.type === "chart-grid")) {
     return (
       <figure id={section.anchorId} className="publication-section publication-section-chart">
-        <PublicationChart
-          cell={cell}
-          cells={cells}
-          getResult={getResult}
-          interaction={interaction}
-          interactive={interactiveCharts}
-          result={result}
-          selectedPeriodIndex={selectedPeriodIndex}
-        />
+        {cell.type === "chart" ? (
+          <PublicationChart
+            cell={cell}
+            cells={cells}
+            getResult={getResult}
+            interaction={interaction}
+            interactive={interactiveCharts}
+            result={getResult(cell.sourceRunCellId)}
+            selectedPeriodIndex={selectedPeriodIndex}
+          />
+        ) : (
+          <PublicationChartGrid
+            cell={cell}
+            cells={cells}
+            getResult={getResult}
+            interaction={interaction}
+            interactive={interactiveCharts}
+            selectedPeriodIndex={selectedPeriodIndex}
+          />
+        )}
         <PublicationCaption description={cell.description} note={cell.note} title={cell.title} />
         {moreNode}
       </figure>

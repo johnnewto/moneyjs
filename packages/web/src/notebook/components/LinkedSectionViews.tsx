@@ -39,7 +39,7 @@ import { useInlineCommentRowEdit } from "../useInlineCommentRowEdit";
 import { useInlineExternalRowEdit, useExternalBatchRename } from "../useInlineExternalRowEdit";
 import { useInlineInitialValueRowEdit, useInitialValueBatchRename } from "../useInlineInitialValueRowEdit";
 import { CommentRowReadView } from "./CommentRowReadView";
-import type { ExternalsCell, InitialValuesCell, NotebookCell, SolverCell } from "../types";
+import type { ExternalsCell, InitialValuesCell, NotebookCell, ObservedCell, SolverCell } from "../types";
 import {
   canMoveRowDown,
   canMoveRowUp,
@@ -282,7 +282,7 @@ export function ExternalsCellView({
   onToggleCollapsed,
   viewportRoot = null
 }: {
-  cell: ExternalsCell;
+  cell: ExternalsCell | ObservedCell;
   cells: NotebookCell[];
   currentValues: Record<string, number | undefined>;
   editor: EditorState;

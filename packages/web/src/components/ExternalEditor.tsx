@@ -184,6 +184,7 @@ export function ExternalEditor({
             >
               <option value="constant">Constant</option>
               <option value="series">Series</option>
+              <option value="coefficient">Coefficient</option>
             </select>
             <span
               className={`external-grid-status${

@@ -153,6 +153,39 @@ describe("core worker handler", () => {
     expect(response.payload.partialResult?.series.x?.length).toBe(2);
   });
 
+  it("runs a windowed segmented run via runSegmentedExogenize", () => {
+    const model: ModelDefinition = {
+      equations: [
+        { name: "x", expression: "rho * TSLAG(x, 1)" },
+        { name: "y", expression: "e" }
+      ],
+      externals: {
+        x: { kind: "series", values: [1, 5, 9] },
+        e: { kind: "series", values: [1, 2, 3] }
+      },
+      coefficients: { rho: 2 },
+      initialValues: { x: 1, y: 1 }
+    };
+
+    const response = handleWorkerRequest({
+      id: "segmented-1",
+      type: "runSegmentedExogenize",
+      payload: {
+        model,
+        options: { ...options, simType: "DYNAMIC" },
+        segmentation: { splitPeriod: 3, segment1ExogenizedEquationNames: ["x"] }
+      }
+    });
+
+    expect(response.type).toBe("success");
+    if (response.type !== "success") {
+      return;
+    }
+    expect(response.id).toBe("segmented-1");
+    expect(Array.from(response.payload.series.x ?? [])).toEqual([1, 5, 9, 18, 36]);
+    expect(Array.from(response.payload.series.y ?? [])).toEqual([1, 2, 3, 3, 3]);
+  });
+
   it("returns blockConvergenceSuccess for analyzeAllBlockConvergence", () => {
     const model: ModelDefinition = {
       equations: [{ name: "Y", expression: "Gd" }],

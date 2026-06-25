@@ -5,6 +5,7 @@ import type { SimulationResult } from "@sfcr/core";
 import {
   buildNotebookRunnerResetKey,
   buildRunHistorySignatures,
+  createScenarioBaselineSnapshot,
   resolveRunCellOptions,
   resolvePreviousRunResult,
   resolveRunErrorPinCellId,
@@ -237,6 +238,35 @@ describe("resolveRunCellOptions", () => {
   it("overrides the runtime periods when run-cell periods change", () => {
     expect(baselineRunCell).toBeDefined();
     expect(resolveRunCellOptions(testResult.options, { ...baselineRunCell!, periods: 25 }).periods).toBe(25);
+  });
+});
+
+describe("createScenarioBaselineSnapshot", () => {
+  it("truncates the baseline to the requested start period", () => {
+    const snapshot = createScenarioBaselineSnapshot(
+      {
+        ...testResult,
+        options: { ...testResult.options, periods: 4 },
+        series: { C: new Float64Array([1, 2, 3, 4]) }
+      },
+      3
+    );
+
+    expect(snapshot.options.periods).toBe(3);
+    expect(Array.from(snapshot.series.C ?? [])).toEqual([1, 2, 3]);
+  });
+
+  it("can replace the model while keeping the baseline state series", () => {
+    const nextModel = {
+      equations: [{ name: "C", expression: "YD + adj_C" }],
+      externals: { adj_C: { kind: "constant" as const, value: 0 } },
+      initialValues: {}
+    };
+
+    const snapshot = createScenarioBaselineSnapshot(testResult, undefined, nextModel);
+
+    expect(snapshot.model).toEqual(nextModel);
+    expect(Array.from(snapshot.series.C ?? [])).toEqual([1, 2]);
   });
 });
 

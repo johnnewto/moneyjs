@@ -1,4 +1,4 @@
-import { Document as YamlDocument, isScalar, isSeq, Scalar } from "yaml";
+import { Document as YamlDocument, isMap, isScalar, isSeq, Scalar } from "yaml";
 import type { NotebookCell } from "../types";
 import type { NotebookYamlEnvelope } from "./documentTypes";
 
@@ -10,8 +10,11 @@ export function stringifyCompactYamlEnvelope(envelope: NotebookYamlEnvelope): st
   markWrappedMatrixFlowSequences(document);
   markWrappedEquationFlowSequences(document);
   markWrappedExternalFlowSequences(document);
+  markWrappedObservedFlowSequences(document);
   markWrappedInitialValueFlowSequences(document);
+  markWrappedRunFlowSequences(document);
   markWrappedChartAxisGroupFlowSequences(document);
+  markWrappedChartGridFlowSequences(document);
 
   return document.toString({
     collectionStyle: "any",
@@ -39,8 +42,26 @@ export function markWrappedExternalFlowSequences(document: YamlDocument): void {
   markWrappedCellRowFlowSequences(document, "externals", { quoteColumn: 2 });
 }
 
+export function markWrappedObservedFlowSequences(document: YamlDocument): void {
+  markWrappedCellRowFlowSequences(document, "observed", { quoteColumn: 2 });
+}
+
 export function markWrappedInitialValueFlowSequences(document: YamlDocument): void {
   markWrappedCellRowFlowSequences(document, "initial-values");
+}
+
+export function markWrappedRunFlowSequences(document: YamlDocument): void {
+  const cells = document.get("cells", true);
+  if (!isSeq(cells)) {
+    return;
+  }
+
+  cells.items.forEach((_cell, index) => {
+    const exogenize = document.getIn(["cells", index, "run", "exogenize"], true);
+    if (isSeq(exogenize) && exogenize.items.every((item) => isScalar(item))) {
+      exogenize.flow = true;
+    }
+  });
 }
 
 export function markWrappedCellRowFlowSequences(
@@ -65,6 +86,11 @@ export function markWrappedCellRowFlowSequences(
         if (isScalar(description) && typeof description.value === "string" && description.value !== "") {
           description.type = Scalar.QUOTE_DOUBLE;
         }
+        return;
+      }
+
+      if (isMap(row)) {
+        row.flow = true;
       }
     });
   });
@@ -85,6 +111,51 @@ export function markWrappedChartAxisGroupFlowSequences(document: YamlDocument): 
     groups.items.forEach((group) => {
       if (isSeq(group)) {
         group.flow = true;
+      }
+    });
+  });
+}
+
+export function markWrappedChartGridFlowSequences(document: YamlDocument): void {
+  const cells = document.get("cells", true);
+  if (!isSeq(cells)) {
+    return;
+  }
+
+  cells.items.forEach((_cell, index) => {
+    const charts = document.getIn(["cells", index, "chart-grid", "charts"], true);
+    if (!isSeq(charts)) {
+      return;
+    }
+
+    charts.flow = false;
+    charts.items.forEach((_chart, chartIndex) => {
+      const chart = document.getIn(["cells", index, "chart-grid", "charts", chartIndex], true);
+      if (isMap(chart)) {
+        chart.flow = true;
+      }
+
+      markFlowSequence(document, ["cells", index, "chart-grid", "charts", chartIndex, "variables"]);
+      markFlowSequence(document, ["cells", index, "chart-grid", "charts", chartIndex, "timeRangeInclusive"]);
+
+      const axisGroups = document.getIn(["cells", index, "chart-grid", "charts", chartIndex, "axisGroups"], true);
+      if (isSeq(axisGroups)) {
+        axisGroups.flow = true;
+        axisGroups.items.forEach((group) => {
+          if (isSeq(group)) {
+            group.flow = true;
+          }
+        });
+      }
+
+      const series = document.getIn(["cells", index, "chart-grid", "charts", chartIndex, "series"], true);
+      if (isSeq(series)) {
+        series.flow = true;
+        series.items.forEach((entry) => {
+          if (isMap(entry)) {
+            entry.flow = true;
+          }
+        });
       }
     });
   });

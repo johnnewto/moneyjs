@@ -35,7 +35,7 @@ import { buildVariableDescriptions, type VariableDescriptions } from "../../lib/
 import { buildVariableUnitMetadata } from "../../lib/units";
 import { useDragScroll } from "../../hooks/useDragScroll";
 import { useEquationValueColumnsCollapse } from "../../hooks/useEquationValueColumnsCollapse";
-import { buildEditorStateFromSections, countModelSectionIssues, findEquationsCell, findExternalsCell, findInitialValuesCell, findSolverCell } from "../modelSections";
+import { buildEditorStateFromSections, collectModelExternals, countModelSectionIssues, findEquationsCell, findInitialValuesCell, findSolverCell } from "../modelSections";
 import { resolveImplicitMatrixAccumulationEntries, IMPLICIT_MATRIX_INTEGRATION_SECTION_ID } from "../implicitMatrixEquations";
 import { collectMatrixInitialValueOverrideIssues } from "../matrixInitialRow";
 import type { VariableInspectRequest } from "../../lib/variableInspect";
@@ -372,6 +372,7 @@ export function ModelCellView({
                   }}
                   rowEditFocus={inlineEdit.editFocus}
                   rowValidationError={inlineEdit.validationError}
+                  rowValidationWarning={inlineEdit.validationWarning}
                   traceRole={activeTrace?.rowStates.get(equation.id) ?? null}
                   variableDescriptions={variableDescriptions}
                   variableUnitMetadata={variableUnitMetadata}
@@ -867,6 +868,7 @@ export function EquationsCellView({
                   }}
                   rowEditFocus={inlineEdit.editFocus}
                   rowValidationError={inlineEdit.validationError}
+                  rowValidationWarning={inlineEdit.validationWarning}
                   traceRole={activeTrace?.rowStates.get(equation.id) ?? null}
                   variableDescriptions={variableDescriptions}
                   variableUnitMetadata={variableUnitMetadata}
@@ -1137,7 +1139,7 @@ function formatEquationDeleteLabel(row: EquationListItem | undefined, rowIndex: 
 export function buildEditorStateForStandaloneModelSections(cells: NotebookCell[], modelId: string): EditorState {
   return buildEditorStateFromSections({
     equations: findEquationsCell(cells, modelId)?.equations ?? [],
-    externals: findExternalsCell(cells, modelId)?.externals ?? [],
+    externals: collectModelExternals(cells, modelId),
     initialValues: findInitialValuesCell(cells, modelId)?.initialValues ?? [],
     options: findSolverCell(cells, modelId)?.options ?? defaultNotebookEditorOptions()
   });

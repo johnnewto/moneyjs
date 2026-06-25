@@ -142,6 +142,7 @@ export function EquationRowInlineEditor({
   hasDraftChanges,
   parameterNames,
   validationError,
+  validationWarning,
   variableDescriptions,
   variableUnitMetadata,
   onApply,
@@ -158,6 +159,7 @@ export function EquationRowInlineEditor({
   hasDraftChanges: boolean;
   parameterNames: Set<string>;
   validationError: string | null;
+  validationWarning?: string | null;
   variableDescriptions: VariableDescriptions;
   variableUnitMetadata: VariableUnitMetadata;
   onApply(): void;
@@ -218,6 +220,9 @@ export function EquationRowInlineEditor({
         variableUnitMetadata={variableUnitMetadata}
       />
       {validationError ? <div className="error-text">{validationError}</div> : null}
+      {!validationError && validationWarning ? (
+        <div className="warning-text">{validationWarning}</div>
+      ) : null}
       <div className="notebook-equation-row-editor-actions">
         <button disabled={!hasDraftChanges} onClick={onApply} type="button">
           Apply
@@ -247,6 +252,7 @@ export function NotebookEquationReadRow({
   rowDraft,
   rowEditFocus,
   rowValidationError,
+  rowValidationWarning = null,
   parameterNames,
   traceRole,
   variableDescriptions,
@@ -286,6 +292,7 @@ export function NotebookEquationReadRow({
   rowDraft: { expression: string; name: string };
   rowEditFocus: EquationRowEditFocus;
   rowValidationError: string | null;
+  rowValidationWarning?: string | null;
   parameterNames: Set<string>;
   traceRole: TraceTokenRole | null;
   variableDescriptions: VariableDescriptions;
@@ -354,6 +361,7 @@ export function NotebookEquationReadRow({
             hasDraftChanges={hasDraftChanges}
             parameterNames={parameterNames}
             validationError={rowValidationError}
+            validationWarning={rowValidationWarning}
             variableDescriptions={variableDescriptions}
             variableUnitMetadata={variableUnitMetadata}
             onApply={onApplyRow}

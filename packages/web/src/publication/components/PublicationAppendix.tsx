@@ -4,12 +4,14 @@ import type {
   ExternalsCell,
   InitialValuesCell,
   NotebookCell,
+  ObservedCell,
   SolverCell
 } from "../../notebook/types";
 
 export function PublicationAppendixSection({ cell }: { cell: NotebookCell }) {
   switch (cell.type) {
     case "externals":
+    case "observed":
       return <PublicationExternals cell={cell} />;
     case "initial-values":
       return <PublicationInitialValues cell={cell} />;
@@ -20,7 +22,7 @@ export function PublicationAppendixSection({ cell }: { cell: NotebookCell }) {
   }
 }
 
-function PublicationExternals({ cell }: { cell: ExternalsCell }) {
+function PublicationExternals({ cell }: { cell: ExternalsCell | ObservedCell }) {
   const rows = externalRowsOnly(cell.externals);
 
   return (
@@ -106,7 +108,7 @@ function PublicationSolver({ cell }: { cell: SolverCell }) {
 }
 
 export function hasAppendixContent(cell: NotebookCell): boolean {
-  if (cell.type === "externals") {
+  if (cell.type === "externals" || cell.type === "observed") {
     return externalRowsOnly(cell.externals).length > 0;
   }
   if (cell.type === "initial-values") {

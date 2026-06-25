@@ -157,7 +157,7 @@ export function findNotebookHelpTopic(topicId: NotebookHelpTopicId): NotebookHel
 }
 
 export function isSourceEditable(cell: NotebookCell): boolean {
-  return !["model", "equations", "solver", "externals", "initial-values"].includes(cell.type);
+  return !["model", "equations", "solver", "externals", "observed", "initial-values"].includes(cell.type);
 }
 
 export function serializeCellBody(cell: NotebookCell): string {
@@ -256,6 +256,16 @@ export function buildSourceHelperActions(
             '"series": [\n  {\n    "expression": "100 * y / v",\n    "label": "Income share"\n  }\n]'
         }
       ];
+    case "chart-grid":
+      return [
+        { label: "Collapsed true", insert: '"collapsed": true' },
+        { label: "Grid columns", insert: '"gridColumns": 2' },
+        {
+          label: "Charts array",
+          insert:
+            '"charts": [\n  {\n    "id": "grid-chart-1",\n    "type": "chart",\n    "title": "Chart 1",\n    "sourceRunCellId": "run",\n    "variables": ["y"]\n  }\n]'
+        }
+      ];
     case "run":
       return [
         { label: "Collapsed true", insert: '"collapsed": true' },
@@ -332,6 +342,7 @@ export function buildSourceHelperActions(
         { label: "Collapsed true", insert: '"collapsed": true' }
       ];
     case "externals":
+    case "observed":
       return [
         { label: "Model id", insert: '"modelId": "main"' },
         { label: "Externals array", insert: '"externals": []' },
@@ -458,6 +469,47 @@ Notes:
 - niceScale expands auto-scaled bounds outward to nicer 0/5-style values.
 - In shared-axis mode, yAxisTickCount is treated as a target density, so the final tick count may shift slightly when the chart snaps to nicer 0/5 spacing.
 - In separate-axis mode, the chart keeps the same tick count on each axis so the grid rows and axis tick rows stay aligned.`;
+    case "chart-grid":
+      return `Required fields:
+- title
+- id
+- type: "chart-grid"
+- gridColumns: integer >= 1 (number of columns; charts flow row-major and rows wrap automatically)
+- charts: chart cell[] (inlined chart specs, each a normal chart cell with its own id, title, and sourceRunCellId)
+
+Optional:
+- collapsed: boolean
+
+Example:
+${formatCellBody(
+  {
+    title: cell.title,
+    id: cell.id,
+    type: "chart-grid",
+    gridColumns: 2,
+    charts: [
+      {
+        id: `${cell.id}-chart-1`,
+        type: "chart",
+        title: "Output",
+        sourceRunCellId: "baseline-run",
+        variables: ["y"]
+      },
+      {
+        id: `${cell.id}-chart-2`,
+        type: "chart",
+        title: "Consumption",
+        sourceRunCellId: "baseline-run",
+        variables: ["c"]
+      }
+    ]
+  },
+  "compact"
+) }
+
+Notes:
+- Lay out N charts in a grid by setting gridColumns and providing N charts (e.g. gridColumns 2 + 4 charts = 2x2; gridColumns 3 + 6 charts = 3x2).
+- Each chart supports the same fields as a standalone chart cell.`;
     case "externals":
       return `Required fields:
 - id
@@ -470,6 +522,18 @@ Optional:
 
 Behavior:
 This cell owns the external parameter list for one notebook model. Hide/show only affects visibility in the notebook UI.`;
+    case "observed":
+      return `Required fields:
+- id
+- type: "observed"
+- modelId
+- externals: []
+
+Optional:
+- collapsed: boolean
+
+Behavior:
+This cell owns the observed/empirical input series for one notebook model. Rows use the same shape as externals and are merged into the model externals with observed forced on. Hide/show only affects visibility in the notebook UI.`;
     case "solver":
       return `Required fields:
 - id
@@ -575,6 +639,14 @@ export function buildNotebookCellHelpText(cell: NotebookCell): string {
 export function getNotebookHelpTopicIdForCell(cell: NotebookCell): NotebookHelpTopicId {
   if (cell.type === "matrix") {
     return getMatrixHelpTopicId(cell);
+  }
+
+  if (cell.type === "observed") {
+    return "externals";
+  }
+
+  if (cell.type === "chart-grid") {
+    return "chart";
   }
 
   return cell.type;
@@ -732,6 +804,7 @@ function normalizeCellSource(cell: NotebookCell): NotebookCell {
         )
       };
     case "externals":
+    case "observed":
       return {
         ...cell,
         externals: cell.externals.map((external) =>
@@ -886,6 +959,25 @@ function validateCellSourceShape(
       validateChartAxisLabel((parsed as ChartCell).xAxis, "xAxis");
       validateChartAxisLabel((parsed as ChartCell).yAxis, "yAxis");
       return;
+    case "chart-grid": {
+      const grid = parsed as Extract<NotebookCell, { type: "chart-grid" }>;
+      if (!Number.isInteger(grid.gridColumns) || Number(grid.gridColumns) < 1) {
+        throw new Error("Chart grid cells require gridColumns to be an integer >= 1.");
+      }
+      if (!Array.isArray(grid.charts)) {
+        throw new Error("Chart grid cells require charts to be an array.");
+      }
+      grid.charts.forEach((chart, index) => {
+        if (!chart || typeof chart !== "object" || chart.type !== "chart") {
+          throw new Error(`Chart grid charts.${index} must be a chart cell.`);
+        }
+        if (typeof chart.sourceRunCellId !== "string") {
+          throw new Error(`Chart grid charts.${index} requires sourceRunCellId.`);
+        }
+        validateChartSeriesOrVariables(chart);
+      });
+      return;
+    }
     case "table":
       if (typeof (parsed as TableCell).sourceRunCellId !== "string") {
         throw new Error("Table cells require sourceRunCellId.");

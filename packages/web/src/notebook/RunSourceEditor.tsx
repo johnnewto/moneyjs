@@ -60,7 +60,9 @@ export function RunSourceEditor({
 
   const runCell = parsed;
   const scenario = runCell.scenario ?? { shocks: [] };
-  const exogenizeAll = (runCell.exogenize ?? []).some((name) => name.trim() === EXOGENIZE_ALL_TOKEN);
+  const exogenizeAll = (runCell.exogenize ?? []).some(
+    (entry) => typeof entry === "string" && entry.trim() === EXOGENIZE_ALL_TOKEN
+  );
   const baselineStartPeriodMax = resolveBaselineStartPeriodMax(cells, runCell);
 
   function commit(next: RunCellSourceDraft): void {

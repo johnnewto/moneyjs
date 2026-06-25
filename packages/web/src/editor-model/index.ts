@@ -7,6 +7,7 @@ import {
   type ExternalDef,
   type ModelDefinition,
   type ScenarioDefinition,
+  type SegmentedExogenizeOptions,
   type ShockVariableDef,
   type SimulationOptions,
   type SolverMethod
@@ -20,6 +21,7 @@ import {
   isRowComment,
   type EquationListItem,
   type ExternalListItem,
+  type ExternalRowKind,
   type InitialValueListItem,
   type NotebookDiagnosticDomain
 } from "@sfcr/notebook-core";
@@ -50,7 +52,7 @@ export interface ExternalRow {
   domain?: NotebookDiagnosticDomain;
   name: string;
   desc?: string;
-  kind: ExternalDef["kind"];
+  kind: ExternalRowKind;
   valueText: string;
   observed?: boolean;
   unitMeta?: UnitMeta;
@@ -184,6 +186,7 @@ export function buildRuntimeConfig(
   model: ModelDefinition;
   options: SimulationOptions;
   scenario: ScenarioDefinition | null;
+  segmentation: SegmentedExogenizeOptions | null;
 } {
   const explicitEquations = equationRowsOnly(editor.equations)
     .filter((equation) => equation.name.trim() !== "" && equation.expression.trim() !== "")
@@ -213,8 +216,24 @@ export function buildRuntimeConfig(
 
   const externals = Object.fromEntries(
     externalRowsOnly(editor.externals)
-      .filter((external) => external.name.trim() !== "" && external.valueText.trim() !== "")
+      .filter(
+        (external) =>
+          external.kind !== "coefficient" &&
+          external.name.trim() !== "" &&
+          external.valueText.trim() !== ""
+      )
       .map((external) => [external.name.trim(), parseExternal(external.kind, external.valueText)])
+  );
+
+  const coefficients = Object.fromEntries(
+    externalRowsOnly(editor.externals)
+      .filter(
+        (external) =>
+          external.kind === "coefficient" &&
+          external.name.trim() !== "" &&
+          external.valueText.trim() !== ""
+      )
+      .map((external) => [external.name.trim(), parseNumber(external.valueText)])
   );
 
   const observed = Object.fromEntries(
@@ -274,12 +293,36 @@ export function buildRuntimeConfig(
         )
       : undefined;
 
-  const runtimeEquations = applyExogenizeToEquations(equations, runCell?.exogenize, externals, observed);
+  const { wholeRangeNames, windowedEntries } = splitExogenizeEntries(runCell?.exogenize);
+  const runtimeEquations = applyExogenizeToEquations(equations, wholeRangeNames, externals, observed);
+
+  let segmentation: SegmentedExogenizeOptions | null = null;
+  if (windowedEntries.length > 0) {
+    const splitPeriods = new Set(windowedEntries.map((entry) => entry.throughPeriod));
+    if (splitPeriods.size > 1) {
+      throw new Error(
+        "Windowed exogenize entries must share a single throughPeriod (one in-sample/out-of-sample boundary)."
+      );
+    }
+    const splitPeriod = windowedEntries[0]!.throughPeriod;
+    const segment1Equations = applyExogenizeToEquations(
+      equations,
+      [...wholeRangeNames, ...windowedEntries.map((entry) => entry.name)],
+      externals,
+      observed
+    );
+    const segment1Names = new Set(segment1Equations.map((equation) => equation.name));
+    const segment1ExogenizedEquationNames = runtimeEquations
+      .filter((equation) => !segment1Names.has(equation.name))
+      .map((equation) => equation.name);
+    segmentation = { splitPeriod, segment1ExogenizedEquationNames };
+  }
 
   const model: ModelDefinition = {
     equations: runtimeEquations,
     externals,
     initialValues,
+    ...(Object.keys(coefficients).length > 0 ? { coefficients } : {}),
     ...(Object.keys(observed).length > 0 ? { observed } : {}),
     ...(matrixColumnSumBundle && Object.keys(matrixColumnSumBundle.bindings).length > 0
       ? {
@@ -328,7 +371,8 @@ export function buildRuntimeConfig(
   return {
     model,
     options,
-    scenario: shocks.length > 0 ? { shocks } : null
+    scenario: shocks.length > 0 ? { shocks } : null,
+    segmentation
   };
 }
 
@@ -425,7 +469,7 @@ export function validateEditorState(editor: EditorState): ValidationIssue[] {
     } else if (!isValidNumericInput(external.kind, external.valueText)) {
       issues.push({
         path: `externals.${index}.valueText`,
-        message: external.kind === "constant" ? "Enter a valid number." : "Enter valid comma-separated numbers."
+        message: external.kind === "series" ? "Enter valid comma-separated numbers." : "Enter a valid number."
       });
     }
   });
@@ -689,14 +733,40 @@ function classifyValidationIssues(
   }));
 }
 
-function parseExternal(kind: ExternalDef["kind"], valueText: string): ExternalDef {
-  return kind === "constant"
-    ? { kind, value: parseNumber(valueText) }
-    : { kind, values: parseNumberList(valueText) };
+function parseExternal(kind: ExternalRowKind, valueText: string): ExternalDef {
+  return kind === "series"
+    ? { kind, values: parseNumberList(valueText) }
+    : { kind: "constant", value: parseNumber(valueText) };
 }
 
 /** Wildcard token in a run's `exogenize` list: hold every variable that has data. */
 export const EXOGENIZE_ALL_TOKEN = "*";
+
+/**
+ * Partition a run's `exogenize` entries into whole-run names (pinned for every
+ * period) and windowed entries (pinned only through `throughPeriod`, then
+ * released). Windowed entries turn the run into a segmented in-sample run.
+ */
+export function splitExogenizeEntries(
+  exogenize: NotebookRunExogenize | undefined
+): { wholeRangeNames: string[]; windowedEntries: Array<{ name: string; throughPeriod: number }> } {
+  const wholeRangeNames: string[] = [];
+  const windowedEntries: Array<{ name: string; throughPeriod: number }> = [];
+  for (const entry of exogenize ?? []) {
+    if (typeof entry === "string") {
+      wholeRangeNames.push(entry);
+      continue;
+    }
+    if (entry.throughPeriod == null) {
+      wholeRangeNames.push(entry.name);
+      continue;
+    }
+    windowedEntries.push({ name: entry.name, throughPeriod: entry.throughPeriod });
+  }
+  return { wholeRangeNames, windowedEntries };
+}
+
+type NotebookRunExogenize = NonNullable<Extract<NotebookCell, { type: "run" }>["exogenize"]>;
 
 const TRANSFORMED_LHS_PATTERN =
   /^(?:TSDELTALOG|TSDELTAP|TSDELTA|TSLAG|MOVAVG|DIFF|LAG|log|diff|lag)\(\s*([A-Za-z_][A-Za-z0-9_.^{}]*)\s*(?:,[^)]*)?\)$/i;
@@ -815,8 +885,8 @@ function parseNumber(valueText: string): number {
   return value;
 }
 
-function isValidNumericInput(kind: "constant" | "series", valueText: string): boolean {
-  return kind === "constant" ? isValidNumber(valueText) : isValidNumberList(valueText);
+function isValidNumericInput(kind: ExternalRowKind, valueText: string): boolean {
+  return kind === "series" ? isValidNumberList(valueText) : isValidNumber(valueText);
 }
 
 function isValidNumber(valueText: string): boolean {

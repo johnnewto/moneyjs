@@ -33,9 +33,11 @@ export const NOTEBOOK_CELL_TYPES = new Set<NotebookCell["type"]>([
   "equations",
   "solver",
   "externals",
+  "observed",
   "initial-values",
   "run",
   "chart",
+  "chart-grid",
   "table",
   "matrix",
   "sequence"

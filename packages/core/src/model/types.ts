@@ -24,6 +24,14 @@ export interface ModelDefinition {
   equations: EquationDef[];
   externals: Record<string, ExternalDef>;
   initialValues: Record<string, number>;
+  /**
+   * Named scalar parameters (e.g. estimated/calibrated coefficients) resolved in
+   * equation expressions as constants held across every period. They live in a
+   * namespace separate from `equations` and `externals`: a coefficient name must
+   * not collide with any equation target or external (see `validateModel`), and
+   * no equation may write to it.
+   */
+  coefficients?: Record<string, number>;
   observed?: Record<string, number[]>;
   /** Maps sum(columnRef) keys to matrix cell expression strings summed at runtime. */
   matrixColumnSums?: Record<string, string[]>;
@@ -41,6 +49,10 @@ export interface SimulationOptions {
   defaultInitialValue?: number;
   simType?: SimulationType;
   hiddenEquation?: HiddenEquationDef;
+  /** Optional preloaded history used by scenario runs that need multi-period lags. */
+  initialSeries?: Record<string, number[] | Float64Array>;
+  /** First period index to solve; earlier periods are treated as supplied history. */
+  startPeriod?: number;
 }
 
 export type ShockVariableDef =

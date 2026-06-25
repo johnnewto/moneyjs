@@ -5,6 +5,8 @@ import type {
   ExternalListItem,
   InitialValueListItem
 } from "../lib/editorModel";
+import { isRowComment } from "@sfcr/notebook-core";
+
 import type {
   EquationsCell,
   ExternalsCell,
@@ -12,6 +14,7 @@ import type {
   ModelCell,
   NotebookCell,
   NotebookDocument,
+  ObservedCell,
   RunCell,
   SolverCell
 } from "./types";
@@ -34,6 +37,30 @@ export function findExternalsCell(cells: NotebookCell[], modelId: string): Exter
       (cell): cell is ExternalsCell => cell.type === "externals" && cell.modelId === modelId
     ) ?? null
   );
+}
+
+export function findObservedCell(cells: NotebookCell[], modelId: string): ObservedCell | null {
+  return (
+    cells.find(
+      (cell): cell is ObservedCell => cell.type === "observed" && cell.modelId === modelId
+    ) ?? null
+  );
+}
+
+/**
+ * Externals for a model, combining the externals cell with any observed cell.
+ * Observed rows are forced to `observed: true` so they feed both
+ * `model.externals` and `model.observed` during compilation.
+ */
+export function collectModelExternals(
+  cells: NotebookCell[],
+  modelId: string
+): ExternalListItem[] {
+  const externals = findExternalsCell(cells, modelId)?.externals ?? [];
+  const observed = (findObservedCell(cells, modelId)?.externals ?? []).map((row) =>
+    isRowComment(row) ? row : { ...row, observed: true }
+  );
+  return observed.length > 0 ? [...externals, ...observed] : externals;
 }
 
 export function findInitialValuesCell(
@@ -82,6 +109,7 @@ export function resolveNotebookModelKey(
     (cell.type === "equations" ||
       cell.type === "solver" ||
       cell.type === "externals" ||
+      cell.type === "observed" ||
       cell.type === "initial-values") &&
     cell.modelId
   ) {
@@ -109,7 +137,7 @@ export function buildEditorStateForNotebookModel(
 
     return {
       equations: equationsCell.equations,
-      externals: findExternalsCell(document.cells, modelId)?.externals ?? [],
+      externals: collectModelExternals(document.cells, modelId),
       initialValues: findInitialValuesCell(document.cells, modelId)?.initialValues ?? [],
       options: {
         ...solverCell.options,

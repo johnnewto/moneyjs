@@ -91,4 +91,23 @@ describe("buildPublicationViewModel", () => {
     expect(entries.some((entry) => entry.anchorId === "intro")).toBe(true);
     expect(entries.every((entry) => entry.title.length > 0)).toBe(true);
   });
+
+  it("includes chart-grid cells in body publication sections", () => {
+    const document = createNotebookFromTemplate("italy-sfc");
+    const chartGridCells = document.cells.filter((cell) => cell.type === "chart-grid");
+
+    expect(chartGridCells.length).toBeGreaterThan(0);
+
+    const viewModel = buildPublicationViewModel({
+      document,
+      templateId: "italy-sfc",
+      mode: "publish"
+    });
+
+    const chartGridSections = viewModel.bodySections.filter(
+      (section) => section.cell.type === "chart-grid" && section.kind === "chart"
+    );
+
+    expect(chartGridSections).toHaveLength(chartGridCells.length);
+  });
 });

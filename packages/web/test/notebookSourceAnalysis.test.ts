@@ -97,6 +97,132 @@ describe("analyzeNotebookSource", () => {
     expect(parsed.cells.some((cell) => cell.type === "equations" && cell.title === "Equations")).toBe(true);
   });
 
+  it("keeps observed series rows compact in YAML source", () => {
+    const document = parseNotebookSource(
+      JSON.stringify({
+        id: "example",
+        title: "Example",
+        metadata: { version: 1 },
+        cells: [
+          {
+            id: "observed",
+            type: "observed",
+            title: "Observed history",
+            modelId: "main",
+            externals: [
+              {
+                id: "ext-0-oph",
+                name: "oph",
+                desc: "Other payments or receipts of households",
+                kind: "series",
+                valueText: "1, 2, 3",
+                observed: true
+              }
+            ]
+          }
+        ]
+      }),
+      "json"
+    ).document;
+
+    const yaml = notebookToCompactYaml(document, { preserveIds: true });
+    const parsed = notebookFromYaml(yaml);
+
+    expect(yaml).toContain("- {name: oph, kind: series, observed: true");
+    expect(yaml).toContain('valueText: "1, 2, 3"}');
+    expect(yaml).not.toContain("id: ext-0-oph");
+    expect(parsed.cells[0]).toMatchObject({
+      type: "observed",
+      externals: [{ id: "ext-0-oph", name: "oph", kind: "series", observed: true, valueText: "1, 2, 3" }]
+    });
+  });
+
+  it("keeps chart-grid charts compact in YAML source", () => {
+    const document = parseNotebookSource(
+      JSON.stringify({
+        id: "example",
+        title: "Example",
+        metadata: { version: 1 },
+        cells: [
+          {
+            id: "chart-grid-1",
+            type: "chart-grid",
+            title: "Charts",
+            gridColumns: 2,
+            charts: [
+              {
+                id: "chart-1",
+                type: "chart",
+                title: "GDP",
+                sourceRunCellId: "baseline-run",
+                variables: ["y"],
+                referenceTrace: "observed",
+                axisMode: "shared"
+              },
+              {
+                id: "chart-2",
+                type: "chart",
+                title: "Yield",
+                sourceRunCellId: "baseline-run",
+                series: [{ expression: "100 * rb", label: "Yield", unit: "%" }],
+                referenceTrace: "observed",
+                axisMode: "shared"
+              }
+            ]
+          }
+        ]
+      }),
+      "json"
+    ).document;
+
+    const yaml = notebookToCompactYaml(document, { preserveIds: true });
+    const parsed = notebookFromYaml(yaml);
+
+    expect(yaml).toContain("  - chart-grid:");
+    expect(yaml).toContain('- {type: chart, id: chart-1, title: GDP, variables: [y], axisMode: shared, referenceTrace: observed, sourceRunCellId: baseline-run}');
+    expect(yaml).toContain('- {type: chart, id: chart-2, title: Yield, series: [{expression: 100 * rb, label: Yield, unit: "%"}], axisMode: shared, referenceTrace: observed, sourceRunCellId: baseline-run}');
+    expect(parsed.cells[0]).toMatchObject({
+      type: "chart-grid",
+      charts: [
+        { id: "chart-1", type: "chart", sourceRunCellId: "baseline-run", variables: ["y"] },
+        { id: "chart-2", type: "chart", sourceRunCellId: "baseline-run" }
+      ]
+    });
+  });
+
+  it("keeps run exogenize arrays compact in YAML source", () => {
+    const document = parseNotebookSource(
+      JSON.stringify({
+        id: "example",
+        title: "Example",
+        metadata: { version: 1 },
+        cells: [
+          {
+            id: "baseline-run",
+            type: "run",
+            title: "Baseline run",
+            mode: "baseline",
+            periods: 25,
+            simType: "STATIC",
+            exogenize: ["oph", "opf", "opb", "opcb", "oacb", "oaf", "oab", "oag", "oah", "rstar", "Lp_row", "Lp_en"],
+            resultKey: "baseline",
+            sourceModelId: "main"
+          }
+        ]
+      }),
+      "json"
+    ).document;
+
+    const yaml = notebookToCompactYaml(document, { preserveIds: true });
+    const parsed = notebookFromYaml(yaml);
+
+    expect(yaml).toContain("exogenize: [oph, opf, opb, opcb, oacb, oaf, oab, oag, oah, rstar, Lp_row, Lp_en]");
+    expect(parsed.cells[0]).toMatchObject({
+      type: "run",
+      exogenize: ["oph", "opf", "opb", "opcb", "oacb", "oaf", "oab", "oag", "oah", "rstar", "Lp_row", "Lp_en"]
+    });
+  });
+
   it("preserves typed compact YAML wrappers when canonical cell ids match cell types", () => {
     const document = parseNotebookSource(
       JSON.stringify({

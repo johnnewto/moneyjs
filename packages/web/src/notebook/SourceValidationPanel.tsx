@@ -1,4 +1,4 @@
-import type { NotebookSourceValidation, ValidationStep } from "./notebookSourceWorkflow";
+import type { NotebookSourceValidation } from "./notebookSourceWorkflow";
 
 export function SourceValidationPanel({
   successMessage,
@@ -13,25 +13,6 @@ export function SourceValidationPanel({
 
   return (
     <section className="notebook-source-validation-panel" aria-label="Notebook source validation">
-      <div className="notebook-source-validation-grid">
-        <ValidationStepBadge label="Parse" step={validation.parse} />
-        <ValidationStepBadge label="Schema" step={validation.schema} />
-        <div
-          className={`notebook-source-validation-step${
-            notebookChecksValid ? (warningCount > 0 ? " is-warning" : " is-valid") : " is-invalid"
-          }`}
-        >
-          <span>Notebook checks</span>
-          <strong>
-            {!notebookChecksValid
-              ? `${blockingIssueCount} issue${blockingIssueCount === 1 ? "" : "s"}`
-              : warningCount > 0
-                ? `${warningCount} warning${warningCount === 1 ? "" : "s"}`
-                : "valid"}
-          </strong>
-        </div>
-      </div>
-
       {validation.issues.length > 0 ? (
         <ul className="notebook-source-validation-list">
           {validation.issues.slice(0, 5).map((issue) => (
@@ -48,14 +29,5 @@ export function SourceValidationPanel({
         </div>
       ) : null}
     </section>
-  );
-}
-
-function ValidationStepBadge({ label, step }: { label: string; step: ValidationStep }) {
-  return (
-    <div className={`notebook-source-validation-step is-${step.status}`}>
-      <span>{label}</span>
-      <strong>{step.message}</strong>
-    </div>
   );
 }

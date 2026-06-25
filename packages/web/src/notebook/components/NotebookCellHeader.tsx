@@ -9,6 +9,7 @@ import type {
   ExternalsCell,
   InitialValuesCell,
   ModelCell,
+  ObservedCell,
   SolverCell
 } from "../types";
 
@@ -263,7 +264,7 @@ export function NotebookLinkedEditorActions({
   onToggleCollapsed,
   title
 }: {
-  cell: ModelCell | EquationsCell | SolverCell | ExternalsCell | InitialValuesCell;
+  cell: ModelCell | EquationsCell | SolverCell | ExternalsCell | ObservedCell | InitialValuesCell;
   editingExtraActions?: ReactNode;
   extraActions?: ReactNode;
   hasDraftEdits: boolean;

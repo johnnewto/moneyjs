@@ -96,6 +96,7 @@ import {
   getNotebookSourcePlaceholder,
   inferFormatFromFileName,
   NOTEBOOK_NO_FILE_CHOSEN_LABEL,
+  type NotebookSourceValidation,
   resolveNotebookSaveBaseName,
   serializeNotebookSource,
   withNotebookSourceFileName,
@@ -483,6 +484,29 @@ function createNotebookCellForInsert(
         variables: resolveDefaultVariablesForRun(cells, runCell).slice(0, 3),
         axisMode: "separate",
         referenceTrace: "none"
+      };
+    }
+    case "chart-grid": {
+      const runCell = resolveDefaultRunCell(cells, anchorIndex);
+      if (!runCell) {
+        return null;
+      }
+      const defaultVariables = resolveDefaultVariablesForRun(cells, runCell);
+      const gridId = createUniqueNotebookCellId(cells, "chart-grid");
+      return {
+        id: gridId,
+        type: "chart-grid",
+        title: "New chart grid",
+        gridColumns: 2,
+        charts: Array.from({ length: 4 }, (_unused, index) => ({
+          id: `${gridId}-chart-${index + 1}`,
+          type: "chart",
+          title: `Chart ${index + 1}`,
+          sourceRunCellId: runCell.id,
+          variables: defaultVariables.slice(index, index + 1),
+          axisMode: "separate",
+          referenceTrace: "none"
+        }))
       };
     }
     case "table": {
@@ -1975,7 +1999,15 @@ export function NotebookApp() {
   }): void {
     const cell = notebookDocument.cells.find((candidate) => candidate.id === args.cellId);
     setHelpContext(args);
-    setSelectedHelpTopicId(cell ? getNotebookHelpTopicIdForCell(cell) : args.cellType);
+    setSelectedHelpTopicId(
+      cell
+        ? getNotebookHelpTopicIdForCell(cell)
+        : args.cellType === "observed"
+          ? "externals"
+          : args.cellType === "chart-grid"
+            ? "chart"
+            : args.cellType
+    );
     setIsHelpContentsVisible(false);
     selectNotebookCell(args.cellId);
     setActiveRailTab("help");
@@ -4075,6 +4107,7 @@ export function NotebookApp() {
                 onChange={updateImportText}
                 placeholderText={getNotebookSourcePlaceholder(sourceFormat)}
                 selectedCellId={activeEditorCellId ? null : selectedCellId}
+                validationSummary={buildSourceCodeEditorValidationSummary(sourceValidation)}
                 value={importText}
               />
 
@@ -4676,4 +4709,23 @@ export function NotebookApp() {
       </main>
     </NotebookRenderProfiler>
   );
+}
+
+function buildSourceCodeEditorValidationSummary(validation: NotebookSourceValidation) {
+  const blockingIssueCount = validation.notebookIssueCount + validation.modelIssueCount;
+  const warningCount = validation.notebookWarningCount + validation.modelWarningCount;
+  const notebookChecksValid = blockingIssueCount === 0;
+
+  return {
+    parseMessage: validation.parse.message,
+    parseStatus: validation.parse.status,
+    schemaMessage: validation.schema.message,
+    schemaStatus: validation.schema.status,
+    notebookChecksMessage: !notebookChecksValid
+      ? `${blockingIssueCount} issue${blockingIssueCount === 1 ? "" : "s"}`
+      : warningCount > 0
+        ? `${warningCount} warning${warningCount === 1 ? "" : "s"}`
+        : "valid",
+    notebookChecksStatus: !notebookChecksValid ? "invalid" : warningCount > 0 ? "warning" : "valid"
+  } as const;
 }

@@ -493,6 +493,20 @@ describe("ResultChart", () => {
     expect(screen.getByText(hasTextContent(/Shared axis: -1\.20 to 31\.2/i))).toBeInTheDocument();
   });
 
+  it("renders the reference trace label in the chart legend", () => {
+    render(
+      <ResultChart
+        overlaySeries={[{ name: "A", values: [0, 30] }]}
+        referenceTraceLegendLabel="----: observed"
+        series={[{ name: "A", values: [10, 20] }]}
+      />
+    );
+
+    const label = screen.getByText("----: observed");
+    expect(label.closest(".chart-legend")).not.toBeNull();
+    expect(label.closest(".legend-item-reference-trace")).not.toBeNull();
+  });
+
   it("thickens the dotted overlay when its matching trace is hovered", () => {
     const { container } = render(
       <ResultChart

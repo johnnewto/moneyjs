@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { CompletionContext, autocompletion, type Completion } from "@codemirror/autocomplete";
 import { json } from "@codemirror/lang-json";
+import { codeFolding, foldEffect, forceParsing, unfoldAll } from "@codemirror/language";
 import { yaml } from "@codemirror/lang-yaml";
 import { linter, type Diagnostic } from "@codemirror/lint";
 import { Compartment, EditorState, type Extension, type Text } from "@codemirror/state";
@@ -30,6 +31,15 @@ export interface SourceCodeEditorDiagnostics {
   schemaValid: boolean;
 }
 
+export interface SourceCodeEditorValidationSummary {
+  notebookChecksMessage: string;
+  notebookChecksStatus: "valid" | "invalid" | "warning";
+  parseMessage: string;
+  parseStatus: "valid" | "invalid";
+  schemaMessage: string;
+  schemaStatus: "valid" | "invalid";
+}
+
 export function SourceCodeEditor({
   diagnostics,
   document,
@@ -37,6 +47,7 @@ export function SourceCodeEditor({
   onChange,
   placeholderText,
   selectedCellId,
+  validationSummary,
   value
 }: {
   diagnostics: SourceCodeEditorDiagnostics;
@@ -45,6 +56,7 @@ export function SourceCodeEditor({
   onChange(value: string): void;
   placeholderText: string;
   selectedCellId: string | null;
+  validationSummary?: SourceCodeEditorValidationSummary;
   value: string;
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -57,6 +69,7 @@ export function SourceCodeEditor({
     () => resolveSelectedCellSourceRange({ document, format, selectedCellId, source: value }),
     [document, format, selectedCellId, value]
   );
+  const [allCellsFolded, setAllCellsFolded] = useState(true);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -80,6 +93,7 @@ export function SourceCodeEditor({
         doc: value,
         extensions: [
           basicSetup,
+          codeFolding(),
           format === "yaml" ? yaml() : json(),
           highlightCompartment.of(
             buildSelectedCellHighlightExtension(selectedCellRange, EditorState.create({ doc: value }).doc)
@@ -104,13 +118,15 @@ export function SourceCodeEditor({
     });
 
     viewRef.current = view;
+    applyDefaultCellFolds(view, document, format, value);
+    setAllCellsFolded(true);
 
     return () => {
       highlightCompartmentRef.current = null;
       view.destroy();
       viewRef.current = null;
     };
-  }, [completionData, format, placeholderText]);
+  }, [completionData, document, format, placeholderText, value]);
 
   useEffect(() => {
     const view = viewRef.current;
@@ -121,7 +137,9 @@ export function SourceCodeEditor({
     view.dispatch({
       changes: { from: 0, to: view.state.doc.length, insert: value }
     });
-  }, [value]);
+    applyDefaultCellFolds(view, document, format, value);
+    setAllCellsFolded(true);
+  }, [document, format, value]);
 
   useEffect(() => {
     const view = viewRef.current;
@@ -152,6 +170,46 @@ export function SourceCodeEditor({
 
   return (
     <div className="notebook-code-editor-shell">
+      <div className="notebook-code-editor-toolbar" aria-label="Notebook source editor toolbar">
+        <button
+          type="button"
+          className="notebook-utility-button notebook-utility-button-muted"
+          onClick={() => {
+            const view = viewRef.current;
+            if (!view) {
+              return;
+            }
+            if (allCellsFolded) {
+              unfoldAll(view);
+              setAllCellsFolded(false);
+              return;
+            }
+            applyDefaultCellFolds(view, document, format, view.state.doc.toString());
+            setAllCellsFolded(true);
+          }}
+        >
+          {allCellsFolded ? "Expand cells" : "Fold cells"}
+        </button>
+        {validationSummary ? (
+          <div className="notebook-code-editor-status-line" aria-label="Notebook source validation summary">
+            <ValidationSummaryBadge
+              label="Parse"
+              message={validationSummary.parseMessage}
+              status={validationSummary.parseStatus}
+            />
+            <ValidationSummaryBadge
+              label="Schema"
+              message={validationSummary.schemaMessage}
+              status={validationSummary.schemaStatus}
+            />
+            <ValidationSummaryBadge
+              label="Notebook checks"
+              message={validationSummary.notebookChecksMessage}
+              status={validationSummary.notebookChecksStatus}
+            />
+          </div>
+        ) : null}
+      </div>
       <div ref={hostRef} className="notebook-code-editor" />
       <textarea
         aria-hidden="true"
@@ -163,6 +221,58 @@ export function SourceCodeEditor({
       />
     </div>
   );
+}
+
+function ValidationSummaryBadge({
+  label,
+  message,
+  status
+}: {
+  label: string;
+  message: string;
+  status: "valid" | "invalid" | "warning";
+}) {
+  return (
+    <div className={`notebook-code-editor-status-badge is-${status}`}>
+      <span>{label}</span>
+      <strong>{message}</strong>
+    </div>
+  );
+}
+
+function applyDefaultCellFolds(
+  view: EditorView,
+  document: NotebookDocument,
+  format: NotebookSourceFormat,
+  source: string
+): void {
+  if (format !== "json" && format !== "yaml") {
+    return;
+  }
+
+  forceParsing(view, view.state.doc.length, 100);
+  unfoldAll(view);
+
+  const effects = document.cells.flatMap((cell) => {
+    const range = resolveSelectedCellSourceRange({
+      document,
+      format,
+      selectedCellId: cell.id,
+      source
+    });
+    if (!range) {
+      return [];
+    }
+
+    const firstLine = view.state.doc.lineAt(range.from);
+    const foldFrom = firstLine.to;
+    const foldTo = range.to;
+    return foldTo > foldFrom ? [foldEffect.of({ from: foldFrom, to: foldTo })] : [];
+  });
+
+  if (effects.length > 0) {
+    view.dispatch({ effects });
+  }
 }
 
 function buildSelectedCellHighlightExtension(

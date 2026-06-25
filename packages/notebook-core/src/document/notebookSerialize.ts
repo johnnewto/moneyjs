@@ -42,6 +42,7 @@ export function serializeNotebookCell(cell: NotebookCell): NotebookCell {
         )
       };
     case "externals":
+    case "observed":
       return {
         ...cell,
         externals: cell.externals.map((external) =>
@@ -119,6 +120,7 @@ export function normalizeNotebookCell(cell: NotebookCell): NotebookCell {
         )
       };
     case "externals":
+    case "observed":
       return {
         ...cell,
         externals: cell.externals.map((external) =>

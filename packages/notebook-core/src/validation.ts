@@ -147,6 +147,7 @@ export function validateNotebookDocument(document: NotebookDocument): NotebookVa
       cell.type === "equations" ||
       cell.type === "solver" ||
       cell.type === "externals" ||
+      cell.type === "observed" ||
       cell.type === "initial-values"
     ) {
       sectionModelIds.add(cell.modelId);
@@ -430,6 +431,7 @@ function validateModelSectionNames(
     if (
       cell.type !== "equations" &&
       cell.type !== "externals" &&
+      cell.type !== "observed" &&
       cell.type !== "initial-values" &&
       cell.type !== "model"
     ) {
@@ -452,10 +454,13 @@ function validateModelSectionNames(
     const entries =
       cell.type === "equations"
         ? cell.equations
-        : cell.type === "externals"
+        : cell.type === "externals" || cell.type === "observed"
           ? cell.externals
           : cell.initialValues;
-    validateNamesForKind(cell.modelId, cell.type, entries, namesByModelAndKind, issues);
+    // Observed rows share the externals namespace so collisions across the two
+    // sections (and against externals) are reported.
+    const kind = cell.type === "observed" ? "externals" : cell.type;
+    validateNamesForKind(cell.modelId, kind, entries, namesByModelAndKind, issues);
   }
 }
 

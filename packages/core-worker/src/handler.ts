@@ -7,6 +7,7 @@ import {
   probeInitialValuesForPeriod1,
   runBaseline,
   runScenario,
+  runSegmentedExogenize,
   validateRunnable
 } from "@sfcr/core";
 
@@ -29,6 +30,16 @@ export function handleWorkerRequest(request: WorkerRequest): WorkerResponse {
             request.payload.baseline,
             request.payload.scenario,
             request.payload.options
+          )
+        };
+      case "runSegmentedExogenize":
+        return {
+          id: request.id,
+          type: "success",
+          payload: runSegmentedExogenize(
+            request.payload.model,
+            request.payload.options,
+            request.payload.segmentation
           )
         };
       case "validateRunnable":

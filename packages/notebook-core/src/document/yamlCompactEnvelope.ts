@@ -134,6 +134,15 @@ export function serializeCompactYamlCell(cell: NotebookCell): Record<string, unk
         ...compactCellFlags(cell),
         rows: cell.externals.map(buildCompactExternalListRow)
       };
+    case "observed":
+      return {
+        id: cell.id,
+        type: "observed",
+        title: cell.title,
+        modelId: cell.modelId,
+        ...compactCellFlags(cell),
+        rows: cell.externals.map(buildCompactExternalListRow)
+      };
     case "initial-values":
       return {
         id: cell.id,
@@ -165,6 +174,19 @@ export function serializeCompactYamlCell(cell: NotebookCell): Record<string, unk
         type: "table",
         ...buildCompactTableDescriptor(cell, { fallbackId: cell.id, preserveIds: true }),
         sourceRunCellId: cell.sourceRunCellId
+      };
+    case "chart-grid":
+      return {
+        id: cell.id,
+        type: "chart-grid",
+        title: cell.title,
+        ...compactCellFlags(cell),
+        gridColumns: cell.gridColumns,
+        charts: cell.charts.map((chart) => ({
+          type: "chart",
+          ...buildCompactChartDescriptor(chart, { fallbackId: chart.id, preserveIds: true }),
+          sourceRunCellId: chart.sourceRunCellId
+        }))
       };
     default:
       return serializeNotebookCell(cell) as unknown as Record<string, unknown>;

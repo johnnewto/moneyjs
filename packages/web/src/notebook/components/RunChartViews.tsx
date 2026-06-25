@@ -1,5 +1,3 @@
-import type { SimulationResult } from "@sfcr/core";
-
 import { ResultChart } from "../../components/ResultChart";
 import { ScenarioShockVariableLine } from "../../components/ScenarioShockVariableLine";
 import type { EditorState } from "../../lib/editorModel";
@@ -12,11 +10,13 @@ import {
   resolveShowScenarioShocks
 } from "../../lib/scenarioShockMarkers";
 import {
-  buildOverlaySeriesFromSpecs,
+  buildReferenceTraceOverlaySeries,
+  resolveEffectiveScenarioStartPeriod,
+  resolveReferenceTrace
+} from "../chartReferenceTrace";
+import {
   buildResolvedChartSeriesRanges,
-  buildResolvedChartSeriesWithUnits,
-  resolveChartSeriesSpecs,
-  type ResolvedChartSeries
+  buildResolvedChartSeriesWithUnits
 } from "../chartSeries";
 import type { ChartCell, NotebookCell, RunCell } from "../types";
 import type { useNotebookRunner } from "../useNotebookRunner";
@@ -207,13 +207,16 @@ export function ChartCellView({
       : selectedPeriodIndex;
   const hasObserved = result.observed != null && Object.keys(result.observed).length > 0;
   const referenceTrace = resolveReferenceTrace(cell, sourceRunCell, hasObserved);
-  const overlaySeries = referenceTrace === "previous-run"
-    ? buildPreviousRunOverlaySeries(cell, previousResult, series)
-    : referenceTrace === "baseline"
-      ? buildBaselineOverlaySeries(cell, sourceRunCell, baselineStartPeriod, baselineResult, series)
-      : referenceTrace === "observed"
-        ? buildObservedOverlaySeries(cell, result, series)
-        : [];
+  const overlaySeries = buildReferenceTraceOverlaySeries({
+    cell,
+    referenceTrace,
+    result,
+    resolvedSeries: series,
+    sourceRunCell,
+    baselineStartPeriod,
+    baselineResult,
+    previousResult
+  });
   const timeRangeDefaults = resolveChartTimeRangeDefaults(series[0]?.values.length ?? 0);
   const addVariableOptions = Object.entries(result.series)
     .filter(([, values]) => values.length > 1 && Array.from(values).some(Number.isFinite))
@@ -255,6 +258,7 @@ export function ChartCellView({
       seriesRanges={seriesRanges}
       selectedIndex={chartSelectedIndex}
       series={series}
+      showAxisSummary={false}
       sharedRange={cell.sharedRange}
       timeRangeDefaults={timeRangeDefaults}
       timeRangeInclusive={cell.timeRangeInclusive}
@@ -266,121 +270,6 @@ export function ChartCellView({
       yAxisTickCount={cell.yAxisTickCount}
     />
   );
-}
-
-function buildBaselineOverlaySeries(
-  cell: ChartCell,
-  sourceRunCell: RunCell | null | undefined,
-  baselineStartPeriod: number | undefined,
-  baselineResult: ReturnType<ReturnType<typeof useNotebookRunner>["getResult"]>,
-  resolvedSeries: ResolvedChartSeries[]
-) {
-  if (
-    sourceRunCell?.mode !== "scenario" ||
-    baselineStartPeriod == null ||
-    !baselineResult
-  ) {
-    return [];
-  }
-
-  const specs = resolveChartSeriesSpecs(cell);
-  const startIndex = Math.max(baselineStartPeriod - 1, 0);
-  const length = sourceRunCell.periods ?? resolvedSeries[0]?.values.length ?? 0;
-  const overlayByHighlightKey = new Map(
-    buildOverlaySeriesFromSpecs(specs, baselineResult, { startIndex, length }).map((entry) => [
-      entry.highlightKey,
-      entry
-    ])
-  );
-
-  return resolvedSeries.flatMap((entry) => {
-    const overlay = overlayByHighlightKey.get(entry.highlightKey);
-    return overlay ? [{ ...overlay, name: entry.name }] : [];
-  });
-}
-
-function buildPreviousRunOverlaySeries(
-  cell: ChartCell,
-  previousResult: ReturnType<ReturnType<typeof useNotebookRunner>["getPreviousResult"]>,
-  resolvedSeries: ResolvedChartSeries[]
-) {
-  if (!previousResult) {
-    return [];
-  }
-
-  const specs = resolveChartSeriesSpecs(cell);
-  const overlayByHighlightKey = new Map(
-    buildOverlaySeriesFromSpecs(specs, previousResult).map((entry) => [entry.highlightKey, entry])
-  );
-
-  return resolvedSeries.flatMap((entry) => {
-    const overlay = overlayByHighlightKey.get(entry.highlightKey);
-    return overlay ? [{ ...overlay, name: entry.name }] : [];
-  });
-}
-
-function buildObservedOverlaySeries(
-  cell: ChartCell,
-  result: SimulationResult,
-  resolvedSeries: ResolvedChartSeries[]
-) {
-  const observed = result.observed;
-  if (!observed || Object.keys(observed).length === 0) {
-    return [];
-  }
-
-  const observedResult: SimulationResult = { ...result, series: observed };
-  const specs = resolveChartSeriesSpecs(cell);
-  const overlayByHighlightKey = new Map(
-    buildOverlaySeriesFromSpecs(specs, observedResult).map((entry) => [entry.highlightKey, entry])
-  );
-
-  return resolvedSeries.flatMap((entry) => {
-    const overlay = overlayByHighlightKey.get(entry.highlightKey);
-    return overlay ? [{ ...overlay, name: entry.name }] : [];
-  });
-}
-
-function resolveReferenceTrace(
-  cell: ChartCell,
-  sourceRunCell: RunCell | null | undefined,
-  hasObserved: boolean
-): "none" | "baseline" | "previous-run" | "observed" {
-  if (cell.referenceTrace) {
-    return cell.referenceTrace;
-  }
-
-  if (hasObserved && sourceRunCell?.simType === "STATIC") {
-    return "observed";
-  }
-
-  return "previous-run";
-}
-
-function resolveEffectiveScenarioStartPeriod(
-  cells: NotebookCell[],
-  cell: RunCell
-): number | undefined {
-  if (cell.mode !== "scenario") {
-    return undefined;
-  }
-
-  if (cell.baselineStartPeriod != null) {
-    return cell.baselineStartPeriod;
-  }
-
-  const baselineRunCell = cell.baselineRunCellId
-    ? cells.find(
-        (candidate): candidate is RunCell =>
-          candidate.type === "run" && candidate.id === cell.baselineRunCellId
-      ) ?? null
-    : null;
-
-  if (!baselineRunCell) {
-    return undefined;
-  }
-
-  return baselineRunCell.periods;
 }
 
 function resolveChartTimeRangeDefaults(

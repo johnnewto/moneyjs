@@ -20,11 +20,14 @@
 .notebook-source-textarea {
   background: transparent;
   border-radius: 0 14px 14px 0;
+  box-sizing: border-box;
   color: transparent;
   caret-color: var(--color-text);
   max-height: 640px;
   overflow-y: auto;
   position: relative;
+  white-space: pre-wrap;
+  word-break: break-word;
   z-index: 1;
 }
 .notebook-source-textarea::selection {
@@ -1174,6 +1177,48 @@
 .notebook-cell-content:has(.notebook-model-view) {
   overflow-y: visible;
 }
+.notebook-chart-grid {
+  /* Authored upper bound on columns (set inline per cell); falls to fewer as space shrinks. */
+  --chart-grid-max-columns: 3;
+  /* Smallest readable chart width before dropping a column. */
+  --chart-grid-min: 280px;
+  --chart-grid-gap: 0.65rem;
+  display: grid;
+  gap: var(--chart-grid-gap);
+  align-items: start;
+  width: 100%;
+  min-width: 0;
+  /*
+   * auto-fit packs as many columns as fit. The max() floor of
+   * "(container - gaps) / max-columns" caps the count at the authored maximum,
+   * while the --chart-grid-min term forces the column count down (max -> ... -> 1)
+   * once each track can no longer hold a readable chart.
+   */
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(
+      max(
+        var(--chart-grid-min),
+        calc(
+          (100% - (var(--chart-grid-max-columns) - 1) * var(--chart-grid-gap)) /
+            var(--chart-grid-max-columns)
+        )
+      ),
+      1fr
+    )
+  );
+}
+.notebook-chart-grid-item {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  min-width: 0;
+}
+.notebook-chart-grid-caption {
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
 .notebook-cell-viewport-placeholder {
   align-content: center;
   background:
@@ -1763,6 +1808,59 @@
   gap: 0.45rem;
   position: relative;
 }
+.notebook-code-editor-toolbar {
+  display: flex;
+  gap: 0.45rem;
+  align-items: stretch;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.notebook-code-editor-status-line {
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: repeat(3, max-content);
+  justify-content: end;
+  flex: 0 1 auto;
+}
+.notebook-code-editor-status-badge {
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 8px;
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.45rem 0.55rem;
+  white-space: nowrap;
+}
+.notebook-code-editor-status-badge span {
+  color: var(--color-text-subtle);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.notebook-code-editor-status-badge strong {
+  color: #334155;
+  font-size: 0.82rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.notebook-code-editor-status-badge.is-valid {
+  border-color: rgba(22, 163, 74, 0.34);
+}
+.notebook-code-editor-status-badge.is-valid strong {
+  color: #15803d;
+}
+.notebook-code-editor-status-badge.is-warning {
+  border-color: rgba(217, 119, 6, 0.34);
+}
+.notebook-code-editor-status-badge.is-warning strong {
+  color: #b45309;
+}
+.notebook-code-editor-status-badge.is-invalid {
+  border-color: rgba(220, 38, 38, 0.34);
+}
+.notebook-code-editor-status-badge.is-invalid strong {
+  color: #b91c1c;
+}
 .notebook-code-editor {
   border: 1px solid rgba(148, 163, 184, 0.32);
   border-radius: 8px;
@@ -2008,7 +2106,9 @@
 }
 .notebook-source-highlight {
   background: #fffdf7;
+  border: 1px solid transparent;
   border-radius: 0 14px 14px 0;
+  box-sizing: border-box;
   color: #334155;
   inset: 0;
   margin: 0;

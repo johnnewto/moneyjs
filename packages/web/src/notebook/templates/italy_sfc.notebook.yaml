@@ -89,50 +89,52 @@ cells:
       modelId: italy-sfc
       collapsed: false
       rows:
-        - { name: "fuf", expression: "0.2645868325*ff", desc: "Firms' undistributed profit" }
-        - { name: "TSDELTALOG(lh,1)", expression: "0.05829971282*TSLAG(cons/yd,1)", desc: "Loans to households" }
-        - { name: "mubh", expression: "0.7925009699*TSLAG(mubh,1)+0.8039101157*mub", desc: "Premium on government bills held by households" }
-        - { name: "mul", expression: "-0.01352819727+0.4904592188*TSLAG(mub,1)", desc: "Markup on loans to firms" }
-        - { name: "mulh", expression: "0.02902256245+0.2297245242*TSLAG(mub,1)", desc: "Markup on personal loans to households" }
-        - { name: "Lbb", expression: "0.9184678492*TSLAG(log(ls+hbd+bb),1)+0.3810144635*dum", desc: "Stock of bills held by banks (log)" }
-        - { name: "tax", expression: "0.5140981384*(TSLAG(wb,1))+0.06132552397*(TSLAG((yd-wb),1))+0.04162683316*(TSLAG(vh,1))", desc: "Tax revenue" }
-        - { name: "tr", expression: "1.043369861*TSLAG(tr,1)+374169.8585*TSDELTA(un,1)", desc: "Transfers and benefits" }
-        - { name: "Lbh", expression: "0.9033685467*TSLAG(log(vh),1)+-0.7748525636*dum", desc: "Holdings of government bills (log)" }
-        - { name: "Leh", expression: "0.9245377119*TSLAG(log(vh),1)", desc: "Holdings of shares (log)" }
-        - { name: "TSDELTA(Lhh,1)", expression: "0.006220519043*log(cons/pc)", desc: "Holdings of cash (log)" }
-        - { name: "rho", expression: "1.003838554*TSLAG(rho,1)", desc: "Reserve ratio" }
-        - { name: "yf", expression: "1.036662756*TSLAG(yf,1)", desc: "Foreign income (yf1 = 1 + gF)" }
-        - { name: "exr", expression: "0.999754368*MOVAVG(exr,2)", desc: "Exchange rate: dollars per 1 euro" }
-        - { name: "lambdarow", expression: "0.8752750723*TSLAG(lambdarow,1)+0.252528926*TSLAG(rbrow,1)", desc: "Share of government bills purchased by foreign agents" }
-        - { name: "mubb", expression: "0.9244328851*TSLAG(mubb,1)+0.2481936746*mub", desc: "Premium on government bills held by banks" }
-        - { name: "mubrow", expression: "0.5537887521*TSLAG(mubrow,1)+0.9163600321*mub", desc: "Premium on government bills held by RoW" }
-        - { name: "intmh", expression: "-69139.3257+0.05465478104*mh", desc: "Interests paid by banks to households on deposits and other A/L" }
-        - { name: "TSDELTALOG(prod,1)", expression: "-0.003662952028+0.3966443515*TSDELTALOG(100*w/p,1)+0.1826436653*TSDELTALOG(100*y/p,2)", desc: "Labour productivity (real value added per employee)" }
-        - { name: "Lns", expression: "1.000845923*TSLAG(Lns,1)+0.03062052672*(log(nd)-TSLAG(Lns,1))", desc: "Labour force (log)" }
-        - { name: "gw", expression: "0.008641812243*TSDELTAP(p/100,1)+-0.7855263998*TSDELTA(un,1)", desc: "Wage rate growth" }
-        - { name: "perc_en", expression: "-0.002156806238*infl_en+0.01263026888*TSLAG(log(y/p),1)", desc: "Share of energy products to total import" }
-        - { name: "LconsR", expression: "0.9063428643*TSLAG(log(y*100/pc),1)+0.05500181197*TSLAG(log(vh*100/pc),1)", desc: "Real consumption (log); y used in place of yd for stability" }
-        - { name: "gov", expression: "1.01*TSLAG((gov/p),1)*p", desc: "Government consumption" }
-        - { name: "LidR", expression: "-117.5121355+138.6163422*TSLAG(log(y)/log(k),1)", desc: "Real investment net of capital depreciation (log)" }
-        - { name: "LxR", expression: "7.878563023+0.5119948292*TSLAG(log(yf),1)+0.07953035772*TSLAG(exr*p/p_row,1)", desc: "Log of real export" }
-        - { name: "LimR", expression: "4.092185889+0.633165807*TSLAG(log(y),1)+-0.1058226447*TSLAG(p_im/p,1)", desc: "Log of real import" }
-        - { name: "Lp_im", expression: "2.169566159+0.1879363716*TSLAG(exr,1)+0.4874950883*TSLAG(Lp_row,1)", desc: "Log of price of import" }
-        - { name: "Lp", expression: "0.05816269859*TSLAG(Lp_en,1)+0.6192720172*TSLAG(Lp_row,1)+0.1044414215*TSLAG(log(100*y/p),1)", desc: "Log of price level (GDP deflator)" }
-        - { name: "Lpc", expression: "0.181837429*TSLAG(Lp_en,1)+0.5047636088*TSLAG(Lp_row,1)+0.1010135865*TSLAG(log(100*y/p),1)", desc: "Log of consumer price index" }
-        - { name: "mub", expression: "0.03222812595*TSLAG(deb/y,1)+-0.07942628589*bcb/bs+-0.4223383907*rstar", desc: "Average premium on government bills" }
+        # Behavioural equations: coefficients are named parameters (see the "Estimated
+        # coefficients" rows in the Externals cell), mirroring bimets COEFF> declarations.
+        - { name: "fuf", expression: "theta*ff", desc: "Firms' undistributed profit" }
+        - { name: "TSDELTALOG(lh,1)", expression: "phi1*TSLAG(cons/yd,1)", desc: "Loans to households" }
+        - { name: "mubh", expression: "mubh1*TSLAG(mubh,1)+mubh2*mub", desc: "Premium on government bills held by households" }
+        - { name: "mul", expression: "mul0+mul1*TSLAG(mub,1)", desc: "Markup on loans to firms" }
+        - { name: "mulh", expression: "mulh0+mulh1*TSLAG(mub,1)", desc: "Markup on personal loans to households" }
+        - { name: "Lbb", expression: "lambdabb1*TSLAG(log(ls+hbd+bb),1)+lambdabb2*dum", desc: "Stock of bills held by banks (log)" }
+        - { name: "tax", expression: "tau1*(TSLAG(wb,1))+tau2*(TSLAG((yd-wb),1))+tau3*(TSLAG(vh,1))", desc: "Tax revenue" }
+        - { name: "tr", expression: "tau4*TSLAG(tr,1)+tau5*TSDELTA(un,1)", desc: "Transfers and benefits" }
+        - { name: "Lbh", expression: "lambda20*TSLAG(log(vh),1)+lambda21*dum", desc: "Holdings of government bills (log)" }
+        - { name: "Leh", expression: "lambda10*TSLAG(log(vh),1)", desc: "Holdings of shares (log)" }
+        - { name: "TSDELTA(Lhh,1)", expression: "lambdac*log(cons/pc)", desc: "Holdings of cash (log)" }
+        - { name: "rho", expression: "rho_1*TSLAG(rho,1)", desc: "Reserve ratio" }
+        - { name: "yf", expression: "yf1*TSLAG(yf,1)", desc: "Foreign income (yf1 = 1 + gF)" }
+        - { name: "exr", expression: "exr1*MOVAVG(exr,2)", desc: "Exchange rate: dollars per 1 euro" }
+        - { name: "lambdarow", expression: "lambdarow1*TSLAG(lambdarow,1)+lambdarow2*TSLAG(rbrow,1)", desc: "Share of government bills purchased by foreign agents" }
+        - { name: "mubb", expression: "mubb1*TSLAG(mubb,1)+mubb2*mub", desc: "Premium on government bills held by banks" }
+        - { name: "mubrow", expression: "mubrow1*TSLAG(mubrow,1)+mubrow2*mub", desc: "Premium on government bills held by RoW" }
+        - { name: "intmh", expression: "intmh0+intmh1*mh", desc: "Interests paid by banks to households on deposits and other A/L" }
+        - { name: "TSDELTALOG(prod,1)", expression: "nu0+nu1*TSDELTALOG(100*w/p,1)+nu2*TSDELTALOG(100*y/p,2)", desc: "Labour productivity (real value added per employee)" }
+        - { name: "Lns", expression: "lns_nu1*TSLAG(Lns,1)+lns_nu2*(log(nd)-TSLAG(Lns,1))", desc: "Labour force (log)" }
+        - { name: "gw", expression: "omega1*TSDELTAP(p/100,1)+omega2*TSDELTA(un,1)", desc: "Wage rate growth" }
+        - { name: "perc_en", expression: "enm1*infl_en+enm2*TSLAG(log(y/p),1)", desc: "Share of energy products to total import" }
+        - { name: "LconsR", expression: "alpha1*TSLAG(log(y*100/pc),1)+alpha2*TSLAG(log(vh*100/pc),1)+adj_LconsR", desc: "Real consumption (log); y used in place of yd for stability" }
+        - { name: "gov", expression: "sigma1*TSLAG((gov/p),1)*p", desc: "Government consumption" }
+        - { name: "LidR", expression: "gamma0+gamma1*TSLAG(log(y)/log(k),1)", desc: "Real investment net of capital depreciation (log)" }
+        - { name: "LxR", expression: "x0+x1*TSLAG(log(yf),1)+x2*TSLAG(exr*p/p_row,1)+adj_LxR", desc: "Log of real export" }
+        - { name: "LimR", expression: "m0+m1*TSLAG(log(y),1)+m2*TSLAG(p_im/p,1)+adj_LimR", desc: "Log of real import" }
+        - { name: "Lp_im", expression: "pim0+pim1*TSLAG(exr,1)+pim2*TSLAG(Lp_row,1)", desc: "Log of price of import" }
+        - { name: "Lp", expression: "viy1*TSLAG(Lp_en,1)+viy2*TSLAG(Lp_row,1)+viy3*TSLAG(log(100*y/p),1)+adj_Lp", desc: "Log of price level (GDP deflator)" }
+        - { name: "Lpc", expression: "vic1*TSLAG(Lp_en,1)+vic2*TSLAG(Lp_row,1)+vic3*TSLAG(log(100*y/p),1)", desc: "Log of consumer price index" }
+        - { name: "mub", expression: "mub2*TSLAG(deb/y,1)+mub3*bcb/bs+mub4*rstar+adj_mub", desc: "Average premium on government bills" }
         # Exogenized-list behaviourals (ported from R; held to observed data via the baseline run's `exogenize`).
-        - { name: "oacb", expression: "-4533.844042+1.140538927*TSLAG(oacb,1)", desc: "Other financial assets held by ECB (exogenized in baseline run)" }
-        - { name: "oaf", expression: "16702.34113+0.8972048528*TSLAG(oaf,1)", desc: "Other financial assets/liabilities of firms (exogenized in baseline run)" }
-        - { name: "oab", expression: "-431517.0761+0.7452631022*TSLAG(oab,1)", desc: "Other financial assets held by banks (exogenized in baseline run)" }
-        - { name: "oag", expression: "86022.61571+0.5829040298*TSLAG(oag,1)", desc: "Other financial assets/liabilities of government (exogenized in baseline run)" }
-        - { name: "oah", expression: "134828.9666+0.9080466985*TSLAG(oah,1)", desc: "Other assets of households (exogenized in baseline run)" }
-        - { name: "rstar", expression: "0.01858333186", desc: "Policy rate (exogenized in baseline run)" }
-        - { name: "Lp_row", expression: "0.206831466+0.9591765307*TSLAG(Lp_row,1)", desc: "Log foreign price level (exogenized in baseline run)" }
-        - { name: "Lp_en", expression: "1.005825582*TSLAG(Lp_en,1)", desc: "Log of energy price (exogenized in baseline run)" }
-        - { name: "TSDELTAP(oph,1)", expression: "1*TSDELTAP(oph,1)", desc: "Other payments or receipts of households (exogenized in baseline run; degenerate par_oph=1)" }
+        - { name: "oacb", expression: "oacb0+lambda_oacb*TSLAG(oacb,1)", desc: "Other financial assets held by ECB (exogenized in baseline run)" }
+        - { name: "oaf", expression: "oaf0+lambda_oaf*TSLAG(oaf,1)", desc: "Other financial assets/liabilities of firms (exogenized in baseline run)" }
+        - { name: "oab", expression: "oab0+lambda_oab*TSLAG(oab,1)", desc: "Other financial assets held by banks (exogenized in baseline run)" }
+        - { name: "oag", expression: "oag0+lambda_oag*TSLAG(oag,1)", desc: "Other financial assets/liabilities of government (exogenized in baseline run)" }
+        - { name: "oah", expression: "oah0+lambda_oah*TSLAG(oah,1)", desc: "Other assets of households (exogenized in baseline run)" }
+        - { name: "rstar", expression: "r0+adj_rstar", desc: "Policy rate (exogenized in baseline run)" }
+        - { name: "Lp_row", expression: "prow0+prow1*TSLAG(Lp_row,1)", desc: "Log foreign price level (exogenized in baseline run)" }
+        - { name: "Lp_en", expression: "ep1*TSLAG(Lp_en,1)+adj_Lp_en", desc: "Log of energy price (exogenized in baseline run)" }
+        - { name: "TSDELTAP(oph,1)", expression: "par_oph*TSDELTAP(oph,1)", desc: "Other payments or receipts of households (exogenized in baseline run; degenerate par_oph=1)" }
         - [y, cons + id + gov + nx, "Nominal GDP (expenditure)."]
         - [gy, y / lag(y) - 1, "Nominal GDP growth rate."]
-        - [deltak, 0.046, "Capital depreciation rate (1996-2019 average)."]
+        - [deltak, 0.046 + adj_deltak, "Capital depreciation rate (1996-2019 average)."]
         - [idR, exp(LidR), "Real net investment."]
         - [id, idR * p / 100 + deltak * lag(k), "Nominal gross investment."]
         - [k, lag(k) * (1 - deltak) + id, "Nominal capital stock."]
@@ -218,11 +220,11 @@ cells:
       collapsed: true
       method: gauss-seidel
       tolerance: "1e-8"
-      maxIterations: 1000
+      maxIterations: 5000
       defaultInitialValue: "1"
-  - externals:
-      id: externals
-      title: Externals and observed history
+  - observed:
+      id: observed
+      title: Observed history
       modelId: italy-sfc
       collapsed: true
       rows:
@@ -362,6 +364,103 @@ cells:
         - { name: yd, kind: series, observed: true, valueText: "     914897,      958284,      926019,      925612,      720897,      858604,      890185,     1041694,     1219425,     1196782,      679025,      760338,      905176,      880005,      917706,     1280778,     1111389,     1135780,     1134133,     1023768,     1218330,      863136,     1426904,     1149580,     1116373" }
         - { name: yf, kind: series, observed: true, valueText: " 13182.5389, 13879.20432, 14675.56604, 17137.54371, 18063.01694,   17984.691, 16579.85478, 16589.58629,  17493.1095, 18391.49159, 18332.62293,  17674.3239, 17578.90382, 18852.95448, 18926.14673, 20616.64733, 20727.02291, 21619.70553, 25354.51233, 25801.94397, 26323.89753, 26726.26467,  28774.4619,  26993.2133, 29441.49775" }
         - { name: yR, kind: series, observed: true, valueText: "1546133.813, 1574137.502, 1599715.491, 1660309.458, 1692696.476,  1697008.81, 1699353.007, 1723554.822, 1737633.495, 1768758.544, 1795064.473, 1777788.754, 1683915.188, 1712761.095, 1724875.768, 1673458.266, 1642648.197, 1642566.892,     1655355,  1676773.39, 1704731.567, 1720515.361,  1728826.15, 1572542.874, 1678488.274" }
+  - externals:
+      id: externals
+      title: Estimated coefficients
+      modelId: italy-sfc
+      collapsed: true
+      rows:
+        # === ESTIMATED COEFFICIENTS (OLS in R, 1998-2019) ===
+        # Separate parameter namespace (kind: coefficient): held constant across all
+        # periods and resolved by name in the behavioural equations. Names mirror bimets
+        # COEFF> declarations; Lns reuses bimets nu1/nu2 so they are namespaced as lns_nu*.
+        - { name: theta, kind: coefficient, valueText: "0.2645868325", desc: "fuf: undistributed-profit share" }
+        - { name: phi1, kind: coefficient, valueText: "0.05829971282", desc: "lh: loan-growth on lagged consumption ratio" }
+        - { name: mubh1, kind: coefficient, valueText: "0.7925009699", desc: "mubh: persistence" }
+        - { name: mubh2, kind: coefficient, valueText: "0.8039101157", desc: "mubh: loading on mub" }
+        - { name: mul0, kind: coefficient, valueText: "-0.01352819727", desc: "mul: intercept" }
+        - { name: mul1, kind: coefficient, valueText: "0.4904592188", desc: "mul: loading on lagged mub" }
+        - { name: mulh0, kind: coefficient, valueText: "0.02902256245", desc: "mulh: intercept" }
+        - { name: mulh1, kind: coefficient, valueText: "0.2297245242", desc: "mulh: loading on lagged mub" }
+        - { name: lambdabb1, kind: coefficient, valueText: "0.9184678492", desc: "Lbb: persistence" }
+        - { name: lambdabb2, kind: coefficient, valueText: "0.3810144635", desc: "Lbb: dummy loading" }
+        - { name: tau1, kind: coefficient, valueText: "0.5140981384", desc: "tax: on lagged wage bill" }
+        - { name: tau2, kind: coefficient, valueText: "0.06132552397", desc: "tax: on lagged non-wage income" }
+        - { name: tau3, kind: coefficient, valueText: "0.04162683316", desc: "tax: on lagged household wealth" }
+        - { name: tau4, kind: coefficient, valueText: "1.043369861", desc: "tr: persistence" }
+        - { name: tau5, kind: coefficient, valueText: "374169.8585", desc: "tr: on change in unemployment" }
+        - { name: lambda20, kind: coefficient, valueText: "0.9033685467", desc: "Lbh: on lagged log wealth" }
+        - { name: lambda21, kind: coefficient, valueText: "-0.7748525636", desc: "Lbh: dummy loading" }
+        - { name: lambda10, kind: coefficient, valueText: "0.9245377119", desc: "Leh: on lagged log wealth" }
+        - { name: lambdac, kind: coefficient, valueText: "0.006220519043", desc: "Lhh: on log real consumption" }
+        - { name: rho_1, kind: coefficient, valueText: "1.003838554", desc: "rho: persistence" }
+        - { name: yf1, kind: coefficient, valueText: "1.036662756", desc: "yf: foreign-income growth (1 + gF)" }
+        - { name: exr1, kind: coefficient, valueText: "0.999754368", desc: "exr: on 2-period moving average" }
+        - { name: lambdarow1, kind: coefficient, valueText: "0.8752750723", desc: "lambdarow: persistence" }
+        - { name: lambdarow2, kind: coefficient, valueText: "0.252528926", desc: "lambdarow: on lagged foreign yield" }
+        - { name: mubb1, kind: coefficient, valueText: "0.9244328851", desc: "mubb: persistence" }
+        - { name: mubb2, kind: coefficient, valueText: "0.2481936746", desc: "mubb: loading on mub" }
+        - { name: mubrow1, kind: coefficient, valueText: "0.5537887521", desc: "mubrow: persistence" }
+        - { name: mubrow2, kind: coefficient, valueText: "0.9163600321", desc: "mubrow: loading on mub" }
+        - { name: intmh0, kind: coefficient, valueText: "-69139.3257", desc: "intmh: intercept" }
+        - { name: intmh1, kind: coefficient, valueText: "0.05465478104", desc: "intmh: on deposits" }
+        - { name: nu0, kind: coefficient, valueText: "-0.003662952028", desc: "prod: intercept" }
+        - { name: nu1, kind: coefficient, valueText: "0.3966443515", desc: "prod: on dlog real wage" }
+        - { name: nu2, kind: coefficient, valueText: "0.1826436653", desc: "prod: on dlog real GDP (2-period)" }
+        - { name: lns_nu1, kind: coefficient, valueText: "1.000845923", desc: "Lns: persistence (bimets nu1)" }
+        - { name: lns_nu2, kind: coefficient, valueText: "0.03062052672", desc: "Lns: error-correction to log employment (bimets nu2)" }
+        - { name: omega1, kind: coefficient, valueText: "0.008641812243", desc: "gw: on price growth" }
+        - { name: omega2, kind: coefficient, valueText: "-0.7855263998", desc: "gw: on change in unemployment" }
+        - { name: enm1, kind: coefficient, valueText: "-0.002156806238", desc: "perc_en: on energy inflation" }
+        - { name: enm2, kind: coefficient, valueText: "0.01263026888", desc: "perc_en: on lagged log real GDP" }
+        - { name: alpha1, kind: coefficient, valueText: "0.9063428643", desc: "LconsR: on lagged log real income" }
+        - { name: alpha2, kind: coefficient, valueText: "0.05500181197", desc: "LconsR: on lagged log real wealth" }
+        - { name: sigma1, kind: coefficient, valueText: "1.01", desc: "gov: real-spending growth (restricted to 1.01)" }
+        - { name: gamma0, kind: coefficient, valueText: "-117.5121355", desc: "LidR: intercept" }
+        - { name: gamma1, kind: coefficient, valueText: "138.6163422", desc: "LidR: on lagged log(y)/log(k)" }
+        - { name: x0, kind: coefficient, valueText: "7.878563023", desc: "LxR: intercept" }
+        - { name: x1, kind: coefficient, valueText: "0.5119948292", desc: "LxR: on lagged log foreign income" }
+        - { name: x2, kind: coefficient, valueText: "0.07953035772", desc: "LxR: on lagged real exchange rate" }
+        - { name: m0, kind: coefficient, valueText: "4.092185889", desc: "LimR: intercept" }
+        - { name: m1, kind: coefficient, valueText: "0.633165807", desc: "LimR: on lagged log GDP" }
+        - { name: m2, kind: coefficient, valueText: "-0.1058226447", desc: "LimR: on lagged relative import price" }
+        - { name: pim0, kind: coefficient, valueText: "2.169566159", desc: "Lp_im: intercept" }
+        - { name: pim1, kind: coefficient, valueText: "0.1879363716", desc: "Lp_im: on lagged exchange rate" }
+        - { name: pim2, kind: coefficient, valueText: "0.4874950883", desc: "Lp_im: on lagged foreign price level" }
+        - { name: viy1, kind: coefficient, valueText: "0.05816269859", desc: "Lp: on lagged log energy price" }
+        - { name: viy2, kind: coefficient, valueText: "0.6192720172", desc: "Lp: on lagged log foreign price" }
+        - { name: viy3, kind: coefficient, valueText: "0.1044414215", desc: "Lp: on lagged log real GDP" }
+        - { name: vic1, kind: coefficient, valueText: "0.181837429", desc: "Lpc: on lagged log energy price" }
+        - { name: vic2, kind: coefficient, valueText: "0.5047636088", desc: "Lpc: on lagged log foreign price" }
+        - { name: vic3, kind: coefficient, valueText: "0.1010135865", desc: "Lpc: on lagged log real GDP" }
+        - { name: mub2, kind: coefficient, valueText: "0.03222812595", desc: "mub: on lagged debt/GDP" }
+        - { name: mub3, kind: coefficient, valueText: "-0.07942628589", desc: "mub: on ECB bill share" }
+        - { name: mub4, kind: coefficient, valueText: "-0.4223383907", desc: "mub: on policy rate" }
+        - { name: oacb0, kind: coefficient, valueText: "-4533.844042", desc: "oacb: intercept" }
+        - { name: lambda_oacb, kind: coefficient, valueText: "1.140538927", desc: "oacb: persistence" }
+        - { name: oaf0, kind: coefficient, valueText: "16702.34113", desc: "oaf: intercept" }
+        - { name: lambda_oaf, kind: coefficient, valueText: "0.8972048528", desc: "oaf: persistence" }
+        - { name: oab0, kind: coefficient, valueText: "-431517.0761", desc: "oab: intercept" }
+        - { name: lambda_oab, kind: coefficient, valueText: "0.7452631022", desc: "oab: persistence" }
+        - { name: oag0, kind: coefficient, valueText: "86022.61571", desc: "oag: intercept" }
+        - { name: lambda_oag, kind: coefficient, valueText: "0.5829040298", desc: "oag: persistence" }
+        - { name: oah0, kind: coefficient, valueText: "134828.9666", desc: "oah: intercept" }
+        - { name: lambda_oah, kind: coefficient, valueText: "0.9080466985", desc: "oah: persistence" }
+        - { name: r0, kind: coefficient, valueText: "0.01858333186", desc: "rstar: policy-rate level" }
+        - { name: prow0, kind: coefficient, valueText: "0.206831466", desc: "Lp_row: intercept" }
+        - { name: prow1, kind: coefficient, valueText: "0.9591765307", desc: "Lp_row: persistence" }
+        - { name: ep1, kind: coefficient, valueText: "1.005825582", desc: "Lp_en: persistence" }
+        - { name: par_oph, kind: coefficient, valueText: "1", desc: "oph: degenerate (held to data via exogenize)" }
+        # Out-of-sample additive adjustments (R `constantAdjList`). Zero across the in-sample
+        # window (indices 0-24 = 1997-2021); the R add-factor path applies over 2022-2028.
+        - { name: adj_Lp, kind: series, observed: false, desc: "Out-of-sample additive adjustment to Lp (GDP deflator log-level)", valueText: "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -0.017, -0.01, 0.006, 0.018, 0.03, 0.04, 0.045" }
+        - { name: adj_LimR, kind: series, observed: false, desc: "Out-of-sample additive adjustment to LimR (real imports log-level)", valueText: "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.156, 0.125, 0.111, 0.111, 0.111, 0.111, 0.111" }
+        - { name: adj_LxR, kind: series, observed: false, desc: "Out-of-sample additive adjustment to LxR (real exports log-level)", valueText: "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.075, 0.063, 0.065, 0.065, 0.065, 0.065, 0.065" }
+        - { name: adj_LconsR, kind: series, observed: false, desc: "Out-of-sample additive adjustment to LconsR (real consumption log-level)", valueText: "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.01, 0.05, 0.05, 0.05, 0.045, 0.045" }
+        - { name: adj_deltak, kind: series, observed: false, desc: "Out-of-sample additive adjustment to capital depreciation", valueText: "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0126, 0.0069, 0.0011, -0.0016, -0.0033, -0.0033, -0.0033" }
+        - { name: adj_Lp_en, kind: series, observed: false, desc: "Out-of-sample additive adjustment to Lp_en (energy-price log-level)", valueText: "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.38, 0.055, 0.06, 0, 0, 0, 0" }
+        - { name: adj_rstar, kind: series, observed: false, desc: "Out-of-sample additive adjustment to the policy rate", valueText: "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -0.01858333, -0.00298333, 0.01941667, 0.01141667, 0.00641667, 0.00641667, 0.00641667" }
+        - { name: adj_mub, kind: series, observed: false, desc: "Out-of-sample additive adjustment to the bills premium", valueText: "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -0.004, -0.02, -0.014, -0.01, -0.008, -0.008, -0.008" }
   - initial-values:
       id: initial-values
       title: Initial values (1997)
@@ -516,7 +615,7 @@ cells:
         observed Eurostat paths (matching `exogenizeList` in `4_In_sample_pred` with
         `type_pred = 0`). Every other behavioural equation solves endogenously, so the
         simulated traces are free to diverge from observed history.
-
+      more: |
         | Variable | Description |
         | --- | --- |
         | `oph` | Other payments or receipts of households |
@@ -541,147 +640,61 @@ cells:
       exogenize: [oph, opf, opb, opcb, oacb, oaf, oab, oag, oah, rstar, Lp_row, Lp_en]
       resultKey: italy_sfc_baseline
       sourceModelId: italy-sfc
-  - chart:
-      id: chart-gdp-obs
-      title: Fig. 1(a) Nominal GDP (current prices)
-      variables:
-        - y
-      axisMode: shared
-      referenceTrace: observed
-      sourceRunCellId: baseline-run
-  - chart:
-      id: chart-cons-obs
-      title: Fig. 1(b) Nominal consumption (current prices)
-      variables:
-        - cons
-      axisMode: shared
-      referenceTrace: observed
-      sourceRunCellId: baseline-run
-  - chart:
-      id: chart-inv-obs
-      title: Fig. 1(c) Nominal investment (current prices)
-      variables:
-        - id
-      axisMode: shared
-      referenceTrace: observed
-      sourceRunCellId: baseline-run
-  - chart:
-      id: chart-import-obs
-      title: Fig. 1(d) Nominal import (current prices)
-      variables:
-        - im
-      axisMode: shared
-      referenceTrace: observed
-      sourceRunCellId: baseline-run
-  - chart:
-      id: chart-export-obs
-      title: Fig. 1(e) Nominal export (current prices)
-      variables:
-        - x
-      axisMode: shared
-      referenceTrace: observed
-      sourceRunCellId: baseline-run
-  - chart:
-      id: chart-employment-obs
-      title: Fig. 1(f) Employment
-      variables:
-        - nd
-      axisMode: shared
-      referenceTrace: observed
-      sourceRunCellId: baseline-run
-  - chart:
-      id: chart-yield-obs
-      title: Fig. 1(g) Average yield on gov. securities
-      series:
-        - expression: 100 * rb
-          label: Yield
-          unit: "%"
-      axisMode: shared
-      referenceTrace: observed
-      sourceRunCellId: baseline-run
-  - chart:
-      id: chart-debt-ratio-obs
-      title: Fig. 1(h) Government debt to GDP ratio
-      series:
-        - expression: 100 * deb / y
-          label: Debt-to-GDP
-          unit: "%"
-      axisMode: shared
-      referenceTrace: observed
-      sourceRunCellId: baseline-run
-  - chart:
-      id: chart-deflator-obs
-      title: Fig. 1(i) Price level (GDP deflator)
-      variables:
-        - p
-      axisMode: shared
-      referenceTrace: observed
-      sourceRunCellId: baseline-run
+  - chart-grid:
+      id: baseline-charts-grid
+      title: Fig. 1 Baseline run vs observed (1997-2021)
+      gridColumns: 2
+      charts:
+        - { type: chart, id: chart-gdp-obs, title: Fig. 1(a) Nominal GDP (current prices), variables: [y], axisMode: shared, referenceTrace: observed, sourceRunCellId: baseline-run }
+        - { type: chart, id: chart-cons-obs, title: Fig. 1(b) Nominal consumption (current prices), variables: [cons], axisMode: shared, referenceTrace: observed, sourceRunCellId: baseline-run }
+        - { type: chart, id: chart-inv-obs, title: Fig. 1(c) Nominal investment (current prices), variables: [id], axisMode: shared, referenceTrace: observed, sourceRunCellId: baseline-run }
+        - { type: chart, id: chart-import-obs, title: Fig. 1(d) Nominal import (current prices), variables: [im], axisMode: shared, referenceTrace: observed, sourceRunCellId: baseline-run }
+        - { type: chart, id: chart-export-obs, title: Fig. 1(e) Nominal export (current prices), variables: [x], axisMode: shared, referenceTrace: observed, sourceRunCellId: baseline-run }
+        - { type: chart, id: chart-employment-obs, title: Fig. 1(f) Employment, variables: [nd], axisMode: shared, referenceTrace: observed, sourceRunCellId: baseline-run }
+        - { type: chart, id: chart-yield-obs, title: Fig. 1(g) Average yield on gov. securities, series: [{ expression: 100 * rb, label: Yield, unit: "%" }], axisMode: shared, referenceTrace: observed, sourceRunCellId: baseline-run }
+        - { type: chart, id: chart-debt-ratio-obs, title: Fig. 1(h) Government debt to GDP ratio, series: [{ expression: 100 * deb / y, label: Debt-to-GDP, unit: "%" }], axisMode: shared, referenceTrace: observed, sourceRunCellId: baseline-run }
+        - { type: chart, id: chart-deflator-obs, title: Fig. 1(i) Price level (GDP deflator), variables: [p], axisMode: shared, referenceTrace: observed, sourceRunCellId: baseline-run }
+
   - markdown:
       id: adjusted-prediction
       title: Adjusted in-sample prediction
-      source: |
-        After checking the unadjusted model fit, the original `marcoverpas/Italy-SFC-Model`
-        workflow also runs an adjusted in-sample prediction. That adjusted run uses the same
-        `simType = "STATIC"` setting, but it exogenizes many additional endogenous variables
-        from 1998-2021 so BIMETS reads their observed Eurostat values instead of solving them
+      source: >
+        After checking the unadjusted model fit, the original `marcoverpas/Italy-SFC-Model` workflow also runs an adjusted in-sample prediction. That adjusted run uses the same
+        `simType = "STATIC"` setting, but it exogenizes many additional endogenous variables from 1998-2021 so BIMETS reads their observed Eurostat values instead of solving them
         from the estimated behavioural equations.
 
-        In other words, exogenization is a historical tracking device: the model still solves
-        the remaining equations and accounting identities, but selected endogenous series are
-        pinned to observed data, absorbing the prediction errors from the unadjusted fit. The
-        adjusted figures in the reference repository are therefore closer to observed history
+        In other words, exogenization is a historical tracking device: the model still solves the remaining equations and accounting identities, but selected endogenous series are
+        pinned to observed data, absorbing the prediction errors from the unadjusted fit. The adjusted figures in the reference repository are therefore closer to observed history
         than the unadjusted baseline shown in this notebook.
-
-        The adjusted run exogenizes these 28 behavioural or price/flow variables over
-        1998-2021:
-
-        | Variable | Description |
-        | --- | --- |
-        | `Lpc` | Log of consumer price index |
-        | `Lp_en` | Log of price of energy |
-        | `mul` | Markup on loans to firms |
-        | `mulh` | Markup on personal loans |
-        | `mubb` | Average premium on bills held by banks |
-        | `mubrow` | Average premium on bills held by foreign sector |
-        | `mubh` | Average premium on bills held by households |
-        | `fuf` | Firms' undistributed profit |
-        | `lh` | Personal loans to households |
-        | `gov` | Government spending |
-        | `tr` | Transfers |
-        | `Leh` | Log of household demand for shares |
-        | `Lbh` | Log of household demand for government bills |
-        | `Lhh` | Log of household demand for cash |
-        | `Lbb` | Log of bank demand for bills |
-        | `prod` | Labour productivity |
-        | `Lns` | Log of labour force |
-        | `gw` | Growth rate of wages |
-        | `Lp` | Log of price level |
-        | `LidR` | Log of real investment |
-        | `LimR` | Log of real import |
-        | `LconsR` | Log of real consumption |
-        | `intmh` | Interest received by households on bank deposits |
-        | `rstar` | ECB refinancing rate |
-        | `tax` | Tax revenue |
-        | `LxR` | Log of real export |
-        | `Lp_im` | Log of price of import |
-        | `Lp_row` | Log of foreign price level |
+      more: |
+        The adjusted run exogenizes these 28 behavioural or price/flow variables over 1998-2021:
+        | Variable | Description | Variable | Description |
+        | --- | --- | --- | --- |
+        | `Lpc` | Log of consumer price index | `Lp_en` | Log of price of energy |
+        | `mul` | Markup on loans to firms | `mulh` | Markup on personal loans |
+        | `mubb` | Average premium on bills held by banks | `mubrow` | Average premium on bills held by foreign sector |
+        | `mubh` | Average premium on bills held by households | `fuf` | Firms' undistributed profit |
+        | `lh` | Personal loans to households | `gov` | Government spending |
+        | `tr` | Transfers | `Leh` | Log of household demand for shares |
+        | `Lbh` | Log of household demand for government bills | `Lhh` | Log of household demand for cash |
+        | `Lbb` | Log of bank demand for bills | `prod` | Labour productivity |
+        | `Lns` | Log of labour force | `gw` | Growth rate of wages |
+        | `Lp` | Log of price level | `LidR` | Log of real investment |
+        | `LimR` | Log of real import | `LconsR` | Log of real consumption |
+        | `intmh` | Interest received by households on bank deposits | `rstar` | ECB refinancing rate |
+        | `tax` | Tax revenue | `LxR` | Log of real export |
+        | `Lp_im` | Log of price of import | `Lp_row` | Log of foreign price level |
 
         It also exogenizes these variables for the whole simulation range:
 
-        | Variable | Description |
-        | --- | --- |
-        | `oph` | Other payments associated with households |
-        | `oacb` | Other financial assets of ECB |
-        | `oaf` | Other financial assets held by firms |
-        | `oab` | Other financial assets held by banks |
-        | `oag` | Other financial assets held by government |
-        | `oah` | Other financial assets held by households |
-        | `mub` | Average premium paid by the government |
-        | `perc_en` | Percentage of energy import to total import |
-        | `lambdarow` | Share of government bills held by foreign sector |
-        | `yf` | Foreign income |
-        | `rho` | Reserve ratio |
+        | Variable | Description | Variable | Description |
+        | --- | --- | --- | --- |
+        | `oph` | Other payments associated with households | `oacb` | Other financial assets of ECB |
+        | `oaf` | Other financial assets held by firms | `oab` | Other financial assets held by banks |
+        | `oag` | Other financial assets held by government | `oah` | Other financial assets held by households |
+        | `mub` | Average premium paid by the government | `perc_en` | Percentage of energy import to total import |
+        | `lambdarow` | Share of government bills held by foreign sector | `yf` | Foreign income |
+        | `rho` | Reserve ratio |  |  |
 
         In this notebook's adjusted run, the companion other-payments flows `opf`, `opb`
         and `opcb` are also held to observed history. They are part of the unadjusted
@@ -701,22 +714,124 @@ cells:
       exogenize: [Lpc, Lp_en, mul, mulh, mubb, mubrow, mubh, fuf, lh, gov, tr, Leh, Lbh, Lhh, Lbb, prod, Lns, gw, Lp, LidR, LimR, LconsR, intmh, rstar, tax, LxR, Lp_im, Lp_row, oph, opf, opb, opcb, oacb, oaf, oab, oag, oah, mub, perc_en, lambdarow, yf, rho]
       resultKey: italy_sfc_adjusted
       sourceModelId: italy-sfc
-  - chart:
-      id: chart-gdp-adjusted
-      title: Adjusted Fig. 1(a) Nominal GDP (current prices)
-      variables:
-        - y
-      axisMode: shared
-      referenceTrace: observed
-      sourceRunCellId: adjusted-run
-  - chart:
-      id: chart-cons-adjusted
-      title: Adjusted Fig. 1(b) Nominal consumption (current prices)
-      variables:
-        - cons
-      axisMode: shared
-      referenceTrace: observed
-      sourceRunCellId: adjusted-run
+  - chart-grid:
+      id: adjusted-charts-grid
+      title: Fig. 2 Adjusted in-sample run vs observed (1997-2021)
+      gridColumns: 3
+      charts:
+        - { type: chart, id: chart-gdp-adjusted, title: Fig. 2(a) Nominal GDP (current prices), variables: [y], axisMode: shared, referenceTrace: observed, sourceRunCellId: adjusted-run }
+        - { type: chart, id: chart-cons-adjusted, title: Fig. 2(b) Nominal consumption (current prices), variables: [cons], axisMode: shared, referenceTrace: observed, sourceRunCellId: adjusted-run }
+        - { type: chart, id: chart-inv-adjusted, title: Fig. 2(c) Nominal investment (current prices), variables: [id], axisMode: shared, referenceTrace: observed, sourceRunCellId: adjusted-run }
+        - { type: chart, id: chart-import-adjusted, title: Fig. 2(d) Nominal import (current prices), variables: [im], axisMode: shared, referenceTrace: observed, sourceRunCellId: adjusted-run }
+        - { type: chart, id: chart-export-adjusted, title: Fig. 2(e) Nominal export (current prices), variables: [x], axisMode: shared, referenceTrace: observed, sourceRunCellId: adjusted-run }
+        - { type: chart, id: chart-employment-adjusted, title: Fig. 2(f) Employment, variables: [nd], axisMode: shared, referenceTrace: observed, sourceRunCellId: adjusted-run }
+        - { type: chart, id: chart-yield-adjusted, title: Fig. 2(g) Average yield on gov. securities, series: [{ expression: 100 * rb, label: Yield, unit: "%" }], axisMode: shared, referenceTrace: observed, sourceRunCellId: adjusted-run }
+        - { type: chart, id: chart-debt-ratio-adjusted, title: Fig. 2(h) Government debt to GDP ratio, series: [{ expression: 100 * deb / y, label: Debt-to-GDP, unit: "%" }], axisMode: shared, referenceTrace: observed, sourceRunCellId: adjusted-run }
+        - { type: chart, id: chart-deflator-adjusted, title: Fig. 2(i) Price level (GDP deflator), variables: [p], axisMode: shared, referenceTrace: observed, sourceRunCellId: adjusted-run }
+  - markdown:
+      id: out-of-sample-prediction
+      title: Out-of-sample prediction
+      source: >
+        Section 4 of `marcoverpas/Italy-SFC-Model` extends the adjusted in-sample fit into
+        a 2022-2028 baseline with a single `SIMULATE(..., simType = "DYNAMIC")` call over the
+        whole 1998-2028 range. The reference code pins the behavioural variables to observed
+        data only through 2021 (`Exogenize = c(1998,1,2021,1)`) and then releases them, so the
+        one run reproduces the adjusted historical path and continues forward, feeding back its
+        own simulated lagged endogenous values from 2022 onward.
+
+
+        This notebook mirrors that with one continuous run (`out-of-sample-run`, 1997-2028)
+        that uses windowed `exogenize` (`throughPeriod: 25`): each listed variable stays pinned
+        to observed history for 1997-2021, then its equation is restored and solved for
+        2022-2028. The reference `ConstantAdjustment` list is represented as explicit additive
+        externals (`adj_*`) that are zero in-sample and carry the R add-factor path over
+        2022-2028, keeping the forward run transparent.
+      more: |
+        The single segmented run works as follows:
+
+        1. Periods 1-25 (1997-2021) solve with the behavioural set held to observed data, so
+           this window reproduces the adjusted in-sample path.
+        2. Periods 26-32 (2022-2028) release that set and solve it dynamically, seeded from the
+           2021 state. Exogenous inputs (e.g. `dum`, the `opf`/`oph` other-payments closures)
+           are held at their last observed value through 2028.
+        3. The `adj_*` series externals add the R `constantAdjList` corrections over 2022-2028:
+
+        | Adjustment external | R target | 2022-2028 values |
+        | --- | --- | --- |
+        | `adj_Lp` | GDP deflator correction | `[-0.017, -0.01, 0.006, 0.018, 0.03, 0.04, 0.045]` |
+        | `adj_LimR` | Real imports correction | `[0.156, 0.125, 0.111, 0.111, 0.111, 0.111, 0.111]` |
+        | `adj_LxR` | Real exports correction | `[0.075, 0.063, 0.065, 0.065, 0.065, 0.065, 0.065]` |
+        | `adj_LconsR` | Real consumption correction | `[0, 0.01, 0.05, 0.05, 0.05, 0.045, 0.045]` |
+        | `adj_deltak` | Depreciation correction | `[0.0126, 0.0069, 0.0011, -0.0016, -0.0033, -0.0033, -0.0033]` |
+        | `adj_Lp_en` | Energy-price shock | `[0.38, 0.055, 0.06, 0, 0, 0, 0]` |
+        | `adj_rstar` | Policy-rate path around `r0` | `[-0.01858333, -0.00298333, 0.01941667, 0.01141667, 0.00641667, 0.00641667, 0.00641667]` |
+        | `adj_mub` | Bills-premium correction | `[-0.004, -0.02, -0.014, -0.01, -0.008, -0.008, -0.008]` |
+  - run:
+      id: out-of-sample-run
+      title: Out-of-sample run (1997-2028)
+      description: Single continuous DYNAMIC run. The behavioural variables stay pinned to observed data through 2021 (windowed exogenize) so 1997-2021 reproduces the adjusted in-sample path, then they are released and solved dynamically for 2022-2028. The R out-of-sample add-factor path enters through the explicit adj_* series externals.
+      mode: baseline
+      periods: 32
+      simType: DYNAMIC
+      exogenize:
+        - oph
+        - opf
+        - { name: Lpc, throughPeriod: 25 }
+        - { name: Lp_en, throughPeriod: 25 }
+        - { name: mul, throughPeriod: 25 }
+        - { name: mulh, throughPeriod: 25 }
+        - { name: mubb, throughPeriod: 25 }
+        - { name: mubrow, throughPeriod: 25 }
+        - { name: mubh, throughPeriod: 25 }
+        - { name: fuf, throughPeriod: 25 }
+        - { name: lh, throughPeriod: 25 }
+        - { name: gov, throughPeriod: 25 }
+        - { name: tr, throughPeriod: 25 }
+        - { name: Leh, throughPeriod: 25 }
+        - { name: Lbh, throughPeriod: 25 }
+        - { name: Lhh, throughPeriod: 25 }
+        - { name: Lbb, throughPeriod: 25 }
+        - { name: prod, throughPeriod: 25 }
+        - { name: Lns, throughPeriod: 25 }
+        - { name: gw, throughPeriod: 25 }
+        - { name: Lp, throughPeriod: 25 }
+        - { name: LidR, throughPeriod: 25 }
+        - { name: LimR, throughPeriod: 25 }
+        - { name: LconsR, throughPeriod: 25 }
+        - { name: intmh, throughPeriod: 25 }
+        - { name: rstar, throughPeriod: 25 }
+        - { name: tax, throughPeriod: 25 }
+        - { name: LxR, throughPeriod: 25 }
+        - { name: Lp_im, throughPeriod: 25 }
+        - { name: Lp_row, throughPeriod: 25 }
+        - { name: opb, throughPeriod: 25 }
+        - { name: opcb, throughPeriod: 25 }
+        - { name: oacb, throughPeriod: 25 }
+        - { name: oaf, throughPeriod: 25 }
+        - { name: oab, throughPeriod: 25 }
+        - { name: oag, throughPeriod: 25 }
+        - { name: oah, throughPeriod: 25 }
+        - { name: mub, throughPeriod: 25 }
+        - { name: perc_en, throughPeriod: 25 }
+        - { name: lambdarow, throughPeriod: 25 }
+        - { name: yf, throughPeriod: 25 }
+        - { name: rho, throughPeriod: 25 }
+      resultKey: italy_sfc_out_of_sample
+      sourceModelId: italy-sfc
+  - chart-grid:
+      id: out-of-sample-charts-grid
+      title: Fig. 3 Continuous in-sample + out-of-sample dynamic run (1997-2028)
+      gridColumns: 2
+      charts:
+        - { type: chart, id: chart-gdp-oos, title: Fig. 3(a) Nominal GDP (constant prices), variables: [y], axisMode: shared, referenceTrace: observed, sourceRunCellId: out-of-sample-run }
+        - { type: chart, id: chart-cons-oos, title: Fig. 3(b) Nominal consumption (constant prices), variables: [cons], axisMode: shared, referenceTrace: observed, sourceRunCellId: out-of-sample-run }
+        - { type: chart, id: chart-inv-oos, title: Fig. 3(c) Nominal investment (constant prices), variables: [id], axisMode: shared, referenceTrace: observed, sourceRunCellId: out-of-sample-run }
+        - { type: chart, id: chart-import-oos, title: Fig. 3(d) Nominal import (constant prices), variables: [im, x], axisMode: shared, referenceTrace: observed, sourceRunCellId: out-of-sample-run }
+        - { type: chart, id: chart-export-oos, title: Fig. 3(e) Nominal export (constant prices), variables: [x], axisMode: shared, referenceTrace: observed, sourceRunCellId: out-of-sample-run }
+        - { type: chart, id: chart-employment-oos, title: Fig. 3(f) Employment, variables: [nd], axisMode: shared, referenceTrace: observed, sourceRunCellId: out-of-sample-run }
+        - { type: chart, id: chart-yield-oos, title: Fig. 3(g) Average yield on gov. securities, series: [{ expression: 100 * rb, label: Yield, unit: "%" }], axisMode: shared, referenceTrace: observed, sourceRunCellId: out-of-sample-run }
+        - { type: chart, id: chart-debt-ratio-oos, title: Fig. 3(h) Government debt to GDP ratio, series: [{ expression: 100 * deb / y, label: Debt-to-GDP, unit: "%" }], axisMode: shared, referenceTrace: observed, sourceRunCellId: out-of-sample-run }
+        - { type: chart, id: chart-deflator-oos, title: Fig. 3(i) Price level (GDP deflator), variables: [p], axisMode: shared, referenceTrace: observed, sourceRunCellId: out-of-sample-run }
   - table:
       id: baseline-table
       title: Key macro aggregates
@@ -735,3 +850,23 @@ cells:
         - un
         - rb
       sourceRunCellId: baseline-run
+  - table:
+      id: out-of-sample-table
+      title: Continuous run key aggregates (1997-2028)
+      variables:
+        - y
+        - yR
+        - consR
+        - iddR
+        - xR
+        - imR
+        - deb
+        - deb_ratio
+        - p
+        - pc
+        - p_en
+        - nd
+        - un
+        - rb
+        - rstar
+      sourceRunCellId: out-of-sample-run

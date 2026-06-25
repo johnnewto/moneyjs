@@ -1,4 +1,5 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 
 import { AssistantMarkdown } from "../components/AssistantMarkdown";
 import type { EditorState } from "../lib/editorModel";
@@ -16,6 +17,7 @@ import {
 } from "../lib/variableInspect";
 import {
   buildEditorStateForNotebookModel,
+  collectModelExternals,
   findEquationsCell,
   findExternalsCell,
   findInitialValuesCell,
@@ -107,6 +109,7 @@ import { useViewportObserver } from "../hooks/useViewportObserver";
 
 const VIEWPORT_DEFERRED_CELL_TYPES = new Set<NotebookCell["type"]>([
   "chart",
+  "chart-grid",
   "table",
   "matrix",
   "sequence"
@@ -116,6 +119,7 @@ const CELL_INSERT_TYPES: NotebookCellInsertType[] = [
   "markdown",
   "run",
   "chart",
+  "chart-grid",
   "table",
   "matrix",
   "sequence"
@@ -129,6 +133,8 @@ function formatCellInsertType(type: NotebookCellInsertType): string {
       return "Run";
     case "chart":
       return "Chart";
+    case "chart-grid":
+      return "Chart grid";
     case "table":
       return "Table";
     case "matrix":
@@ -145,7 +151,10 @@ function getInsertDisabledReason(
   if (type === "run" && !context.hasModelSource) {
     return "Requires a model cell.";
   }
-  if ((type === "chart" || type === "table") && !context.hasRunSource) {
+  if (
+    (type === "chart" || type === "chart-grid" || type === "table") &&
+    !context.hasRunSource
+  ) {
     return "Requires a run cell.";
   }
   return null;
@@ -1334,6 +1343,35 @@ function NotebookCellViewComponent({
             }
           />
         ) : null}
+        {isCollapsed ? null : cell.type === "observed" ? (
+          <ExternalsCellView
+            cell={cell}
+            cells={cells}
+            currentValues={getModelCurrentValues({ modelId: cell.modelId })}
+            editor={buildEditorStateForStandaloneModelSections(cells, cell.modelId)}
+            issueMap={buildIssueMapForStandaloneModelSections(cells, cell.modelId)}
+            {...linkedEditorPinProps}
+            onEditingChange={setIsLinkedEditorEditing}
+            onHelpRequest={requestCellHelp}
+            onReplaceCells={onReplaceCells}
+            onVariableInspectRequest={onVariableInspectRequest}
+            highlightedVariable={highlightedVariable}
+            viewportRoot={viewportRoot}
+            title={cell.title}
+            onChange={(externals) =>
+              onCellChange(cell.id, (current) =>
+                current.type === "observed" ? { ...current, externals } : current
+              )
+            }
+            onToggleCollapsed={() =>
+              onCellChange(cell.id, (current) =>
+                current.type === "observed"
+                  ? { ...current, collapsed: !current.collapsed }
+                  : current
+              )
+            }
+          />
+        ) : null}
         {isCollapsed ? null : cell.type === "initial-values" ? (
           <InitialValuesCellView
             cell={cell}
@@ -1424,6 +1462,84 @@ function NotebookCellViewComponent({
                 variableDescriptions={variableDescriptions}
                 variableUnitMetadata={variableUnitMetadata}
               />
+            ) : null}
+            {cell.type === "chart-grid" ? (
+              <div
+                className="notebook-chart-grid"
+                style={
+                  {
+                    "--chart-grid-max-columns": Math.max(1, Math.floor(cell.gridColumns))
+                  } as CSSProperties
+                }
+              >
+                {cell.charts.map((chart) => (
+                  <figure key={chart.id} className="notebook-chart-grid-item">
+                    {chart.title.trim() ? (
+                      <figcaption className="notebook-chart-grid-caption">
+                        {chart.title}
+                      </figcaption>
+                    ) : null}
+                    <ChartCellView
+                      cell={chart}
+                      cells={cells}
+                      currentValues={chartInspectionContext?.currentValues ?? {}}
+                      editor={chartInspectionContext?.editor ?? null}
+                      onAddVariable={(variableName) =>
+                        onCellChange(cell.id, (current) =>
+                          current.type === "chart-grid"
+                            ? {
+                                ...current,
+                                charts: current.charts.map((entry) =>
+                                  entry.id === chart.id
+                                    ? appendChartVariable(entry, variableName)
+                                    : entry
+                                )
+                              }
+                            : current
+                        )
+                      }
+                      onMoveVariable={(variableName, direction) =>
+                        onCellChange(cell.id, (current) =>
+                          current.type === "chart-grid"
+                            ? {
+                                ...current,
+                                charts: current.charts.map((entry) =>
+                                  entry.id === chart.id
+                                    ? moveChartSeriesByDisplayName(
+                                        entry,
+                                        variableName,
+                                        direction
+                                      )
+                                    : entry
+                                )
+                              }
+                            : current
+                        )
+                      }
+                      onRemoveVariable={(variableName) =>
+                        onCellChange(cell.id, (current) =>
+                          current.type === "chart-grid"
+                            ? {
+                                ...current,
+                                charts: current.charts.map((entry) =>
+                                  entry.id === chart.id
+                                    ? removeChartSeriesByDisplayName(entry, variableName)
+                                    : entry
+                                )
+                              }
+                            : current
+                        )
+                      }
+                      onVariableInspectRequest={onVariableInspectRequest}
+                      runner={runner}
+                      selectedPeriodIndex={selectedPeriodIndex}
+                      highlightedVariable={highlightedVariable}
+                      variableDescriptions={variableDescriptions}
+                      variableUnitMetadata={variableUnitMetadata}
+                    />
+                  </figure>
+                ))}
+              </div>
             ) : null}
             {cell.type === "table" ? (
               <TableCellView
@@ -1851,6 +1967,8 @@ function getViewportDeferredPlaceholderHeight(cell: NotebookCell): number {
   switch (cell.type) {
     case "chart":
       return 320;
+    case "chart-grid":
+      return 360;
     case "matrix":
       return 420;
     case "sequence":
@@ -1880,6 +1998,8 @@ function getViewportDeferredPlaceholderLabel(cell: NotebookCell): string {
   switch (cell.type) {
     case "chart":
       return "Chart";
+    case "chart-grid":
+      return "Chart grid";
     case "matrix":
       return "Matrix";
     case "sequence":
@@ -1914,6 +2034,7 @@ function usesSelectedPeriodIndex(cell: NotebookCell): boolean {
     cell.type === "equations" ||
     cell.type === "model" ||
     cell.type === "externals" ||
+    cell.type === "observed" ||
     cell.type === "initial-values" ||
     cell.type === "chart" ||
     cell.type === "table" ||
@@ -1933,6 +2054,7 @@ function isLinkedModelEditorCell(cell: NotebookCell): boolean {
     cell.type === "equations" ||
     cell.type === "solver" ||
     cell.type === "externals" ||
+    cell.type === "observed" ||
     cell.type === "initial-values"
   );
 }
@@ -1943,6 +2065,7 @@ function isCompactLinkedCellHeader(cell: NotebookCell): boolean {
     cell.type === "equations" ||
     cell.type === "solver" ||
     cell.type === "externals" ||
+    cell.type === "observed" ||
     cell.type === "initial-values"
   );
 }
@@ -1966,6 +2089,7 @@ function resolveCellVariableDescriptions(
   if (
     cell.type === "equations" ||
     cell.type === "externals" ||
+    cell.type === "observed" ||
     cell.type === "initial-values" ||
     cell.type === "solver"
   ) {
@@ -2027,6 +2151,7 @@ function resolveCellVariableUnitMetadata(
   if (
     cell.type === "equations" ||
     cell.type === "externals" ||
+    cell.type === "observed" ||
     cell.type === "initial-values" ||
     cell.type === "solver"
   ) {
@@ -2112,14 +2237,14 @@ function resolveModelVariableDescriptionsForModelId(
 ): VariableDescriptions {
   return buildVariableDescriptions({
     equations: findEquationsCell(cells, modelId)?.equations,
-    externals: findExternalsCell(cells, modelId)?.externals
+    externals: collectModelExternals(cells, modelId)
   });
 }
 
 function resolveModelVariableUnitMetadataForModelId(cells: NotebookCell[], modelId: string) {
   return buildVariableUnitMetadata({
     equations: findEquationsCell(cells, modelId)?.equations,
-    externals: findExternalsCell(cells, modelId)?.externals
+    externals: collectModelExternals(cells, modelId)
   });
 }
 
@@ -2174,6 +2299,7 @@ function resolveNotebookInspectionContext({
   if (
     cell.type === "equations" ||
     cell.type === "externals" ||
+    cell.type === "observed" ||
     cell.type === "initial-values" ||
     cell.type === "solver"
   ) {

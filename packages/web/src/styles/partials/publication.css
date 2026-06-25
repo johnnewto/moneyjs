@@ -593,6 +593,43 @@ body:has(.publication-root) {
   display: none;
 }
 
+.publication-chart-grid {
+  --chart-grid-max-columns: 3;
+  --chart-grid-min: 280px;
+  --chart-grid-gap: 0.65rem;
+  display: grid;
+  gap: var(--chart-grid-gap);
+  align-items: start;
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(
+      max(
+        var(--chart-grid-min),
+        calc(
+          (100% - (var(--chart-grid-max-columns) - 1) * var(--chart-grid-gap)) /
+            var(--chart-grid-max-columns)
+        )
+      ),
+      1fr
+    )
+  );
+}
+
+.publication-chart-grid-item {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  min-width: 0;
+}
+
+.publication-chart-grid-caption {
+  color: #52525b;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
 .publication-section-table .result-panel h2 {
   font-size: 1rem;
   margin-bottom: 0.5rem;

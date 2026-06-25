@@ -14,6 +14,21 @@ export function validateModel(model: ModelDefinition): void {
     }
     names.add(equation.name);
   }
+
+  for (const coefficient of Object.keys(model.coefficients ?? {})) {
+    if (names.has(coefficient)) {
+      throw new ModelValidationError(
+        `Coefficient '${coefficient}' collides with an equation of the same name`,
+        coefficient
+      );
+    }
+    if (coefficient in model.externals) {
+      throw new ModelValidationError(
+        `Coefficient '${coefficient}' collides with an external of the same name`,
+        coefficient
+      );
+    }
+  }
 }
 
 export function validateOptions(options: SimulationOptions): void {

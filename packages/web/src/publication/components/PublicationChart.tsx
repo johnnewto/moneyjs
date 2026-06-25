@@ -3,6 +3,12 @@ import { useMemo, useState } from "react";
 import type { SimulationResult } from "@sfcr/core";
 
 import { ResultChart } from "../../components/ResultChart";
+import {
+  buildReferenceTraceOverlaySeries,
+  formatChartReferenceTraceLegend,
+  resolveEffectiveScenarioStartPeriod,
+  resolveReferenceTrace
+} from "../../notebook/chartReferenceTrace";
 import { buildNotebookVariableUnitMetadata } from "../../notebook/notebookAppHelpers";
 import {
   appendChartVariable,
@@ -73,9 +79,27 @@ export function PublicationChart({
         )
       : null;
   const baselineResult = baselineRunCell ? getResult(baselineRunCell.id) : null;
+  const baselineStartPeriod = sourceRunCell
+    ? resolveEffectiveScenarioStartPeriod(cells, sourceRunCell)
+    : undefined;
+  const hasObserved = result.observed != null && Object.keys(result.observed).length > 0;
+  const referenceTrace = resolveReferenceTrace(activeCell, sourceRunCell, hasObserved);
+  const overlaySeries = buildReferenceTraceOverlaySeries({
+    cell: activeCell,
+    referenceTrace,
+    result,
+    resolvedSeries: series,
+    sourceRunCell,
+    baselineStartPeriod,
+    baselineResult
+  });
   const scenarioShocks = resolveShowScenarioShocks(activeCell, sourceRunCell)
     ? buildScenarioShockMarkers(sourceRunCell, result, baselineResult)
     : [];
+  const referenceTraceLegendLabel =
+    referenceTrace !== "none" && overlaySeries.length > 0
+      ? formatChartReferenceTraceLegend(referenceTrace)
+      : undefined;
 
   return (
     <div className="publication-chart">
@@ -107,7 +131,9 @@ export function PublicationChart({
                 setChartCell((current) => removeChartSeriesByDisplayName(current, variableName))
             : undefined
         }
+        overlaySeries={overlaySeries}
         periodLabelOffset={0}
+        referenceTraceLegendLabel={referenceTraceLegendLabel}
         scenarioShocks={scenarioShocks}
         selectedIndex={Math.min(selectedPeriodIndex, seriesLength - 1)}
         series={series}
