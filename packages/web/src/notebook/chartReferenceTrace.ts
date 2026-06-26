@@ -8,6 +8,8 @@ import {
 import type { ChartCell, NotebookCell, RunCell } from "./types";
 
 export type ReferenceTraceKind = "none" | "baseline" | "previous-run" | "observed";
+export type ActiveReferenceTraceKind = Exclude<ReferenceTraceKind, "none">;
+export type ReferenceTraceOverlaySeries = ResolvedChartSeries & { referenceTraceKind: ActiveReferenceTraceKind };
 
 export function formatChartReferenceTrace(trace: ReferenceTraceKind): string {
   switch (trace) {
@@ -46,28 +48,17 @@ export function resolveReferenceTrace(
   return "previous-run";
 }
 
-/**
- * For runs that use windowed `exogenize` (`throughPeriod`), return the 0-based
- * series index where the out-of-sample (forecast) segment begins. In-sample
- * periods are `1..throughPeriod` (1-based, inclusive), so the first
- * out-of-sample period sits at 0-based index `throughPeriod`. Returns
- * `undefined` for ordinary runs without a windowed boundary.
- */
-export function resolveOutOfSampleStartIndex(
-  sourceRunCell: RunCell | null | undefined
-): number | undefined {
-  if (!sourceRunCell || !Array.isArray(sourceRunCell.exogenize)) {
-    return undefined;
+export function resolveReferenceTraces(
+  cell: ChartCell,
+  sourceRunCell: RunCell | null | undefined,
+  hasObserved: boolean
+): ActiveReferenceTraceKind[] {
+  if (Array.isArray(cell.referenceTraces) && cell.referenceTraces.length > 0) {
+    return dedupeReferenceTraces(cell.referenceTraces);
   }
-  const throughPeriods = sourceRunCell.exogenize
-    .map((entry) =>
-      typeof entry === "string" || entry.throughPeriod == null ? undefined : entry.throughPeriod
-    )
-    .filter((value): value is number => typeof value === "number" && Number.isFinite(value) && value >= 1);
-  if (throughPeriods.length === 0) {
-    return undefined;
-  }
-  return Math.max(...throughPeriods);
+
+  const referenceTrace = resolveReferenceTrace(cell, sourceRunCell, hasObserved);
+  return referenceTrace === "none" ? [] : [referenceTrace];
 }
 
 export function resolveEffectiveScenarioStartPeriod(
@@ -118,10 +109,41 @@ export function buildReferenceTraceOverlaySeries(args: {
         args.resolvedSeries
       );
     case "observed":
-      return buildObservedOverlaySeries(args.cell, args.result, args.resolvedSeries);
-    default:
+      return buildObservedOverlaySeries(
+        args.cell,
+        args.result,
+        args.resolvedSeries,
+        args.sourceRunCell,
+        args.baselineStartPeriod,
+        args.baselineResult ?? null
+      );
+  default:
       return [];
   }
+}
+
+export function buildReferenceTraceOverlaySeriesList(args: {
+  cell: ChartCell;
+  referenceTraces: ActiveReferenceTraceKind[];
+  result: SimulationResult;
+  resolvedSeries: ResolvedChartSeries[];
+  sourceRunCell?: RunCell | null;
+  baselineStartPeriod?: number;
+  baselineResult?: SimulationResult | null;
+  previousResult?: SimulationResult | null;
+}): ReferenceTraceOverlaySeries[] {
+  return args.referenceTraces.flatMap((referenceTrace) =>
+    buildReferenceTraceOverlaySeries({
+      cell: args.cell,
+      referenceTrace,
+      result: args.result,
+      resolvedSeries: args.resolvedSeries,
+      sourceRunCell: args.sourceRunCell,
+      baselineStartPeriod: args.baselineStartPeriod,
+      baselineResult: args.baselineResult,
+      previousResult: args.previousResult
+    }).map((entry) => ({ ...entry, referenceTraceKind: referenceTrace }))
+  );
 }
 
 function buildBaselineOverlaySeries(
@@ -172,17 +194,32 @@ function buildPreviousRunOverlaySeries(
 function buildObservedOverlaySeries(
   cell: ChartCell,
   result: SimulationResult,
-  resolvedSeries: ResolvedChartSeries[]
+  resolvedSeries: ResolvedChartSeries[],
+  sourceRunCell?: RunCell | null,
+  baselineStartPeriod?: number,
+  baselineResult?: SimulationResult | null
 ) {
-  const observed = result.observed;
+  const observedSource =
+    sourceRunCell?.mode === "scenario" && baselineStartPeriod != null && baselineResult?.observed
+      ? baselineResult
+      : result;
+  const observed = observedSource.observed;
   if (!observed || Object.keys(observed).length === 0) {
     return [];
   }
 
-  const observedResult: SimulationResult = { ...result, series: observed };
+  const startIndex =
+    sourceRunCell?.mode === "scenario" && baselineStartPeriod != null && baselineResult?.observed
+      ? Math.max(baselineStartPeriod - 1, 0)
+      : 0;
+  const slice =
+    sourceRunCell?.mode === "scenario"
+      ? { startIndex, length: sourceRunCell.periods }
+      : undefined;
+  const observedResult: SimulationResult = { ...observedSource, series: observed };
   const specs = resolveChartSeriesSpecs(cell);
   const overlayByHighlightKey = new Map(
-    buildOverlaySeriesFromSpecs(specs, observedResult).map((entry) => [entry.highlightKey, entry])
+    buildOverlaySeriesFromSpecs(specs, observedResult, slice).map((entry) => [entry.highlightKey, entry])
   );
 
   return alignOverlayNames(resolvedSeries, overlayByHighlightKey);
@@ -196,4 +233,17 @@ function alignOverlayNames(
     const overlay = overlayByHighlightKey.get(entry.highlightKey);
     return overlay ? [{ ...overlay, name: entry.name }] : [];
   });
+}
+
+function dedupeReferenceTraces(traces: readonly ActiveReferenceTraceKind[]): ActiveReferenceTraceKind[] {
+  const seen = new Set<ActiveReferenceTraceKind>();
+  const result: ActiveReferenceTraceKind[] = [];
+  for (const trace of traces) {
+    if (seen.has(trace)) {
+      continue;
+    }
+    seen.add(trace);
+    result.push(trace);
+  }
+  return result;
 }

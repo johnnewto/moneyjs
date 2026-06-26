@@ -254,7 +254,13 @@ export function buildSourceHelperActions(
           label: "Series array",
           insert:
             '"series": [\n  {\n    "expression": "100 * y / v",\n    "label": "Income share"\n  }\n]'
-        }
+        },
+        {
+          label: "Series from runs",
+          insert:
+            '"series": [\n  {\n    "expression": "Cd",\n    "sourceRunCellId": "scenario-run"\n  },\n  {\n    "expression": "Cd",\n    "sourceRunCellId": "baseline-run"\n  }\n]'
+        },
+        { label: "Variables from runs", insert: '"variables": ["Cd, scenario-run", "Cd, baseline-run"]' }
       ];
     case "chart-grid":
       return [
@@ -437,6 +443,8 @@ Optional:
 - timeRangeInclusive: [startPeriodInclusive, endPeriodInclusive]
 - sharedRange: { "includeZero"?: boolean, "min"?: number, "max"?: number }
 - seriesRanges: { [variableName]: range }
+- series[].sourceRunCellId: string (source run for that series; defaults to the chart sourceRunCellId, so one chart can overlay traces from different runs)
+- variables shorthand: "<name>, <runId>" sources a bare variable from another run (e.g. "Cd, scenario-run")
 
 Example:
 ${formatCellBody(
@@ -872,6 +880,12 @@ function validateCellSourceShape(
       ) {
         throw new Error("Run cells require periods to be a number when provided.");
       }
+      if (
+        (parsed as RunCell).externalOverrides != null &&
+        !Array.isArray((parsed as RunCell).externalOverrides)
+      ) {
+        throw new Error("Run cells require externalOverrides to be an array when provided.");
+      }
       ((parsed as RunCell).scenario?.shocks ?? []).forEach((shock, index) => {
         const candidate = shock as typeof shock & { rangeInclusive?: [number, number] };
         if (
@@ -926,6 +940,15 @@ function validateCellSourceShape(
         !["none", "baseline", "previous-run", "observed"].includes(String((parsed as ChartCell).referenceTrace))
       ) {
         throw new Error("Chart referenceTrace must be 'none', 'baseline', 'previous-run', or 'observed'.");
+      }
+      if (
+        (parsed as ChartCell).referenceTraces != null &&
+        (!Array.isArray((parsed as ChartCell).referenceTraces) ||
+          !(parsed as ChartCell).referenceTraces?.every((trace) =>
+            ["baseline", "previous-run", "observed"].includes(String(trace))
+          ))
+      ) {
+        throw new Error("Chart referenceTraces must be an array of 'baseline', 'previous-run', or 'observed'.");
       }
       if (
         (parsed as ChartCell).showScenarioShocks != null &&

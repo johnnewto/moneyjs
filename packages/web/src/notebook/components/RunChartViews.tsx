@@ -10,11 +10,10 @@ import {
   resolveShowScenarioShocks
 } from "../../lib/scenarioShockMarkers";
 import {
-  buildReferenceTraceOverlaySeries,
+  buildReferenceTraceOverlaySeriesList,
   formatChartReferenceTraceLegend,
   resolveEffectiveScenarioStartPeriod,
-  resolveOutOfSampleStartIndex,
-  resolveReferenceTrace
+  resolveReferenceTraces
 } from "../chartReferenceTrace";
 import {
   buildResolvedChartSeriesRanges,
@@ -184,7 +183,12 @@ export function ChartCellView({
     return null;
   }
 
-  const series = buildResolvedChartSeriesWithUnits(cell, result, variableUnitMetadata);
+  const series = buildResolvedChartSeriesWithUnits(
+    cell,
+    result,
+    variableUnitMetadata,
+    (runCellId) => runner.getResult(runCellId)
+  );
   const seriesRanges = buildResolvedChartSeriesRanges(cell, series);
   const sourceRunCell = cells.find(
     (candidate): candidate is RunCell =>
@@ -208,10 +212,10 @@ export function ChartCellView({
       ? Math.max(selectedPeriodIndex - periodLabelOffset, 0)
       : selectedPeriodIndex;
   const hasObserved = result.observed != null && Object.keys(result.observed).length > 0;
-  const referenceTrace = resolveReferenceTrace(cell, sourceRunCell, hasObserved);
-  const overlaySeries = buildReferenceTraceOverlaySeries({
+  const referenceTraces = resolveReferenceTraces(cell, sourceRunCell, hasObserved);
+  const overlaySeries = buildReferenceTraceOverlaySeriesList({
     cell,
-    referenceTrace,
+    referenceTraces,
     result,
     resolvedSeries: series,
     sourceRunCell,
@@ -219,11 +223,13 @@ export function ChartCellView({
     baselineResult,
     previousResult
   });
-  const referenceTraceLegendLabel =
-    referenceTrace !== "none" && overlaySeries.length > 0
-      ? formatChartReferenceTraceLegend(referenceTrace)
-      : undefined;
-  const outOfSampleStartIndex = resolveOutOfSampleStartIndex(sourceRunCell);
+  const overlayTraceKinds = new Set(overlaySeries.map((entry) => entry.referenceTraceKind));
+  const referenceTraceLegendLabels = referenceTraces
+    .filter((trace) => overlayTraceKinds.has(trace))
+    .map((trace) => ({
+      kind: trace,
+      label: formatChartReferenceTraceLegend(trace)
+    }));
   const timeRangeDefaults = resolveChartTimeRangeDefaults(series[0]?.values.length ?? 0);
   const addVariableOptions = Object.entries(result.series)
     .filter(([, values]) => values.length > 1 && Array.from(values).some(Number.isFinite))
@@ -259,11 +265,9 @@ export function ChartCellView({
       onInspectScenarioShockVariable={handleInspectScenarioShockVariable}
       onMoveVariable={onMoveVariable}
       onRemoveVariable={onRemoveVariable}
-      outOfSampleStartIndex={outOfSampleStartIndex}
       overlaySeries={overlaySeries}
       periodLabelOffset={periodLabelOffset}
-      referenceTraceKind={referenceTrace}
-      referenceTraceLegendLabel={referenceTraceLegendLabel}
+      referenceTraceLegendLabels={referenceTraceLegendLabels}
       scenarioShocks={scenarioShocks}
       seriesRanges={seriesRanges}
       selectedIndex={chartSelectedIndex}

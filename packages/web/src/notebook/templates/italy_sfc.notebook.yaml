@@ -203,7 +203,7 @@ cells:
         - [imR, 100 * im / p, "Real imports.", "", "", identity]
         - "KEY BEHAVIOURAL EQUATIONS --------------------------------"
         - [LconsR, "alpha1*TSLAG(log(y*100/pc),1)+alpha2*TSLAG(log(vh*100/pc),1)+adj_LconsR", "Real consumption (log); y used in place of yd for stability", "", "", behavioral]
-        - [gov, "sigma1*TSLAG((gov/p),1)*p", "Government consumption", "", "", behavioral]
+        - [gov, "sigma1*TSLAG((gov/p),1)*p+adj_gov", "Government consumption", "", "", behavioral]
         - [LidR, "gamma0+gamma1*TSLAG(log(y)/log(k),1)", "Real investment net of capital depreciation (log)", "", "", behavioral]
         - [LxR, "x0+x1*TSLAG(log(yf),1)+x2*TSLAG(exr*p/p_row,1)+adj_LxR", "Log of real export", "", "", behavioral]
         - [LimR, "m0+m1*TSLAG(log(y),1)+m2*TSLAG(p_im/p,1)+adj_LimR", "Log of real import", "", "", behavioral]
@@ -457,6 +457,7 @@ cells:
         - {name: adj_Lp_en, kind: series, desc: Out-of-sample additive adjustment to Lp_en (energy-price log-level), valueText: "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.38, 0.055, 0.06, 0, 0, 0, 0"}
         - {name: adj_rstar, kind: series, desc: Out-of-sample additive adjustment to the policy rate, valueText: "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -0.01858333, -0.00298333, 0.01941667, 0.01141667, 0.00641667, 0.00641667, 0.00641667"}
         - {name: adj_mub, kind: series, desc: Out-of-sample additive adjustment to the bills premium, valueText: "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -0.004, -0.02, -0.014, -0.01, -0.008, -0.008, -0.008"}
+        - {name: adj_gov, kind: series, desc: Out-of-sample additive adjustment to government consumption, valueText: "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0"}
   - initial-values:
       id: initial-values
       title: Initial values (1997)
@@ -722,6 +723,7 @@ cells:
         | `adj_Lp_en` | Energy-price shock | `[0.38, 0.055, 0.06, 0, 0, 0, 0]` |
         | `adj_rstar` | Policy-rate path around `r0` | `[-0.01858333, -0.00298333, 0.01941667, 0.01141667, 0.00641667, 0.00641667, 0.00641667]` |
         | `adj_mub` | Bills-premium correction | `[-0.004, -0.02, -0.014, -0.01, -0.008, -0.008, -0.008]` |
+        | `adj_gov` | Government spending correction | `[0, 0, 0, 0, 0, 0, 0]` |
   - run:
       id: out-of-sample-run
       title: Out-of-sample run (1997-2028)
@@ -866,3 +868,97 @@ cells:
         - rb
         - rstar
       sourceRunCellId: out-of-sample-run
+  - markdown:
+      id: additional-experiments
+      title: Additional experiments
+      source: |
+        Section 6 of `marcoverpas/Italy-SFC-Model` compares the out-of-sample baseline with three alternative experiments over 2022-2028. This notebook shows each alternative as a full 1997-2028 segmented dynamic run, just like `out-of-sample-run`: periods 1-25 (1997-2021) stay pinned to observed history, then periods 26-32 (2022-2028) solve forward with the experiment-specific add-factor path.
+      more: |
+        - Scenario 1 makes the energy-led price shock more persistent, keeping CPI inflation around 5% in the forecast window.
+        - Scenario 2 combines that persistent inflation shock with an ECB policy response that maintains the policy rate at 4.5% over 2024-2026, plus the reference consumption-volume adjustment.
+        - Scenario 3 applies fiscal-austerity cuts designed to bring the deficit-to-GDP ratio toward the Maastricht 3% threshold from 2024 onward.
+  - run:
+      id: inflation_run
+      title: "Alternative scenario 1 run (1997-2028)"
+      description: Full segmented DYNAMIC run with the persistent energy-price shock over 2022-2028 replacing the baseline adj_Lp_en path.
+      mode: baseline
+      periods: 32
+      simType: DYNAMIC
+      resultKey: italy_sfc_alternative_scenario_1
+      sourceModelId: italy-sfc
+      exogenize: [Lpc, Lp_en, mul, mulh, mubb, mubrow, mubh, fuf, lh, gov, tr, Leh, Lbh, Lhh, Lbb, prod, Lns, gw, Lp, LidR, LimR, LconsR, intmh, rstar, tax, LxR, Lp_im, Lp_row, opb, opcb, oacb, oaf, oab, oag, oah, mub, perc_en, lambdarow, yf, rho, oph, opf]
+      throughPeriod: [25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25]
+      externalOverrides:
+        - name: adj_Lp_en
+          kind: series
+          desc: Scenario 1 persistent energy-price shock path
+          valueText: "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.38, 0.2, 0.2, 0.2, 0.2, 0.2, 0.1"
+  - run:
+      id: inflation&policy
+      title: "Alternative scenario 2 run (1997-2028)"
+      description: Full segmented DYNAMIC run with persistent inflation, the ECB policy response, and the consumption-volume adjustment over 2022-2028.
+      mode: baseline
+      periods: 32
+      simType: DYNAMIC
+      resultKey: italy_sfc_alternative_scenario_2
+      sourceModelId: italy-sfc
+      exogenize: [Lpc, Lp_en, mul, mulh, mubb, mubrow, mubh, fuf, lh, gov, tr, Leh, Lbh, Lhh, Lbb, prod, Lns, gw, Lp, LidR, LimR, LconsR, intmh, rstar, tax, LxR, Lp_im, Lp_row, opb, opcb, oacb, oaf, oab, oag, oah, mub, perc_en, lambdarow, yf, rho, oph, opf]
+      throughPeriod: [25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25]
+      externalOverrides:
+        - name: adj_Lp_en
+          kind: series
+          desc: Scenario 2 persistent energy-price shock path
+          valueText: "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.38, 0.2, 0.2, 0.2, 0.2, 0.2, 0.1"
+        - name: adj_rstar
+          kind: series
+          desc: Scenario 2 -rate add-factor path
+          valueText: "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -0.00298333, 0.01941667, 0.02641667, 0.02641667, 0.02641667, 0.02641667, 0.02641667"
+        - name: adj_LconsR
+          kind: series
+          desc: Scenario 2 real-consumption correction path
+          valueText: "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.01, 0.0297, 0.0297, 0.0297, 0.0247, 0.0247"
+  - run:
+      id: austerity
+      title: "Alternative scenario 3 run (1997-2028)"
+      description: Full segmented DYNAMIC run with government-spending add-factor cuts over 2022-2028.
+      mode: baseline
+      periods: 32
+      simType: DYNAMIC
+      resultKey: italy_sfc_alternative_scenario_3
+      sourceModelId: italy-sfc
+      exogenize: [Lpc, Lp_en, mul, mulh, mubb, mubrow, mubh, fuf, lh, gov, tr, Leh, Lbh, Lhh, Lbb, prod, Lns, gw, Lp, LidR, LimR, LconsR, intmh, rstar, tax, LxR, Lp_im, Lp_row, opb, opcb, oacb, oaf, oab, oag, oah, mub, perc_en, lambdarow, yf, rho, oph, opf]
+      throughPeriod: [25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25]
+      externalOverrides:
+        - name: adj_gov
+          kind: series
+          desc: Scenario 3 fiscal-austerity government-spending add-factor path
+          valueText: "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -47000, -15000, -33000, -39000, -40000"
+  - chart-grid:
+      id: additional-experiments-chart-grid
+      title: Fig. 4 Additional experiments (1997-2028)
+      gridColumns: 2
+      charts:
+        - {type: chart, id: scenario-real-gdp-chart, title: "Real GDP: baseline vs scenarios", series: [{expression: yR, sourceRunCellId: out-of-sample-run, label: Baseline}, {expression: yR, sourceRunCellId: inflation_run, label: "Scenario 1: inflation"}, {expression: yR, sourceRunCellId: inflation&policy, label: "Scenario 2: inflation & policy"}, {expression: yR, sourceRunCellId: austerity, label: "Scenario 3: austerity"}], axisMode: shared, referenceTrace: observed, sourceRunCellId: out-of-sample-run}
+        - {type: chart, id: scenario-1-inflation-chart, title: "Scenario 1: CPI inflation", series: [{expression: 100 * inflc, label: CPI inflation, unit: "%"}], axisMode: shared, referenceTrace: observed, sourceRunCellId: inflation_run}
+        - {type: chart, id: scenario-1-fiscal-chart, title: "Scenario 1: labour and fiscal ratios", series: [{expression: 100 * un, label: Unemployment, unit: "%"}, {expression: 100 * def_ratio, label: Deficit-to-GDP, unit: "%"}, {expression: 100 * deb_ratio, label: Debt-to-GDP, unit: "%"}], axisMode: separate, referenceTrace: observed, sourceRunCellId: inflation_run}
+        - {type: chart, id: scenario-2-real-gdp-chart, title: "Scenario 2: real GDP", variables: [yR], axisMode: shared, referenceTrace: observed, sourceRunCellId: inflation&policy}
+        - {type: chart, id: scenario-2-inflation-policy-chart, title: "Scenario 2: CPI inflation and policy rate", series: [{expression: 100 * inflc, label: CPI inflation, unit: "%"}, {expression: 100 * rstar, label: Policy rate, unit: "%"}], axisMode: separate, referenceTrace: observed, sourceRunCellId: inflation&policy}
+        - {type: chart, id: scenario-2-fiscal-chart, title: "Scenario 2: labour and fiscal ratios", series: [{expression: 100 * un, label: Unemployment, unit: "%"}, {expression: 100 * def_ratio, label: Deficit-to-GDP, unit: "%"}, {expression: 100 * deb_ratio, label: Debt-to-GDP, unit: "%"}], axisMode: separate, referenceTrace: observed, sourceRunCellId: inflation&policy}
+        - {type: chart, id: scenario-3-real-gdp-chart, title: "Scenario 3: real GDP", variables: [yR], axisMode: shared, referenceTrace: observed, sourceRunCellId: austerity}
+        - {type: chart, id: scenario-3-government-spending-chart, title: "Scenario 3: government spending", variables: [gov], axisMode: shared, referenceTrace: observed, sourceRunCellId: austerity}
+        - {type: chart, id: scenario-3-fiscal-chart, title: "Scenario 3: labour and fiscal ratios", series: [{expression: 100 * un, label: Unemployment, unit: "%"}, {expression: 100 * def_ratio, label: Deficit-to-GDP, unit: "%"}, {expression: 100 * deb_ratio, label: Debt-to-GDP, unit: "%"}], axisMode: separate, referenceTrace: observed, sourceRunCellId: austerity}
+  - table:
+      id: scenario-1-summary-table
+      title: "Scenario 1 key aggregates (1997-2028)"
+      variables: [yR, inflc, un, def_ratio, deb_ratio, rstar, gov]
+      sourceRunCellId: inflation_run
+  - table:
+      id: scenario-2-summary-table
+      title: "Scenario 2 key aggregates (1997-2028)"
+      variables: [yR, inflc, un, def_ratio, deb_ratio, rstar, gov]
+      sourceRunCellId: inflation&policy
+  - table:
+      id: scenario-3-summary-table
+      title: "Scenario 3 key aggregates (1997-2028)"
+      variables: [yR, inflc, un, def_ratio, deb_ratio, rstar, gov]
+      sourceRunCellId: austerity

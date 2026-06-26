@@ -191,7 +191,7 @@
         { "id": "eq-124-imR", "name": "imR", "desc": "Real imports.", "expression": "100 * im / p", "role": "identity" },
         { "id": "eq-comment-125-KEY-BEHAVIOURAL-EQUATIONS", "kind": "comment", "text": "KEY BEHAVIOURAL EQUATIONS --------------------------------" },
         { "id": "eq-126-LconsR", "name": "LconsR", "desc": "Real consumption (log); y used in place of yd for stability", "expression": "alpha1*TSLAG(log(y*100/pc),1)+alpha2*TSLAG(log(vh*100/pc),1)+adj_LconsR", "role": "behavioral" },
-        { "id": "eq-127-gov", "name": "gov", "desc": "Government consumption", "expression": "sigma1*TSLAG((gov/p),1)*p", "role": "behavioral" },
+        { "id": "eq-127-gov", "name": "gov", "desc": "Government consumption", "expression": "sigma1*TSLAG((gov/p),1)*p+adj_gov", "role": "behavioral" },
         { "id": "eq-128-LidR", "name": "LidR", "desc": "Real investment net of capital depreciation (log)", "expression": "gamma0+gamma1*TSLAG(log(y)/log(k),1)", "role": "behavioral" },
         { "id": "eq-129-LxR", "name": "LxR", "desc": "Log of real export", "expression": "x0+x1*TSLAG(log(yf),1)+x2*TSLAG(exr*p/p_row,1)+adj_LxR", "role": "behavioral" },
         { "id": "eq-130-LimR", "name": "LimR", "desc": "Log of real import", "expression": "m0+m1*TSLAG(log(y),1)+m2*TSLAG(p_im/p,1)+adj_LimR", "role": "behavioral" },
@@ -438,7 +438,8 @@
         { "id": "ext-81-adj_deltak", "name": "adj_deltak", "desc": "Out-of-sample additive adjustment to capital depreciation", "kind": "series", "valueText": "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0126, 0.0069, 0.0011, -0.0016, -0.0033, -0.0033, -0.0033" },
         { "id": "ext-82-adj_Lp_en", "name": "adj_Lp_en", "desc": "Out-of-sample additive adjustment to Lp_en (energy-price log-level)", "kind": "series", "valueText": "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.38, 0.055, 0.06, 0, 0, 0, 0" },
         { "id": "ext-83-adj_rstar", "name": "adj_rstar", "desc": "Out-of-sample additive adjustment to the policy rate", "kind": "series", "valueText": "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -0.01858333, -0.00298333, 0.01941667, 0.01141667, 0.00641667, 0.00641667, 0.00641667" },
-        { "id": "ext-84-adj_mub", "name": "adj_mub", "desc": "Out-of-sample additive adjustment to the bills premium", "kind": "series", "valueText": "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -0.004, -0.02, -0.014, -0.01, -0.008, -0.008, -0.008" }
+        { "id": "ext-84-adj_mub", "name": "adj_mub", "desc": "Out-of-sample additive adjustment to the bills premium", "kind": "series", "valueText": "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -0.004, -0.02, -0.014, -0.01, -0.008, -0.008, -0.008" },
+        { "id": "ext-85-adj_gov", "name": "adj_gov", "desc": "Out-of-sample additive adjustment to government consumption", "kind": "series", "valueText": "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0" }
       ],
       "collapsed": true
     },
@@ -639,7 +640,7 @@
         { "type": "chart", "id": "chart-deflator-adjusted", "title": "Fig. 2(i) Price level (GDP deflator)", "variables": ["p"], "axisMode": "shared", "referenceTrace": "observed", "sourceRunCellId": "adjusted-run" }
       ]
     },
-    { "id": "out-of-sample-prediction", "type": "markdown", "title": "Out-of-sample prediction", "source": "Section 4 of `marcoverpas/Italy-SFC-Model` extends the adjusted in-sample fit into a 2022-2028 baseline with a single `SIMULATE(..., simType = \"DYNAMIC\")` call over the whole 1998-2028 range. The reference code pins the behavioural variables to observed data only through 2021 (`Exogenize = c(1998,1,2021,1)`) and then releases them, so the one run reproduces the adjusted historical path and continues forward, feeding back its own simulated lagged endogenous values from 2022 onward.\n\nThis notebook mirrors that with one continuous run (`out-of-sample-run`, 1997-2028) that uses windowed `exogenize` (`throughPeriod: 25`): each listed variable stays pinned to observed history for 1997-2021, then its equation is restored and solved for 2022-2028. The reference `ConstantAdjustment` list is represented as explicit additive externals (`adj_*`) that are zero in-sample and carry the R add-factor path over 2022-2028, keeping the forward run transparent.\n", "more": "The single segmented run works as follows:\n\n1. Periods 1-25 (1997-2021) solve with the behavioural set held to observed data, so\n   this window reproduces the adjusted in-sample path.\n2. Periods 26-32 (2022-2028) release that set and solve it dynamically, seeded from the\n   2021 state. Exogenous inputs (e.g. `dum`, the `opf`/`oph` other-payments closures)\n   are held at their last observed value through 2028.\n3. The `adj_*` series externals add the R `constantAdjList` corrections over 2022-2028:\n\n| Adjustment external | R target | 2022-2028 values |\n| --- | --- | --- |\n| `adj_Lp` | GDP deflator correction | `[-0.017, -0.01, 0.006, 0.018, 0.03, 0.04, 0.045]` |\n| `adj_LimR` | Real imports correction | `[0.156, 0.125, 0.111, 0.111, 0.111, 0.111, 0.111]` |\n| `adj_LxR` | Real exports correction | `[0.075, 0.063, 0.065, 0.065, 0.065, 0.065, 0.065]` |\n| `adj_LconsR` | Real consumption correction | `[0, 0.01, 0.05, 0.05, 0.05, 0.045, 0.045]` |\n| `adj_deltak` | Depreciation correction | `[0.0126, 0.0069, 0.0011, -0.0016, -0.0033, -0.0033, -0.0033]` |\n| `adj_Lp_en` | Energy-price shock | `[0.38, 0.055, 0.06, 0, 0, 0, 0]` |\n| `adj_rstar` | Policy-rate path around `r0` | `[-0.01858333, -0.00298333, 0.01941667, 0.01141667, 0.00641667, 0.00641667, 0.00641667]` |\n| `adj_mub` | Bills-premium correction | `[-0.004, -0.02, -0.014, -0.01, -0.008, -0.008, -0.008]` |\n" },
+    { "id": "out-of-sample-prediction", "type": "markdown", "title": "Out-of-sample prediction", "source": "Section 4 of `marcoverpas/Italy-SFC-Model` extends the adjusted in-sample fit into a 2022-2028 baseline with a single `SIMULATE(..., simType = \"DYNAMIC\")` call over the whole 1998-2028 range. The reference code pins the behavioural variables to observed data only through 2021 (`Exogenize = c(1998,1,2021,1)`) and then releases them, so the one run reproduces the adjusted historical path and continues forward, feeding back its own simulated lagged endogenous values from 2022 onward.\n\nThis notebook mirrors that with one continuous run (`out-of-sample-run`, 1997-2028) that uses windowed `exogenize` (`throughPeriod: 25`): each listed variable stays pinned to observed history for 1997-2021, then its equation is restored and solved for 2022-2028. The reference `ConstantAdjustment` list is represented as explicit additive externals (`adj_*`) that are zero in-sample and carry the R add-factor path over 2022-2028, keeping the forward run transparent.\n", "more": "The single segmented run works as follows:\n\n1. Periods 1-25 (1997-2021) solve with the behavioural set held to observed data, so\n   this window reproduces the adjusted in-sample path.\n2. Periods 26-32 (2022-2028) release that set and solve it dynamically, seeded from the\n   2021 state. Exogenous inputs (e.g. `dum`, the `opf`/`oph` other-payments closures)\n   are held at their last observed value through 2028.\n3. The `adj_*` series externals add the R `constantAdjList` corrections over 2022-2028:\n\n| Adjustment external | R target | 2022-2028 values |\n| --- | --- | --- |\n| `adj_Lp` | GDP deflator correction | `[-0.017, -0.01, 0.006, 0.018, 0.03, 0.04, 0.045]` |\n| `adj_LimR` | Real imports correction | `[0.156, 0.125, 0.111, 0.111, 0.111, 0.111, 0.111]` |\n| `adj_LxR` | Real exports correction | `[0.075, 0.063, 0.065, 0.065, 0.065, 0.065, 0.065]` |\n| `adj_LconsR` | Real consumption correction | `[0, 0.01, 0.05, 0.05, 0.05, 0.045, 0.045]` |\n| `adj_deltak` | Depreciation correction | `[0.0126, 0.0069, 0.0011, -0.0016, -0.0033, -0.0033, -0.0033]` |\n| `adj_Lp_en` | Energy-price shock | `[0.38, 0.055, 0.06, 0, 0, 0, 0]` |\n| `adj_rstar` | Policy-rate path around `r0` | `[-0.01858333, -0.00298333, 0.01941667, 0.01141667, 0.00641667, 0.00641667, 0.00641667]` |\n| `adj_mub` | Bills-premium correction | `[-0.004, -0.02, -0.014, -0.01, -0.008, -0.008, -0.008]` |\n| `adj_gov` | Government spending correction | `[0, 0, 0, 0, 0, 0, 0]` |\n" },
     {
       "id": "out-of-sample-run",
       "type": "run",
@@ -733,6 +734,273 @@
       ]
     },
     { "id": "baseline-table", "type": "table", "title": "Key macro aggregates", "sourceRunCellId": "baseline-run", "variables": ["y", "yR", "cons", "id", "nx", "deb", "def", "deb_ratio", "p", "pc", "nd", "un", "rb"] },
-    { "id": "out-of-sample-table", "type": "table", "title": "Continuous run key aggregates (1997-2028)", "sourceRunCellId": "out-of-sample-run", "variables": ["y", "yR", "consR", "iddR", "xR", "imR", "deb", "deb_ratio", "p", "pc", "p_en", "nd", "un", "rb", "rstar"] }
+    { "id": "out-of-sample-table", "type": "table", "title": "Continuous run key aggregates (1997-2028)", "sourceRunCellId": "out-of-sample-run", "variables": ["y", "yR", "consR", "iddR", "xR", "imR", "deb", "deb_ratio", "p", "pc", "p_en", "nd", "un", "rb", "rstar"] },
+    { "id": "additional-experiments", "type": "markdown", "title": "Additional experiments", "source": "Section 6 of `marcoverpas/Italy-SFC-Model` compares the out-of-sample baseline with three alternative experiments over 2022-2028. This notebook shows each alternative as a full 1997-2028 segmented dynamic run, just like `out-of-sample-run`: periods 1-25 (1997-2021) stay pinned to observed history, then periods 26-32 (2022-2028) solve forward with the experiment-specific add-factor path.\n", "more": "- Scenario 1 makes the energy-led price shock more persistent, keeping CPI inflation around 5% in the forecast window.\n- Scenario 2 combines that persistent inflation shock with an ECB policy response that maintains the policy rate at 4.5% over 2024-2026, plus the reference consumption-volume adjustment.\n- Scenario 3 applies fiscal-austerity cuts designed to bring the deficit-to-GDP ratio toward the Maastricht 3% threshold from 2024 onward.\n" },
+    {
+      "id": "inflation_run",
+      "type": "run",
+      "title": "Alternative scenario 1 run (1997-2028)",
+      "description": "Full segmented DYNAMIC run with the persistent energy-price shock over 2022-2028 replacing the baseline adj_Lp_en path.",
+      "mode": "baseline",
+      "periods": 32,
+      "simType": "DYNAMIC",
+      "resultKey": "italy_sfc_alternative_scenario_1",
+      "sourceModelId": "italy-sfc",
+      "externalOverrides": [
+        { "name": "adj_Lp_en", "kind": "series", "desc": "Scenario 1 persistent energy-price shock path", "valueText": "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.38, 0.2, 0.2, 0.2, 0.2, 0.2, 0.1" }
+      ],
+      "exogenize": [
+        { "name": "Lpc", "throughPeriod": 25 },
+        { "name": "Lp_en", "throughPeriod": 25 },
+        { "name": "mul", "throughPeriod": 25 },
+        { "name": "mulh", "throughPeriod": 25 },
+        { "name": "mubb", "throughPeriod": 25 },
+        { "name": "mubrow", "throughPeriod": 25 },
+        { "name": "mubh", "throughPeriod": 25 },
+        { "name": "fuf", "throughPeriod": 25 },
+        { "name": "lh", "throughPeriod": 25 },
+        { "name": "gov", "throughPeriod": 25 },
+        { "name": "tr", "throughPeriod": 25 },
+        { "name": "Leh", "throughPeriod": 25 },
+        { "name": "Lbh", "throughPeriod": 25 },
+        { "name": "Lhh", "throughPeriod": 25 },
+        { "name": "Lbb", "throughPeriod": 25 },
+        { "name": "prod", "throughPeriod": 25 },
+        { "name": "Lns", "throughPeriod": 25 },
+        { "name": "gw", "throughPeriod": 25 },
+        { "name": "Lp", "throughPeriod": 25 },
+        { "name": "LidR", "throughPeriod": 25 },
+        { "name": "LimR", "throughPeriod": 25 },
+        { "name": "LconsR", "throughPeriod": 25 },
+        { "name": "intmh", "throughPeriod": 25 },
+        { "name": "rstar", "throughPeriod": 25 },
+        { "name": "tax", "throughPeriod": 25 },
+        { "name": "LxR", "throughPeriod": 25 },
+        { "name": "Lp_im", "throughPeriod": 25 },
+        { "name": "Lp_row", "throughPeriod": 25 },
+        { "name": "opb", "throughPeriod": 25 },
+        { "name": "opcb", "throughPeriod": 25 },
+        { "name": "oacb", "throughPeriod": 25 },
+        { "name": "oaf", "throughPeriod": 25 },
+        { "name": "oab", "throughPeriod": 25 },
+        { "name": "oag", "throughPeriod": 25 },
+        { "name": "oah", "throughPeriod": 25 },
+        { "name": "mub", "throughPeriod": 25 },
+        { "name": "perc_en", "throughPeriod": 25 },
+        { "name": "lambdarow", "throughPeriod": 25 },
+        { "name": "yf", "throughPeriod": 25 },
+        { "name": "rho", "throughPeriod": 25 },
+        "oph",
+        "opf"
+      ]
+    },
+    {
+      "id": "inflation&policy",
+      "type": "run",
+      "title": "Alternative scenario 2 run (1997-2028)",
+      "description": "Full segmented DYNAMIC run with persistent inflation, the ECB policy response, and the consumption-volume adjustment over 2022-2028.",
+      "mode": "baseline",
+      "periods": 32,
+      "simType": "DYNAMIC",
+      "resultKey": "italy_sfc_alternative_scenario_2",
+      "sourceModelId": "italy-sfc",
+      "externalOverrides": [
+        { "name": "adj_Lp_en", "kind": "series", "desc": "Scenario 2 persistent energy-price shock path", "valueText": "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.38, 0.2, 0.2, 0.2, 0.2, 0.2, 0.1" },
+        { "name": "adj_rstar", "kind": "series", "desc": "Scenario 2 -rate add-factor path", "valueText": "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -0.00298333, 0.01941667, 0.02641667, 0.02641667, 0.02641667, 0.02641667, 0.02641667" },
+        { "name": "adj_LconsR", "kind": "series", "desc": "Scenario 2 real-consumption correction path", "valueText": "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.01, 0.0297, 0.0297, 0.0297, 0.0247, 0.0247" }
+      ],
+      "exogenize": [
+        { "name": "Lpc", "throughPeriod": 25 },
+        { "name": "Lp_en", "throughPeriod": 25 },
+        { "name": "mul", "throughPeriod": 25 },
+        { "name": "mulh", "throughPeriod": 25 },
+        { "name": "mubb", "throughPeriod": 25 },
+        { "name": "mubrow", "throughPeriod": 25 },
+        { "name": "mubh", "throughPeriod": 25 },
+        { "name": "fuf", "throughPeriod": 25 },
+        { "name": "lh", "throughPeriod": 25 },
+        { "name": "gov", "throughPeriod": 25 },
+        { "name": "tr", "throughPeriod": 25 },
+        { "name": "Leh", "throughPeriod": 25 },
+        { "name": "Lbh", "throughPeriod": 25 },
+        { "name": "Lhh", "throughPeriod": 25 },
+        { "name": "Lbb", "throughPeriod": 25 },
+        { "name": "prod", "throughPeriod": 25 },
+        { "name": "Lns", "throughPeriod": 25 },
+        { "name": "gw", "throughPeriod": 25 },
+        { "name": "Lp", "throughPeriod": 25 },
+        { "name": "LidR", "throughPeriod": 25 },
+        { "name": "LimR", "throughPeriod": 25 },
+        { "name": "LconsR", "throughPeriod": 25 },
+        { "name": "intmh", "throughPeriod": 25 },
+        { "name": "rstar", "throughPeriod": 25 },
+        { "name": "tax", "throughPeriod": 25 },
+        { "name": "LxR", "throughPeriod": 25 },
+        { "name": "Lp_im", "throughPeriod": 25 },
+        { "name": "Lp_row", "throughPeriod": 25 },
+        { "name": "opb", "throughPeriod": 25 },
+        { "name": "opcb", "throughPeriod": 25 },
+        { "name": "oacb", "throughPeriod": 25 },
+        { "name": "oaf", "throughPeriod": 25 },
+        { "name": "oab", "throughPeriod": 25 },
+        { "name": "oag", "throughPeriod": 25 },
+        { "name": "oah", "throughPeriod": 25 },
+        { "name": "mub", "throughPeriod": 25 },
+        { "name": "perc_en", "throughPeriod": 25 },
+        { "name": "lambdarow", "throughPeriod": 25 },
+        { "name": "yf", "throughPeriod": 25 },
+        { "name": "rho", "throughPeriod": 25 },
+        "oph",
+        "opf"
+      ]
+    },
+    {
+      "id": "austerity",
+      "type": "run",
+      "title": "Alternative scenario 3 run (1997-2028)",
+      "description": "Full segmented DYNAMIC run with government-spending add-factor cuts over 2022-2028.",
+      "mode": "baseline",
+      "periods": 32,
+      "simType": "DYNAMIC",
+      "resultKey": "italy_sfc_alternative_scenario_3",
+      "sourceModelId": "italy-sfc",
+      "externalOverrides": [
+        { "name": "adj_gov", "kind": "series", "desc": "Scenario 3 fiscal-austerity government-spending add-factor path", "valueText": "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -47000, -15000, -33000, -39000, -40000" }
+      ],
+      "exogenize": [
+        { "name": "Lpc", "throughPeriod": 25 },
+        { "name": "Lp_en", "throughPeriod": 25 },
+        { "name": "mul", "throughPeriod": 25 },
+        { "name": "mulh", "throughPeriod": 25 },
+        { "name": "mubb", "throughPeriod": 25 },
+        { "name": "mubrow", "throughPeriod": 25 },
+        { "name": "mubh", "throughPeriod": 25 },
+        { "name": "fuf", "throughPeriod": 25 },
+        { "name": "lh", "throughPeriod": 25 },
+        { "name": "gov", "throughPeriod": 25 },
+        { "name": "tr", "throughPeriod": 25 },
+        { "name": "Leh", "throughPeriod": 25 },
+        { "name": "Lbh", "throughPeriod": 25 },
+        { "name": "Lhh", "throughPeriod": 25 },
+        { "name": "Lbb", "throughPeriod": 25 },
+        { "name": "prod", "throughPeriod": 25 },
+        { "name": "Lns", "throughPeriod": 25 },
+        { "name": "gw", "throughPeriod": 25 },
+        { "name": "Lp", "throughPeriod": 25 },
+        { "name": "LidR", "throughPeriod": 25 },
+        { "name": "LimR", "throughPeriod": 25 },
+        { "name": "LconsR", "throughPeriod": 25 },
+        { "name": "intmh", "throughPeriod": 25 },
+        { "name": "rstar", "throughPeriod": 25 },
+        { "name": "tax", "throughPeriod": 25 },
+        { "name": "LxR", "throughPeriod": 25 },
+        { "name": "Lp_im", "throughPeriod": 25 },
+        { "name": "Lp_row", "throughPeriod": 25 },
+        { "name": "opb", "throughPeriod": 25 },
+        { "name": "opcb", "throughPeriod": 25 },
+        { "name": "oacb", "throughPeriod": 25 },
+        { "name": "oaf", "throughPeriod": 25 },
+        { "name": "oab", "throughPeriod": 25 },
+        { "name": "oag", "throughPeriod": 25 },
+        { "name": "oah", "throughPeriod": 25 },
+        { "name": "mub", "throughPeriod": 25 },
+        { "name": "perc_en", "throughPeriod": 25 },
+        { "name": "lambdarow", "throughPeriod": 25 },
+        { "name": "yf", "throughPeriod": 25 },
+        { "name": "rho", "throughPeriod": 25 },
+        "oph",
+        "opf"
+      ]
+    },
+    {
+      "id": "additional-experiments-chart-grid",
+      "type": "chart-grid",
+      "title": "Fig. 4 Additional experiments (1997-2028)",
+      "gridColumns": 2,
+      "charts": [
+        {
+          "type": "chart",
+          "id": "scenario-real-gdp-chart",
+          "title": "Real GDP: baseline vs scenarios",
+          "series": [
+            { "expression": "yR", "sourceRunCellId": "out-of-sample-run", "label": "Baseline" },
+            { "expression": "yR", "sourceRunCellId": "inflation_run", "label": "Scenario 1: inflation" },
+            { "expression": "yR", "sourceRunCellId": "inflation&policy", "label": "Scenario 2: inflation & policy" },
+            { "expression": "yR", "sourceRunCellId": "austerity", "label": "Scenario 3: austerity" }
+          ],
+          "axisMode": "shared",
+          "referenceTrace": "observed",
+          "sourceRunCellId": "out-of-sample-run"
+        },
+        {
+          "type": "chart",
+          "id": "scenario-1-inflation-chart",
+          "title": "Scenario 1: CPI inflation",
+          "series": [
+            { "expression": "100 * inflc", "label": "CPI inflation", "unit": "%" }
+          ],
+          "axisMode": "shared",
+          "referenceTrace": "observed",
+          "sourceRunCellId": "inflation_run"
+        },
+        {
+          "type": "chart",
+          "id": "scenario-1-fiscal-chart",
+          "title": "Scenario 1: labour and fiscal ratios",
+          "series": [
+            { "expression": "100 * un", "label": "Unemployment", "unit": "%" },
+            { "expression": "100 * def_ratio", "label": "Deficit-to-GDP", "unit": "%" },
+            { "expression": "100 * deb_ratio", "label": "Debt-to-GDP", "unit": "%" }
+          ],
+          "axisMode": "separate",
+          "referenceTrace": "observed",
+          "sourceRunCellId": "inflation_run"
+        },
+        { "type": "chart", "id": "scenario-2-real-gdp-chart", "title": "Scenario 2: real GDP", "variables": ["yR"], "axisMode": "shared", "referenceTrace": "observed", "sourceRunCellId": "inflation&policy" },
+        {
+          "type": "chart",
+          "id": "scenario-2-inflation-policy-chart",
+          "title": "Scenario 2: CPI inflation and policy rate",
+          "series": [
+            { "expression": "100 * inflc", "label": "CPI inflation", "unit": "%" },
+            { "expression": "100 * rstar", "label": "Policy rate", "unit": "%" }
+          ],
+          "axisMode": "separate",
+          "referenceTrace": "observed",
+          "sourceRunCellId": "inflation&policy"
+        },
+        {
+          "type": "chart",
+          "id": "scenario-2-fiscal-chart",
+          "title": "Scenario 2: labour and fiscal ratios",
+          "series": [
+            { "expression": "100 * un", "label": "Unemployment", "unit": "%" },
+            { "expression": "100 * def_ratio", "label": "Deficit-to-GDP", "unit": "%" },
+            { "expression": "100 * deb_ratio", "label": "Debt-to-GDP", "unit": "%" }
+          ],
+          "axisMode": "separate",
+          "referenceTrace": "observed",
+          "sourceRunCellId": "inflation&policy"
+        },
+        { "type": "chart", "id": "scenario-3-real-gdp-chart", "title": "Scenario 3: real GDP", "variables": ["yR"], "axisMode": "shared", "referenceTrace": "observed", "sourceRunCellId": "austerity" },
+        { "type": "chart", "id": "scenario-3-government-spending-chart", "title": "Scenario 3: government spending", "variables": ["gov"], "axisMode": "shared", "referenceTrace": "observed", "sourceRunCellId": "austerity" },
+        {
+          "type": "chart",
+          "id": "scenario-3-fiscal-chart",
+          "title": "Scenario 3: labour and fiscal ratios",
+          "series": [
+            { "expression": "100 * un", "label": "Unemployment", "unit": "%" },
+            { "expression": "100 * def_ratio", "label": "Deficit-to-GDP", "unit": "%" },
+            { "expression": "100 * deb_ratio", "label": "Debt-to-GDP", "unit": "%" }
+          ],
+          "axisMode": "separate",
+          "referenceTrace": "observed",
+          "sourceRunCellId": "austerity"
+        }
+      ]
+    },
+    { "id": "scenario-1-summary-table", "type": "table", "title": "Scenario 1 key aggregates (1997-2028)", "sourceRunCellId": "inflation_run", "variables": ["yR", "inflc", "un", "def_ratio", "deb_ratio", "rstar", "gov"] },
+    { "id": "scenario-2-summary-table", "type": "table", "title": "Scenario 2 key aggregates (1997-2028)", "sourceRunCellId": "inflation&policy", "variables": ["yR", "inflc", "un", "def_ratio", "deb_ratio", "rstar", "gov"] },
+    { "id": "scenario-3-summary-table", "type": "table", "title": "Scenario 3 key aggregates (1997-2028)", "sourceRunCellId": "austerity", "variables": ["yR", "inflc", "un", "def_ratio", "deb_ratio", "rstar", "gov"] }
   ]
 }

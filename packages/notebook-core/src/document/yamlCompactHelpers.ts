@@ -909,7 +909,10 @@ function parseChartSeries(value: unknown): ChartSeriesSpec[] | undefined {
       {
         expression,
         ...(typeof entry.label === "string" && entry.label.trim() !== "" ? { label: entry.label } : {}),
-        ...(range ? { range } : {})
+        ...(range ? { range } : {}),
+        ...(typeof entry.sourceRunCellId === "string" && entry.sourceRunCellId.trim() !== ""
+          ? { sourceRunCellId: entry.sourceRunCellId }
+          : {})
       }
     ];
   });

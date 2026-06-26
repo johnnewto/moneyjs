@@ -61,6 +61,37 @@ Optional per-series fields:
 
 The `variables` list remains valid shorthand for plotting raw run series by name.
 
+## Traces From Different Runs
+
+By default every series reads from the chart's `sourceRunCellId`. To overlay traces from several runs on one chart, give individual series their own source run.
+
+In `series`, set a per-entry `sourceRunCellId`. Entries without one fall back to the chart-level source run:
+
+```json
+{
+  "type": "chart",
+  "sourceRunCellId": "baseline-run",
+  "series": [
+    { "expression": "Cd", "sourceRunCellId": "scenario-run" },
+    { "expression": "YD", "sourceRunCellId": "austerity-run" },
+    { "expression": "Id" },
+    { "expression": "AF" }
+  ]
+}
+```
+
+The `variables` shorthand supports the same idea: append `, <runId>` to a bare variable name. Names without a run id use the chart's `sourceRunCellId`.
+
+```json
+{
+  "type": "chart",
+  "sourceRunCellId": "baseline-run",
+  "variables": ["Cd, scenario-run", "YD, austerity-run", "Id", "AF"]
+}
+```
+
+The shorthand only applies to bare variable names; expressions that contain commas (such as `max(a, b)`) are always treated as raw expressions, so use the `series` form for those. When the same variable is drawn from more than one run, the legend disambiguates it with the run id, e.g. `Cd (austerity-run)`.
+
 ## Axis Modes
 
 Charts can use shared or separate axes.

@@ -22,12 +22,36 @@ function isGraphableTimeSeries(values: number[]): boolean {
   return values.length > 1 && values.some(Number.isFinite);
 }
 
+/** Matches a bare variable name (no operators), used to detect `"name, runId"` shorthand. */
+const BARE_VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_^]*$/;
+
+/**
+ * Parses a `variables` shorthand entry. A bare variable name optionally followed
+ * by `, <runId>` selects that run as the series source (Option A shorthand,
+ * e.g. `"Cd, xy_run"`). Anything whose left side is not a bare name (such as a
+ * matrix/function expression containing commas) is treated as a raw expression.
+ */
+function parseVariableShorthand(entry: string): ChartSeriesSpec {
+  const commaIndex = entry.indexOf(",");
+  if (commaIndex === -1) {
+    return { expression: entry };
+  }
+
+  const left = entry.slice(0, commaIndex).trim();
+  const right = entry.slice(commaIndex + 1).trim();
+  if (left && right && BARE_VARIABLE_NAME.test(left)) {
+    return { expression: left, sourceRunCellId: right };
+  }
+
+  return { expression: entry };
+}
+
 export function resolveChartSeriesSpecs(cell: Pick<ChartCell, "series" | "variables">): ChartSeriesSpec[] {
   if (cell.series != null && cell.series.length > 0) {
     return cell.series;
   }
 
-  return (cell.variables ?? []).map((expression) => ({ expression }));
+  return (cell.variables ?? []).map((entry) => parseVariableShorthand(entry));
 }
 
 export function resolveChartSeriesDisplayName(
@@ -39,7 +63,10 @@ export function resolveChartSeriesDisplayName(
   seenNames.set(baseName, seenCount);
 
   if (seenCount > 1) {
-    return `${baseName} (${spec.expression.trim()})`;
+    // Prefer the source run id to disambiguate the same variable drawn from
+    // different runs; fall back to the expression otherwise.
+    const qualifier = spec.sourceRunCellId?.trim() || spec.expression.trim();
+    return `${baseName} (${qualifier})`;
   }
 
   return baseName;
@@ -64,13 +91,27 @@ function assignChartSeriesNames(specs: ChartSeriesSpec[]): NamedChartSeriesSpec[
   });
 }
 
+/** Resolves a run cell's result by id, used to source per-series traces from other runs. */
+export type ResolveResultByRunId = (runCellId: string) => SimulationResult | null;
+
+interface BuildNamedChartSeriesOptions {
+  slice?: { startIndex: number; length: number };
+  resolveResultByRunId?: ResolveResultByRunId;
+}
+
 function buildNamedChartSeriesValues(
   namedSpecs: NamedChartSeriesSpec[],
   result: SimulationResult,
-  slice?: { startIndex: number; length: number }
+  options: BuildNamedChartSeriesOptions = {}
 ): ResolvedChartSeries[] {
-  return namedSpecs.flatMap(({ expression, name }) => {
-    let values = buildMatrixEntryTimeSeries(expression, result);
+  const { slice, resolveResultByRunId } = options;
+  return namedSpecs.flatMap(({ expression, name, spec }) => {
+    const sourceRunCellId = spec.sourceRunCellId?.trim();
+    const specResult =
+      sourceRunCellId && resolveResultByRunId
+        ? resolveResultByRunId(sourceRunCellId) ?? result
+        : result;
+    let values = buildMatrixEntryTimeSeries(expression, specResult);
     if (slice) {
       values = values.slice(slice.startIndex, slice.startIndex + slice.length);
     }
@@ -105,9 +146,10 @@ export function resolveChartSeriesUnit(
 export function buildResolvedChartSeriesWithUnits(
   cell: Pick<ChartCell, "series" | "variables">,
   result: SimulationResult,
-  variableUnitMetadata: VariableUnitMetadata
+  variableUnitMetadata: VariableUnitMetadata,
+  resolveResultByRunId?: ResolveResultByRunId
 ): ResolvedChartSeries[] {
-  return buildResolvedChartSeries(cell, result).map((entry) => ({
+  return buildResolvedChartSeries(cell, result, resolveResultByRunId).map((entry) => ({
     ...entry,
     unit: resolveChartSeriesUnit(entry, cell, variableUnitMetadata)
   }));
@@ -115,9 +157,12 @@ export function buildResolvedChartSeriesWithUnits(
 
 export function buildResolvedChartSeries(
   cell: Pick<ChartCell, "series" | "variables">,
-  result: SimulationResult
+  result: SimulationResult,
+  resolveResultByRunId?: ResolveResultByRunId
 ): ResolvedChartSeries[] {
-  return buildNamedChartSeriesValues(assignChartSeriesNames(resolveChartSeriesSpecs(cell)), result);
+  return buildNamedChartSeriesValues(assignChartSeriesNames(resolveChartSeriesSpecs(cell)), result, {
+    resolveResultByRunId
+  });
 }
 
 function seriesMagnitude(values: number[]): number | null {
@@ -219,7 +264,7 @@ export function buildOverlaySeriesFromSpecs(
   result: SimulationResult,
   slice?: { startIndex: number; length: number }
 ): ResolvedChartSeries[] {
-  return buildNamedChartSeriesValues(assignChartSeriesNames(specs), result, slice);
+  return buildNamedChartSeriesValues(assignChartSeriesNames(specs), result, { slice });
 }
 
 export function resolveChartSeriesDisplayNames(

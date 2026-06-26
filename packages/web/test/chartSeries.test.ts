@@ -53,6 +53,71 @@ describe("chartSeries", () => {
     expect(resolveChartSeriesSpecs(cell)).toEqual([{ expression: "y" }, { expression: "c" }]);
   });
 
+  it("parses the `<name>, <runId>` variables shorthand into per-series source runs", () => {
+    const cell: ChartCell = {
+      id: "chart-1",
+      type: "chart",
+      title: "Chart",
+      sourceRunCellId: "run-1",
+      variables: ["Cd, xy_run", "YD , xyz_run", "Id", "AF"]
+    };
+
+    expect(resolveChartSeriesSpecs(cell)).toEqual([
+      { expression: "Cd", sourceRunCellId: "xy_run" },
+      { expression: "YD", sourceRunCellId: "xyz_run" },
+      { expression: "Id" },
+      { expression: "AF" }
+    ]);
+  });
+
+  it("does not treat comma-bearing expressions as run shorthand", () => {
+    const cell: ChartCell = {
+      id: "chart-1",
+      type: "chart",
+      title: "Chart",
+      sourceRunCellId: "run-1",
+      variables: ["max(a, b)"]
+    };
+
+    expect(resolveChartSeriesSpecs(cell)).toEqual([{ expression: "max(a, b)" }]);
+  });
+
+  it("sources each series from its own run, falling back to the default result", () => {
+    const cell: ChartCell = {
+      id: "chart-1",
+      type: "chart",
+      title: "Chart",
+      sourceRunCellId: "run-1",
+      variables: ["Cd, xy_run", "Id"]
+    };
+    const defaultResult = createResult({ Cd: [1, 1, 1], Id: [9, 9, 9] });
+    const xyRunResult = createResult({ Cd: [5, 6, 7], Id: [0, 0, 0] });
+
+    const resolved = buildResolvedChartSeries(cell, defaultResult, (runCellId) =>
+      runCellId === "xy_run" ? xyRunResult : null
+    );
+
+    expect(resolved).toEqual([
+      { highlightKey: "Cd", name: "Cd", values: [5, 6, 7] },
+      { highlightKey: "Id", name: "Id", values: [9, 9, 9] }
+    ]);
+  });
+
+  it("disambiguates same-named series from different runs by run id", () => {
+    const cell: ChartCell = {
+      id: "chart-1",
+      type: "chart",
+      title: "Chart",
+      sourceRunCellId: "run-1",
+      series: [
+        { expression: "Cd", sourceRunCellId: "xy_run" },
+        { expression: "Cd", sourceRunCellId: "xyz_run" }
+      ]
+    };
+
+    expect(resolveChartSeriesDisplayNames(cell)).toEqual(["Cd", "Cd (xyz_run)"]);
+  });
+
   it("prefers explicit series entries over variables", () => {
     const cell: ChartCell = {
       id: "chart-1",

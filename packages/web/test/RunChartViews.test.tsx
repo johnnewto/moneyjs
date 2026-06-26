@@ -286,52 +286,6 @@ describe("ChartCellView", () => {
     expect(observedPoints.length).toBe(3);
   });
 
-  it("draws a green simulated trace and legend for windowed-exogenize out-of-sample runs", () => {
-    const windowedCells: NotebookCell[] = [
-      {
-        id: "run-1",
-        mode: "baseline",
-        periods: 6,
-        resultKey: "baseline",
-        simType: "DYNAMIC",
-        sourceModelId: "model-1",
-        title: "Run",
-        type: "run",
-        exogenize: [{ name: "Y", throughPeriod: 4 }]
-      }
-    ];
-    const chart: ChartCell = {
-      id: "chart-1",
-      sourceRunCellId: "run-1",
-      title: "Chart",
-      type: "chart",
-      variables: ["Y"]
-    };
-    const result = createResult([20, 22, 24, 26, 28, 30]);
-    const runner = createRunner({ current: result });
-
-    render(
-      <ChartCellView
-        cell={chart}
-        cells={windowedCells}
-        runner={runner}
-        selectedPeriodIndex={0}
-        variableDescriptions={new Map()}
-        variableUnitMetadata={new Map()}
-      />
-    );
-
-    const simulatedTrace = document.querySelector<SVGPolylineElement>("polyline.chart-out-of-sample-trace");
-    expect(simulatedTrace).not.toBeNull();
-    expect(simulatedTrace?.getAttribute("stroke")).toBe("#16a34a");
-    // Solid green line (no dash pattern).
-    expect(simulatedTrace?.getAttribute("stroke-dasharray")).toBeNull();
-    // Connects the last in-sample point (index 3) through the 2 out-of-sample
-    // points, so 3 coordinate pairs.
-    expect(simulatedTrace?.getAttribute("points")?.trim().split(/\s+/).length).toBe(3);
-    expect(screen.getByText(/Simulated$/).closest(".chart-legend")).not.toBeNull();
-  });
-
   it("auto-selects the observed reference trace for STATIC runs without an explicit setting", () => {
     const staticCells: NotebookCell[] = [
       {
@@ -369,6 +323,73 @@ describe("ChartCellView", () => {
       />
     );
 
+    expect(document.querySelectorAll("circle.chart-observed-point").length).toBe(3);
+  });
+
+  it("renders baseline and observed reference traces together for scenario charts", () => {
+    const multiReferenceCells: NotebookCell[] = [
+      {
+        id: "baseline-run",
+        mode: "baseline",
+        periods: 6,
+        resultKey: "baseline",
+        sourceModelId: "model-1",
+        title: "Baseline",
+        type: "run"
+      },
+      {
+        id: "scenario-run",
+        baselineRunCellId: "baseline-run",
+        baselineStartPeriod: 3,
+        mode: "scenario",
+        periods: 3,
+        resultKey: "scenario",
+        scenario: { shocks: [] },
+        sourceModelId: "model-1",
+        title: "Scenario",
+        type: "run"
+      }
+    ];
+    const chart: ChartCell = {
+      id: "chart-1",
+      referenceTraces: ["baseline", "observed"],
+      sourceRunCellId: "scenario-run",
+      title: "Chart",
+      type: "chart",
+      variables: ["Y"]
+    };
+    const scenarioResult = createResult([30, 32, 34]);
+    const baselineResult: SimulationResult = {
+      ...createResult([20, 22, 24, 26, 28, 30]),
+      observed: { Y: new Float64Array([18, 19, 30, 31, 32, 33]) }
+    };
+    const runner = {
+      ...createRunner({ current: scenarioResult }),
+      getResult: vi.fn((cellId: string) => {
+        if (cellId === "scenario-run") {
+          return scenarioResult;
+        }
+        if (cellId === "baseline-run") {
+          return baselineResult;
+        }
+        return null;
+      })
+    } as unknown as ReturnType<typeof useNotebookRunner>;
+
+    render(
+      <ChartCellView
+        cell={chart}
+        cells={multiReferenceCells}
+        runner={runner}
+        selectedPeriodIndex={2}
+        variableDescriptions={new Map()}
+        variableUnitMetadata={new Map()}
+      />
+    );
+
+    expect(screen.getByText("----: baseline").closest(".chart-legend")).not.toBeNull();
+    expect(screen.getByText("• Observed").closest(".chart-legend")).not.toBeNull();
+    expect(document.querySelector('polyline[stroke-dasharray="5 5"]')).not.toBeNull();
     expect(document.querySelectorAll("circle.chart-observed-point").length).toBe(3);
   });
 

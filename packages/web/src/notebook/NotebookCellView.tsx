@@ -440,7 +440,9 @@ function NotebookCellViewComponent({
     const result = runner.getResult(cell.sourceRunCellId);
     if (result) {
       try {
-        const grouped = suggestChartAxisGroups(buildResolvedChartSeries(cell, result));
+        const grouped = suggestChartAxisGroups(
+          buildResolvedChartSeries(cell, result, (runCellId) => runner.getResult(runCellId))
+        );
         if (grouped.length > 0) {
           return grouped;
         }

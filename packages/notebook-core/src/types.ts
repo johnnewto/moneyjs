@@ -214,6 +214,11 @@ export interface RunCell extends NotebookCellBase {
    * segmented in-sample/out-of-sample simulation.
    */
   exogenize?: ExogenizeEntry[];
+  /**
+   * Per-run replacements for external/coefficient rows. Useful for alternative
+   * forecast paths that should reuse the same model equations and observed data.
+   */
+  externalOverrides?: ExternalListItem[];
 }
 
 /**
@@ -229,6 +234,12 @@ export interface ChartSeriesSpec {
   range?: ChartAxisRange;
   /** Y-axis unit for this series (separate-axis mode). Overrides model unit inference. */
   unit?: string;
+  /**
+   * Run cell whose result supplies this series. Defaults to the chart cell's
+   * `sourceRunCellId` when omitted, letting one chart overlay traces drawn from
+   * several different runs.
+   */
+  sourceRunCellId?: string;
 }
 
 export interface ChartCell extends NotebookCellBase {
@@ -248,6 +259,7 @@ export interface ChartCell extends NotebookCellBase {
   axisSnapTolarance?: number;
   niceScale?: boolean;
   referenceTrace?: "none" | "baseline" | "previous-run" | "observed";
+  referenceTraces?: Array<"baseline" | "previous-run" | "observed">;
   /** When `"auto"` (default), show shock bands on charts sourced from scenario runs. */
   showScenarioShocks?: boolean | "auto";
   yAxisTickCount?: number;
