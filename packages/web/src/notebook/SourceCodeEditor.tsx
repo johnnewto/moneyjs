@@ -323,6 +323,7 @@ const CELL_TYPE_PROPERTY_KEYS: Record<string, string[]> = {
     "mode",
     "simType",
     "exogenize",
+    "externalOverrides",
     "scenario",
     "resultKey",
     "periods"
@@ -334,6 +335,7 @@ const CELL_TYPE_PROPERTY_KEYS: Record<string, string[]> = {
     "axisSnapTolarance",
     "niceScale",
     "referenceTrace",
+    "referenceTraces",
     "showScenarioShocks",
     "yAxisTickCount",
     "sharedRange",
@@ -539,6 +541,7 @@ function buildCompletionData(document: NotebookDocument, format: NotebookSourceF
       kind: ["constant", "series", "matrix", "dependency", "cld", "plantuml"],
       mode: ["baseline", "scenario"],
       referenceTrace: ["none", "baseline", "previous-run", "observed"],
+      referenceTraces: ["baseline", "previous-run", "observed"],
       showScenarioShocks: ["auto", "true", "false"],
       solverMethod: ["GAUSS_SEIDEL", "BROYDEN", "NEWTON"],
       stripSectorSource: ["columns", "sectors"],

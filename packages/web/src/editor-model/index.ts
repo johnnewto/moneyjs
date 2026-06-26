@@ -214,8 +214,18 @@ export function buildRuntimeConfig(
 
   const equations = [...explicitEquations, ...implicitEquations];
 
+  const runCell =
+    runtimeOptions?.notebookCells && runtimeOptions.runCellId
+      ? runtimeOptions.notebookCells.find(
+          (cell): cell is Extract<NotebookCell, { type: "run" }> =>
+            cell.type === "run" && cell.id === runtimeOptions.runCellId
+        )
+      : undefined;
+
+  const runtimeExternalRows = mergeRunExternalOverrides(editor.externals, runCell?.externalOverrides);
+
   const externals = Object.fromEntries(
-    externalRowsOnly(editor.externals)
+    runtimeExternalRows
       .filter(
         (external) =>
           external.kind !== "coefficient" &&
@@ -226,7 +236,7 @@ export function buildRuntimeConfig(
   );
 
   const coefficients = Object.fromEntries(
-    externalRowsOnly(editor.externals)
+    runtimeExternalRows
       .filter(
         (external) =>
           external.kind === "coefficient" &&
@@ -237,7 +247,7 @@ export function buildRuntimeConfig(
   );
 
   const observed = Object.fromEntries(
-    externalRowsOnly(editor.externals)
+    runtimeExternalRows
       .filter(
         (external) =>
           external.observed === true &&
@@ -283,14 +293,6 @@ export function buildRuntimeConfig(
           runCellId: runtimeOptions.runCellId,
           equationSources: equations.map((equation) => equation.expression)
         })
-      : undefined;
-
-  const runCell =
-    runtimeOptions?.notebookCells && runtimeOptions.runCellId
-      ? runtimeOptions.notebookCells.find(
-          (cell): cell is Extract<NotebookCell, { type: "run" }> =>
-            cell.type === "run" && cell.id === runtimeOptions.runCellId
-        )
       : undefined;
 
   const { wholeRangeNames, windowedEntries } = splitExogenizeEntries(runCell?.exogenize);
@@ -737,6 +739,48 @@ function parseExternal(kind: ExternalRowKind, valueText: string): ExternalDef {
   return kind === "series"
     ? { kind, values: parseNumberList(valueText) }
     : { kind: "constant", value: parseNumber(valueText) };
+}
+
+function mergeRunExternalOverrides(
+  baseItems: readonly ExternalListItem[],
+  overrideItems: readonly ExternalListItem[] | undefined
+): ExternalRow[] {
+  const baseRows = externalRowsOnly(baseItems);
+  const overrideRows = externalRowsOnly(overrideItems ?? []);
+  if (overrideRows.length === 0) {
+    return baseRows;
+  }
+
+  const overridesByName = new Map(
+    overrideRows
+      .map((row) => [row.name.trim(), row] as const)
+      .filter(([name]) => name !== "")
+  );
+  const usedNames = new Set<string>();
+  const mergedRows = baseRows.map((row) => {
+    const name = row.name.trim();
+    const override = overridesByName.get(name);
+    if (!override) {
+      return row;
+    }
+    usedNames.add(name);
+    return {
+      ...row,
+      ...override,
+      id: override.id ?? row.id,
+      observed: override.observed ?? row.observed,
+      unitMeta: override.unitMeta ?? row.unitMeta
+    };
+  });
+
+  for (const row of overrideRows) {
+    const name = row.name.trim();
+    if (name !== "" && !usedNames.has(name)) {
+      mergedRows.push(row);
+    }
+  }
+
+  return mergedRows;
 }
 
 /** Wildcard token in a run's `exogenize` list: hold every variable that has data. */

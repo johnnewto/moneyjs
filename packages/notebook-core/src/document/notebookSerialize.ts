@@ -55,13 +55,25 @@ export function serializeNotebookCell(cell: NotebookCell): NotebookCell {
         )
       };
     case "run":
-      if (!cell.scenario) {
-        return structuredClone(cell);
-      }
-
       return {
         ...cell,
-        scenario: serializeScenarioForNotebook(normalizeScenarioFromNotebook(cell.scenario))
+        ...(cell.externalOverrides
+          ? {
+              externalOverrides: cell.externalOverrides.map((external) =>
+                isRowComment(external)
+                  ? external
+                  : {
+                      ...external,
+                      unitMeta: serializeUnitMetaAliases(external.unitMeta)
+                    }
+              )
+            }
+          : {}),
+        ...(cell.scenario
+          ? {
+              scenario: serializeScenarioForNotebook(normalizeScenarioFromNotebook(cell.scenario))
+            }
+          : {})
       };
     default:
       return structuredClone(cell);
@@ -133,13 +145,25 @@ export function normalizeNotebookCell(cell: NotebookCell): NotebookCell {
         )
       };
     case "run":
-      if (!cell.scenario) {
-        return cell;
-      }
-
       return {
         ...cell,
-        scenario: normalizeScenarioFromNotebook(cell.scenario)
+        ...(cell.externalOverrides
+          ? {
+              externalOverrides: cell.externalOverrides.map((external) =>
+                isRowComment(external)
+                  ? external
+                  : {
+                      ...external,
+                      unitMeta: normalizeUnitMetaAliases(external.unitMeta)
+                    }
+              )
+            }
+          : {}),
+        ...(cell.scenario
+          ? {
+              scenario: normalizeScenarioFromNotebook(cell.scenario)
+            }
+          : {})
       };
     default:
       return cell;
