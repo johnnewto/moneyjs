@@ -32,7 +32,7 @@ export function parseJsonNotebookSource(
   }
 }
 
-export function buildJsonParseDiagnostic(source: string, error: unknown): NotebookSourceDiagnostic {
+function buildJsonParseDiagnostic(source: string, error: unknown): NotebookSourceDiagnostic {
   const message = error instanceof Error ? error.message : "Unable to parse JSON notebook source.";
   const offsetMatch = message.match(/position\s+(\d+)/i);
   const offset = offsetMatch ? Number.parseInt(offsetMatch[1], 10) : undefined;

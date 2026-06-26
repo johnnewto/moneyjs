@@ -77,62 +77,6 @@ function resolveThroughPeriodWindows(throughPeriod: unknown, length: number): Ar
   });
 }
 
-export function buildCompactCellDescriptor(
-  cell: NotebookCell,
-  options: { fallbackId: string; fallbackTitle: string; preserveIds: boolean }
-): Record<string, unknown> | undefined {
-  const descriptor = {
-    ...(options.preserveIds ? { id: cell.id } : {}),
-    ...(cell.title !== options.fallbackTitle ? { title: cell.title } : {}),
-    ...compactCellFlags(cell)
-  };
-  return Object.keys(descriptor).length > 0 ? descriptor : undefined;
-}
-
-export function buildCompactVariables(
-  equationsCell: Extract<NotebookCell, { type: "equations" }>,
-  parametersCell: Extract<NotebookCell, { type: "externals" }> | undefined
-): Record<string, Record<string, unknown>> {
-  const variables: Record<string, Record<string, unknown>> = {};
-  equationsCell.equations.forEach((equation) => {
-    if (isRowComment(equation)) {
-      return;
-    }
-    variables[equation.name] = {
-      ...(equation.desc ? { description: equation.desc } : {}),
-      ...compactUnitFields(equation.unitMeta),
-      ...(equation.role ? { role: equation.role } : {})
-    };
-  });
-  parametersCell?.externals.forEach((external) => {
-    if (isRowComment(external)) {
-      return;
-    }
-    variables[external.name] = {
-      ...(external.desc ? { description: external.desc } : {}),
-      ...compactUnitFields(external.unitMeta)
-    };
-  });
-  return variables;
-}
-
-export function buildCompactEquationVariables(
-  equationsCell: Extract<NotebookCell, { type: "equations" }>
-): Record<string, Record<string, unknown>> {
-  const variables: Record<string, Record<string, unknown>> = {};
-  equationsCell.equations.forEach((equation) => {
-    if (isRowComment(equation)) {
-      return;
-    }
-    variables[equation.name] = {
-      ...(equation.desc ? { description: equation.desc } : {}),
-      ...compactUnitFields(equation.unitMeta),
-      ...(equation.role ? { role: equation.role } : {})
-    };
-  });
-  return variables;
-}
-
 export function buildCompactEquationListRow(item: EquationListItem, index: number): unknown {
   if (isRowComment(item)) {
     return buildCompactRowComment(item);
@@ -140,7 +84,7 @@ export function buildCompactEquationListRow(item: EquationListItem, index: numbe
   return buildCompactEquationRow(item, index);
 }
 
-export function buildCompactEquationRow(equation: EquationRow, index: number): unknown[] {
+function buildCompactEquationRow(equation: EquationRow, index: number): unknown[] {
   const unit = formatCompactUnit(equation.unitMeta);
   const type = equation.unitMeta?.stockFlow;
   const row = [equation.name, equation.expression, equation.desc, unit, type, equation.role];
@@ -165,7 +109,7 @@ export function buildCompactExternalListRow(item: ExternalListItem, index: numbe
   return buildCompactExternalRow(item, index);
 }
 
-export function buildCompactExternalRow(external: ExternalRow, index: number): unknown[] | Record<string, unknown> {
+function buildCompactExternalRow(external: ExternalRow, index: number): unknown[] | Record<string, unknown> {
   if (external.kind !== "constant") {
     const fallbackId = `ext-${index}-${slugifyIdentifier(external.name)}`;
     return {
@@ -203,7 +147,7 @@ export function buildCompactInitialValueListRow(item: InitialValueListItem, inde
   return buildCompactInitialValueRow(item, index);
 }
 
-export function buildCompactInitialValueRow(initialValue: InitialValueRow, index: number): unknown {
+function buildCompactInitialValueRow(initialValue: InitialValueRow, index: number): unknown {
   const fallbackId = `init-${index}-${slugifyIdentifier(initialValue.name)}`;
   const row: unknown[] = [initialValue.name, scalarFromValueText(initialValue.valueText)];
   if (initialValue.desc?.trim()) {
@@ -218,25 +162,7 @@ export function buildCompactInitialValueRow(initialValue: InitialValueRow, index
   return row;
 }
 
-export function buildCompactExternalVariables(
-  parametersCell: Extract<NotebookCell, { type: "externals" }>
-): Record<string, Record<string, unknown>> | undefined {
-  const variables = Object.fromEntries(
-    parametersCell.externals.flatMap((external) => {
-      if (isRowComment(external)) {
-        return [];
-      }
-      const meta = {
-        ...(external.desc ? { description: external.desc } : {}),
-        ...compactUnitFields(external.unitMeta)
-      };
-      return Object.keys(meta).length > 0 ? [[external.name, meta]] : [];
-    })
-  ) as Record<string, Record<string, unknown>>;
-  return Object.keys(variables).length > 0 ? variables : undefined;
-}
-
-export function compactUnitFields(unitMeta: EquationRow["unitMeta"]): Record<string, unknown> {
+function compactUnitFields(unitMeta: EquationRow["unitMeta"]): Record<string, unknown> {
   if (!unitMeta) {
     return {};
   }
@@ -245,35 +171,6 @@ export function compactUnitFields(unitMeta: EquationRow["unitMeta"]): Record<str
     ...(unit ? { unit } : { unitMeta }),
     ...(unitMeta.stockFlow ? { type: unitMeta.stockFlow } : {})
   };
-}
-
-export function buildCompactUnits(variables: Record<string, Record<string, unknown>> | undefined): Record<string, string> | undefined {
-  if (!variables) {
-    return undefined;
-  }
-
-  let hasCurrency = false;
-  let hasTime = false;
-  let hasLabor = false;
-
-  Object.values(variables).forEach((meta) => {
-    const unit = typeof meta.unit === "string" ? meta.unit : "";
-    hasCurrency ||= unit.includes("$");
-    hasTime ||= /(?:^|\/)y(?:ea)?r$|1\/y(?:ea)?r/.test(unit);
-    hasLabor ||= /items?/.test(unit);
-
-    const unitMeta = isRecord(meta.unitMeta) ? meta.unitMeta : undefined;
-    const signature = unitMeta ? compactUnitSignature(unitMeta) : undefined;
-    hasCurrency ||= typeof signature?.money === "number";
-    hasTime ||= typeof signature?.time === "number";
-    hasLabor ||= typeof signature?.items === "number";
-  });
-
-  const units: Record<string, string> = {};
-  if (hasCurrency) units.currency = "$";
-  if (hasTime) units.time = "year";
-  if (hasLabor) units.labor = "items";
-  return Object.keys(units).length > 0 ? units : undefined;
 }
 
 export function buildCompactSolverDescriptor(options: Extract<NotebookCell, { type: "solver" }>["options"]): Record<string, unknown> {
@@ -376,7 +273,7 @@ export function rewriteCompactReferences(value: unknown, idMap: Map<string, stri
   return Object.fromEntries(Object.entries(value).map(([entryKey, entry]) => [entryKey, rewriteCompactReferences(entry, idMap, modelIdMap, entryKey)]));
 }
 
-export function scalarFromValueText(valueText: string): string | number | boolean {
+function scalarFromValueText(valueText: string): string | number | boolean {
   if (valueText === "true") {
     return true;
   }
@@ -387,7 +284,7 @@ export function scalarFromValueText(valueText: string): string | number | boolea
   return Number.isFinite(number) && String(number) === valueText.trim() ? number : valueText;
 }
 
-export function formatCompactUnit(unitMeta: EquationRow["unitMeta"]): string | undefined {
+function formatCompactUnit(unitMeta: EquationRow["unitMeta"]): string | undefined {
   const signature = compactUnitSignature(unitMeta);
   if (!signature) {
     return undefined;
@@ -434,7 +331,7 @@ function compactUnitMatches(
   return true;
 }
 
-export function compactUnitSignature(unitMeta: unknown): Record<string, number> | undefined {
+function compactUnitSignature(unitMeta: unknown): Record<string, number> | undefined {
   if (!isRecord(unitMeta)) {
     return undefined;
   }
@@ -938,7 +835,7 @@ export function buildCompactTableCells(tables: unknown, sourceRunCellId: string)
   }));
 }
 
-export function resolveEquationRole(meta: Record<string, unknown>): EquationRow["role"] | undefined {
+function resolveEquationRole(meta: Record<string, unknown>): EquationRow["role"] | undefined {
   if (typeof meta.role === "string") {
     return meta.role as EquationRow["role"];
   }
@@ -951,7 +848,7 @@ export function resolveEquationRole(meta: Record<string, unknown>): EquationRow[
   return undefined;
 }
 
-export function buildUnitMeta(meta: Record<string, unknown>): EquationRow["unitMeta"] | undefined {
+function buildUnitMeta(meta: Record<string, unknown>): EquationRow["unitMeta"] | undefined {
   const unit = typeof meta.unit === "string" ? meta.unit : undefined;
   const unitMeta = isRecord(meta.unitMeta) ? meta.unitMeta : undefined;
   if (unitMeta) {
@@ -968,7 +865,7 @@ export function buildUnitMeta(meta: Record<string, unknown>): EquationRow["unitM
   };
 }
 
-export function parseCompactUnit(unit: string): Record<string, number> | undefined {
+function parseCompactUnit(unit: string): Record<string, number> | undefined {
   const normalized = unit.trim();
   if (!normalized || normalized === "1") {
     return undefined;
@@ -1033,7 +930,7 @@ export function parseCompactUnit(unit: string): Record<string, number> | undefin
   return undefined;
 }
 
-export function normalizeSolverMethod(value: unknown): "GAUSS_SEIDEL" | "BROYDEN" | "NEWTON" {
+function normalizeSolverMethod(value: unknown): "GAUSS_SEIDEL" | "BROYDEN" | "NEWTON" {
   const normalized = typeof value === "string" ? value.toUpperCase().replace(/-/g, "_") : "NEWTON";
   if (normalized === "GAUSS_SEIDEL" || normalized === "BROYDEN" || normalized === "NEWTON") {
     return normalized;

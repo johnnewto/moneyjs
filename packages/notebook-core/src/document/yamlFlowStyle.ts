@@ -23,7 +23,7 @@ export function stringifyCompactYamlEnvelope(envelope: NotebookYamlEnvelope): st
   }).trimEnd();
 }
 
-export function markWrappedMatrixFlowSequences(document: YamlDocument): void {
+function markWrappedMatrixFlowSequences(document: YamlDocument): void {
   const cells = document.get("cells", true);
   if (!isSeq(cells)) {
     return;
@@ -34,23 +34,23 @@ export function markWrappedMatrixFlowSequences(document: YamlDocument): void {
   });
 }
 
-export function markWrappedEquationFlowSequences(document: YamlDocument): void {
+function markWrappedEquationFlowSequences(document: YamlDocument): void {
   markWrappedCellRowFlowSequences(document, "equations", { quoteColumn: 2 });
 }
 
-export function markWrappedExternalFlowSequences(document: YamlDocument): void {
+function markWrappedExternalFlowSequences(document: YamlDocument): void {
   markWrappedCellRowFlowSequences(document, "externals", { quoteColumn: 2 });
 }
 
-export function markWrappedObservedFlowSequences(document: YamlDocument): void {
+function markWrappedObservedFlowSequences(document: YamlDocument): void {
   markWrappedCellRowFlowSequences(document, "observed", { quoteColumn: 2 });
 }
 
-export function markWrappedInitialValueFlowSequences(document: YamlDocument): void {
+function markWrappedInitialValueFlowSequences(document: YamlDocument): void {
   markWrappedCellRowFlowSequences(document, "initial-values");
 }
 
-export function markWrappedRunFlowSequences(document: YamlDocument): void {
+function markWrappedRunFlowSequences(document: YamlDocument): void {
   const cells = document.get("cells", true);
   if (!isSeq(cells)) {
     return;
@@ -64,7 +64,7 @@ export function markWrappedRunFlowSequences(document: YamlDocument): void {
   });
 }
 
-export function markWrappedCellRowFlowSequences(
+function markWrappedCellRowFlowSequences(
   document: YamlDocument,
   cellType: NotebookCell["type"],
   options: { quoteColumn?: number } = {}
@@ -97,7 +97,7 @@ export function markWrappedCellRowFlowSequences(
 }
 
 
-export function markWrappedChartAxisGroupFlowSequences(document: YamlDocument): void {
+function markWrappedChartAxisGroupFlowSequences(document: YamlDocument): void {
   const cells = document.get("cells", true);
   if (!isSeq(cells)) {
     return;
@@ -116,7 +116,7 @@ export function markWrappedChartAxisGroupFlowSequences(document: YamlDocument): 
   });
 }
 
-export function markWrappedChartGridFlowSequences(document: YamlDocument): void {
+function markWrappedChartGridFlowSequences(document: YamlDocument): void {
   const cells = document.get("cells", true);
   if (!isSeq(cells)) {
     return;
@@ -161,11 +161,11 @@ export function markWrappedChartGridFlowSequences(document: YamlDocument): void 
   });
 }
 
-export function markMatrixFlowSequences(document: YamlDocument, matrixKey: "balance" | "transactions"): void {
+function markMatrixFlowSequences(document: YamlDocument, matrixKey: "balance" | "transactions"): void {
   markMatrixFlowSequencesAtPath(document, [matrixKey]);
 }
 
-export function markMatrixFlowSequencesAtPath(document: YamlDocument, matrixPath: Array<string | number>): void {
+function markMatrixFlowSequencesAtPath(document: YamlDocument, matrixPath: Array<string | number>): void {
   markFlowSequence(document, [...matrixPath, "columns"]);
   markFlowSequence(document, [...matrixPath, "sectors"]);
   markFlowSequence(document, [...matrixPath, "columnBadges"]);
@@ -183,7 +183,7 @@ export function markMatrixFlowSequencesAtPath(document: YamlDocument, matrixPath
   });
 }
 
-export function markFlowSequence(document: YamlDocument, path: Array<string | number>): void {
+function markFlowSequence(document: YamlDocument, path: Array<string | number>): void {
   const node = document.getIn(path, true);
   if (isSeq(node)) {
     node.flow = true;

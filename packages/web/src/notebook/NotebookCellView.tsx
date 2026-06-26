@@ -182,7 +182,7 @@ interface MatrixSequenceViewState {
   visibleStepCount: number;
 }
 
-export type NotebookCellPresentation = "canvas" | "pinned-panel";
+type NotebookCellPresentation = "canvas" | "pinned-panel";
 
 export interface NotebookCellViewProps {
   activeEditorCellId: string | null;

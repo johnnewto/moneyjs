@@ -5,7 +5,7 @@ import type { NotebookDocument } from "./types";
 
 export const NOTEBOOK_SHARE_QUERY_PARAM = "nbz";
 export const NOTEBOOK_SHARE_CELL_QUERY_PARAM = "cell";
-export const NOTEBOOK_SHARE_HASH_ROUTE = "#/notebook";
+const NOTEBOOK_SHARE_HASH_ROUTE = "#/notebook";
 export const NOTEBOOK_SHARE_MAX_COMPRESSED_LENGTH = 128_000;
 
 export interface NotebookShareSearchParams {
@@ -114,10 +114,6 @@ export function tryLoadNotebookFromShareSearch(search: string): NotebookDocument
   }
 }
 
-export function readNotebookShareCellIdFromSearch(search: string): string | null {
-  return parseNotebookShareSearch(search)?.cellId ?? null;
-}
-
 export function readNotebookShareCellIdFromLocation(): string | null {
   if (typeof window === "undefined") {
     return null;
@@ -159,7 +155,7 @@ export function buildNotebookShareUrl(args: {
   };
 }
 
-export function resolveNotebookShareShortenApiUrl(): string {
+function resolveNotebookShareShortenApiUrl(): string {
   const configuredAssistantUrl = (import.meta.env.VITE_NOTEBOOK_ASSISTANT_API_URL ?? "").trim();
   if (configuredAssistantUrl) {
     return configuredAssistantUrl.replace(/\/v1\/notebook-assistant\/ask\/?$/, "/v1/notebook-share/shorten");
@@ -180,7 +176,7 @@ export function resolveNotebookShareShortenApiUrl(): string {
   return "";
 }
 
-export async function shortenNotebookShareUrl(longUrl: string): Promise<string | null> {
+async function shortenNotebookShareUrl(longUrl: string): Promise<string | null> {
   const apiUrl = resolveNotebookShareShortenApiUrl();
   if (!apiUrl) {
     return null;

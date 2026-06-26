@@ -5,7 +5,6 @@ import { buildVariableDescriptions, type VariableDescriptions } from "../lib/var
 import { buildVariableUnitMetadata } from "../lib/units";
 import type { VariableUnitMetadata } from "../lib/unitMeta";
 import {
-  buildEditorStateForInspectorModelSource,
   buildInspectorCurrentValues,
   findRunCellForInspectorModelSource,
   resolveInspectorModelSource,
@@ -32,7 +31,7 @@ export interface PublicationVariableInteraction {
   onSelectVariable?(variableName: string): void;
 }
 
-export function resolvePublicationParameterNames(
+function resolvePublicationParameterNames(
   editor: VariableInspectContext["editor"] | null | undefined
 ): Set<string> {
   if (!editor) {
@@ -209,30 +208,6 @@ export function buildPublicationInspectRequest(args: {
   };
 }
 
-export function buildPublicationInspectRequestForCell(args: {
-  cell: NotebookCell;
-  document: NotebookDocument;
-  getResult: (runCellId: string) => SimulationResult | null;
-  selectedPeriodIndex: number;
-  selectedVariable: string;
-}): VariableInspectRequest | null {
-  const context = resolvePublicationInspectContext({
-    cell: args.cell,
-    document: args.document,
-    getResult: args.getResult,
-    selectedPeriodIndex: args.selectedPeriodIndex
-  });
-  if (!context) {
-    return null;
-  }
-
-  return buildPublicationInspectRequest({
-    context,
-    document: args.document,
-    selectedVariable: args.selectedVariable
-  });
-}
-
 export function mergePublicationVariableInteraction(args: {
   descriptions: VariableDescriptions;
   unitMetadata: VariableUnitMetadata;
@@ -249,15 +224,4 @@ export function mergePublicationVariableInteraction(args: {
     variableUnitMetadata: args.unitMetadata,
     onSelectVariable: args.inspectContext && args.onInspectVariable ? args.onInspectVariable : undefined
   };
-}
-
-export function resolvePublicationModelEditor(
-  document: NotebookDocument,
-  modelSource: VariableInspectContext["modelSource"]
-) {
-  if (!modelSource) {
-    return null;
-  }
-
-  return buildEditorStateForInspectorModelSource(document, modelSource);
 }

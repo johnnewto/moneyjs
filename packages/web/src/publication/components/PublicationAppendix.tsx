@@ -107,15 +107,3 @@ function PublicationSolver({ cell }: { cell: SolverCell }) {
   );
 }
 
-export function hasAppendixContent(cell: NotebookCell): boolean {
-  if (cell.type === "externals" || cell.type === "observed") {
-    return externalRowsOnly(cell.externals).length > 0;
-  }
-  if (cell.type === "initial-values") {
-    return initialValueRowsOnly(cell.initialValues).length > 0;
-  }
-  if (cell.type === "solver") {
-    return true;
-  }
-  return false;
-}

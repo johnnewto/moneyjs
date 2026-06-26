@@ -5,7 +5,7 @@ import { isRowComment, type EquationListItem } from "@sfcr/notebook-core";
 import type { EquationRow } from "../lib/editorModel";
 
 export type TraceMode = "inputs" | "outputs" | "both";
-export type TraceRowRole = "root" | "input" | "output" | "both";
+type TraceRowRole = "root" | "input" | "output" | "both";
 export type TraceTokenRole = "root" | "input" | "output" | "both";
 
 interface TraceRowMeta {

@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { isRowComment, type EquationListItem } from "@sfcr/notebook-core";
 
-export const EQUATION_SECTION_COLLAPSE_STORAGE_PREFIX = "sfcr.equation-section-collapse.";
+const EQUATION_SECTION_COLLAPSE_STORAGE_PREFIX = "sfcr.equation-section-collapse.";
 
-export function equationSectionCollapseStorageKey(cellId: string): string {
+function equationSectionCollapseStorageKey(cellId: string): string {
   return `${EQUATION_SECTION_COLLAPSE_STORAGE_PREFIX}${cellId}`;
 }
 

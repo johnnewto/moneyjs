@@ -10,7 +10,7 @@ import { ModelInitialValueCell } from "./ModelInitialValueCell";
 
 export type ExternalRowEditFocus = "name" | "value";
 
-export function ExternalRowInlineEditor({
+function ExternalRowInlineEditor({
   draftName,
   draftValueText,
   editFocus,

@@ -29,14 +29,14 @@ import {
   resolveMatrixColumnSumBindingsForRef
 } from "../notebook/matrixColumnSumRuntime";
 
-export type VariableCatalogEndogenousExogenous =
+type VariableCatalogEndogenousExogenous =
   | "endogenous"
   | "exogenous"
   | "initial-only"
   | "matrix-column-sum"
   | "unknown";
 
-export type VariableCatalogValueSource = "run" | "external" | "initial" | "default" | "none";
+type VariableCatalogValueSource = "run" | "external" | "initial" | "default" | "none";
 
 export type VariableCatalogGroupBy =
   | "none"
@@ -409,7 +409,7 @@ export function catalogRowToAssistantEntry(row: VariableCatalogRow, unitMeta: Un
   };
 }
 
-export function findLatestRunForModelKey(document: NotebookDocument, modelKey: string): RunCell | null {
+function findLatestRunForModelKey(document: NotebookDocument, modelKey: string): RunCell | null {
   let latest: RunCell | null = null;
 
   for (const cell of document.cells) {
@@ -427,7 +427,7 @@ export function findLatestRunForModelKey(document: NotebookDocument, modelKey: s
 }
 
 /** First baseline run for a model (document order). Used as the default path for stability and catalog inspect. */
-export function findBaselineRunForModelKey(document: NotebookDocument, modelKey: string): RunCell | null {
+function findBaselineRunForModelKey(document: NotebookDocument, modelKey: string): RunCell | null {
   for (const cell of document.cells) {
     if (cell.type !== "run" || cell.mode !== "baseline") {
       continue;

@@ -92,7 +92,7 @@ export function listNotebookVariants(): NotebookVariantIndexEntry[] {
   return readVariantIndexRaw().sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 }
 
-export function getNotebookVariantIndexEntry(variantId: string): NotebookVariantIndexEntry | null {
+function getNotebookVariantIndexEntry(variantId: string): NotebookVariantIndexEntry | null {
   return listNotebookVariants().find((entry) => entry.id === variantId) ?? null;
 }
 
@@ -230,7 +230,7 @@ function slugifySegment(value: string): string {
   );
 }
 
-export function allocateNotebookVariantId(
+function allocateNotebookVariantId(
   derivedFrom: NotebookTemplateId | undefined,
   title: string
 ): string {
@@ -394,12 +394,6 @@ export function migrateLegacyStoredNotebooks(): NotebookVariantIndexEntry[] {
   }
 
   return listNotebookVariants();
-}
-
-export function listNotebookVariantsForTemplate(
-  templateId: NotebookTemplateId
-): NotebookVariantIndexEntry[] {
-  return listNotebookVariants().filter((entry) => entry.derivedFrom === templateId);
 }
 
 export function listImportedNotebookVariants(): NotebookVariantIndexEntry[] {

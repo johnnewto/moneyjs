@@ -8,7 +8,7 @@ import {
   type StabilityRunTarget
 } from "../lib/stabilityAtPeriod";
 
-export type StabilityDisplayStatus =
+type StabilityDisplayStatus =
   | "no-run"
   | "idle"
   | "initial-period"

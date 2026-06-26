@@ -21,17 +21,6 @@ export function slugifyIdentifier(value: string): string {
   return value.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "value";
 }
 
-export function scalarFromValueText(valueText: string): string | number | boolean {
-  if (valueText === "true") {
-    return true;
-  }
-  if (valueText === "false") {
-    return false;
-  }
-  const number = Number(valueText);
-  return Number.isFinite(number) && String(number) === valueText.trim() ? number : valueText;
-}
-
 export function validateCell(cell: NotebookCell | Partial<NotebookCell>): void {
   if (!cell || typeof cell !== "object") {
     throw new Error("Notebook cell must be an object.");

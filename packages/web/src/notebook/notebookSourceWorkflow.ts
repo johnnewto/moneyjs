@@ -34,7 +34,7 @@ export interface NotebookSourceValidation {
   schema: ValidationStep;
 }
 
-export interface ValidationStep {
+interface ValidationStep {
   message: string;
   status: "valid" | "invalid";
 }
@@ -86,7 +86,7 @@ export function getNotebookSourceMimeType(format: NotebookSourceFormat): string 
   return "text/markdown";
 }
 
-export function getNotebookSourceFileSuffix(format: NotebookSourceFormat): string {
+function getNotebookSourceFileSuffix(format: NotebookSourceFormat): string {
   if (format === "json") {
     return "sfnb.json";
   }

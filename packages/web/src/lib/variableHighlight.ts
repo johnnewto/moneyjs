@@ -4,7 +4,7 @@ import {
   equationOutputVariable
 } from "@sfcr/core";
 
-export function canonicalVariableName(name: string): string {
+function canonicalVariableName(name: string): string {
   const trimmed = name.trim();
   if (!trimmed) {
     return trimmed;
@@ -23,7 +23,7 @@ export function canonicalVariableName(name: string): string {
   return equationOutputVariable(trimmed);
 }
 
-export function variableMatchesHighlight(
+function variableMatchesHighlight(
   mentionName: string,
   highlightedVariable: string | null | undefined
 ): boolean {

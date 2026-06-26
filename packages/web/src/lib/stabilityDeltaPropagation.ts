@@ -2,7 +2,7 @@ import { computeEigenpair, type SimulationResult, type StabilityAnalysis } from 
 
 export type StabilityDeltaShockSource = "zero" | "lag-increment" | "current-increment" | "dominant-mode";
 
-export interface StabilityOperatingPointValues {
+interface StabilityOperatingPointValues {
   current: number[];
   lag: number[];
   lag2: number[];
@@ -11,7 +11,7 @@ export interface StabilityOperatingPointValues {
 
 const MIN_RELATIVE_BASE = 1e-12;
 
-export interface StabilityDeltaPropagationRow {
+interface StabilityDeltaPropagationRow {
   variable: string;
   deltaLag: number;
   deltaCurrent: number;
@@ -70,7 +70,7 @@ export function multiplyTransitionMatrix(matrix: number[][], deltaLag: number[])
   return deltaCurrent;
 }
 
-export function buildOperatingPointValues(
+function buildOperatingPointValues(
   result: SimulationResult,
   variables: string[],
   period: number
@@ -106,7 +106,7 @@ export function buildOperatingPointValues(
   return { current, lag, lag2, pathDelta };
 }
 
-export function buildDeltaLagShock(
+function buildDeltaLagShock(
   analysis: StabilityAnalysis,
   operatingPoint: StabilityOperatingPointValues,
   source: StabilityDeltaShockSource

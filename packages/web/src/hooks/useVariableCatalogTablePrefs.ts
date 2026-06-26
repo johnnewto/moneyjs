@@ -8,7 +8,7 @@ import type {
   VisibilityState
 } from "@tanstack/react-table";
 
-export const VARIABLE_CATALOG_TABLE_PREFS_STORAGE_KEY = "sfcr.variable-catalog.table-prefs";
+const VARIABLE_CATALOG_TABLE_PREFS_STORAGE_KEY = "sfcr.variable-catalog.table-prefs";
 
 export type VariableCatalogViewMode = "table" | "parameters";
 

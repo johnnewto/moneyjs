@@ -1,0 +1,21 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreBinaries": ["rg"],
+  "workspaces": {
+    "packages/core": {
+      "entry": ["test/**/*.test.ts"]
+    },
+    "packages/chat-api": {
+      "entry": ["src/index.ts!", "scripts/*.mjs", "test/**/*.test.ts"]
+    },
+    "packages/web": {
+      "entry": [
+        "src/lib/solver.worker.ts!",
+        "src/lib/cld.worker.ts!",
+        "scripts/*.mjs",
+        "evals/**/*.mjs",
+        "test/**/*.{test,spec}.{ts,tsx,mjs}"
+      ]
+    }
+  }
+}

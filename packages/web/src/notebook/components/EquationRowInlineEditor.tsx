@@ -133,7 +133,7 @@ export function VariableRenameDialog({
   );
 }
 
-export function EquationRowInlineEditor({
+function EquationRowInlineEditor({
   currentValues,
   draftExpression,
   draftName,

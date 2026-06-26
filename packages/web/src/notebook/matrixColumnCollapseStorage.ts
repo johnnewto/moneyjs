@@ -14,7 +14,7 @@ import {
 import { collectMatrixAccountLayoutCollapseKeys } from "./components/MatrixColumnTreeHeader";
 import type { MatrixCell } from "./types";
 
-export const MATRIX_COLUMN_COLLAPSE_STORAGE_PREFIX = "sfcr.matrix-column-collapse.";
+const MATRIX_COLUMN_COLLAPSE_STORAGE_PREFIX = "sfcr.matrix-column-collapse.";
 
 export function matrixColumnCollapseStorageKey(notebookScopeId: string, matrixCellId: string): string {
   return `${MATRIX_COLUMN_COLLAPSE_STORAGE_PREFIX}${notebookScopeId}.${matrixCellId}`;

@@ -32,7 +32,7 @@ export function optionalString(args: Record<string, unknown> | undefined, key: s
   return value.trim() || undefined;
 }
 
-export function firstOptionalString(
+function firstOptionalString(
   args: Record<string, unknown> | undefined,
   keys: string[]
 ): string | undefined {
@@ -78,7 +78,7 @@ export function requireUpdateEquationArgs(
   return { expression, variable };
 }
 
-export function parseEquationArgument(
+function parseEquationArgument(
   args: Record<string, unknown> | undefined
 ): { expression: string; name: string } | null {
   const equationText = firstOptionalString(args, ["equation", "equationText"]);
@@ -122,22 +122,6 @@ export function requireStringArray(args: Record<string, unknown> | undefined, ke
     throw new Error(`Tool argument '${key}' must be a non-empty string array.`);
   }
 
-  return value.map((entry, index) => {
-    if (typeof entry !== "string" || entry.trim() === "") {
-      throw new Error(`Tool argument '${key}' item ${index + 1} must be a non-empty string.`);
-    }
-    return entry.trim();
-  });
-}
-
-export function optionalStringArray(args: Record<string, unknown> | undefined, key: string): string[] | undefined {
-  const value = args?.[key];
-  if (value == null) {
-    return undefined;
-  }
-  if (!Array.isArray(value)) {
-    throw new Error(`Tool argument '${key}' must be a string array.`);
-  }
   return value.map((entry, index) => {
     if (typeof entry !== "string" || entry.trim() === "") {
       throw new Error(`Tool argument '${key}' item ${index + 1} must be a non-empty string.`);
@@ -351,7 +335,7 @@ export function requireScenarioDefinition(args: Record<string, unknown> | undefi
   };
 }
 
-export function normalizeShockDefinition(shock: unknown, shockIndex: number): ScenarioDefinition["shocks"][number] {
+function normalizeShockDefinition(shock: unknown, shockIndex: number): ScenarioDefinition["shocks"][number] {
   if (!shock || typeof shock !== "object" || Array.isArray(shock)) {
     throw new Error(`Scenario shock ${shockIndex + 1} must be an object.`);
   }
@@ -379,7 +363,7 @@ export function normalizeShockDefinition(shock: unknown, shockIndex: number): Sc
   };
 }
 
-export function normalizeShockVariableDefinition(
+function normalizeShockVariableDefinition(
   variableDef: unknown,
   name: string,
   shockIndex: number

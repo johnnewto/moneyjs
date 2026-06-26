@@ -14,7 +14,6 @@ import {
   coerceUnitMeta,
   divideSignatures,
   formatSignature,
-  formatUnitText,
   formatUnitTextForVariableName,
   multiplySignatures,
   normalizeSignature,
@@ -69,7 +68,7 @@ export function buildVariableUnitMetadata(args: {
   return metadata;
 }
 
-export function getVariableUnitMeta(
+function getVariableUnitMeta(
   metadata: VariableUnitMetadata,
   variableName: string
 ): UnitMeta | undefined {
@@ -290,13 +289,13 @@ export function suggestMirroredAdditiveUnitMeta(args: {
   }
 }
 
-export interface MirroredAdditiveUnitTargets {
+interface MirroredAdditiveUnitTargets {
   proposed: SuggestedEquationUnitMeta;
   operandNames: string[];
   untaggedOperandNames: string[];
 }
 
-export function collectMirroredAdditiveUnitTargets(args: {
+function collectMirroredAdditiveUnitTargets(args: {
   variableName: string;
   expression: string;
   variableUnitMetadata: VariableUnitMetadata;
@@ -376,47 +375,6 @@ function queueMirroredUnitUpdate(args: {
   }
 
   return true;
-}
-
-export function countMirroredEquationUnitSuggestions(args: {
-  equations: readonly EquationListItem[];
-  variableUnitMetadata: VariableUnitMetadata;
-}): number {
-  const pending = new Set<string>();
-
-  for (const equation of args.equations) {
-    if (isRowComment(equation)) {
-      continue;
-    }
-
-    const targets = collectMirroredAdditiveUnitTargets({
-      variableName: equation.name,
-      expression: equation.expression,
-      variableUnitMetadata: args.variableUnitMetadata
-    });
-    if (!targets) {
-      continue;
-    }
-
-    if (!unitMetaMatchesSuggestion(equation.unitMeta, targets.proposed)) {
-      pending.add(equation.id);
-    }
-
-    for (const operandName of targets.untaggedOperandNames) {
-      const operandEquation = args.equations.find(
-        (entry) => !isRowComment(entry) && entry.name.trim() === operandName
-      );
-      if (
-        operandEquation &&
-        !isRowComment(operandEquation) &&
-        !unitMetaMatchesSuggestion(operandEquation.unitMeta, targets.proposed)
-      ) {
-        pending.add(operandEquation.id);
-      }
-    }
-  }
-
-  return pending.size;
 }
 
 export interface MirroredEquationUnitChange {

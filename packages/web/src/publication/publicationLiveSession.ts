@@ -3,9 +3,9 @@ import { serializeNotebookSource } from "../notebook/notebookSourceWorkflow";
 import type { NotebookDocument } from "../notebook/types";
 
 export const PUBLICATION_LIVE_SESSION_STORAGE_KEY = "sfcr:publication-live-session";
-export const PUBLICATION_LIVE_CHANNEL = "sfcr-publication-live";
+const PUBLICATION_LIVE_CHANNEL = "sfcr-publication-live";
 
-export interface PublicationLiveSessionRecord {
+interface PublicationLiveSessionRecord {
   documentJson: string;
   returnUrl: string;
   revision: number;

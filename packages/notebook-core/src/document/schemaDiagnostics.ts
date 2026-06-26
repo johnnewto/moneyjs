@@ -28,7 +28,7 @@ export function locateSchemaDiagnosticInSource(
   return {};
 }
 
-export function locateYamlSchemaDiagnostic(
+function locateYamlSchemaDiagnostic(
   source: string,
   issue: NotebookValidationIssue,
   allIssues: NotebookValidationIssue[]
@@ -63,7 +63,7 @@ export function looksLikeYamlNotebookSource(source: string): boolean {
   return /^(?:---\s*\n)?\s*(?:format|id|title|metadata|cells)\s*:/m.test(source);
 }
 
-export function locateJsonSchemaDiagnostic(
+function locateJsonSchemaDiagnostic(
   source: string,
   issue: NotebookValidationIssue,
   allIssues: NotebookValidationIssue[]
@@ -92,7 +92,7 @@ export function locateJsonSchemaDiagnostic(
   };
 }
 
-export function buildSchemaTargetPath(issue: NotebookValidationIssue, allIssues: NotebookValidationIssue[]): unknown[] {
+function buildSchemaTargetPath(issue: NotebookValidationIssue, allIssues: NotebookValidationIssue[]): unknown[] {
   const path = parseNotebookIssuePath(issue.path);
   const relatedProperty = resolveSchemaRelatedProperty(issue, allIssues);
   if (issue.keyword === "required" && !relatedProperty) {
@@ -104,7 +104,7 @@ export function buildSchemaTargetPath(issue: NotebookValidationIssue, allIssues:
   return path;
 }
 
-export function resolveSchemaRelatedProperty(
+function resolveSchemaRelatedProperty(
   issue: NotebookValidationIssue,
   allIssues: NotebookValidationIssue[]
 ): string | undefined {
@@ -128,7 +128,7 @@ export function resolveSchemaRelatedProperty(
   return siblingAdditionalProperty?.relatedProperty ?? expectedProperty;
 }
 
-export function isLikelyMisspelledProperty(expected: string, candidate: string | undefined): boolean {
+function isLikelyMisspelledProperty(expected: string, candidate: string | undefined): boolean {
   if (!candidate) {
     return false;
   }
@@ -144,7 +144,7 @@ export function isLikelyMisspelledProperty(expected: string, candidate: string |
   return levenshteinDistance(expected, candidate) <= 2;
 }
 
-export function levenshteinDistance(left: string, right: string): number {
+function levenshteinDistance(left: string, right: string): number {
   const rows = left.length + 1;
   const columns = right.length + 1;
   const matrix = Array.from({ length: rows }, () => Array<number>(columns).fill(0));
@@ -170,7 +170,7 @@ export function levenshteinDistance(left: string, right: string): number {
   return matrix[rows - 1][columns - 1];
 }
 
-export function parseNotebookIssuePath(path: string | undefined): unknown[] {
+function parseNotebookIssuePath(path: string | undefined): unknown[] {
   if (!path || path === "/") {
     return [];
   }
@@ -182,6 +182,6 @@ export function parseNotebookIssuePath(path: string | undefined): unknown[] {
     .map((segment) => (/^\d+$/.test(segment) ? Number.parseInt(segment, 10) : segment));
 }
 
-export function decodeJsonPointerSegment(segment: string): string {
+function decodeJsonPointerSegment(segment: string): string {
   return segment.replace(/~1/g, "/").replace(/~0/g, "~");
 }

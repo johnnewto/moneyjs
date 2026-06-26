@@ -76,7 +76,7 @@ export function isAccountTransactionsMatrix(cell: MatrixCell): boolean {
 
 export const ACCOUNT_TRANSACTIONS_SUM_ROW_DISPLAY_LABEL = "initial + ∫ Σ(flows) dt";
 
-export const ACCOUNT_TRANSACTIONS_SUM_COLUMN_DISPLAY_LABEL = "A − L − E";
+const ACCOUNT_TRANSACTIONS_SUM_COLUMN_DISPLAY_LABEL = "A − L − E";
 
 export function isSumLabel(value: string): boolean {
   return value.trim().toLowerCase().replace(/[\s_-]+/g, " ") === "sum";
@@ -300,7 +300,7 @@ export function resolveMatrixInitialRowCellValue(
   return resolveAccountTransactionsMatrixCellValue(matrix, initialRowIndex, columnIndex, null, 0);
 }
 
-export function evaluateMatrixColumnFlowSumAtPeriod(
+function evaluateMatrixColumnFlowSumAtPeriod(
   matrix: MatrixCell,
   columnIndex: number,
   result: SimulationResult | null,
@@ -359,7 +359,7 @@ export function columnAccumulationMissingFlowsMessage(columnLabel: string): stri
   return `Column "${columnLabel}" has no flow entries; accumulation expects column flows.`;
 }
 
-export const MATRIX_INTEGRAL_INSPECT_PREFIX = "∫:";
+const MATRIX_INTEGRAL_INSPECT_PREFIX = "∫:";
 
 export function formatMatrixIntegralInspectVariable(columnRef: string): string {
   return `${MATRIX_INTEGRAL_INSPECT_PREFIX}${columnRef.trim()}`;
@@ -399,54 +399,10 @@ export function resolveSumRowStockVariable(
   );
 }
 
-export function buildSymbolicColumnFlowSum(
-  matrix: MatrixCell,
-  columnIndex: number,
-  sumRowIndex: number
-): string {
-  const terms: string[] = [];
-
-  for (const rowIndex of listMatrixFlowRowIndices(matrix, sumRowIndex)) {
-    const raw = matrix.rows[rowIndex]?.values[columnIndex]?.trim() ?? "";
-    if (!raw || raw === "0") {
-      continue;
-    }
-
-    if (raw.startsWith("+") || raw.startsWith("-")) {
-      terms.push(raw);
-    } else {
-      terms.push(`+ ${raw}`);
-    }
-  }
-
-  if (terms.length === 0) {
-    return "0";
-  }
-
-  const joined = terms
-    .map((term, index) => normalizeSymbolicFlowTerm(term, index === 0))
-    .join(" ");
-
-  return joined.includes(" ") ? `(${joined})` : joined;
-}
-
-function normalizeSymbolicFlowTerm(raw: string, isFirst: boolean): string {
-  const trimmed = raw.trim();
-  if (trimmed.startsWith("-")) {
-    const magnitude = trimmed.slice(1).trimStart();
-    return isFirst ? `- ${magnitude}` : `- ${magnitude}`;
-  }
-  if (trimmed.startsWith("+")) {
-    const magnitude = trimmed.slice(1).trimStart();
-    return isFirst ? magnitude : `+ ${magnitude}`;
-  }
-  return isFirst ? trimmed : `+ ${trimmed}`;
-}
-
 const LAG_CALL_PATTERN = /\blag\(\s*([A-Za-z_][A-Za-z0-9_.^{}]*)\s*\)/g;
 const LAG_INDEX_PATTERN = /([A-Za-z_][A-Za-z0-9_.^{}]*)\[-1\]/g;
 
-export function formatLaggedVariable(variableName: string): string {
+function formatLaggedVariable(variableName: string): string {
   return `${variableName}'`;
 }
 
@@ -467,7 +423,7 @@ const SUM_WRAPPED_COLUMN_REF_PATTERN =
 const INTEGRAL_COLUMN_REF_PATTERN =
   /^I\(\s*([A-Za-z_][A-Za-z0-9_.]*\.[A-Za-z0-9_.]*)\s*\)$/;
 
-export function normalizeEquationExpression(expression: string): string {
+function normalizeEquationExpression(expression: string): string {
   return expression
     .trim()
     .replace(/\s+/g, " ")
@@ -476,7 +432,7 @@ export function normalizeEquationExpression(expression: string): string {
     .replace(LAG_CALL_PATTERN, "$1'");
 }
 
-export function normalizeAccumulationEquationExpression(
+function normalizeAccumulationEquationExpression(
   expression: string,
   stockVariable: string
 ): string {

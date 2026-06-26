@@ -5,7 +5,7 @@ import {
   type InitialValueListItem
 } from "@sfcr/notebook-core";
 
-export interface InitialValueExternalOverlapEntry {
+interface InitialValueExternalOverlapEntry {
   name: string;
   externalKind: string;
   initialValueText: string;

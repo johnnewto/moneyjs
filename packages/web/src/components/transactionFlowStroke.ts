@@ -1,4 +1,4 @@
-export type TransactionFlowStrokeScale = "log" | "linear";
+type TransactionFlowStrokeScale = "log" | "linear";
 
 export interface TransactionFlowStrokePreset {
   strokeMin: number;
@@ -51,7 +51,7 @@ export function computeTransactionFlowStrokeWidth(
 }
 
 /** React Flow ArrowClosed uses a ~5u-wide glyph in a 20u viewBox (see @xyflow/react Marker). */
-export const REACT_FLOW_ARROW_CLOSED_GLYPH_WIDTH_FRACTION = 5 / 20;
+const REACT_FLOW_ARROW_CLOSED_GLYPH_WIDTH_FRACTION = 5 / 20;
 
 export function computeTransactionFlowMarkerSize(
   strokeWidth: number,

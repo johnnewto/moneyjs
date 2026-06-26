@@ -11,12 +11,8 @@ import type { NotebookCell } from "./types";
 
 const APP_BASE_URL = import.meta.env.BASE_URL;
 
-export const NOTEBOOK_AI_INDEX_URL = resolveAppHref(".well-known/sfcr.json");
 export const NOTEBOOK_AI_LANDING_URL = resolveAppHref("ai/index.html");
 export const NOTEBOOK_AI_GUIDE_URL = resolveAppHref("notebook-guide.md");
-export const NOTEBOOK_AI_MANIFEST_URL = resolveAppHref(".well-known/sfcr-notebook-guide.json");
-export const NOTEBOOK_AI_SCHEMA_URL = resolveAppHref("sfcr-notebook.schema.json");
-export const NOTEBOOK_AI_PROMPT_URL = resolveAppHref("ai-prompts/create-sfcr-notebook.md");
 
 export interface NotebookRouteLocation {
   templateId: NotebookTemplateId | null;
@@ -151,10 +147,6 @@ export function readNotebookRouteLocation(): NotebookRouteLocation {
   };
 }
 
-export function resolveNotebookTemplateIdFromHash(hash: string): NotebookTemplateId {
-  return parseNotebookTemplateIdFromHash(hash) ?? DEFAULT_NOTEBOOK_TEMPLATE_ID;
-}
-
 export function resolveNotebookTemplateIdFromLocation(
   location: NotebookRouteLocation
 ): NotebookTemplateId {
@@ -259,10 +251,6 @@ export function migrateNotebookHashToPathname(): void {
   });
 }
 
-export function writeNotebookHash(templateId?: NotebookTemplateId, cellId?: string): void {
-  writeNotebookLocation({ templateId, cellId });
-}
-
 export function writeNotebookVariantHash(variantId: string, cellId?: string): void {
   writeNotebookLocation({ variantId, cellId });
 }
@@ -307,10 +295,6 @@ export function notebookHasUnsavedChanges(args: {
     args.hasImportPreview ||
     args.hasEditHistory
   );
-}
-
-export function isNotebookPathname(pathname: string): boolean {
-  return stripAppBasePath(pathname).startsWith("/notebook");
 }
 
 function resolveAppHref(path: string): string {

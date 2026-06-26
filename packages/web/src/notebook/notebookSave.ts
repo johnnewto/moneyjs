@@ -1,7 +1,7 @@
 import type { NotebookSourceFormat } from "./document";
 import { getNotebookSourceMimeType } from "./notebookSourceWorkflow";
 
-export const NOTEBOOK_SAVE_DIALOG_STORAGE_KEY = "sfcr:notebook-save-dialog";
+const NOTEBOOK_SAVE_DIALOG_STORAGE_KEY = "sfcr:notebook-save-dialog";
 
 type SaveFilePickerType = {
   accept: Record<string, string[]>;

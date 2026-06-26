@@ -5,7 +5,7 @@ export interface ChartAxisRange {
 }
 
 export const DEFAULT_AXIS_TICK_COUNT = 5;
-export const TIME_RANGE_MIN_WINDOW = 2;
+const TIME_RANGE_MIN_WINDOW = 2;
 
 const AUTO_AXIS_EDGE_PADDING_RATIO = 0.04;
 

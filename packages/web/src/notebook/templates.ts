@@ -209,10 +209,6 @@ export const NOTEBOOK_TEMPLATES: Record<NotebookTemplateId, NotebookTemplateDefi
 const loadedDocuments = new Map<NotebookTemplateId, NotebookDocument>();
 const loadErrors = new Map<NotebookTemplateId, NotebookSourceDiagnostic[]>();
 
-export function getNotebookTemplateYamlSource(id: NotebookTemplateId): string {
-  return NOTEBOOK_TEMPLATE_YAML[id];
-}
-
 export function loadNotebookTemplate(id: NotebookTemplateId): NotebookTemplateLoadResult {
   const cachedDocument = loadedDocuments.get(id);
   if (cachedDocument) {
@@ -254,13 +250,6 @@ export function loadNotebookTemplate(id: NotebookTemplateId): NotebookTemplateLo
 
 export function isNotebookTemplateLoadable(id: NotebookTemplateId): boolean {
   return loadNotebookTemplate(id).ok;
-}
-
-export function getNotebookTemplateLoadDiagnostics(
-  id: NotebookTemplateId
-): NotebookSourceDiagnostic[] | null {
-  const result = loadNotebookTemplate(id);
-  return result.ok ? null : result.diagnostics;
 }
 
 export function formatNotebookTemplateLoadError(

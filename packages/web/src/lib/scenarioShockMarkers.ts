@@ -17,7 +17,7 @@ export interface ScenarioShockMarker {
   variables: ScenarioShockVariable[];
 }
 
-export const SCENARIO_SHOCK_COLORS = ["#6366f1", "#ea580c", "#059669", "#ec4899", "#0284c7", "#7c3aed"];
+const SCENARIO_SHOCK_COLORS = ["#6366f1", "#ea580c", "#059669", "#ec4899", "#0284c7", "#7c3aed"];
 
 type ScenarioShockInput = {
   endPeriodInclusive?: number;

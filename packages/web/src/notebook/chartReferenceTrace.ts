@@ -11,7 +11,7 @@ export type ReferenceTraceKind = "none" | "baseline" | "previous-run" | "observe
 export type ActiveReferenceTraceKind = Exclude<ReferenceTraceKind, "none">;
 export type ReferenceTraceOverlaySeries = ResolvedChartSeries & { referenceTraceKind: ActiveReferenceTraceKind };
 
-export function formatChartReferenceTrace(trace: ReferenceTraceKind): string {
+function formatChartReferenceTrace(trace: ReferenceTraceKind): string {
   switch (trace) {
     case "none":
       return "None";
@@ -32,7 +32,7 @@ export function formatChartReferenceTraceLegend(trace: ReferenceTraceKind): stri
   return `----: ${formatChartReferenceTrace(trace).toLowerCase()}`;
 }
 
-export function resolveReferenceTrace(
+function resolveReferenceTrace(
   cell: ChartCell,
   sourceRunCell: RunCell | null | undefined,
   hasObserved: boolean
@@ -87,7 +87,7 @@ export function resolveEffectiveScenarioStartPeriod(
   return baselineRunCell.periods;
 }
 
-export function buildReferenceTraceOverlaySeries(args: {
+function buildReferenceTraceOverlaySeries(args: {
   cell: ChartCell;
   referenceTrace: ReferenceTraceKind;
   result: SimulationResult;

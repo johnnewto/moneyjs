@@ -138,7 +138,7 @@ export function buildInspectorSeriesValues(args: {
   return buildMatrixColumnSumSeries(args.variableName.trim(), bindings, result) ?? undefined;
 }
 
-export function isSameInspectorModelSource(
+function isSameInspectorModelSource(
   left: InspectorModelSource | null,
   right: InspectorModelSource | null
 ): boolean {
@@ -175,34 +175,6 @@ export function resolveInspectorModelSource(
   const legacyCellId = source?.sourceModelCellId?.trim();
   if (legacyCellId) {
     return { sourceModelCellId: legacyCellId };
-  }
-
-  return null;
-}
-
-export function resolveInspectorModelSourceFromCell(cell: NotebookCell): InspectorModelSource | null {
-  if (cell.type === "model") {
-    return { sourceModelCellId: cell.id };
-  }
-
-  if (
-    cell.type === "equations" ||
-    cell.type === "externals" ||
-    cell.type === "initial-values" ||
-    cell.type === "solver"
-  ) {
-    return { sourceModelId: cell.modelId };
-  }
-
-  if (cell.type === "run") {
-    return resolveInspectorModelSource(cell);
-  }
-
-  if (
-    cell.type === "sequence" &&
-    (cell.source.kind === "dependency" || cell.source.kind === "cld")
-  ) {
-    return resolveInspectorModelSource(cell.source);
   }
 
   return null;

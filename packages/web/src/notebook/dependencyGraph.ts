@@ -10,6 +10,7 @@ import { isRowComment } from "@sfcr/notebook-core";
 import type { EditorState, EquationRow, ExternalRow, InitialValueRow } from "../lib/editorModel";
 
 export type VariableType = "parameter" | "auxiliary" | "flow" | "stock" | "exogenous";
+/** @public referenced by emitted .d.ts of exported helpers (declaration: true) */
 export interface DependencyGraphNode {
   id: string;
   name: string;
@@ -29,6 +30,7 @@ export interface DependencyGraphNode {
   initialValue?: number;
 }
 
+/** @public referenced by emitted .d.ts of exported helpers (declaration: true) */
 export interface DependencyGraphEdge {
   id: string;
   sourceId: string;

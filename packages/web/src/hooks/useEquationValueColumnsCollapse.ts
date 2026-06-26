@@ -8,7 +8,7 @@ import {
 
 export const EQUATION_INITIAL_COLUMN_COLLAPSED_STORAGE_KEY =
   "sfcr.equation-view.initial-column-collapsed";
-export const EQUATION_CURRENT_COLUMN_COLLAPSED_STORAGE_KEY =
+const EQUATION_CURRENT_COLUMN_COLLAPSED_STORAGE_KEY =
   "sfcr.equation-view.current-column-collapsed";
 export const EQUATION_GAIN_COLUMN_COLLAPSED_STORAGE_KEY =
   "sfcr.equation-view.gain-column-collapsed";

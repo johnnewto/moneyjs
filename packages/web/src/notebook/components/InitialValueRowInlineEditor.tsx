@@ -13,7 +13,7 @@ import { resolveStoredOrDerivedDescription } from "../../lib/resolveRowDescripti
 
 export type InitialValueRowEditFocus = "name" | "value";
 
-export function InitialValueRowInlineEditor({
+function InitialValueRowInlineEditor({
   draftName,
   draftValueText,
   editFocus,

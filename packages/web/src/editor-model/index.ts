@@ -36,7 +36,7 @@ export type {
   EquationListItem,
   ExternalListItem,
   InitialValueListItem,
-  RowComment
+  
 } from "@sfcr/notebook-core";
 
 export interface EquationRow {
@@ -66,21 +66,21 @@ export interface InitialValueRow {
   enabled?: boolean;
 }
 
-export interface ShockVariableRow {
+interface ShockVariableRow {
   id: string;
   name: string;
   kind: ShockVariableDef["kind"];
   valueText: string;
 }
 
-export interface ShockRow {
+interface ShockRow {
   id: string;
   startPeriodInclusive: number;
   endPeriodInclusive: number;
   variables: ShockVariableRow[];
 }
 
-export interface EditorScenario {
+interface EditorScenario {
   shocks: ShockRow[];
 }
 
@@ -378,17 +378,17 @@ export function buildRuntimeConfig(
   };
 }
 
-export interface RuntimeDocument {
+interface RuntimeDocument {
   model: ModelDefinition;
   options: SimulationOptions;
   scenario: ScenarioDefinition | null;
 }
 
-export function runtimeDocumentFromEditor(editor: EditorState): RuntimeDocument {
+function runtimeDocumentFromEditor(editor: EditorState): RuntimeDocument {
   return buildRuntimeConfig(editor);
 }
 
-export function editorStateFromRuntimeDocument(document: RuntimeDocument): EditorState {
+function editorStateFromRuntimeDocument(document: RuntimeDocument): EditorState {
   return editorStateFromModel(document.model, document.options, document.scenario);
 }
 
@@ -784,14 +784,14 @@ function mergeRunExternalOverrides(
 }
 
 /** Wildcard token in a run's `exogenize` list: hold every variable that has data. */
-export const EXOGENIZE_ALL_TOKEN = "*";
+const EXOGENIZE_ALL_TOKEN = "*";
 
 /**
  * Partition a run's `exogenize` entries into whole-run names (pinned for every
  * period) and windowed entries (pinned only through `throughPeriod`, then
  * released). Windowed entries turn the run into a segmented in-sample run.
  */
-export function splitExogenizeEntries(
+function splitExogenizeEntries(
   exogenize: NotebookRunExogenize | undefined
 ): { wholeRangeNames: string[]; windowedEntries: Array<{ name: string; throughPeriod: number }> } {
   const wholeRangeNames: string[] = [];

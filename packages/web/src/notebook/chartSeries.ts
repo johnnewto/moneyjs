@@ -54,7 +54,7 @@ export function resolveChartSeriesSpecs(cell: Pick<ChartCell, "series" | "variab
   return (cell.variables ?? []).map((entry) => parseVariableShorthand(entry));
 }
 
-export function resolveChartSeriesDisplayName(
+function resolveChartSeriesDisplayName(
   spec: ChartSeriesSpec,
   seenNames: Map<string, number>
 ): string {
@@ -273,7 +273,7 @@ export function resolveChartSeriesDisplayNames(
   return assignChartSeriesNames(resolveChartSeriesSpecs(cell)).map((entry) => entry.name);
 }
 
-export function chartCellUsesSeriesEntries(cell: Pick<ChartCell, "series">): boolean {
+function chartCellUsesSeriesEntries(cell: Pick<ChartCell, "series">): boolean {
   return cell.series != null && cell.series.length > 0;
 }
 

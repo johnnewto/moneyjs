@@ -2,7 +2,7 @@ import type { NotebookCell, NotebookDocument } from "../notebook/types";
 import type { NotebookTemplateId } from "../notebook/templates";
 import type { PublicationRenderMode } from "./publicationRouteHelpers";
 
-export type PublicationSectionKind =
+type PublicationSectionKind =
   | "prose"
   | "equations"
   | "matrix"

@@ -7,7 +7,9 @@
     "dev": "pnpm web:dev",
     "eval:chat-builder": "pnpm --filter @sfcr/web run eval:chat-builder",
     "eval:chat-builder:live": "pnpm --filter @sfcr/web run eval:chat-builder:live",
-    "lint": "turbo run lint",
+    "lint": "turbo run lint && pnpm deadcode",
+    "deadcode": "knip",
+    "deadcode:fix": "knip --fix",
     "menu": "node scripts/dev-menu.mjs",
     "files:report": "rg --files packages | rg '\\.(ts|tsx)$' | xargs wc -l | sort -n",
     "test": "turbo run test",
@@ -24,6 +26,7 @@
     "web:preview:pages": "pnpm web:build:pages && node ./scripts/preview-pages.mjs"
   },
   "devDependencies": {
+    "knip": "^6.20.0",
     "turbo": "^2.5.0",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4"

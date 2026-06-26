@@ -1,6 +1,6 @@
-export type NormalizedMatrixOccurrenceSign = "+" | "-" | "neutral";
+type NormalizedMatrixOccurrenceSign = "+" | "-" | "neutral";
 
-export interface NormalizedMatrixOccurrence {
+interface NormalizedMatrixOccurrence {
   displayLabel: string;
   sign: NormalizedMatrixOccurrenceSign;
   variable: string;
@@ -10,7 +10,7 @@ const IDENTIFIER_PATTERN = String.raw`[A-Za-z_][A-Za-z0-9_.^{}]*`;
 const MULTIPLY_OPERATOR = "[*•]";
 const LAGGED_IDENTIFIER = `(?:lag\\(\\s*(${IDENTIFIER_PATTERN})\\s*\\)|(${IDENTIFIER_PATTERN})\\s*\\[-1\\]|(${IDENTIFIER_PATTERN})')`;
 
-export function extractNormalizedMatrixOccurrences(expression: string): NormalizedMatrixOccurrence[] {
+function extractNormalizedMatrixOccurrences(expression: string): NormalizedMatrixOccurrence[] {
   const trimmed = expression.trim();
   const sign: NormalizedMatrixOccurrenceSign = trimmed.startsWith("-")
     ? "-"

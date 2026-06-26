@@ -23,7 +23,7 @@ export function validateYamlDialectSource(source: string): NotebookSourceDiagnos
   return null;
 }
 
-export function stripYamlQuotedText(line: string): string {
+function stripYamlQuotedText(line: string): string {
   let result = "";
   let quote: "'" | '"' | null = null;
   let escaped = false;

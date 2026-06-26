@@ -12,8 +12,8 @@ import {
   type UnitSignature
 } from "./unitMeta";
 
-export type UnitPickerShape = "none" | "single" | "multiply" | "divide";
-export type UnitPickerOperand = "none" | BaseDimension;
+type UnitPickerShape = "none" | "single" | "multiply" | "divide";
+type UnitPickerOperand = "none" | BaseDimension;
 
 export interface UnitPickerForm {
   shape: UnitPickerShape;
@@ -22,7 +22,7 @@ export interface UnitPickerForm {
   rightOperand: BaseDimension;
 }
 
-export const BASE_DIMENSION_OPTIONS: Array<{ value: BaseDimension; label: string }> = [
+const BASE_DIMENSION_OPTIONS: Array<{ value: BaseDimension; label: string }> = [
   { value: "money", label: "$" },
   { value: "items", label: "items" },
   { value: "mass", label: "kg" },
@@ -32,7 +32,7 @@ export const BASE_DIMENSION_OPTIONS: Array<{ value: BaseDimension; label: string
   { value: "time", label: "yr" }
 ];
 
-export const DEFAULT_UNIT_PICKER_FORM: UnitPickerForm = {
+const DEFAULT_UNIT_PICKER_FORM: UnitPickerForm = {
   shape: "none",
   singleDimension: "money",
   leftOperand: "money",
@@ -128,7 +128,7 @@ export function unitPickerFormToSignature(form: UnitPickerForm): UnitSignature {
   }
 }
 
-export function rightOperandOptions(
+function rightOperandOptions(
   leftOperand: UnitPickerOperand,
   shape: UnitPickerShape
 ): Array<{ value: BaseDimension; label: string }> {
@@ -141,7 +141,7 @@ export function rightOperandOptions(
   return BASE_DIMENSION_OPTIONS;
 }
 
-export function normalizeUnitPickerForm(form: UnitPickerForm): UnitPickerForm {
+function normalizeUnitPickerForm(form: UnitPickerForm): UnitPickerForm {
   if (form.shape === "none" || form.shape === "single") {
     return form;
   }
@@ -230,12 +230,6 @@ export const CARBON_UNIT_PRESET_OPTIONS: EquationUnitPresetOption[] = [
   { label: "°C", unitMeta: { stockFlow: "stock", signature: { carbon: 1 } } },
   { label: "°C/yr", unitMeta: { stockFlow: "flow", signature: { carbon: 1, time: -1 } } },
   { label: "$/°C", unitMeta: { stockFlow: "aux", signature: { money: 1, carbon: -1 } } }
-];
-
-export const EQUATION_UNIT_PRESET_OPTIONS: EquationUnitPresetOption[] = [
-  ...ECONOMIC_UNIT_PRESET_OPTIONS,
-  ...OTHER_UNIT_PRESET_OPTIONS,
-  ...CARBON_UNIT_PRESET_OPTIONS
 ];
 
 export function unitMetasEqual(left?: UnitMeta, right?: UnitMeta): boolean {

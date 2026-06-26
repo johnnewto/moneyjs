@@ -189,7 +189,7 @@ export function resolveInitialValuesCell(snapshot: NotebookAssistantSnapshot, mo
   return cell;
 }
 
-export function resolveSolverCell(snapshot: NotebookAssistantSnapshot, modelId: string): SolverCell {
+function resolveSolverCell(snapshot: NotebookAssistantSnapshot, modelId: string): SolverCell {
   const cell = resolveOptionalModelCell(snapshot, modelId, "solver");
   if (!cell) {
     throw new Error(`Unknown solver model id: ${modelId}`);
@@ -333,7 +333,7 @@ export function resolveMatrixCell(snapshot: NotebookAssistantSnapshot, reference
   return resolveCellByIdOrTitle(snapshot, reference, label, "matrix", (cell): cell is MatrixCell => cell.type === "matrix");
 }
 
-export function resolveMarkdownCell(snapshot: NotebookAssistantSnapshot, reference: string, label: string): MarkdownCell {
+function resolveMarkdownCell(snapshot: NotebookAssistantSnapshot, reference: string, label: string): MarkdownCell {
   return resolveCellByIdOrTitle(snapshot, reference, label, "markdown cell", (cell): cell is MarkdownCell => cell.type === "markdown");
 }
 
@@ -627,7 +627,7 @@ export function createUniqueCellId(document: NotebookDocument, baseId: string): 
   return createUniqueId(new Set(document.cells.map((cell) => cell.id)), baseId);
 }
 
-export function createUniqueId(existingIds: Set<string>, baseId: string): string {
+function createUniqueId(existingIds: Set<string>, baseId: string): string {
   let candidate = baseId;
   let suffix = 2;
   while (existingIds.has(candidate)) {

@@ -7,13 +7,13 @@ import { withInitialValueEnabled } from "../lib/initialValueEnable";
 import { classifyMatrixEntrySource } from "./matrixVariableReference";
 import type { MatrixCell, NotebookCell } from "./types";
 
-export type InitialValueRecommendationReason =
+type InitialValueRecommendationReason =
   | "lagged"
   | "stock"
   | "denominator"
   | "balance-sheet";
 
-export interface InitialValueRecommendation {
+interface InitialValueRecommendation {
   name: string;
   reasons: InitialValueRecommendationReason[];
 }

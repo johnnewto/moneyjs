@@ -1,7 +1,7 @@
 import type { NotebookDocument, NotebookRuntimeState } from "../types";
 
 export type NotebookAssistantToolMode = "ask" | "edit";
-export type NotebookAssistantToolKind = "read" | "patch";
+type NotebookAssistantToolKind = "read" | "patch";
 
 interface NotebookAssistantToolRegistryEntry {
   args: string;
@@ -24,7 +24,7 @@ const NOTEBOOK_EQUATION_EXPRESSION_SYNTAX = [
   "min(a, b) and max(a, b) are supported directly for caps and floors."
 ] as const;
 
-export const NOTEBOOK_ASSISTANT_TOOL_REGISTRY = [
+const NOTEBOOK_ASSISTANT_TOOL_REGISTRY = [
   { name: "getNotebookSummary", kind: "read", args: "{}" },
   { name: "getEquation", kind: "read", args: "{ variable: string }" },
   { name: "getCurrentValues", kind: "read", args: "{ runId: string, periodIndex?: integer }" },

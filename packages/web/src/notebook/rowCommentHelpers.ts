@@ -2,7 +2,6 @@ import {
   isRowComment,
   normalizeRowCommentText,
   normalizeSectionCommentText,
-  parseSectionCommentText,
   type RowComment,
   validateSectionCommentText
 } from "@sfcr/notebook-core";
@@ -25,14 +24,6 @@ export function patchCommentInRows<TRow>(
       ? { ...row, text: normalizeSectionCommentText(normalizeRowCommentText(text)) }
       : row
   );
-}
-
-export function formatCommentDeleteLabel(row: RowComment | undefined, rowIndex: number): string {
-  if (!row) {
-    return `Row ${rowIndex + 1}`;
-  }
-  const title = parseSectionCommentText(row.text).title;
-  return title || `Section ${rowIndex + 1}`;
 }
 
 export function validateCommentDraftText(text: string): string | null {

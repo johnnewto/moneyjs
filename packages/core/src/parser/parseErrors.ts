@@ -25,7 +25,7 @@ export function formatExpressionSnippet(source: string, maxLength = 96): string 
   return `${trimmed.slice(0, maxLength - 1)}…`;
 }
 
-export function expressionParseErrorMessage(
+function expressionParseErrorMessage(
   source: string,
   token: { type: TokenType; text: string; offset: number },
   reason: "unexpected" | "expected",
@@ -42,7 +42,7 @@ export function expressionParseErrorMessage(
   return `${main} in expression '${snippet}'`;
 }
 
-export function withExpressionParseContext(
+function withExpressionParseContext(
   message: string,
   context?: ExpressionParseContext
 ): string {

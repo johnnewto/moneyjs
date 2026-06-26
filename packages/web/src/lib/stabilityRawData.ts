@@ -11,7 +11,7 @@ import {
   type StabilityDeltaPropagationView
 } from "./stabilityDeltaPropagation";
 
-export const STABILITY_RAW_MATRIX_WARN_SIZE = 24;
+const STABILITY_RAW_MATRIX_WARN_SIZE = 24;
 
 export type StabilityRawMatrixKey = "T" | "A0" | "A1" | "residual" | "eigenvectors" | "delta";
 
@@ -23,7 +23,7 @@ export interface StabilityRawMatrixView {
   vector?: number[];
 }
 
-export interface StabilityRawEigenvectorRow {
+interface StabilityRawEigenvectorRow {
   variable: string;
   re: number;
   im: number;
@@ -31,7 +31,7 @@ export interface StabilityRawEigenvectorRow {
   weight: number;
 }
 
-export interface StabilityRawEigenmodeView {
+interface StabilityRawEigenmodeView {
   label: string;
   eigenvalueLabel: string;
   reliable: boolean;
@@ -182,7 +182,7 @@ export function matrixToMarkdownTable(
   );
 }
 
-export function vectorToMarkdownTable(
+function vectorToMarkdownTable(
   label: string,
   variables: string[],
   vector: number[]
@@ -200,7 +200,7 @@ export function vectorToMarkdownTable(
   return lines.join("\n");
 }
 
-export function eigenmodeToMarkdown(mode: StabilityRawEigenmodeView): string {
+function eigenmodeToMarkdown(mode: StabilityRawEigenmodeView): string {
   const lines = [
     `### ${mode.label} (λ = ${mode.eigenvalueLabel})`,
     "",
@@ -216,7 +216,7 @@ export function eigenmodeToMarkdown(mode: StabilityRawEigenmodeView): string {
   return lines.join("\n");
 }
 
-export function deltaPropagationToMarkdown(view: StabilityDeltaPropagationView): string {
+function deltaPropagationToMarkdown(view: StabilityDeltaPropagationView): string {
   const lines = [
     `### Linear one-step response (Δxₜ = T Δxₜ₋₁)`,
     "",
@@ -448,7 +448,7 @@ function eigenmodeToHtmlSection(mode: StabilityRawEigenmodeView): string {
 </section>`;
 }
 
-export const STABILITY_RAW_POPUP_NAME = "sfcr-stability-raw";
+const STABILITY_RAW_POPUP_NAME = "sfcr-stability-raw";
 
 export function openStabilityRawDataWindow(
   views: StabilityRawDataViews,

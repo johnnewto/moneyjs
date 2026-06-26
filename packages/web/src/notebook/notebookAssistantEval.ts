@@ -39,7 +39,7 @@ export interface NotebookAssistantEvalFixture {
   selectedVariable?: string | null;
 }
 
-export interface NotebookAssistantEvalExpected {
+interface NotebookAssistantEvalExpected {
   addedChart?: { id: string; variables?: string[] };
   addedEquation?: { expression?: string; name: string };
   allowedPathPrefixes?: string[];
@@ -51,13 +51,13 @@ export interface NotebookAssistantEvalExpected {
   toolNames?: string[];
 }
 
-export interface NotebookAssistantEvalDiagnostic {
+interface NotebookAssistantEvalDiagnostic {
   message: string;
   path?: string;
   phase: string;
 }
 
-export interface NotebookAssistantEvalSummary {
+interface NotebookAssistantEvalSummary {
   diagnostics: NotebookAssistantEvalDiagnostic[];
   diagnosticsCount: number;
   fixtureId: string;
@@ -157,7 +157,7 @@ export function evaluateNotebookAssistantResponse(args: {
   };
 }
 
-export function buildNotebookAssistantEvalSnapshot(
+function buildNotebookAssistantEvalSnapshot(
   document: NotebookDocument,
   fixture: NotebookAssistantEvalFixture
 ): NotebookAssistantSnapshot {
@@ -170,7 +170,7 @@ export function buildNotebookAssistantEvalSnapshot(
   };
 }
 
-export function scoreNotebookAssistantEval(args: {
+function scoreNotebookAssistantEval(args: {
   extraction: NotebookAssistantToolRequestExtraction;
   fixture: NotebookAssistantEvalFixture;
   modeFiltered: { allowed: NotebookAssistantToolRequest[]; blocked: NotebookAssistantToolRequest[] };

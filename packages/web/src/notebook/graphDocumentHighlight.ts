@@ -6,18 +6,6 @@ export interface MatrixGraphSliceHighlight {
   matrixCellId: string;
 }
 
-export interface GraphDocumentHighlight {
-  expression: string | null;
-  slice: MatrixGraphSliceHighlight | null;
-}
-
-export function matrixCellMatchesGraphSlice(
-  matrixCellId: string,
-  slice: MatrixGraphSliceHighlight | null | undefined
-): boolean {
-  return slice != null && slice.matrixCellId === matrixCellId;
-}
-
 export function matrixRowMatchesGraphSlice(
   matrixCellId: string,
   rowIndex: number,

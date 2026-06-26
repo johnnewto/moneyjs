@@ -35,7 +35,7 @@ export function normalizeYamlCellEntries(cells: unknown): NotebookCell[] {
   return cells.map(normalizeYamlCellEntry);
 }
 
-export function normalizeYamlCellEntry(cell: unknown): NotebookCell {
+function normalizeYamlCellEntry(cell: unknown): NotebookCell {
   return normalizeRunCellExogenize(normalizeYamlCellEntryShape(cell));
 }
 
@@ -63,7 +63,7 @@ function normalizeYamlCellEntryShape(cell: unknown): NotebookCell {
   return buildYamlWrappedCell(type, body);
 }
 
-export function buildYamlWrappedCell(type: NotebookCell["type"], body: Record<string, unknown>): NotebookCell {
+function buildYamlWrappedCell(type: NotebookCell["type"], body: Record<string, unknown>): NotebookCell {
   if (Array.isArray(body[type === "initial-values" ? "initialValues" : type])) {
     return normalizeRawYamlWrappedCell(type, body);
   }
@@ -162,7 +162,7 @@ export function buildYamlWrappedCell(type: NotebookCell["type"], body: Record<st
   }
 }
 
-export function normalizeRawYamlWrappedCell(type: NotebookCell["type"], body: Record<string, unknown>): NotebookCell {
+function normalizeRawYamlWrappedCell(type: NotebookCell["type"], body: Record<string, unknown>): NotebookCell {
   const { id, type: _ignoredType, ...rest } = body;
   const cell = {
     ...(typeof id === "string" ? { id } : {}),

@@ -9,7 +9,7 @@ const APP_BASE_URL = import.meta.env.BASE_URL;
 export type PublicationRenderMode = "publish" | "embed" | "print";
 export type PublicationDocumentSource = "template" | "live";
 
-export const PUBLICATION_LIVE_ROUTE_ID = "live";
+const PUBLICATION_LIVE_ROUTE_ID = "live";
 
 export interface PublicationRouteLocation {
   mode: PublicationRenderMode;

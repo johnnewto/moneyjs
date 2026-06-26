@@ -29,7 +29,7 @@ export interface MatrixInitialValueBinding {
   columnIndex: number;
 }
 
-export interface MatrixInitialValueOverride extends MatrixInitialValueBinding {
+interface MatrixInitialValueOverride extends MatrixInitialValueBinding {
   cellValueText: string;
   cellNumericValue: number;
 }
@@ -177,7 +177,7 @@ export function resolveMatrixInitialValues(args: {
   return values;
 }
 
-export function collectMatrixInitialValueOverrides(args: {
+function collectMatrixInitialValueOverrides(args: {
   cells: NotebookCell[];
   modelId: string;
   cellInitialValues: InitialValueListItem[];

@@ -73,9 +73,9 @@ export {
   buildActiveTrace,
   buildTraceModel,
   togglePinnedTrace,
-  type ActiveTrace,
+  
   type PinnedTrace,
-  type TraceModel,
+  
   type TraceTokenRole
 } from "./EquationTrace";
 

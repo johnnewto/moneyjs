@@ -21,12 +21,6 @@ interface UnitMetaInput extends Omit<UnitMeta, "signature"> {
   units?: UnitSignatureInput;
 }
 
-interface SerializedUnitMeta {
-  displayUnit?: string;
-  stockFlow?: StockFlowKind;
-  units?: Partial<Record<BaseDimension | UnitSignatureAlias, number>>;
-}
-
 export type VariableUnitMetadata = Map<string, UnitMeta>;
 
 const DIMENSION_ORDER: BaseDimension[] = ["money", "items", "mass", "energy", "pp", "carbon", "time"];
@@ -124,51 +118,6 @@ export function normalizeUnitMetaAliases(unitMeta?: UnitMetaInput): UnitMeta | u
 
 export function coerceUnitMeta(unitMeta?: UnitMeta): UnitMeta | undefined {
   return normalizeUnitMetaAliases(unitMeta);
-}
-
-export function serializeUnitMetaAliases(unitMeta?: UnitMeta): SerializedUnitMeta | undefined {
-  const normalized = coerceUnitMeta(unitMeta);
-  if (!normalized) {
-    return undefined;
-  }
-
-  const units: SerializedUnitMeta["units"] = {};
-  const signature = normalizeSignature(normalized.signature);
-  const money = signature.money;
-  const items = signature.items;
-  const mass = signature.mass;
-  const energy = signature.energy;
-  const pp = signature.pp;
-  const carbon = signature.carbon;
-  const time = signature.time;
-
-  if (money !== undefined) {
-    units.$ = money;
-  }
-  if (items !== undefined) {
-    units.items = items;
-  }
-  if (mass !== undefined) {
-    units.kg = mass;
-  }
-  if (energy !== undefined) {
-    units.J = energy;
-  }
-  if (pp !== undefined) {
-    units.pp = pp;
-  }
-  if (carbon !== undefined) {
-    units["°C"] = carbon;
-  }
-  if (time !== undefined) {
-    units.yr = time;
-  }
-
-  return {
-    ...(normalized.displayUnit ? { displayUnit: normalized.displayUnit } : {}),
-    ...(normalized.stockFlow ? { stockFlow: normalized.stockFlow } : {}),
-    ...(Object.keys(units).length > 0 ? { units } : {})
-  };
 }
 
 function normalizeSignatureInput(
@@ -518,21 +467,4 @@ export function formatValueWithUnits(
   }
 
   return `${signPrefix}${formattedNumber} ${unitText}`;
-}
-
-export function formatNamedValueWithUnits(
-  name: string,
-  value: number | undefined,
-  unitMeta?: UnitMeta,
-  options?: { maximumFractionDigits?: number; minimumFractionDigits?: number }
-): string {
-  const trimmedName = name.trim();
-  if (!trimmedName) {
-    return "";
-  }
-  if (!Number.isFinite(value)) {
-    return `${trimmedName} = --`;
-  }
-
-  return `${trimmedName} = ${formatValueWithUnits(value as number, unitMeta, options)}`;
 }

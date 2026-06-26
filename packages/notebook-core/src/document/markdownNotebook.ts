@@ -31,7 +31,7 @@ export function notebookToMarkdown(document: NotebookDocument): string {
   return lines.join("\n").trim();
 }
 
-export function parseMarkdownNotebook(source: string): NotebookDocument {
+function parseMarkdownNotebook(source: string): NotebookDocument {
   const normalized = source.replace(/\r\n/g, "\n").trim();
   const titleMatch = normalized.match(/^#\s+(.+)$/m);
   if (!titleMatch) {
@@ -103,7 +103,7 @@ export function parseMarkdownNotebookSource(
   }
 }
 
-export function splitMarkdownSections(content: string): Array<{ title: string; body: string }> {
+function splitMarkdownSections(content: string): Array<{ title: string; body: string }> {
   const lines = content.split("\n");
   const sections: Array<{ title: string; body: string }> = [];
   let currentTitle: string | null = null;

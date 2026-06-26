@@ -1,8 +1,8 @@
 import { parseExpression, type Expr } from "@sfcr/core";
 
-export type MatrixReferenceAccountingPrefix = "" | "+" | "-";
+type MatrixReferenceAccountingPrefix = "" | "+" | "-";
 
-export type MatrixReferenceShape =
+type MatrixReferenceShape =
   | { kind: "plain"; accountingPrefix: MatrixReferenceAccountingPrefix }
   | { kind: "lag" }
   | { kind: "diff" }

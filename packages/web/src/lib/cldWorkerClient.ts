@@ -59,9 +59,3 @@ export function generateCldInWorker(
 export function cancelCldWorkerRequest(requestId: number): void {
   pending.delete(requestId);
 }
-
-export function disposeCldWorker(): void {
-  worker?.terminate();
-  worker = null;
-  rejectAll(new Error("CLD worker was disposed before the request completed."));
-}

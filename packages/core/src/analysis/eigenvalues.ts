@@ -15,7 +15,7 @@ export interface EigenpairResult {
   reliable: boolean;
 }
 
-export const DEFAULT_EIGENPAIR_RESIDUAL_TOLERANCE = 1e-6;
+const DEFAULT_EIGENPAIR_RESIDUAL_TOLERANCE = 1e-6;
 
 export function eigenvaluesOfMatrix(matrix: number[][]): Eigenvalue[] {
   const n = matrix.length;
@@ -89,15 +89,6 @@ export function computeEigenpair(
   }
 
   return best ?? emptyEigenpairResult(eigenvalue);
-}
-
-/** @deprecated Use computeEigenpair instead. */
-export function dominantEigenvector(
-  matrix: number[][],
-  eigenvalue: ComplexValue,
-  tolerance = 1e-10
-): ComplexValue[] {
-  return computeEigenpair(matrix, toEigenvalue(eigenvalue.re, eigenvalue.im), { tolerance }).eigenvector;
 }
 
 function finalizeEigenpair(

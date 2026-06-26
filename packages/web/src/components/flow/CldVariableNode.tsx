@@ -2,7 +2,7 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 
 import { VariableMathLabel } from "../VariableMathLabel";
 
-export interface CldVariableNodeData {
+interface CldVariableNodeData {
   label: string;
 }
 

@@ -1,7 +1,7 @@
 import { driver, type DriveStep } from "driver.js";
 import "driver.js/dist/driver.css";
 
-export type NotebookTourRailTab =
+type NotebookTourRailTab =
   | "editor"
   | "variables"
   | "inspect"
@@ -10,7 +10,7 @@ export type NotebookTourRailTab =
   | "assistant"
   | "help";
 
-export const NOTEBOOK_TOUR_SEEN_STORAGE_KEY = "sfcr:notebook-tour-seen";
+const NOTEBOOK_TOUR_SEEN_STORAGE_KEY = "sfcr:notebook-tour-seen";
 
 export type NotebookTourHandlers = {
   openRailTab: (tab: NotebookTourRailTab) => void;
@@ -394,11 +394,11 @@ export const NOTEBOOK_TOUR_STEPS: NotebookTourStepOption[] = NOTEBOOK_TOUR_STEP_
   ({ id, title }) => ({ id, title })
 );
 
-export function hasSeenNotebookTour(): boolean {
+function hasSeenNotebookTour(): boolean {
   return window.localStorage.getItem(NOTEBOOK_TOUR_SEEN_STORAGE_KEY) === "1";
 }
 
-export function markNotebookTourSeen(): void {
+function markNotebookTourSeen(): void {
   window.localStorage.setItem(NOTEBOOK_TOUR_SEEN_STORAGE_KEY, "1");
 }
 
@@ -406,7 +406,7 @@ function buildNotebookTourSteps(handlers: NotebookTourHandlers): DriveStep[] {
   return NOTEBOOK_TOUR_STEP_DEFINITIONS.map((definition) => definition.buildStep(handlers));
 }
 
-export function createNotebookTour(handlers: NotebookTourHandlers) {
+function createNotebookTour(handlers: NotebookTourHandlers) {
   return driver({
     showProgress: true,
     onDestroyed: () => {

@@ -238,13 +238,6 @@ export function formatMatrixEntryUnitValidationMessage(
   return errors[0]?.message ?? null;
 }
 
-export function firstMatrixCellUnitValidationError(
-  cell: MatrixCell,
-  variableUnitMetadata: VariableUnitMetadata
-): string | null {
-  return formatMatrixCellUnitValidationMessage(cell, variableUnitMetadata);
-}
-
 export function formatMatrixCellUnitValidationMessage(
   cell: MatrixCell,
   variableUnitMetadata: VariableUnitMetadata

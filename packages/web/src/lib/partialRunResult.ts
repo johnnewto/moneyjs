@@ -1,6 +1,6 @@
 import type { ConvergenceFailureDetails, SimulationResult } from "@sfcr/core";
 
-export interface PartialRunError extends Error {
+interface PartialRunError extends Error {
   details?: ConvergenceFailureDetails;
   partialResult?: SimulationResult;
 }

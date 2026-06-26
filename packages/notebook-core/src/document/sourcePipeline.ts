@@ -7,12 +7,6 @@ import {
 
 export type NotebookSourceFormat = "json" | "markdown" | "yaml";
 
-export const SUPPORTED_NOTEBOOK_SOURCE_FORMATS: readonly NotebookSourceFormat[] = [
-  "json",
-  "markdown",
-  "yaml"
-];
-
 export interface NotebookSourceDiagnostic extends NotebookDiagnostic {
   column?: number;
   endOffset?: number;
@@ -28,13 +22,13 @@ export interface NotebookSourceAnalysis<Document> {
   schemaDiagnostics: NotebookSourceDiagnostic[];
 }
 
-export interface NotebookSourceParseSuccess<Parsed> {
+interface NotebookSourceParseSuccess<Parsed> {
   ok: true;
   parsed: Parsed;
   schemaTarget: unknown;
 }
 
-export interface NotebookSourceParseFailure {
+interface NotebookSourceParseFailure {
   diagnostics: NotebookSourceDiagnostic[];
   ok: false;
 }

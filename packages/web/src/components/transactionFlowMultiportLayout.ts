@@ -14,7 +14,7 @@ import type {
 } from "../notebook/sequence";
 
 export const MULTIPORT_NODE_WIDTH = 200;
-export const MULTIPORT_NODE_MIN_HEIGHT = 300;
+const MULTIPORT_NODE_MIN_HEIGHT = 300;
 export const MULTIPORT_X_GAP = 272;
 export const MULTIPORT_START_X = 56;
 export const MULTIPORT_START_Y = 24;
@@ -24,9 +24,9 @@ export const MULTIPORT_ROW_HEIGHT = 38;
 export const MULTIPORT_STOCK_ROW_HEIGHT = 20;
 export const MULTIPORT_STOCK_FOOTER_GAP = 6;
 export const MULTIPORT_STOCK_FOOTER_BOTTOM_PAD = 4;
-export const MULTIPORT_NODE_BOTTOM_PAD = 14;
+const MULTIPORT_NODE_BOTTOM_PAD = 14;
 export type MultiportSide = "left" | "right";
-export type MultiportFlowClass = "real" | "capital" | "financial";
+type MultiportFlowClass = "real" | "capital" | "financial";
 
 export interface MatrixMultiportPort {
   rowIndex: number;

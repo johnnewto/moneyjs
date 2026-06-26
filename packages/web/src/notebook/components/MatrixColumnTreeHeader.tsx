@@ -90,9 +90,6 @@ export function useMatrixColumnLayout(
   }, [cell.columnBadges, cell.columnTree, cell.columns, cell.sectors, cell.variables, collapsedNodeIds]);
 }
 
-/** @deprecated Use useMatrixColumnLayout */
-export const useMatrixColumnTreeLayout = useMatrixColumnLayout;
-
 export function MatrixColumnTreeHeader({
   headerRows,
   columns,

@@ -40,7 +40,7 @@ interface ChartSeries {
 }
 
 export type ChartAxisMode = "shared" | "separate";
-export type { ChartAxisRange } from "./ResultChartScales";
+;
 
 interface ResultChartProps {
   addVariableOptions?: string[];
@@ -111,22 +111,10 @@ const AXIS_TITLE_AVERAGE_CHAR_WIDTH = AXIS_TITLE_FONT_SIZE * 0.58;
 const CHART_AXIS_TITLE_MAX_LENGTH = 3;
 const CHART_GROUP_AXIS_TITLE_MAX_LENGTH = 14;
 const SCENARIO_SHOCK_LABEL_AXIS_GAP = 4;
-export const DEFAULT_X_AXIS_TITLE = "yr";
-export const DEFAULT_Y_AXIS_TITLE = "Value";
+const DEFAULT_X_AXIS_TITLE = "yr";
+const DEFAULT_Y_AXIS_TITLE = "Value";
 const Y_AXIS_UNIT_LABEL_OFFSET = 14;
 const Y_AXIS_UNIT_FONT_SIZE = 9;
-
-export function formatChartAxisLabel(title: string, unit?: string): string {
-  const trimmedTitle = title.trim();
-  const trimmedUnit = unit?.trim();
-  if (!trimmedUnit) {
-    return trimmedTitle;
-  }
-  if (!trimmedTitle) {
-    return trimmedUnit;
-  }
-  return `${trimmedTitle} (${trimmedUnit})`;
-}
 
 function renderSeparateAxisTitle(name: string): ReactNode {
   const plain = renderVariableMathPlainText(name);
@@ -163,7 +151,7 @@ function lowestTickLabelY(
   return toY(bottomTick, topPadding, plotHeight, min, range) + 3;
 }
 
-export function formatChartAxisTitlePlain(
+function formatChartAxisTitlePlain(
   name: string,
   maxLength = CHART_AXIS_TITLE_MAX_LENGTH
 ): string {
@@ -1631,7 +1619,7 @@ function resolveVisibleScenarioShockGeometry(
   };
 }
 
-export function estimateSvgAxisTitleWidth(label: string): number {
+function estimateSvgAxisTitleWidth(label: string): number {
   return label.length * AXIS_TITLE_AVERAGE_CHAR_WIDTH;
 }
 

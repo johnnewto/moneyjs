@@ -20,7 +20,7 @@ export interface NotebookPatch {
   operations: NotebookPatchOperation[];
 }
 
-export type NotebookPatchIssue = NotebookDiagnostic & { domain: "patch" | "schema" | "notebook" | "assistant" };
+type NotebookPatchIssue = NotebookDiagnostic & { domain: "patch" | "schema" | "notebook" | "assistant" };
 
 export interface NotebookPatchSummary {
   addedCells: number;

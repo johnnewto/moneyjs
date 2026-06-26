@@ -21,7 +21,7 @@ import {
 } from "./yamlCompactHelpers";
 import { stringifyCompactYamlEnvelope } from "./yamlFlowStyle";
 
-export function buildCompactYamlEnvelope(document: NotebookDocument, options: CompactYamlFormatOptions): NotebookYamlEnvelope {
+function buildCompactYamlEnvelope(document: NotebookDocument, options: CompactYamlFormatOptions): NotebookYamlEnvelope {
   const preserveIds = options.preserveIds === true;
   const equationsCell = document.cells.find((cell): cell is Extract<NotebookCell, { type: "equations" }> => cell.type === "equations");
   const solverCell = equationsCell
@@ -96,7 +96,7 @@ export function buildCompactYamlEnvelope(document: NotebookDocument, options: Co
   return compact;
 }
 
-export function wrapCompactYamlCell(cell: Record<string, unknown>): Record<string, Record<string, unknown>> {
+function wrapCompactYamlCell(cell: Record<string, unknown>): Record<string, Record<string, unknown>> {
   const type = typeof cell.type === "string" && isNotebookCellType(cell.type) ? cell.type : "markdown";
   const { type: _type, ...body } = cell;
   return {
@@ -104,7 +104,7 @@ export function wrapCompactYamlCell(cell: Record<string, unknown>): Record<strin
   };
 }
 
-export function serializeCompactYamlCell(cell: NotebookCell): Record<string, unknown> {
+function serializeCompactYamlCell(cell: NotebookCell): Record<string, unknown> {
   switch (cell.type) {
     case "markdown":
       return structuredClone(cell) as unknown as Record<string, unknown>;

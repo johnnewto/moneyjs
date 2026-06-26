@@ -1,1 +1,1 @@
-export { NotebookEquationViewTable, NotebookModelViewTable } from "./NotebookModelViewTable";
+export { NotebookEquationViewTable,  } from "./NotebookModelViewTable";
