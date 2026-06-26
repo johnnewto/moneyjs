@@ -4,10 +4,10 @@ import type { SimulationResult } from "@sfcr/core";
 
 import { ResultChart } from "../../components/ResultChart";
 import {
-  buildReferenceTraceOverlaySeries,
+  buildReferenceTraceOverlaySeriesList,
   formatChartReferenceTraceLegend,
   resolveEffectiveScenarioStartPeriod,
-  resolveReferenceTrace
+  resolveReferenceTraces
 } from "../../notebook/chartReferenceTrace";
 import { buildNotebookVariableUnitMetadata } from "../../notebook/notebookAppHelpers";
 import {
@@ -88,23 +88,26 @@ export function PublicationChart({
     ? resolveEffectiveScenarioStartPeriod(cells, sourceRunCell)
     : undefined;
   const hasObserved = result.observed != null && Object.keys(result.observed).length > 0;
-  const referenceTrace = resolveReferenceTrace(activeCell, sourceRunCell, hasObserved);
-  const overlaySeries = buildReferenceTraceOverlaySeries({
+  const referenceTraces = resolveReferenceTraces(activeCell, sourceRunCell, hasObserved);
+  const overlaySeries = buildReferenceTraceOverlaySeriesList({
     cell: activeCell,
-    referenceTrace,
+    referenceTraces,
     result,
     resolvedSeries: series,
     sourceRunCell,
     baselineStartPeriod,
     baselineResult
   });
+  const overlayTraceKinds = new Set(overlaySeries.map((entry) => entry.referenceTraceKind));
+  const referenceTraceLegendLabels = referenceTraces
+    .filter((trace) => overlayTraceKinds.has(trace))
+    .map((trace) => ({
+      kind: trace,
+      label: formatChartReferenceTraceLegend(trace)
+    }));
   const scenarioShocks = resolveShowScenarioShocks(activeCell, sourceRunCell)
     ? buildScenarioShockMarkers(sourceRunCell, result, baselineResult)
     : [];
-  const referenceTraceLegendLabel =
-    referenceTrace !== "none" && overlaySeries.length > 0
-      ? formatChartReferenceTraceLegend(referenceTrace)
-      : undefined;
 
   return (
     <div className="publication-chart">
@@ -138,8 +141,7 @@ export function PublicationChart({
         }
         overlaySeries={overlaySeries}
         periodLabelOffset={0}
-        referenceTraceKind={referenceTrace}
-        referenceTraceLegendLabel={referenceTraceLegendLabel}
+        referenceTraceLegendLabels={referenceTraceLegendLabels}
         scenarioShocks={scenarioShocks}
         selectedIndex={Math.min(selectedPeriodIndex, seriesLength - 1)}
         series={series}

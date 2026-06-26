@@ -737,7 +737,7 @@
     { "id": "out-of-sample-table", "type": "table", "title": "Continuous run key aggregates (1997-2028)", "sourceRunCellId": "out-of-sample-run", "variables": ["y", "yR", "consR", "iddR", "xR", "imR", "deb", "deb_ratio", "p", "pc", "p_en", "nd", "un", "rb", "rstar"] },
     { "id": "additional-experiments", "type": "markdown", "title": "Additional experiments", "source": "Section 6 of `marcoverpas/Italy-SFC-Model` compares the out-of-sample baseline with three alternative experiments over 2022-2028. This notebook shows each alternative as a full 1997-2028 segmented dynamic run, just like `out-of-sample-run`: periods 1-25 (1997-2021) stay pinned to observed history, then periods 26-32 (2022-2028) solve forward with the experiment-specific add-factor path.\n", "more": "- Scenario 1 makes the energy-led price shock more persistent, keeping CPI inflation around 5% in the forecast window.\n- Scenario 2 combines that persistent inflation shock with an ECB policy response that maintains the policy rate at 4.5% over 2024-2026, plus the reference consumption-volume adjustment.\n- Scenario 3 applies fiscal-austerity cuts designed to bring the deficit-to-GDP ratio toward the Maastricht 3% threshold from 2024 onward.\n" },
     {
-      "id": "inflation_run",
+      "id": "alternative-scenario-1-run",
       "type": "run",
       "title": "Alternative scenario 1 run (1997-2028)",
       "description": "Full segmented DYNAMIC run with the persistent energy-price shock over 2022-2028 replacing the baseline adj_Lp_en path.",
@@ -795,7 +795,7 @@
       ]
     },
     {
-      "id": "inflation&policy",
+      "id": "alternative-scenario-2-run",
       "type": "run",
       "title": "Alternative scenario 2 run (1997-2028)",
       "description": "Full segmented DYNAMIC run with persistent inflation, the ECB policy response, and the consumption-volume adjustment over 2022-2028.",
@@ -855,7 +855,7 @@
       ]
     },
     {
-      "id": "austerity",
+      "id": "alternative-scenario-3-run",
       "type": "run",
       "title": "Alternative scenario 3 run (1997-2028)",
       "description": "Full segmented DYNAMIC run with government-spending add-factor cuts over 2022-2028.",
@@ -916,17 +916,17 @@
       "id": "additional-experiments-chart-grid",
       "type": "chart-grid",
       "title": "Fig. 4 Additional experiments (1997-2028)",
-      "gridColumns": 2,
+      "gridColumns": 3,
       "charts": [
         {
           "type": "chart",
           "id": "scenario-real-gdp-chart",
-          "title": "Real GDP: baseline vs scenarios",
+          "title": "(a) Real GDP (constant prices, 2015=100)",
           "series": [
             { "expression": "yR", "sourceRunCellId": "out-of-sample-run", "label": "Baseline" },
-            { "expression": "yR", "sourceRunCellId": "inflation_run", "label": "Scenario 1: inflation" },
-            { "expression": "yR", "sourceRunCellId": "inflation&policy", "label": "Scenario 2: inflation & policy" },
-            { "expression": "yR", "sourceRunCellId": "austerity", "label": "Scenario 3: austerity" }
+            { "expression": "yR", "sourceRunCellId": "alternative-scenario-1-run", "label": "1. Higher inflation" },
+            { "expression": "yR", "sourceRunCellId": "alternative-scenario-2-run", "label": "2. Higher inflation + higher policy rate" },
+            { "expression": "yR", "sourceRunCellId": "alternative-scenario-3-run", "label": "3. Austerity" }
           ],
           "axisMode": "shared",
           "referenceTrace": "observed",
@@ -934,73 +934,78 @@
         },
         {
           "type": "chart",
-          "id": "scenario-1-inflation-chart",
-          "title": "Scenario 1: CPI inflation",
+          "id": "scenario-unemployment-chart",
+          "title": "(b) Unemployment rate",
           "series": [
-            { "expression": "100 * inflc", "label": "CPI inflation", "unit": "%" }
+            { "expression": "100 * un", "sourceRunCellId": "out-of-sample-run", "label": "Baseline", "unit": "%" },
+            { "expression": "100 * un", "sourceRunCellId": "alternative-scenario-1-run", "label": "1. Higher inflation", "unit": "%" },
+            { "expression": "100 * un", "sourceRunCellId": "alternative-scenario-2-run", "label": "2. Higher inflation + higher policy rate", "unit": "%" },
+            { "expression": "100 * un", "sourceRunCellId": "alternative-scenario-3-run", "label": "3. Austerity", "unit": "%" }
           ],
           "axisMode": "shared",
           "referenceTrace": "observed",
-          "sourceRunCellId": "inflation_run"
+          "sourceRunCellId": "out-of-sample-run"
         },
         {
           "type": "chart",
-          "id": "scenario-1-fiscal-chart",
-          "title": "Scenario 1: labour and fiscal ratios",
+          "id": "scenario-energy-inflation-chart",
+          "title": "(c) Energy inflation rate",
           "series": [
-            { "expression": "100 * un", "label": "Unemployment", "unit": "%" },
-            { "expression": "100 * def_ratio", "label": "Deficit-to-GDP", "unit": "%" },
-            { "expression": "100 * deb_ratio", "label": "Debt-to-GDP", "unit": "%" }
+            { "expression": "100 * infl_en", "sourceRunCellId": "out-of-sample-run", "label": "Baseline", "unit": "%" },
+            { "expression": "100 * infl_en", "sourceRunCellId": "alternative-scenario-1-run", "label": "1. Higher inflation", "unit": "%" },
+            { "expression": "100 * infl_en", "sourceRunCellId": "alternative-scenario-2-run", "label": "2. Higher inflation + higher policy rate", "unit": "%" },
+            { "expression": "100 * infl_en", "sourceRunCellId": "alternative-scenario-3-run", "label": "3. Austerity", "unit": "%" }
           ],
-          "axisMode": "separate",
+          "axisMode": "shared",
           "referenceTrace": "observed",
-          "sourceRunCellId": "inflation_run"
-        },
-        { "type": "chart", "id": "scenario-2-real-gdp-chart", "title": "Scenario 2: real GDP", "variables": ["yR"], "axisMode": "shared", "referenceTrace": "observed", "sourceRunCellId": "inflation&policy" },
-        {
-          "type": "chart",
-          "id": "scenario-2-inflation-policy-chart",
-          "title": "Scenario 2: CPI inflation and policy rate",
-          "series": [
-            { "expression": "100 * inflc", "label": "CPI inflation", "unit": "%" },
-            { "expression": "100 * rstar", "label": "Policy rate", "unit": "%" }
-          ],
-          "axisMode": "separate",
-          "referenceTrace": "observed",
-          "sourceRunCellId": "inflation&policy"
+          "sourceRunCellId": "out-of-sample-run"
         },
         {
           "type": "chart",
-          "id": "scenario-2-fiscal-chart",
-          "title": "Scenario 2: labour and fiscal ratios",
+          "id": "scenario-cpi-inflation-chart",
+          "title": "(d) Inflation rate (% change in CPI)",
           "series": [
-            { "expression": "100 * un", "label": "Unemployment", "unit": "%" },
-            { "expression": "100 * def_ratio", "label": "Deficit-to-GDP", "unit": "%" },
-            { "expression": "100 * deb_ratio", "label": "Debt-to-GDP", "unit": "%" }
+            { "expression": "100 * inflc", "sourceRunCellId": "out-of-sample-run", "label": "Baseline", "unit": "%" },
+            { "expression": "100 * inflc", "sourceRunCellId": "alternative-scenario-1-run", "label": "1. Higher inflation", "unit": "%" },
+            { "expression": "100 * inflc", "sourceRunCellId": "alternative-scenario-2-run", "label": "2. Higher inflation + higher policy rate", "unit": "%" },
+            { "expression": "100 * inflc", "sourceRunCellId": "alternative-scenario-3-run", "label": "3. Austerity", "unit": "%" }
           ],
-          "axisMode": "separate",
+          "axisMode": "shared",
           "referenceTrace": "observed",
-          "sourceRunCellId": "inflation&policy"
+          "sourceRunCellId": "out-of-sample-run"
         },
-        { "type": "chart", "id": "scenario-3-real-gdp-chart", "title": "Scenario 3: real GDP", "variables": ["yR"], "axisMode": "shared", "referenceTrace": "observed", "sourceRunCellId": "austerity" },
-        { "type": "chart", "id": "scenario-3-government-spending-chart", "title": "Scenario 3: government spending", "variables": ["gov"], "axisMode": "shared", "referenceTrace": "observed", "sourceRunCellId": "austerity" },
         {
           "type": "chart",
-          "id": "scenario-3-fiscal-chart",
-          "title": "Scenario 3: labour and fiscal ratios",
+          "id": "scenario-debt-ratio-chart",
+          "title": "(e) Government debt to GDP ratio",
           "series": [
-            { "expression": "100 * un", "label": "Unemployment", "unit": "%" },
-            { "expression": "100 * def_ratio", "label": "Deficit-to-GDP", "unit": "%" },
-            { "expression": "100 * deb_ratio", "label": "Debt-to-GDP", "unit": "%" }
+            { "expression": "100 * deb_ratio", "sourceRunCellId": "out-of-sample-run", "label": "Baseline", "unit": "%" },
+            { "expression": "100 * deb_ratio", "sourceRunCellId": "alternative-scenario-1-run", "label": "1. Higher inflation", "unit": "%" },
+            { "expression": "100 * deb_ratio", "sourceRunCellId": "alternative-scenario-2-run", "label": "2. Higher inflation + higher policy rate", "unit": "%" },
+            { "expression": "100 * deb_ratio", "sourceRunCellId": "alternative-scenario-3-run", "label": "3. Austerity", "unit": "%" }
           ],
-          "axisMode": "separate",
+          "axisMode": "shared",
           "referenceTrace": "observed",
-          "sourceRunCellId": "austerity"
+          "sourceRunCellId": "out-of-sample-run"
+        },
+        {
+          "type": "chart",
+          "id": "scenario-deficit-ratio-chart",
+          "title": "(f) Government deficit to GDP ratio",
+          "series": [
+            { "expression": "100 * def_ratio", "sourceRunCellId": "out-of-sample-run", "label": "Baseline", "unit": "%" },
+            { "expression": "100 * def_ratio", "sourceRunCellId": "alternative-scenario-1-run", "label": "1. Higher inflation", "unit": "%" },
+            { "expression": "100 * def_ratio", "sourceRunCellId": "alternative-scenario-2-run", "label": "2. Higher inflation + higher policy rate", "unit": "%" },
+            { "expression": "100 * def_ratio", "sourceRunCellId": "alternative-scenario-3-run", "label": "3. Austerity", "unit": "%" }
+          ],
+          "axisMode": "shared",
+          "referenceTrace": "observed",
+          "sourceRunCellId": "out-of-sample-run"
         }
       ]
     },
-    { "id": "scenario-1-summary-table", "type": "table", "title": "Scenario 1 key aggregates (1997-2028)", "sourceRunCellId": "inflation_run", "variables": ["yR", "inflc", "un", "def_ratio", "deb_ratio", "rstar", "gov"] },
-    { "id": "scenario-2-summary-table", "type": "table", "title": "Scenario 2 key aggregates (1997-2028)", "sourceRunCellId": "inflation&policy", "variables": ["yR", "inflc", "un", "def_ratio", "deb_ratio", "rstar", "gov"] },
-    { "id": "scenario-3-summary-table", "type": "table", "title": "Scenario 3 key aggregates (1997-2028)", "sourceRunCellId": "austerity", "variables": ["yR", "inflc", "un", "def_ratio", "deb_ratio", "rstar", "gov"] }
+    { "id": "scenario-1-summary-table", "type": "table", "title": "Scenario 1 key aggregates (1997-2028)", "sourceRunCellId": "alternative-scenario-1-run", "variables": ["yR", "inflc", "un", "def_ratio", "deb_ratio", "rstar", "gov"] },
+    { "id": "scenario-2-summary-table", "type": "table", "title": "Scenario 2 key aggregates (1997-2028)", "sourceRunCellId": "alternative-scenario-2-run", "variables": ["yR", "inflc", "un", "def_ratio", "deb_ratio", "rstar", "gov"] },
+    { "id": "scenario-3-summary-table", "type": "table", "title": "Scenario 3 key aggregates (1997-2028)", "sourceRunCellId": "alternative-scenario-3-run", "variables": ["yR", "inflc", "un", "def_ratio", "deb_ratio", "rstar", "gov"] }
   ]
 }
