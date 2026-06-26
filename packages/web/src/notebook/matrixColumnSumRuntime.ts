@@ -426,6 +426,18 @@ export function findLinkedAccountTransactionMatrices(
     return [];
   }
 
+  // Column-sum bindings describe the model's accounting structure, so they must
+  // apply to every run of the model (baseline and scenarios), not just the run
+  // cell that the matrix is linked to for data display. Match matrices linked to
+  // any run cell sharing this model.
+  const modelRunCellIds = new Set(
+    cells
+      .filter(
+        (entry): entry is RunCell => entry.type === "run" && entry.sourceModelId === modelId
+      )
+      .map((entry) => entry.id)
+  );
+
   return cells.filter((cell): cell is MatrixCell => {
     if (cell.type !== "matrix") {
       return false;
@@ -433,7 +445,7 @@ export function findLinkedAccountTransactionMatrices(
     if (!isAccountTransactionsMatrix(cell)) {
       return false;
     }
-    return cell.sourceRunCellId === runCellId;
+    return cell.sourceRunCellId != null && modelRunCellIds.has(cell.sourceRunCellId);
   });
 }
 

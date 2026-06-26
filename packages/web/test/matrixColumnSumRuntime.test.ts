@@ -79,6 +79,29 @@ describe("matrixColumnSumRuntime", () => {
     });
   });
 
+  it("resolves bindings for a scenario run sharing the model with the matrix's baseline run", () => {
+    const scenarioRunCell: RunCell = {
+      id: "scenario-1-run",
+      type: "run",
+      title: "Scenario 1",
+      sourceModelId: modelId,
+      mode: "scenario",
+      resultKey: "scenario-1",
+      periods: 100
+    };
+
+    const bindings = resolveMatrixColumnSumBindings({
+      cells: [runCell, scenarioRunCell, accountTransactionsMatrix],
+      modelId,
+      runCellId: "scenario-1-run",
+      equationSources: ["Mh' + Households.Deposits * dt"]
+    });
+
+    expect(bindings).toEqual({
+      "Households.Deposits": ["WBd", "-Cs"]
+    });
+  });
+
   it("binds empty matrix columns referenced in equations", () => {
     const bindings = resolveMatrixColumnSumBindings({
       cells: [runCell, accountTransactionsMatrix],
