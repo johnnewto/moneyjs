@@ -31,6 +31,7 @@ export function PublicationChart({
   getResult,
   interaction,
   interactive = false,
+  originYear,
   result,
   selectedPeriodIndex
 }: {
@@ -39,6 +40,7 @@ export function PublicationChart({
   getResult(runCellId: string): SimulationResult | null;
   interaction: PublicationVariableInteraction;
   interactive?: boolean;
+  originYear?: number;
   result: SimulationResult | null;
   selectedPeriodIndex: number;
 }) {
@@ -141,6 +143,7 @@ export function PublicationChart({
         }
         overlaySeries={overlaySeries}
         periodLabelOffset={0}
+        originYear={originYear}
         referenceTraceLegendLabels={referenceTraceLegendLabels}
         scenarioShocks={scenarioShocks}
         selectedIndex={Math.min(selectedPeriodIndex, seriesLength - 1)}

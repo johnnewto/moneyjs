@@ -530,6 +530,7 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
             handleMatrixEntryDisplayModeChange(section.cell.id, mode)
           }
           onRequestMatrixGraph={runPhase === "done" ? handleMatrixGraphRequest : undefined}
+          originYear={notebookDocument.metadata.timeAxis?.startYear}
           section={section}
           selectedPeriodIndex={selectedPeriodIndex}
           showHeading={!isEmbed}
@@ -550,6 +551,7 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
                 handleMatrixEntryDisplayModeChange(section.cell.id, mode)
               }
               onRequestMatrixGraph={runPhase === "done" ? handleMatrixGraphRequest : undefined}
+              originYear={notebookDocument.metadata.timeAxis?.startYear}
               section={section}
               selectedPeriodIndex={selectedPeriodIndex}
             />

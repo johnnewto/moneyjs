@@ -28,6 +28,16 @@
         "sourceFileName": {
           "type": "string",
           "minLength": 1
+        },
+        "timeAxis": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["startYear"],
+          "properties": {
+            "startYear": {
+              "type": "integer"
+            }
+          }
         }
       }
     },

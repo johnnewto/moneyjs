@@ -58,6 +58,13 @@ interface ResultChartProps {
   onRemoveVariable?(variableName: string): void;
   overlaySeries?: ChartSeries[];
   periodLabelOffset?: number;
+  /**
+   * When set, the time axis renders calendar years instead of period numbers:
+   * the first plotted period (period 1) maps to `originYear`, period 2 to
+   * `originYear + 1`, and so on. Threaded from the notebook's
+   * `metadata.timeAxis.startYear`.
+   */
+  originYear?: number;
   referenceTraceKind?: ReferenceTraceKind;
   referenceTraceLegendLabel?: string;
   referenceTraceLegendLabels?: Array<{ kind: ReferenceTraceKind; label: string }>;
@@ -173,6 +180,7 @@ export function ResultChart({
   onRemoveVariable,
   overlaySeries = [],
   periodLabelOffset = 0,
+  originYear,
   referenceTraceKind,
   referenceTraceLegendLabel,
   referenceTraceLegendLabels,
@@ -203,6 +211,8 @@ export function ResultChart({
   yAxisTickCount = DEFAULT_AXIS_TICK_COUNT,
   selectedIndex = 0
 }: ResultChartProps) {
+  const periodToAxisValue = (periodNumber: number) =>
+    originYear != null ? originYear + periodNumber - 1 : periodNumber;
   const [hoveredDatum, setHoveredDatum] = useState<{ index: number; seriesName: string } | null>(null);
   const [hiddenSeriesNames, setHiddenSeriesNames] = useState<Set<string>>(() => new Set());
   const [isAddVariableMenuOpen, setIsAddVariableMenuOpen] = useState(false);
@@ -1101,7 +1111,7 @@ export function ResultChart({
                 fontSize="11"
                 textAnchor="middle"
               >
-                {tickIndex + 1 + periodLabelOffset}
+                {periodToAxisValue(tickIndex + 1 + periodLabelOffset)}
               </text>
             </g>
           );
@@ -1377,7 +1387,11 @@ export function ResultChart({
               />
               <text x="10" y="16" fill="#f8fafc" fontSize="11" fontWeight="700">
                 {renderVariableMathSvgLabel(hoverTooltip.seriesName)} •{" "}
-                {hoverTooltip.description ? hoverTooltip.description : `Period ${hoverTooltip.period}`}
+                {hoverTooltip.description
+                  ? hoverTooltip.description
+                  : originYear != null
+                    ? periodToAxisValue(hoverTooltip.period)
+                    : `Period ${hoverTooltip.period}`}
               </text>
               <text x="10" y="31" fill="#e2e8f0" fontSize="11">
                 <tspan>Value: </tspan>
@@ -1525,7 +1539,7 @@ export function ResultChart({
       {showAxisSummary ? (
         <div className={`chart-scale ${axisMode === "shared" ? "chart-scale-shared" : "chart-scale-multi"}`}>
           <span>
-            Time axis: {resolvedTimeRange.startPeriodInclusive + periodLabelOffset} to {resolvedTimeRange.endPeriodInclusive + periodLabelOffset}
+            Time axis: {periodToAxisValue(resolvedTimeRange.startPeriodInclusive + periodLabelOffset)} to {periodToAxisValue(resolvedTimeRange.endPeriodInclusive + periodLabelOffset)}
           </span>
           {axisMode === "shared" ? (
             <span>

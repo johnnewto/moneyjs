@@ -11,6 +11,7 @@ export function PublicationChartGrid({
   getResult,
   interaction,
   interactive = false,
+  originYear,
   selectedPeriodIndex
 }: {
   cell: ChartGridCell;
@@ -18,6 +19,7 @@ export function PublicationChartGrid({
   getResult(runCellId: string): SimulationResult | null;
   interaction: PublicationVariableInteraction;
   interactive?: boolean;
+  originYear?: number;
   selectedPeriodIndex: number;
 }) {
   return (
@@ -40,6 +42,7 @@ export function PublicationChartGrid({
             getResult={getResult}
             interaction={interaction}
             interactive={interactive}
+            originYear={originYear}
             result={getResult(chart.sourceRunCellId)}
             selectedPeriodIndex={selectedPeriodIndex}
           />

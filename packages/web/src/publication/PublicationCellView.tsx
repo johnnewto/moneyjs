@@ -28,6 +28,7 @@ export function PublicationCellView({
   matrixEntryDisplayMode = "equation",
   onMatrixEntryDisplayModeChange,
   onRequestMatrixGraph,
+  originYear,
   section,
   selectedPeriodIndex,
   showHeading = true
@@ -39,6 +40,7 @@ export function PublicationCellView({
   matrixEntryDisplayMode?: MatrixEntryDisplayMode;
   onMatrixEntryDisplayModeChange?(mode: MatrixEntryDisplayMode): void;
   onRequestMatrixGraph?(request: MatrixGraphRequest): void;
+  originYear?: number;
   section: PublicationSection;
   selectedPeriodIndex: number;
   showHeading?: boolean;
@@ -132,6 +134,7 @@ export function PublicationCellView({
             getResult={getResult}
             interaction={interaction}
             interactive={interactiveCharts}
+            originYear={originYear}
             result={getResult(cell.sourceRunCellId)}
             selectedPeriodIndex={selectedPeriodIndex}
           />
@@ -142,6 +145,7 @@ export function PublicationCellView({
             getResult={getResult}
             interaction={interaction}
             interactive={interactiveCharts}
+            originYear={originYear}
             selectedPeriodIndex={selectedPeriodIndex}
           />
         )}

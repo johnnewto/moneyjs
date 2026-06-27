@@ -201,6 +201,8 @@ export interface NotebookCellViewProps {
   }): Record<string, number | undefined>;
   isPinnedInPanel?: boolean;
   maxPeriodIndex: number;
+  /** When set, chart time axes render calendar years from `metadata.timeAxis.startYear`. */
+  timeAxisStartYear?: number;
   onPinCellRequest?(cellId: string): void;
   presentation?: NotebookCellPresentation;
   viewportRoot: Element | null;
@@ -245,6 +247,7 @@ function NotebookCellViewComponent({
   getModelLaggedCurrentValues,
   isPinnedInPanel = false,
   maxPeriodIndex,
+  timeAxisStartYear,
   onPinCellRequest,
   presentation = "canvas",
   viewportRoot,
@@ -1458,6 +1461,7 @@ function NotebookCellViewComponent({
                   )
                 }
                 onVariableInspectRequest={onVariableInspectRequest}
+                originYear={timeAxisStartYear}
                 runner={runner}
                 selectedPeriodIndex={selectedPeriodIndex}
                 highlightedVariable={highlightedVariable}
@@ -1533,6 +1537,7 @@ function NotebookCellViewComponent({
                         )
                       }
                       onVariableInspectRequest={onVariableInspectRequest}
+                      originYear={timeAxisStartYear}
                       runner={runner}
                       selectedPeriodIndex={selectedPeriodIndex}
                       highlightedVariable={highlightedVariable}
@@ -1864,6 +1869,10 @@ function areNotebookCellViewPropsEqual(
   }
 
   if (usesMaxPeriodIndex(nextProps.cell) && previousProps.maxPeriodIndex !== nextProps.maxPeriodIndex) {
+    return false;
+  }
+
+  if (previousProps.timeAxisStartYear !== nextProps.timeAxisStartYear) {
     return false;
   }
 

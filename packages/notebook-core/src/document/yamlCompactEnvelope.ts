@@ -85,7 +85,8 @@ function buildCompactYamlEnvelope(document: NotebookDocument, options: CompactYa
       ...(document.metadata.template ? { template: document.metadata.template } : {}),
       ...(document.metadata.sourceFileName
         ? { sourceFileName: document.metadata.sourceFileName }
-        : {})
+        : {}),
+      ...(document.metadata.timeAxis ? { timeAxis: document.metadata.timeAxis } : {})
     }
   };
 

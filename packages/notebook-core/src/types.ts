@@ -118,6 +118,14 @@ export interface NotebookDocument {
     version: 1;
     template?: string;
     sourceFileName?: string;
+    /**
+     * Optional calendar mapping for chart time axes. When `startYear` is set,
+     * charts render the first plotted period as `startYear` and subsequent
+     * periods as `startYear + 1`, `startYear + 2`, ... instead of period numbers.
+     */
+    timeAxis?: {
+      startYear: number;
+    };
   };
 }
 

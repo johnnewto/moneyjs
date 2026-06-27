@@ -1,9 +1,9 @@
 {
   "id": "italy-sfc-notebook",
   "title": "Empirical SFC Model for Italy",
-  "metadata": { "version": 1, "template": "italy-sfc", "sourceFileName": "italy-sfc-notebook (1).notebook.yaml" },
+  "metadata": { "version": 1, "template": "italy-sfc", "sourceFileName": "italy-sfc-notebook (1).notebook.yaml", "timeAxis": { "startYear": 1997 } },
   "cells": [
-    { "id": "intro", "type": "markdown", "title": "Overview", "source": "This notebook replicates the empirical stock-flow consistent (SFC) model for Italy by Rosa Canelli and Marco Veronese Passarella (Canelli, Fontana, Realfonzo & Veronese Passarella 2021, 2022, 2024), ported from the R/`bimets` code in `references/Italy-SFC-Model` (marcoverpas/Italy-SFC-Model). The model covers six sectors - households, firms, banks, the central bank (ECB), the government and the rest of the world - over 1998-2021, calibrated on (an elaboration of) Eurostat data.\n\nThe original model has 40 behavioural equations whose coefficients are estimated by OLS in R, plus ~80 accounting identities. This port bakes the estimated coefficients into the live behavioural equations and runs the baseline in STATIC mode, matching the repo's unadjusted in-sample prediction (`type_pred = 0`): lags read from observed Eurostat history, while current-period behaviourals and accounting identities solve the simulated path. The simulated traces therefore diverge from observed data like Fig. 1 rather than being pinned to the historical series.\n\nPeriod index 0 corresponds to 1997 (initial values); period index i corresponds to year 1997 + i, so the run spans 1997-2021.\n" },
+    { "id": "intro", "type": "markdown", "title": "Overview", "source": "This notebook replicates the empirical stock-flow consistent (SFC) model for Italy by Rosa Canelli  and Marco Veronese Passarella (Canelli, Fontana, Realfonzo & Veronese Passarella 2021, 2022, 2024),  ported from the R/`bimets` code in `references/Italy-SFC-Model` (marcoverpas/Italy-SFC-Model).  The model covers six sectors - households, firms, banks, the central bank (ECB), the government  and the rest of the world - over 1997-2021, calibrated on (an elaboration of) Eurostat data.\nThe original model has 40 behavioural equations whose coefficients are estimated by OLS in R,  plus ~80 accounting identities. This port bakes the estimated coefficients into the live behavioural  equations and runs the baseline in STATIC mode, matching the repo's unadjusted in-sample prediction  (`type_pred = 0`): lags read from observed Eurostat history, while current-period behaviourals  and accounting identities solve the simulated path. The simulated traces therefore diverge  from observed data like Fig. 1 rather than being pinned to the historical series.\nPeriod index 0 corresponds to 1997 (initial values); period index i corresponds to year 1997 + i,  so the run spans 1997-2021.\n", "more": "Date ranges by data type\n\n| Data type | Year range | Length | Notes |\n| --- | --- | --- | --- |\n| Source CSV (`Data_Aalborg.csv`) | 1995-2021 | 27 rows | 1995-1996 only supply lags/context; the model consumes data from 1997 onward |\n| Initial values (period 0) | 1997 | 1 | Seeds the lagged state for the first solved period |\n| Observed Eurostat series (`observed: true`) | 1997-2021 | 25 | Reference traces on the charts and exogenize pins |\n| Behavioural coefficients (OLS in R) | 1998-2019 | - | Estimation window; baked into the live equations |\n| Baseline run / Adjusted in-sample run | 1997-2021 | 25 periods | STATIC in-sample simulation |\n| Out-of-sample run + 3 alternative scenarios | 1997-2028 | 32 periods | Pinned in-sample 1997-2021 (periods 1-25), dynamic 2022-2028 (periods 26-32) |\n| Add-factor series (`adj_*`) | 1997-2028 | 32 | Zero across 1997-2021, non-zero only 2022-2028 |\n" },
     {
       "id": "balance-sheet",
       "type": "matrix",
@@ -23,7 +23,8 @@
         { "band": "Sum", "label": "Sum", "values": ["0", "0", "0", "0", "0", "0", "0"] }
       ],
       "description": "Aggregate balance sheet of the Italian economy by sector. Asset holdings are positive, liabilities negative; each column sums to zero once net worth is netted out, and each financial-instrument row sums to zero across sectors.",
-      "note": "Reproduced from observed Eurostat series (the repo's 2_BS_obs view). Select a period to inspect a given year."
+      "note": "Reproduced from observed Eurostat series (the repo's 2_BS_obs view). Select a period to inspect a given year.",
+      "more": "Canelli, Fontana, Realfonzo and Veronese Passarella (2024, Section 2) build the model on four SFC accounting principles (after Godley and Lavoie 2007 and Nikiforos and Zezza 2017):\n\n- **Flow consistency**: every monetary flow comes from somewhere and goes somewhere.\n- **Stock consistency**: a liability issued by one sector is an asset of another, so every financial-instrument row sums to zero and system-wide net financial wealth is zero.\n- **Stock-flow consistency**: end-of-period stocks cumulate the flows, including capital gains and losses.\n- **Quadruple book-keeping**: each transaction fills four entries - one unit's inflow matches another's outflow, and the matching changes in assets and liabilities offset.\n\nIn this balance sheet assets carry a `+` sign and liabilities a `-` sign; each column nets to zero once net worth is removed, and each row nets to zero across sectors. The transactions-flow matrix adds the vertical (column) and horizontal (row) constraints for flows. The single _redundant_ equation these constraints leave over is what the Model watertightness section checks.\n"
     },
     {
       "id": "transaction-flow",
@@ -734,8 +735,80 @@
       ]
     },
     { "id": "baseline-table", "type": "table", "title": "Key macro aggregates", "sourceRunCellId": "baseline-run", "variables": ["y", "yR", "cons", "id", "nx", "deb", "def", "deb_ratio", "p", "pc", "nd", "un", "rb"] },
-    { "id": "out-of-sample-table", "type": "table", "title": "Continuous run key aggregates (1997-2028)", "sourceRunCellId": "out-of-sample-run", "variables": ["y", "yR", "consR", "iddR", "xR", "imR", "deb", "deb_ratio", "p", "pc", "p_en", "nd", "un", "rb", "rstar"] },
-    { "id": "additional-experiments", "type": "markdown", "title": "Additional experiments", "source": "Section 6 of `marcoverpas/Italy-SFC-Model` compares the out-of-sample baseline with three alternative experiments over 2022-2028. This notebook shows each alternative as a full 1997-2028 segmented dynamic run, just like `out-of-sample-run`: periods 1-25 (1997-2021) stay pinned to observed history, then periods 26-32 (2022-2028) solve forward with the experiment-specific add-factor path.\n", "more": "- Scenario 1 makes the energy-led price shock more persistent, keeping CPI inflation around 5% in the forecast window.\n- Scenario 2 combines that persistent inflation shock with an ECB policy response that maintains the policy rate at 4.5% over 2024-2026, plus the reference consumption-volume adjustment.\n- Scenario 3 applies fiscal-austerity cuts designed to bring the deficit-to-GDP ratio toward the Maastricht 3% threshold from 2024 onward.\n" },
+    { "id": "watertightness", "type": "markdown", "title": "Model watertightness", "source": "A stock-flow consistent model must stay watertight out of sample: every simulated year has to satisfy the same accounting constraints that hold in the observed data. Section 5 of `marcoverpas/Italy-SFC-Model` checks this in two ways, both reproduced below.\n\nFirst, the balance sheet and transactions-flow matrices can be rebuilt from the _simulated_ path instead of the observed Eurostat series (the reference code swaps `S_modelData` for `S_model$simulation`). The two predicted matrices that follow are sourced from the continuous out-of-sample run, so selecting a forecast year such as 2025 shows that every column and every financial-instrument row still sums to zero.\n\nSecond, the model carries one redundant equation: the market for high-powered money, `hd = hs`. Cash supply `hs = bcb + oacb - vcb` is pinned down by the central bank's balance sheet, while cash demand `hd = hbd + hh` comes from banks' reserves plus household cash. The two are computed through entirely different routes, so their equality is never imposed - it emerges only if the rest of the accounting is consistent.\n", "more": "The reference repo turns the redundant equation into a numeric test, summing the squared gap over the simulation:\n\n`error = sum(pow(hs - hd, 2))`\n\nand flags the model as watertight when `error < 0.1`. In the R baseline this yields `error = 0.0407`.\n\nIn this notebook the same residual stays at machine precision (order `1e-10` million euro) across the in-sample window 1997-2021 and below about `2e-3` million euro in the 2022-2028 forecast, for a total `error` near `1e-5` - comfortably inside the `0.1` watertightness threshold, and tighter than the R run thanks to the stricter notebook solver tolerance (`1e-8`). Chart (a) plots the `hs` and `hd` levels, which lie on top of each other; chart (b) plots their difference, which stays flat at zero.\n" },
+    {
+      "id": "balance-sheet-predicted",
+      "type": "matrix",
+      "title": "Balance sheet (simulated)",
+      "sourceRunCellId": "out-of-sample-run",
+      "accountingKind": "balance-sheet",
+      "columns": ["Households", "Firms", "Government", "Banks", "ECB", "Foreign", "Sum"],
+      "sectors": ["Households", "Firms", "Government", "Banks", "ECB", "Foreign", ""],
+      "rows": [
+        { "band": "Cash", "label": "Cash and reserves", "values": ["+hh", "", "", "+hbd", "-hs", "", "0"] },
+        { "band": "Deposits", "label": "Deposits", "values": ["+mh", "", "", "-ms", "", "", "0"] },
+        { "band": "Securities", "label": "Securities (bills)", "values": ["+bh", "", "-bs", "+bb", "+bcb", "+brow", "0"] },
+        { "band": "Loans", "label": "Loans", "values": ["-lh", "-lf", "", "+ls", "", "", "0"] },
+        { "band": "Shares", "label": "Shares", "values": ["+eh", "-es", "", "", "", "", "0"] },
+        { "band": "OtherFA", "label": "Other net financial assets", "values": ["+oah", "+oaf", "+oag", "+oab", "+oacb", "+oarow", "0"] },
+        { "band": "NetWorth", "label": "Net worth (balancing item)", "values": ["-vh", "-vf", "-vg", "-vb", "-vcb", "-vrow", "0"] },
+        { "band": "Sum", "label": "Sum", "values": ["0", "0", "0", "0", "0", "0", "0"] }
+      ],
+      "description": "Aggregate balance sheet rebuilt from the simulated out-of-sample path instead of observed data. Asset holdings are positive, liabilities negative; each column sums to zero once net worth is netted out, and each financial-instrument row sums to zero across sectors at every simulated year.",
+      "note": "Reproduced from the continuous out-of-sample run (the repo's Section 5 watertightness check). Select 2025 to inspect the predicted balance sheet discussed in the reference README."
+    },
+    {
+      "id": "transaction-flow-predicted",
+      "type": "matrix",
+      "title": "Transactions-flow matrix (simulated)",
+      "sourceRunCellId": "out-of-sample-run",
+      "accountingKind": "transaction-flow",
+      "columns": ["Households", "Firms", "Government", "Banks", "ECB", "Foreign", "Sum"],
+      "sectors": ["Households", "Firms", "Government", "Banks", "ECB", "Foreign", ""],
+      "rows": [
+        { "band": "Consumption", "label": "Consumption", "values": ["-cons", "+cons", "", "", "", "", "0"] },
+        { "band": "Government", "label": "Government spending", "values": ["", "+gov", "-gov", "", "", "", "0"] },
+        { "band": "Export", "label": "Exports", "values": ["", "+x", "", "", "", "-x", "0"] },
+        { "band": "Import", "label": "Imports", "values": ["", "-im", "", "", "", "+im", "0"] },
+        { "band": "Wages", "label": "Wages", "values": ["+wb", "-wb", "", "", "", "", "0"] },
+        { "band": "Taxes", "label": "Taxes", "values": ["-tax", "", "+tax", "", "", "", "0"] },
+        { "band": "Transfers", "label": "Transfers", "values": ["+tr", "", "-tr", "", "", "", "0"] },
+        { "band": "Interest", "label": "Interest payments", "values": ["+inth", "-intf", "-intg", "+intb", "+fcb", "+introw", "0"] },
+        { "band": "CorpProfit", "label": "Corporate profit (distributed)", "values": ["+fdf", "-fdf", "", "", "", "", "0"] },
+        { "band": "BankProfit", "label": "Bank profit", "values": ["+fb", "", "", "-fb", "", "", "0"] },
+        { "band": "Seigniorage", "label": "CB seigniorage", "values": ["", "", "+fcb", "", "-fcb", "", "0"] },
+        { "band": "OtherPay", "label": "Other payments", "values": ["+oph", "+opf", "+opg", "+opb", "+opcb", "+oprow", "0"] },
+        { "band": "dCash", "label": "Change in cash and reserves", "values": ["-d(hh)", "", "", "-d(hbd)", "+d(hs)", "", "0"] },
+        { "band": "dDeposits", "label": "Change in deposits", "values": ["-d(mh)", "", "", "+d(ms)", "", "", "0"] },
+        { "band": "dSecurities", "label": "Change in securities", "values": ["-d(bh)", "", "+d(bs)", "-d(bb)", "-d(bcb)", "-d(brow)", "0"] },
+        { "band": "dLoans", "label": "Change in loans", "values": ["+d(lh)", "+d(lf)", "", "-d(ls)", "", "", "0"] },
+        { "band": "dShares", "label": "Change in shares", "values": ["-d(eh)", "+d(es)", "", "", "", "", "0"] },
+        { "band": "dOtherFA", "label": "Change in other net FA", "values": ["-d(oah)", "-d(oaf)", "-d(oag)", "-d(oab)", "-d(oacb)", "-d(oarow)", "0"] },
+        { "band": "Sum", "label": "Sum", "values": ["0", "0", "0", "0", "0", "0", "0"] }
+      ],
+      "description": "Transactions-flow matrix rebuilt from the simulated out-of-sample path. Current flows (income positive, expenditure negative) plus the financing counterparts (changes in assets negative, changes in liabilities positive) sum to zero in every column and every row at each simulated year.",
+      "note": "Reproduced from the continuous out-of-sample run, with the firms current and capital accounts combined into a single firms column. Select 2025 to inspect the predicted matrix discussed in the reference README."
+    },
+    {
+      "id": "watertightness-chart-grid",
+      "type": "chart-grid",
+      "title": "High-powered money market: redundant-equation check (1997-2028)",
+      "gridColumns": 2,
+      "charts": [
+        { "type": "chart", "id": "chart-hpm-levels", "title": "(a) Cash supply vs demand (Hs and Hd)", "variables": ["hs", "hd"], "axisMode": "shared", "sourceRunCellId": "out-of-sample-run" },
+        {
+          "type": "chart",
+          "id": "chart-hpm-residual",
+          "title": "(b) Redundant-equation residual (Hs minus Hd)",
+          "series": [
+            { "expression": "hs - hd", "label": "Hs minus Hd", "unit": "Million euro" }
+          ],
+          "axisMode": "shared",
+          "sourceRunCellId": "out-of-sample-run"
+        }
+      ]
+    },
+    { "id": "additional-experiments", "type": "markdown", "title": "Additional experiments", "source": "Section 6 of `marcoverpas/Italy-SFC-Model` compares the out-of-sample baseline with three alternative experiments over 2022-2028, which are the core policy contribution of Canelli, Fontana, Realfonzo and Veronese Passarella (2024). This notebook shows each alternative as a full 1997-2028 segmented dynamic run, just like `out-of-sample-run`: periods 1-25 (1997-2021) stay pinned to observed history, then periods 26-32 (2022-2028) solve forward with the experiment-specific add-factor path.\n\nThe paper frames the findings as Italy being _on the edge of a precipice_. The baseline is a _soft landing_ - inflation returning to about 2% and the ECB rate to about 2.5%, but with anaemic growth near 1% and public-finance ratios stuck far above EU rules. Scenarios 1-3 are three _hard landings_, each of which tips the economy into recession.\n", "more": "- Scenario 1 makes the energy-led price shock more persistent, keeping CPI inflation around 5% in the forecast window.\n- Scenario 2 combines that persistent inflation shock with an ECB policy response that maintains the policy rate at 4.5% over 2024-2026, plus the reference consumption-volume adjustment.\n- Scenario 3 applies fiscal-austerity cuts designed to bring the deficit-to-GDP ratio toward the Maastricht 3% threshold from 2024 onward.\n\nThe paper's headline projections (its Table 4, values for 2028) are:\n\n| 2028 outcome | Baseline | Scenario 1 | Scenario 2 | Scenario 3 |\n| --- | --- | --- | --- | --- |\n| Real GDP growth (%) | 1.2 | -2.5 | -2.4 | -3.6 |\n| CPI inflation (%) | 1.2 | 4.7 | 4.7 | 0.7 |\n| Deficit-to-GDP (%) | 6.2 | 8.4 | 10.1 | 3.0 |\n| Debt-to-GDP (%) | 148 | 159 | 174 | 167 |\n| Policy rate (%) | 2.5 | 2.5 | 4.5 | 2.5 |\n\nThis notebook's free segmented runs reproduce the same qualitative story: about 1% baseline growth versus 2028 recessions of roughly `-2%` to `-3.5%` across all three scenarios, CPI held near 5% in Scenarios 1 and 2, and a deficit that keeps deteriorating except where austerity forces it down. The public-finance ratios here run a few points below the paper (2028 debt-to-GDP of about 138-165% against the paper's 148-174%) because this notebook keeps its baseline unadjusted rather than recalibrating to the official 2023 anchor.\n\nFollowing Domar (1944) and Pasinetti (1998), the debt-to-GDP ratio rises whenever the average interest rate on government debt exceeds the nominal GDP growth rate. That is why Scenario 2 (a higher policy rate lifts the debt yield) and Scenario 3 (austerity depresses nominal GDP) push debt up the most, even though Scenario 3 holds the _deficit_ at the 3% Maastricht limit by construction.\n" },
     {
       "id": "alternative-scenario-1-run",
       "type": "run",
@@ -916,7 +989,7 @@
       "id": "additional-experiments-chart-grid",
       "type": "chart-grid",
       "title": "Fig. 4 Additional experiments (1997-2028)",
-      "gridColumns": 3,
+      "gridColumns": 2,
       "charts": [
         {
           "type": "chart",
@@ -1003,9 +1076,6 @@
           "sourceRunCellId": "out-of-sample-run"
         }
       ]
-    },
-    { "id": "scenario-1-summary-table", "type": "table", "title": "Scenario 1 key aggregates (1997-2028)", "sourceRunCellId": "alternative-scenario-1-run", "variables": ["yR", "inflc", "un", "def_ratio", "deb_ratio", "rstar", "gov"] },
-    { "id": "scenario-2-summary-table", "type": "table", "title": "Scenario 2 key aggregates (1997-2028)", "sourceRunCellId": "alternative-scenario-2-run", "variables": ["yR", "inflc", "un", "def_ratio", "deb_ratio", "rstar", "gov"] },
-    { "id": "scenario-3-summary-table", "type": "table", "title": "Scenario 3 key aggregates (1997-2028)", "sourceRunCellId": "alternative-scenario-3-run", "variables": ["yR", "inflc", "un", "def_ratio", "deb_ratio", "rstar", "gov"] }
+    }
   ]
 }
