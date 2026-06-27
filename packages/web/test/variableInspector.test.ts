@@ -98,6 +98,52 @@ describe("variableInspector derivative-balance", () => {
     expect(data?.name).toBe("d(Ls)");
   });
 
+  it("resolves the defining equation for a transformed LHS name (TSDELTALOG/TSDELTA/TSDELTAP)", () => {
+    const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
+    editor.equations = [
+      { id: "eq-lh", name: "TSDELTALOG(lh,1)", expression: "0.0583*TSLAG(cons/yd,1)" },
+      { id: "eq-credit", name: "TSDELTA(credit,1)", expression: "lh" },
+      { id: "eq-oph", name: "TSDELTAP(oph,1)", expression: "2" }
+    ];
+
+    const variableDescriptions = buildVariableDescriptions({
+      equations: editor.equations,
+      externals: editor.externals
+    });
+    const variableUnitMetadata = buildVariableUnitMetadata({
+      equations: editor.equations,
+      externals: editor.externals
+    });
+
+    const lhData = buildVariableInspectorData({
+      editor,
+      selectedVariable: "lh",
+      variableDescriptions,
+      variableUnitMetadata
+    });
+    expect(lhData?.definingEquation?.id).toBe("eq-lh");
+    expect(lhData?.definingEquation?.name).toBe("TSDELTALOG(lh,1)");
+    expect(lhData?.kind).toBe("equation");
+
+    const creditData = buildVariableInspectorData({
+      editor,
+      selectedVariable: "credit",
+      variableDescriptions,
+      variableUnitMetadata
+    });
+    expect(creditData?.definingEquation?.id).toBe("eq-credit");
+    expect(creditData?.definingEquation?.name).toBe("TSDELTA(credit,1)");
+
+    const ophData = buildVariableInspectorData({
+      editor,
+      selectedVariable: "oph",
+      variableDescriptions,
+      variableUnitMetadata
+    });
+    expect(ophData?.definingEquation?.id).toBe("eq-oph");
+    expect(ophData?.definingEquation?.name).toBe("TSDELTAP(oph,1)");
+  });
+
   it("uses the d(K) row description for the underlying stock in generated explanations", () => {
     const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
     editor.equations = [

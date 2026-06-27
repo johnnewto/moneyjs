@@ -1,5 +1,8 @@
 const DERIVATIVE_BALANCE_TARGET = /^d\(\s*([A-Za-z_][A-Za-z0-9_.^{}]*)\s*\)$/;
 
+const TRANSFORMED_LHS_TARGET =
+  /^(TSDELTALOG|TSDELTAP|TSDELTA)\(\s*([A-Za-z_][A-Za-z0-9_.^{}]*)\s*(?:,\s*(\d+)\s*)?\)$/i;
+
 const INTEGRAL_RHS_PREFIX = /^\s*I\s*\(/;
 
 export function isDerivativeBalanceTarget(name: string): boolean {
@@ -11,6 +14,48 @@ export function derivativeBalanceStockName(name: string): string | null {
   return match?.[1] ?? null;
 }
 
+export type TransformedLhsOperator = "TSDELTA" | "TSDELTALOG" | "TSDELTAP";
+
+export interface TransformedLhsTarget {
+  operator: TransformedLhsOperator;
+  variable: string;
+  offset: number;
+}
+
+/**
+ * Parses a transformed left-hand side such as `TSDELTALOG(lh,1)`,
+ * `TSDELTA(credit,2)`, or `TSDELTAP(oph,1)` into the variable it defines plus
+ * the lag offset. These forms are rewritten to level equations by the parser,
+ * so the equation defines the inner variable (e.g. `lh`), not the literal
+ * transform string.
+ */
+export function parseTransformedLhsTarget(name: string): TransformedLhsTarget | null {
+  const match = TRANSFORMED_LHS_TARGET.exec(name.trim());
+  if (!match) {
+    return null;
+  }
+  const variable = match[2];
+  if (!variable) {
+    return null;
+  }
+  const operator = (match[1] ?? "").toUpperCase();
+  return {
+    operator:
+      operator === "TSDELTALOG" ? "TSDELTALOG" : operator === "TSDELTAP" ? "TSDELTAP" : "TSDELTA",
+    variable,
+    offset: Number(match[3] ?? "1")
+  };
+}
+
+export function transformedLhsTargetName(name: string): string | null {
+  return parseTransformedLhsTarget(name)?.variable ?? null;
+}
+
+/** The variable an equation name defines, unwrapping `d(stock)` and transformed LHS forms. */
+function lhsTargetVariable(trimmedName: string): string | null {
+  return derivativeBalanceStockName(trimmedName) ?? transformedLhsTargetName(trimmedName);
+}
+
 export function equationDefinesVariable(equationName: string, variable: string): boolean {
   const trimmedName = equationName.trim();
   const trimmedVariable = variable.trim();
@@ -20,12 +65,12 @@ export function equationDefinesVariable(equationName: string, variable: string):
   if (trimmedName === trimmedVariable) {
     return true;
   }
-  return derivativeBalanceStockName(trimmedName) === trimmedVariable;
+  return lhsTargetVariable(trimmedName) === trimmedVariable;
 }
 
 export function equationOutputVariable(equationName: string): string {
   const trimmedName = equationName.trim();
-  return derivativeBalanceStockName(trimmedName) ?? trimmedName;
+  return lhsTargetVariable(trimmedName) ?? trimmedName;
 }
 
 export interface NormalizedEquationTarget {

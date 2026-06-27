@@ -92,6 +92,7 @@ describe("parser", () => {
   it("rewrites supported transformed left-hand sides to level equations", () => {
     const logEquation = parseEquation("TSDELTALOG(prod, 1)", "g");
     const deltaEquation = parseEquation("TSDELTA(lh, 2)", "credit");
+    const deltaPercentEquation = parseEquation("TSDELTAP(oph, 1)", "g");
 
     expect(logEquation.name).toBe("prod");
     expect(new Set(logEquation.currentDependencies)).toEqual(new Set(["g"]));
@@ -99,6 +100,32 @@ describe("parser", () => {
     expect(deltaEquation.name).toBe("lh");
     expect(new Set(deltaEquation.currentDependencies)).toEqual(new Set(["credit"]));
     expect(new Set(deltaEquation.lagDependencies)).toEqual(new Set(["lh"]));
+    expect(deltaPercentEquation.name).toBe("oph");
+    expect(new Set(deltaPercentEquation.currentDependencies)).toEqual(new Set(["g"]));
+    expect(new Set(deltaPercentEquation.lagDependencies)).toEqual(new Set(["oph"]));
+  });
+
+  it("solves a TSDELTAP left-hand side as a percentage-change level equation", () => {
+    // TSDELTAP(x,1) = r  =>  x = lag(x,1) * (1 + r/100). With r = 10 and x[0] = 200,
+    // each period grows by 10%: 200 -> 220 -> 242 -> 266.2.
+    const result = runBaseline(
+      {
+        equations: [{ name: "TSDELTAP(x,1)", expression: "10" }],
+        externals: {},
+        initialValues: { x: 200 }
+      },
+      {
+        periods: 4,
+        solverMethod: "GAUSS_SEIDEL",
+        tolerance: 1e-9,
+        maxIterations: 100
+      }
+    );
+
+    expectClose(result.series.x?.[0] ?? NaN, 200, 1e-9);
+    expectClose(result.series.x?.[1] ?? NaN, 220, 1e-9);
+    expectClose(result.series.x?.[2] ?? NaN, 242, 1e-9);
+    expectClose(result.series.x?.[3] ?? NaN, 266.2, 1e-9);
   });
 
   it("normalizes prime lag syntax", () => {

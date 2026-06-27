@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
 
-import type { EquationRole } from "@sfcr/core";
+import { equationOutputVariable, type EquationRole } from "@sfcr/core";
 
 import {
   HighlightedFormulaInput,
@@ -9,7 +9,9 @@ import {
   type PinnedTrace,
   type TraceTokenRole
 } from "../../components/EquationGridEditor";
+import { InstantTooltip } from "../../components/InstantTooltip";
 import { VariableLabel } from "../../components/VariableLabel";
+import { renderVariableMathLabel } from "../../components/VariableMathLabel";
 import { formatNotebookCurrentValue } from "./NotebookCurrentValue";
 import {
   computeEquationVariableGain,
@@ -18,7 +20,7 @@ import {
 import type { EquationRow } from "../../lib/editorModel";
 import { collectEquationDenominatorVariables } from "../../lib/equationDivisionAnalysis";
 import type { VariableDescriptions } from "../../lib/variableDescriptions";
-import type { VariableUnitMetadata } from "../../lib/unitMeta";
+import { resolveVariableTooltip, type VariableUnitMetadata } from "../../lib/unitMeta";
 import { documentHighlightClassName } from "../../lib/variableHighlight";
 
 import type { VariableReferenceCount } from "../renameVariable";
@@ -27,6 +29,81 @@ import { ModelInitialValueCell } from "./ModelInitialValueCell";
 const DEFERRED_ACTION_DELAY_MS = 400;
 
 export type EquationRowEditFocus = "name" | "expression";
+
+/**
+ * Equation names can be function-call forms such as `d(Mp)`, `TSDELTALOG(lh,1)`,
+ * or `TSDELTA(lh,1)`. For those we tokenize the name so individual variable
+ * arguments (e.g. `Mp`, `lh`) participate in document highlighting, instead of
+ * highlighting the whole cell. Plain variable names keep their simpler rendering.
+ */
+function isFunctionCallEquationName(name: string): boolean {
+  return name.includes("(");
+}
+
+function nextNonSpaceIsOpenParen(source: string, fromIndex: number): boolean {
+  for (let index = fromIndex; index < source.length; index += 1) {
+    const character = source[index];
+    if (character.trim() === "") {
+      continue;
+    }
+    return character === "(";
+  }
+  return false;
+}
+
+function renderHighlightedEquationName(
+  name: string,
+  highlightedVariable: string | null | undefined,
+  currentValues?: Record<string, number | undefined>,
+  variableDescriptions?: VariableDescriptions,
+  variableUnitMetadata?: VariableUnitMetadata
+): ReactNode[] {
+  const parts: ReactNode[] = [];
+  const tokenPattern = /([A-Za-z_][A-Za-z0-9_.^{}]*)|(\d+(?:\.\d+)?(?:e[+-]?\d+)?)/gi;
+  let lastIndex = 0;
+
+  for (const match of name.matchAll(tokenPattern)) {
+    const token = match[0];
+    const index = match.index ?? 0;
+
+    if (index > lastIndex) {
+      parts.push(name.slice(lastIndex, index));
+    }
+
+    const isIdentifier = Boolean(match[1]);
+    const afterIndex = index + token.length;
+    const isFunctionToken = isIdentifier && nextNonSpaceIsOpenParen(name, afterIndex);
+
+    if (isIdentifier && !isFunctionToken) {
+      const tokenClassName = documentHighlightClassName(
+        token,
+        highlightedVariable,
+        "formula-token"
+      );
+      const tooltip = resolveVariableTooltip({
+        name: token,
+        variableDescriptions,
+        variableUnitMetadata,
+        currentValues
+      });
+      parts.push(
+        <InstantTooltip key={`name-token-${index}`} className={tokenClassName} tooltip={tooltip}>
+          {renderVariableMathLabel(token)}
+        </InstantTooltip>
+      );
+    } else {
+      parts.push(token);
+    }
+
+    lastIndex = afterIndex;
+  }
+
+  if (lastIndex < name.length) {
+    parts.push(name.slice(lastIndex));
+  }
+
+  return parts;
+}
 
 export function useDeferredAction(delayMs = DEFERRED_ACTION_DELAY_MS) {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -402,33 +479,55 @@ export function NotebookEquationReadRow({
         onDoubleClick={(event) => handleBeginEdit("name", event)}
       >
         {equation.name ? (
-          <button
-            type="button"
-            className={documentHighlightClassName(
-              equation.name.trim(),
-              highlightedVariable,
-              "result-variable-button"
-            )}
-            onClick={(event) => {
-              event.stopPropagation();
-              clearDeferredAction();
-              onInspectVariable(equation.name.trim());
-            }}
-          >
-            <VariableLabel
-              className={
-                traceRole && equation.name.trim()
-                  ? `formula-token trace-token-${
-                      activeTraceTokenStates?.get(equation.name.trim()) ?? "root"
-                    }`
-                  : undefined
-              }
-              currentValues={currentValues}
-              name={equation.name}
-              variableDescriptions={variableDescriptions}
-              variableUnitMetadata={variableUnitMetadata}
-            />
-          </button>
+          (() => {
+            const traceClassName =
+              traceRole && equation.name.trim()
+                ? `formula-token trace-token-${
+                    activeTraceTokenStates?.get(equation.name.trim()) ?? "root"
+                  }`
+                : undefined;
+            const isFunctionCallName = isFunctionCallEquationName(equation.name);
+            const inspectTarget = equationOutputVariable(equation.name);
+            return (
+              <button
+                type="button"
+                className={
+                  isFunctionCallName
+                    ? "result-variable-button"
+                    : documentHighlightClassName(
+                        equation.name.trim(),
+                        highlightedVariable,
+                        "result-variable-button"
+                      )
+                }
+                onClick={(event) => {
+                  event.stopPropagation();
+                  clearDeferredAction();
+                  onInspectVariable(inspectTarget);
+                }}
+              >
+                {isFunctionCallName ? (
+                  <span className={traceClassName}>
+                    {renderHighlightedEquationName(
+                      equation.name,
+                      highlightedVariable,
+                      currentValues,
+                      variableDescriptions,
+                      variableUnitMetadata
+                    )}
+                  </span>
+                ) : (
+                  <VariableLabel
+                    className={traceClassName}
+                    currentValues={currentValues}
+                    name={equation.name}
+                    variableDescriptions={variableDescriptions}
+                    variableUnitMetadata={variableUnitMetadata}
+                  />
+                )}
+              </button>
+            );
+          })()
         ) : (
           "?"
         )}

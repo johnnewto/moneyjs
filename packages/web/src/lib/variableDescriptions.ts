@@ -1,4 +1,4 @@
-import { derivativeBalanceStockName } from "@sfcr/core";
+import { equationOutputVariable } from "@sfcr/core";
 
 import { isRowComment } from "@sfcr/notebook-core";
 
@@ -19,9 +19,11 @@ export function buildVariableDescriptions(args: {
       continue;
     }
     setVariableDescription(descriptions, equation.name, equation.desc);
-    const stockName = derivativeBalanceStockName(equation.name);
-    if (stockName && stockName !== equation.name.trim()) {
-      setVariableDescription(descriptions, stockName, equation.desc);
+    // Transformed/derivative LHS forms (d(stock), TSDELTALOG(x,n), ...) define an
+    // inner variable; mirror the description onto it so hints/inspector resolve it.
+    const outputName = equationOutputVariable(equation.name);
+    if (outputName && outputName !== equation.name.trim()) {
+      setVariableDescription(descriptions, outputName, equation.desc);
     }
   }
 

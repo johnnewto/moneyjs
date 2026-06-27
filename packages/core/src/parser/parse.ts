@@ -1,5 +1,5 @@
 import type { Expr } from "./ast";
-import { normalizeDerivativeBalanceTarget } from "./equationTarget";
+import { normalizeDerivativeBalanceTarget, parseTransformedLhsTarget } from "./equationTarget";
 import { collectCurrentDependencies, collectLagDependencies } from "./dependencies";
 import { expressionParseError, rethrowExpressionParseError } from "./parseErrors";
 import type { Token, TokenType } from "./parseTokens";
@@ -13,7 +13,10 @@ export {
   equationOutputVariable,
   isDerivativeBalanceTarget,
   normalizeDerivativeBalanceTarget,
-  type NormalizedEquationTarget
+  parseTransformedLhsTarget,
+  transformedLhsTargetName,
+  type NormalizedEquationTarget,
+  type TransformedLhsTarget
 } from "./equationTarget";
 
 export interface ParsedEquation {
@@ -526,17 +529,18 @@ function normalize(source: string): string {
 }
 
 function normalizeTransformedTarget(name: string, source: string): { name: string; source: string } {
-  const target = name.trim();
-  const match = /^(TSDELTA|TSDELTALOG)\(\s*([A-Za-z_][A-Za-z0-9_\.\^\{\}]*)\s*(?:,\s*(\d+)\s*)?\)$/i.exec(target);
-  if (!match) {
+  const target = parseTransformedLhsTarget(name);
+  if (!target) {
     return { name, source };
   }
 
-  const operator = (match[1] ?? "").toUpperCase();
-  const variable = match[2] ?? name;
-  const offset = Number(match[3] ?? "1");
+  const { operator, variable, offset } = target;
   if (operator === "TSDELTALOG") {
     return { name: variable, source: `lag(${variable},${offset}) * exp(${source})` };
+  }
+  if (operator === "TSDELTAP") {
+    // TSDELTAP(x,n) = 100 * (x - lag(x,n)) / lag(x,n)  ⟹  x = lag(x,n) * (1 + rhs/100)
+    return { name: variable, source: `lag(${variable},${offset}) * (1 + (${source}) / 100)` };
   }
   return { name: variable, source: `lag(${variable},${offset}) + (${source})` };
 }
