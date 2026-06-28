@@ -192,6 +192,7 @@ export function NotebookInitialValueReadRow({
 
   return (
     <div
+      data-variable={initialValue.name.trim()}
       className={[
         "notebook-model-view-row",
         "notebook-model-view-row-initial",

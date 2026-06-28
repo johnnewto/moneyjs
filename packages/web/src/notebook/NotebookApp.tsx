@@ -72,6 +72,8 @@ import { NotebookCommandActions } from "./components/NotebookCommandActions";
 import { NotebookCommandsPanel } from "./components/NotebookCommandsPanel";
 import { NotebookCommandsToggle } from "./components/NotebookCommandsToggle";
 import { PinnedCellPanel } from "./components/PinnedCellPanel";
+import { VariableUsagesPopup } from "./components/VariableUsagesPopup";
+import { countVariableReferences, type ModelRenameScope } from "./renameVariable";
 import { resolveNotebookScopeId } from "./resolveNotebookScopeId";
 import { NotebookRenderProfiler } from "./notebookProfiler";
 import { AssistantInlinePatchView } from "./AssistantInlinePatchView";
@@ -209,7 +211,10 @@ import { resolveNotebookStabilityTarget } from "../lib/stabilityAtPeriod";
 import { usePanelSplitter } from "../hooks/usePanelSplitter";
 import { useUnsavedChangesGuard } from "../hooks/useUnsavedChangesGuard";
 import { useNotebookStickySurfaceTop } from "./useNotebookStickySurfaceTop";
-import { buildVariableInspectorData } from "../lib/variableInspector";
+import {
+  buildVariableInspectorData,
+  collectInspectorVariableNames
+} from "../lib/variableInspector";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
 import { buildVariableDescriptions } from "../lib/variableDescriptions";
 import { buildVariableUnitMetadata } from "../lib/units";
@@ -833,6 +838,7 @@ export function NotebookApp() {
     return resolveNotebookAssistantMode(window.localStorage.getItem(NOTEBOOK_ASSISTANT_MODE_STORAGE_KEY));
   });
   const [inspectorContext, setInspectorContext] = useState<VariableInspectRequest | null>(null);
+  const [variableUsagesOpen, setVariableUsagesOpen] = useState(false);
   const [matrixGraphCharts, setMatrixGraphCharts] = useState<MatrixGraphChartEntry[]>([]);
   const [graphSliceHighlight, setGraphSliceHighlight] = useState<MatrixGraphSliceHighlight | null>(null);
   const [graphExpressionHighlight, setGraphExpressionHighlight] = useState<string | null>(null);
@@ -1066,6 +1072,54 @@ export function NotebookApp() {
     runner.outputs,
     selectedVariableData?.name
   ]);
+  const inspectorFallbackRows = useMemo(() => {
+    if (inspectorContext || activeRailTab !== "inspect") {
+      return [];
+    }
+    return buildVariableCatalogRows({
+      document: notebookDocument,
+      currentValuesByModel: catalogCurrentValuesByModel
+    });
+  }, [inspectorContext, activeRailTab, notebookDocument, catalogCurrentValuesByModel]);
+  const inspectorFallbackRowByName = useMemo(() => {
+    const map = new Map<string, VariableCatalogRow>();
+    for (const row of inspectorFallbackRows) {
+      if (!map.has(row.name)) {
+        map.set(row.name, row);
+      }
+    }
+    return map;
+  }, [inspectorFallbackRows]);
+  const inspectorVariableOptions = useMemo(() => {
+    if (inspectorContext) {
+      return collectInspectorVariableNames(inspectorContext.editor);
+    }
+    return Array.from(inspectorFallbackRowByName.keys()).sort((a, b) => a.localeCompare(b));
+  }, [inspectorContext, inspectorFallbackRowByName]);
+  const inspectorRenameScope = useMemo<ModelRenameScope | null>(() => {
+    const source = inspectorContext?.modelSource ?? null;
+    if (!source) {
+      return null;
+    }
+    if ("sourceModelCellId" in source && source.sourceModelCellId) {
+      return { kind: "legacyModelCell", cellId: source.sourceModelCellId };
+    }
+    if ("sourceModelId" in source && source.sourceModelId) {
+      return { kind: "modelId", modelId: source.sourceModelId };
+    }
+    return null;
+  }, [inspectorContext?.modelSource]);
+  const inspectorUsages = useMemo(() => {
+    const variableName = inspectorContext?.selectedVariable?.trim();
+    if (!variableName || !inspectorRenameScope) {
+      return [];
+    }
+    return countVariableReferences(notebookDocument.cells, inspectorRenameScope, variableName)
+      .affectedCells;
+  }, [inspectorContext?.selectedVariable, inspectorRenameScope, notebookDocument.cells]);
+  useEffect(() => {
+    setVariableUsagesOpen(Boolean(inspectorContext && inspectorRenameScope));
+  }, [inspectorContext, inspectorRenameScope]);
   const stabilityTarget = useMemo(
     () =>
       resolveNotebookStabilityTarget({
@@ -1454,6 +1508,58 @@ export function NotebookApp() {
       });
     },
     []
+  );
+
+  const handleInspectorNavigateToVariable = useCallback(
+    (cellId: string, variableName?: string | null) => {
+      const target = notebookDocument.cells.find((cell) => cell.id === cellId);
+      if (!target) {
+        return;
+      }
+
+      if ((target as { collapsed?: boolean }).collapsed) {
+        commitNotebookDocument("expand section", (current) => ({
+          ...current,
+          cells: current.cells.map((cell) =>
+            cell.id === cellId ? { ...cell, collapsed: false } : cell
+          )
+        }));
+      }
+
+      setSelectedCellId(cellId);
+
+      const trimmedVariable = variableName?.trim() ?? "";
+      const escapeSelector =
+        typeof CSS !== "undefined" && typeof CSS.escape === "function"
+          ? CSS.escape
+          : (value: string) => value.replace(/["\\]/g, "\\$&");
+
+      let attempts = 0;
+      const tryScroll = () => {
+        scrollToCellRef.current(cellId);
+        const cell = document.getElementById(cellId);
+        if (cell && trimmedVariable) {
+          const row = cell.querySelector<HTMLElement>(
+            `[data-variable="${escapeSelector(trimmedVariable)}"]`
+          );
+          if (row) {
+            row.scrollIntoView({ block: "center", behavior: "smooth" });
+            row.classList.add("is-nav-flash");
+            window.setTimeout(() => row.classList.remove("is-nav-flash"), 1400);
+            return;
+          }
+        }
+
+        if (!cell || attempts >= 16) {
+          return;
+        }
+        attempts += 1;
+        requestAnimationFrame(tryScroll);
+      };
+
+      requestAnimationFrame(tryScroll);
+    },
+    [notebookDocument.cells, commitNotebookDocument]
   );
 
   const applyParameterOverrides = useCallback(() => {
@@ -4197,6 +4303,13 @@ export function NotebookApp() {
               onGoForward={handleInspectorGoForward}
               onSelectVariable={(variableName) => {
                 setActiveRailTab("inspect");
+                if (!inspectorContext) {
+                  const row = inspectorFallbackRowByName.get(variableName);
+                  if (row) {
+                    handleCatalogRowSelect(row);
+                  }
+                  return;
+                }
                 inspectorVariableHistory.push(variableName);
                 setInspectorContext((current) =>
                   current ? { ...current, selectedVariable: variableName } : current
@@ -4206,6 +4319,11 @@ export function NotebookApp() {
               inspectorModelId={inspectorModelId}
               onParameterOverrideChange={handleParameterOverrideChange}
               onParameterOverrideRelease={handleParameterOverrideRelease}
+              onShowUsages={
+                inspectorRenameScope ? () => setVariableUsagesOpen(true) : undefined
+              }
+              usagesCount={inspectorUsages.length}
+              variableOptions={inspectorVariableOptions}
               parameterNames={externalRowsOnly(inspectorContext?.editor.externals ?? []).map((external) => external.name)}
               parameterOverrides={parameterOverrides}
               selectedPeriodIndex={selectedPeriodIndex}
@@ -4706,6 +4824,19 @@ export function NotebookApp() {
               })}
             />
           )}
+        />
+      ) : null}
+      {variableUsagesOpen && inspectorContext?.selectedVariable ? (
+        <VariableUsagesPopup
+          variableName={inspectorContext.selectedVariable}
+          usages={inspectorUsages}
+          onClose={() => setVariableUsagesOpen(false)}
+          onNavigate={(cellId) => {
+            handleInspectorNavigateToVariable(
+              cellId,
+              inspectorContext.selectedVariable
+            );
+          }}
         />
       ) : null}
       </main>

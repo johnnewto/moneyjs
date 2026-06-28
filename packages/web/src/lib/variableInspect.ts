@@ -2,7 +2,7 @@ import type { SimulationResult } from "@sfcr/core";
 
 import type { EditorState } from "./editorModel";
 import type { NotebookCell, NotebookDocument, RunCell } from "../notebook/types";
-import { findEquationsCell, findExternalsCell, findInitialValuesCell, findLegacyModelCell, findSolverCell } from "../notebook/modelSections";
+import { collectModelExternals, findEquationsCell, findInitialValuesCell, findLegacyModelCell, findSolverCell } from "../notebook/modelSections";
 import { buildVariableDescriptions } from "./variableDescriptions";
 import { buildVariableUnitMetadata } from "./units";
 import type { VariableCatalogRow } from "./variableCatalog";
@@ -303,7 +303,7 @@ export function buildEditorStateForInspectorModelSource(
 
   return {
     equations: equationsCell.equations,
-    externals: findExternalsCell(document.cells, modelSource.sourceModelId)?.externals ?? [],
+    externals: collectModelExternals(document.cells, modelSource.sourceModelId),
     initialValues: findInitialValuesCell(document.cells, modelSource.sourceModelId)?.initialValues ?? [],
     options: solverCell.options,
     scenario: { shocks: [] }

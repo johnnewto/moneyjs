@@ -653,6 +653,14 @@ export function EquationsCellView({
     () => findInitialValuesCell(cells, cell.modelId),
     [cells, cell.modelId]
   );
+  const inspectEditor = useMemo(
+    () => ({
+      ...editor,
+      externals: collectModelExternals(cells, cell.modelId),
+      initialValues: initialValuesCell?.initialValues ?? []
+    }),
+    [editor, cells, cell.modelId, initialValuesCell]
+  );
   const initialValueEdit = useVariableInitialValueEdit({
     initialValues: initialValuesCell?.initialValues ?? [],
     onUpdateInitialValues: (nextInitialValues) => {
@@ -759,7 +767,7 @@ export function EquationsCellView({
             onSelectVariable={(selectedVariable) =>
               onVariableInspectRequest({
                 currentValues,
-                editor,
+                editor: inspectEditor,
                 modelSource,
                 selectedVariable,
                 variableDescriptions,
@@ -818,7 +826,7 @@ export function EquationsCellView({
                     onInspectVariable={(selectedVariable) =>
                       onVariableInspectRequest({
                         currentValues,
-                        editor,
+                        editor: inspectEditor,
                         modelSource,
                         selectedVariable,
                         variableDescriptions,
@@ -889,7 +897,7 @@ export function EquationsCellView({
                   onInspectVariable={(selectedVariable) =>
                     onVariableInspectRequest({
                       currentValues,
-                      editor,
+                      editor: inspectEditor,
                       modelSource,
                       selectedVariable,
                       variableDescriptions,
@@ -907,7 +915,7 @@ export function EquationsCellView({
                     scheduleDeferredAction(() =>
                       onVariableInspectRequest({
                         currentValues,
-                        editor,
+                        editor: inspectEditor,
                         modelSource,
                         selectedVariable,
                         variableDescriptions,
@@ -934,7 +942,7 @@ export function EquationsCellView({
               onInspectVariable={(selectedVariable) =>
                 onVariableInspectRequest({
                   currentValues,
-                  editor,
+                  editor: inspectEditor,
                   modelSource,
                   sourceRunCellId: implicitEquationContext.preferredRun?.id ?? null,
                   selectedVariable,

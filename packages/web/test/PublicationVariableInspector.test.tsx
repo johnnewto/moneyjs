@@ -2,7 +2,7 @@
 
 import "@testing-library/jest-dom/vitest";
 
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -57,8 +57,9 @@ describe("PublicationNotebookApp variable inspector", () => {
     const inspectButton = screen.getAllByRole("button", { name: /^Inspect variable Y$/i })[0];
     await user.click(inspectButton);
 
-    expect(screen.getByRole("dialog", { name: "Variable inspector" })).toBeInTheDocument();
+    const inspectorDialog = screen.getByRole("dialog", { name: "Variable inspector" });
+    expect(inspectorDialog).toBeInTheDocument();
     expect(screen.getByText("Selected variable")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Y\b/i })).toBeInTheDocument();
+    expect(within(inspectorDialog).getByRole("heading", { name: /^Y\b/i })).toBeInTheDocument();
   });
 });

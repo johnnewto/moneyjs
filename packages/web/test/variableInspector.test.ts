@@ -7,6 +7,9 @@ import {
   getVariableDescription
 } from "../src/lib/variableDescriptions";
 import { buildVariableUnitMetadata } from "../src/lib/units";
+import { buildEditorStateForNotebookModel } from "../src/notebook/modelSections";
+import { getNotebookTemplateDocument } from "../src/notebook/templates";
+import type { RunCell } from "../src/notebook/types";
 import { simBaselineModel, simBaselineOptions } from "../../core/src/fixtures/sim";
 
 function buildInspectorEditor(): EditorState {
@@ -51,6 +54,28 @@ describe("variableInspector derivative-balance", () => {
     expect(data?.definingEquation?.name).toBe("d(Ls)");
     expect(data?.definingEquation?.expression).toBe("d(Ld)");
     expect(data?.kind).toBe("equation");
+  });
+
+  it("exposes the initial value alongside the defining equation", () => {
+    const editor = buildInspectorEditor();
+    const variableDescriptions = buildVariableDescriptions({
+      equations: editor.equations,
+      externals: editor.externals
+    });
+    const variableUnitMetadata = buildVariableUnitMetadata({
+      equations: editor.equations,
+      externals: editor.externals
+    });
+
+    const data = buildVariableInspectorData({
+      editor,
+      selectedVariable: "Ls",
+      variableDescriptions,
+      variableUnitMetadata
+    });
+
+    expect(data?.definingEquation?.id).toBe("eq-ls");
+    expect(data?.initialValue).toBe(10);
   });
 
   it("explains derivative-balance equations using authored change notation", () => {
@@ -177,6 +202,110 @@ describe("variableInspector derivative-balance", () => {
 
     expect(data?.generatedEquationExplanation).toContain("Stock of Capital");
     expect(data?.generatedEquationExplanation).not.toMatch(/change in K equals/i);
+  });
+});
+
+describe("variableInspector observed data", () => {
+  it("flags variables that have an observed series, even when defined by an equation", () => {
+    const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
+    editor.equations = [{ id: "eq-cons", name: "cons", expression: "yd" }];
+    editor.externals = [
+      {
+        id: "obs-cons",
+        name: "cons",
+        kind: "series",
+        valueText: "1, 2, 3",
+        observed: true
+      }
+    ];
+
+    const data = buildVariableInspectorData({
+      editor,
+      selectedVariable: "cons",
+      variableDescriptions: buildVariableDescriptions({
+        equations: editor.equations,
+        externals: editor.externals
+      }),
+      variableUnitMetadata: buildVariableUnitMetadata({
+        equations: editor.equations,
+        externals: editor.externals
+      })
+    });
+
+    expect(data?.kind).toBe("equation");
+    expect(data?.hasObservedData).toBe(true);
+  });
+
+  it("does not flag variables without an observed series", () => {
+    const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
+    editor.equations = [{ id: "eq-cons", name: "cons", expression: "yd" }];
+    editor.externals = [
+      { id: "ext-yd", name: "yd", kind: "constant", valueText: "5" }
+    ];
+
+    const data = buildVariableInspectorData({
+      editor,
+      selectedVariable: "cons",
+      variableDescriptions: buildVariableDescriptions({
+        equations: editor.equations,
+        externals: editor.externals
+      }),
+      variableUnitMetadata: buildVariableUnitMetadata({
+        equations: editor.equations,
+        externals: editor.externals
+      })
+    });
+
+    expect(data?.hasObservedData).toBe(false);
+  });
+});
+
+describe("variableInspector observed data (italy-sfc template)", () => {
+  it("flags an observed variable from the template's observed cell", () => {
+    const document = getNotebookTemplateDocument("italy-sfc");
+    const runCell = document.cells.find(
+      (cell): cell is RunCell => cell.type === "run" && cell.id === "baseline-run"
+    );
+    expect(runCell).toBeTruthy();
+    const editor = buildEditorStateForNotebookModel(document, runCell!);
+    expect(editor).toBeTruthy();
+
+    const data = buildVariableInspectorData({
+      editor: editor!,
+      notebookCells: document.cells,
+      modelSource: { sourceModelId: "italy-sfc" },
+      sourceRunCellId: runCell!.id,
+      selectedVariable: "cons",
+      variableDescriptions: buildVariableDescriptions({
+        equations: editor!.equations,
+        externals: editor!.externals
+      }),
+      variableUnitMetadata: buildVariableUnitMetadata({
+        equations: editor!.equations,
+        externals: editor!.externals
+      })
+    });
+
+    expect(data?.hasObservedData).toBe(true);
+
+    const lpc = buildVariableInspectorData({
+      editor: editor!,
+      notebookCells: document.cells,
+      modelSource: { sourceModelId: "italy-sfc" },
+      sourceRunCellId: runCell!.id,
+      selectedVariable: "Lpc",
+      variableDescriptions: buildVariableDescriptions({
+        equations: editor!.equations,
+        externals: editor!.externals
+      }),
+      variableUnitMetadata: buildVariableUnitMetadata({
+        equations: editor!.equations,
+        externals: editor!.externals
+      })
+    });
+    expect(lpc?.kind).toBe("equation");
+    expect(lpc?.initialValue).toBeTypeOf("number");
+    expect(lpc?.hasObservedData).toBe(true);
   });
 });
 

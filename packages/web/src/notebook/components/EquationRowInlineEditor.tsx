@@ -462,6 +462,7 @@ export function NotebookEquationReadRow({
       ]
         .filter(Boolean)
         .join(" ")}
+      data-variable={equationOutputVariable(equation.name) ?? equation.name.trim()}
       onClick={(event) => {
         clearDeferredAction();
         onRowClick(event);

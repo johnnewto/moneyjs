@@ -88,6 +88,7 @@ export function resolvePublicationInspectContext(args: {
   if (
     cell.type === "equations" ||
     cell.type === "externals" ||
+    cell.type === "observed" ||
     cell.type === "initial-values" ||
     cell.type === "solver"
   ) {

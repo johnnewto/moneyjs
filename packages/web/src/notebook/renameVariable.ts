@@ -24,7 +24,7 @@ export type ModelRenameScope =
   | { kind: "modelId"; modelId: string }
   | { kind: "legacyModelCell"; cellId: string };
 
-interface VariableReferenceCell {
+export interface VariableReferenceCell {
   cellId: string;
   cellTitle: string;
   cellType: NotebookCell["type"];

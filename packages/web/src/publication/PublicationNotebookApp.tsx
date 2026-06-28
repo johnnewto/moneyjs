@@ -329,6 +329,46 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
     setInspectorContext(null);
   }, []);
 
+  const handleInspectorNavigateToVariable = useCallback(
+    (cellId: string, variableName?: string | null) => {
+      const trimmedVariable = variableName?.trim() ?? "";
+      const escapeSelector =
+        typeof CSS !== "undefined" && typeof CSS.escape === "function"
+          ? CSS.escape
+          : (value: string) => value.replace(/["\\]/g, "\\$&");
+
+      let attempts = 0;
+      const tryScroll = () => {
+        const cell = window.document.getElementById(cellId);
+        if (cell) {
+          const target =
+            (trimmedVariable
+              ? cell.querySelector<HTMLElement>(
+                  `[data-variable="${escapeSelector(trimmedVariable)}"]`
+                )
+              : null) ?? cell.querySelector<HTMLElement>(".is-document-highlighted");
+          if (target) {
+            target.scrollIntoView({ block: "center", behavior: "smooth" });
+            target.classList.add("is-nav-flash");
+            window.setTimeout(() => target.classList.remove("is-nav-flash"), 1400);
+            return;
+          }
+          cell.scrollIntoView({ behavior: "smooth", block: "start" });
+          return;
+        }
+
+        if (attempts >= 16) {
+          return;
+        }
+        attempts += 1;
+        requestAnimationFrame(tryScroll);
+      };
+
+      requestAnimationFrame(tryScroll);
+    },
+    []
+  );
+
   const handleMatrixGraphRequest = useCallback((request: MatrixGraphRequest) => {
     setMatrixGraphCharts((current) =>
       applyMatrixGraphRequest(current, request, () => {
@@ -619,6 +659,7 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
           onClose={handleCloseInspector}
           onGoBack={handleInspectorGoBack}
           onGoForward={handleInspectorGoForward}
+          onNavigateToVariable={handleInspectorNavigateToVariable}
           onSelectVariable={handleInspectorSelectVariable}
           selectedPeriodIndex={selectedPeriodIndex}
         />

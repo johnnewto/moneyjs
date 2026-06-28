@@ -7,14 +7,22 @@ import type {
   ObservedCell,
   SolverCell
 } from "../../notebook/types";
+import type { PublicationVariableInteraction } from "../publicationInspect";
+import { PublicationVariableName } from "../publicationFormula";
 
-export function PublicationAppendixSection({ cell }: { cell: NotebookCell }) {
+export function PublicationAppendixSection({
+  cell,
+  interaction
+}: {
+  cell: NotebookCell;
+  interaction: PublicationVariableInteraction;
+}) {
   switch (cell.type) {
     case "externals":
     case "observed":
-      return <PublicationExternals cell={cell} />;
+      return <PublicationExternals cell={cell} interaction={interaction} />;
     case "initial-values":
-      return <PublicationInitialValues cell={cell} />;
+      return <PublicationInitialValues cell={cell} interaction={interaction} />;
     case "solver":
       return <PublicationSolver cell={cell} />;
     default:
@@ -22,7 +30,13 @@ export function PublicationAppendixSection({ cell }: { cell: NotebookCell }) {
   }
 }
 
-function PublicationExternals({ cell }: { cell: ExternalsCell | ObservedCell }) {
+function PublicationExternals({
+  cell,
+  interaction
+}: {
+  cell: ExternalsCell | ObservedCell;
+  interaction: PublicationVariableInteraction;
+}) {
   const rows = externalRowsOnly(cell.externals);
 
   return (
@@ -38,7 +52,9 @@ function PublicationExternals({ cell }: { cell: ExternalsCell | ObservedCell }) 
       <tbody>
         {rows.map((row) => (
           <tr key={row.id}>
-            <td>{row.name}</td>
+            <td>
+              <PublicationVariableName interaction={interaction} name={row.name} />
+            </td>
             <td>{row.kind}</td>
             <td>
               <code>{row.valueText}</code>
@@ -51,7 +67,13 @@ function PublicationExternals({ cell }: { cell: ExternalsCell | ObservedCell }) 
   );
 }
 
-function PublicationInitialValues({ cell }: { cell: InitialValuesCell }) {
+function PublicationInitialValues({
+  cell,
+  interaction
+}: {
+  cell: InitialValuesCell;
+  interaction: PublicationVariableInteraction;
+}) {
   const rows = initialValueRowsOnly(cell.initialValues);
 
   return (
@@ -66,7 +88,9 @@ function PublicationInitialValues({ cell }: { cell: InitialValuesCell }) {
       <tbody>
         {rows.map((row) => (
           <tr key={row.id}>
-            <td>{row.name}</td>
+            <td>
+              <PublicationVariableName interaction={interaction} name={row.name} />
+            </td>
             <td>
               <code>{row.valueText}</code>
             </td>

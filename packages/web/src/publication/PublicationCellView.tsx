@@ -182,7 +182,7 @@ export function PublicationCellView({
     return (
       <section id={section.anchorId} className="publication-section publication-section-appendix">
         <h3 className="publication-appendix-heading">{cell.title}</h3>
-        <PublicationAppendixSection cell={cell} />
+        <PublicationAppendixSection cell={cell} interaction={interaction} />
         {moreNode}
       </section>
     );

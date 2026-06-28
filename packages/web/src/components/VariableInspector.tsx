@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 
 import type { EquationRow, ExternalRow } from "../lib/editorModel";
 import {
@@ -37,7 +37,10 @@ interface VariableInspectorProps {
   inspectorModelId?: string | null;
   onParameterOverrideChange?(modelId: string, name: string, value: number): void;
   onParameterOverrideRelease?(): void;
+  onShowUsages?(): void;
+  usagesCount?: number | null;
   onSelectVariable(variableName: string): void;
+  variableOptions?: string[];
   parameterNames?: string[];
   parameterOverrides?: ConstantExternalOverrides;
   selectedPeriodIndex?: number;
@@ -64,7 +67,10 @@ export function VariableInspector({
   onGoForward,
   onParameterOverrideChange,
   onParameterOverrideRelease,
+  onShowUsages,
+  usagesCount,
   onSelectVariable,
+  variableOptions = [],
   parameterNames = [],
   parameterOverrides = {},
   selectedPeriodIndex = 0,
@@ -120,9 +126,11 @@ export function VariableInspector({
                 ) : null}
               </div>
               <h3>
-                <VariableLabel
+                <InspectorVariablePicker
                   currentValues={currentValues}
                   name={data.name}
+                  onSelectVariable={onSelectVariable}
+                  options={variableOptions}
                   variableDescriptions={variableDescriptions}
                   variableUnitMetadata={variableUnitMetadata}
                 />
@@ -134,7 +142,23 @@ export function VariableInspector({
                 <span className="inspector-badge is-muted">{data.isStockFlowLabel}</span>
               ) : null}
               {data.unitLabel ? <span className="inspector-badge is-muted">{data.unitLabel}</span> : null}
+              {data.hasObservedData ? (
+                <span className="inspector-badge is-muted">Observed data</span>
+              ) : null}
             </div>
+            {onShowUsages ? (
+              <button
+                type="button"
+                className="variable-inspector-usages-button"
+                onClick={onShowUsages}
+                title={`Show everywhere ${data.name} appears`}
+              >
+                {usagesCount && usagesCount > 0
+                  ? `Appears in ${usagesCount} place${usagesCount === 1 ? "" : "s"}`
+                  : "Find all usages"}
+                <span aria-hidden="true"> ↗</span>
+              </button>
+            ) : null}
           </div>
           {seriesValues ? (
             <VariableInspectorSparkline
@@ -144,7 +168,7 @@ export function VariableInspector({
           ) : null}
           </div>
 
-          <InspectorSection title={data.description?.trim() || "Equation"}>
+          <InspectorSection title={data.description?.trim() || "Definition"}>
             {data.definingEquation ? (
               <InspectorDefiningEquation
                 canEdit={canEditDefiningEquation}
@@ -160,7 +184,8 @@ export function VariableInspector({
                 variableDescriptions={variableDescriptions}
                 variableUnitMetadata={variableUnitMetadata}
               />
-            ) : data.matrixColumnIntegral ? (
+            ) : null}
+            {data.matrixColumnIntegral ? (
               <div className="inspector-matrix-column-sum">
                 <p className="inspector-matrix-column-sum-expression">
                   <code>∫ = {data.matrixColumnIntegral.expression}</code>
@@ -174,7 +199,8 @@ export function VariableInspector({
                   values={data.matrixColumnIntegral.sources}
                 />
               </div>
-            ) : data.matrixColumnSum ? (
+            ) : null}
+            {data.matrixColumnSum ? (
               <div className="inspector-matrix-column-sum">
                 <p className="inspector-matrix-column-sum-expression">
                   <code>{data.matrixColumnSum.expression}</code>
@@ -200,13 +226,12 @@ export function VariableInspector({
                   values={data.matrixColumnSum.sources}
                 />
               </div>
-            ) : data.externalDefinition ? (
-              <p>
-                Defined externally as a <strong>{data.externalDefinition.kind}</strong> input.
-              </p>
-            ) : (
+            ) : null}
+            {!data.definingEquation &&
+            !data.matrixColumnIntegral &&
+            !data.matrixColumnSum ? (
               <p>No defining equation is available for this variable.</p>
-            )}
+            ) : null}
           </InspectorSection>
 
           {data.kind === "external" &&
@@ -357,8 +382,25 @@ export function VariableInspector({
           ) : null}
         </div>
       ) : (
-        <div className="variable-inspector-empty">
-          Select a variable to inspect it here.
+        <div className="variable-inspector-body">
+          <div className="variable-inspector-hero-block">
+            <div className="variable-inspector-hero">
+              <div className="variable-inspector-hero-title">
+                <div className="eyebrow">Selected variable</div>
+                <h3>
+                  <InspectorVariablePicker
+                    currentValues={currentValues}
+                    name=""
+                    onSelectVariable={onSelectVariable}
+                    options={variableOptions}
+                    variableDescriptions={variableDescriptions}
+                    variableUnitMetadata={variableUnitMetadata}
+                  />
+                </h3>
+              </div>
+            </div>
+          </div>
+          <p className="variable-inspector-empty">Select a variable to inspect it here.</p>
         </div>
       )}
     </section>
@@ -757,9 +799,150 @@ function InspectorSection({
 }) {
   return (
     <section className="inspector-section">
-      <h3>{title}</h3>
+      <h3 className="inspector-section-heading">
+        <span>{title}</span>
+      </h3>
       {children}
     </section>
+  );
+}
+
+function InspectorVariablePicker({
+  currentValues,
+  name,
+  onSelectVariable,
+  options,
+  variableDescriptions,
+  variableUnitMetadata
+}: {
+  currentValues?: Record<string, number | undefined>;
+  name: string;
+  onSelectVariable(variableName: string): void;
+  options: string[];
+  variableDescriptions?: VariableDescriptions;
+  variableUnitMetadata?: VariableUnitMetadata;
+}) {
+  const menuId = useId();
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const filteredOptions = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) {
+      return options;
+    }
+    return options.filter((option) => option.toLowerCase().includes(normalized));
+  }, [options, query]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined;
+    }
+
+    function handlePointerDown(event: MouseEvent): void {
+      const target = event.target;
+      if (target instanceof Node && containerRef.current?.contains(target)) {
+        return;
+      }
+      setIsOpen(false);
+    }
+
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      searchInputRef.current?.focus();
+    } else {
+      setQuery("");
+    }
+  }, [isOpen]);
+
+  const hasName = name.trim().length > 0;
+  const triggerLabel = hasName ? (
+    <VariableLabel
+      currentValues={currentValues}
+      name={name}
+      variableDescriptions={variableDescriptions}
+      variableUnitMetadata={variableUnitMetadata}
+    />
+  ) : (
+    <span className="inspector-variable-picker-placeholder">Select a variable…</span>
+  );
+
+  if (options.length === 0) {
+    return triggerLabel;
+  }
+
+  return (
+    <div className="inspector-variable-picker" ref={containerRef}>
+      <button
+        type="button"
+        className="inspector-variable-picker-trigger"
+        aria-haspopup="listbox"
+        aria-controls={menuId}
+        aria-expanded={isOpen ? "true" : "false"}
+        onClick={() => setIsOpen((current) => !current)}
+      >
+        {triggerLabel}
+        <span className="inspector-variable-picker-caret" aria-hidden="true">
+          ▾
+        </span>
+      </button>
+      {isOpen ? (
+        <div className="inspector-variable-picker-menu" id={menuId} role="listbox">
+          <input
+            ref={searchInputRef}
+            type="text"
+            className="inspector-variable-picker-search"
+            placeholder="Filter variables…"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          <div className="inspector-variable-picker-options">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  role="option"
+                  aria-selected={option === name}
+                  className={`inspector-variable-picker-option${
+                    option === name ? " is-selected" : ""
+                  }`}
+                  onClick={() => {
+                    onSelectVariable(option);
+                    setIsOpen(false);
+                  }}
+                >
+                  <VariableLabel
+                    currentValues={currentValues}
+                    name={option}
+                    variableDescriptions={variableDescriptions}
+                    variableUnitMetadata={variableUnitMetadata}
+                  />
+                </button>
+              ))
+            ) : (
+              <p className="inspector-variable-picker-empty">No matching variables.</p>
+            )}
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

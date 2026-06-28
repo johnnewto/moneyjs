@@ -199,6 +199,7 @@ export function NotebookExternalReadRow({
 
   return (
     <div
+      data-variable={external.name.trim()}
       className={[
         "notebook-model-view-row",
         "notebook-model-view-row-external",

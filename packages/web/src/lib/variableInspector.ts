@@ -83,6 +83,7 @@ export interface VariableInspectorData {
     tokenRoles: Map<string, "root" | "input" | "output" | "both">;
   }>;
   externalDefinition: ExternalRow | null;
+  hasObservedData: boolean;
   isStockFlowLabel: string | null;
 }
 
@@ -92,6 +93,47 @@ interface EquationAnalysis {
 }
 
 type InspectorTraceRole = "root" | "input" | "output" | "both";
+
+/**
+ * Enumerate the variables a user can inspect for a given model editor scope:
+ * equation outputs, external/observed inputs, and seeded initial values.
+ * Returns a de-duplicated, alphabetically sorted list.
+ */
+export function collectInspectorVariableNames(editor: EditorState): string[] {
+  const names = new Set<string>();
+
+  for (const equation of editor.equations) {
+    if (isRowComment(equation)) {
+      continue;
+    }
+    const output = equationOutputVariable(equation.name) ?? equation.name.trim();
+    if (output) {
+      names.add(output);
+    }
+  }
+
+  for (const external of editor.externals) {
+    if (isRowComment(external)) {
+      continue;
+    }
+    const name = external.name.trim();
+    if (name) {
+      names.add(name);
+    }
+  }
+
+  for (const initialValue of editor.initialValues) {
+    if (isRowComment(initialValue)) {
+      continue;
+    }
+    const name = initialValue.name.trim();
+    if (name) {
+      names.add(name);
+    }
+  }
+
+  return Array.from(names).sort((a, b) => a.localeCompare(b));
+}
 
 export function buildVariableInspectorData(args: {
   currentValues?: Record<string, number | undefined>;
@@ -155,6 +197,12 @@ export function buildVariableInspectorData(args: {
       (external): external is ExternalRow =>
         !isRowComment(external) && external.name.trim() === selectedVariable
     ) ?? null;
+  const hasObservedData = args.editor.externals.some(
+    (external): external is ExternalRow =>
+      !isRowComment(external) &&
+      external.name.trim() === selectedVariable &&
+      external.observed === true
+  );
   const initialValue = findInitialValue(args.editor.initialValues, selectedVariable);
   const appearsInEquations = explicitEquations.filter((equation) => {
     if (equationDefinesVariable(equation.name, selectedVariable)) {
@@ -309,6 +357,7 @@ export function buildVariableInspectorData(args: {
     appearsInEquations,
     relatedEquations,
     externalDefinition,
+    hasObservedData,
     isStockFlowLabel: stockFlow ? capitalize(stockFlow) : null
   };
 }

@@ -39,7 +39,7 @@ export function findExternalsCell(cells: NotebookCell[], modelId: string): Exter
   );
 }
 
-function findObservedCell(cells: NotebookCell[], modelId: string): ObservedCell | null {
+export function findObservedCell(cells: NotebookCell[], modelId: string): ObservedCell | null {
   return (
     cells.find(
       (cell): cell is ObservedCell => cell.type === "observed" && cell.modelId === modelId
