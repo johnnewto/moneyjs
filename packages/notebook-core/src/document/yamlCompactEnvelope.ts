@@ -183,6 +183,7 @@ function serializeCompactYamlCell(cell: NotebookCell): Record<string, unknown> {
         title: cell.title,
         ...compactCellFlags(cell),
         gridColumns: cell.gridColumns,
+        ...(cell.axisFontSize == null ? {} : { axisFontSize: cell.axisFontSize }),
         charts: cell.charts.map((chart) => ({
           type: "chart",
           ...buildCompactChartDescriptor(chart, { fallbackId: chart.id, preserveIds: true }),

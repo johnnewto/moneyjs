@@ -1,3 +1,4 @@
+import io3PcNotebookYaml from "./templates/3io-pc.notebook.yaml?raw";
 import bmwNotebookYaml from "./templates/bmw.notebook.yaml?raw";
 import eco3IoPcNotebookYaml from "./templates/eco-3io-pc.notebook.yaml?raw";
 import endogenousMoneyNotebookYaml from "./templates/endogenous-money.notebook.yaml?raw";
@@ -23,6 +24,7 @@ import { analyzeNotebookSource, type NotebookSourceDiagnostic } from "./document
 import type { NotebookDocument } from "./types";
 
 export type NotebookTemplateId =
+  | "3io-pc"
   | "bmw"
   | "eco-3io-pc"
   | "endogenous-money"
@@ -59,6 +61,7 @@ export type NotebookTemplateLoadResult =
 const NOTEBOOK_TEMPLATE_YAML: Record<NotebookTemplateId, string> = {
   sim: simNotebookYaml,
   bmw: bmwNotebookYaml,
+  "3io-pc": io3PcNotebookYaml,
   "eco-3io-pc": eco3IoPcNotebookYaml,
   "endogenous-money": endogenousMoneyNotebookYaml,
   "gl2-pc": gl2PcNotebookYaml,
@@ -91,6 +94,12 @@ export const NOTEBOOK_TEMPLATES: Record<NotebookTemplateId, NotebookTemplateDefi
     id: "bmw",
     label: "BMW",
     description: "BMW browser notebook with a baseline run, two scenarios, and accounting views."
+  },
+  "3io-pc": {
+    id: "3io-pc",
+    label: "Model 3IO-PC",
+    description:
+      "Florence keynote 3IO-PC notebook with three-industry input-output structure, endogenous reproduction prices, inflation-tax consumption, and a government-spending scenario."
   },
   "eco-3io-pc": {
     id: "eco-3io-pc",

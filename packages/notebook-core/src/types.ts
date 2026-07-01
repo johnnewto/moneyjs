@@ -271,6 +271,8 @@ export interface ChartCell extends NotebookCellBase {
   /** When `"auto"` (default), show shock bands on charts sourced from scenario runs. */
   showScenarioShocks?: boolean | "auto";
   yAxisTickCount?: number;
+  /** Tick label size in SVG units; axis title uses this + 1. Defaults to 11. */
+  axisFontSize?: number;
   /** Shared-axis title and unit. Separate-axis mode uses per-series `unit` when set. */
   yAxis?: ChartAxisLabel;
   /** X-axis title. Defaults to `yr` when omitted. */
@@ -289,6 +291,8 @@ export interface ChartGridCell extends NotebookCellBase {
   type: "chart-grid";
   /** Number of columns in the grid. Charts fill left-to-right, top-to-bottom. */
   gridColumns: number;
+  /** Default tick label size for all charts in the grid (SVG units). */
+  axisFontSize?: number;
   /** Inlined chart specs rendered into the grid, in order. */
   charts: ChartCell[];
 }

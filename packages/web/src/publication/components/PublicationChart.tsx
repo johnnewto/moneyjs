@@ -29,6 +29,7 @@ export function PublicationChart({
   cell,
   cells,
   getResult,
+  gridAxisFontSize,
   interaction,
   interactive = false,
   originYear,
@@ -38,6 +39,7 @@ export function PublicationChart({
   cell: ChartCell;
   cells: NotebookCell[];
   getResult(runCellId: string): SimulationResult | null;
+  gridAxisFontSize?: number;
   interaction: PublicationVariableInteraction;
   interactive?: boolean;
   originYear?: number;
@@ -162,6 +164,7 @@ export function PublicationChart({
         xAxisTitle={activeCell.xAxis?.title}
         yAxis={activeCell.yAxis}
         yAxisTickCount={activeCell.yAxisTickCount}
+        axisFontSize={activeCell.axisFontSize ?? gridAxisFontSize}
       />
     </div>
   );

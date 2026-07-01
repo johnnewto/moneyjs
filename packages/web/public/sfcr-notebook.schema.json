@@ -498,6 +498,7 @@
         },
         "showScenarioShocks": { "oneOf": [{ "type": "boolean" }, { "const": "auto" }] },
         "yAxisTickCount": { "type": "integer", "minimum": 1 },
+        "axisFontSize": { "type": "integer", "minimum": 8 },
         "yAxis": { "$ref": "#/$defs/chartAxisLabel" },
         "xAxis": { "$ref": "#/$defs/chartAxisLabel" },
         "sharedRange": {

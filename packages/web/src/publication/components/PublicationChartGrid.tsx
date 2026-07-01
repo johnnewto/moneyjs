@@ -40,6 +40,7 @@ export function PublicationChartGrid({
             cell={chart}
             cells={cells}
             getResult={getResult}
+            gridAxisFontSize={cell.axisFontSize}
             interaction={interaction}
             interactive={interactive}
             originYear={originYear}

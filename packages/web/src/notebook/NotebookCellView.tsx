@@ -1488,6 +1488,7 @@ function NotebookCellViewComponent({
                     <ChartCellView
                       cell={chart}
                       cells={cells}
+                      gridAxisFontSize={cell.axisFontSize}
                       currentValues={chartInspectionContext?.currentValues ?? {}}
                       editor={chartInspectionContext?.editor ?? null}
                       onAddVariable={(variableName) =>

@@ -76,7 +76,8 @@ const ALLOWED_CELL_PROPERTIES = new Set([
   "timeRangeInclusive",
   "title",
   "variables",
-  "yAxisTickCount"
+  "yAxisTickCount",
+  "axisFontSize"
 ]);
 
 export function validateNotebookPatch(

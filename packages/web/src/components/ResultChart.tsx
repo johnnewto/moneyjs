@@ -95,6 +95,8 @@ interface ResultChartProps {
   xAxisTitle?: string;
   yAxis?: ChartAxisLabel;
   yAxisTickCount?: number;
+  /** Tick label size in SVG units; axis title uses this + 1. Defaults to 11. */
+  axisFontSize?: number;
 }
 
 const SERIES_COLORS = ["#111827", "#ec4899", "#ea580c", "#6366f1", "#059669", "#0284c7"];
@@ -122,6 +124,29 @@ const DEFAULT_X_AXIS_TITLE = "yr";
 const DEFAULT_Y_AXIS_TITLE = "Value";
 const Y_AXIS_UNIT_LABEL_OFFSET = 14;
 const Y_AXIS_UNIT_FONT_SIZE = 9;
+const DEFAULT_TICK_FONT_SIZE = 11;
+
+function resolveChartLayoutMetrics(tickFontSize: number): {
+  primaryAxisWidth: number;
+  axisSpacing: number;
+  bottomPadding: number;
+  xTickLabelOffset: number;
+  xAxisTitleOffset: number;
+  yAxisLabelGap: number;
+  yAxisUnitLabelOffset: number;
+} {
+  const fontScale = tickFontSize / DEFAULT_TICK_FONT_SIZE;
+  const enlarged = fontScale > 1;
+  return {
+    primaryAxisWidth: Math.round(56 * fontScale + (enlarged ? 8 : 0)),
+    axisSpacing: Math.round(42 * fontScale),
+    bottomPadding: Math.round(CHART_BOTTOM_PADDING * fontScale + (enlarged ? 12 : 0)),
+    xTickLabelOffset: Math.round(X_TICK_LABEL_OFFSET * fontScale + (enlarged ? 6 : 0)),
+    xAxisTitleOffset: Math.round(X_AXIS_TITLE_OFFSET * fontScale),
+    yAxisLabelGap: Math.round(12 * fontScale),
+    yAxisUnitLabelOffset: Math.round(Y_AXIS_UNIT_LABEL_OFFSET * fontScale)
+  };
+}
 
 function renderSeparateAxisTitle(name: string): ReactNode {
   const plain = renderVariableMathPlainText(name);
@@ -209,8 +234,13 @@ export function ResultChart({
   xAxisTitle = DEFAULT_X_AXIS_TITLE,
   yAxis,
   yAxisTickCount = DEFAULT_AXIS_TICK_COUNT,
+  axisFontSize,
   selectedIndex = 0
 }: ResultChartProps) {
+  const tickFontSize = axisFontSize ?? DEFAULT_TICK_FONT_SIZE;
+  const axisTitleFontSize = axisFontSize != null ? axisFontSize + 1 : AXIS_TITLE_FONT_SIZE;
+  const axisUnitFontSize = axisFontSize != null ? Math.max(axisFontSize - 2, 8) : Y_AXIS_UNIT_FONT_SIZE;
+  const chartLayout = resolveChartLayoutMetrics(tickFontSize);
   const periodToAxisValue = (periodNumber: number) =>
     originYear != null ? originYear + periodNumber - 1 : periodNumber;
   const [hoveredDatum, setHoveredDatum] = useState<{ index: number; seriesName: string } | null>(null);
@@ -377,10 +407,14 @@ export function ResultChart({
     : CHART_MAIN_HEIGHT;
   const sliderTop = CHART_MAIN_HEIGHT + TIME_RANGE_SLIDER_GAP;
   const sliderHeight = TIME_RANGE_SLIDER_SECTION_HEIGHT;
-  const bottomPadding = CHART_BOTTOM_PADDING;
+  const bottomPadding = chartLayout.bottomPadding;
   const rightPadding = 20;
-  const axisSpacing = 42;
-  const primaryAxisWidth = 56;
+  const axisSpacing = chartLayout.axisSpacing;
+  const primaryAxisWidth = chartLayout.primaryAxisWidth;
+  const xTickLabelOffset = chartLayout.xTickLabelOffset;
+  const xAxisTitleOffset = chartLayout.xAxisTitleOffset;
+  const yAxisLabelGap = chartLayout.yAxisLabelGap;
+  const yAxisUnitLabelOffset = chartLayout.yAxisUnitLabelOffset;
   const axisCount =
     axisMode === "separate"
       ? useAxisGroups
@@ -1106,9 +1140,9 @@ export function ResultChart({
               />
               <text
                 x={x}
-                y={topPadding + plotHeight + X_TICK_LABEL_OFFSET}
+                y={topPadding + plotHeight + xTickLabelOffset}
                 fill="#111827"
-                fontSize="11"
+                fontSize={tickFontSize}
                 textAnchor="middle"
               >
                 {periodToAxisValue(tickIndex + 1 + periodLabelOffset)}
@@ -1129,7 +1163,7 @@ export function ResultChart({
 
         {(axisMode === "shared" ? drawnAxisMetrics.slice(0, 1) : drawnAxisMetrics).map((entry, index) => {
           const axisX = leftPadding - axisSpacing * index;
-          const labelX = axisX - 12;
+          const labelX = axisX - yAxisLabelGap;
           const axisHitLeft = labelX - 34;
           const axisHitWidth = 52;
           const axisPlainLabel = renderVariableMathPlainText(entry.name);
@@ -1189,7 +1223,7 @@ export function ResultChart({
                 y={topPadding - 5 - (staggerAxisTitles && index % 2 === 1 ? AXIS_TITLE_ROW_OFFSET : 0)}
                 fill={axisMode === "shared" ? "#111827" : entry.color}
                 opacity={axisOpacity}
-                fontSize="12"
+                fontSize={axisTitleFontSize}
                 fontWeight="700"
                 textAnchor="middle"
               >
@@ -1224,7 +1258,7 @@ export function ResultChart({
                       y={y + 3}
                       fill={axisMode === "shared" ? "#111827" : entry.color}
                       opacity={axisOpacity}
-                      fontSize="11"
+                      fontSize={tickFontSize}
                       textAnchor="end"
                     >
                       {formatAxisValue(tick)}
@@ -1237,10 +1271,10 @@ export function ResultChart({
                 <text
                   className="chart-axis-unit-label"
                   x={labelX}
-                  y={lowestTickLabelY(axisTicks, topPadding, plotHeight, axisMin, axisRange) + Y_AXIS_UNIT_LABEL_OFFSET}
+                  y={lowestTickLabelY(axisTicks, topPadding, plotHeight, axisMin, axisRange) + yAxisUnitLabelOffset}
                   fill={axisMode === "shared" ? "#111827" : entry.color}
                   opacity={axisOpacity}
-                  fontSize={Y_AXIS_UNIT_FONT_SIZE}
+                  fontSize={axisUnitFontSize}
                   fontWeight="500"
                   textAnchor="end"
                 >
@@ -1413,9 +1447,9 @@ export function ResultChart({
 
         <text
           x={leftPadding + plotWidth / 2}
-          y={topPadding + plotHeight + X_TICK_LABEL_OFFSET + X_AXIS_TITLE_OFFSET}
+          y={topPadding + plotHeight + xTickLabelOffset + xAxisTitleOffset}
           fill="#111827"
-          fontSize="12"
+          fontSize={axisTitleFontSize}
           textAnchor="middle"
         >
           {xAxisTitle}

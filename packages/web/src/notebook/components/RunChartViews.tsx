@@ -154,6 +154,7 @@ export function ChartCellView({
   cells,
   currentValues,
   editor,
+  gridAxisFontSize,
   onAddVariable,
   onMoveVariable,
   onRemoveVariable,
@@ -169,6 +170,7 @@ export function ChartCellView({
   cells: NotebookCell[];
   currentValues: Record<string, number | undefined>;
   editor: EditorState | null;
+  gridAxisFontSize?: number;
   highlightedVariable?: string | null;
   onAddVariable?(variableName: string): void;
   onMoveVariable?(variableName: string, direction: "left" | "right"): void;
@@ -285,6 +287,7 @@ export function ChartCellView({
       xAxisTitle={cell.xAxis?.title}
       yAxis={cell.yAxis}
       yAxisTickCount={cell.yAxisTickCount}
+      axisFontSize={cell.axisFontSize ?? gridAxisFontSize}
     />
   );
 }

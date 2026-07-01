@@ -1,0 +1,273 @@
+format: sfcr-notebook-yaml
+formatVersion: 1
+id: 3io-pc-notebook
+title: Model 3IO-PC Notebook
+metadata:
+  version: 1
+  template: 3io-pc
+  sourceFileName: 3io-pc-notebook (1).notebook.yaml
+cells:
+  - markdown:
+      id: intro
+      title: Overview
+      source: This notebook ports Marco Veronese Passarella's Model 3IO-PC from the Florence 2025 keynote (`references/keynote_speech_Florence/0_3IO-PC-Model.R`). It extends Godley and Lavoie Model PC with a three-industry input-output structure, endogenous reproduction prices, and inflation-tax consumption without monetary illusion.
+  - matrix:
+      id: balance-sheet
+      sourceRunCellId: baseline-run
+      title: 3IO-PC balance sheet
+      description: Balance-sheet matrix for the 3IO-PC macro structure.
+      note: Validated against the baseline simulation in the Florence R fixture.
+      columns: [Households, Firms, Central bank, Government, Sum]
+      sectors: [Households, Firms, Central bank, Government, ""]
+      accountingKind: balance-sheet
+      rows:
+        - [Cash, Cash (money), +h_h, "", -h_s, "", "0"]
+        - [Bills, Bills, +b_h, "", +b_cb, -b_s, "0"]
+        - [Wealth, Wealth, -v, "", "", +b_s, "0"]
+        - [Sum, Sum, "0", "0", "0", "0", "0"]
+  - matrix:
+      id: transaction-flow
+      sourceRunCellId: baseline-run
+      title: 3IO-PC transactions-flow matrix
+      description: Transactions-flow matrix for the 3IO-PC macro structure.
+      note: Validated against the baseline simulation in the Florence R fixture.
+      columns: [Households, Firms, Central bank, Government, Sum]
+      sectors: [Households, Firms, Central bank, Government, ""]
+      accountingKind: transaction-flow
+      rows:
+        - [Consumption, Consumption, -cons * p_c, +cons * p_c, "", "", "0"]
+        - [Government, Government expenditure, "", +g * p_g, "", -g * p_g, "0"]
+        - [Income, GDP (income), +y, -y, "", "", "0"]
+        - [Interest, Interest payments, +lag(r) * lag(b_h), "", +lag(r) * lag(b_cb), -lag(r) * lag(b_s), "0"]
+        - [Profits, CB profit, "", "", -lag(r) * lag(b_cb), +lag(r) * lag(b_cb), "0"]
+        - [Taxes, Taxes, -t, "", "", +t, "0"]
+        - [Cash, Change in cash, -d(h_h), "", +d(h_s), "", "0"]
+        - [Bills, Change in bills, -d(b_h), "", -d(b_cb), +d(b_s), "0"]
+        - [Sum, Sum, "0", "0", "0", "0", "0"]
+  - sequence:
+      id: transaction-flow-sequence
+      title: 3IO-PC transaction flow sequence
+      source:
+        kind: matrix
+        matrixCellId: transaction-flow
+      description: Sequence view generated from the transactions-flow matrix at the selected simulation period.
+  - equations:
+      id: equations
+      title: 3IO-PC model
+      modelId: 3io-pc
+      collapsed: false
+      rows:
+        - Input-output structure
+        - [d1, beta1_c * cons + beta1_g * g, "Final demand for agriculture.", items/year, flow, identity, eq-0-d1]
+        - [d2, beta2_c * cons + beta2_g * g, "Final demand for manufacturing.", items/year, flow, identity, eq-1-d2]
+        - [d3, beta3_c * cons + beta3_g * g, "Final demand for services.", items/year, flow, identity, eq-2-d3]
+        - [x1, a11 * x1 + a12 * x2 + a13 * x3 + d1, "Gross output in agriculture.", items/year, flow, identity, eq-3-x1]
+        - [x2, a21 * x1 + a22 * x2 + a23 * x3 + d2, "Gross output in manufacturing.", items/year, flow, identity, eq-4-x2]
+        - [x3, a31 * x1 + a32 * x2 + a33 * x3 + d3, "Gross output in services.", items/year, flow, identity, eq-5-x3]
+        - [y, p1 * d1 + p2 * d2 + p3 * d3, "Nominal GDP from final demands.", $/year, flow, identity, eq-6-y]
+        - Price setting
+        - [p1, (w / pr1) + (p1 * a11 + p2 * a21 + p3 * a31) * (1 + mu), "Unit price in agriculture.", $/item, aux, identity, eq-7-p1]
+        - [p2, (w / pr2) + (p1 * a12 + p2 * a22 + p3 * a32) * (1 + mu), "Unit price in manufacturing.", $/item, aux, identity, eq-8-p2]
+        - [p3, (w / pr3) + (p1 * a13 + p2 * a23 + p3 * a33) * (1 + mu), "Unit price in services.", $/item, aux, identity, eq-9-p3]
+        - [p_c, p1 * beta1_c + p2 * beta2_c + p3 * beta3_c, "Consumer price index.", $/item, aux, identity, eq-10-p_c]
+        - [p_g, p1 * beta1_g + p2 * beta2_g + p3 * beta3_g, "Government purchase price index.", $/item, aux, identity, eq-11-p_g]
+        - Households' behaviour
+        - [yd, y - t + lag(r) * lag(b_h), "Household disposable income.", $/year, flow, identity, eq-12-yd]
+        - [v, I(yd - p_c * cons), "Household wealth.", $, stock, accumulation, eq-13-v]
+        - [infl, (d(p_c) / p_c') * (v' / p_c), "Inflation tax on lagged wealth.", items/year, flow, identity, eq-14-infl]
+        - [cons, alpha1 * ((yd / p_c) - infl) + alpha2 * lag(v) / p_c, "Real consumption without monetary illusion.", items/year, flow, identity, eq-15-cons]
+        - [alpha1, alpha10 - alpha11 * lag(r), "Endogenous propensity to consume out of income.", "", aux, identity, eq-16-alpha1]
+        - Portfolio equations
+        - [h_h, v - b_h, "Household cash holdings.", $, stock, accumulation, eq-17-h_h]
+        - [b_h, v * (lambda0 + lambda1 * r - lambda2 * (yd / v)), "Household bill holdings.", $, stock, accumulation, eq-18-b_h]
+        - Government
+        - [t, theta * (y + lag(r) * lag(b_h)), "Income and interest taxes.", $/year, flow, identity, eq-19-t]
+        - [b_s, I(p_g * g + lag(r) * lag(b_s) - t - lag(r) * lag(b_cb)), "Government bill supply.", $, stock, accumulation, eq-20-b_s]
+        - Central bank
+        - [h_s, I(b_cb - lag(b_cb)), "High-powered money supply.", $, stock, accumulation, eq-21-h_s]
+        - [b_cb, b_s - b_h, "Central-bank bill holdings.", $, stock, accumulation, eq-22-b_cb]
+  - solver:
+      id: solver
+      title: Solver
+      modelId: 3io-pc
+      collapsed: true
+      method: gauss-seidel
+      tolerance: "1e-10"
+      maxIterations: 200
+      defaultInitialValue: "0"
+      hiddenLeftVariable: h_h
+      hiddenRightVariable: h_s
+      hiddenTolerance: "1e-6"
+      relativeHiddenTolerance: false
+  - externals:
+      id: externals-equations
+      title: Externals
+      modelId: 3io-pc
+      collapsed: true
+      rows:
+        - [r, 0.025, "Interest rate on government bills.", 1/year, aux]
+        - [g, 20, "Real government expenditure.", items/year, flow]
+        - [alpha10, 0.8, "Autonomous propensity to consume out of income.", "", aux]
+        - [alpha11, 8, "Interest-rate elasticity of consumption propensity.", year, aux]
+        - [alpha2, 0.4, "Propensity to consume out of lagged wealth.", 1/year, aux]
+        - [w, 0.4, "Uniform wage rate.", $/item, aux]
+        - [mu, 0.875, "Uniform markup.", "", aux]
+        - [pr1, 3.5, "Labour productivity in agriculture.", items/year, aux]
+        - [pr2, 5, "Labour productivity in manufacturing.", items/year, aux]
+        - [pr3, 2.2, "Labour productivity in services.", items/year, aux]
+        - [lambda0, 0.635, "Autonomous portfolio share of bills.", "", aux]
+        - [lambda1, 5, "Interest elasticity of bill demand.", year, aux]
+        - [lambda2, 0.01, "Income elasticity of bill demand.", year, aux]
+        - [theta, 0.2, "Tax rate on income and interest.", "", aux]
+        - [beta1_c, 0.15, "Consumption share of agriculture output.", "", aux]
+        - [beta2_c, 0.35, "Consumption share of manufacturing output.", "", aux]
+        - [beta3_c, 0.5, "Consumption share of services output.", "", aux]
+        - [beta1_g, 0.1, "Government spending share of agriculture output.", "", aux]
+        - [beta2_g, 0.3, "Government spending share of manufacturing output.", "", aux]
+        - [beta3_g, 0.6, "Government spending share of services output.", "", aux]
+        - [a11, 0.11, "Agriculture input per unit of agriculture output.", "", aux]
+        - [a12, 0.12, "Agriculture input per unit of manufacturing output.", "", aux]
+        - [a13, 0.1, "Agriculture input per unit of services output.", "", aux]
+        - [a21, 0.21, "Manufacturing input per unit of agriculture output.", "", aux]
+        - [a22, 0.22, "Manufacturing input per unit of manufacturing output.", "", aux]
+        - [a23, 0.2, "Manufacturing input per unit of services output.", "", aux]
+        - [a31, 0.15, "Services input per unit of agriculture output.", "", aux]
+        - [a32, 0.18, "Services input per unit of manufacturing output.", "", aux]
+        - [a33, 0.1, "Services input per unit of services output.", "", aux]
+  - initial-values:
+      id: initial-values-equations
+      title: Initial values
+      modelId: 3io-pc
+      collapsed: false
+      rows:
+        - [p1, 1, Initial agriculture price.]
+        - [p2, 1, Initial manufacturing price.]
+        - [p3, 1, Initial services price.]
+        - [p_c, 1, Initial consumer price index.]
+        - [p_g, 1, Initial government price index.]
+  - run:
+      id: baseline-run
+      title: Baseline run
+      description: Baseline 3IO-PC simulation with hidden-equation condition h_h = h_s.
+      mode: baseline
+      periods: 100
+      resultKey: 3io_pc_baseline
+      sourceModelId: 3io-pc
+  - chart-grid:
+      id: baseline-figures-grid
+      title: Baseline figures
+      gridColumns: 2
+      axisFontSize: 20
+      charts:
+        - {type: chart, id: baseline-consistency-chart, title: "Figure 1: consistency check (H_s - H_h)", series: [{expression: h_s - h_h, label: H_s - H_h}], axisMode: shared, axisSnapTolarance: 0.5, sharedRange: {min: -1, max: 1}, sourceRunCellId: baseline-run}
+        - {type: chart, id: baseline-income-consumption-chart, title: "Figure 2: disposable income and consumption", series: [{expression: yd, label: Disposable income}, {expression: cons * p_c, label: Nominal consumption}], axisMode: shared, axisSnapTolarance: 0.5, sourceRunCellId: baseline-run}
+        - {type: chart, id: baseline-final-demand-chart, title: "Figure 3: final demand by industry (nominal)", series: [{expression: d1 * p1, label: Agriculture}, {expression: d2 * p2, label: Manufacturing}, {expression: d3 * p3, label: Services}], axisMode: shared, axisSnapTolarance: 0.5, sourceRunCellId: baseline-run}
+        - {type: chart, id: baseline-output-chart, title: "Figure 4: gross output by industry (real)", variables: [x1, x2, x3], axisMode: shared, axisSnapTolarance: 0.5, sourceRunCellId: baseline-run}
+        - {type: chart, id: baseline-prices-chart, title: "Figure 5: unit prices by industry", variables: [p1, p2, p3], axisMode: shared, axisSnapTolarance: 0.5, sourceRunCellId: baseline-run}
+        - {type: chart, id: baseline-price-index-chart, title: "Figure 6: price indexes by sector", variables: [p_c, p_g], axisMode: shared, axisSnapTolarance: 0.5, sourceRunCellId: baseline-run}
+  - table:
+      id: baseline-table
+      title: Baseline variable summary
+      variables:
+        - y
+        - yd
+        - cons
+        - v
+        - b_h
+        - h_h
+        - p_c
+        - p_g
+        - x1
+        - x2
+        - x3
+        - p1
+        - p2
+        - p3
+        - d1
+        - d2
+        - d3
+      sourceRunCellId: baseline-run
+  - markdown:
+      id: scenario-1-note
+      title: Government spending scenario
+      source: This scenario raises real government expenditure `g` by 0.1 per period from period 50 until it reaches 23, matching the alternative experiment in `0_3IO-PC-Model.R` (R scenario 2). The notebook uses `runScenario` from the baseline terminal state.
+  - run:
+      id: scenario-1-run
+      title: "Scenario 1: higher government spending"
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 50
+              - 100
+            variables:
+              g:
+                kind: series
+                values:
+                  - 20.1
+                  - 20.2
+                  - 20.3
+                  - 20.4
+                  - 20.5
+                  - 20.6
+                  - 20.7
+                  - 20.8
+                  - 20.9
+                  - 21
+                  - 21.1
+                  - 21.2
+                  - 21.3
+                  - 21.4
+                  - 21.5
+                  - 21.6
+                  - 21.7
+                  - 21.8
+                  - 21.9
+                  - 22
+                  - 22.1
+                  - 22.2
+                  - 22.3
+                  - 22.4
+                  - 22.5
+                  - 22.6
+                  - 22.7
+                  - 22.8
+                  - 22.9
+                  - 23
+                  - 23
+                  - 23
+                  - 23
+                  - 23
+                  - 23
+                  - 23
+                  - 23
+                  - 23
+                  - 23
+                  - 23
+                  - 23
+                  - 23
+                  - 23
+                  - 23
+                  - 23
+                  - 23
+                  - 23
+                  - 23
+                  - 23
+                  - 23
+                  - 23
+            startPeriodInclusive: 50
+            endPeriodInclusive: 100
+      baselineRunCellId: baseline-run
+      periods: 100
+      resultKey: 3io_pc_s1
+      sourceModelId: 3io-pc
+      baselineStartPeriod: 48
+  - chart-grid:
+      id: scenario-1-figures-grid
+      title: Scenario 1 figures
+      gridColumns: 2
+      axisFontSize: 20
+      charts:
+        - {type: chart, id: scenario-1-income-consumption-chart, title: "Scenario 1: disposable income and consumption", series: [{expression: yd, label: Disposable income}, {expression: cons * p_c, label: Nominal consumption}], axisMode: shared, axisSnapTolarance: 0.5, referenceTrace: baseline, timeRangeInclusive: [48, 100], sourceRunCellId: scenario-1-run}
+        - {type: chart, id: scenario-1-final-demand-chart, title: "Scenario 1: final demand by industry (nominal)", series: [{expression: d1 * p1, label: Agriculture}, {expression: d2 * p2, label: Manufacturing}, {expression: d3 * p3, label: Services}], axisMode: shared, axisSnapTolarance: 0.5, referenceTrace: baseline, timeRangeInclusive: [48, 100], sourceRunCellId: scenario-1-run}
+        - {type: chart, id: scenario-1-output-chart, title: "Scenario 1: gross output by industry (real)", variables: [x1, x2, x3], axisMode: shared, axisSnapTolarance: 0.5, referenceTrace: baseline, timeRangeInclusive: [48, 100], sourceRunCellId: scenario-1-run}
