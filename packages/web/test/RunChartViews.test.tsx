@@ -32,9 +32,13 @@ const options: SimulationOptions = {
   defaultInitialValue: 1e-15
 };
 
-function createResult(values: number[], extraSeries: Record<string, number[]> = {}): SimulationResult {
+function createResult(
+  values: number[],
+  extraSeries: Record<string, number[]> = {},
+  blocks: SimulationResult["blocks"] = []
+): SimulationResult {
   return {
-    blocks: [],
+    blocks,
     model,
     options: { ...options, periods: values.length },
     series: {
@@ -142,6 +146,59 @@ describe("RunCellView", () => {
     expect(screen.getByText("Period 5 to 12")).toBeInTheDocument();
     expect(screen.getByText("20", { selector: ".scenario-shock-original" })).toBeInTheDocument();
     expect(screen.getByText("30", { selector: ".scenario-shock-value" })).toBeInTheDocument();
+  });
+
+  it("shows solver block counts after a run result is available", () => {
+    const run = cells[0]!;
+    const result = createResult([20, 22, 24], {}, [
+      { id: 0, equationNames: ["Y"], cyclic: false },
+      { id: 1, equationNames: ["c", "d"], cyclic: true }
+    ]);
+    const runner = createRunner({ current: result });
+
+    render(
+      <RunCellView
+        cell={run}
+        cells={cells}
+        currentValues={{}}
+        editor={null}
+        onVariableInspectRequest={vi.fn()}
+        runner={runner}
+        variableDescriptions={new Map()}
+        variableUnitMetadata={new Map()}
+      />
+    );
+
+    expect(screen.getByLabelText(/solver block structure: 2 blocks, 1 cyclic/i)).toBeInTheDocument();
+    expect(screen.getByTitle(/Block 1: c, d \(cyclic\)/i)).toBeInTheDocument();
+  });
+
+  it("opens the solver block DAG when the blocks badge is clicked", async () => {
+    const user = (await import("@testing-library/user-event")).default.setup();
+    const run = cells[0]!;
+    const onShowSolverBlockDag = vi.fn();
+    const result = createResult([20, 22, 24], {}, [
+      { id: 0, equationNames: ["Y"], cyclic: false },
+      { id: 1, equationNames: ["c", "d"], cyclic: true }
+    ]);
+    const runner = createRunner({ current: result });
+
+    render(
+      <RunCellView
+        cell={run}
+        cells={cells}
+        currentValues={{}}
+        editor={null}
+        onVariableInspectRequest={vi.fn()}
+        onShowSolverBlockDag={onShowSolverBlockDag}
+        runner={runner}
+        variableDescriptions={new Map()}
+        variableUnitMetadata={new Map()}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /open block dependency graph/i }));
+    expect(onShowSolverBlockDag).toHaveBeenCalledTimes(1);
   });
 });
 

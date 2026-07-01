@@ -5,7 +5,7 @@ import { buildRuntimeConfig } from "../src/lib/editorModel";
 import { buildEditorStateForNotebookModel, resolveRunCellModelKey } from "../src/notebook/modelSections";
 import { getNotebookTemplateDocument } from "../src/notebook/templates";
 import { resolveModelIdFromRunCellKey } from "../src/notebook/useNotebookRunner";
-import { buildMatrixEntryTimeSeries } from "../src/notebook/sequence";
+import { buildMatrixEntryTimeSeries } from "../src/notebook/matrixSliceGraph";
 
 describe("3io-pc figure 3 nominal final demand", () => {
   it("matches R reference at checkpoints", () => {

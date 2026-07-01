@@ -19,6 +19,7 @@ import {
   buildResolvedChartSeriesRanges,
   buildResolvedChartSeriesWithUnits
 } from "../chartSeries";
+import { summarizeSolverBlocks } from "../../lib/solverBlockSummary";
 import type { ChartCell, NotebookCell, RunCell } from "../types";
 import type { useNotebookRunner } from "../useNotebookRunner";
 
@@ -28,6 +29,7 @@ export function RunCellView({
   currentValues,
   editor,
   onVariableInspectRequest,
+  onShowSolverBlockDag,
   highlightedVariable = null,
   runner,
   variableDescriptions,
@@ -39,6 +41,7 @@ export function RunCellView({
   editor: EditorState | null;
   highlightedVariable?: string | null;
   onVariableInspectRequest(args: VariableInspectRequest): void;
+  onShowSolverBlockDag?(): void;
   runner: ReturnType<typeof useNotebookRunner>;
   variableDescriptions: VariableDescriptions;
   variableUnitMetadata: ReturnType<typeof buildVariableUnitMetadata>;
@@ -59,6 +62,7 @@ export function RunCellView({
       ? buildScenarioShockMarkers(cell, result, baselineResult)
       : [];
   const warnings = result?.warnings ?? [];
+  const blockSummary = result?.blocks ? summarizeSolverBlocks(result.blocks) : null;
   const handleInspectVariable =
     editor == null
       ? undefined
@@ -94,6 +98,39 @@ export function RunCellView({
           <span className="notebook-run-meta-chip">
             {cell.mode === "scenario" ? "Scenario periods" : "Periods"} <strong>{cell.periods}</strong>
           </span>
+        ) : null}
+        {blockSummary ? (
+          onShowSolverBlockDag ? (
+            <button
+              type="button"
+              className="notebook-run-meta-chip notebook-run-meta-chip-button"
+              title={`${blockSummary.tooltip}\n\nClick to open block dependency graph.`}
+              aria-label={`Solver block structure: ${blockSummary.ariaLabel}. Open block dependency graph.`}
+              onClick={onShowSolverBlockDag}
+            >
+              Blocks <strong>{blockSummary.totalBlocks}</strong>
+              {blockSummary.cyclicBlockCount > 0 ? (
+                <>
+                  {" · "}
+                  <strong>{blockSummary.cyclicBlockCount}</strong> cyclic
+                </>
+              ) : null}
+            </button>
+          ) : (
+            <span
+              className="notebook-run-meta-chip"
+              title={blockSummary.tooltip}
+              aria-label={`Solver block structure: ${blockSummary.ariaLabel}. ${blockSummary.tooltip.replaceAll("\n", "; ")}`}
+            >
+              Blocks <strong>{blockSummary.totalBlocks}</strong>
+              {blockSummary.cyclicBlockCount > 0 ? (
+                <>
+                  {" · "}
+                  <strong>{blockSummary.cyclicBlockCount}</strong> cyclic
+                </>
+              ) : null}
+            </span>
+          )
         ) : null}
       </div>
       {scenarioShockMarkers.length ? (

@@ -1,5 +1,6 @@
 import { type ChangeEvent, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 
+import type { EquationBlock, ModelDefinition } from "@sfcr/core";
 import { externalRowsOnly, isRowComment, type EquationRow } from "@sfcr/notebook-core";
 
 import {
@@ -176,6 +177,7 @@ import { AssistantMarkdown } from "../components/AssistantMarkdown";
 import { formatAssistantTokenUsage, mergeAssistantTokenUsage, type AssistantTokenUsage } from "../assistant/sse";
 import { VariableInspector } from "../components/VariableInspector";
 import { BlockConvergencePanel } from "../components/BlockConvergencePanel";
+import { SolverBlockDagPanel } from "../components/SolverBlockDagPanel";
 import {
   StabilityRawDataDialog,
   STABILITY_RAW_PANEL_DEBOUNCE_MS
@@ -1149,6 +1151,12 @@ export function NotebookApp() {
   const [blockConvergencePeriod, setBlockConvergencePeriod] = useState(1);
   const [blockConvergenceModelId, setBlockConvergenceModelId] = useState<string | null>(null);
   const [blockConvergenceLocalError, setBlockConvergenceLocalError] = useState<string | null>(null);
+  const [showSolverBlockDagPanel, setShowSolverBlockDagPanel] = useState(false);
+  const [solverBlockDagTarget, setSolverBlockDagTarget] = useState<{
+    label: string;
+    model: ModelDefinition;
+    blocks: EquationBlock[];
+  } | null>(null);
   const {
     activeLabel: blockConvergenceActiveLabel,
     analyze: analyzeBlockConvergence,
@@ -1311,6 +1319,22 @@ export function NotebookApp() {
       });
     },
     [clearBlockConvergence, notebookDocument, probeBlockConvergenceInitialValues]
+  );
+  const handleShowSolverBlockDag = useCallback(
+    (runCell: RunCell) => {
+      const result = runner.getResult(runCell.id);
+      if (!result?.blocks.length) {
+        return;
+      }
+
+      setSolverBlockDagTarget({
+        label: runCell.title || "Run",
+        model: result.model,
+        blocks: result.blocks
+      });
+      setShowSolverBlockDagPanel(true);
+    },
+    [runner]
   );
   const notebookMainDragScroll = useDragScroll<HTMLDivElement>();
   const notebookRailDragScroll = useDragScroll<HTMLElement>();
@@ -3792,6 +3816,7 @@ export function NotebookApp() {
         onMatrixGraphRequest: handleMatrixGraphRequest,
         onVariableInspectRequest: handleVariableInspectRequest,
         onDiagnoseBlockConvergence: handleDiagnoseBlockConvergence,
+        onShowSolverBlockDag: handleShowSolverBlockDag,
         onTestBlockConvergence: handleTestBlockConvergence,
         blockConvergenceComputing: blockConvergenceIsComputing,
         highlightedVariable:
@@ -3819,6 +3844,7 @@ export function NotebookApp() {
       handleCellHelpRequest,
       blockConvergenceIsComputing,
       handleDiagnoseBlockConvergence,
+      handleShowSolverBlockDag,
       handleMatrixGraphRequest,
       handlePinCellRequest,
       handleTestBlockConvergence,
@@ -4783,6 +4809,17 @@ export function NotebookApp() {
             setBlockConvergenceModelId(null);
             setBlockConvergenceLocalError(null);
             clearBlockConvergence();
+          }}
+        />
+      ) : null}
+      {showSolverBlockDagPanel && solverBlockDagTarget ? (
+        <SolverBlockDagPanel
+          blocks={solverBlockDagTarget.blocks}
+          label={solverBlockDagTarget.label}
+          model={solverBlockDagTarget.model}
+          onClose={() => {
+            setShowSolverBlockDagPanel(false);
+            setSolverBlockDagTarget(null);
           }}
         />
       ) : null}

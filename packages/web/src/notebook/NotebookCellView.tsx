@@ -224,6 +224,7 @@ export interface NotebookCellViewProps {
   onMatrixGraphRequest?(request: MatrixGraphRequest): void;
   onVariableInspectRequest(args: VariableInspectRequest): void;
   onDiagnoseBlockConvergence?(runCell: RunCell): void;
+  onShowSolverBlockDag?(runCell: RunCell): void;
   onTestBlockConvergence?(args: {
     modelId: string;
     initialValues: InitialValuesCell["initialValues"];
@@ -268,6 +269,7 @@ function NotebookCellViewComponent({
   onMatrixGraphRequest,
   onVariableInspectRequest,
   onDiagnoseBlockConvergence,
+  onShowSolverBlockDag,
   onTestBlockConvergence,
   blockConvergenceComputing = false,
   highlightedVariable = null,
@@ -1421,6 +1423,9 @@ function NotebookCellViewComponent({
             currentValues={runInspectionContext?.currentValues ?? {}}
             editor={runInspectionContext?.editor ?? null}
             onVariableInspectRequest={onVariableInspectRequest}
+            onShowSolverBlockDag={
+              onShowSolverBlockDag ? () => onShowSolverBlockDag(cell) : undefined
+            }
             highlightedVariable={highlightedVariable}
             runner={runner}
             variableDescriptions={variableDescriptions}
@@ -1894,6 +1899,10 @@ function areNotebookCellViewPropsEqual(
   }
 
   if (previousProps.onDiagnoseBlockConvergence !== nextProps.onDiagnoseBlockConvergence) {
+    return false;
+  }
+
+  if (previousProps.onShowSolverBlockDag !== nextProps.onShowSolverBlockDag) {
     return false;
   }
 

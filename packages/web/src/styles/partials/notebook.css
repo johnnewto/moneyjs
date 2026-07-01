@@ -1697,6 +1697,16 @@
   font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
   font-size: 0.74rem;
 }
+.notebook-run-meta-chip-button {
+  cursor: pointer;
+  font: inherit;
+}
+.notebook-run-meta-chip-button:hover,
+.notebook-run-meta-chip-button:focus-visible {
+  border-color: rgba(29, 78, 216, 0.45);
+  box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.12);
+  outline: none;
+}
 .notebook-inline-list {
   color: var(--color-text-secondary);
   display: grid;
