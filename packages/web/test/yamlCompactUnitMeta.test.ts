@@ -94,7 +94,7 @@ cells:
     );
   });
 
-  it("treats aux externals with blank units as dimensionless", () => {
+  it("treats explicit dimensionless aux units separately from blank aux units", () => {
     const source = `
 format: sfcr-notebook-yaml
 formatVersion: 1
@@ -121,7 +121,7 @@ cells:
 
     expect(externalsCell.externals[0]).toMatchObject({
       name: "mu",
-      unitMeta: { stockFlow: "aux", signature: {} }
+      unitMeta: { stockFlow: "aux" }
     });
     expect(externalsCell.externals[1]).toMatchObject({
       name: "a11",
@@ -129,7 +129,7 @@ cells:
     });
 
     const yaml = notebookToCompactYaml(document, { preserveIds: true });
-    expect(yaml).toContain('[mu, 0.875, "Uniform markup.", "1", aux]');
+    expect(yaml).toContain('[mu, 0.875, "Uniform markup.", "", aux]');
     expect(yaml).toContain('[a11, 0.11, "Agriculture input coefficient.", "1", aux]');
   });
 });

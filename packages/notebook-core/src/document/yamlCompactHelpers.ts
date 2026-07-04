@@ -861,8 +861,6 @@ function buildUnitMeta(meta: Record<string, unknown>): EquationRow["unitMeta"] |
   let signature: Record<string, number> | undefined;
   if (trimmedUnit) {
     signature = parseCompactUnit(trimmedUnit);
-  } else if (stockFlow === "aux") {
-    signature = {};
   }
   if (!stockFlow && signature === undefined) {
     return undefined;

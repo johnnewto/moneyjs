@@ -479,14 +479,15 @@ describe("App notebook navigation and inspection", () => {
     fireEvent.click(yRowButton);
     await expectVariableInspectorOpen();
 
-    const inspectorHeading = screen.getByRole("heading", { name: /^Y\b/i });
-    expect(inspectorHeading).toBeInTheDocument();
     const selectedVariableLabel = screen.getByText(/^Selected variable$/i);
     const inspector = selectedVariableLabel.closest(".variable-inspector-panel");
     expect(inspector).not.toBeNull();
     if (!(inspector instanceof HTMLElement)) {
       throw new Error("Expected variable inspector container.");
     }
+
+    const inspectorHeading = within(inspector).getByRole("heading", { name: /^Y\b/i });
+    expect(inspectorHeading).toBeInTheDocument();
 
     expect(within(inspector).getByText(/^Endogenous$/i)).toBeInTheDocument();
     expect(within(inspector).getByText(/^Flow$/i)).toBeInTheDocument();
@@ -853,12 +854,12 @@ describe("App notebook navigation and inspection", () => {
     }
 
     await user.click(within(ydEquation).getByRole("button", { name: /^Inspect variable YD$/i }));
-    expect(screen.getByRole("heading", { name: /^YD\b/i })).toBeInTheDocument();
     let currentInspector = screen.getByText(/^Selected variable$/i).closest(".variable-inspector-panel");
     expect(currentInspector).toBeInstanceOf(HTMLElement);
     if (!(currentInspector instanceof HTMLElement)) {
       throw new Error("Expected current variable inspector container.");
     }
+    expect(within(currentInspector).getByRole("heading", { name: /^YD\b/i })).toBeInTheDocument();
     let currentBackButton = within(currentInspector).getByRole("button", { name: /^Go back$/i });
     let currentForwardButton = within(currentInspector).getByRole("button", { name: /^Go forward$/i });
     expect(currentBackButton).not.toBeDisabled();
@@ -875,6 +876,29 @@ describe("App notebook navigation and inspection", () => {
     const commandsPanel = await openNotebookCommandsPanel(user);
     expect(within(commandsPanel).getByText(/gl2 pc notebook/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /pc balance sheet/i })).toBeInTheDocument();
+  });
+
+  it("renders all input-output table rows for 3io-pc templates with repeated row labels", async () => {
+    window.location.hash = "#/notebook/3io-pc";
+
+    render(<App />);
+
+    const matrixHeading = await screen.findByRole("heading", { name: /table 3: input-output matrix/i });
+    const matrixCell = matrixHeading.closest("article");
+    expect(matrixCell).toBeInstanceOf(HTMLElement);
+    if (!(matrixCell instanceof HTMLElement)) {
+      throw new Error("Expected 3io-pc input-output matrix article.");
+    }
+
+    expect(within(matrixCell).getByRole("rowheader", { name: "Agriculture (production)" })).toBeInTheDocument();
+    expect(within(matrixCell).getByRole("rowheader", { name: "Manufacturing (production)" })).toBeInTheDocument();
+    expect(within(matrixCell).getByRole("rowheader", { name: "Services (production)" })).toBeInTheDocument();
+    expect(within(matrixCell).getByRole("rowheader", { name: "Value added" })).toBeInTheDocument();
+    expect(within(matrixCell).getByRole("rowheader", { name: "- Labour income" })).toBeInTheDocument();
+    expect(within(matrixCell).getByRole("rowheader", { name: "- Capital income" })).toBeInTheDocument();
+    expect(within(matrixCell).getByRole("rowheader", { name: "Output" })).toBeInTheDocument();
+    expect(within(matrixCell).queryByRole("columnheader", { name: "Band" })).not.toBeInTheDocument();
+    expect(within(matrixCell).getByRole("columnheader", { name: "Row" })).toBeInTheDocument();
   });
 
   it("loads a notebook cell section from the pathname", async () => {

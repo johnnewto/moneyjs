@@ -18,7 +18,7 @@ import { NotebookRowComment } from "../notebook/components/NotebookRowComment";
 import { newRowComment, patchCommentInRows } from "../notebook/rowCommentHelpers";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
 import {
-  normalizeSignature,
+  coerceUnitMeta,
   resolveVariableTooltip,
   type UnitMeta,
   type VariableUnitMetadata
@@ -530,7 +530,7 @@ export function EquationUnitsPopover({
   variableName: string;
   variableUnitMetadata?: VariableUnitMetadata;
 }) {
-  const normalized = unitMeta ? { ...unitMeta, signature: normalizeSignature(unitMeta.signature) } : undefined;
+  const normalized = coerceUnitMeta(unitMeta);
   const unitLabel = getEquationRowUnitLabel(variableName, normalized) ?? "Set units";
   const derivativeBalanceStock = derivativeBalanceStockName(variableName);
   const activePresetMeta = equationUnitMetaToPresetMeta(variableName, normalized);
