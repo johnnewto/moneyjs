@@ -46,7 +46,13 @@ export function normalizeUnitMetaAliases(unitMeta?: UnitMetaInput): UnitMeta | u
     return undefined;
   }
 
+  const rawSignatureInput = unitMeta.signature ?? unitMeta.units;
   const signature = normalizeSignatureInput(unitMeta.signature, unitMeta.units);
+  const isExplicitDimensionless =
+    rawSignatureInput != null &&
+    typeof rawSignatureInput === "object" &&
+    !Array.isArray(rawSignatureInput) &&
+    Object.keys(rawSignatureInput).length === 0;
   const displayUnit = typeof unitMeta.displayUnit === "string" && unitMeta.displayUnit.trim()
     ? unitMeta.displayUnit.trim()
     : undefined;
@@ -55,6 +61,14 @@ export function normalizeUnitMetaAliases(unitMeta?: UnitMetaInput): UnitMeta | u
       ...(displayUnit ? { displayUnit } : {}),
       stockFlow: unitMeta.stockFlow ?? unitMeta.dimensionKind,
       signature
+    };
+  }
+
+  if (isExplicitDimensionless) {
+    return {
+      ...(displayUnit ? { displayUnit } : {}),
+      stockFlow: unitMeta.stockFlow ?? unitMeta.dimensionKind,
+      signature: {}
     };
   }
 

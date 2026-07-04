@@ -857,20 +857,29 @@ function buildUnitMeta(meta: Record<string, unknown>): EquationRow["unitMeta"] |
     return unitMeta;
   }
   const stockFlow = meta.type === "stock" || meta.type === "flow" || meta.type === "aux" ? meta.type : undefined;
-  const signature = unit ? parseCompactUnit(unit) : undefined;
-  if (!stockFlow && !signature) {
+  const trimmedUnit = unit?.trim();
+  let signature: Record<string, number> | undefined;
+  if (trimmedUnit) {
+    signature = parseCompactUnit(trimmedUnit);
+  } else if (stockFlow === "aux") {
+    signature = {};
+  }
+  if (!stockFlow && signature === undefined) {
     return undefined;
   }
   return {
     ...(stockFlow ? { stockFlow } : {}),
-    ...(signature ? { signature } : {})
+    ...(signature !== undefined ? { signature } : {})
   };
 }
 
 function parseCompactUnit(unit: string): Record<string, number> | undefined {
   const normalized = unit.trim();
-  if (!normalized || normalized === "1") {
+  if (!normalized) {
     return undefined;
+  }
+  if (normalized === "1") {
+    return {};
   }
   if (normalized === "$") {
     return { money: 1 };
