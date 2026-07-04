@@ -526,15 +526,12 @@ button.notebook-matrix-tree-badge-toggle:hover {
   position: sticky;
   z-index: 13;
 }
-.notebook-matrix-thead-sticky tr {
+.notebook-matrix-thead-sticky th {
   background: var(--color-grid-header-bg);
   box-shadow: 0 1px 0 rgba(148, 163, 184, 0.24);
   position: sticky;
   top: var(--notebook-sticky-surface-top, 0px);
   z-index: 12;
-}
-.notebook-matrix-thead-sticky th {
-  background: var(--color-grid-header-bg);
 }
 .notebook-matrix-table {
   background: var(--color-surface);

@@ -199,9 +199,15 @@ export function MatrixCellView({
     () => buildEvaluatedMatrix(cell, result, selectedPeriodIndex),
     [cell, result, selectedPeriodIndex]
   );
+  const hasMatrixRowBands = evaluatedMatrix.rows.some((row) => row.band != null);
+  const usesStickyMatrixHeader = !usesFloatingColumnHeader && !hasMatrixRowBands;
   const matrixIssueMap = useMemo(() => buildIssueMapForMatrixCell(cells, cell), [cells, cell]);
   const matrixInitialOverrideMessage = matrixIssueMap[`matrix.${cell.id}.initialValues`];
   const matrixKind = useMemo(() => resolveMatrixTableKind(cell), [cell]);
+  const matrixRowHeaderLabel =
+    hasMatrixRowBands && !accountColumnLayout && !sectorGroupedColumns
+      ? "Row"
+      : resolveMatrixCornerLabel(accountColumnLayout, matrixKind);
   const sumRowIndex = cell.rows.findIndex((row) => row.label.trim().toLowerCase() === "sum");
   const sumColumnIndex = cell.columns.findIndex((column) => column.trim().toLowerCase() === "sum");
   const parameterNames = useMemo(() => {
@@ -570,6 +576,7 @@ export function MatrixCellView({
     accountColumnLayout,
     sectorGroupedColumns,
     matrixKind,
+    cornerLabel: matrixRowHeaderLabel,
     onToggleNode: toggleColumnTreeNode,
     graphLinked: canGraphMatrix,
     graphSliceHighlight,
@@ -582,7 +589,7 @@ export function MatrixCellView({
   ) : (
     <tr ref={matrixColumnRowRef}>
       <th scope="col">
-        {resolveMatrixCornerLabel(accountColumnLayout, matrixKind)}
+        {matrixRowHeaderLabel}
       </th>
       {cell.columns.map((column, columnIndex) => (
         <th
@@ -630,7 +637,7 @@ export function MatrixCellView({
   );
   const matrixBodyRows = evaluatedMatrix.rows.map((row, rowIndex) => (
     <tr
-      key={row.label}
+      key={`${row.band ?? ""}:${row.label}:${rowIndex}`}
       className={
         [
           sectorGroupedColumns && rowIndex === 0 && !row.isSumRow
@@ -784,7 +791,7 @@ export function MatrixCellView({
               >
                 <thead
                   className={
-                    !usesFloatingColumnHeader ? "notebook-matrix-thead-sticky" : undefined
+                    usesStickyMatrixHeader ? "notebook-matrix-thead-sticky" : undefined
                   }
                 >
                   {matrixHeaderRow}
@@ -1673,6 +1680,7 @@ function buildEvaluatedMatrix(
     });
 
     return {
+      band: row.band,
       label: formatAccountTransactionsSumRowDisplayLabel(cell, row.label),
       entries: rowEntries,
       isBalanced: isInitialRow

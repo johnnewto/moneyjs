@@ -373,6 +373,32 @@ describe("matrixAccountColumns", () => {
     ).toBe(false);
   });
 
+  it("disables sector layout when a non-Sum column has a blank sector", () => {
+    const ioColumns = [
+      "Agriculture (demand)",
+      "Manufacturing (demand)",
+      "Services (demand)",
+      "Final demand",
+      "Output"
+    ];
+    expect(
+      usesMatrixSectorColumnLayout(
+        ioColumns,
+        ["Agriculture (demand)", "Manufacturing (demand)", "Services (demand)", "Final demand", ""],
+        undefined,
+        undefined
+      )
+    ).toBe(false);
+    expect(
+      usesMatrixSectorColumnLayout(
+        ioColumns,
+        ["Agriculture (demand)", "Manufacturing (demand)", "Services (demand)", "Final demand", "Output"],
+        undefined,
+        undefined
+      )
+    ).toBe(true);
+  });
+
   it("migrates legacy column collapse ids to sector-qualified keys", () => {
     expect(migrateLegacyColumnCollapseNodeId("col:0", columns, sectors)).toBe(
       "col:Households:Households.Deposits (Mh)"

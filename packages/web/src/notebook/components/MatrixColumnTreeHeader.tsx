@@ -102,6 +102,7 @@ export function MatrixColumnTreeHeader({
   accountColumnLayout = false,
   sectorGroupedColumns = accountColumnLayout,
   matrixKind = "flows",
+  cornerLabel: cornerLabelOverride,
   variant = "full",
   columnRowRef,
   onToggleNode,
@@ -123,6 +124,7 @@ export function MatrixColumnTreeHeader({
   accountColumnLayout?: boolean;
   sectorGroupedColumns?: boolean;
   matrixKind?: MatrixTableKind;
+  cornerLabel?: string;
   /** Full sector+column header, or a single column-label row (for floating headers). */
   variant?: "full" | "column-row";
   columnRowRef?: Ref<HTMLTableRowElement>;
@@ -138,7 +140,7 @@ export function MatrixColumnTreeHeader({
   onInspectVariable?(variableName: string): void;
 }): JSX.Element {
   const cornerRowSpan = Math.max(headerRows.length, 1);
-  const cornerLabel = resolveMatrixCornerLabel(accountColumnLayout, matrixKind);
+  const cornerLabel = cornerLabelOverride ?? resolveMatrixCornerLabel(accountColumnLayout, matrixKind);
   const sumColumnHeaderLabel =
     sumColumnIndex >= 0 ? sumColumnLabel ?? columns[sumColumnIndex] : "";
   const renderedRows =
@@ -163,7 +165,10 @@ export function MatrixColumnTreeHeader({
           }
         >
           {variant === "column-row" || rowIndex === 0 ? (
-            <th scope="col" {...(variant === "column-row" ? {} : { rowSpan: cornerRowSpan })}>
+            <th
+              scope="col"
+              {...(variant === "column-row" ? {} : { rowSpan: cornerRowSpan })}
+            >
               {cornerLabel}
             </th>
           ) : null}

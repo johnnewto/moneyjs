@@ -299,7 +299,21 @@ export function usesMatrixSectorColumnLayout(
   if (!sectors || sectors.length !== columns.length) {
     return false;
   }
-  return sectors.some((sector) => sector.trim().length > 0);
+
+  let hasAnySector = false;
+  for (let index = 0; index < columns.length; index += 1) {
+    if (isSumColumnLabel(columns[index] ?? "")) {
+      continue;
+    }
+    const sectorLabel = sectors[index]?.trim() ?? "";
+    if (!sectorLabel) {
+      // Trailing blank sectors are valid for Sum columns in SFC matrices, but a blank
+      // sector on a non-Sum column (e.g. IO "Output") must not enable grouped headers.
+      return false;
+    }
+    hasAnySector = true;
+  }
+  return hasAnySector;
 }
 
 export function isMatrixAccountSectorStartColumn(
