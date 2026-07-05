@@ -921,4 +921,68 @@ describe("EquationGridEditor", () => {
     expect(screen.getByRole("menu", { name: /equation actions for row 1/i })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: /^add equation$/i })).toBeInTheDocument();
   });
+
+  it("opens the variable unit status dialog from the footer Check units button", () => {
+    const onSelectVariable = vi.fn();
+    const variableUnitMetadata = new Map([
+      ["C", { stockFlow: "flow" as const, signature: { money: 1, time: -1 } }],
+      ["I", { stockFlow: "flow" as const, signature: { money: 1, time: -1 } }]
+    ]);
+
+    render(
+      <EquationGridEditor
+        equations={[{ id: "eq-y", name: "Y", expression: "C + I" }]}
+        issues={{}}
+        onChange={vi.fn()}
+        onSelectVariable={onSelectVariable}
+        parameterNames={[]}
+        variableUnitMetadata={variableUnitMetadata}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /check variable unit status/i }));
+
+    const dialog = screen.getByRole("dialog", { name: /variable unit status/i });
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText(/1 of 1 variable need attention/i)).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Y" })).toBeInTheDocument();
+    expect(within(dialog).getByText("Untagged")).toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Y" }));
+    expect(onSelectVariable).toHaveBeenCalledWith("Y");
+  });
+
+  it("applies unit edits from the variable unit status dialog", () => {
+    const onChange = vi.fn();
+    const variableUnitMetadata = new Map([
+      ["C", { stockFlow: "flow" as const, signature: { money: 1, time: -1 } }],
+      ["I", { stockFlow: "flow" as const, signature: { money: 1, time: -1 } }]
+    ]);
+
+    render(
+      <EquationGridEditor
+        equations={[{ id: "eq-y", name: "Y", expression: "C + I" }]}
+        issues={{}}
+        onChange={onChange}
+        parameterNames={[]}
+        variableUnitMetadata={variableUnitMetadata}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /check variable unit status/i }));
+
+    const dialog = screen.getByRole("dialog", { name: /variable unit status/i });
+    fireEvent.click(within(dialog).getByRole("button", { name: /apply inferred units/i }));
+
+    fireEvent.click(within(dialog).getByRole("button", { name: /apply changes/i }));
+
+    expect(onChange).toHaveBeenCalledWith([
+      expect.objectContaining({
+        id: "eq-y",
+        name: "Y",
+        expression: "C + I",
+        unitMeta: { signature: { money: 1, time: -1 } }
+      })
+    ]);
+  });
 });

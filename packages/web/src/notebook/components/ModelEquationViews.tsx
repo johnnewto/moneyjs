@@ -35,7 +35,7 @@ import { buildVariableDescriptions, type VariableDescriptions } from "../../lib/
 import { buildVariableUnitMetadata } from "../../lib/units";
 import { useDragScroll } from "../../hooks/useDragScroll";
 import { useEquationValueColumnsCollapse } from "../../hooks/useEquationValueColumnsCollapse";
-import { buildEditorStateFromSections, collectModelExternals, countModelSectionIssues, findEquationsCell, findInitialValuesCell, findSolverCell } from "../modelSections";
+import { buildEditorStateFromSections, collectModelExternals, countModelSectionIssues, findEquationsCell, findExternalsCell, findInitialValuesCell, findSolverCell } from "../modelSections";
 import { resolveImplicitMatrixAccumulationEntries, IMPLICIT_MATRIX_INTEGRATION_SECTION_ID } from "../implicitMatrixEquations";
 import { collectMatrixInitialValueOverrideIssues } from "../matrixInitialRow";
 import type { VariableInspectRequest } from "../../lib/variableInspect";
@@ -265,6 +265,9 @@ export function ModelCellView({
             isEmbedded
             issues={equationIssueMap}
             onChange={(equations) => setDraftEditor((current) => ({ ...current, equations }))}
+            onExternalsChange={(nextExternals) =>
+              setDraftEditor((current) => ({ ...current, externals: nextExternals }))
+            }
             onSelectVariable={(selectedVariable) =>
               onVariableInspectRequest({
                 currentValues,
@@ -764,6 +767,19 @@ export function EquationsCellView({
             isEmbedded
             issues={equationIssueMap}
             onChange={setDraftEquations}
+            onExternalsChange={(nextExternals) => {
+              const externalsCell = findExternalsCell(cells, cell.modelId);
+              if (!externalsCell) {
+                return;
+              }
+              onReplaceCells(
+                cells.map((entry) =>
+                  entry.id === externalsCell.id && entry.type === "externals"
+                    ? { ...entry, externals: nextExternals }
+                    : entry
+                )
+              );
+            }}
             onSelectVariable={(selectedVariable) =>
               onVariableInspectRequest({
                 currentValues,

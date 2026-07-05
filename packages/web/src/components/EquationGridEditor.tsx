@@ -24,19 +24,9 @@ import {
   type VariableUnitMetadata
 } from "../lib/unitMeta";
 import {
-  ECONOMIC_UNIT_PRESET_OPTIONS,
-  OTHER_UNIT_PRESET_OPTIONS,
-  CARBON_UNIT_PRESET_OPTIONS,
-  equationUnitMetaToPresetMeta,
-  presetToEquationUnitMeta,
-  unitMetasEqual,
-  type EquationUnitPresetOption
-} from "../lib/unitPicker";
-import {
   applyMirroredEquationUnitSuggestions,
   buildVariableUnitMetadata,
   getEquationRowUnitLabel,
-  suggestEquationUnitMeta,
   type MirroredEquationUnitChange
 } from "../lib/units";
 import {
@@ -49,6 +39,8 @@ import {
 import { useEquationGridColumnResize } from "../hooks/useEquationGridColumnResize";
 import { InstantTooltip } from "./InstantTooltip";
 import { MirroredEquationUnitSummaryDialog } from "./MirroredEquationUnitSummaryDialog";
+import { EquationUnitPickerPanel } from "./EquationUnitPickerPanel";
+import { VariableUnitStatusDialog } from "./VariableUnitStatusDialog";
 import {
   canMoveRowDown,
   canMoveRowUp,
@@ -96,6 +88,7 @@ interface EquationGridEditorProps {
   showTraceHelp?: boolean;
   variableDescriptions?: VariableDescriptions;
   variableUnitMetadata?: VariableUnitMetadata;
+  onExternalsChange?(externals: ExternalListItem[]): void;
 }
 
 export function EquationGridEditor({
@@ -114,7 +107,8 @@ export function EquationGridEditor({
   showHeading = true,
   showTraceHelp = true,
   variableDescriptions,
-  variableUnitMetadata
+  variableUnitMetadata,
+  onExternalsChange
 }: EquationGridEditorProps) {
   const parameterNameSet = useMemo(() => new Set(parameterNames), [parameterNames]);
   const resolvedUnitMetadata = useMemo(
@@ -133,6 +127,7 @@ export function EquationGridEditor({
   const [unitSuggestionSummary, setUnitSuggestionSummary] = useState<MirroredEquationUnitChange[] | null>(
     null
   );
+  const [isUnitStatusDialogOpen, setIsUnitStatusDialogOpen] = useState(false);
   const rowContextMenu = useGridRowContextMenu({
     ignoredSelector:
       "button, select, .equation-grid-unit-cell, .equation-grid-role-cell, .equation-badge-popover-panel",
@@ -412,6 +407,14 @@ export function EquationGridEditor({
 
       <div className="equation-grid-footer">
         <button
+          aria-label="Check variable unit status"
+          className="secondary-button"
+          onClick={() => setIsUnitStatusDialogOpen(true)}
+          type="button"
+        >
+          Check units
+        </button>
+        <button
           aria-label="Suggest units from additive or subtractive RHS operands"
           className="secondary-button"
           onClick={() => {
@@ -441,6 +444,20 @@ export function EquationGridEditor({
           onClose={() => setUnitSuggestionSummary(null)}
         />
       ) : null}
+
+      <VariableUnitStatusDialog
+        equations={equations}
+        externals={externals}
+        isOpen={isUnitStatusDialogOpen}
+        onApply={({ equations: nextEquations, externals: nextExternals }) => {
+          onChange(nextEquations);
+          onExternalsChange?.(nextExternals);
+        }}
+        canEditExternals={onExternalsChange != null}
+        onClose={() => setIsUnitStatusDialogOpen(false)}
+        onSelectVariable={onSelectVariable}
+        variableUnitMetadata={resolvedUnitMetadata}
+      />
 
       {rowContextMenu.rowContextMenu ? (
         <GridRowContextMenu
@@ -532,32 +549,6 @@ export function EquationUnitsPopover({
 }) {
   const normalized = coerceUnitMeta(unitMeta);
   const unitLabel = getEquationRowUnitLabel(variableName, normalized) ?? "Set units";
-  const derivativeBalanceStock = derivativeBalanceStockName(variableName);
-  const activePresetMeta = equationUnitMetaToPresetMeta(variableName, normalized);
-  const suggestion = useMemo(
-    () =>
-      suggestEquationUnitMeta({
-        variableName,
-        expression,
-        variableUnitMetadata: variableUnitMetadata ?? new Map()
-      }),
-    [variableName, expression, variableUnitMetadata]
-  );
-  const canSuggest = suggestion != null;
-
-  const handleSelectPreset = (preset?: UnitMeta) => {
-    onChange(presetToEquationUnitMeta(variableName, preset));
-    onToggle();
-  };
-
-  const handleSuggest = () => {
-    if (!suggestion) {
-      return;
-    }
-
-    onChange(presetToEquationUnitMeta(variableName, suggestion));
-    onToggle();
-  };
 
   return (
     <div className={`equation-grid-unit-cell${isOpen ? " is-open" : ""}`.trim()}>
@@ -579,80 +570,22 @@ export function EquationUnitsPopover({
       {isOpen ? (
         <div
           aria-label={`Unit options for ${variableName.trim() || "equation variable"}`}
-          className="equation-badge-popover-panel equation-unit-picker-panel"
+          className="equation-badge-popover-panel"
           onClick={(event) => event.stopPropagation()}
           role="dialog"
         >
-          <div className="equation-unit-picker-header">
-            <button
-              aria-label="Suggest units from expression"
-              className="equation-unit-picker-action secondary-button"
-              disabled={!canSuggest}
-              onClick={handleSuggest}
-              type="button"
-            >
-              Suggest
-            </button>
-          </div>
-          {isDerivativeBalanceTarget(variableName) && derivativeBalanceStock && normalized?.signature ? (
-            <p className="equation-unit-picker-note">
-              Defines stock {derivativeBalanceStock} (
-              {getEquationRowUnitLabel(derivativeBalanceStock, normalized) ?? "units"}). The badge
-              shows the per-year change.
-            </p>
-          ) : null}
-          <div className="equation-unit-popover-columns" role="group" aria-label="Unit options">
-            <EquationUnitPresetColumn
-              activePresetMeta={activePresetMeta}
-              label="Economic"
-              onSelect={handleSelectPreset}
-              options={ECONOMIC_UNIT_PRESET_OPTIONS}
-            />
-            <EquationUnitPresetColumn
-              activePresetMeta={activePresetMeta}
-              label="Other"
-              onSelect={handleSelectPreset}
-              options={OTHER_UNIT_PRESET_OPTIONS}
-            />
-            <EquationUnitPresetColumn
-              activePresetMeta={activePresetMeta}
-              label="°C"
-              onSelect={handleSelectPreset}
-              options={CARBON_UNIT_PRESET_OPTIONS}
-            />
-          </div>
+          <EquationUnitPickerPanel
+            expression={expression}
+            onChange={(nextUnitMeta) => {
+              onChange(nextUnitMeta);
+              onToggle();
+            }}
+            unitMeta={unitMeta}
+            variableName={variableName}
+            variableUnitMetadata={variableUnitMetadata}
+          />
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function EquationUnitPresetColumn({
-  activePresetMeta,
-  label,
-  onSelect,
-  options
-}: {
-  activePresetMeta: UnitMeta | undefined;
-  label: string;
-  onSelect: (preset?: UnitMeta) => void;
-  options: EquationUnitPresetOption[];
-}) {
-  return (
-    <div className="equation-unit-popover-column" role="listbox" aria-label={`${label} unit options`}>
-      <div className="equation-unit-popover-column-label">{label}</div>
-      {options.map((option) => (
-        <button
-          key={option.label}
-          className={`equation-unit-option${
-            unitMetasEqual(activePresetMeta, option.unitMeta) ? " is-active" : ""
-          }`.trim()}
-          onClick={() => onSelect(option.unitMeta)}
-          type="button"
-        >
-          {option.label}
-        </button>
-      ))}
     </div>
   );
 }

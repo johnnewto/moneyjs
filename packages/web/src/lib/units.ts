@@ -468,6 +468,158 @@ export function applyMirroredEquationUnitSuggestions(args: {
   }
 }
 
+export type VariableUnitStatusKind = "ok" | "untagged" | "warning" | "error";
+
+export interface VariableUnitStatusRow {
+  variable: string;
+  source: "equation" | "external";
+  rowId: string;
+  expression?: string;
+  declared?: UnitMeta;
+  declaredLabel: string | null;
+  inferredLabel: string | null;
+  diagnostics: UnitDiagnostic[];
+  suggestion: SuggestedEquationUnitMeta | null;
+  status: VariableUnitStatusKind;
+}
+
+function hasDeclaredUnitSignature(unitMeta?: UnitMeta): boolean {
+  const normalized = coerceUnitMeta(unitMeta);
+  if (!normalized?.signature) {
+    return false;
+  }
+  return Object.keys(normalizeSignature(normalized.signature)).length > 0;
+}
+
+function resolveVariableUnitStatusKind(
+  diagnostics: UnitDiagnostic[],
+  hasDeclaredSignature: boolean
+): VariableUnitStatusKind {
+  if (diagnostics.some((diagnostic) => diagnostic.severity === "error")) {
+    return "error";
+  }
+  if (diagnostics.some((diagnostic) => diagnostic.severity === "warning")) {
+    return "warning";
+  }
+  if (!hasDeclaredSignature) {
+    return "untagged";
+  }
+  return "ok";
+}
+
+export function buildVariableUnitStatusReport(args: {
+  equations?: readonly (EquationRow | EquationListItem)[];
+  externals?: readonly (ExternalRow | ExternalListItem)[];
+  variableUnitMetadata?: VariableUnitMetadata;
+}): VariableUnitStatusRow[] {
+  const variableUnits =
+    args.variableUnitMetadata ?? buildVariableUnitMetadata(args);
+  const rows: VariableUnitStatusRow[] = [];
+
+  for (const equation of args.equations ?? []) {
+    if (isRowComment(equation)) {
+      continue;
+    }
+
+    const name = equation.name.trim();
+    if (!name) {
+      continue;
+    }
+
+    const expression = equation.expression.trim();
+    const declared = coerceUnitMeta(equation.unitMeta);
+    const declaredLabel = getEquationRowUnitLabel(name, declared);
+    let diagnostics: UnitDiagnostic[] = [];
+    let inferredLabel: string | null = null;
+    let suggestion: SuggestedEquationUnitMeta | null = null;
+
+    if (expression) {
+      try {
+        const parsed = parseEquation(name, expression);
+        diagnostics = diagnoseEquationUnits(name, parsed.sourceExpression, variableUnits);
+        const inferred = inferUnits(parsed.sourceExpression, variableUnits);
+        if (inferred.signature != null) {
+          inferredLabel = formatSignature(inferred.signature);
+        }
+      } catch {
+        // Parse errors are surfaced by validateEditorState, not this report.
+      }
+
+      suggestion = suggestEquationUnitMeta({
+        variableName: name,
+        expression,
+        variableUnitMetadata: variableUnits
+      });
+    }
+
+    rows.push({
+      variable: name,
+      source: "equation",
+      rowId: equation.id,
+      expression,
+      declared,
+      declaredLabel,
+      inferredLabel,
+      diagnostics,
+      suggestion,
+      status: resolveVariableUnitStatusKind(
+        diagnostics,
+        hasDeclaredUnitSignature(declared)
+      )
+    });
+  }
+
+  for (const external of args.externals ?? []) {
+    if (isRowComment(external)) {
+      continue;
+    }
+
+    const name = external.name.trim();
+    if (!name) {
+      continue;
+    }
+
+    const declared = coerceUnitMeta(external.unitMeta);
+    rows.push({
+      variable: name,
+      source: "external",
+      rowId: external.id,
+      declared,
+      declaredLabel: formatUnitTextForVariableName(name, declared),
+      inferredLabel: null,
+      diagnostics: [],
+      suggestion: null,
+      status: hasDeclaredUnitSignature(declared) ? "ok" : "untagged"
+    });
+  }
+
+  return rows.sort((left, right) => left.variable.localeCompare(right.variable));
+}
+
+export function applyVariableUnitMetaPatch(args: {
+  equations: EquationListItem[];
+  externals: ExternalListItem[];
+  source: "equation" | "external";
+  rowId: string;
+  unitMeta: UnitMeta | undefined;
+}): { equations: EquationListItem[]; externals: ExternalListItem[] } {
+  if (args.source === "equation") {
+    return {
+      equations: args.equations.map((equation) =>
+        equation.id === args.rowId ? { ...equation, unitMeta: args.unitMeta } : equation
+      ),
+      externals: args.externals
+    };
+  }
+
+  return {
+    equations: args.equations,
+    externals: args.externals.map((external) =>
+      external.id === args.rowId ? { ...external, unitMeta: args.unitMeta } : external
+    )
+  };
+}
+
 export function diagnoseEquationUnits(
   equationName: string,
   expression: Expr,

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyMirroredEquationUnitSuggestions,
   buildVariableUnitMetadata,
+  buildVariableUnitStatusReport,
   diagnoseEquationUnits,
   formatUnitTextForVariableName,
   getEquationRowUnitLabel,
@@ -408,6 +409,97 @@ describe("additive unit compatibility", () => {
         severity: "warning",
         message: "Cannot combine 1 with $/yr using '+'."
       }
+    ]);
+  });
+});
+
+describe("buildVariableUnitStatusReport", () => {
+  const flowMeta = { stockFlow: "flow" as const, signature: { money: 1, time: -1 } };
+  const stockMeta = { stockFlow: "stock" as const, signature: { money: 1 } };
+
+  it("marks tagged consistent equations as ok", () => {
+    const report = buildVariableUnitStatusReport({
+      equations: [
+        { id: "eq-c", name: "C", expression: "1", unitMeta: flowMeta },
+        { id: "eq-y", name: "Y", expression: "C", unitMeta: flowMeta }
+      ]
+    });
+
+    expect(report.find((row) => row.variable === "Y")).toEqual(
+      expect.objectContaining({
+        source: "equation",
+        declaredLabel: "$/yr",
+        inferredLabel: "$/yr",
+        status: "ok",
+        diagnostics: []
+      })
+    );
+  });
+
+  it("marks untagged equations and reports expression suggestions", () => {
+    const report = buildVariableUnitStatusReport({
+      equations: [
+        { id: "eq-c", name: "C", expression: "1", unitMeta: flowMeta },
+        { id: "eq-i", name: "I", expression: "1", unitMeta: flowMeta },
+        { id: "eq-y", name: "Y", expression: "C + I" }
+      ]
+    });
+
+    expect(report.find((row) => row.variable === "Y")).toEqual(
+      expect.objectContaining({
+        source: "equation",
+        declaredLabel: null,
+        inferredLabel: "$/yr",
+        status: "untagged",
+        suggestion: { signature: { money: 1, time: -1 } }
+      })
+    );
+  });
+
+  it("surfaces unit mismatch warnings on defining equations", () => {
+    const report = buildVariableUnitStatusReport({
+      equations: [
+        { id: "eq-c", name: "C", expression: "1", unitMeta: flowMeta },
+        { id: "eq-v", name: "V", expression: "C", unitMeta: stockMeta }
+      ]
+    });
+
+    expect(report.find((row) => row.variable === "V")).toEqual(
+      expect.objectContaining({
+        status: "warning",
+        declaredLabel: "$",
+        inferredLabel: "$/yr",
+        diagnostics: [
+          expect.objectContaining({
+            severity: "warning",
+            message: expect.stringContaining("has units $ but its RHS infers")
+          })
+        ]
+      })
+    );
+  });
+
+  it("includes externals and marks untagged parameters", () => {
+    const report = buildVariableUnitStatusReport({
+      externals: [
+        { id: "ext-alpha", name: "alpha1", kind: "constant", valueText: "0.8", unitMeta: flowMeta },
+        { id: "ext-beta", name: "beta", kind: "constant", valueText: "0.2" }
+      ]
+    });
+
+    expect(report).toEqual([
+      expect.objectContaining({
+        variable: "alpha1",
+        source: "external",
+        declaredLabel: "$/yr",
+        status: "ok"
+      }),
+      expect.objectContaining({
+        variable: "beta",
+        source: "external",
+        declaredLabel: null,
+        status: "untagged"
+      })
     ]);
   });
 });
