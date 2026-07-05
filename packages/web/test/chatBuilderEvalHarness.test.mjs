@@ -23,7 +23,7 @@ describe("chat-builder eval harness", () => {
   it("builds a semantic index for the SIM notebook", () => {
     const index = buildSemanticNotebookIndex(simNotebook);
 
-    expect(index.title).toContain("SIM");
+    expect(index.title.toLowerCase()).toContain("sim");
     expect(index.featureTags).toContain("baseline");
     expect(index.featureTags).toContain("scenario");
     expect(index.models[0].variables).toEqual(

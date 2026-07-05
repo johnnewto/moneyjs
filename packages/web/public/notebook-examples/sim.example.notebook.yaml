@@ -1,7 +1,7 @@
 format: sfcr-notebook-yaml
 formatVersion: 1
-id: sim-notebook
-title: SIM Browser Notebook
+id: sim
+title: sim
 metadata:
   version: 1
   template: sim
@@ -121,11 +121,12 @@ cells:
           transactionMatrixCellId: transactions-flow
           balanceMatrixCellId: balance-sheet
       description: Dependency view of the SIM equations. Lagged stock terms keep the dynamic stock accumulation outside same-period dependency cycles.
+      collapsed: true
   - equations:
       id: equations-sim
       title: SIM equations
       modelId: sim
-      collapsed: true
+      collapsed: false
       more: |
         These eleven equations are model SIM exactly as written in Godley & Lavoie
         (equations 3.1–3.11). They fall into a few natural groups:
@@ -154,17 +155,17 @@ cells:
         solver — it _emerges_, and checking it holds is how you know the accounting is
         watertight.
       rows:
-        - [TXs, TXd, "Taxes paid by households.", "", "", identity, eq-0-txs]
-        - [YD, W * Ns - TXs, "Disposable income.", "", "", definition, eq-1-yd]
-        - [Cd, alpha1 * YD + alpha2 * lag(Hh), "Household consumption demand.", "", "", behavioral, eq-2-cd]
-        - [Hh, YD - Cd + lag(Hh), "Household money holdings.", "", "", accumulation, eq-3-hh]
+        - [TXs, TXd, "Taxes paid by households.", $/year, flow, identity, eq-0-txs]
+        - [YD, W * Ns - TXs, "Disposable income.", $/year, flow, definition, eq-1-yd]
+        - [Cd, alpha1 * YD + alpha2 * lag(Hh), "Household consumption demand.", $/year, flow, behavioral, eq-2-cd]
+        - [Hh, I(YD - Cd), "Household money holdings.", $, stock, accumulation, eq-3-hh]
         - [Ns, Nd, "Labor supply.", "", "", identity, eq-4-ns]
         - [Nd, Y / W, "Labor demand.", "", "", definition, eq-5-nd]
-        - [Cs, Cd, "Consumption supply.", "", "", identity, eq-6-cs]
-        - [Gs, Gd, "Government goods supply.", "", "", identity, eq-7-gs]
-        - [Y, Cs + Gs, "Output.", "", "", identity, eq-8-y]
-        - [TXd, theta * W * Ns, "Tax demand.", "", "", definition, eq-9-txd]
-        - [Hs, Gd - TXd + lag(Hs), "Government money supply.", "", "", accumulation, eq-10-hs]
+        - [Cs, Cd, "Consumption supply.", $/year, flow, identity, eq-6-cs]
+        - [Gs, Gd, "Government goods supply.", $/year, flow, identity, eq-7-gs]
+        - [Y, Cs + Gs, "Output.", $/year, "", identity, eq-8-y]
+        - [TXd, theta * W * Ns, "Tax demand.", $/year, flow, definition, eq-9-txd]
+        - [Hs, I(Gd - TXd), "Government money supply.", $, stock, accumulation, eq-10-hs]
   - solver:
       id: solver-sim
       title: Solver options
@@ -213,8 +214,8 @@ cells:
         `Hh* / YD* = (1 - alpha1) / alpha2 = 1`, so in the stationary state households
         hold money equal to one year of disposable income.
       rows:
-        - [Gd, 20, "Government expenditure.", "", "", ext-0-gd]
-        - [W, 1, "Wage rate.", "", "", ext-1-w]
+        - [Gd, 20, "Government expenditure.", $/year, flow, ext-0-gd]
+        - [W, 1, "Wage rate.", $/year, flow, ext-1-w]
         - [alpha1, 0.6, "Propensity to consume from current disposable income."]
         - [alpha2, 0.4, "Propensity to consume from lagged money holdings."]
         - [theta, 0.2, "Tax rate."]

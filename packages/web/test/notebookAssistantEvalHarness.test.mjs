@@ -1,11 +1,12 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import simNotebook from "../public/notebook-examples/sim.example.notebook.json";
 import {
   listFixtures,
+  loadEvaluatorModule,
   loadFixture,
   runNotebookAssistantEval
 } from "../evals/notebook-assistant/lib.mjs";
@@ -16,6 +17,10 @@ import {
 import { evaluateNotebookAssistantResponse } from "../src/notebook/notebookAssistantEval";
 
 describe("notebook assistant eval harness", () => {
+  beforeAll(async () => {
+    await loadEvaluatorModule();
+  }, 30000);
+
   it("lists the seed fixtures", async () => {
     await expect(listFixtures()).resolves.toEqual(
       expect.arrayContaining(["ask-list-runs", "edit-change-alpha1", "edit-add-chart", "edit-extend-runs", "edit-add-equation"])

@@ -1,15 +1,7 @@
-# SIM notebook. Explanatory "[more]" panels live inline on each cell as a
-# `more: |` block scalar (there is no separate sim.md sidecar). The build script
-# (app/scripts/build-notebook-data.mjs) reads these and the moneyjs YAML parser
-# ignores the field. Panels render via AssistantMarkdown — use backticks, not
-# LaTeX, and `pow(b, e)` rather than `^`.
-#
-# Reference: Godley, W. and Lavoie, M. (2007), _Monetary Economics_, Palgrave
-# Macmillan, Chapter 3 ("The Simplest Model with Government Money", model SIM).
 format: sfcr-notebook-yaml
 formatVersion: 1
-id: sim-notebook
-title: SIM Browser Notebook
+id: sim
+title: sim
 metadata:
   version: 1
   template: sim
@@ -17,10 +9,8 @@ cells:
   - markdown:
       id: intro
       title: Overview
-      source: >
-        This notebook implements the SIM model from Godley and Lavoie chapter 3. 
-        It includes the baseline model, a government-spending shock scenario, 
-        accounting matrices, and result views for the main income, consumption, and stock variables.
+      source: |
+        This notebook implements the SIM model from Godley and Lavoie chapter 3.  It includes the baseline model, a government-spending shock scenario,  accounting matrices, and result views for the main income, consumption, and stock variables.
       more: |
         The **SIM** model — Godley & Lavoie's _"Simplest model with government money"_
         (_Monetary Economics_, 2007, chapter 3) — is the smallest complete stock-flow
@@ -46,16 +36,9 @@ cells:
         ![The SIM money circuit: government spending and wages inject money into households, while consumption and taxes flow back to firms and government; the gap accumulates as household money.](figures/sim-circuit.svg)
   - matrix:
       id: balance-sheet
-      accountingKind: balance-sheet
+      sourceRunCellId: baseline-run
       title: SIM balance sheet
       description: Compact balance sheet for the SIM model. Household money holdings mirror government money liabilities.
-      sourceRunCellId: baseline-run
-      columns: [Households, Government, Sum]
-      sectors: [Households, Government, ""]
-      rows:
-        - [Money, Money stock, +Hh, -Hs, "0"]
-        - [Balance, Net worth, -Hh, +Hs, "0"]
-        - [Sum, Sum, "0", "0", "0"]
       more: |
         This is the SIM **balance sheet** (Table 3.1 in Godley & Lavoie). At any point in
         time the only asset in the whole economy is government money. Households hold it
@@ -72,21 +55,18 @@ cells:
         Money is "outside" wealth: it is simultaneously private net worth and public
         debt. There is no real capital to back it, which is exactly what makes SIM the
         _simplest_ possible closed financial system.
+      columns: [Households, Government, Sum]
+      sectors: [Households, Government, ""]
+      accountingKind: balance-sheet
+      rows:
+        - [Money, Money stock, +Hh, -Hs, "0"]
+        - [Balance, Net worth, -Hh, +Hs, "0"]
+        - [Sum, Sum, "0", "0", "0"]
   - matrix:
       id: transaction-flow
-      accountingKind: transaction-flow
+      sourceRunCellId: baseline-run
       title: SIM transactions-flow matrix
       description: Transactions-flow matrix for the SIM model, arranged around households, production, and government.
-      sourceRunCellId: baseline-run
-      columns: [Households, Production, Government, Sum]
-      sectors: [Households, Firms, Government, ""]
-      rows:
-        - [Consumption, Consumption, -Cd, +Cs, "", "0"]
-        - [Government, Government expenditure, "", +Gs, -Gd, "0"]
-        - [Income, Wages, +W * Ns, -W * Ns, "", "0"]
-        - [Taxes, Taxes, -TXs, "", +TXd, "0"]
-        - [Money, Change in money stock, +d(Hh), "", -d(Hs), "0"]
-        - [Sum, Sum, "0", "0", "0", "0"]
       more: |
         The **transactions-flow matrix** (Table 3.2 in Godley & Lavoie) is the heart of
         the SFC method, and the single most important object in chapter 3. Every cell is
@@ -106,6 +86,16 @@ cells:
         household saving `d(Hh)` is exactly mirrored by the change in government-issued
         money `-d(Hs)`. That mirroring is the model's consistency check (see the solver
         note below).
+      columns: [Households, Production, Government, Sum]
+      sectors: [Households, Firms, Government, ""]
+      accountingKind: transaction-flow
+      rows:
+        - [Consumption, Consumption, -Cd, +Cs, "", "0"]
+        - [Government, Government expenditure, "", +Gs, -Gd, "0"]
+        - [Income, Wages, +W * Ns, -W * Ns, "", "0"]
+        - [Taxes, Taxes, -TXs, "", +TXd, "0"]
+        - [Money, Change in money stock, +d(Hh), "", -d(Hs), "0"]
+        - [Sum, Sum, "0", "0", "0", "0"]
   - sequence:
       id: transaction-flow-sequence
       title: SIM transaction flow sequence
@@ -131,23 +121,12 @@ cells:
           transactionMatrixCellId: transaction-flow
           balanceMatrixCellId: balance-sheet
       description: Dependency view of the SIM equations. Lagged stock terms keep the dynamic stock accumulation outside same-period dependency cycles.
+      collapsed: true
   - equations:
       id: equations
       title: SIM equations
       modelId: sim
-      collapsed: true
-      rows:
-        - [TXs, TXd, "Taxes paid by households.", "", "", identity, eq-0-txs]
-        - [YD, W * Ns - TXs, "Disposable income.", "", "", definition, eq-1-yd]
-        - [Cd, alpha1 * YD + alpha2 * lag(Hh), "Household consumption demand.", "", "", behavioral, eq-2-cd]
-        - [Hh, YD - Cd + lag(Hh), "Household money holdings.", "", "", accumulation, eq-3-hh]
-        - [Ns, Nd, "Labor supply.", "", "", identity, eq-4-ns]
-        - [Nd, Y / W, "Labor demand.", "", "", definition, eq-5-nd]
-        - [Cs, Cd, "Consumption supply.", "", "", identity, eq-6-cs]
-        - [Gs, Gd, "Government goods supply.", "", "", identity, eq-7-gs]
-        - [Y, Cs + Gs, "Output.", "", "", identity, eq-8-y]
-        - [TXd, theta * W * Ns, "Tax demand.", "", "", definition, eq-9-txd]
-        - [Hs, Gd - TXd + lag(Hs), "Government money supply.", "", "", accumulation, eq-10-hs]
+      collapsed: false
       more: |
         These eleven equations are model SIM exactly as written in Godley & Lavoie
         (equations 3.1–3.11). They fall into a few natural groups:
@@ -175,19 +154,23 @@ cells:
         holdings always equal government-issued money. It is never imposed on the
         solver — it _emerges_, and checking it holds is how you know the accounting is
         watertight.
+      rows:
+        - [TXs, TXd, "Taxes paid by households.", $/year, flow, identity, eq-0-txs]
+        - [YD, W * Ns - TXs, "Disposable income.", $/year, flow, definition, eq-1-yd]
+        - [Cd, alpha1 * YD + alpha2 * lag(Hh), "Household consumption demand.", $/year, flow, behavioral, eq-2-cd]
+        - [Hh, I(YD - Cd), "Household money holdings.", $, stock, accumulation, eq-3-hh]
+        - [Ns, Nd, "Labor supply.", "", "", identity, eq-4-ns]
+        - [Nd, Y / W, "Labor demand.", "", "", definition, eq-5-nd]
+        - [Cs, Cd, "Consumption supply.", $/year, flow, identity, eq-6-cs]
+        - [Gs, Gd, "Government goods supply.", $/year, flow, identity, eq-7-gs]
+        - [Y, Cs + Gs, "Output.", $/year, "", identity, eq-8-y]
+        - [TXd, theta * W * Ns, "Tax demand.", $/year, flow, definition, eq-9-txd]
+        - [Hs, I(Gd - TXd), "Government money supply.", $, stock, accumulation, eq-10-hs]
   - solver:
       id: solver
       title: Solver options
       modelId: sim
       collapsed: true
-      method: broyden
-      tolerance: "1e-8"
-      maxIterations: 350
-      defaultInitialValue: "1e-15"
-      hiddenLeftVariable: Hh
-      hiddenRightVariable: Hs
-      hiddenTolerance: "1e-5"
-      relativeHiddenTolerance: false
       more: |
         SIM is solved period by period: lagged stocks (`lag(Hh)`, `lag(Hs)`) are known
         from the previous period, and the within-period equations are solved
@@ -200,17 +183,19 @@ cells:
         household money stock and government money stock agree every period. If they ever
         diverged, the model's accounting would be leaking. This is the numerical
         embodiment of Godley & Lavoie's "watertight" claim.
+      method: broyden
+      tolerance: "1e-8"
+      maxIterations: 350
+      defaultInitialValue: "1e-15"
+      hiddenLeftVariable: Hh
+      hiddenRightVariable: Hs
+      hiddenTolerance: "1e-5"
+      relativeHiddenTolerance: false
   - externals:
       id: externals
       title: Externals
       modelId: sim
       collapsed: true
-      rows:
-        - [Gd, 20, "Government expenditure.", "", "", ext-0-gd]
-        - [W, 1, "Wage rate.", "", "", ext-1-w]
-        - [alpha1, 0.6, "Propensity to consume from current disposable income."]
-        - [alpha2, 0.4, "Propensity to consume from lagged money holdings."]
-        - [theta, 0.2, "Tax rate."]
       more: |
         These are the exogenous parameters and policy levers of SIM, with the values used
         throughout Godley & Lavoie chapter 3:
@@ -228,6 +213,12 @@ cells:
         `Y* = Gd / theta = 100`. The **steady-state wealth norm** is
         `Hh* / YD* = (1 - alpha1) / alpha2 = 1`, so in the stationary state households
         hold money equal to one year of disposable income.
+      rows:
+        - [Gd, 20, "Government expenditure.", $/year, flow, ext-0-gd]
+        - [W, 1, "Wage rate.", $/year, flow, ext-1-w]
+        - [alpha1, 0.6, "Propensity to consume from current disposable income."]
+        - [alpha2, 0.4, "Propensity to consume from lagged money holdings."]
+        - [theta, 0.2, "Tax rate."]
   - initial-values:
       id: initial-values
       title: Initial values
@@ -252,17 +243,6 @@ cells:
   - chart:
       id: baseline-chart
       title: Baseline income, consumption, and money
-      variables:
-        - Y
-        - YD
-        - Cd
-        - Hh
-      axisMode: shared
-      referenceTrace: none
-      timeRangeInclusive:
-        - 1
-        - 60
-      sourceRunCellId: baseline-run
       more: |
         In the baseline, government spending `Gd` is held constant at `20`. Output `Y`
         and disposable income `YD` rise quickly at first and then converge to a steady
@@ -277,9 +257,27 @@ cells:
         stock to `Hh* = 80` (one year of disposable income, the wealth norm
         `(1 - alpha1) / alpha2 = 1`). In the steady state `TXd = Gd = 20`: **the budget
         is balanced and no new money is created.**
+      variables:
+        - Y
+        - YD
+        - Cd
+        - Hh
+      axisMode: shared
+      referenceTrace: none
+      timeRangeInclusive:
+        - 1
+        - 60
+      sourceRunCellId: baseline-run
   - table:
       id: baseline-table
       title: Baseline SIM summary
+      more: |
+        The table makes the convergence concrete. Watch `Hh` flatten as the increments
+        `YD - Cd` shrink toward zero, and watch `TXd` rise from below `Gd` (a deficit
+        that creates money while the economy is growing) up to exactly `Gd = 20` (the
+        balanced budget of the stationary state). The gap `Gd - TXd` in any row _is_ that
+        period's newly created money — and it is what households are simultaneously
+        saving.
       variables:
         - Y
         - YD
@@ -288,13 +286,6 @@ cells:
         - TXd
         - Gd
       sourceRunCellId: baseline-run
-      more: |
-        The table makes the convergence concrete. Watch `Hh` flatten as the increments
-        `YD - Cd` shrink toward zero, and watch `TXd` rise from below `Gd` (a deficit
-        that creates money while the economy is growing) up to exactly `Gd = 20` (the
-        balanced budget of the stationary state). The gap `Gd - TXd` in any row _is_ that
-        period's newly created money — and it is what households are simultaneously
-        saving.
   - markdown:
       id: scenario-note
       title: Scenario 1
@@ -318,6 +309,8 @@ cells:
               Gd:
                 kind: constant
                 value: 30
+            startPeriodInclusive: 5
+            endPeriodInclusive: 60
       baselineRunCellId: baseline-run
       periods: 60
       resultKey: sim_scenario_gd_30
@@ -331,18 +324,6 @@ cells:
   - chart:
       id: scenario-chart
       title: Scenario 1 output and fiscal variables
-      variables:
-        - Y
-        - YD
-        - Cd
-        - Hh
-        - Gd
-      axisMode: shared
-      referenceTrace: baseline
-      timeRangeInclusive:
-        - 1
-        - 60
-      sourceRunCellId: scenario-run
       more: |
         Scenario 1 raises `Gd` from `20` to `30` starting in period 5. The economy
         transitions to a **new, higher** steady state. The long-run multiplier is
@@ -355,9 +336,28 @@ cells:
         in the shock period is much smaller than the eventual `5`, because consumption out
         of newly accumulated wealth feeds through only gradually. Output approaches the
         new stationary state asymptotically rather than jumping to it.
+      variables:
+        - Y
+        - YD
+        - Cd
+        - Hh
+        - Gd
+      axisMode: shared
+      referenceTrace: baseline
+      timeRangeInclusive:
+        - 1
+        - 60
+      sourceRunCellId: scenario-run
   - table:
       id: scenario-table
       title: Scenario 1 SIM summary
+      more: |
+        Compare the closing rows against the baseline: every stationary-state value is
+        exactly `1.5x` its baseline counterpart, since both `Y* = Gd / theta` and
+        `Hh* = YD*` scale linearly with `Gd`. The budget rebalances at the higher level —
+        `TXd` climbs to meet the new `Gd = 30` — confirming that a _permanent_ change in
+        the fiscal stance leaves the long-run budget balanced while permanently raising
+        output, income, and the stock of money.
       variables:
         - Gd
         - Y
@@ -367,24 +367,11 @@ cells:
         - TXd
         - Hs
       sourceRunCellId: scenario-run
-      more: |
-        Compare the closing rows against the baseline: every stationary-state value is
-        exactly `1.5x` its baseline counterpart, since both `Y* = Gd / theta` and
-        `Hh* = YD*` scale linearly with `Gd`. The budget rebalances at the higher level —
-        `TXd` climbs to meet the new `Gd = 30` — confirming that a _permanent_ change in
-        the fiscal stance leaves the long-run budget balanced while permanently raising
-        output, income, and the stock of money.
   - markdown:
       id: growth-note
       title: "Appendix 3.4: Government deficits in a growing economy"
-      source: >
-        Appendix 3.4 of Godley and Lavoie asks whether sustained government
-        deficits are a problem. In a _growing_ economy they are normal: if
-        government expenditure grows at a constant rate `g`, all stocks and flows
-        eventually grow at `g`, the stock of money (government debt) grows at `g`
-        too, and the government therefore runs a _permanent_ deficit while the
-        debt-to-income ratio settles at a constant level. Here `Gd` grows at 3%
-        per period, starting from the stationary baseline.
+      source: |
+        Appendix 3.4 of Godley and Lavoie asks whether sustained government deficits are a problem. In a _growing_ economy they are normal: if government expenditure grows at a constant rate `g`, all stocks and flows eventually grow at `g`, the stock of money (government debt) grows at `g` too, and the government therefore runs a _permanent_ deficit while the debt-to-income ratio settles at a constant level. Here `Gd` grows at 3% per period, starting from the stationary baseline.
       more: |
         This section reproduces **Appendix 3.4** of Godley & Lavoie, _"Government
         deficits in a growing economy"_. The stationary state studied above has a
@@ -417,7 +404,69 @@ cells:
             variables:
               Gd:
                 kind: series
-                values: [20, 20.6, 21.218, 21.8545, 22.5102, 23.1855, 23.881, 24.5975, 25.3354, 26.0955, 26.8783, 27.6847, 28.5152, 29.3707, 30.2518, 31.1593, 32.0941, 33.057, 34.0487, 35.0701, 36.1222, 37.2059, 38.3221, 39.4717, 40.6559, 41.8756, 43.1318, 44.4258, 45.7586, 47.1313, 48.5452, 50.0016, 51.5017, 53.0467, 54.6381, 56.2772, 57.9656, 59.7045, 61.4957, 63.3405, 65.2408, 67.198, 69.2139, 71.2903, 73.429, 75.6319, 77.9009, 80.2379, 82.645, 85.1244, 87.6781, 90.3085, 93.0177, 95.8082, 98.6825, 101.643, 104.6923, 107.833, 111.068, 114.4001]
+                values:
+                  - 20
+                  - 20.6
+                  - 21.218
+                  - 21.8545
+                  - 22.5102
+                  - 23.1855
+                  - 23.881
+                  - 24.5975
+                  - 25.3354
+                  - 26.0955
+                  - 26.8783
+                  - 27.6847
+                  - 28.5152
+                  - 29.3707
+                  - 30.2518
+                  - 31.1593
+                  - 32.0941
+                  - 33.057
+                  - 34.0487
+                  - 35.0701
+                  - 36.1222
+                  - 37.2059
+                  - 38.3221
+                  - 39.4717
+                  - 40.6559
+                  - 41.8756
+                  - 43.1318
+                  - 44.4258
+                  - 45.7586
+                  - 47.1313
+                  - 48.5452
+                  - 50.0016
+                  - 51.5017
+                  - 53.0467
+                  - 54.6381
+                  - 56.2772
+                  - 57.9656
+                  - 59.7045
+                  - 61.4957
+                  - 63.3405
+                  - 65.2408
+                  - 67.198
+                  - 69.2139
+                  - 71.2903
+                  - 73.429
+                  - 75.6319
+                  - 77.9009
+                  - 80.2379
+                  - 82.645
+                  - 85.1244
+                  - 87.6781
+                  - 90.3085
+                  - 93.0177
+                  - 95.8082
+                  - 98.6825
+                  - 101.643
+                  - 104.6923
+                  - 107.833
+                  - 111.068
+                  - 114.4001
+            startPeriodInclusive: 1
+            endPeriodInclusive: 60
       baselineRunCellId: baseline-run
       periods: 60
       resultKey: sim_growth_gd_3pc
@@ -433,17 +482,6 @@ cells:
   - chart:
       id: growth-chart
       title: "Appendix 3.4: output, spending, taxes, and money under growth"
-      variables:
-        - Y
-        - Gd
-        - TXd
-        - Hh
-      axisMode: shared
-      referenceTrace: none
-      timeRangeInclusive:
-        - 1
-        - 60
-      sourceRunCellId: growth-run
       more: |
         Government spending `Gd` grows at `3%` per period, and after an initial
         adjustment `Y`, `TXd` and the money stock `Hh` all settle onto the same `3%`
@@ -458,17 +496,20 @@ cells:
           `(1 - alpha1)(1 + g) / (g + alpha2) ≈ 0.96` — slightly _below_ the stationary
           norm of `1`, because in a growing economy households are forever rebuilding
           wealth against a rising income.
+      variables:
+        - Y
+        - Gd
+        - TXd
+        - Hh
+      axisMode: shared
+      referenceTrace: none
+      timeRangeInclusive:
+        - 1
+        - 60
+      sourceRunCellId: growth-run
   - table:
       id: growth-table
       title: "Appendix 3.4: growing-economy summary"
-      variables:
-        - Gd
-        - TXd
-        - Y
-        - YD
-        - Hh
-        - Hs
-      sourceRunCellId: growth-run
       more: |
         Read down the columns and two ratios reveal the steady-growth state. First, the
         period-to-period ratio of any column (e.g. `Y` to its previous value) approaches
@@ -477,3 +518,11 @@ cells:
         holds steady. This is the heart of Appendix 3.4: **a constant deficit ratio and a
         constant debt ratio are perfectly consistent with one another once the economy is
         growing.**
+      variables:
+        - Gd
+        - TXd
+        - Y
+        - YD
+        - Hh
+        - Hs
+      sourceRunCellId: growth-run
