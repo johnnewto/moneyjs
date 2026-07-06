@@ -40,7 +40,8 @@ export const NOTEBOOK_CELL_TYPES = new Set<NotebookCell["type"]>([
   "chart-grid",
   "table",
   "matrix",
-  "sequence"
+  "sequence",
+  "sankey"
 ]);
 
 export interface CompactYamlFormatOptions {

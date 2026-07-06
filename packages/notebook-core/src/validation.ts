@@ -12,6 +12,7 @@ import type {
   NotebookCell,
   NotebookDocument,
   RunCell,
+  SankeyCell,
   SequenceCell
 } from "./types";
 
@@ -46,7 +47,8 @@ const CELL_TYPE_SCHEMA_BRANCH: Record<string, number> = {
   chart: 6,
   table: 7,
   matrix: 8,
-  sequence: 9
+  sequence: 9,
+  sankey: 10
 };
 
 function filterSchemaErrors(value: unknown, errors: ErrorObject[]): ErrorObject[] {
@@ -250,6 +252,10 @@ function validateCellReferences(
   if (cell.type === "sequence") {
     validateSequenceCellReferences(cell, context);
   }
+
+  if (cell.type === "sankey") {
+    validateSankeyCellReferences(cell, context);
+  }
 }
 
 function validateRunCellReferences(
@@ -306,6 +312,20 @@ function validateSequenceCellReferences(
   const modelId = cell.source.modelId ?? cell.source.sourceModelId;
   if (modelId && !context.sectionModelIds.has(modelId)) {
     context.issues.push(createNotebookIssue(`Sequence cell '${cell.id}' references missing model id '${modelId}'.`));
+  }
+}
+
+function validateSankeyCellReferences(
+  cell: SankeyCell,
+  context: {
+    issues: NotebookValidationIssue[];
+    matrixCellIds: Set<string>;
+  }
+): void {
+  if (cell.source.kind === "matrix" && !context.matrixCellIds.has(cell.source.matrixCellId)) {
+    context.issues.push(
+      createNotebookIssue(`Sankey cell '${cell.id}' references missing matrix '${cell.source.matrixCellId}'.`)
+    );
   }
 }
 

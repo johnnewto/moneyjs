@@ -198,6 +198,7 @@ cells:
       title: "Table 3: input-output matrix"
       description: Simplified input-output matrix with value-added decomposition for Model 3IO-PC.
       note: Validated against `4_IO_Table.R` at period 10 in the Florence R fixture. This is not an SFC sector matrix — leave `sectors` unset (do not copy the trailing blank sector used for Sum columns on balance-sheet matrices).
+      accountingKind: input-output
       columns: [Agriculture (demand), Manufacturing (demand), Services (demand), Final demand, Output]
       rows:
         - [Intermediate, Agriculture (production), x1 * a11 * p1, x2 * a12 * p1, x3 * a13 * p1, d1 * p1, x1 * a11 * p1 + x2 * a12 * p1 + x3 * a13 * p1 + d1 * p1]
@@ -207,6 +208,25 @@ cells:
         - [Value added, "- Labour income", w * x1 / pr1, w * x2 / pr2, w * x3 / pr3, w * x1 / pr1 + w * x2 / pr2 + w * x3 / pr3, ""]
         - [Value added, "- Capital income", mu * x1 * (a11 * p1 + a21 * p2 + a31 * p3), mu * x2 * (a12 * p1 + a22 * p2 + a32 * p3), mu * x3 * (a13 * p1 + a23 * p2 + a33 * p3), mu * (x1 * (a11 * p1 + a21 * p2 + a31 * p3) + x2 * (a12 * p1 + a22 * p2 + a32 * p3) + x3 * (a13 * p1 + a23 * p2 + a33 * p3)), ""]
         - [Output, Output, x1 * p1, x2 * p2, x3 * p3, "", p1 * x1 + p2 * x2 + p3 * x3]
+  - markdown:
+      id: sankey-note
+      title: Sankey snapshots
+      source: |
+        Following `references/keynote_speech_Florence/5_Sankey_TFM_IO.R`, these Sankey diagrams are auto-generated from the transactions-flow matrix and Table 3 at the selected simulation period (period 5 in the keynote).
+  - sankey:
+      id: tfm-sankey
+      title: Macro transaction-flow Sankey
+      description: Auto-generated from the 3IO-PC transactions-flow matrix using the `sfcr_sankey` sector outflow → flow → sector inflow layout.
+      source:
+        kind: matrix
+        matrixCellId: transaction-flow
+  - sankey:
+      id: io-sankey
+      title: Cross-industry IO Sankey
+      description: Auto-generated from Table 3 with industry output → product market → inputs and final demand.
+      source:
+        kind: matrix
+        matrixCellId: input-output-table
   - markdown:
       id: scenario-1-note
       title: Government spending scenario

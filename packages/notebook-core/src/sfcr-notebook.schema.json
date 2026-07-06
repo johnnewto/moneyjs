@@ -364,6 +364,17 @@
         }
       ]
     },
+    "sankeySource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "matrixCellId"],
+      "properties": {
+        "kind": { "const": "matrix" },
+        "matrixCellId": { "type": "string" },
+        "sourceRunCellId": { "type": "string" },
+        "includeZeroFlows": { "type": "boolean" }
+      }
+    },
     "cell": {
       "type": "object",
       "additionalProperties": false,
@@ -383,7 +394,8 @@
             "chart-grid",
             "table",
             "matrix",
-            "sequence"
+            "sequence",
+            "sankey"
           ]
         },
         "title": { "type": "string", "minLength": 1 },
@@ -395,9 +407,7 @@
           "type": "array",
           "items": { "type": "string" }
         },
-        "source": {
-          "oneOf": [{ "type": "string" }, { "$ref": "#/$defs/sequenceSource" }]
-        },
+        "source": {},
         "modelId": { "type": "string" },
         "equations": {
           "type": "array",
@@ -535,7 +545,7 @@
         },
         "accountingKind": {
           "type": "string",
-          "enum": ["balance-sheet", "transaction-flow", "account-transactions"]
+          "enum": ["balance-sheet", "transaction-flow", "account-transactions", "input-output"]
         },
         "columns": {
           "type": "array",
@@ -565,7 +575,10 @@
       "allOf": [
         {
           "if": { "properties": { "type": { "const": "markdown" } } },
-          "then": { "required": ["source"] }
+          "then": {
+            "required": ["source"],
+            "properties": { "source": { "type": "string" } }
+          }
         },
         {
           "if": { "properties": { "type": { "const": "equations" } } },
@@ -615,7 +628,17 @@
         },
         {
           "if": { "properties": { "type": { "const": "sequence" } } },
-          "then": { "required": ["source"] }
+          "then": {
+            "required": ["source"],
+            "properties": { "source": { "$ref": "#/$defs/sequenceSource" } }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "sankey" } } },
+          "then": {
+            "required": ["source"],
+            "properties": { "source": { "$ref": "#/$defs/sankeySource" } }
+          }
         }
       ]
     }

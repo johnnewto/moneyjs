@@ -30,6 +30,7 @@ import type {
   ModelCell,
   NotebookCell,
   RunCell,
+  SankeyCell,
   SequenceCell,
   SolverCell,
   TableCell
@@ -329,6 +330,15 @@ export function buildSourceHelperActions(
           label: "CLD source",
           insert: '"source": {\n  "kind": "cld",\n  "modelId": "main"\n}'
         },
+        { label: "Collapsed true", insert: '"collapsed": true' }
+      ];
+    case "sankey":
+      return [
+        {
+          label: "Matrix source",
+          insert: '"source": {\n  "kind": "matrix",\n  "matrixCellId": "matrix-1"\n}'
+        },
+        { label: "Include zero flows", insert: '"includeZeroFlows": true' },
         { label: "Collapsed true", insert: '"collapsed": true' }
       ];
     case "equations":
@@ -635,6 +645,16 @@ Source can be:
 
 Optional:
 - participantColumnOrder: string[] for the default multiport participant order`;
+    case "sankey":
+      return `Required fields:
+- title
+- id
+- type: "sankey"
+- source: { "kind": "matrix", "matrixCellId": "matrix-1" }
+
+Behavior:
+- Transaction-flow matrices use the sfcr_sankey sector outflow → flow → sector inflow layout.
+- Input-output matrices (accountingKind: input-output) use output → market → inputs / final demand.`;
     case "model":
       return "";
   }
@@ -655,6 +675,10 @@ export function getNotebookHelpTopicIdForCell(cell: NotebookCell): NotebookHelpT
 
   if (cell.type === "chart-grid") {
     return "chart";
+  }
+
+  if (cell.type === "sankey") {
+    return "sequence";
   }
 
   return cell.type;
@@ -1074,6 +1098,17 @@ function validateCellSourceShape(
         throw new Error(
           `${source.kind === "cld" ? "CLD" : "Dependency"} sequence sources require modelId, sourceModelId, or sourceModelCellId.`
         );
+      }
+      return;
+    case "sankey":
+      if (!(parsed as SankeyCell).source || typeof (parsed as SankeyCell).source !== "object") {
+        throw new Error("Sankey cells require a source object.");
+      }
+      if ((parsed as SankeyCell).source.kind !== "matrix") {
+        throw new Error("Sankey cells currently require a matrix source.");
+      }
+      if (typeof (parsed as SankeyCell).source.matrixCellId !== "string") {
+        throw new Error("Sankey matrix sources require matrixCellId.");
       }
       return;
     case "markdown":

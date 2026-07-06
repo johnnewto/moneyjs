@@ -2543,3 +2543,26 @@
   padding: 0.8rem 0.9rem;
   white-space: pre-wrap;
 }
+
+.sankey-cell-view,
+.publication-sankey {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.sankey-cell-caption {
+  color: var(--text-secondary, #64748b);
+  font-size: 0.92rem;
+  margin: 0;
+}
+
+.sankey-diagram-canvas {
+  display: block;
+  max-width: 100%;
+}
+
+.sankey-diagram-empty,
+.sankey-diagram-errors {
+  color: var(--text-secondary, #64748b);
+  font-size: 0.92rem;
+}

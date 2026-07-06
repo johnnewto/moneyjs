@@ -567,6 +567,18 @@ function createNotebookCellForInsert(
         source: { kind: "plantuml", source: "" }
       };
     }
+    case "sankey": {
+      const matrixCell = resolveDefaultMatrixCell(cells, anchorIndex);
+      return {
+        id: createUniqueNotebookCellId(cells, "sankey"),
+        type: "sankey",
+        title: "New sankey",
+        source: {
+          kind: "matrix",
+          matrixCellId: matrixCell?.id ?? "matrix"
+        }
+      };
+    }
   }
 }
 
@@ -2136,7 +2148,9 @@ export function NotebookApp() {
           ? "externals"
           : args.cellType === "chart-grid"
             ? "chart"
-            : args.cellType
+            : args.cellType === "sankey"
+              ? "sequence"
+              : args.cellType
     );
     setIsHelpContentsVisible(false);
     selectNotebookCell(args.cellId);

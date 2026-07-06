@@ -142,7 +142,8 @@ export type NotebookCell =
   | ChartGridCell
   | TableCell
   | MatrixCell
-  | SequenceCell;
+  | SequenceCell
+  | SankeyCell;
 
 export interface NotebookCellBase {
   collapsed?: boolean;
@@ -312,7 +313,7 @@ export interface MatrixColumnTreeNode {
 
 export interface MatrixCell extends NotebookCellBase {
   type: "matrix";
-  accountingKind?: "transaction-flow" | "balance-sheet" | "account-transactions";
+  accountingKind?: "transaction-flow" | "balance-sheet" | "account-transactions" | "input-output";
   columns: string[];
   columnTree?: MatrixColumnTreeNode[];
   columnBadges?: string[];
@@ -332,6 +333,18 @@ export interface SequenceCell extends NotebookCellBase {
   source: SequenceCellSource;
   participantColumnOrder?: string[];
 }
+
+export interface SankeyCell extends NotebookCellBase {
+  type: "sankey";
+  source: SankeyCellSource;
+}
+
+export type SankeyCellSource = {
+  kind: "matrix";
+  matrixCellId: string;
+  sourceRunCellId?: string;
+  includeZeroFlows?: boolean;
+};
 
 export type SequenceCellSource =
   | {

@@ -89,6 +89,7 @@ import {
   ModelCellView
 } from "./components/ModelEquationViews";
 import { SequenceCellView } from "./components/SequenceCellView";
+import { SankeyCellView } from "./components/SankeyCellView";
 import { TableCellView } from "./components/TableCellView";
 import type {
   ChartCell,
@@ -112,7 +113,8 @@ const VIEWPORT_DEFERRED_CELL_TYPES = new Set<NotebookCell["type"]>([
   "chart-grid",
   "table",
   "matrix",
-  "sequence"
+  "sequence",
+  "sankey"
 ]);
 
 const CELL_INSERT_TYPES: NotebookCellInsertType[] = [
@@ -122,7 +124,8 @@ const CELL_INSERT_TYPES: NotebookCellInsertType[] = [
   "chart-grid",
   "table",
   "matrix",
-  "sequence"
+  "sequence",
+  "sankey"
 ];
 
 function formatCellInsertType(type: NotebookCellInsertType): string {
@@ -141,6 +144,8 @@ function formatCellInsertType(type: NotebookCellInsertType): string {
       return "Matrix";
     case "sequence":
       return "Sequence";
+    case "sankey":
+      return "Sankey";
   }
 }
 
@@ -1603,6 +1608,14 @@ function NotebookCellViewComponent({
                 viewportRoot={viewportRoot}
               />
             ) : null}
+            {cell.type === "sankey" ? (
+              <SankeyCellView
+                cell={cell}
+                cells={cells}
+                runner={runner}
+                selectedPeriodIndex={selectedPeriodIndex}
+              />
+            ) : null}
           </div>
         ) : null}
         </div>
@@ -1994,6 +2007,8 @@ function getViewportDeferredPlaceholderHeight(cell: NotebookCell): number {
       return 420;
     case "sequence":
       return 360;
+    case "sankey":
+      return 360;
     case "table":
       return 240;
     default:
@@ -2025,6 +2040,8 @@ function getViewportDeferredPlaceholderLabel(cell: NotebookCell): string {
       return "Matrix";
     case "sequence":
       return "Sequence diagram";
+    case "sankey":
+      return "Sankey diagram";
     case "table":
       return "Table";
     default:

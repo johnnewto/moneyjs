@@ -9,6 +9,7 @@ type PublicationSectionKind =
   | "chart"
   | "table"
   | "sequence"
+  | "sankey"
   | "run"
   | "appendix";
 
@@ -62,6 +63,8 @@ function classifyCellPlacement(cell: NotebookCell): "body" | "appendix" | "skip"
     case "sequence":
       // Only matrix-sourced sequences render as multiport transaction-flow figures.
       return cell.source.kind === "matrix" ? "body" : "skip";
+    case "sankey":
+      return cell.source.kind === "matrix" ? "body" : "skip";
     default:
       return "skip";
   }
@@ -83,6 +86,8 @@ function resolveSectionKind(cell: NotebookCell): PublicationSectionKind {
       return "table";
     case "sequence":
       return "sequence";
+    case "sankey":
+      return "sankey";
     case "run":
       return "run";
     default:

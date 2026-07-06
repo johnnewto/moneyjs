@@ -1,6 +1,10 @@
 import type { MatrixCell } from "./types";
 
-export type AccountingMatrixKind = "transaction-flow" | "balance-sheet" | "account-transactions";
+export type AccountingMatrixKind =
+  | "transaction-flow"
+  | "balance-sheet"
+  | "account-transactions"
+  | "input-output";
 
 export function normalizeAccountingMatrixKindInput(
   input: unknown
@@ -21,6 +25,9 @@ export function normalizeAccountingMatrixKindInput(
     case "accounttransactions":
     case "accounttransaction":
       return "account-transactions";
+    case "inputoutput":
+    case "io":
+      return "input-output";
     default:
       return undefined;
   }
@@ -40,6 +47,15 @@ export function inferAccountingMatrixKind(cell: MatrixCell): AccountingMatrixKin
 
   if (title.includes("balance sheet") || id.includes("balance sheet")) {
     return "balance-sheet";
+  }
+
+  if (
+    title.includes("input-output") ||
+    title.includes("input output") ||
+    id.includes("input-output") ||
+    id.includes("input-output-table")
+  ) {
+    return "input-output";
   }
 
   return null;

@@ -11,6 +11,7 @@ import { PublicationMarkdown } from "./components/PublicationMarkdown";
 import { PublicationMore } from "./components/PublicationMore";
 import { PublicationMatrix } from "./components/PublicationMatrix";
 import { PublicationSequence } from "./components/PublicationSequence";
+import { PublicationSankey } from "./components/PublicationSankey";
 import { PublicationTable } from "./components/PublicationTable";
 import type { MatrixGraphRequest } from "../notebook/matrixSliceGraph";
 import {
@@ -116,6 +117,21 @@ export function PublicationCellView({
           cells={cells}
           getResult={getResult}
           interaction={interaction}
+          selectedPeriodIndex={selectedPeriodIndex}
+        />
+        <PublicationCaption description={cell.description} note={cell.note} title={cell.title} />
+        {moreNode}
+      </figure>
+    );
+  }
+
+  if (section.kind === "sankey" && cell.type === "sankey") {
+    return (
+      <figure id={section.anchorId} className="publication-section publication-section-sankey">
+        <PublicationSankey
+          cell={cell}
+          cells={cells}
+          getResult={getResult}
           selectedPeriodIndex={selectedPeriodIndex}
         />
         <PublicationCaption description={cell.description} note={cell.note} title={cell.title} />
