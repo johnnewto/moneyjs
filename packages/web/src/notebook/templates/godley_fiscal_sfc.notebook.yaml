@@ -1,0 +1,432 @@
+format: sfcr-notebook-yaml
+formatVersion: 1
+id: godley-fiscal-sfc-notebook
+title: Godley-Lavoie Fiscal Policy SFC Model (Levy WP 494)
+metadata:
+  version: 1
+  template: godley-fiscal-sfc
+cells:
+  - markdown:
+      id: intro
+      title: Overview
+      source: |-
+        # Fiscal Policy in a Stock-Flow Consistent Model
+
+        This notebook implements the simple growth economy from Godley and Lavoie (2007),
+        [*Fiscal Policy in a Stock-Flow Consistent (SFC) Model*](https://www.econstor.eu/bitstream/10419/31585/1/571694225.pdf)
+        (Levy Economics Institute Working Paper No. 494; also [Levy WP 494](https://www.levyinstitute.org/pubs/wp_494.pdf)).
+
+        The model has three sectors — **households** (private), **firms** (aggregated with households in the accounting matrix), and **government** — and a single financial asset: **government debt** held as private wealth.
+
+        Private decisions are taken in **real** terms; government policy (tax rate, interest rate) is **nominal**. Pure government spending `g` is endogenous: it fills the gap between full-employment output and private expenditure, so the fiscal stance sustains growth at the potential rate `gr`.
+
+        Section 1 of the paper (closed economy) is the baseline. Section 3 adds a rudimentary foreign sector via `trade_gap` and foreign-wealth accumulation `VF`. Two scenarios reproduce the paper's main experiments: a high interest-rate shock (Figure 1) and a permanent trade deficit (Figure 9).
+      more: |
+        Godley & Lavoie's Levy WP 494 (_Fiscal Policy in a Stock-Flow Consistent Model_,
+        April 2007) argues against the _New Consensus_ view that monetary policy alone can
+        deliver full employment and stable inflation. In their simple SFC growth model, the
+        **fiscal stance** — real government outlays relative to the tax rate,
+        `(g + rr * gd) / theta` — must be set at the right **level and growth rate** if the
+        economy is to grow at potential with low inflation.
+
+        Three results stand out:
+
+        - **Endogenous pure spending.** Equation (21) makes real goods-and-services spending
+          `g` fill the gap between full-employment output `y` and private expenditure `x`
+          (plus net exports when the foreign sector is open). Fiscal policy is not an
+          afterthought; it _closes the real resource balance_ every period.
+        - **A surprising debt dynamic.** Conventional wisdom says debt explodes when the
+          after-tax real interest rate exceeds the growth rate. In this model, with fiscal
+          policy sustaining full employment, higher rates raise `gd/y` but the real deficit
+          ratio **converges** rather than exploding (Figure 1).
+        - **Open-economy balances.** A chronic trade deficit raises the budget deficit needed
+          for the same domestic outcome: identity (D) requires
+          `NAFA = DEFICIT + CAB` (Section 3, Figure 9).
+
+        This notebook implements **Section 1** (closed economy, Table 1–2) as the baseline
+        and reproduces the paper's **Figure 1** and **Figure 9** experiments.
+  - matrix:
+      id: transaction-flow
+      accountingKind: transaction-flow
+      title: Transactions-flow matrix (Table 1)
+      description: Godley-Lavoie WP 494 closed-economy transactions-flow matrix.
+      note: Real government expenditure on goods and services is endogenous; interest flows use nominal debt stocks.
+      more: |
+        This is **Table 1** in WP 494 — the closed-economy transactions-flow matrix. Every
+        payment is simultaneously a receipt, so each **row and each column sums to zero**.
+
+        - **Private expenditure** `X` leaves households and enters firms as sales.
+        - **Government expenditure on goods** `G` is the nominal counterpart of endogenous
+          real spending `g`.
+        - **GDP** `Y` is private factor income received by households and paid out by firms.
+        - **Taxes** `T` are levied on nominal income plus interest receipts at rate `theta`.
+        - **Interest** `r * lag(GD)` flows from government to bondholders (households).
+
+        The matrix uses **nominal** flows at current prices. Real decisions — consumption,
+        wealth targets, the fiscal gap — are defined in the equation block below and mapped
+        to nominal variables through the price level `p`.
+
+        The paper's redundant accounting check in the closed economy is
+        `NAFA = DEFICIT`: private net acquisition of financial assets equals the government
+        budget deficit. The solver watches this through hidden variables `NAFA` and
+        `public_balance`.
+      sourceRunCellId: baseline-run
+      columns: [Households, Firms, Government, Sum]
+      sectors: [Households, Firms, Government, ""]
+      rows:
+        - [Expenditure, Private expenditure, -X, +X, "", "0"]
+        - [Expenditure, Government expenditure, "", +G, -G, "0"]
+        - [Income, Income (GDP), +Y, -Y, "", "0"]
+        - [Taxes, Taxes, -T, "", +T, "0"]
+        - [Interest, Interest on debt, +r * lag(GD), "", -r * lag(GD), "0"]
+        - [Sum, Sum, "0", "0", "0", "0"]
+  - sequence:
+      id: transaction-flow-sequence
+      title: Transaction flow sequence
+      source:
+        kind: matrix
+        matrixCellId: transaction-flow
+      description: Sequence view generated from the WP 494 transactions-flow matrix.
+      collapsed: true
+      more: |
+        Read the matrix **column by column** as each sector's budget constraint. The
+        household column shows how factor income, taxes, interest receipts, and saving
+        (`NAFA`) line up; the government column shows spending, taxes, interest payments,
+        and debt issuance (`DEFICIT`). This is the same quadruple-entry logic as in
+        _Monetary Economics_, applied to a growing economy with interest-bearing debt
+        rather than pure government money.
+  - equations:
+      id: equations
+      title: WP 494 fiscal policy model
+      modelId: godley-fiscal-sfc
+      collapsed: false
+      more: |
+        The model splits cleanly into a **real private block** and a **nominal government
+        block**, linked by the price level and Fisher relation `rr = (1 + r) / (1 + PI) - 1`.
+
+        **Private sector (real).** Disposable income `yd = y + rr * lag(v) - t` (eq. 1)
+        includes after-tax interest on wealth. Spending follows a wealth-adjustment form:
+        target wealth `v_star = alpha3 * yd` (eq. 5), partial adjustment
+        `v = lag(v) + alpha2 * (v_star - lag(v))` (eq. 4), and expenditure
+        `x = yd - (v - lag(v))` (eq. 7). The propensity to spend from income
+        `alpha1 = alpha10 - iota * lag(rr)` (eq. 3) falls when the real rate rises.
+
+        **Fiscal closure.** Pure government spending is **endogenous**:
+        `g = y - x - trade_bal` (eq. 21 / 21-2). Given tax rate `theta` and full-employment
+        output growing at `gr`, the government must spend enough on goods to absorb whatever
+        private demand and net exports leave unused. Debt accumulates from the real deficit
+        `gd = I(gT - t)` where `gT = g + rr * lag(gd)` (eqs. 15–16).
+
+        **Open economy (Section 3).** Exports grow at `gr`; imports are a fixed fraction
+        `trade_gap` of exports. With `trade_gap = 1.05` and `ex/y = 20%`, the goods trade
+        deficit is `0.05 × 20% = 1%` of GDP. The current account `CAB = EX - IM + r * lag(VF)`
+        and foreign wealth `VF = I(CAB)` close the external sector. Identity (D) generalizes to
+        `NAFA = DEFICIT + CAB`.
+
+        **Steady-state anchors (Table 2, baseline).** With `gr = 2.5%`, `theta = 25%`,
+        `r = 3%`, `PI = 2%`, the paper reports `g/y = 25.9%`, `DEFICIT/Y = 1.8%`,
+        `deficit_y` (`Δgd/y`) `= 1.0%`, and `gd/y = 40.9%` in the growing steady state.
+      rows:
+        - Full employment and prices
+        - [y, lag(y) * (1 + gr), "Real output at full employment (eq. 13).", items/year, flow, policy]
+        - [PI, inflation, "Exogenous inflation rate (eq. 12).", 1/year, aux, external]
+        - [p, lag(p) * (1 + PI), "Price level.", $/item, stock, accumulation]
+        - [Y, y * p, "Nominal GDP (eq. 9).", $/year, flow, identity]
+        - Interest and portfolio
+        - [rr, (1 + r) / (1 + PI) - 1, "Real interest rate — Fisher (eq. 11).", 1/year, aux, definition]
+        - [alpha1, alpha10 - iota * lag(rr), "Propensity to spend from income (eq. 3).", "", aux, behavioral]
+        - [alpha3, (1 - alpha1) / alpha2, "Target wealth-to-income ratio (eq. 2).", "", aux, definition]
+        - Private sector (real)
+        - [v_star, alpha3 * yd, "Target real financial wealth (eq. 5).", items, stock, definition]
+        - [v, lag(v) + alpha2 * (v_star - lag(v)), "Real private wealth — partial adjustment (eq. 4).", items, stock, accumulation]
+        - [V, v * p, "Nominal private wealth (eq. 10).", $, stock, identity]
+        - [yd, y + rr * lag(v) - t, "Real disposable income (eq. 1).", items/year, flow, definition]
+        - [x, yd - (v - lag(v)), "Real private expenditure (eq. 7).", items/year, flow, identity]
+        - [X, x * p, "Nominal private expenditure (eq. 22).", $/year, flow, identity]
+        - Taxes and government (real)
+        - [T, theta * (Y + r * lag(V)), "Nominal taxes (eq. 8).", $/year, flow, policy]
+        - [t, T / p, "Real tax payments (eq. 14).", items/year, flow, definition]
+        - [ex, lag(ex) * (1 + gr), "Real exports (eq. 29).", items/year, flow, policy]
+        - [im, ex * trade_gap, "Real imports (eq. 30).", items/year, flow, policy]
+        - [trade_bal, ex - im, "Real trade balance.", items/year, flow, identity]
+        - [g, y - x - trade_bal, "Real pure government spending — fiscal stance (eq. 21 / 21-2).", items/year, flow, policy]
+        - [gT, g + rr * lag(gd), "Real total government outlays incl. interest (eq. 15).", items/year, flow, definition]
+        - [gd, I(gT - t), "Real government debt stock (eq. 16).", items, stock, accumulation]
+        - Government (nominal)
+        - [G, g * p, "Nominal government spending on goods (eq. 18).", $/year, flow, identity]
+        - [GT, G + r * lag(GD), "Nominal total government outlays (eq. 17).", $/year, flow, definition]
+        - [DEFICIT, GT - T, "Nominal budget deficit (eq. 19).", $/year, flow, identity]
+        - [GD, I(DEFICIT), "Nominal government debt (eq. 20).", $, stock, accumulation]
+        - Open economy
+        - [EX, ex * p, "Nominal exports (eq. 31).", $/year, flow, identity]
+        - [IM, im * p, "Nominal imports (eq. 32).", $/year, flow, identity]
+        - [CAB, EX - IM + r * lag(VF), "Current account balance (eq. 33).", $/year, flow, identity]
+        - [VF, I(CAB), "Foreign financial wealth (eq. 34).", $, stock, accumulation]
+        - Accounting checks and ratios
+        - [NAFA, (Y + r * lag(V) - T) - X, "Net acquisition of financial assets (eq. 22).", $/year, flow, identity]
+        - [public_balance, DEFICIT + CAB, "Government deficit plus current account.", $/year, flow, identity]
+        - [accounting_check, NAFA - public_balance, "Flow-of-funds identity (D): NAFA = DEFICIT + CAB.", $/year, flow, identity]
+        - [gd_y, gd / y, "Real government debt to real GDP.", "", aux, definition]
+        - [deficit_y, (gT - t) / y, "Real deficit to real GDP (Δgd/y).", "", aux, definition]
+        - [g_y, g / y, "Pure government spending to GDP.", "", aux, definition]
+        - [DEFICIT_Y, DEFICIT / Y, "Nominal deficit to nominal GDP.", "", aux, definition]
+        - [fiscal_stance, (g + rr * gd) / theta, "Fiscal stance (g + rr·gd) / θ.", "", aux, definition]
+  - solver:
+      id: solver
+      title: Solver
+      modelId: godley-fiscal-sfc
+      collapsed: true
+      more: |
+        The model is solved period by period with lagged stocks known from the previous
+        period. The redundant closed-economy identity `NAFA = DEFICIT` (open economy:
+        `NAFA = DEFICIT + CAB`) is **not** imposed as a solving equation; instead the solver
+        checks that `NAFA` matches `public_balance` (`DEFICIT + CAB`) within
+        `hiddenTolerance`. If the flow-of-funds accounting leaked, this check would fail —
+        the numerical counterpart of Godley & Lavoie's watertight SFC tables.
+      method: gauss-seidel
+      tolerance: "1e-8"
+      maxIterations: 250
+      defaultInitialValue: "1e-15"
+      hiddenLeftVariable: NAFA
+      hiddenRightVariable: public_balance
+      hiddenTolerance: "1e-4"
+      relativeHiddenTolerance: false
+  - externals:
+      id: externals
+      title: Externals
+      modelId: godley-fiscal-sfc
+      collapsed: true
+      more: |
+        These are the **Table 2 baseline** parameters from WP 494 (first column):
+
+        - `gr = 0.025` — real growth of productive potential (2.5% per year).
+        - `theta = 0.25` — tax rate on income plus interest receipts.
+        - `alpha2 = 0.2` — speed of wealth adjustment / propensity to spend out of wealth.
+        - `alpha10 = 0.9` — autonomous propensity to spend from income.
+        - `iota = 0.2` — sensitivity of `alpha1` to the real interest rate (eq. 3).
+        - `inflation = 0.02` — exogenous inflation `PI` (2%).
+        - `r = 0.03` — nominal interest rate (3%); implies `rr` just under 1%.
+        - `trade_gap = 1` — balanced trade in the baseline (`im = ex`); set to `1.05` in
+          Scenario 2 for a 5% import excess.
+
+        Policy levers `r` and `theta` are nominal; the behavioral core reacts through the
+        Fisher real rate `rr` and the tax-deflated flows `t` and `yd`.
+      rows:
+        - [gr, 0.025, "Real growth rate of productive potential (2.5%).", 1/year, aux]
+        - [theta, 0.25, "Tax rate θ (25%).", "", aux]
+        - [alpha2, 0.2, "Speed of wealth adjustment / propensity out of wealth.", "", aux]
+        - [alpha10, 0.9, "Autonomous propensity to spend from income.", "", aux]
+        - [iota, 0.2, "Interest sensitivity of consumption (ι).", "", aux]
+        - [inflation, 0.02, "Exogenous inflation rate π (2%).", 1/year, aux]
+        - [r, 0.03, "Nominal interest rate (3%).", 1/year, aux]
+        - [trade_gap, 1, "Import-to-export ratio; 1.05 gives a 5% import excess → 1% of GDP trade deficit when ex/y = 20% (Section 3).", "", aux]
+  - initial-values:
+      id: initial-values
+      title: Initial values
+      modelId: godley-fiscal-sfc
+      collapsed: true
+      more: |
+        The run starts from a configuration consistent with the paper's growing steady
+        state: real output and exports at `100` and `20` (`ex/y = 20%`, so a `5%` import
+        excess yields a `1%` goods trade deficit), price level `1`, and government /
+        private real wealth stocks `gd` and `v` at `41` (roughly `41%` of initial `y`).
+        `VF = 0` — no foreign assets or liabilities until Scenario 2 opens a trade gap.
+      rows:
+        - [y, 100]
+        - [p, 1]
+        - [v, 41]
+        - [gd, 41]
+        - [GD, 41]
+        - [V, 41]
+        - [ex, 20]
+        - [VF, 0]
+  - run:
+      id: baseline-run
+      title: Baseline
+      description: Closed-economy growing steady state (Section 1, Table 2 baseline parameters).
+      mode: baseline
+      periods: 80
+      resultKey: godley_fiscal_sfc_baseline
+      sourceModelId: godley-fiscal-sfc
+      more: |
+        The baseline integrates **Section 1** forward for 80 periods with balanced trade
+        (`trade_gap = 1`). Output `y` grows at `gr = 2.5%`; the price level grows at
+        `PI = 2%`. Endogenous `g` adjusts each period so that `y = x + g`.
+
+        In the paper's Table 2 steady state, pure government spending must reach
+        **`g/y = 25.9%`** to sustain full-employment growth, with a nominal deficit ratio
+        **`DEFICIT/Y = 1.8%`** and real deficit ratio **`deficit_y = 1.0%`**. The notebook
+        run at period 80 shows the same orders of magnitude (`g_y` near `0.26`,
+        `DEFICIT_Y` near `0.018`). Debt-to-GDP `gd_y` continues adjusting toward the
+        paper's `40.9%` steady-state target over a longer horizon.
+  - chart:
+      id: baseline-chart
+      title: Baseline fiscal ratios
+      more: |
+        Watch the **fiscal ratios** that Table 2 organizes: `g_y` (pure spending share),
+        `deficit_y` (real deficit / GDP), `gd_y` (debt / GDP), and `DEFICIT_Y` (nominal
+        deficit / GDP). In the baseline they flatten as the economy approaches the growing
+        steady state described in WP 494.
+
+        Real output `y` and endogenous spending `g` both grow at `gr`, but nominal flows
+        grow faster because of inflation. The fiscal stance ratio `(g + rr * gd) / theta`
+        must grow at `gr` once full employment is achieved — the paper's rule for a
+        sustainable fiscal setting.
+      variables:
+        - gd_y
+        - deficit_y
+        - g_y
+        - DEFICIT_Y
+        - y
+        - g
+      axisMode: shared
+      sourceRunCellId: baseline-run
+  - table:
+      id: baseline-table
+      title: Baseline summary (period 80)
+      more: |
+        Use this table to read off period-80 levels against Table 2. Key checks:
+
+        - `rr` just under `1%` and `alpha1` near `0.88` match the paper's first column.
+        - `g_y` near **`25.9%`** — the endogenous spending share needed for full employment.
+        - `DEFICIT_Y` near **`1.8%`** and `deficit_y` near **`1.0%`** — deficits are
+          _required_, not a sign of instability, in a growing steady state with positive
+          real interest rates.
+        - `fiscal_stance` summarizes `(g + rr * gd) / theta` — the paper's summary policy
+          indicator.
+      variables:
+        - y
+        - g
+        - gd
+        - gd_y
+        - deficit_y
+        - rr
+        - alpha1
+        - fiscal_stance
+      sourceRunCellId: baseline-run
+  - markdown:
+      id: scenario-1-note
+      title: Scenario 1 — High interest rate
+      source: |-
+        Reproduces Figure 1: the nominal interest rate `r` rises from 3% to 10% in period 10.
+        Even when the after-tax real rate exceeds the growth rate, the model converges to a
+        higher but stable debt-to-GDP ratio — the paper's "surprising result."
+      more: |
+        **Figure 1 experiment (Section 1).** The paper pushes the nominal rate from `3%` to
+        `10%`, raising the real rate `rr` to about **`7.8%`** — far above the `2.5%` growth
+        rate and above the after-tax real rate **`(1 - theta) * rr ≈ 5.9%`**. Conventional
+        debt-sustainability rules would demand ever-larger primary surpluses.
+
+        Instead, with fiscal policy still closing the output gap through endogenous `g`, the
+        real deficit ratio **`deficit_y`** and debt ratio **`gd_y`** **converge** to new
+        steady levels (Table 2 last column: `gd/y` toward **`93.5%`** in the long run). The
+        notebook shock from period 10 shows `gd_y` rising above the baseline and `rr`
+        jumping to about `7.8%` — the transition toward the higher-debt steady state, not an
+        explosion.
+  - run:
+      id: high-rate-run
+      title: High interest rate shock
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 10
+              - 80
+            variables:
+              r:
+                kind: constant
+                value: 0.1
+      baselineRunCellId: baseline-run
+      periods: 80
+      resultKey: godley_fiscal_sfc_high_rate
+      sourceModelId: godley-fiscal-sfc
+      more: |
+        From period 10, `r` is held at **`10%`**. Higher interest receipts raise disposable
+        income and initially support spending, but `alpha1` falls through eq. (3), and the
+        fiscal authority must raise `g` to keep `y` on its full-employment path. Debt service
+        rises, so **`gd_y`** and **`DEFICIT_Y`** move up relative to the baseline. The paper
+        stresses that this adjustment is **stable** even when `rr` greatly exceeds `gr`.
+  - chart:
+      id: high-rate-chart
+      title: High interest rate — deficit and debt ratios
+      more: |
+        Compare **`deficit_y`** and **`gd_y`** against the baseline reference trace. After the
+        rate step, both ratios rise and then level off — the signature of Figure 1. Also watch
+        `rr` and `r`: the Fisher relation links the nominal shock to the real rate faced by
+        households in `yd` and by the government in `gT`.
+
+        The paper's broader policy point: fixed Maastricht-style deficit or debt ceilings
+        ignore this mechanism. Higher rates _require_ higher deficit ratios if full employment
+        is to be preserved through the fiscal stance.
+      variables:
+        - deficit_y
+        - gd_y
+        - rr
+        - r
+      axisMode: shared
+      referenceTrace: baseline
+      sourceRunCellId: high-rate-run
+  - markdown:
+      id: scenario-2-note
+      title: Scenario 2 — Permanent trade deficit
+      source: |-
+        Reproduces Figure 9 (Section 3): from period 5 onward imports exceed exports by 5%
+        (`trade_gap = 1.05`). With exports at 20% of GDP, the goods trade deficit is 1% of
+        GDP; the current account stabilizes near -2.5% of GDP and the budget deficit must be
+        higher by a corresponding amount.
+      more: |
+        **Section 3** opens the economy with exports growing at `gr` and imports fixed at
+        **`105%` of exports** (`trade_gap = 1.05`). Foreign wealth `VF` accumulates from the
+        current account `CAB`. Identity (D) becomes **`NAFA = DEFICIT + CAB`**: a country that
+        runs a chronic external deficit must run a larger budget deficit if private net lending
+        is to remain consistent with the flow-of-funds.
+
+        The paper's second surprising result: stability does **not** require a trade
+        **surplus** for a debtor country — the model converges with a sustained current-account
+        deficit near **`-2.5%` of GDP**, and the budget deficit ends up about **2.5 percentage
+        points higher** than in the closed economy (Figure 9).
+  - run:
+      id: trade-deficit-run
+      title: Permanent trade deficit
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 5
+              - 80
+            variables:
+              trade_gap:
+                kind: constant
+                value: 1.05
+      baselineRunCellId: baseline-run
+      periods: 80
+      resultKey: godley_fiscal_sfc_trade_deficit
+      sourceModelId: godley-fiscal-sfc
+      more: |
+        From period 5, `trade_gap = 1.05` imposes a permanent import excess. Real imports
+        `im` exceed exports `ex`, so `trade_bal` turns negative and eq. (21-2) requires
+        **higher `g`** for the same `y`. The current account **`CAB`** goes negative and
+        **`DEFICIT_Y`** rises relative to the closed-economy baseline — the twin-deficit
+        logic in stock-flow consistent form.
+  - chart:
+      id: trade-deficit-chart
+      title: Figure 9 — flow balances to GDP
+      more: |
+        Nominal government deficit, current account, private net lending, and the goods
+        trade balance as **percent of GDP**. With `trade_gap = 1.05` and `ex/y = 20%`, the
+        goods trade balance **`(EX - IM)/Y`** is **`-1%`**. As the trade gap opens, **`CAB/Y`**
+        and **`DEFICIT/Y`** move together, consistent with identity (D): **`NAFA/Y`**
+        tracks their sum.
+
+        In the paper's Figure 9, the current-account deficit stabilizes near **`-2.5%` of
+        GDP**; the nominal budget deficit is several percentage points of GDP higher than
+        with balanced trade. Use the baseline reference trace to see both deficits widen
+        jointly rather than offsetting each other.
+      series:
+        - {expression: 100 * DEFICIT / Y, label: Nominal govt deficit to GDP, unit: "%"}
+        - {expression: 100 * CAB / Y, label: CAB to GDP, unit: "%"}
+        - {expression: 100 * NAFA / Y, label: NAFA to GDP, unit: "%"}
+        - {expression: 100 * (EX - IM) / Y, label: Trade balance to GDP, unit: "%"}
+      axisMode: shared
+      referenceTrace: baseline
+      sourceRunCellId: trade-deficit-run

@@ -10,6 +10,7 @@ import gl6DisRentierNotebookYaml from "./templates/gl6-dis-rentier.notebook.yaml
 import gl6DisRentierV2NotebookYaml from "./templates/gl6-dis-rentier-v2.notebook.yaml?raw";
 import gl7InsoutNotebookYaml from "./templates/gl7-insout.notebook.yaml?raw";
 import gl8GrowthNotebookYaml from "./templates/gl8-growth.notebook.yaml?raw";
+import godleyFiscalSfcNotebookYaml from "./templates/godley_fiscal_sfc.notebook.yaml?raw";
 import interbankLiquidityRiskNotebookYaml from "./templates/interbank-liquidity-risk.notebook.yaml?raw";
 import italySfcNotebookYaml from "./templates/italy_sfc.notebook.yaml?raw";
 import opensimplestLevyNotebookYaml from "./templates/opensimplest-levy.notebook.yaml?raw";
@@ -36,6 +37,7 @@ export type NotebookTemplateId =
   | "gl6-dis-rentier-v2"
   | "gl7-insout"
   | "gl8-growth"
+  | "godley-fiscal-sfc"
   | "interbank-liquidity-risk"
   | "italy-sfc"
   | "opensimplest-levy"
@@ -72,6 +74,7 @@ const NOTEBOOK_TEMPLATE_YAML: Record<NotebookTemplateId, string> = {
   "gl6-dis-rentier-v2": gl6DisRentierV2NotebookYaml,
   "gl7-insout": gl7InsoutNotebookYaml,
   "gl8-growth": gl8GrowthNotebookYaml,
+  "godley-fiscal-sfc": godleyFiscalSfcNotebookYaml,
   "interbank-liquidity-risk": interbankLiquidityRiskNotebookYaml,
   "italy-sfc": italySfcNotebookYaml,
   opensimplest: opensimplestNotebookYaml,
@@ -158,6 +161,12 @@ export const NOTEBOOK_TEMPLATES: Record<NotebookTemplateId, NotebookTemplateDefi
     label: "GL8 GROWTH",
     description:
       "GROWTH notebook based on the gl8-growth article baseline, accounting matrices, and selected policy experiments."
+  },
+  "godley-fiscal-sfc": {
+    id: "godley-fiscal-sfc",
+    label: "Godley Fiscal SFC",
+    description:
+      "Godley-Lavoie Levy WP 494 fiscal-policy growth model with endogenous government spending, debt dynamics, and trade-deficit scenarios."
   },
   "interbank-liquidity-risk": {
     id: "interbank-liquidity-risk",
