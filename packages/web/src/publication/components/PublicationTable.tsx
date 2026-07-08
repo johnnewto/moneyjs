@@ -1,6 +1,7 @@
 import { equationRowsOnly, externalRowsOnly } from "@sfcr/notebook-core";
 
 import { buildEditorStateForNotebookModel } from "../../notebook/modelSections";
+import { isTableVariableExpression } from "../../notebook/tableVariables";
 import type { NotebookCell, RunCell, TableCell } from "../../notebook/types";
 import type { PublicationVariableInteraction } from "../publicationInspect";
 import { PublicationVariableName, renderPublicationFormula } from "../publicationFormula";
@@ -62,7 +63,9 @@ export function PublicationTable({
 }) {
   const rows = cell.variables.map((name) => ({
     name,
-    expression: resolvePublicationTableExpression(cells, cell.sourceRunCellId, name)
+    expression: isTableVariableExpression(name)
+      ? name.trim()
+      : resolvePublicationTableExpression(cells, cell.sourceRunCellId, name)
   }));
 
   return (

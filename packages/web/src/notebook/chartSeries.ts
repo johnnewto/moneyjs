@@ -25,6 +25,10 @@ function isGraphableTimeSeries(values: number[]): boolean {
 /** Matches a bare variable name (no operators), used to detect `"name, runId"` shorthand. */
 const BARE_VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_^]*$/;
 
+export function isBareVariableName(name: string): boolean {
+  return BARE_VARIABLE_NAME.test(name.trim());
+}
+
 /**
  * Parses a `variables` shorthand entry. A bare variable name optionally followed
  * by `, <runId>` selects that run as the series source (Option A shorthand,

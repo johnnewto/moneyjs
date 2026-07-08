@@ -4,6 +4,10 @@ import type { buildVariableUnitMetadata } from "../../lib/units";
 import { getVariableDescription, type VariableDescriptions } from "../../lib/variableDescriptions";
 import { resolveInspectorModelSource, type VariableInspectRequest } from "../../lib/variableInspect";
 import { buildEditorStateForNotebookModel } from "../modelSections";
+import {
+  isTableVariableExpression,
+  resolveTableVariableTimeSeries
+} from "../tableVariables";
 import type { NotebookCell, RunCell, TableCell } from "../types";
 import type { useNotebookRunner } from "../useNotebookRunner";
 
@@ -43,11 +47,14 @@ export function TableCellView({
   );
 
   const rows = cell.variables.map((name) => {
-    const values = result.series[name] ?? [];
+    const values = resolveTableVariableTimeSeries(name, result);
+    const periodIndex = Math.min(selectedPeriodIndex, Math.max(values.length - 1, 0));
     return {
-      description: getVariableDescription(variableDescriptions, name),
+      description: isTableVariableExpression(name)
+        ? undefined
+        : getVariableDescription(variableDescriptions, name),
       name,
-      selected: values[Math.min(selectedPeriodIndex, values.length - 1)] ?? NaN,
+      selected: values[periodIndex] ?? NaN,
       start: values[0] ?? NaN,
       end: values[values.length - 1] ?? NaN
     };
@@ -60,7 +67,7 @@ export function TableCellView({
       selectedIndex={selectedPeriodIndex}
       highlightedVariable={highlightedVariable}
       onSelectVariable={(selectedVariable) => {
-        if (!editor) {
+        if (!editor || isTableVariableExpression(selectedVariable)) {
           return;
         }
         onVariableInspectRequest({

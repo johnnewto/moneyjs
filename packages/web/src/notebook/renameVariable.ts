@@ -547,7 +547,9 @@ function renameVariableInCell(
     case "table":
       return {
         ...cell,
-        variables: cell.variables.map((name) => (name.trim() === oldName ? newName : name))
+        variables: cell.variables.map((name) =>
+          name.trim() === oldName ? newName : replaceIdentifierInSource(name, oldName, newName)
+        )
       };
     case "chart":
       return {
@@ -705,7 +707,10 @@ function countReferencesInCell(
         0
       );
     case "table":
-      return cell.variables.reduce((total, name) => total + countExactNameMatch(name, variable), 0);
+      return cell.variables.reduce(
+        (total, name) => total + countIdentifierOccurrences(name, variable),
+        0
+      );
     case "chart":
       return (
         (cell.variables ?? []).reduce((total, name) => total + countExactNameMatch(name, variable), 0) +

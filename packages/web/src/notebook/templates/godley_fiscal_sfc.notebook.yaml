@@ -20,7 +20,7 @@ cells:
 
         Private decisions are taken in **real** terms; government policy (tax rate, interest rate) is **nominal**. Pure government spending `g` is endogenous: it fills the gap between full-employment output and private expenditure, so the fiscal stance sustains growth at the potential rate `gr`.
 
-        Section 1 of the paper (closed economy) is the baseline. Section 3 adds a rudimentary foreign sector via `trade_gap` and foreign-wealth accumulation `VF`. Two scenarios reproduce the paper's main experiments: a high interest-rate shock (Figure 1) and a permanent trade deficit (Figure 9).
+        Section 1 of the paper (closed economy) is the baseline. Section 2 adds a fiscal policy reaction function with a Phillips curve (Figures 2–8). Section 3 adds a rudimentary foreign sector via `trade_gap` and foreign-wealth accumulation `VF` (Figure 9). Scenarios reproduce the paper's main experiments: a high interest-rate shock (Figure 1), fiscal-policy responses to inflation and spending shocks (Figures 2–8), and a permanent trade deficit (Figure 9).
       more: |
         Godley & Lavoie's Levy WP 494 (_Fiscal Policy in a Stock-Flow Consistent Model_,
         April 2007) argues against the _New Consensus_ view that monetary policy alone can
@@ -43,8 +43,9 @@ cells:
           for the same domestic outcome: identity (D) requires
           `NAFA = DEFICIT + CAB` (Section 3, Figure 9).
 
-        This notebook implements **Section 1** (closed economy, Table 1–2) as the baseline
-        and reproduces the paper's **Figure 1** and **Figure 9** experiments.
+        This notebook implements **Section 1** (closed economy, Table 1–2) as the baseline,
+        **Section 2** (fiscal reaction function, Figures 2–8), and **Section 3** (open economy,
+        Figure 9).
   - matrix:
       id: transaction-flow
       accountingKind: transaction-flow
@@ -295,13 +296,18 @@ cells:
         - `fiscal_stance` summarizes `(g + rr * gd) / theta` — the paper's summary policy
           indicator.
       variables:
-        - y
-        - g
-        - gd
-        - gd_y
-        - deficit_y
-        - rr
+        - r
+        - PI
+        - rr 
+        - (1-theta)*rr
         - alpha1
+        - g/y
+        - G/Y
+        - t/y
+        - d(gd)/y
+        - GT/Y
+        - DEFICIT/Y
+        - r.GD'/Y
         - fiscal_stance
       sourceRunCellId: baseline-run
   - markdown:
@@ -348,7 +354,7 @@ cells:
         stresses that this adjustment is **stable** even when `rr` greatly exceeds `gr`.
   - chart:
       id: high-rate-chart
-      title: High interest rate — deficit and debt ratios
+      title: Figure 1 — deficit and debt ratios after rate shock
       more: |
         Compare **`deficit_y`** and **`gd_y`** against the baseline reference trace. After the
         rate step, both ratios rise and then level off — the signature of Figure 1. Also watch
@@ -366,6 +372,267 @@ cells:
       axisMode: shared
       referenceTrace: baseline
       sourceRunCellId: high-rate-run
+  - markdown:
+      id: section-2-note
+      title: Section 2 — Fiscal policy reaction function
+      source: |-
+        Section 2 endogenizes inflation through a vertical Phillips curve (eq. 26) and replaces
+        the fixed full-employment output path with demand-led output `y = g + x` alongside
+        potential output `ys`. Pure government spending follows a **fiscal reaction function**
+        (eqs. 27–28): the growth rate of `g` responds to inflation and the inflation target.
+        The central bank keeps the **real** interest rate `rr` constant (eq. 11-2), adjusting
+        the nominal rate `r` as inflation moves.
+
+        Three experiments reproduce **Figures 2–8**: a lower inflation target, a higher
+        propensity to consume, and a jump in the real interest rate.
+      more: |
+        The Phillips curve is `PI = lag(PI) + epsilon + gamma * (y - ys) / y`. When actual
+        output exceeds potential, inflation accelerates; when it falls short, inflation eases.
+        Fiscal policy reacts with `grG = gr - beta1 * (PI - lag(PI)) - beta2 * (lag(PI) - pi_target)`,
+        slowing (or speeding) the growth of pure spending `g` to steer inflation back to target
+        while accepting temporary output gaps.
+  - equations:
+      id: fprf-equations
+      title: WP 494 fiscal reaction model (Section 2)
+      modelId: godley-fiscal-fprf
+      collapsed: true
+      more: |
+        Section 2 replaces eq. (13) with potential output `ys = lag(ys) * (1 + gr)` and
+        demand-led output `y = g + x` (eq. 21-2). Government spending follows eqs. (27–28)
+        instead of closing the resource gap directly. Inflation is endogenous (eq. 26); the
+        central bank holds `rr` fixed via `r = rr + PI + PI * rr` (eq. 11-2).
+      rows:
+        - Potential output and inflation
+        - [ys, lag(ys) * (1 + gr), "Potential (full-employment) output (eq. 13-2).", items/year, flow, policy]
+        - [PI, lag(PI) + epsilon + gamma * (y - ys) / y, "Inflation rate — Phillips curve (eq. 26).", 1/year, aux, behavioral]
+        - [p, lag(p) * (1 + PI), "Price level.", $/item, stock, accumulation]
+        - [Y, y * p, "Nominal GDP (eq. 9).", $/year, flow, identity]
+        - Interest and portfolio
+        - [r, rr + PI + PI * rr, "Nominal interest rate — CB holds rr fixed (eq. 11-2).", 1/year, aux, policy]
+        - [alpha1, alpha10 - iota * lag(rr), "Propensity to spend from income (eq. 3).", "", aux, behavioral]
+        - [alpha3, (1 - alpha1) / alpha2, "Target wealth-to-income ratio (eq. 2).", "", aux, definition]
+        - Private sector (real)
+        - [v_star, alpha3 * yd, "Target real financial wealth (eq. 5).", items, stock, definition]
+        - [v, lag(v) + alpha2 * (v_star - lag(v)), "Real private wealth — partial adjustment (eq. 4).", items, stock, accumulation]
+        - [V, v * p, "Nominal private wealth (eq. 10).", $, stock, identity]
+        - [yd, y + rr * lag(v) - t, "Real disposable income (eq. 1).", items/year, flow, definition]
+        - [x, yd - (v - lag(v)), "Real private expenditure (eq. 7).", items/year, flow, identity]
+        - [X, x * p, "Nominal private expenditure (eq. 22).", $/year, flow, identity]
+        - Demand-led output and fiscal reaction
+        - [y, g + x, "Actual output — demand-led (eq. 21-2).", items/year, flow, identity]
+        - [grG, gr - beta1 * (PI - lag(PI)) - beta2 * (lag(PI) - pi_target), "Growth rate of pure govt spending (eq. 28).", 1/year, aux, policy]
+        - [g, lag(g) * (1 + grG), "Real pure government spending (eq. 27).", items/year, flow, policy]
+        - Taxes and government (real)
+        - [T, theta * (Y + r * lag(V)), "Nominal taxes (eq. 8).", $/year, flow, policy]
+        - [t, T / p, "Real tax payments (eq. 14).", items/year, flow, definition]
+        - [gT, g + rr * lag(gd), "Real total government outlays incl. interest (eq. 15).", items/year, flow, definition]
+        - [gd, I(gT - t), "Real government debt stock (eq. 16).", items, stock, accumulation]
+        - Government (nominal)
+        - [G, g * p, "Nominal government spending on goods (eq. 18).", $/year, flow, identity]
+        - [GT, G + r * lag(GD), "Nominal total government outlays (eq. 17).", $/year, flow, identity]
+        - [DEFICIT, GT - T, "Nominal budget deficit (eq. 19).", $/year, flow, identity]
+        - [GD, I(DEFICIT), "Nominal government debt (eq. 20).", $, stock, accumulation]
+        - Accounting checks and ratios
+        - [NAFA, (Y + r * lag(V) - T) - X, "Net acquisition of financial assets (eq. 22).", $/year, flow, identity]
+        - [public_balance, DEFICIT, "Closed economy: NAFA = DEFICIT.", $/year, flow, identity]
+        - [accounting_check, NAFA - public_balance, "Flow-of-funds identity check.", $/year, flow, identity]
+        - [gd_y, gd / y, "Real government debt to real GDP.", "", aux, definition]
+        - [deficit_y, (gT - t) / y, "Real deficit to real GDP (Δgd/y).", "", aux, definition]
+        - [g_y, g / y, "Pure government spending to GDP.", "", aux, definition]
+        - [DEFICIT_Y, DEFICIT / Y, "Nominal deficit to nominal GDP.", "", aux, definition]
+        - [y_ys, y / ys, "Actual to potential output ratio (Figure 3).", "", aux, definition]
+        - [gr_y, y / lag(y) - 1, "Growth rate of actual output.", 1/year, aux, definition]
+  - solver:
+      id: fprf-solver
+      title: FPRF solver
+      modelId: godley-fiscal-fprf
+      collapsed: true
+      method: gauss-seidel
+      tolerance: "1e-6"
+      maxIterations: 1000
+      defaultInitialValue: "1e-15"
+      hiddenLeftVariable: NAFA
+      hiddenRightVariable: public_balance
+      hiddenTolerance: "1e-4"
+      relativeHiddenTolerance: false
+  - externals:
+      id: fprf-externals
+      title: FPRF externals
+      modelId: godley-fiscal-fprf
+      collapsed: true
+      more: |
+        Section 2 parameters mirror Table 2 baseline values plus the fiscal-reaction and
+        Phillips-curve coefficients used in the MODLER experiments (WP 494, Section 2).
+      rows:
+        - [gr, 0.025, "Real growth rate of productive potential (2.5%).", 1/year, aux]
+        - [theta, 0.25, "Tax rate θ (25%).", "", aux]
+        - [alpha2, 0.2, "Speed of wealth adjustment / propensity out of wealth.", "", aux]
+        - [alpha10, 0.9, "Autonomous propensity to spend from income.", "", aux]
+        - [iota, 0.2, "Interest sensitivity of consumption (ι).", "", aux]
+        - [rr, 0.01, "Real interest rate held by the central bank (~1%).", 1/year, aux]
+        - [pi_target, 0.02, "Inflation target π^T (2%).", 1/year, aux]
+        - [gamma, 0.2, "Phillips-curve output-gap sensitivity (γ).", "", aux]
+        - [beta1, 0.5, "Fiscal reaction to inflation acceleration (β1).", "", aux]
+        - [beta2, 0.75, "Fiscal reaction to inflation gap (β2).", "", aux]
+        - [epsilon, 0, "Cost-push inflation shock (ε).", 1/year, aux]
+  - initial-values:
+      id: fprf-initial-values
+      title: FPRF initial values
+      modelId: godley-fiscal-fprf
+      collapsed: true
+      more: |
+        Starts from the Section 2 growing steady state: `ys = y = 100`, inflation at the
+        `2%` target, `g/y ≈ 26%`, and debt ratios near the Table 2 baseline.
+      rows:
+        - [ys, 100]
+        - [y, 100]
+        - [g, 25.9]
+        - [x, 74.1]
+        - [p, 1]
+        - [PI, 0.02]
+        - [v, 41]
+        - [gd, 41]
+        - [GD, 41]
+        - [V, 41]
+  - run:
+      id: fprf-baseline-run
+      title: FPRF baseline steady state
+      description: Section 2 baseline with fiscal reaction function at the 2% inflation target.
+      mode: baseline
+      periods: 100
+      resultKey: godley_fiscal_fprf_baseline
+      sourceModelId: godley-fiscal-fprf
+  - markdown:
+      id: fprf-exp-1-note
+      title: Experiment 1 — Lower inflation target
+      source: |-
+        Reproduces **Figures 2–4**: the inflation target `pi_target` is cut from `2%` to `1.5%`.
+        Fiscal policy slows the growth of `g`, creating a temporary output gap that brings
+        inflation down to the new target.
+  - run:
+      id: fprf-lower-pi-target-run
+      title: Lower inflation target (2% → 1.5%)
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 5
+              - 100
+            variables:
+              pi_target:
+                kind: constant
+                value: 0.015
+      baselineRunCellId: fprf-baseline-run
+      periods: 100
+      resultKey: godley_fiscal_fprf_lower_pi_target
+      sourceModelId: godley-fiscal-fprf
+  - chart:
+      id: figure-2-chart
+      title: Figure 2 — inflation after lower target
+      series:
+        - {expression: 100 * PI, label: Inflation rate, unit: "%"}
+      axisMode: shared
+      referenceTrace: baseline
+      sourceRunCellId: fprf-lower-pi-target-run
+  - chart:
+      id: figure-3-chart
+      title: Figure 3 — output gap after lower target
+      series:
+        - {expression: y_ys, label: Actual / potential output}
+      axisMode: shared
+      sharedRange: {includeZero: false, min: 0.95, max: 1.05}
+      referenceTrace: baseline
+      sourceRunCellId: fprf-lower-pi-target-run
+  - chart:
+      id: figure-4-chart
+      title: Figure 4 — growth of pure govt spending after lower target
+      series:
+        - {expression: 100 * grG, label: Growth rate of g, unit: "%"}
+      axisMode: shared
+      referenceTrace: baseline
+      sourceRunCellId: fprf-lower-pi-target-run
+  - markdown:
+      id: fprf-exp-2-note
+      title: Experiment 2 — Higher propensity to consume
+      source: |-
+        Reproduces **Figure 5**: households raise `alpha10` from `0.9` to `0.95`, boosting
+        private spending. Fiscal policy responds by adjusting the growth rate of `g` to
+        contain the inflationary pressure.
+  - run:
+      id: fprf-higher-alpha10-run
+      title: Higher propensity to consume (α10 → 0.95)
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 5
+              - 100
+            variables:
+              alpha10:
+                kind: constant
+                value: 0.95
+      baselineRunCellId: fprf-baseline-run
+      periods: 100
+      resultKey: godley_fiscal_fprf_higher_alpha10
+      sourceModelId: godley-fiscal-fprf
+  - chart:
+      id: figure-5-chart
+      title: Figure 5 — output and fiscal spending growth after spending shock
+      series:
+        - {expression: 100 * gr_y, label: Growth rate of output, unit: "%"}
+        - {expression: 100 * grG, label: Growth rate of g, unit: "%"}
+      axisMode: shared
+      referenceTrace: baseline
+      sourceRunCellId: fprf-higher-alpha10-run
+  - markdown:
+      id: fprf-exp-3-note
+      title: Experiment 3 — Higher real interest rate
+      source: |-
+        Reproduces **Figures 6–8**: the central bank raises the real interest rate `rr` from
+        `1%` to `7%`. Private spending falls; fiscal policy hikes the growth of `g` to
+        restore full employment, accepting a higher debt ratio (Figure 8).
+  - run:
+      id: fprf-higher-rr-run
+      title: Higher real interest rate (rr → 7%)
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 5
+              - 100
+            variables:
+              rr:
+                kind: constant
+                value: 0.07
+      baselineRunCellId: fprf-baseline-run
+      periods: 100
+      resultKey: godley_fiscal_fprf_higher_rr
+      sourceModelId: godley-fiscal-fprf
+  - chart:
+      id: figure-6-chart
+      title: Figure 6 — inflation after real rate hike
+      series:
+        - {expression: 100 * PI, label: Inflation rate, unit: "%"}
+      axisMode: shared
+      referenceTrace: baseline
+      sourceRunCellId: fprf-higher-rr-run
+  - chart:
+      id: figure-7-chart
+      title: Figure 7 — output and fiscal spending growth after rate hike
+      series:
+        - {expression: 100 * gr_y, label: Growth rate of output, unit: "%"}
+        - {expression: 100 * grG, label: Growth rate of g, unit: "%"}
+      axisMode: shared
+      referenceTrace: baseline
+      sourceRunCellId: fprf-higher-rr-run
+  - chart:
+      id: figure-8-chart
+      title: Figure 8 — debt ratio after real rate hike
+      series:
+        - {expression: 100 * gd_y, label: Debt to GDP, unit: "%"}
+      axisMode: shared
+      referenceTrace: baseline
+      sourceRunCellId: fprf-higher-rr-run
   - markdown:
       id: scenario-2-note
       title: Scenario 2 — Permanent trade deficit

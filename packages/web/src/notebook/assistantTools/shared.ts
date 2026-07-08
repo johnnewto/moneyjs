@@ -1,8 +1,10 @@
 import { isRowComment } from "@sfcr/notebook-core";
+import { parseExpression } from "@sfcr/core";
 
 import type { EquationRow, ExternalRow } from "../../lib/editorModel";
 import type { UnitMeta } from "../../lib/unitMeta";
 import { buildDependencyGraph } from "../dependencyGraph";
+import { isBareVariableName } from "../chartSeries";
 import { buildEditorStateForNotebookModel, resolveRunCellModelKey } from "../modelSections";
 import { previewNotebookPatch as previewPatch, type NotebookPatch, type NotebookPatchOperation, type NotebookPatchResult } from "../notebookPatch";
 import type { ChartCell, EquationsCell, ExternalsCell, InitialValuesCell, MarkdownCell, MatrixCell, NotebookCell, NotebookDocument, RunCell, SolverCell, TableCell } from "../types";
@@ -652,7 +654,21 @@ export function validateVariablesInRunResult(
   }
 
   const seriesNames = new Set(Object.keys(output.result.series));
-  const missingVariables = variables.filter((variable) => !seriesNames.has(variable));
+  const missingVariables = variables.filter((variable) => {
+    const trimmed = variable.trim();
+    if (!trimmed) {
+      return true;
+    }
+    if (!isBareVariableName(trimmed)) {
+      try {
+        parseExpression(trimmed);
+        return false;
+      } catch {
+        return true;
+      }
+    }
+    return !seriesNames.has(trimmed);
+  });
   if (missingVariables.length > 0) {
     throw new Error(`Run '${runId}' does not include series: ${missingVariables.join(", ")}`);
   }

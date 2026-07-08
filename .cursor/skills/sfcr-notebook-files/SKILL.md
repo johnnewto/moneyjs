@@ -1,6 +1,6 @@
 ---
 name: sfcr-notebook-files
-description: Creates and edits SFCR notebook YAML in repo paths (pilot templates, public examples, new notebooks). Use when authoring .notebook.yaml, appending cells, updating templates, or running compile:notebook-yaml. Not for the in-browser notebook assistant.
+description: Creates and edits SFCR notebook YAML in repo paths (pilot templates, public examples, new notebooks). Use when authoring .notebook.yaml, appending cells, optional collapsible `more:` panels, updating templates, or running compile:notebook-yaml. Not for the in-browser notebook assistant.
 ---
 
 # SFCR notebook files (YAML / templates / examples)
@@ -11,6 +11,7 @@ Author **compact `sfcr-notebook-yaml`** in the repo. Runtime JSON is generated o
 
 | Task | Action |
 |------|--------|
+| **Expand with sections + `[more]` panels** | Follow [expand-notebook](../expand-notebook/SKILL.md) (textbook-grounded expansion workflow) |
 | **New notebook** | Copy `packages/web/public/notebook-examples/starter.example.notebook.yaml`, follow guide + prompt below |
 | **Append a cell** | Add one wrapped entry to `cells:` — see [append-cells.md](append-cells.md) |
 | **Edit pilot template** | Edit `packages/web/src/notebook/templates/<id>.notebook.yaml`, then compile (below) |
@@ -23,7 +24,7 @@ Author **compact `sfcr-notebook-yaml`** in the repo. Runtime JSON is generated o
 2. `packages/web/public/ai-prompts/create-sfcr-notebook-yaml.md` — generation constraints for new files
 3. Examples (pick by need):
    - `packages/web/public/notebook-examples/starter.example.notebook.yaml` — minimum scaffold
-   - `.../sim.example.notebook.yaml` — small Godley-Lavoie baseline + scenario
+   - `.../sim.example.notebook.yaml` — small Godley-Lavoie baseline + scenario (with inline `more:` panels)
    - `.../bmw.example.notebook.yaml` — sectors, bands, scenarios
    - `.../gl6-dis-rentier-v2.example.notebook.yaml` — split households / distributional layout
 4. Schema (expanded JSON): `packages/web/public/sfcr-notebook.schema.json`
@@ -55,6 +56,35 @@ cells:
 File order is UI order:
 
 1. Intro markdown → 2. Balance-sheet matrix → 3. Transaction-flow matrix → 4. Sequence cells → 5. Equations → 6. Solver → 7. Externals → 8. Initial values → 9. Baseline run → 10. Charts/tables → 11. Scenario markdown → 12. Scenario runs → 13. Scenario charts/tables
+
+## Optional collapsible "[more]" panels
+
+Add an optional `more:` string field on any cell wrapper (`markdown`, `matrix`, `equations`, `run`, `chart`, `table`, …). The UI renders it as a collapsible panel below the cell body, open by default with a **less** / **more** toggle.
+
+```yaml
+  - markdown:
+      id: overview
+      title: Overview
+      source: |
+        Short intro shown in the cell body.
+      more: |
+        Longer textbook-style explanation, figures, and context for readers who want depth.
+```
+
+- **Canonical example:** `packages/web/src/notebook/templates/sim.notebook.yaml` (and the compiled public example).
+- **Parsing:** `notebook-core` preserves `more` through YAML parse/serialize and `compile:notebook-yaml`.
+- **Rendering:** notebook run view (`NotebookCellMore`) and publication view (`PublicationMore`) both use markdown rendering (no KaTeX).
+- **Figures:** put assets under `packages/web/public/figures/` and reference them relatively, e.g. `![alt](figures/sim-circuit.svg)`.
+- **One panel per cell** — `more` attaches to that cell's `id`; do not duplicate ids.
+
+### `more:` authoring rules
+
+- Write variables and equations in **backticks**, not LaTeX. ✅ `` `Cd = alpha1 * YD + alpha2 * lag(Hh)` `` — ❌ `$C_d = \alpha_1 YD$`
+- Use `pow(b, e)` for exponentiation, never `^` (same as model expressions).
+- In **block scalar** `more: |` text, write italics as `_italic_`, not `*italic*`. The YAML dialect rejects `*word` tokens (they look like aliases). `**bold**` and multiplication inside backticks are fine.
+- Keep the cell `source` / `description` concise; put extended prose in `more:`.
+
+See [append-cells.md](append-cells.md) for per-type snippets.
 
 ## Anti-patterns
 
@@ -105,7 +135,7 @@ Smallest proof first (repo root):
 
 1. Pilot/template change → `pnpm --filter @sfcr/web compile:notebook-yaml -- --write` (and `--write-public-examples` if applicable)
 2. Template/model smoke → `pnpm web:test:templates`
-3. YAML/parser tests → `pnpm --filter @sfcr/web exec vitest run test/notebookYamlTemplates.test.ts`
+3. YAML / `more:` parser tests → `pnpm --filter @sfcr/web exec vitest run test/notebookYamlTemplates.test.ts test/notebookMoreField.test.ts`
 4. Public examples contract → `pnpm --filter @sfcr/web exec vitest run test/publicAiResources.test.ts`
 5. Broader web work → `pnpm web:test:fast`
 6. `notebook-core` schema edits → update `packages/notebook-core/src/sfcr-notebook.schema.json` and `packages/web/public/sfcr-notebook.schema.json`, then `pnpm --filter @sfcr/notebook-core run check:boundaries`
@@ -119,4 +149,5 @@ Smallest proof first (repo root):
 
 ## More detail
 
+- Expanding notebooks (sections + `[more]` + verification): [expand-notebook](../expand-notebook/SKILL.md)
 - Appending cells (snippets + placement): [append-cells.md](append-cells.md)

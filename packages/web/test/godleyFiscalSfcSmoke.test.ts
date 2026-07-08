@@ -65,4 +65,62 @@ describe("godley-fiscal-sfc template smoke", () => {
       baseline.series.DEFICIT_Y[79] ?? NaN
     );
   });
+
+  it("runs Section 2 FPRF baseline and scenario experiments", () => {
+    const fprfBaselineRunCell = findRunCell(document, "fprf-baseline-run");
+    const fprfEditor = buildEditorStateForNotebookModel(document, fprfBaselineRunCell);
+    expect(fprfEditor).not.toBeNull();
+    if (!fprfEditor) {
+      throw new Error("Expected FPRF baseline editor state.");
+    }
+
+    const fprfRuntime = buildRuntimeConfig(fprfEditor);
+    const fprfBaseline = runBaseline(fprfRuntime.model, fprfRuntime.options);
+    expect(Math.abs(fprfBaseline.series.accounting_check[99] ?? NaN)).toBeLessThan(1e-2);
+    expect(fprfBaseline.series.PI[99] ?? NaN).toBeCloseTo(0.02, 2);
+    expect(fprfBaseline.series.y_ys[99] ?? NaN).toBeCloseTo(1, 1);
+
+    const lowerPiTargetRunCell = findRunCell(document, "fprf-lower-pi-target-run");
+    const lowerPiTargetEditor = buildEditorStateForNotebookModel(document, lowerPiTargetRunCell);
+    expect(lowerPiTargetEditor).not.toBeNull();
+    if (!lowerPiTargetEditor) {
+      throw new Error("Expected lower-pi-target editor state.");
+    }
+    const lowerPiTargetRuntime = buildRuntimeConfig(lowerPiTargetEditor);
+    const lowerPiTarget = runScenario(
+      fprfBaseline,
+      lowerPiTargetRunCell.scenario ?? { shocks: [] },
+      lowerPiTargetRuntime.options
+    );
+    expect(lowerPiTarget.series.PI[99] ?? NaN).toBeLessThan(fprfBaseline.series.PI[99] ?? NaN);
+    expect(Math.min(...lowerPiTarget.series.y_ys.slice(5, 40))).toBeLessThan(0.995);
+
+    const higherAlpha10RunCell = findRunCell(document, "fprf-higher-alpha10-run");
+    const higherAlpha10Editor = buildEditorStateForNotebookModel(document, higherAlpha10RunCell);
+    expect(higherAlpha10Editor).not.toBeNull();
+    if (!higherAlpha10Editor) {
+      throw new Error("Expected higher-alpha10 editor state.");
+    }
+    const higherAlpha10Runtime = buildRuntimeConfig(higherAlpha10Editor);
+    const higherAlpha10 = runScenario(
+      fprfBaseline,
+      higherAlpha10RunCell.scenario ?? { shocks: [] },
+      higherAlpha10Runtime.options
+    );
+    expect(Math.max(...higherAlpha10.series.PI.slice(5, 40))).toBeGreaterThan(0.02);
+
+    const higherRrRunCell = findRunCell(document, "fprf-higher-rr-run");
+    const higherRrEditor = buildEditorStateForNotebookModel(document, higherRrRunCell);
+    expect(higherRrEditor).not.toBeNull();
+    if (!higherRrEditor) {
+      throw new Error("Expected higher-rr editor state.");
+    }
+    const higherRrRuntime = buildRuntimeConfig(higherRrEditor);
+    const higherRr = runScenario(
+      fprfBaseline,
+      higherRrRunCell.scenario ?? { shocks: [] },
+      higherRrRuntime.options
+    );
+    expect(higherRr.series.gd_y[99] ?? NaN).toBeGreaterThan((fprfBaseline.series.gd_y[99] ?? NaN) + 0.01);
+  });
 });

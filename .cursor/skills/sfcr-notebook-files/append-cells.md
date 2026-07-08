@@ -29,6 +29,23 @@ cells:
 
 Optional: place after intro with stable anchor — keep `id` unique kebab-case.
 
+### Optional `more:` panel (any cell type)
+
+Add a `more: |` block scalar on the same cell wrapper for a collapsible "[more]" explanation below the cell body. Works on `markdown`, `matrix`, `equations`, `solver`, `externals`, `initial-values`, `run`, `chart`, `table`, `sequence`, etc.
+
+```yaml
+  - markdown:
+      id: overview
+      title: Overview
+      source: |
+        Short cell body.
+      more: |
+        Extended explanation. Use `_italics_` not `*italics*` in block scalars.
+        Reference variables like `Y`, `Hh`, and equations like `Y = Cs + Gs`.
+```
+
+See `sim.notebook.yaml` / `sim.example.notebook.yaml` for full notebooks that use `more:` throughout.
+
 ### Matrix
 
 Requires `columns`, `sectors` (same length), `rows` with value count matching columns, and usually `sourceRunCellId` pointing at an existing baseline run.
@@ -173,6 +190,7 @@ Usually after the matrix or equations they depend on:
 - [ ] `title` is meaningful in the UI
 - [ ] `modelId` / `sourceModelId` / `sourceRunCellId` / `baselineRunCellId` reference existing ids
 - [ ] Matrix geometry is consistent (`columns`, `sectors`, row values)
+- [ ] Optional `more:` uses `_italic_` not `*italic*` in block scalars; figures live under `packages/web/public/figures/`
 - [ ] Scenario cells appear after baseline run and optional scenario markdown
 - [ ] Re-run compile/tests for pilot templates (see SKILL.md)
 

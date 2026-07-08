@@ -12,13 +12,15 @@ A table cell reads output from a run cell. It does not solve the model by itself
 
 ## Variables
 
-The `variables` list controls which series appear in the table:
+The `variables` list controls which series appear in the table. Each entry is either a
+variable name or an expression evaluated against the source run (same syntax as matrix
+cells and chart series), for example `t/y` or `100 * WBd / Y`:
 
 ```json
 {
   "type": "table",
   "sourceRunCellId": "baseline-run",
-  "variables": ["Y", "Cd", "Id", "K", "Mh"]
+  "variables": ["Y", "Cd", "t/y", "100 * WBd / Y"]
 }
 ```
 
