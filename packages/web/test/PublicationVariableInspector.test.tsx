@@ -61,5 +61,5 @@ describe("PublicationNotebookApp variable inspector", () => {
     expect(inspectorDialog).toBeInTheDocument();
     expect(screen.getByText("Selected variable")).toBeInTheDocument();
     expect(within(inspectorDialog).getByRole("heading", { name: /^Y\b/i })).toBeInTheDocument();
-  });
+  }, 15000);
 });

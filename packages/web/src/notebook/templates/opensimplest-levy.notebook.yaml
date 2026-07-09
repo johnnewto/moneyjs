@@ -9,13 +9,32 @@ cells:
   - markdown:
       id: overview
       title: Overview
-      source: A Levy WP 1105 aligned OPENSIMPLEST notebook using superscripted paper-style variable names directly in the runnable model, including `H^P`, `H^S`, `B^P`, `B^S`, `B^{CB}`, `B^W`, `BF^P`, `yd^R`, and `yd^{HS}`. Exponentiation is written with `pow(base, exponent)`, leaving `^` available for paper notation in variable names.
+      source: |
+        This notebook implements **OPENSIMPLEST**, the smallest stock-flow consistent (SFC) open-economy model from Zezza (Levy Economics Institute Working Paper No. 1105, January 2026). The runnable model uses paper-style superscripted variable names — `H^P`, `B^S`, `B^{CB}`, `yd^{HS}`, and others — with `pow(base, exponent)` for exponentiation so `^` remains available in names.
+      more: |
+        Zezza's _OPENSIMPLEST: The Smallest SFC Open Economy Model_ ([Levy WP 1105](https://www.levyinstitute.org/wp-content/uploads/2026/01/wp_1105.pdf)) is a deliberately parsimonious one-country framework with an explicitly modelled aggregate **rest of the world** (RoW). Unlike standard two-country SFC models (Godley & Lavoie's OPENFLEX, Carnevali's OPENSIME), it avoids partial closure of the external sector and can be calibrated directly from national accounts that report only aggregate external positions.
+
+        The model keeps the defining open-economy SFC mechanisms:
+
+        - horizontal and vertical **stock-flow consistency** across balance sheets and transaction flows;
+        - **endogenous money** supplied by the central bank as residual purchaser of government bills;
+        - **Tobinesque portfolio allocation** across domestic bills, foreign bills, and high-powered money;
+        - **trade elasticities** with lagged exchange rates (J-curve logic);
+        - **current-account dynamics**, net foreign asset accumulation, and **valuation effects** on foreign wealth.
+
+        The main modelling choice is the **exchange-rate closure**. Rather than clearing asset markets or the balance of payments within the period (as in OPENFLEX or OPENSIME), the nominal rate adjusts gradually to lagged current-account imbalances: `xr = I(phi * (-lag(CA)))`. That shifts attention from short-run financial arbitrage toward the cumulative interaction of flows, stocks, and revaluations — a Harrodian adjustment path in Zezza's terminology.
+
+        Section 5 of the paper replicates four benchmark shocks from Godley & Lavoie (2007, ch. 12) and Carnevali (2021). The scenarios below follow the paper's EViews replication: each shock applies from period 5 through 150.
   - matrix:
       id: balance-sheet
       accountingKind: balance-sheet
       title: Balance sheet matrix
       description: Compact balance-sheet view for the OPENSIMPLEST open-economy model.
       sourceRunCellId: baseline-run
+      more: |
+        This is Table 1 in Zezza (2026, section 3.2). The model abstracts from physical capital, inventories, loans, and equities: **all wealth is financial**. The private sector holds high-powered money (`H^P`), domestic government bills (`B^P`), and foreign bills (`BF^P`, valued in domestic currency at `xr`). Government bills are liabilities of the government and assets of the private sector, central bank, and RoW. Foreign bills are RoW liabilities and private-sector assets.
+
+        Rows sum to zero horizontally (every asset has a matching liability). Column sums including net worth are also zero. The RoW net position is the mirror of domestic **net foreign assets** (`NFA`), so valuation effects on `BF^P` when `xr` moves are recorded symmetrically in private wealth and the external position.
       columns: [Private, Government, Central bank, Rest of world, Sum]
       sectors: [Private, Government, Central bank, Rest of world, ""]
       rows:
@@ -30,6 +49,14 @@ cells:
       title: Transactions-flow matrix
       description: Transactions-flow matrix for the OPENSIMPLEST open-economy model.
       sourceRunCellId: baseline-run
+      more: |
+        Table 2 (section 3.3) records all monetary flows between sectors. The production column closes to GDP (`y`). The private sector receives wage income (embedded in `y`), bill interest, valuation gains on foreign assets, pays taxes and spending (`pe`), and records **net acquisition of financial assets** (`NAFA`). The government spends (`g`), collects taxes (`t`), pays interest on debt, and receives central-bank profits (`F^{CB}`). The RoW trades (`x`, `im`), pays and receives cross-border interest, and books valuation effects.
+
+        The **sectoral balances** row encodes the fundamental identity from national accounts:
+
+        `NAFA - PSBR - CA = 0`
+
+        (private net lending minus public net borrowing minus the current account). The model checks this each period via `sectoral_check`. Flow-of-funds rows link stock changes (`d(H^P)`, `d(B^P)`, and so on) to the sectoral balance identities.
       columns: [Production, Private, Government, Central bank, Rest of world, Sum]
       sectors: [Private, Government, Central bank, Rest of world, "", ""]
       rows:
@@ -51,17 +78,47 @@ cells:
         - [Sum, Sum, "0", "0", "0", "0", "0", "0"]
   - sequence:
       id: model-sequence
-      title: model sequence
+      title: Transaction flow sequence
       source:
         kind: matrix
         matrixCellId: transactions-flow
       description: Canvas-rendered sequence view generated from the transactions-flow matrix at the selected simulation period.
       note: Use Reset and Next step to manually reveal flows in order.
+      more: |
+        Step through the transaction matrix period by period to see how each flow connects sectors. This is the same accounting structure Zezza uses to motivate the behavioral blocks: demand (`pe`, `g`, `x`, `im`), interest and valuation flows, sectoral balances, and stock accumulation.
+  - sequence:
+      id: equation-dependency-graph
+      title: Equation dependency graph
+      source:
+        kind: dependency
+        modelId: opensimplest-levy
+        showAccountingStrips: true
+        showExogenous: false
+        stripMapping:
+          transactionMatrixCellId: transactions-flow
+          balanceMatrixCellId: balance-sheet
+      description: Dependency view of the equations organized by sector strips and accounting bands.
+      note: Compare with Figure 1A in Zezza (2026) — a compact graph relative to OPENFLEX and OPENSIME.
+      collapsed: true
+      more: |
+        Zezza contrasts this dependency structure with OPENFLEX and OPENSIME (Figures 1B–1C in the paper). OPENSIMPLEST drops the price block, exchange-rate expectations in portfolio demand, and the explicit foreign-country equation system, but preserves the dynamic core: income → trade → current account → exchange rate → portfolio → government and central bank.
   - equations:
       id: model-equations
       title: OPENSIMPLEST model
       modelId: opensimplest-levy
       collapsed: true
+      more: |
+        Equations follow Zezza (2026, section 4), aligned with Godley & Lavoie (2007) notation.
+
+        **Income and wealth (4.1).** Regular disposable income `yd^R` includes labour income (`y`), domestic and foreign interest, and taxes. Haig–Simons income `yd^{HS}` adds valuation effects `d(xr) * lag(BF^P)`. Wealth `v` accumulates saving out of `yd^{HS} - pe`. Consumption `pe = alpha1 * yd^{HS} + alpha2 * lag(v)` is the standard SFC demand function.
+
+        **External sector (4.2).** Log-linear trade functions `x` and `im` use **lagged** `xr` for J-curve dynamics. The current account `CA` adds the trade balance and net cross-border interest. Net foreign assets `NFA` integrate `CA` plus valuation effects. Foreign holdings of domestic bills `B^W` are residual from the balance sheet.
+
+        **Portfolio (4.3).** Domestic and foreign bill demands are Tobinesque functions of `v`, `r`, and `r^F`. Money `H^P` is the residual asset closing the private column — vertical consistency. Horizontal consistency requires `lambda12 = lambda21`.
+
+        **Government and central bank (4.4).** The central bank is the residual purchaser of bills (`B^{CB} = B^S - B^P - B^W`), sets `r`, and transfers profits `F^{CB}` to government. Money supply `H^S` equals CB bill holdings. Public debt `B^S` accumulates the PSBR.
+
+        **Exchange rate (4.5).** `xr = I(phi * (-lag(CA)))` — depreciation pressure when the lagged current account is in deficit. This is the main closure difference from OPENFLEX (asset-market clearing) and OPENSIME (contemporaneous BOP clearing).
       rows:
         - [yd^R, y + (lag(r) * lag(B^P) + lag(r^F) * lag(BF^P) * xr) - t, "Regular disposable income (excluding capital gains)."]
         - ["yd^{HS}", yd^R + d(xr) * lag(BF^P), "Haig-Simons disposable income (including valuation effects)."]
@@ -91,6 +148,8 @@ cells:
       title: Solver
       modelId: opensimplest-levy
       collapsed: true
+      more: |
+        The model is solved period by period with Newton's method. Lagged stocks enter portfolio demands, trade functions, interest flows, and the exchange-rate rule. The `sectoral_check` equation should remain near zero each period, confirming `NAFA - PSBR - CA = 0`.
       method: newton
       tolerance: "1e-8"
       maxIterations: 200
@@ -104,6 +163,15 @@ cells:
       title: Externals
       modelId: opensimplest-levy
       collapsed: true
+      more: |
+        Parameters match Zezza's baseline calibration (paper appendix EViews code). Policy and behavioural levers shocked in section 5:
+
+        - `eps0` — export competitiveness intercept (scenario 5.1);
+        - `g` — government spending (scenario 5.2);
+        - `r` — domestic bill rate set by the central bank (scenario 5.3);
+        - `lambda10`, `lambda20` — portfolio share baselines for domestic vs foreign bills (scenario 5.4).
+
+        Foreign income `y^F`, foreign rate `r^F`, and trade elasticities are held fixed across scenarios, as in the paper.
       rows:
         - [g, 16, "Government expenditure on goods and services."]
         - [r, 0.03, "Interest rate on domestic government bills."]
@@ -130,6 +198,8 @@ cells:
       title: Initial values
       modelId: opensimplest-levy
       collapsed: true
+      more: |
+        Initial stocks and flows reproduce the paper's balanced starting position: trade and current account near zero, sectoral balances aligned, and portfolio stocks consistent with the balance sheet. The baseline run then integrates forward 150 periods toward a new stationary configuration.
       rows:
         - [xr, 1.141]
         - [B^P, 87.1]
@@ -162,9 +232,35 @@ cells:
       periods: 150
       resultKey: opensimplest_levy_baseline
       sourceModelId: opensimplest-levy
+      more: |
+        The baseline integrates 150 periods with fixed parameters. Output `y` rises from the initial `80` toward roughly `97.5` by period 150 as portfolios and the exchange rate adjust. The current account and sectoral balances converge toward zero, consistent with a stationary external position. All scenario runs below branch from this baseline at period 5.
   - chart:
-      id: baseline-chart
-      title: Baseline dynamics
+      id: baseline-chart-external
+      title: Baseline external sector
+      variables:
+        - CA
+        - TB
+        - xr
+        - y
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      sourceRunCellId: baseline-run
+      more: |
+        Zezza's baseline panels track the external constraint: the trade balance `TB`, current account `CA`, exchange rate `xr`, and output `y`. In the baseline, `CA` and `TB` settle near zero while `y` and `xr` drift to new steady levels as stocks adjust.
+  - chart:
+      id: baseline-chart-balances
+      title: Baseline sectoral balances
+      variables:
+        - NAFA
+        - PSBR
+        - CA
+      axisMode: shared
+      sourceRunCellId: baseline-run
+      more: |
+        The sectoral-balances identity `NAFA - PSBR - CA = 0` is visible when the three series sum visually to zero. In the baseline all three converge toward zero as the model approaches stationarity.
+  - table:
+      id: baseline-table
+      title: Baseline summary (periods 1, 75, 150)
       variables:
         - y
         - x
@@ -172,16 +268,35 @@ cells:
         - CA
         - xr
         - v
-      axisMode: separate
-      axisSnapTolarance: 0.5
+        - NAFA
+        - PSBR
       sourceRunCellId: baseline-run
+      more: |
+        Compare early, mid, and late periods. By period 150 the baseline reaches `y` near `97.5`, `xr` near `1.19`, and near-zero `CA` and sectoral balances — the stationary configuration from which scenario shocks depart at period 5.
   - markdown:
-      id: scenario-note
-      title: Scenario
-      source: A permanent adverse export shock is introduced from period 5 by lowering the export intercept `eps0` from `-2.1` to `-2.2`. This reduces exports on impact, weakens the current account, and induces exchange-rate depreciation, which then partly stabilizes activity through the trade channel.
+      id: simulations-intro
+      title: Section 5 — Simulations
+      source: |
+        Zezza replicates four shocks from Godley & Lavoie (2007, ch. 12) and Carnevali (2021). Each experiment applies permanently from period 5. Charts plot scenario paths against the baseline reference trace.
+      more: |
+        Section 5 shows that OPENSIMPLEST reproduces the **qualitative** medium-run responses of larger open-economy SFC models for fiscal, external-demand, and portfolio shocks. Differences appear mainly for **pure monetary shocks** in the very short run, because the lagged current-account exchange-rate closure does not deliver the immediate depreciation seen under asset-market clearing in OPENFLEX.
+
+        | Scenario | Shock (from period 5) | Paper figure |
+        | --- | --- | --- |
+        | 5.1 Export competitiveness | `eps0`: `-2.1` → `-2.2` | Figure 2 |
+        | 5.2 Fiscal expansion | `g`: `16` → `18` | Figure 3 |
+        | 5.3 Lower domestic rate | `r`: `0.03` → `0.029` | Figure 4 |
+        | 5.4 Liquidity preference | `lambda10`: `0.7` → `0.65`, `lambda20`: `0.25` → `0.3` | Figure 5 |
+  - markdown:
+      id: scenario-5-1-note
+      title: Scenario 5.1 — Step-fall in exports
+      source: |
+        The export intercept `eps0` falls from `-2.1` to `-2.2` from period 5, reducing international competitiveness. Exports drop on impact; the current account weakens; the pound depreciates (`xr` rises); and activity eventually rebounds to a higher steady state as trade responds.
+      more: |
+        Zezza describes this as a step in the "residual indicator" of British competitiveness (section 5.1). Qualitatively: GDP falls initially as exports and the current account deteriorate, then **rebounds** after depreciation improves the trade balance. The government deficit (`PSBR`) rises while private `NAFA` is squeezed; as the current account recovers, private asset accumulation resumes.
   - run:
       id: export-shock-run
-      title: Export shock
+      title: Scenario 5.1 — Export shock
       mode: scenario
       scenario:
         shocks:
@@ -196,27 +311,157 @@ cells:
       periods: 150
       resultKey: opensimplest_levy_export_shock
       sourceModelId: opensimplest-levy
+      more: |
+        On impact at period 5, `x` falls relative to baseline (from about `26` toward `24`). `xr` depreciates (rises to about `1.20` vs `1.15` in the baseline at the same date). By period 150, `y` exceeds the baseline (`~99` vs `~97.5`) and `xr` remains higher (`~1.30` vs `~1.19`), matching the paper's higher steady state after competitiveness loss plus depreciation.
   - chart:
-      id: scenario-chart
-      title: Scenario dynamics
+      id: export-shock-chart-external
+      title: Scenario 5.1 — External sector
+      variables:
+        - CA
+        - TB
+        - xr
+        - y
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      referenceTrace: baseline
+      sourceRunCellId: export-shock-run
+      more: |
+        Compare to Figure 2 panels A–C. The trade and current accounts weaken first; `xr` depreciates; `y` dips then climbs above the baseline reference in the medium run.
+  - chart:
+      id: export-shock-chart-balances
+      title: Scenario 5.1 — Sectoral balances
+      variables:
+        - NAFA
+        - PSBR
+        - CA
+      axisMode: shared
+      referenceTrace: baseline
+      sourceRunCellId: export-shock-run
+      more: |
+        Panel D in the paper: `PSBR` rises and `NAFA` is compressed when the current account turns negative; both rebalance as external adjustment proceeds.
+  - markdown:
+      id: scenario-5-2-note
+      title: Scenario 5.2 — Expansionary fiscal policy
+      source: |
+        Government spending `g` rises permanently from `16` to `18` (a two-unit increase) from period 5. Fiscal stimulus boosts GDP; the current account deteriorates; the exchange rate depreciates rather than appreciates — contradicting the Mundell–Fleming offset story.
+      more: |
+        Zezza (section 5.2) highlights this as a Keynesian open-economy result already present in OPENFLEX: higher `g` raises demand, weakens the current account, and induces **depreciation** that reinforces the stimulus by slowing imports and supporting exports. Mainstream models often predict appreciation under flexible rates; the SFC closure delivers the opposite qualitative pattern.
+  - run:
+      id: fiscal-shock-run
+      title: Scenario 5.2 — Fiscal expansion
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 5
+              - 150
+            variables:
+              g:
+                kind: constant
+                value: 18
+      baselineRunCellId: baseline-run
+      periods: 150
+      resultKey: opensimplest_levy_fiscal_shock
+      sourceModelId: opensimplest-levy
+      more: |
+        Permanent `g = 18` lifts `y` above the baseline throughout the adjustment path. `CA` turns more negative as imports rise with income; `xr` depreciates to partially offset the external drag — the fiscal multiplier is reinforced, not crowded out by appreciation.
+  - chart:
+      id: fiscal-shock-chart
+      title: Scenario 5.2 — Output, external sector, and exchange rate
       variables:
         - y
-        - x
-        - im
+        - CA
+        - TB
+        - xr
+      axisMode: separate
+      referenceTrace: baseline
+      sourceRunCellId: fiscal-shock-run
+      more: |
+        Figure 3 in the paper. Watch `y` step up with `g`, `CA` weaken, and `xr` depreciate — the joint fiscal–external adjustment characteristic of Godley–Lavoie open-economy models.
+  - markdown:
+      id: scenario-5-3-note
+      title: Scenario 5.3 — Lower domestic interest rate
+      source: |
+        The central bank cuts `r` from `0.03` to `0.029` (a 0.1 percentage-point reduction) from period 5. Zezza highlights this case as the experiment where the lagged current-account exchange-rate closure matters most relative to OPENFLEX.
+      more: |
+        Section 5.3 is the monetary experiment where closures diverge. In OPENSIMPLEST the exchange rate does not jump to clear asset markets; it responds to **lagged** current-account positions through `xr = I(phi * (-lag(CA)))`.
+
+        The paper's mechanism: a lower `r` reduces interest paid to the RoW on `B^W`, improving the current account on the income account; with the Harrodian rule, that flow imbalance gradually pulls `xr` toward appreciation (a lower domestic-per-foreign rate, or higher `1/xr` in the paper's sterling panels). The medium-run outcome is **contractionary** — tighter net exports and weaker private balance sheets — unlike the immediate depreciation often seen in two-country portfolio-clearing models.
+
+        Use the chart below to compare this scenario with the baseline reference trace and with Figure 4 in the paper.
+  - run:
+      id: monetary-shock-run
+      title: Scenario 5.3 — Interest rate cut
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 5
+              - 150
+            variables:
+              r:
+                kind: constant
+                value: 0.029
+      baselineRunCellId: baseline-run
+      periods: 150
+      resultKey: opensimplest_levy_monetary_shock
+      sourceModelId: opensimplest-levy
+      more: |
+        Figure 4 in the paper. Track `CA`, `xr`, and `y` against the baseline. The paper emphasizes a contractionary medium-run adjustment once the external account and trade flows rebalance after the rate cut.
+  - chart:
+      id: monetary-shock-chart
+      title: Scenario 5.3 — External adjustment after rate cut
+      variables:
+        - y
         - CA
         - xr
         - v
       axisMode: separate
-      axisSnapTolarance: 0.5
-      sourceRunCellId: export-shock-run
-  - sequence:
-      id: equation-dependency-graph
-      title: dependency graph
-      source:
-        kind: dependency
-        modelId: opensimplest-levy
-        showAccountingStrips: true
-        showExogenous: false
-      description: Dependency view of the equations organized by sector strips and accounting bands.
-      note: Use this alongside the transaction-flow sequence to compare accounting flows with equation structure.
-      collapsed: true
+      referenceTrace: baseline
+      sourceRunCellId: monetary-shock-run
+      more: |
+        Figure 4. Contrast this adjustment path with the depreciation episodes in scenarios 5.1 and 5.2. Private wealth `v` and output `y` move with the trade channel as the external account rebalances.
+  - markdown:
+      id: scenario-5-4-note
+      title: Scenario 5.4 — Liquidity preference / portfolio shift
+      source: |
+        From period 5, households shift portfolio preferences toward foreign bills (`lambda20` up to `0.3`) and away from domestic bills (`lambda10` down to `0.65`). Money demand remains residual. The shock mimics greater appetite for foreign assets in G&L's liquidity-preference experiment.
+      more: |
+        Zezza implements a **specular** change in `lambda10` and `lambda20` so the shock is a substitution between interest-bearing assets, not a flight from money (section 5.4). In one-country form only domestic portfolio parameters move; the RoW counterpart is absorbed through `B^W` and `B^{CB}` residuals.
+
+        Dynamics are two-phase: initial **depreciation** as wealth shifts toward foreign bills, then medium-run **appreciation** as current-account and valuation effects rebalance the external position — the pattern emphasized in OPENFLEX and OPENSIME.
+  - run:
+      id: liquidity-shock-run
+      title: Scenario 5.4 — Portfolio shift
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 5
+              - 150
+            variables:
+              lambda10:
+                kind: constant
+                value: 0.65
+              lambda20:
+                kind: constant
+                value: 0.3
+      baselineRunCellId: baseline-run
+      periods: 150
+      resultKey: opensimplest_levy_liquidity_shock
+      sourceModelId: opensimplest-levy
+      more: |
+        Dual shocks in one `rangeInclusive` block mirror the EViews code (`lambda10 = 0.65`, `lambda20 = 0.3` from period 5). Portfolio reallocation moves `BF^P` and `B^P` in opposite directions while `H^P` clears residually.
+  - chart:
+      id: liquidity-shock-chart
+      title: Scenario 5.4 — Exchange rate and external sector
+      variables:
+        - xr
+        - CA
+        - TB
+        - y
+      axisMode: separate
+      referenceTrace: baseline
+      sourceRunCellId: liquidity-shock-run
+      more: |
+        Figure 5. Look for depreciation early in the shock window, then gradual appreciation as `CA` and valuation effects on `BF^P` feed back through `yd^{HS}` and trade.

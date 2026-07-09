@@ -1,0 +1,232 @@
+{
+  "id": "opensimplest-levy-notebook",
+  "title": "OPENSIMPLEST Levy WP 1105 Aligned Model",
+  "metadata": { "version": 1, "template": "opensimplest-levy" },
+  "cells": [
+    { "id": "overview", "type": "markdown", "title": "Overview", "source": "This notebook implements **OPENSIMPLEST**, the smallest stock-flow consistent (SFC) open-economy model from Zezza (Levy Economics Institute Working Paper No. 1105, January 2026). The runnable model uses paper-style superscripted variable names — `H^P`, `B^S`, `B^{CB}`, `yd^{HS}`, and others — with `pow(base, exponent)` for exponentiation so `^` remains available in names.\n", "more": "Zezza's _OPENSIMPLEST: The Smallest SFC Open Economy Model_ ([Levy WP 1105](https://www.levyinstitute.org/wp-content/uploads/2026/01/wp_1105.pdf)) is a deliberately parsimonious one-country framework with an explicitly modelled aggregate **rest of the world** (RoW). Unlike standard two-country SFC models (Godley & Lavoie's OPENFLEX, Carnevali's OPENSIME), it avoids partial closure of the external sector and can be calibrated directly from national accounts that report only aggregate external positions.\n\nThe model keeps the defining open-economy SFC mechanisms:\n\n- horizontal and vertical **stock-flow consistency** across balance sheets and transaction flows;\n- **endogenous money** supplied by the central bank as residual purchaser of government bills;\n- **Tobinesque portfolio allocation** across domestic bills, foreign bills, and high-powered money;\n- **trade elasticities** with lagged exchange rates (J-curve logic);\n- **current-account dynamics**, net foreign asset accumulation, and **valuation effects** on foreign wealth.\n\nThe main modelling choice is the **exchange-rate closure**. Rather than clearing asset markets or the balance of payments within the period (as in OPENFLEX or OPENSIME), the nominal rate adjusts gradually to lagged current-account imbalances: `xr = I(phi * (-lag(CA)))`. That shifts attention from short-run financial arbitrage toward the cumulative interaction of flows, stocks, and revaluations — a Harrodian adjustment path in Zezza's terminology.\n\nSection 5 of the paper replicates four benchmark shocks from Godley & Lavoie (2007, ch. 12) and Carnevali (2021). The scenarios below follow the paper's EViews replication: each shock applies from period 5 through 150.\n" },
+    {
+      "id": "balance-sheet",
+      "type": "matrix",
+      "title": "Balance sheet matrix",
+      "sourceRunCellId": "baseline-run",
+      "accountingKind": "balance-sheet",
+      "columns": ["Private", "Government", "Central bank", "Rest of world", "Sum"],
+      "sectors": ["Private", "Government", "Central bank", "Rest of world", ""],
+      "rows": [
+        { "band": "financial-assets", "label": "High-powered money", "values": ["+H^P", "", "-H^S", "", "0"] },
+        { "band": "financial-assets", "label": "Domestic bills", "values": ["+B^P", "-B^S", "+B^{CB}", "+B^W", "0"] },
+        { "band": "financial-assets", "label": "Foreign bills (domestic value)", "values": ["+BF^P * xr", "", "", "-BF^P * xr", "0"] },
+        { "band": "net-worth", "label": "Net worth", "values": ["-v", "+B^S", "", "+NFA", "0"] },
+        { "band": "Sum", "label": "Sum", "values": ["0", "0", "0", "0", "0"] }
+      ],
+      "description": "Compact balance-sheet view for the OPENSIMPLEST open-economy model.",
+      "more": "This is Table 1 in Zezza (2026, section 3.2). The model abstracts from physical capital, inventories, loans, and equities: **all wealth is financial**. The private sector holds high-powered money (`H^P`), domestic government bills (`B^P`), and foreign bills (`BF^P`, valued in domestic currency at `xr`). Government bills are liabilities of the government and assets of the private sector, central bank, and RoW. Foreign bills are RoW liabilities and private-sector assets.\n\nRows sum to zero horizontally (every asset has a matching liability). Column sums including net worth are also zero. The RoW net position is the mirror of domestic **net foreign assets** (`NFA`), so valuation effects on `BF^P` when `xr` moves are recorded symmetrically in private wealth and the external position.\n"
+    },
+    {
+      "id": "transactions-flow",
+      "type": "matrix",
+      "title": "Transactions-flow matrix",
+      "sourceRunCellId": "baseline-run",
+      "accountingKind": "transaction-flow",
+      "columns": ["Production", "Private", "Government", "Central bank", "Rest of world", "Sum"],
+      "sectors": ["Private", "Government", "Central bank", "Rest of world", "", ""],
+      "rows": [
+        { "band": "current", "label": "Government expenditure", "values": ["+g", "", "-g", "", "", "0"] },
+        { "band": "current", "label": "Private expenditure", "values": ["+pe", "-pe", "", "", "", "0"] },
+        { "band": "current", "label": "Taxes", "values": ["", "-t", "+t", "", "", "0"] },
+        { "band": "external", "label": "Exports", "values": ["+x", "", "", "", "-x", "0"] },
+        { "band": "external", "label": "Imports", "values": ["-im", "", "", "", "+im", "0"] },
+        { "band": "income", "label": "GDP income", "values": ["-y", "+y", "", "", "", "0"] },
+        { "band": "income", "label": "Interest on domestic bills", "values": ["", "+r * lag(B^P)", "-r * lag(B^S)", "+r * lag(B^{CB})", "+r * lag(B^W)", "0"] },
+        { "band": "income", "label": "Interest on foreign bills", "values": ["", "+r^F * lag(BF^P) * xr", "", "", "-r^F * lag(BF^P) * xr", "0"] },
+        { "band": "revaluation", "label": "Valuation gains", "values": ["", "+d(xr) * lag(BF^P)", "", "", "-d(xr) * lag(BF^P)", "0"] },
+        { "band": "income", "label": "Central-bank profits", "values": ["", "", "+F^{CB}", "-F^{CB}", "", "0"] },
+        { "band": "balances", "label": "Sectoral balances", "values": ["", "+NAFA", "-PSBR", "", "-CA", "0"] },
+        { "band": "financial", "label": "Change in money", "values": ["", "+d(H^P)", "", "-d(H^S)", "", "0"] },
+        { "band": "financial", "label": "Change in domestic bills", "values": ["", "+d(B^P)", "-d(B^S)", "+d(B^{CB})", "+d(B^W)", "0"] },
+        { "band": "financial", "label": "Change in foreign bills", "values": ["", "+d(BF^P) * xr", "", "", "-d(BF^P) * xr", "0"] },
+        { "band": "balances", "label": "Change in net worth", "values": ["", "-d(v)", "+d(B^S)", "", "+d(NFA)", "0"] },
+        { "band": "Sum", "label": "Sum", "values": ["0", "0", "0", "0", "0", "0"] }
+      ],
+      "description": "Transactions-flow matrix for the OPENSIMPLEST open-economy model.",
+      "more": "Table 2 (section 3.3) records all monetary flows between sectors. The production column closes to GDP (`y`). The private sector receives wage income (embedded in `y`), bill interest, valuation gains on foreign assets, pays taxes and spending (`pe`), and records **net acquisition of financial assets** (`NAFA`). The government spends (`g`), collects taxes (`t`), pays interest on debt, and receives central-bank profits (`F^{CB}`). The RoW trades (`x`, `im`), pays and receives cross-border interest, and books valuation effects.\n\nThe **sectoral balances** row encodes the fundamental identity from national accounts:\n\n`NAFA - PSBR - CA = 0`\n\n(private net lending minus public net borrowing minus the current account). The model checks this each period via `sectoral_check`. Flow-of-funds rows link stock changes (`d(H^P)`, `d(B^P)`, and so on) to the sectoral balance identities.\n"
+    },
+    { "id": "model-sequence", "type": "sequence", "title": "Transaction flow sequence", "source": { "kind": "matrix", "matrixCellId": "transactions-flow" }, "description": "Canvas-rendered sequence view generated from the transactions-flow matrix at the selected simulation period.", "note": "Use Reset and Next step to manually reveal flows in order.", "more": "Step through the transaction matrix period by period to see how each flow connects sectors. This is the same accounting structure Zezza uses to motivate the behavioral blocks: demand (`pe`, `g`, `x`, `im`), interest and valuation flows, sectoral balances, and stock accumulation.\n" },
+    { "id": "equation-dependency-graph", "type": "sequence", "title": "Equation dependency graph", "source": { "kind": "dependency", "modelId": "opensimplest-levy", "showAccountingStrips": true, "showExogenous": false, "stripMapping": { "transactionMatrixCellId": "transactions-flow", "balanceMatrixCellId": "balance-sheet" } }, "description": "Dependency view of the equations organized by sector strips and accounting bands.", "note": "Compare with Figure 1A in Zezza (2026) — a compact graph relative to OPENFLEX and OPENSIME.", "collapsed": true, "more": "Zezza contrasts this dependency structure with OPENFLEX and OPENSIME (Figures 1B–1C in the paper). OPENSIMPLEST drops the price block, exchange-rate expectations in portfolio demand, and the explicit foreign-country equation system, but preserves the dynamic core: income → trade → current account → exchange rate → portfolio → government and central bank.\n" },
+    {
+      "id": "model-equations",
+      "type": "equations",
+      "title": "OPENSIMPLEST model",
+      "modelId": "opensimplest-levy",
+      "equations": [
+        { "id": "eq-0-yd-R", "name": "yd^R", "desc": "Regular disposable income (excluding capital gains).", "expression": "y + (lag(r) * lag(B^P) + lag(r^F) * lag(BF^P) * xr) - t" },
+        { "id": "eq-1-yd-HS", "name": "yd^{HS}", "desc": "Haig-Simons disposable income (including valuation effects).", "expression": "yd^R + d(xr) * lag(BF^P)" },
+        { "id": "eq-2-v", "name": "v", "desc": "Household net financial wealth.", "expression": "I(yd^{HS} - pe)" },
+        { "id": "eq-3-t", "name": "t", "desc": "Tax revenue.", "expression": "theta * (y + lag(r) * lag(B^P) + lag(r^F) * lag(BF^P) * xr)" },
+        { "id": "eq-4-y", "name": "y", "desc": "GDP / income (output).", "expression": "pe + g + x - im" },
+        { "id": "eq-5-pe", "name": "pe", "desc": "Household consumption.", "expression": "alpha1 * yd^{HS} + alpha2 * lag(v)" },
+        { "id": "eq-6-NAFA", "name": "NAFA", "desc": "Net acquisition of financial assets by domestic private sector (NAFA).", "expression": "PSBR + CA" },
+        { "id": "eq-7-x", "name": "x", "desc": "Exports of goods and services.", "expression": "exp(eps0 + eps1 * log(lag(xr)) + eps2 * log(y^F))" },
+        { "id": "eq-8-im", "name": "im", "desc": "Imports of goods and services.", "expression": "exp(mu0 - mu1 * log(lag(xr)) + mu2 * log(y))" },
+        { "id": "eq-9-TB", "name": "TB", "desc": "Trade balance (exports - imports).", "expression": "x - im" },
+        { "id": "eq-10-CA", "name": "CA", "desc": "Current account balance (CA > 0 = surplus).", "expression": "TB + lag(r^F) * lag(BF^P) * xr - lag(r) * lag(B^W)" },
+        { "id": "eq-11-NFA", "name": "NFA", "desc": "Net foreign assets (country external position, NETFA).", "expression": "I(CA + d(xr) * lag(BF^P))" },
+        { "id": "eq-12-B-W", "name": "B^W", "desc": "Foreign holdings of domestic government bills (residual from NETFA identity).", "expression": "BF^P * xr - NFA" },
+        { "id": "eq-13-B-P", "name": "B^P", "desc": "Domestic bills held by households.", "expression": "v * (lambda10 + lambda11 * r - lambda12 * r^F)" },
+        { "id": "eq-14-BF-P", "name": "BF^P", "desc": "Foreign bills held by domestic households (in foreign currency).", "expression": "v * (lambda20 - lambda21 * r + lambda22 * r^F) / xr" },
+        { "id": "eq-15-H-P", "name": "H^P", "desc": "Money balances held by households.", "expression": "v - B^P - BF^P * xr" },
+        { "id": "eq-16-F-CB", "name": "F^{CB}", "desc": "Central bank profits.", "expression": "lag(r) * lag(B^{CB})" },
+        { "id": "eq-17-B-CB", "name": "B^{CB}", "desc": "Domestic bills held by the central bank.", "expression": "B^S - B^P - B^W" },
+        { "id": "eq-18-H-S", "name": "H^S", "desc": "Money supply (high-powered money).", "expression": "B^{CB}" },
+        { "id": "eq-19-PSBR", "name": "PSBR", "desc": "Public Sector Borrowing Requirement (government deficit).", "expression": "g + lag(r) * lag(B^S) - t - F^{CB}" },
+        { "id": "eq-20-B-S", "name": "B^S", "desc": "Total stock of domestic government bills.", "expression": "I(PSBR)" },
+        { "id": "eq-21-xr", "name": "xr", "desc": "Nominal exchange rate (domestic currency per unit of foreign currency).", "expression": "I(phi * (-lag(CA)))" },
+        { "id": "eq-22-sectoral_check", "name": "sectoral_check", "desc": "Sectoral balance identity (NAFA - PSBR - CA, should equal zero).", "expression": "NAFA - PSBR - CA" }
+      ],
+      "collapsed": true,
+      "more": "Equations follow Zezza (2026, section 4), aligned with Godley & Lavoie (2007) notation.\n\n**Income and wealth (4.1).** Regular disposable income `yd^R` includes labour income (`y`), domestic and foreign interest, and taxes. Haig–Simons income `yd^{HS}` adds valuation effects `d(xr) * lag(BF^P)`. Wealth `v` accumulates saving out of `yd^{HS} - pe`. Consumption `pe = alpha1 * yd^{HS} + alpha2 * lag(v)` is the standard SFC demand function.\n\n**External sector (4.2).** Log-linear trade functions `x` and `im` use **lagged** `xr` for J-curve dynamics. The current account `CA` adds the trade balance and net cross-border interest. Net foreign assets `NFA` integrate `CA` plus valuation effects. Foreign holdings of domestic bills `B^W` are residual from the balance sheet.\n\n**Portfolio (4.3).** Domestic and foreign bill demands are Tobinesque functions of `v`, `r`, and `r^F`. Money `H^P` is the residual asset closing the private column — vertical consistency. Horizontal consistency requires `lambda12 = lambda21`.\n\n**Government and central bank (4.4).** The central bank is the residual purchaser of bills (`B^{CB} = B^S - B^P - B^W`), sets `r`, and transfers profits `F^{CB}` to government. Money supply `H^S` equals CB bill holdings. Public debt `B^S` accumulates the PSBR.\n\n**Exchange rate (4.5).** `xr = I(phi * (-lag(CA)))` — depreciation pressure when the lagged current account is in deficit. This is the main closure difference from OPENFLEX (asset-market clearing) and OPENSIME (contemporaneous BOP clearing).\n"
+    },
+    { "id": "model-solver", "type": "solver", "title": "Solver", "modelId": "opensimplest-levy", "options": { "solverMethod": "NEWTON", "toleranceText": "1e-8", "maxIterations": 200, "defaultInitialValueText": "1e-15", "hiddenLeftVariable": "", "hiddenRightVariable": "", "hiddenToleranceText": "0.00001", "relativeHiddenTolerance": false }, "collapsed": true, "more": "The model is solved period by period with Newton's method. Lagged stocks enter portfolio demands, trade functions, interest flows, and the exchange-rate rule. The `sectoral_check` equation should remain near zero each period, confirming `NAFA - PSBR - CA = 0`.\n" },
+    {
+      "id": "model-externals",
+      "type": "externals",
+      "title": "Externals",
+      "modelId": "opensimplest-levy",
+      "externals": [
+        { "id": "ext-0-g", "name": "g", "desc": "Government expenditure on goods and services.", "kind": "constant", "valueText": "16" },
+        { "id": "ext-1-r", "name": "r", "desc": "Interest rate on domestic government bills.", "kind": "constant", "valueText": "0.03" },
+        { "id": "ext-2-r-F", "name": "r^F", "desc": "Interest rate on foreign bills (exogenous).", "kind": "constant", "valueText": "0.03" },
+        { "id": "ext-3-y-F", "name": "y^F", "desc": "Foreign income (exogenous).", "kind": "constant", "valueText": "80" },
+        { "id": "ext-4-alpha1", "name": "alpha1", "desc": "Propensity to consume out of disposable income.", "kind": "constant", "valueText": "0.7548" },
+        { "id": "ext-5-alpha2", "name": "alpha2", "desc": "Propensity to consume out of wealth.", "kind": "constant", "valueText": "0.13333" },
+        { "id": "ext-6-theta", "name": "theta", "desc": "Average tax rate on income.", "kind": "constant", "valueText": "0.2" },
+        { "id": "ext-7-eps0", "name": "eps0", "desc": "Export equation constant term.", "kind": "constant", "valueText": "-2.1" },
+        { "id": "ext-8-eps1", "name": "eps1", "desc": "Export elasticity with respect to the exchange rate.", "kind": "constant", "valueText": "0.7" },
+        { "id": "ext-9-eps2", "name": "eps2", "desc": "Export elasticity with respect to foreign income.", "kind": "constant", "valueText": "1.2" },
+        { "id": "ext-10-mu0", "name": "mu0", "desc": "Import equation constant term.", "kind": "constant", "valueText": "-2.1" },
+        { "id": "ext-11-mu1", "name": "mu1", "desc": "Import elasticity with respect to the exchange rate.", "kind": "constant", "valueText": "0.7" },
+        { "id": "ext-12-mu2", "name": "mu2", "desc": "Import elasticity with respect to domestic income.", "kind": "constant", "valueText": "1.2" },
+        { "id": "ext-13-lambda10", "name": "lambda10", "desc": "Portfolio share parameter: domestic bills (baseline).", "kind": "constant", "valueText": "0.7" },
+        { "id": "ext-14-lambda11", "name": "lambda11", "desc": "Portfolio sensitivity to domestic interest rate (domestic bills).", "kind": "constant", "valueText": "5" },
+        { "id": "ext-15-lambda12", "name": "lambda12", "desc": "Portfolio sensitivity to foreign interest rate (domestic bills).", "kind": "constant", "valueText": "5" },
+        { "id": "ext-16-lambda20", "name": "lambda20", "desc": "Portfolio share parameter: foreign bills (baseline).", "kind": "constant", "valueText": "0.25" },
+        { "id": "ext-17-lambda21", "name": "lambda21", "desc": "Portfolio sensitivity to domestic interest rate (foreign bills).", "kind": "constant", "valueText": "5" },
+        { "id": "ext-18-lambda22", "name": "lambda22", "desc": "Portfolio sensitivity to foreign interest rate (foreign bills).", "kind": "constant", "valueText": "5" },
+        { "id": "ext-19-phi", "name": "phi", "desc": "Exchange-rate adjustment speed.", "kind": "constant", "valueText": "0.01" }
+      ],
+      "collapsed": true,
+      "more": "Parameters match Zezza's baseline calibration (paper appendix EViews code). Policy and behavioural levers shocked in section 5:\n\n- `eps0` — export competitiveness intercept (scenario 5.1);\n- `g` — government spending (scenario 5.2);\n- `r` — domestic bill rate set by the central bank (scenario 5.3);\n- `lambda10`, `lambda20` — portfolio share baselines for domestic vs foreign bills (scenario 5.4).\n\nForeign income `y^F`, foreign rate `r^F`, and trade elasticities are held fixed across scenarios, as in the paper.\n"
+    },
+    {
+      "id": "model-initial-values",
+      "type": "initial-values",
+      "title": "Initial values",
+      "modelId": "opensimplest-levy",
+      "initialValues": [
+        { "id": "init-0-xr", "name": "xr", "valueText": "1.141" },
+        { "id": "init-1-B-P", "name": "B^P", "valueText": "87.1" },
+        { "id": "init-2-BF-P", "name": "BF^P", "valueText": "21.775" },
+        { "id": "init-3-B-S", "name": "B^S", "valueText": "144.977" },
+        { "id": "init-4-B-W", "name": "B^W", "valueText": "24.668" },
+        { "id": "init-5-NFA", "name": "NFA", "valueText": "0.174775" },
+        { "id": "init-6-v", "name": "v", "valueText": "145.151775" },
+        { "id": "init-7-H-P", "name": "H^P", "valueText": "33.20675" },
+        { "id": "init-8-B-CB", "name": "B^{CB}", "valueText": "33.209" },
+        { "id": "init-9-H-S", "name": "H^S", "valueText": "33.209" },
+        { "id": "init-10-F-CB", "name": "F^{CB}", "valueText": "0.99627" },
+        { "id": "init-11-PSBR", "name": "PSBR", "valueText": "0" },
+        { "id": "init-12-CA", "name": "CA", "valueText": "0" },
+        { "id": "init-13-NAFA", "name": "NAFA", "valueText": "0" },
+        { "id": "init-14-y", "name": "y", "valueText": "80" },
+        { "id": "init-15-x", "name": "x", "valueText": "16" },
+        { "id": "init-16-im", "name": "im", "valueText": "16" },
+        { "id": "init-17-TB", "name": "TB", "valueText": "0" },
+        { "id": "init-18-t", "name": "t", "valueText": "16" },
+        { "id": "init-19-yd-R", "name": "yd^R", "valueText": "67.93252" },
+        { "id": "init-20-yd-HS", "name": "yd^{HS}", "valueText": "67.93252" },
+        { "id": "init-21-pe", "name": "pe", "valueText": "80" },
+        { "id": "init-22-sectoral_check", "name": "sectoral_check", "valueText": "0" }
+      ],
+      "collapsed": true,
+      "more": "Initial stocks and flows reproduce the paper's balanced starting position: trade and current account near zero, sectoral balances aligned, and portfolio stocks consistent with the balance sheet. The baseline run then integrates forward 150 periods toward a new stationary configuration.\n"
+    },
+    { "id": "baseline-run", "type": "run", "title": "Baseline", "description": "Baseline simulation for the Levy WP 1105 aligned OPENSIMPLEST model over 150 periods.", "mode": "baseline", "periods": 150, "resultKey": "opensimplest_levy_baseline", "sourceModelId": "opensimplest-levy", "more": "The baseline integrates 150 periods with fixed parameters. Output `y` rises from the initial `80` toward roughly `97.5` by period 150 as portfolios and the exchange rate adjust. The current account and sectoral balances converge toward zero, consistent with a stationary external position. All scenario runs below branch from this baseline at period 5.\n" },
+    { "id": "baseline-chart-external", "type": "chart", "title": "Baseline external sector", "more": "Zezza's baseline panels track the external constraint: the trade balance `TB`, current account `CA`, exchange rate `xr`, and output `y`. In the baseline, `CA` and `TB` settle near zero while `y` and `xr` drift to new steady levels as stocks adjust.\n", "sourceRunCellId": "baseline-run", "variables": ["CA", "TB", "xr", "y"], "axisMode": "separate", "axisSnapTolarance": 0.5 },
+    { "id": "baseline-chart-balances", "type": "chart", "title": "Baseline sectoral balances", "more": "The sectoral-balances identity `NAFA - PSBR - CA = 0` is visible when the three series sum visually to zero. In the baseline all three converge toward zero as the model approaches stationarity.\n", "sourceRunCellId": "baseline-run", "variables": ["NAFA", "PSBR", "CA"], "axisMode": "shared" },
+    { "id": "baseline-table", "type": "table", "title": "Baseline summary (periods 1, 75, 150)", "more": "Compare early, mid, and late periods. By period 150 the baseline reaches `y` near `97.5`, `xr` near `1.19`, and near-zero `CA` and sectoral balances — the stationary configuration from which scenario shocks depart at period 5.\n", "sourceRunCellId": "baseline-run", "variables": ["y", "x", "im", "CA", "xr", "v", "NAFA", "PSBR"] },
+    { "id": "simulations-intro", "type": "markdown", "title": "Section 5 — Simulations", "source": "Zezza replicates four shocks from Godley & Lavoie (2007, ch. 12) and Carnevali (2021). Each experiment applies permanently from period 5. Charts plot scenario paths against the baseline reference trace.\n", "more": "Section 5 shows that OPENSIMPLEST reproduces the **qualitative** medium-run responses of larger open-economy SFC models for fiscal, external-demand, and portfolio shocks. Differences appear mainly for **pure monetary shocks** in the very short run, because the lagged current-account exchange-rate closure does not deliver the immediate depreciation seen under asset-market clearing in OPENFLEX.\n\n| Scenario | Shock (from period 5) | Paper figure |\n| --- | --- | --- |\n| 5.1 Export competitiveness | `eps0`: `-2.1` → `-2.2` | Figure 2 |\n| 5.2 Fiscal expansion | `g`: `16` → `18` | Figure 3 |\n| 5.3 Lower domestic rate | `r`: `0.03` → `0.029` | Figure 4 |\n| 5.4 Liquidity preference | `lambda10`: `0.7` → `0.65`, `lambda20`: `0.25` → `0.3` | Figure 5 |\n" },
+    { "id": "scenario-5-1-note", "type": "markdown", "title": "Scenario 5.1 — Step-fall in exports", "source": "The export intercept `eps0` falls from `-2.1` to `-2.2` from period 5, reducing international competitiveness. Exports drop on impact; the current account weakens; the pound depreciates (`xr` rises); and activity eventually rebounds to a higher steady state as trade responds.\n", "more": "Zezza describes this as a step in the \"residual indicator\" of British competitiveness (section 5.1). Qualitatively: GDP falls initially as exports and the current account deteriorate, then **rebounds** after depreciation improves the trade balance. The government deficit (`PSBR`) rises while private `NAFA` is squeezed; as the current account recovers, private asset accumulation resumes.\n" },
+    {
+      "id": "export-shock-run",
+      "type": "run",
+      "title": "Scenario 5.1 — Export shock",
+      "mode": "scenario",
+      "scenario": {
+        "shocks": [
+          { "variables": { "eps0": { "kind": "constant", "value": -2.2 } }, "startPeriodInclusive": 5, "endPeriodInclusive": 150 }
+        ]
+      },
+      "baselineRunCellId": "baseline-run",
+      "periods": 150,
+      "resultKey": "opensimplest_levy_export_shock",
+      "sourceModelId": "opensimplest-levy",
+      "more": "On impact at period 5, `x` falls relative to baseline (from about `26` toward `24`). `xr` depreciates (rises to about `1.20` vs `1.15` in the baseline at the same date). By period 150, `y` exceeds the baseline (`~99` vs `~97.5`) and `xr` remains higher (`~1.30` vs `~1.19`), matching the paper's higher steady state after competitiveness loss plus depreciation.\n"
+    },
+    { "id": "export-shock-chart-external", "type": "chart", "title": "Scenario 5.1 — External sector", "more": "Compare to Figure 2 panels A–C. The trade and current accounts weaken first; `xr` depreciates; `y` dips then climbs above the baseline reference in the medium run.\n", "sourceRunCellId": "export-shock-run", "variables": ["CA", "TB", "xr", "y"], "axisMode": "separate", "axisSnapTolarance": 0.5, "referenceTrace": "baseline" },
+    { "id": "export-shock-chart-balances", "type": "chart", "title": "Scenario 5.1 — Sectoral balances", "more": "Panel D in the paper: `PSBR` rises and `NAFA` is compressed when the current account turns negative; both rebalance as external adjustment proceeds.\n", "sourceRunCellId": "export-shock-run", "variables": ["NAFA", "PSBR", "CA"], "axisMode": "shared", "referenceTrace": "baseline" },
+    { "id": "scenario-5-2-note", "type": "markdown", "title": "Scenario 5.2 — Expansionary fiscal policy", "source": "Government spending `g` rises permanently from `16` to `18` (a two-unit increase) from period 5. Fiscal stimulus boosts GDP; the current account deteriorates; the exchange rate depreciates rather than appreciates — contradicting the Mundell–Fleming offset story.\n", "more": "Zezza (section 5.2) highlights this as a Keynesian open-economy result already present in OPENFLEX: higher `g` raises demand, weakens the current account, and induces **depreciation** that reinforces the stimulus by slowing imports and supporting exports. Mainstream models often predict appreciation under flexible rates; the SFC closure delivers the opposite qualitative pattern.\n" },
+    {
+      "id": "fiscal-shock-run",
+      "type": "run",
+      "title": "Scenario 5.2 — Fiscal expansion",
+      "mode": "scenario",
+      "scenario": {
+        "shocks": [
+          { "variables": { "g": { "kind": "constant", "value": 18 } }, "startPeriodInclusive": 5, "endPeriodInclusive": 150 }
+        ]
+      },
+      "baselineRunCellId": "baseline-run",
+      "periods": 150,
+      "resultKey": "opensimplest_levy_fiscal_shock",
+      "sourceModelId": "opensimplest-levy",
+      "more": "Permanent `g = 18` lifts `y` above the baseline throughout the adjustment path. `CA` turns more negative as imports rise with income; `xr` depreciates to partially offset the external drag — the fiscal multiplier is reinforced, not crowded out by appreciation.\n"
+    },
+    { "id": "fiscal-shock-chart", "type": "chart", "title": "Scenario 5.2 — Output, external sector, and exchange rate", "more": "Figure 3 in the paper. Watch `y` step up with `g`, `CA` weaken, and `xr` depreciate — the joint fiscal–external adjustment characteristic of Godley–Lavoie open-economy models.\n", "sourceRunCellId": "fiscal-shock-run", "variables": ["y", "CA", "TB", "xr"], "axisMode": "separate", "referenceTrace": "baseline" },
+    { "id": "scenario-5-3-note", "type": "markdown", "title": "Scenario 5.3 — Lower domestic interest rate", "source": "The central bank cuts `r` from `0.03` to `0.029` (a 0.1 percentage-point reduction) from period 5. Zezza highlights this case as the experiment where the lagged current-account exchange-rate closure matters most relative to OPENFLEX.\n", "more": "Section 5.3 is the monetary experiment where closures diverge. In OPENSIMPLEST the exchange rate does not jump to clear asset markets; it responds to **lagged** current-account positions through `xr = I(phi * (-lag(CA)))`.\n\nThe paper's mechanism: a lower `r` reduces interest paid to the RoW on `B^W`, improving the current account on the income account; with the Harrodian rule, that flow imbalance gradually pulls `xr` toward appreciation (a lower domestic-per-foreign rate, or higher `1/xr` in the paper's sterling panels). The medium-run outcome is **contractionary** — tighter net exports and weaker private balance sheets — unlike the immediate depreciation often seen in two-country portfolio-clearing models.\n\nUse the chart below to compare this scenario with the baseline reference trace and with Figure 4 in the paper.\n" },
+    {
+      "id": "monetary-shock-run",
+      "type": "run",
+      "title": "Scenario 5.3 — Interest rate cut",
+      "mode": "scenario",
+      "scenario": {
+        "shocks": [
+          { "variables": { "r": { "kind": "constant", "value": 0.029 } }, "startPeriodInclusive": 5, "endPeriodInclusive": 150 }
+        ]
+      },
+      "baselineRunCellId": "baseline-run",
+      "periods": 150,
+      "resultKey": "opensimplest_levy_monetary_shock",
+      "sourceModelId": "opensimplest-levy",
+      "more": "Figure 4 in the paper. Track `CA`, `xr`, and `y` against the baseline. The paper emphasizes a contractionary medium-run adjustment once the external account and trade flows rebalance after the rate cut.\n"
+    },
+    { "id": "monetary-shock-chart", "type": "chart", "title": "Scenario 5.3 — External adjustment after rate cut", "more": "Figure 4. Contrast this adjustment path with the depreciation episodes in scenarios 5.1 and 5.2. Private wealth `v` and output `y` move with the trade channel as the external account rebalances.\n", "sourceRunCellId": "monetary-shock-run", "variables": ["y", "CA", "xr", "v"], "axisMode": "separate", "referenceTrace": "baseline" },
+    { "id": "scenario-5-4-note", "type": "markdown", "title": "Scenario 5.4 — Liquidity preference / portfolio shift", "source": "From period 5, households shift portfolio preferences toward foreign bills (`lambda20` up to `0.3`) and away from domestic bills (`lambda10` down to `0.65`). Money demand remains residual. The shock mimics greater appetite for foreign assets in G&L's liquidity-preference experiment.\n", "more": "Zezza implements a **specular** change in `lambda10` and `lambda20` so the shock is a substitution between interest-bearing assets, not a flight from money (section 5.4). In one-country form only domestic portfolio parameters move; the RoW counterpart is absorbed through `B^W` and `B^{CB}` residuals.\n\nDynamics are two-phase: initial **depreciation** as wealth shifts toward foreign bills, then medium-run **appreciation** as current-account and valuation effects rebalance the external position — the pattern emphasized in OPENFLEX and OPENSIME.\n" },
+    {
+      "id": "liquidity-shock-run",
+      "type": "run",
+      "title": "Scenario 5.4 — Portfolio shift",
+      "mode": "scenario",
+      "scenario": {
+        "shocks": [
+          { "variables": { "lambda10": { "kind": "constant", "value": 0.65 }, "lambda20": { "kind": "constant", "value": 0.3 } }, "startPeriodInclusive": 5, "endPeriodInclusive": 150 }
+        ]
+      },
+      "baselineRunCellId": "baseline-run",
+      "periods": 150,
+      "resultKey": "opensimplest_levy_liquidity_shock",
+      "sourceModelId": "opensimplest-levy",
+      "more": "Dual shocks in one `rangeInclusive` block mirror the EViews code (`lambda10 = 0.65`, `lambda20 = 0.3` from period 5). Portfolio reallocation moves `BF^P` and `B^P` in opposite directions while `H^P` clears residually.\n"
+    },
+    { "id": "liquidity-shock-chart", "type": "chart", "title": "Scenario 5.4 — Exchange rate and external sector", "more": "Figure 5. Look for depreciation early in the shock window, then gradual appreciation as `CA` and valuation effects on `BF^P` feed back through `yd^{HS}` and trade.\n", "sourceRunCellId": "liquidity-shock-run", "variables": ["xr", "CA", "TB", "y"], "axisMode": "separate", "referenceTrace": "baseline" }
+  ]
+}
