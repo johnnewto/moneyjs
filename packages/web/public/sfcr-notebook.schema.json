@@ -499,6 +499,7 @@
         },
         "axisSnapTolarance": { "type": "number" },
         "niceScale": { "type": "boolean" },
+        "compareMode": { "enum": ["levels", "relative", "percent"] },
         "referenceTrace": { "enum": ["none", "baseline", "previous-run", "observed"] },
         "referenceTraces": {
           "type": "array",

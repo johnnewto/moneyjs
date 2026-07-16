@@ -50,6 +50,7 @@ const ALLOWED_CELL_PROPERTIES = new Set([
   "columnBadges",
   "columnTree",
   "columns",
+  "compareMode",
   "description",
   "equations",
   "exogenize",

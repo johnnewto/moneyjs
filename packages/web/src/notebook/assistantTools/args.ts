@@ -278,6 +278,20 @@ export function optionalReferenceTrace(
   return value;
 }
 
+export function optionalChartCompareMode(
+  args: Record<string, unknown> | undefined,
+  key: string
+): "levels" | "relative" | "percent" | undefined {
+  const value = optionalString(args, key);
+  if (value == null) {
+    return undefined;
+  }
+  if (value !== "levels" && value !== "relative" && value !== "percent") {
+    throw new Error(`Tool argument '${key}' must be levels, relative, or percent.`);
+  }
+  return value;
+}
+
 export function optionalShowScenarioShocks(
   args: Record<string, unknown> | undefined,
   key: string

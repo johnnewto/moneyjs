@@ -233,6 +233,7 @@ export function createUpdateChartOptionsPatch(
   args: {
     axisMode?: "shared" | "separate";
     chartId: string;
+    compareMode?: "levels" | "relative" | "percent";
     niceScale?: boolean;
     referenceTrace?: "none" | "baseline" | "previous-run" | "observed";
     showScenarioShocks?: boolean | "auto";
@@ -246,6 +247,9 @@ export function createUpdateChartOptionsPatch(
   const operations: NotebookPatchOperation[] = [];
   if (args.axisMode != null) {
     operations.push(createSetCellPropertyOperation(chart, "axisMode", args.axisMode));
+  }
+  if (args.compareMode != null) {
+    operations.push(createSetCellPropertyOperation(chart, "compareMode", args.compareMode));
   }
   if (args.timeRangeInclusive != null) {
     operations.push(createSetCellPropertyOperation(chart, "timeRangeInclusive", args.timeRangeInclusive));

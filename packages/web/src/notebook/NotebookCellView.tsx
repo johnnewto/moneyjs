@@ -76,6 +76,11 @@ import {
   resolveChartSeriesDisplayNames,
   suggestChartAxisGroups
 } from "./chartSeries";
+import {
+  formatChartCompareMode,
+  getNextChartCompareMode,
+  resolveChartCompareMode
+} from "./chartCompareMode";
 import { ChartCellView, RunCellView } from "./components/RunChartViews";
 import type { MatrixGraphSliceHighlight } from "./graphDocumentHighlight";
 import { MatrixCellView } from "./components/MatrixCellView";
@@ -960,26 +965,48 @@ function NotebookCellViewComponent({
                       />
                     ) : null}
                     {cell.type === "chart" && !isEditingSource ? (
-                      <button
-                        type="button"
-                        className={`notebook-run-button notebook-reference-trace-toggle${
-                          resolveChartReferenceTrace(cell, cells) === "none" ? "" : " is-active"
-                        }`}
-                        onClick={() =>
-                          onCellChange(cell.id, (current) =>
-                            current.type === "chart"
-                              ? {
-                                  ...current,
-                                  referenceTrace: getNextChartReferenceTrace(
-                                    resolveChartReferenceTrace(current, cells)
-                                  )
-                                }
-                              : current
-                          )
-                        }
-                      >
-                        Reference: {formatChartReferenceTrace(resolveChartReferenceTrace(cell, cells))}
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          className={`notebook-run-button notebook-chart-compare-toggle${
+                            resolveChartCompareMode(cell) === "levels" ? "" : " is-active"
+                          }`}
+                          onClick={() =>
+                            onCellChange(cell.id, (current) =>
+                              current.type === "chart"
+                                ? {
+                                    ...current,
+                                    compareMode: getNextChartCompareMode(
+                                      resolveChartCompareMode(current)
+                                    )
+                                  }
+                                : current
+                            )
+                          }
+                        >
+                          Compare: {formatChartCompareMode(resolveChartCompareMode(cell))}
+                        </button>
+                        <button
+                          type="button"
+                          className={`notebook-run-button notebook-reference-trace-toggle${
+                            resolveChartReferenceTrace(cell, cells) === "none" ? "" : " is-active"
+                          }`}
+                          onClick={() =>
+                            onCellChange(cell.id, (current) =>
+                              current.type === "chart"
+                                ? {
+                                    ...current,
+                                    referenceTrace: getNextChartReferenceTrace(
+                                      resolveChartReferenceTrace(current, cells)
+                                    )
+                                  }
+                                : current
+                            )
+                          }
+                        >
+                          Reference: {formatChartReferenceTrace(resolveChartReferenceTrace(cell, cells))}
+                        </button>
+                      </>
                     ) : null}
                     {isSourceEditable(cell) && isEditingSource ? (
                       <>

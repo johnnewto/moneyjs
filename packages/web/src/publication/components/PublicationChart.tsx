@@ -4,6 +4,13 @@ import type { SimulationResult } from "@sfcr/core";
 
 import { ResultChart } from "../../components/ResultChart";
 import {
+  applyChartCompareMode,
+  canApplyChartCompareMode,
+  filterReferenceTracesForCompareMode,
+  resolveChartCompareMode,
+  resolveCompareModeSharedRange
+} from "../../notebook/chartCompareMode";
+import {
   buildReferenceTraceOverlaySeriesList,
   formatChartReferenceTraceLegend,
   resolveEffectiveScenarioStartPeriod,
@@ -56,25 +63,15 @@ export function PublicationChart({
     return <p className="publication-status-hint">Chart data is not available.</p>;
   }
 
-  const series = buildResolvedChartSeriesWithUnits(
+  const levelSeries = buildResolvedChartSeriesWithUnits(
     activeCell,
     result,
     variableUnitMetadata,
     getResult
   );
-  if (series.length === 0) {
+  if (levelSeries.length === 0) {
     return <p className="publication-status-hint">Chart data is not available.</p>;
   }
-
-  const seriesRanges = buildResolvedChartSeriesRanges(activeCell, series);
-  const seriesLength = Math.max(...series.map((entry) => entry.values.length), 1);
-
-  const addVariableOptions = interactive
-    ? Object.entries(result.series)
-        .filter(([, values]) => values.length > 1 && Array.from(values).some(Number.isFinite))
-        .map(([name]) => name)
-        .sort((left, right) => left.localeCompare(right))
-    : undefined;
 
   const sourceRunCell = cells.find(
     (candidate): candidate is RunCell =>
@@ -91,13 +88,39 @@ export function PublicationChart({
   const baselineStartPeriod = sourceRunCell
     ? resolveEffectiveScenarioStartPeriod(cells, sourceRunCell)
     : undefined;
+  const compareMode = resolveChartCompareMode(activeCell);
+  const compareModeApplicable = canApplyChartCompareMode({
+    sourceRunCell,
+    baselineStartPeriod,
+    baselineResult
+  });
+  const series = applyChartCompareMode({
+    cell: activeCell,
+    series: levelSeries,
+    sourceRunCell,
+    baselineStartPeriod,
+    baselineResult
+  });
+  const seriesRanges = buildResolvedChartSeriesRanges(activeCell, series);
+  const seriesLength = Math.max(...series.map((entry) => entry.values.length), 1);
+  const sharedRange = resolveCompareModeSharedRange(activeCell, compareModeApplicable);
+
+  const addVariableOptions = interactive
+    ? Object.entries(result.series)
+        .filter(([, values]) => values.length > 1 && Array.from(values).some(Number.isFinite))
+        .map(([name]) => name)
+        .sort((left, right) => left.localeCompare(right))
+    : undefined;
   const hasObserved = result.observed != null && Object.keys(result.observed).length > 0;
-  const referenceTraces = resolveReferenceTraces(activeCell, sourceRunCell, hasObserved);
+  const referenceTraces = filterReferenceTracesForCompareMode(
+    resolveReferenceTraces(activeCell, sourceRunCell, hasObserved),
+    compareModeApplicable ? compareMode : "levels"
+  );
   const overlaySeries = buildReferenceTraceOverlaySeriesList({
     cell: activeCell,
     referenceTraces,
     result,
-    resolvedSeries: series,
+    resolvedSeries: levelSeries,
     sourceRunCell,
     baselineStartPeriod,
     baselineResult
@@ -151,7 +174,7 @@ export function PublicationChart({
         selectedIndex={Math.min(selectedPeriodIndex, seriesLength - 1)}
         series={series}
         seriesRanges={seriesRanges}
-        sharedRange={activeCell.sharedRange}
+        sharedRange={sharedRange}
         showAxisSummary={false}
         timeRangeDefaults={{
           endPeriodInclusive: seriesLength,

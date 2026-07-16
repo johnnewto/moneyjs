@@ -229,6 +229,7 @@ export function buildCompactChartDescriptor(
     ...(cell.axisGroups && cell.axisGroups.length > 0 ? { axisGroups: cell.axisGroups } : {}),
     ...(cell.axisSnapTolarance == null ? {} : { axisSnapTolarance: cell.axisSnapTolarance }),
     ...(cell.niceScale == null ? {} : { niceScale: cell.niceScale }),
+    ...(cell.compareMode ? { compareMode: cell.compareMode } : {}),
     ...(cell.referenceTrace ? { referenceTrace: cell.referenceTrace } : {}),
     ...(cell.showScenarioShocks === false || cell.showScenarioShocks === true || cell.showScenarioShocks === "auto"
       ? { showScenarioShocks: cell.showScenarioShocks }
@@ -744,6 +745,9 @@ export function buildCompactChartCells(charts: unknown, sourceRunCellId: string)
       ...(axisGroups && axisGroups.length > 0 ? { axisGroups } : {}),
       ...(typeof chart.axisSnapTolarance === "number" ? { axisSnapTolarance: chart.axisSnapTolarance } : {}),
       ...(typeof chart.niceScale === "boolean" ? { niceScale: chart.niceScale } : {}),
+      ...(chart.compareMode === "levels" || chart.compareMode === "relative" || chart.compareMode === "percent"
+        ? { compareMode: chart.compareMode }
+        : {}),
       ...(chart.referenceTrace === "none" || chart.referenceTrace === "baseline" || chart.referenceTrace === "previous-run" || chart.referenceTrace === "observed" ? { referenceTrace: chart.referenceTrace } : {}),
       ...(chart.showScenarioShocks === false || chart.showScenarioShocks === true || chart.showScenarioShocks === "auto"
         ? { showScenarioShocks: chart.showScenarioShocks }

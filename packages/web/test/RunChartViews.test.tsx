@@ -450,6 +450,77 @@ describe("ChartCellView", () => {
     expect(document.querySelectorAll("circle.chart-observed-point").length).toBe(3);
   });
 
+  it("omits baseline overlay when compareMode is relative", () => {
+    const multiReferenceCells: NotebookCell[] = [
+      {
+        id: "baseline-run",
+        mode: "baseline",
+        periods: 6,
+        resultKey: "baseline",
+        sourceModelId: "model-1",
+        title: "Baseline",
+        type: "run"
+      },
+      {
+        id: "scenario-run",
+        baselineRunCellId: "baseline-run",
+        baselineStartPeriod: 3,
+        mode: "scenario",
+        periods: 3,
+        resultKey: "scenario",
+        scenario: { shocks: [] },
+        sourceModelId: "model-1",
+        title: "Scenario",
+        type: "run"
+      }
+    ];
+    const chart: ChartCell = {
+      id: "chart-1",
+      compareMode: "relative",
+      referenceTraces: ["baseline", "observed"],
+      sourceRunCellId: "scenario-run",
+      title: "Chart",
+      type: "chart",
+      variables: ["Y"]
+    };
+    const scenarioResult = createResult([30, 32, 34]);
+    const baselineResult: SimulationResult = {
+      ...createResult([20, 22, 24, 26, 28, 30]),
+      observed: { Y: new Float64Array([18, 19, 30, 31, 32, 33]) }
+    };
+    const runner = {
+      ...createRunner({ current: scenarioResult }),
+      getResult: vi.fn((cellId: string) => {
+        if (cellId === "scenario-run") {
+          return scenarioResult;
+        }
+        if (cellId === "baseline-run") {
+          return baselineResult;
+        }
+        return null;
+      })
+    } as unknown as ReturnType<typeof useNotebookRunner>;
+
+    render(
+      <ChartCellView
+        cell={chart}
+        cells={multiReferenceCells}
+        runner={runner}
+        selectedPeriodIndex={2}
+        variableDescriptions={new Map()}
+        variableUnitMetadata={new Map()}
+      />
+    );
+
+    expect(screen.queryByText("----: baseline")).toBeNull();
+    expect(screen.getByText("• Observed").closest(".chart-legend")).not.toBeNull();
+    expect(
+      screen.getByRole("img", {
+        name: /simulation result chart/i
+      })
+    ).toBeInTheDocument();
+  });
+
   it("renders expression series from run results", () => {
     const chart: ChartCell = {
       id: "chart-1",

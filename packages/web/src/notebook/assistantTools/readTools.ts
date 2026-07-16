@@ -309,6 +309,7 @@ export function listCharts(snapshot: NotebookAssistantSnapshot) {
     variables: chart.variables ?? null,
     series: chart.series ?? null,
     axisMode: chart.axisMode ?? null,
+    compareMode: chart.compareMode ?? null,
     referenceTrace: chart.referenceTrace ?? null,
     showScenarioShocks: chart.showScenarioShocks ?? "auto",
     timeRangeInclusive: chart.timeRangeInclusive ?? null

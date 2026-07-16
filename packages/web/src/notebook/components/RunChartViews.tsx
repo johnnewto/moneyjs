@@ -10,6 +10,13 @@ import {
   resolveShowScenarioShocks
 } from "../../lib/scenarioShockMarkers";
 import {
+  applyChartCompareMode,
+  canApplyChartCompareMode,
+  filterReferenceTracesForCompareMode,
+  resolveChartCompareMode,
+  resolveCompareModeSharedRange
+} from "../chartCompareMode";
+import {
   buildReferenceTraceOverlaySeriesList,
   formatChartReferenceTraceLegend,
   resolveEffectiveScenarioStartPeriod,
@@ -224,13 +231,6 @@ export function ChartCellView({
     return null;
   }
 
-  const series = buildResolvedChartSeriesWithUnits(
-    cell,
-    result,
-    variableUnitMetadata,
-    (runCellId) => runner.getResult(runCellId)
-  );
-  const seriesRanges = buildResolvedChartSeriesRanges(cell, series);
   const sourceRunCell = cells.find(
     (candidate): candidate is RunCell =>
       candidate.type === "run" && candidate.id === cell.sourceRunCellId
@@ -247,18 +247,41 @@ export function ChartCellView({
   const baselineStartPeriod = sourceRunCell
     ? resolveEffectiveScenarioStartPeriod(cells, sourceRunCell)
     : undefined;
+  const levelSeries = buildResolvedChartSeriesWithUnits(
+    cell,
+    result,
+    variableUnitMetadata,
+    (runCellId) => runner.getResult(runCellId)
+  );
+  const compareMode = resolveChartCompareMode(cell);
+  const compareModeApplicable = canApplyChartCompareMode({
+    sourceRunCell,
+    baselineStartPeriod,
+    baselineResult
+  });
+  const series = applyChartCompareMode({
+    cell,
+    series: levelSeries,
+    sourceRunCell,
+    baselineStartPeriod,
+    baselineResult
+  });
+  const seriesRanges = buildResolvedChartSeriesRanges(cell, series);
   const periodLabelOffset = baselineStartPeriod != null ? baselineStartPeriod - 1 : 0;
   const chartSelectedIndex =
     baselineStartPeriod != null
       ? Math.max(selectedPeriodIndex - periodLabelOffset, 0)
       : selectedPeriodIndex;
   const hasObserved = result.observed != null && Object.keys(result.observed).length > 0;
-  const referenceTraces = resolveReferenceTraces(cell, sourceRunCell, hasObserved);
+  const referenceTraces = filterReferenceTracesForCompareMode(
+    resolveReferenceTraces(cell, sourceRunCell, hasObserved),
+    compareModeApplicable ? compareMode : "levels"
+  );
   const overlaySeries = buildReferenceTraceOverlaySeriesList({
     cell,
     referenceTraces,
     result,
-    resolvedSeries: series,
+    resolvedSeries: levelSeries,
     sourceRunCell,
     baselineStartPeriod,
     baselineResult,
@@ -272,6 +295,7 @@ export function ChartCellView({
       label: formatChartReferenceTraceLegend(trace)
     }));
   const timeRangeDefaults = resolveChartTimeRangeDefaults(series[0]?.values.length ?? 0);
+  const sharedRange = resolveCompareModeSharedRange(cell, compareModeApplicable);
   const addVariableOptions = Object.entries(result.series)
     .filter(([, values]) => values.length > 1 && Array.from(values).some(Number.isFinite))
     .map(([name]) => name)
@@ -315,7 +339,7 @@ export function ChartCellView({
       selectedIndex={chartSelectedIndex}
       series={series}
       showAxisSummary={false}
-      sharedRange={cell.sharedRange}
+      sharedRange={sharedRange}
       timeRangeDefaults={timeRangeDefaults}
       timeRangeInclusive={cell.timeRangeInclusive}
       highlightedVariable={highlightedVariable}

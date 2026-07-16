@@ -179,6 +179,37 @@ A good scenario chart often includes:
 
 Keep charts focused. Several small charts are usually easier to read than one crowded chart.
 
+## Compare Mode (Vs Baseline)
+
+Scenario charts can plot levels or ratios/deviations from the linked baseline path. Set `compareMode` on the chart cell, or use the **Compare** toggle in the cell header.
+
+| Mode | Plotted value |
+|------|----------------|
+| `levels` (default) | Scenario values as-is |
+| `relative` | `scenario[t] / baseline[t]` |
+| `percent` | `((scenario − baseline) / baseline) × 100` |
+
+Period alignment matches baseline reference traces: the scenario window is sliced from the baseline using `baselineStartPeriod` on the scenario run.
+
+```json
+{
+  "type": "chart",
+  "sourceRunCellId": "scenario-run",
+  "variables": ["Y", "Cd", "Hh"],
+  "compareMode": "relative",
+  "referenceTrace": "none"
+}
+```
+
+Notes:
+
+- Relative and percent only apply when the chart’s source run is a **scenario** with a resolvable baseline result. Otherwise the chart falls back to levels.
+- In relative/percent mode the dashed **baseline** reference overlay is omitted (it would be a flat 1 or 0). Other reference traces still work.
+- Percent mode prefers including zero on the axis and uses `%` as the series unit.
+- Divide-by-zero baseline periods become gaps (NaN) in relative and percent modes.
+
+Use relative charts when you want the scenario as a multiple of the counterfactual (`1` = unchanged); use percent for percentage points of change; keep levels when absolute paths matter (for example settling onto a new steady state).
+
 ## Chart Grids
 
 When you want several focused charts side by side, use a `chart-grid` cell instead of one crowded chart. A grid arranges inlined chart specs into rows and columns.

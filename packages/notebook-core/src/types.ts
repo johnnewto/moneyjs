@@ -267,6 +267,14 @@ export interface ChartCell extends NotebookCellBase {
   axisGroups?: string[][];
   axisSnapTolarance?: number;
   niceScale?: boolean;
+  /**
+   * How scenario chart series relate to the linked baseline path.
+   * - `levels` (default): plot scenario values as-is
+   * - `relative`: scenario[t] / baseline[t] (time-aligned via baselineStartPeriod)
+   * - `percent`: ((scenario − baseline) / baseline) × 100
+   * Falls back to levels when the source run is not a scenario with a resolvable baseline.
+   */
+  compareMode?: "levels" | "relative" | "percent";
   referenceTrace?: "none" | "baseline" | "previous-run" | "observed";
   referenceTraces?: Array<"baseline" | "previous-run" | "observed">;
   /** When `"auto"` (default), show shock bands on charts sourced from scenario runs. */
