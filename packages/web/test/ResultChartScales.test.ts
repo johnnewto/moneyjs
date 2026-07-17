@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   applyTimeRangeDrag,
   clampInteractiveTimeRange,
-  periodFromSvgX
+  periodFromSvgX,
+  timeRangeInclusiveEquals,
+  toStoredTimeRangeInclusive
 } from "../src/components/ResultChartScales";
 
 describe("ResultChartScales time range slider helpers", () => {
@@ -26,6 +28,29 @@ describe("ResultChartScales time range slider helpers", () => {
       startPeriodInclusive: 5,
       endPeriodInclusive: 6
     });
+  });
+
+  it("converts interactive windows to stored timeRangeInclusive values", () => {
+    expect(
+      toStoredTimeRangeInclusive({ startPeriodInclusive: 1, endPeriodInclusive: 12 }, seriesLength)
+    ).toBeUndefined();
+    expect(
+      toStoredTimeRangeInclusive({ startPeriodInclusive: 3, endPeriodInclusive: 8 }, seriesLength)
+    ).toEqual([3, 8]);
+    expect(
+      toStoredTimeRangeInclusive(
+        { startPeriodInclusive: 2, endPeriodInclusive: 10 },
+        seriesLength,
+        { startPeriodInclusive: 2, endPeriodInclusive: 10 }
+      )
+    ).toBeUndefined();
+  });
+
+  it("compares optional stored time ranges", () => {
+    expect(timeRangeInclusiveEquals(undefined, undefined)).toBe(true);
+    expect(timeRangeInclusiveEquals([2, 5], [2, 5])).toBe(true);
+    expect(timeRangeInclusiveEquals([2, 5], undefined)).toBe(false);
+    expect(timeRangeInclusiveEquals([2, 5], [2, 6])).toBe(false);
   });
 
   it("shrinks the end handle drag to the requested period", () => {

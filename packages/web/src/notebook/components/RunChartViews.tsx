@@ -202,6 +202,7 @@ export function ChartCellView({
   onAddVariable,
   onMoveVariable,
   onRemoveVariable,
+  onTimeRangeInclusiveChange,
   onVariableInspectRequest,
   originYear,
   runner,
@@ -219,6 +220,7 @@ export function ChartCellView({
   onAddVariable?(variableName: string): void;
   onMoveVariable?(variableName: string, direction: "left" | "right"): void;
   onRemoveVariable?(variableName: string): void;
+  onTimeRangeInclusiveChange?(range: [number, number] | undefined): void;
   onVariableInspectRequest?(args: VariableInspectRequest): void;
   originYear?: number;
   runner: ReturnType<typeof useNotebookRunner>;
@@ -330,6 +332,7 @@ export function ChartCellView({
       onInspectScenarioShockVariable={handleInspectScenarioShockVariable}
       onMoveVariable={onMoveVariable}
       onRemoveVariable={onRemoveVariable}
+      onTimeRangeInclusiveChange={onTimeRangeInclusiveChange}
       overlaySeries={overlaySeries}
       periodLabelOffset={periodLabelOffset}
       originYear={originYear}

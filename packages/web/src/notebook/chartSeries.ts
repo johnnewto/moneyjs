@@ -304,6 +304,31 @@ export function appendChartVariable(cell: ChartCell, variableName: string): Char
   };
 }
 
+export function setChartTimeRangeInclusive(
+  cell: ChartCell,
+  timeRangeInclusive: [number, number] | undefined
+): ChartCell {
+  if (timeRangeInclusive == null) {
+    if (cell.timeRangeInclusive == null) {
+      return cell;
+    }
+    const { timeRangeInclusive: _removed, ...rest } = cell;
+    return rest;
+  }
+
+  if (
+    cell.timeRangeInclusive?.[0] === timeRangeInclusive[0] &&
+    cell.timeRangeInclusive?.[1] === timeRangeInclusive[1]
+  ) {
+    return cell;
+  }
+
+  return {
+    ...cell,
+    timeRangeInclusive
+  };
+}
+
 export function removeChartSeriesByDisplayName(cell: ChartCell, displayName: string): ChartCell {
   if (chartCellUsesSeriesEntries(cell)) {
     const names = resolveChartSeriesDisplayNames(cell);

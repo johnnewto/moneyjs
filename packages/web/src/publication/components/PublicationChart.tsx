@@ -22,7 +22,8 @@ import {
   buildResolvedChartSeriesRanges,
   buildResolvedChartSeriesWithUnits,
   moveChartSeriesByDisplayName,
-  removeChartSeriesByDisplayName
+  removeChartSeriesByDisplayName,
+  setChartTimeRangeInclusive
 } from "../../notebook/chartSeries";
 import type { ChartCell, NotebookCell, RunCell } from "../../notebook/types";
 import {
@@ -164,6 +165,11 @@ export function PublicationChart({
           interactive
             ? (variableName) =>
                 setChartCell((current) => removeChartSeriesByDisplayName(current, variableName))
+            : undefined
+        }
+        onTimeRangeInclusiveChange={
+          interactive
+            ? (range) => setChartCell((current) => setChartTimeRangeInclusive(current, range))
             : undefined
         }
         overlaySeries={overlaySeries}

@@ -11,6 +11,7 @@ import {
   resolveChartSeriesDisplayNames,
   resolveChartSeriesSpecs,
   resolveChartSeriesUnit,
+  setChartTimeRangeInclusive,
   suggestChartAxisGroups
 } from "../src/notebook/chartSeries";
 import type { ChartCell } from "../src/notebook/types";
@@ -239,6 +240,24 @@ describe("chartSeries", () => {
     };
     const removed = removeChartSeriesByDisplayName(withBoth, "Bill share");
     expect(removed.series?.map((entry) => entry.label ?? entry.expression)).toEqual(["v", "Money share"]);
+  });
+
+  it("sets and clears chart timeRangeInclusive", () => {
+    const cell: ChartCell = {
+      id: "chart-1",
+      type: "chart",
+      title: "Chart",
+      sourceRunCellId: "run-1",
+      variables: ["Y"]
+    };
+
+    const withRange = setChartTimeRangeInclusive(cell, [4, 20]);
+    expect(withRange.timeRangeInclusive).toEqual([4, 20]);
+    expect(setChartTimeRangeInclusive(withRange, [4, 20])).toBe(withRange);
+
+    const cleared = setChartTimeRangeInclusive(withRange, undefined);
+    expect(cleared.timeRangeInclusive).toBeUndefined();
+    expect(setChartTimeRangeInclusive(cleared, undefined)).toBe(cleared);
   });
 
   it("round-trips compact chart series from YAML helpers", () => {

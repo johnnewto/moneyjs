@@ -132,6 +132,7 @@ describe("PublicationChart", () => {
     );
 
     expect(screen.queryByLabelText("Time range slider")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /store time range/i })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Add chart variable")).not.toBeInTheDocument();
   });
 
@@ -156,6 +157,7 @@ describe("PublicationChart", () => {
     );
 
     expect(screen.getByLabelText("Time range slider")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /store time range/i })).toBeDisabled();
 
     const addButton = screen.getByLabelText("Add chart variable");
     fireEvent.click(addButton);

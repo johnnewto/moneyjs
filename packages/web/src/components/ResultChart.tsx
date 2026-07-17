@@ -17,7 +17,9 @@ import {
   formatAxisValue,
   resolveTimeRange,
   snapAxisMetrics,
+  timeRangeInclusiveEquals,
   toPolylinePoints,
+  toStoredTimeRangeInclusive,
   toX,
   toY,
   type ChartAxisRange
@@ -56,6 +58,8 @@ interface ResultChartProps {
   onAddVariable?(variableName: string): void;
   onMoveVariable?(variableName: string, direction: "left" | "right"): void;
   onRemoveVariable?(variableName: string): void;
+  /** Persist the slider window as chart `timeRangeInclusive` (or clear when `undefined`). */
+  onTimeRangeInclusiveChange?(range: [number, number] | undefined): void;
   overlaySeries?: ChartSeries[];
   periodLabelOffset?: number;
   /**
@@ -75,7 +79,10 @@ interface ResultChartProps {
   sharedRange?: ChartAxisRange;
   timeRangeDefaults?: { endPeriodInclusive: number; startPeriodInclusive: number };
   timeRangeInclusive?: [number, number];
-  /** `"auto"` shows a brush when the run is long enough; drags stay in local state only. */
+  /**
+   * `"auto"` shows a brush when the run is long enough. Drags update local zoom state;
+   * pass `onTimeRangeInclusiveChange` to offer Store/Clear for the chart cell.
+   */
   timeRangeSlider?: boolean | "auto";
   graphSlice?: MatrixGraphSliceHighlight | null;
   highlightedVariable?: string | null;
@@ -109,7 +116,6 @@ const CHART_TOP_PADDING = 18;
 const AXIS_TITLE_ROW_OFFSET = 13;
 const CHART_BOTTOM_PADDING = 28;
 const TIME_RANGE_SLIDER_MIN_PERIODS = 10;
-const TIME_RANGE_SLIDER_GAP = 8;
 const TIME_RANGE_SLIDER_SECTION_HEIGHT = 48;
 const TIME_RANGE_SLIDER_HANDLE_WIDTH = 10;
 const SCENARIO_SHOCK_LABEL_HEIGHT = 14;
@@ -203,6 +209,7 @@ export function ResultChart({
   onAddVariable,
   onMoveVariable,
   onRemoveVariable,
+  onTimeRangeInclusiveChange,
   overlaySeries = [],
   periodLabelOffset = 0,
   originYear,
@@ -402,10 +409,7 @@ export function ResultChart({
     timeRangeSlider !== false &&
     (timeRangeSlider === true || timeRangeSlider === "auto") &&
     seriesLength >= TIME_RANGE_SLIDER_MIN_PERIODS;
-  const height = showTimeRangeSlider
-    ? CHART_MAIN_HEIGHT + TIME_RANGE_SLIDER_GAP + TIME_RANGE_SLIDER_SECTION_HEIGHT
-    : CHART_MAIN_HEIGHT;
-  const sliderTop = CHART_MAIN_HEIGHT + TIME_RANGE_SLIDER_GAP;
+  const height = CHART_MAIN_HEIGHT;
   const sliderHeight = TIME_RANGE_SLIDER_SECTION_HEIGHT;
   const bottomPadding = chartLayout.bottomPadding;
   const rightPadding = 20;
@@ -722,6 +726,17 @@ export function ResultChart({
     rangeSliderWindowRight - rangeSliderWindowLeft - TIME_RANGE_SLIDER_HANDLE_WIDTH,
     0
   );
+  const storedTimeRangeCandidate = toStoredTimeRangeInclusive(
+    resolvedTimeRange,
+    seriesLength,
+    timeRangeDefaults
+  );
+  const canStoreTimeRange =
+    onTimeRangeInclusiveChange != null &&
+    showTimeRangeSlider &&
+    storedTimeRangeCandidate != null &&
+    !timeRangeInclusiveEquals(timeRangeInclusive, storedTimeRangeCandidate);
+  const canClearTimeRange = onTimeRangeInclusiveChange != null && timeRangeInclusive != null;
 
   function toggleSeriesVisibility(seriesName: string): void {
     setHiddenSeriesNames((current) => {
@@ -1018,7 +1033,6 @@ export function ResultChart({
         </div>
 
         <svg
-        ref={chartSvgRef}
         className="result-chart"
         viewBox={`0 0 ${width} ${height}`}
         role="img"
@@ -1455,119 +1469,169 @@ export function ResultChart({
           {xAxisTitle}
         </text>
 
-        {showTimeRangeSlider ? (
-          <g className="chart-time-range-slider" aria-label="Time range slider">
-            <rect
-              x={leftPadding}
-              y={sliderTop}
-              width={plotWidth}
-              height={sliderHeight}
-              fill="#f8fafc"
-              rx="4"
-              stroke="#cbd5e1"
-              strokeWidth="1"
-            />
+      </svg>
 
-            {visibleSeries.map((entry, index) => (
-              <polyline
-                key={`range-slider-${entry.name}`}
-                fill="none"
-                points={toPolylinePoints(
-                  entry.values,
-                  leftPadding,
-                  sliderTop + 4,
-                  plotWidth,
-                  sliderHeight - 8,
-                  overviewMetrics.min,
-                  overviewMetrics.range
-                )}
-                pointerEvents="none"
-                stroke={entry.color}
-                strokeOpacity={0.45}
-                strokeWidth={index === 0 ? 1.75 : 1.25}
-              />
-            ))}
-
-            <rect
-              x={leftPadding}
-              y={sliderTop}
-              width={Math.max(rangeSliderWindowLeft - leftPadding, 0)}
-              height={sliderHeight}
-              fill="rgba(255, 255, 255, 0.72)"
-              pointerEvents="none"
-            />
-            <rect
-              x={rangeSliderWindowRight}
-              y={sliderTop}
-              width={Math.max(leftPadding + plotWidth - rangeSliderWindowRight, 0)}
-              height={sliderHeight}
-              fill="rgba(255, 255, 255, 0.72)"
-              pointerEvents="none"
-            />
-
-            <rect
-              x={rangeSliderWindowLeft}
-              y={sliderTop}
-              width={Math.max(rangeSliderWindowRight - rangeSliderWindowLeft, 0)}
-              height={sliderHeight}
-              fill="rgba(148, 163, 184, 0.12)"
-              pointerEvents="none"
-              stroke="#64748b"
-              strokeWidth="1"
-            />
-
-            {rangeSliderPanWidth > 0 ? (
+      {showTimeRangeSlider ? (
+        <div className="chart-time-range-row">
+          <svg
+            ref={chartSvgRef}
+            className="chart-time-range-slider-chart"
+            viewBox={`0 0 ${width} ${sliderHeight}`}
+            role="img"
+            aria-label="Time range slider"
+          >
+            <g className="chart-time-range-slider">
               <rect
-                className="chart-time-range-slider-pan"
-                x={rangeSliderPanLeft}
-                y={sliderTop}
-                width={rangeSliderPanWidth}
+                x={leftPadding}
+                y={0}
+                width={plotWidth}
+                height={sliderHeight}
+                fill="#f8fafc"
+                rx="4"
+                stroke="#cbd5e1"
+                strokeWidth="1"
+              />
+
+              {visibleSeries.map((entry, index) => (
+                <polyline
+                  key={`range-slider-${entry.name}`}
+                  fill="none"
+                  points={toPolylinePoints(
+                    entry.values,
+                    leftPadding,
+                    4,
+                    plotWidth,
+                    sliderHeight - 8,
+                    overviewMetrics.min,
+                    overviewMetrics.range
+                  )}
+                  pointerEvents="none"
+                  stroke={entry.color}
+                  strokeOpacity={0.45}
+                  strokeWidth={index === 0 ? 1.75 : 1.25}
+                />
+              ))}
+
+              <rect
+                x={leftPadding}
+                y={0}
+                width={Math.max(rangeSliderWindowLeft - leftPadding, 0)}
+                height={sliderHeight}
+                fill="rgba(255, 255, 255, 0.72)"
+                pointerEvents="none"
+              />
+              <rect
+                x={rangeSliderWindowRight}
+                y={0}
+                width={Math.max(leftPadding + plotWidth - rangeSliderWindowRight, 0)}
+                height={sliderHeight}
+                fill="rgba(255, 255, 255, 0.72)"
+                pointerEvents="none"
+              />
+
+              <rect
+                x={rangeSliderWindowLeft}
+                y={0}
+                width={Math.max(rangeSliderWindowRight - rangeSliderWindowLeft, 0)}
+                height={sliderHeight}
+                fill="rgba(148, 163, 184, 0.12)"
+                pointerEvents="none"
+                stroke="#64748b"
+                strokeWidth="1"
+              />
+
+              {rangeSliderPanWidth > 0 ? (
+                <rect
+                  className="chart-time-range-slider-pan"
+                  x={rangeSliderPanLeft}
+                  y={0}
+                  width={rangeSliderPanWidth}
+                  height={sliderHeight}
+                  fill="transparent"
+                  onPointerDown={(event) => beginTimeRangeDrag("pan", event)}
+                />
+              ) : null}
+
+              <rect
+                className="chart-time-range-slider-handle chart-time-range-slider-handle-start"
+                x={rangeSliderWindowLeft - TIME_RANGE_SLIDER_HANDLE_WIDTH / 2}
+                y={0}
+                width={TIME_RANGE_SLIDER_HANDLE_WIDTH}
                 height={sliderHeight}
                 fill="transparent"
-                onPointerDown={(event) => beginTimeRangeDrag("pan", event)}
+                onPointerDown={(event) => beginTimeRangeDrag("start", event)}
               />
-            ) : null}
+              <line
+                x1={rangeSliderWindowLeft}
+                x2={rangeSliderWindowLeft}
+                y1={6}
+                y2={sliderHeight - 6}
+                pointerEvents="none"
+                stroke="#475569"
+                strokeWidth="2"
+              />
 
-            <rect
-              className="chart-time-range-slider-handle chart-time-range-slider-handle-start"
-              x={rangeSliderWindowLeft - TIME_RANGE_SLIDER_HANDLE_WIDTH / 2}
-              y={sliderTop}
-              width={TIME_RANGE_SLIDER_HANDLE_WIDTH}
-              height={sliderHeight}
-              fill="transparent"
-              onPointerDown={(event) => beginTimeRangeDrag("start", event)}
-            />
-            <line
-              x1={rangeSliderWindowLeft}
-              x2={rangeSliderWindowLeft}
-              y1={sliderTop + 6}
-              y2={sliderTop + sliderHeight - 6}
-              pointerEvents="none"
-              stroke="#475569"
-              strokeWidth="2"
-            />
+              <rect
+                className="chart-time-range-slider-handle chart-time-range-slider-handle-end"
+                x={rangeSliderWindowRight - TIME_RANGE_SLIDER_HANDLE_WIDTH / 2}
+                y={0}
+                width={TIME_RANGE_SLIDER_HANDLE_WIDTH}
+                height={sliderHeight}
+                fill="transparent"
+                onPointerDown={(event) => beginTimeRangeDrag("end", event)}
+              />
+              <line
+                x1={rangeSliderWindowRight}
+                x2={rangeSliderWindowRight}
+                y1={6}
+                y2={sliderHeight - 6}
+                pointerEvents="none"
+                stroke="#475569"
+                strokeWidth="2"
+              />
+            </g>
+          </svg>
 
-            <rect
-              className="chart-time-range-slider-handle chart-time-range-slider-handle-end"
-              x={rangeSliderWindowRight - TIME_RANGE_SLIDER_HANDLE_WIDTH / 2}
-              y={sliderTop}
-              width={TIME_RANGE_SLIDER_HANDLE_WIDTH}
-              height={sliderHeight}
-              fill="transparent"
-              onPointerDown={(event) => beginTimeRangeDrag("end", event)}
-            />
-            <line
-              x1={rangeSliderWindowRight}
-              x2={rangeSliderWindowRight}
-              y1={sliderTop + 6}
-              y2={sliderTop + sliderHeight - 6}
-              pointerEvents="none"
-              stroke="#475569"
-              strokeWidth="2"
-            />
-          </g>
-        ) : null}
-      </svg>
+          {onTimeRangeInclusiveChange ? (
+            <div className="chart-time-range-actions">
+              <button
+                type="button"
+                className="chart-time-range-store-button"
+                disabled={!canStoreTimeRange}
+                aria-label={
+                  storedTimeRangeCandidate == null
+                    ? "Store time range"
+                    : `Store time range ${periodToAxisValue(storedTimeRangeCandidate[0])} to ${periodToAxisValue(storedTimeRangeCandidate[1])}`
+                }
+                title={
+                  storedTimeRangeCandidate == null
+                    ? "Adjust the slider, then store the window on this chart"
+                    : `Store periods ${periodToAxisValue(storedTimeRangeCandidate[0])}–${periodToAxisValue(storedTimeRangeCandidate[1])} on this chart`
+                }
+                onClick={() => {
+                  if (storedTimeRangeCandidate == null) {
+                    return;
+                  }
+                  onTimeRangeInclusiveChange(storedTimeRangeCandidate);
+                }}
+              >
+                Store range
+              </button>
+              {canClearTimeRange ? (
+                <button
+                  type="button"
+                  className="chart-time-range-clear-button"
+                  aria-label="Clear stored time range"
+                  title="Remove the stored time range from this chart"
+                  onClick={() => onTimeRangeInclusiveChange(undefined)}
+                >
+                  Clear range
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       </div>
 
       {showAxisSummary ? (

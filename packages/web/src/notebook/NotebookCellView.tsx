@@ -76,6 +76,7 @@ import {
   moveChartSeriesByDisplayName,
   removeChartSeriesByDisplayName,
   resolveChartSeriesDisplayNames,
+  setChartTimeRangeInclusive,
   suggestChartAxisGroups
 } from "./chartSeries";
 import {
@@ -1482,6 +1483,11 @@ function NotebookCellViewComponent({
                       : current
                   )
                 }
+                onTimeRangeInclusiveChange={(range) =>
+                  onCellChange(cell.id, (current) =>
+                    current.type === "chart" ? setChartTimeRangeInclusive(current, range) : current
+                  )
+                }
                 onVariableInspectRequest={onVariableInspectRequest}
                 originYear={timeAxisStartYear}
                 runner={runner}
@@ -1553,6 +1559,20 @@ function NotebookCellViewComponent({
                                 charts: current.charts.map((entry) =>
                                   entry.id === chart.id
                                     ? removeChartSeriesByDisplayName(entry, variableName)
+                                    : entry
+                                )
+                              }
+                            : current
+                        )
+                      }
+                      onTimeRangeInclusiveChange={(range) =>
+                        onCellChange(cell.id, (current) =>
+                          current.type === "chart-grid"
+                            ? {
+                                ...current,
+                                charts: current.charts.map((entry) =>
+                                  entry.id === chart.id
+                                    ? setChartTimeRangeInclusive(entry, range)
                                     : entry
                                 )
                               }

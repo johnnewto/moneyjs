@@ -131,6 +131,8 @@ Useful options include:
 - `seriesRanges` to control individual variable ranges.
 - `niceScale` to expand automatic bounds to readable tick values.
 - `timeRangeInclusive` to focus on a period window.
+  Drag the overview brush under long charts, then use **Store range** to save the
+  window on the cell (or **Clear range** to remove it).
 - `yAxisTickCount` to guide tick density.
 - `xAxis.title` for the horizontal axis label (defaults to `yr`).
 - `yAxis.title` and `yAxis.unit` for the shared vertical axis (unit appears below the lowest tick label).

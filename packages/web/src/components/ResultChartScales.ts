@@ -358,6 +358,41 @@ export function applyTimeRangeDrag({
   return clampInteractiveTimeRange({ startPeriodInclusive, endPeriodInclusive }, seriesLength);
 }
 
+/**
+ * Converts an interactive slider window into the value stored on a chart cell.
+ * Returns `undefined` when the window matches the chart defaults (full series unless
+ * `timeRangeDefaults` narrows it), so authors can clear `timeRangeInclusive`.
+ */
+export function toStoredTimeRangeInclusive(
+  range: { endPeriodInclusive: number; startPeriodInclusive: number },
+  seriesLength: number,
+  defaults?: { endPeriodInclusive: number; startPeriodInclusive: number }
+): [number, number] | undefined {
+  const clamped = clampInteractiveTimeRange(range, seriesLength);
+  const baseline = resolveTimeRange(undefined, defaults, seriesLength);
+  if (
+    clamped.startPeriodInclusive === baseline.startPeriodInclusive &&
+    clamped.endPeriodInclusive === baseline.endPeriodInclusive
+  ) {
+    return undefined;
+  }
+
+  return [clamped.startPeriodInclusive, clamped.endPeriodInclusive];
+}
+
+export function timeRangeInclusiveEquals(
+  left: [number, number] | undefined,
+  right: [number, number] | undefined
+): boolean {
+  if (left == null && right == null) {
+    return true;
+  }
+  if (left == null || right == null) {
+    return false;
+  }
+  return left[0] === right[0] && left[1] === right[1];
+}
+
 export function toY(
   value: number,
   topPadding: number,

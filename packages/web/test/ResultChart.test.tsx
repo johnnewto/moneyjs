@@ -881,4 +881,51 @@ describe("ResultChart", () => {
 
     expect(screen.getByText(/Time axis: 4 to 12/i)).toBeInTheDocument();
   });
+
+  it("offers Store and Clear range actions when a change handler is provided", () => {
+    const onTimeRangeInclusiveChange = vi.fn();
+    const longSeries = [
+      {
+        name: "A",
+        values: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+      }
+    ];
+
+    const { rerender } = render(
+      <ResultChart series={longSeries} onTimeRangeInclusiveChange={onTimeRangeInclusiveChange} />
+    );
+
+    const storeButton = screen.getByRole("button", { name: /store time range/i });
+    expect(storeButton).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /clear stored time range/i })).not.toBeInTheDocument();
+
+    rerender(
+      <ResultChart
+        series={longSeries}
+        timeRangeInclusive={[3, 8]}
+        onTimeRangeInclusiveChange={onTimeRangeInclusiveChange}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: /store time range/i })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /clear stored time range/i }));
+    expect(onTimeRangeInclusiveChange).toHaveBeenCalledWith(undefined);
+  });
+
+  it("does not show range store actions without a change handler", () => {
+    render(
+      <ResultChart
+        series={[
+          {
+            name: "A",
+            values: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+          }
+        ]}
+        timeRangeInclusive={[3, 8]}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: /store time range/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /clear stored time range/i })).not.toBeInTheDocument();
+  });
 });
