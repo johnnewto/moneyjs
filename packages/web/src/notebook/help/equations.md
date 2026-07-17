@@ -8,7 +8,7 @@ The equations cell is the model ledger. It defines the endogenous variables the 
 4. Press **Apply** to save the draft back into the notebook.
 5. Run a baseline or scenario run cell to solve the model.
 
-In the read-only view, hover an equation to preview inputs. Click a row to show both inputs and outputs. Shift-click pins outputs, and Ctrl/Cmd-click pins inputs.
+In the read-only view, hover an equation to preview inputs and outputs. Click a row to pin that link highlight; click again to return to hover mode. Shift-click pins outputs, and Ctrl/Cmd-click pins inputs.
 
 ## Equation Names
 

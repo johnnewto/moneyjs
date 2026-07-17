@@ -1,18 +1,20 @@
 import type { ReactNode } from "react";
 
 import { highlightFormula } from "../components/EquationGridEditor";
+import type { TraceTokenRole } from "../components/EquationTrace";
 import { VariableLabel } from "../components/VariableLabel";
 import { documentHighlightClassName } from "../lib/variableHighlight";
 import type { PublicationVariableInteraction } from "./publicationInspect";
 
 export function renderPublicationFormula(
   expression: string,
-  interaction: PublicationVariableInteraction
+  interaction: PublicationVariableInteraction,
+  highlightedTokens?: Map<string, TraceTokenRole>
 ): ReactNode[] {
   return highlightFormula(
     expression,
     interaction.parameterNames,
-    undefined,
+    highlightedTokens,
     interaction.variableDescriptions,
     interaction.variableUnitMetadata,
     interaction.onSelectVariable,
@@ -25,10 +27,12 @@ export function renderPublicationFormula(
 
 export function PublicationVariableName({
   interaction,
-  name
+  name,
+  traceRole = null
 }: {
   interaction: PublicationVariableInteraction;
   name: string;
+  traceRole?: TraceTokenRole | null;
 }) {
   const normalizedName = name.trim();
   if (!normalizedName) {
@@ -44,8 +48,16 @@ export function PublicationVariableName({
     />
   );
 
+  const traceClassName = traceRole ? `formula-token trace-token-${traceRole}` : "";
+  const baseClassName = ["result-variable-button", "publication-variable-button", traceClassName]
+    .filter(Boolean)
+    .join(" ");
+
   if (!interaction.onSelectVariable) {
-    return label;
+    if (!traceClassName) {
+      return label;
+    }
+    return <span className={traceClassName}>{label}</span>;
   }
 
   return (
@@ -54,7 +66,7 @@ export function PublicationVariableName({
       className={documentHighlightClassName(
         normalizedName,
         interaction.highlightedVariable,
-        "result-variable-button publication-variable-button"
+        baseClassName
       )}
       aria-label={`Inspect variable ${normalizedName}`}
       onClick={() => interaction.onSelectVariable?.(normalizedName)}

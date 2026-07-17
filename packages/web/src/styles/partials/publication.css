@@ -333,6 +333,27 @@ body:has(.publication-root) {
   gap: 0.25rem 1.25rem;
   margin: 0.15rem 0;
   text-align: left;
+  cursor: pointer;
+}
+
+.publication-equation-block.is-hovered .publication-equation-expression {
+  background: rgba(241, 245, 249, 0.96);
+}
+
+.publication-equation-block.trace-root .publication-equation-expression {
+  background: rgba(219, 234, 254, 0.78);
+}
+
+.publication-equation-block.trace-input .publication-equation-expression {
+  background: rgba(220, 252, 231, 0.7);
+}
+
+.publication-equation-block.trace-output .publication-equation-expression {
+  background: rgba(254, 249, 195, 0.82);
+}
+
+.publication-equation-block.trace-both .publication-equation-expression {
+  background: rgba(255, 237, 213, 0.82);
 }
 
 .publication-equation-expression {

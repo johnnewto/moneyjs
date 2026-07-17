@@ -41,7 +41,7 @@ Use separate linked cells when:
 
 ## Inspecting Dependencies
 
-In the read-only view, hover an equation to preview inputs. Click a row to show both inputs and outputs. Shift-click pins outputs, and Ctrl/Cmd-click pins inputs.
+In the read-only view, hover an equation to preview inputs and outputs. Click a row to pin that link highlight; click again to return to hover mode. Shift-click pins outputs, and Ctrl/Cmd-click pins inputs.
 
 Use this to answer questions such as:
 

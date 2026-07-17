@@ -138,7 +138,7 @@ export function ModelCellView({
   const activeTrace = pinnedTrace
     ? buildActiveTrace(traceModel, pinnedTrace.rowId, pinnedTrace.mode)
     : hoveredRowId
-      ? buildActiveTrace(traceModel, hoveredRowId, "inputs")
+      ? buildActiveTrace(traceModel, hoveredRowId, "both")
       : null;
   const [isEditingEquations, setIsEditingEquations] = useState(false);
   const hasDraftEdits = JSON.stringify(draftEditor) !== JSON.stringify(cell.editor);
@@ -597,7 +597,7 @@ export function EquationsCellView({
   const activeTrace = pinnedTrace
     ? buildActiveTrace(traceModel, pinnedTrace.rowId, pinnedTrace.mode)
     : hoveredRowId
-      ? buildActiveTrace(traceModel, hoveredRowId, "inputs")
+      ? buildActiveTrace(traceModel, hoveredRowId, "both")
       : null;
   const [isEditingEquations, setIsEditingEquations] = useState(false);
   const [showExternalValues, setShowExternalValues] = useState(true);

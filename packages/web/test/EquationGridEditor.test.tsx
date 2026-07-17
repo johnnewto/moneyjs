@@ -93,7 +93,7 @@ describe("EquationGridEditor", () => {
     ).toBeInTheDocument();
   });
 
-  it("highlights dependent rows on hover and pins output traces on shift-click", () => {
+  it("highlights input and output rows on hover and pins output traces on shift-click", () => {
     render(
       <EquationGridEditor
         equations={[
@@ -115,10 +115,12 @@ describe("EquationGridEditor", () => {
     fireEvent.mouseEnter(yRow);
     expect(yRow).toHaveClass("trace-root");
     expect(cRow).toHaveClass("trace-input");
+    expect(taxRow).toHaveClass("trace-output");
 
     fireEvent.click(yRow, { shiftKey: true });
     expect(yRow).toHaveClass("trace-root");
     expect(taxRow).toHaveClass("trace-output");
+    expect(cRow).not.toHaveClass("trace-input");
   });
 
   it("does not color functions or gnd as variables", () => {

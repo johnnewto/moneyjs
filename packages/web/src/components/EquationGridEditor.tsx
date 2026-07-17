@@ -139,7 +139,7 @@ export function EquationGridEditor({
   const activeTrace = pinnedTrace
     ? buildActiveTrace(traceModel, pinnedTrace.rowId, pinnedTrace.mode)
     : hoveredRowId
-      ? buildActiveTrace(traceModel, hoveredRowId, "inputs")
+      ? buildActiveTrace(traceModel, hoveredRowId, "both")
       : null;
   const showHeader = showHeading || showTraceHelp;
 
@@ -178,7 +178,8 @@ export function EquationGridEditor({
             {showHeading ? <h2>Equations</h2> : null}
             {showTraceHelp ? (
               <p className="panel-subtitle">
-                Hover previews inputs. Click shows both, Shift+click pins outputs, Ctrl/Cmd+click pins inputs.
+                Hover previews inputs and outputs. Click pins the link; click again returns to hover.
+                Shift+click pins outputs, Ctrl/Cmd+click pins inputs.
               </p>
             ) : null}
           </div>
