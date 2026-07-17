@@ -1,24 +1,36 @@
 format: sfcr-notebook-yaml
 formatVersion: 1
-id: gl8-growth-notebook
-title: GL8 Growth Notebook
+id: gl8-growth-g1
+title: g1
 metadata:
   version: 1
   template: gl8-growth
+  sourceFileName: gl8-growth-g1 (1).notebook.yaml
 cells:
   - markdown:
       id: intro
-      title: Overview
-      source: "This notebook adapts the `gl8-growth.Rmd` article into executable browser cells. It includes the full GROWTH baseline, the balance-sheet and transactions-flow matrices, and three representative policy experiments from the article: a higher target real wage, a one-period fiscal-growth shock, and a rise in non-performing loans."
+      title: "Godley and Lavoie' s  Chapter 11 GROWTH:  Overview"
+      source: "This notebook adapts the `gl8-growth.Rmd` article into executable browser cells. It includes the full GROWTH baseline, the balance-sheet and transactions-flow matrices, and three representative policy experiments from the article: a higher target real wage, a one-period fiscal-growth shock, and a rise in non-performing loans. "
+      more: |
+        Godley and Lavoie's Chapter 11 GROWTH model is the large stock-flow consistent growth model in _Monetary Economics_. It combines production, inventories, fixed capital, wage bargaining, household portfolio choice, government debt, central-bank accommodation, and commercial-bank balance sheets.
+
+        The implementation here follows the local `gl8-growth.Rmd` reference, which notes that this model is especially sensitive to exact equations and initial values. The browser version keeps the same baseline calibration and validates the model against the R regression fixture for selected baseline and scenario checkpoints
+        The key Chapter 11 idea is that "growth" is not a single exogenous trend. Productivity grows at `GRpr`, government spending grows at `GRg`, capital grows through `gr`, and nominal balance sheets grow through the interaction of prices, quantities, lending, retained earnings, and portfolio choices.
+
+        The baseline is therefore best read through stabilising ratios: utilisation `U`, inflation `PI`, capital growth `gr`, bank liquidity `BLR`, capital adequacy `CAR`, government debt `GD`, and the balance-sheet residuals. Because most nominal stocks grow over time, raw levels can look explosive even when the model has settled into balanced growth
   - matrix:
       id: balance-sheet
-      accountingKind: balance-sheet
-      title: GROWTH balance sheet
+      sourceRunCellId: baseline-run
+      title: Balance sheet
       description: Balance-sheet matrix for model GROWTH following the gl8 article.
       note: Validated against the baseline simulation in the R vignette fixture.
-      sourceRunCellId: baseline-run
+      more: |
+        This matrix shows the Chapter 11 stock positions at a point in time. Firms hold inventories `IN` and fixed capital `K`; households hold money, bills, bonds, equities, and bank capital while owing household loans `L_hd`; banks issue deposits `Ms`, hold loans and bills, and carry own funds `OF_b`.
+
+        The final `Sum` row is the accounting check. If the model has solved consistently, every financial asset has a matching liability and the nonfinancial assets `IN + K` are matched by sector net worth.
       columns: [Households, Firms, Govt, Central Bank, Banks, Sum]
       sectors: [Households, Firms, Govt, Central Bank, Banks, ""]
+      accountingKind: balance-sheet
       rows:
         - [Inventories, Inventories, "", +IN, "", "", "", +IN]
         - [Money, Fixed capital, "", +K, "", "", "", +K]
@@ -33,13 +45,17 @@ cells:
         - [Sum, Sum, "0", "0", "0", "0", "0", "0"]
   - matrix:
       id: transaction-flow
-      accountingKind: transaction-flow
+      sourceRunCellId: baseline-run
       title: GROWTH transactions-flow matrix
       description: Transactions-flow matrix for model GROWTH following the gl8 article.
       note: Validated against the baseline simulation in the R vignette fixture.
-      sourceRunCellId: baseline-run
+      more: |
+        The transactions-flow matrix connects production, income, finance, and changes in stocks. Notice the separate current and capital accounts for firms, the current and capital accounts for the central bank, and the current and capital accounts for banks.
+
+        The loan-default row is important for Chapter 11. `NPL` is a source to firms' capital account and a loss to banks' capital account, so a credit-quality shock changes both firms' financing need and banks' own funds without breaking stock-flow consistency.
       columns: [Households, Firms curr., Firms cap., Govt., CB curr., CB cap., Banks curr., Banks cap., Sum]
       sectors: [Households, Firms, Firms, Govt, Central Bank, Central Bank, Banks, Banks, ""]
+      accountingKind: transaction-flow
       rows:
         - [Consumption, Consumption, -C, +C, "", "", "", "", "", "", "0"]
         - [Government, Govt. exp., "", +G, "", -G, "", "", "", "", "0"]
@@ -54,12 +70,12 @@ cells:
         - [Deposits, Int. deposits, "+r_m[-1] * M_h[-1]", "", "", "", "", "", "-r_m[-1] * Ms[-1]", "", "0"]
         - [Bills, Int. bills, "+R_b[-1] * B_hd[-1]", "", "", "-R_b[-1] * B_s[-1]", "+R_b[-1] * B_cbd[-1]", "", "+R_b[-1] * B_bd[-1]", "", "0"]
         - [Bonds, Int. bonds, "+BL_d[-1]", "", "", "-BL_d[-1]", "", "", "", "", "0"]
-        - [Loans, Ch. loans, "+d(L_hd)", "", "+d(L_fd)", "", "", "", "", "-d(L_s)", "0"]
-        - [Cash, Ch. cash, "-d(H_hd)", "", "", "", "", "+d(H_s)", "", "-d(H_bd)", "0"]
-        - [Deposits, Ch. deposits, "-d(M_h)", "", "", "", "", "", "", "+d(Ms)", "0"]
-        - [Bills, Ch. bills, "-d(B_hd)", "", "", "+d(B_s)", "", "-d(B_cbd)", "", "-d(B_bd)", "0"]
-        - [Bonds, Ch. bonds, "-d(BL_d) * P_bl", "", "", "+d(BL_s) * P_bl", "", "", "", "", "0"]
-        - [Equities, Ch. equities, "-d(e_d) * Pe", "", "+d(e_s) * Pe", "", "", "", "", "", "0"]
+        - [Loans, Ch. loans, +d(L_hd), "", +d(L_fd), "", "", "", "", -d(L_s), "0"]
+        - [Cash, Ch. cash, -d(H_hd), "", "", "", "", +d(H_s), "", -d(H_bd), "0"]
+        - [Deposits, Ch. deposits, -d(M_h), "", "", "", "", "", "", +d(Ms), "0"]
+        - [Bills, Ch. bills, -d(B_hd), "", "", +d(B_s), "", -d(B_cbd), "", -d(B_bd), "0"]
+        - [Bonds, Ch. bonds, -d(BL_d) * P_bl, "", "", +d(BL_s) * P_bl, "", "", "", "", "0"]
+        - [Equities, Ch. equities, -d(e_d) * Pe, "", +d(e_s) * Pe, "", "", "", "", "", "0"]
         - [Loans, Loan defaults, "", "", +NPL, "", "", "", "", -NPL, "0"]
         - [Sum, Sum, "0", "0", "0", "0", "0", "0", "0", "0", "0"]
   - sequence:
@@ -73,7 +89,11 @@ cells:
       id: equations
       title: GROWTH model
       modelId: equations
-      collapsed: true
+      collapsed: false
+      more: |
+        The equations follow the Chapter 11 blocks: production and inventories, wage and price setting, firm finance, household income and portfolio choice, government debt issuance, central-bank accommodation, and commercial-bank pricing and capital.
+
+        A few translation choices mirror the reference implementation rather than the printed textbook alone. The local R article explicitly says that the model only simulated reliably with Zezza-style equations and exact initial values, so the browser template preserves that calibration and then checks selected results against the R fixture.
       rows:
         - Production and capital
         - [y, "s^e + (in^e - in[-1]) / dt", "Real output", items/year]
@@ -102,7 +122,7 @@ cells:
         - [z3, z3a * z3b, "Parameter in wage aspiration equation"]
         - [z4, "if (ER > (1 + BANDt)) {1} else {0}", "Parameter in wage aspiration equation"]
         - [z5, "if (ER < (1 - BANDb)) {1} else {0}", "Parameter in wage aspiration equation"]
-        - [W, "W[-1] + omega3 * (omegat * P[-1] - W[-1])", "Wage rate", $/year, flow]
+        - [W, "W[-1] + omega3 * (omegat * P[-1] - W[-1])", "Wage rate", $/year, flow, identity]
         - [PR, "PR[-1] * (1 + GRpr)", "Lobor productivity"]
         - [Nt, y / PR, "Desired employment level"]
         - [N, "N[-1] + etan * (Nt - N[-1])", "Employment level"]
@@ -124,22 +144,22 @@ cells:
         - [FU_f, F_f - FD_f - r_l'*(L_fd'-IN') + r_l'*NPL*dt, "Retained earnings of firms", $/year, flow, identity, eq-46-FUf]
         - [L_fd, "L_fd[-1] + (INV + d(IN) - FU_f - d(e_s) * Pe - NPL)*dt", "Demand for loans by firms", $, stock, accumulation, eq-47-Lfd]
         - [NPL, "npl * L_fs[-1]", "Non-Performing loans", $/year, flow, identity]
-        - [e_s, "e_s[-1] + ((1 - psiu) * INV[-1]) / Pe", "Number of equities supplied by firms", items, stock, "", eq-49-Eks]
+        - [e_s, "e_s[-1] + ((1 - psiu) * INV[-1]) / Pe", "Number of equities supplied by firms", items, stock, accumulation, eq-49-Eks]
         - [Rk, "FD_f / (Pe[-1] * e_d[-1])", "Dividend yield of firms"]
         - [PE, "Pe / (F_f / e_s[-1])", "Price earnings ratio"]
         - [Q, (e_s * Pe + L_fd) / (K + IN), "Tobin's Q"]
         - Households
         - [YP, "WB + FD_f + FD_b + r_m[-1] * M_h[-1] + R_b[-1] * B_hd[-1] + BL_s[-1]", "Personal income"]
         - [TX, theta * YP, "Taxes", $/year, flow, identity]
-        - [YD_r, "YP - TX - r_l[-1] * L_hd[-1]", "Regular disposable income", $/year, flow, "", eq-56-YDr]
-        - [YD_hs, YD_r + CG, "Haig-Simons measure of disposable income", $/year, flow, "", eq-57-YDhs]
-        - [CG, "(P_bl - P_bl[-1]) * BL_d[-1] + (Pe - Pe[-1]) * e_d[-1] + (OF_b - OF_b[-1])", "Capital gains on government bonds", $/year, flow]
-        - [V, "V[-1] + YD_r - C + (P_bl - P_bl[-1]) * BL_d[-1] + (Pe - Pe[-1]) * e_d[-1] + (OF_b - OF_b[-1])", "Wealth of households", $, stock, accumulation]
-        - [v, V / P, "Real wealth of households", items, stock]
+        - [YD_r, "YP - TX - r_l[-1] * L_hd[-1]", "Regular disposable income", $/year, flow, identity, eq-56-YDr]
+        - [YD_hs, YD_r + CG, "Haig-Simons measure of disposable income", $/year, flow, identity, eq-57-YDhs]
+        - [CG, "(P_bl - P_bl[-1]) * BL_d[-1] + (Pe - Pe[-1]) * e_d[-1] + (OF_b - OF_b[-1])", "Capital gains on government bonds", $/year, flow, identity]
+        - [V, "V[-1] + YD_hs - C", "Wealth of households", $, stock, accumulation]
+        - [v, V / P, "Real wealth of households", items, stock, accumulation]
         - [C, c * P, "Consumption at current prices", $/year, flow, identity, eq-61-CONS]
         - [c, "alpha1 * (ydr^e + nl) + alpha2 * v[-1]", "Real consumption", items/year, flow, identity]
-        - [ydr^e, "eps * ydr + (1 - eps) * (ydr[-1] * (1 + GRpr))", "Expected regular real disposable income", items/year, flow, "", eq-63-ydre]
-        - [ydr, (YD_r - d(P) * v') / P, "Regular real disposable income", items/year, flow]
+        - [ydr^e, "eps * ydr + (1 - eps) * (ydr[-1] * (1 + GRpr))", "Expected regular real disposable income", items/year, flow, identity, eq-63-ydre]
+        - [ydr, (YD_r - d(P) * v') / P, "Regular real disposable income", items/year, flow, identity]
         - Household credit
         - [GL, eta * YD_r, "Gross amount of new personal loans"]
         - [eta, eta0 - etar * RRl, "Ratio of new loans to personal income"]
@@ -156,15 +176,15 @@ cells:
         - [V_fma, V - H_hd - OF_b, "Investible wealth of households", $, stock, accumulation, eq-78-Vfma]
         - [VfmaA, M_h + B_hd + P_bl * BL_d + Pe * e_d]
         - [H_hd, lambdac * C, "Households demand for cash", $, stock, accumulation]
-        - [e_d, e_s, "Number of equities demanded", items, stock, "", eq-81-Ekd]
+        - [e_d, e_s, "Number of equities demanded", items, stock, accumulation, eq-81-Ekd]
         - Government
         - [G, g * P, "Government expenditures", $/year, flow, identity]
         - [g, "g[-1] * (1 + GRg)", "Real government expenditures", items/year, flow, identity]
-        - [PSBR, "G + BL_s[-1] + R_b[-1] * (B_bs[-1] + B_hs[-1]) - TX", "Government deficit", $/year, flow]
+        - [PSBR, "G + BL_s[-1] + R_b[-1] * (B_bs[-1] + B_hs[-1]) - TX", "Government deficit", $/year, flow, identity]
         - [B_s, "B_s[-1] + G - TX - (BL_s - BL_s[-1]) * P_bl + R_b[-1] * (B_hs[-1] + B_bs[-1]) + BL_s[-1]", "Supply of government bills", $, stock, accumulation, eq-86-Bs]
         - [GD, B_bs + B_hs + BL_s * P_bl + H_s, "Government debt", $, stock, accumulation]
         - Central bank
-        - [F_cb, "R_b[-1] * B_cbd[-1]", "Central bank \"profits\"", $/year, flow, "", eq-89-Fcb]
+        - [F_cb, "R_b[-1] * B_cbd[-1]", "Central bank \"profits\"", $/year, flow, identity, eq-89-Fcb]
         - [BL_s, BL_d, "Supply of government bonds", $/year, flow, identity, eq-90-BLs]
         - [B_hs, B_hd, "Government bills supplied to households", $, stock, accumulation, eq-91-Bhs]
         - [H_hs, H_hd, "Cash supplied to households", $, stock, accumulation, eq-92-Hhs]
@@ -180,7 +200,7 @@ cells:
         - [L_fs, L_fd, "Supply of loans to firms", $, stock, accumulation, eq-102-Lfs]
         - [L_hs, L_hd, "Loans supplied to households", $, stock, accumulation, eq-103-Lhs]
         - [H_bd, ro * Ms, "Cash required by banks", $, stock, accumulation, eq-104-Hbd]
-        - [B_bs, B_bs' + (d(B_s) - d(B_hs) - d(B_cbs)) *dt, "Government bills supplied to commercial banks", $, stock, "", eq-105-Bbs]
+        - [B_bs, B_bs' + (d(B_s) - d(B_hs) - d(B_cbs)) *dt, "Government bills supplied to commercial banks", $, stock, accumulation, eq-105-Bbs]
         - [B_bd, Ms + OF_b - L_fs - L_hs - H_bd, "Government bills demanded by commercial banks", $, stock, accumulation, eq-106-Bbd]
         - [BLR, B_bd / Ms, "Gross bank liquidity ratio"]
         - [r_m, "r_m[-1] + z1a * xim1 + z1b * xim2 - z2a * xim1 - z2b * xim2", "Interest rate on deposits", 1/year, aux, "", eq-108-Rm]
@@ -190,9 +210,9 @@ cells:
         - [z1b, "if (BLR[-1] <= (bot - 0.05)) {1} else {0}", "Is one if bank liquidity ratio is below bottom range"]
         - Bank profits and capital
         - [r_l, r_m + ADDl, "Interest rate on loans", 1/year, aux, "", eq-114-Rl]
-        - [OFb^T, "NCAR * (L_fs[-1] + L_hs[-1])", "Long-run target for banks own funds", $, stock, "", eq-115-OFbt]
-        - [OFb^e, "OF_b[-1] + betab * (OFb^T - OF_b[-1])", "Short-run target for banks own funds", $, stock, "", eq-116-OFbe]
-        - [FU_b^T, "OFb^e - OF_b[-1] + npl^e * L_fs[-1]", "Targt retained earnings of banks", $, stock, "", eq-117-FUbt]
+        - [OFb^T, "NCAR * (L_fs[-1] + L_hs[-1])", "Long-run target for banks own funds", $, stock, accumulation, eq-115-OFbt]
+        - [OFb^e, "OF_b[-1] + betab * (OFb^T - OF_b[-1])", "Short-run target for banks own funds", $, stock, accumulation, eq-116-OFbe]
+        - [FU_b^T, "OFb^e - OF_b[-1] + npl^e * L_fs[-1]", "Targt retained earnings of banks", $, stock, accumulation, eq-117-FUbt]
         - [npl^e, "epsb * npl^e[-1] + (1 - epsb) * npl[-1]", "Expected proportion of Non-Performing Loans", "", "", "", eq-118-nple]
         - [FD_b, F_b - FU_b, "Dividends of banks", $/year, flow, identity, eq-119-FDb]
         - [Fb^T, "lambdab * Y[-1] + (OFb^e - OF_b[-1] + npl^e * L_fs[-1])", "Target profits of banks", "", "", "", eq-120-Fbt]
@@ -208,6 +228,10 @@ cells:
       title: Solver
       modelId: equations
       collapsed: true
+      more: |
+        Chapter 11's GROWTH model has a dense simultaneous system. The hidden equation checks the banks' bills position, comparing `B_bs` with `B_bd`.
+
+        In the R reference, the absolute discrepancy grows with the scale of the economy, so the check is relative rather than absolute. This notebook uses the same idea through `relativeHiddenTolerance: true` and a hidden tolerance of `0.000001`.
       method: gauss-seidel
       tolerance: "1e-15"
       maxIterations: 350
@@ -220,7 +244,7 @@ cells:
       id: externals
       title: Externals
       modelId: equations
-      collapsed: true
+      collapsed: false
       rows:
         - [alpha1, 0.75, "Propensity to consume out of income"]
         - [alpha2, 0.064, "Propensity to consume out of wealth"]
@@ -293,7 +317,7 @@ cells:
         - [sigmas^e, 0.16667]
         - [phi, 0.26417]
         - [phit, 0.26417]
-        - [BLR, 0.1091, init-18-BLR]
+        - [BLR, 0.1091]
         - [F_f, 18081100, init-26-F_f]
         - [g, 2336160, init-34-g]
         - [INV, 16911600, init-37-INV]
@@ -302,7 +326,7 @@ cells:
         - [NUC, 5.6106, init-46-NUC]
         - [P, 7.1723, init-48-P]
         - [P_bl, 18.182, init-49-P_bl]
-        - [Pe, 17937, init-50-Pe]
+        - [Pe, 17.937, init-50-Pe]
         - [PI, 0.0026, init-52-PI]
         - [PR, 138659, init-53-PR]
         - [R_b, 0.035, init-56-R_b]
@@ -328,8 +352,8 @@ cells:
         - [B_s, 42484800, init-87-B_s]
         - [BL_d, 840742, init-88-BL_d]
         - [BL_s, 840742, init-89-BL_s]
-        - [e_d, 5112.6001, init-91-e_d]
-        - [e_s, 5112.6001, init-92-e_s]
+        - [e_d, 5112600.1, init-91-e_d]
+        - [e_s, 5112600.1, init-92-e_s]
         - [IN, 11585400, init-98-IN]
         - [in, 2064890, init-99-in]
         - [K, 127486471, init-102-K]
@@ -352,9 +376,17 @@ cells:
       periods: 350
       resultKey: gl8_growth_baseline
       sourceModelId: equations
+      more: |
+        The baseline is a balanced-growth reference path. By period 350, the R fixture checkpoints show `gr` close to `0.03`, matching productivity and government-expenditure growth, while `PI` is about `0.00699`.
+
+        Use this run as the counterfactual for the scenarios below. Scenario runs start from the baseline state and then apply a Chapter 11 shock over the listed periods.
   - chart:
       id: baseline-chart
       title: Baseline steady-state checks
+      more: |
+        This chart focuses on ratios and rates instead of nominal levels. The baseline checkpoint at period 350 has `gr = 0.029999995893`, `BLR = 0.061789629176`, and `CAR = 0.091491631401` in the R regression fixture.
+
+        That is the practical steady-state check: the growing economy is not stationary in levels, but the central ratios have become stable.
       variables:
         - y
         - PI
@@ -376,133 +408,971 @@ cells:
   - table:
       id: baseline-table
       title: Baseline variable summary
+      more: |
+        The table gives the same baseline from a level-and-ratio perspective. Output `y`, consumption `c`, and investment `i` grow with the model, while `P`, `r_l`, `BLR`, and `CAR` help diagnose inflation, lending conditions, liquidity, and bank capital.
       variables:
         - y
         - c
         - i
         - P
-        - Rl
+        - r_l
         - BLR
         - CAR
         - GD
       sourceRunCellId: baseline-run
   - markdown:
       id: scenario-1-note
-      title: Scenario 1
-      source: |-
-        # Scenario 1 follows the article's first experiment: `omega0` rises from `-0.20594` to `-0.1` from periods 5 to 150, raising the target real wage.
-        - [x] Write the press release
-        - [ ] Update the website
-        - [ ] Contact the media
+      title: "Scenario 1: An autonomous increase in wage inﬂation"
+      source: "Scenario 1 follows the article's first experiment: `omega0` rises from `-0.20594` to `-0.15` from period 5, raising the target real wage."
+      more: |
+        In Chapter 11, wage aspiration enters through `omegat`, which depends on productivity `PR`, the employment rate `ER`, and the wage-bargaining switch variables around the employment band.
+
+        Raising `omega0` is an autonomous upward shift in the target real wage. The immediate channel is higher wage pressure, then unit costs and prices, then consumption, output, and financial ratios through the rest of the SFC system.
   - run:
       id: scenario-1-run
-      title: "Scenario 1: higher target real wage"
+      title: Higher target real wage
       mode: scenario
       scenario:
         shocks:
-          - variables:
+          - rangeInclusive:
+              - 5
+              - 100
+            variables:
               omega0:
                 kind: constant
-                value: -0.1
-            rangeInclusive:
-              - 5
-              - 150
+                value: -0.15
+            startPeriodInclusive: 5
+            endPeriodInclusive: 100
       baselineRunCellId: baseline-run
       baselineStartPeriod: 100
-      periods: 250
+      periods: 100
       resultKey: gl8_growth_s1
       sourceModelId: equations
+      more: |
+        This scenario starts from baseline period 100 and applies the wage-aspiration shock through period 150. The R fixture checkpoints show inflation rising to `PI = 0.011977896953` at period 10 and `PI = 0.021530213648` at period 150.
+
+        The bank ratios move too: `CAR` is `0.092908302016` at period 10 and `0.088460918334` at period 150, while `BLR` recovers from `0.018759286216` to `0.110854870595`.
   - chart:
       id: scenario-1-chart
-      title: Scenario 1 inflation, wage, and output
-      variables:
-        - PI
-        - W
-        - y
-        - c
-      axisMode: separate
+      title: Inflation, wage, and output, Figure 11.2A
+      more: |
+        Compare `PI`, `W`, `y`, and `c` to see how a wage target shock propagates. The wage adjustment is not isolated: higher wages affect unit costs, prices, regular disposable income, consumption, and the investment path.
+      series:
+        - expression: d(W) / W'
+          label: Wage inflation
+        - expression: PI
+          label: Price inflation
+      axisMode: shared
       axisSnapTolarance: 0.5
-      seriesRanges:
-        PI:
-          includeZero: true
+      sourceRunCellId: scenario-1-run
+  - chart:
+      id: scenario-1-figure-11-2b
+      title: Demand components, Figure 11.2B
+      more: |
+        Figure 11.2B compares investment, consumption, and output after the wage-aspiration shock. The article plots these against the benchmark continuation; this chart overlays the baseline reference and keeps the three real quantities on separate axes.
+      series:
+        - expression: i
+          label: Real investment
+        - expression: c
+          label: Real consumption
+        - expression: y
+          label: Real output
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      compareMode: relative
+      referenceTrace: baseline
       sourceRunCellId: scenario-1-run
   - markdown:
-      id: scenario-2-note
-      title: Scenario 2
-      source: "Scenario 2 applies the one-period fiscal-growth shock from the article: `GRg` rises from `0.03` to `0.035` for periods 10 to 11."
+      id: scenario-1b-note
+      title: "Scenario 1B: A higher target real wage with a bill-rate increase"
+      source: "Scenario 1B combines the higher target real wage with a bill-rate increase: `omega0` rises to `-0.1` and `Rbbar` rises to `0.055` from periods 5 to 150."
+      more: |
+        The published article uses this second experiment to reproduce Figures 11.2C and 11.2D. The interest-rate shock is paired with the wage shock so the real bill rate and output response can be compared with the textbook discussion.
   - run:
-      id: scenario-2-run
-      title: "Scenario 2: one-period fiscal growth shock"
+      id: scenario-1b-run
+      title: Wage target plus bill-rate increase
       mode: scenario
       scenario:
         shocks:
-          - variables:
+          - rangeInclusive:
+              - 5
+              - 100
+            variables:
+              omega0:
+                kind: constant
+                value: -0.15
+            startPeriodInclusive: 5
+            endPeriodInclusive: 100
+          - rangeInclusive:
+              - 5
+              - 100
+            variables:
+              Rbbar:
+                kind: constant
+                value: 0.055
+            startPeriodInclusive: 5
+            endPeriodInclusive: 100
+      baselineRunCellId: baseline-run
+      baselineStartPeriod: 100
+      periods: 100
+      resultKey: gl8_growth_s1b
+      sourceModelId: equations
+      more: |
+        This is the article's "Scenario 1, second experiment". The local R article notes that choosing the bill-rate path required trial and error, so the browser notebook keeps the published shock values rather than treating them as a policy rule.
+  - chart:
+      id: scenario-1b-figure-11-2c
+      title: Real bill rate, Figure 11.2C
+      more: |
+        The article's `Rrb` helper is `R_b - PI`: the nominal bill rate net of price inflation. This chart shows whether the combined wage and bill-rate shock leaves the real bill rate close to its starting value.
+      series:
+        - expression: R_b - PI
+          label: Real bill rate
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      sourceRunCellId: scenario-1b-run
+  - chart:
+      id: scenario-1b-figure-11-2d
+      title: Real output, Figure 11.2D
+      more: |
+        Figure 11.2D compares real output under the combined wage and interest-rate experiment with the counterfactual path. The baseline reference trace provides that comparison in the notebook.
+      series:
+        - expression: y
+          label: Real output
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      compareMode: relative
+      referenceTrace: baseline
+      sourceRunCellId: scenario-1b-run
+  - markdown:
+      id: scenario-2-note
+      title: "Scenario 2: A one-period increase in the growth rate of pure government expenditures"
+      source: "Scenario 2 applies the one-period fiscal-growth shock from the article: `GRg` rises from `0.03` to `0.035` for periods 10 to 11."
+      more: |
+        This is a shock to the growth rate of real government expenditure `g`, not a one-time addition to the level of `G`. The higher `GRg` applies only briefly, but because `g = g[-1] * (1 + GRg)`, the level of government spending is left on a higher path.
+
+        Chapter 11 uses this type of experiment to show how demand, employment, debt, bank liquidity, and firm finance respond when fiscal growth temporarily outruns the baseline balanced-growth path.
+  - run:
+      id: scenario-2-run
+      title: A one-period fiscal growth shock
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 10
+              - 11
+            variables:
               GRg:
                 kind: constant
                 value: 0.035
-            rangeInclusive:
-              - 10
-              - 11
+            startPeriodInclusive: 10
+            endPeriodInclusive: 11
       baselineRunCellId: baseline-run
-      periods: 350
+      periods: 100
       resultKey: gl8_growth_s2
       sourceModelId: equations
+      baselineStartPeriod: 100
+      more: |
+        The R fixture checkpoints for this shock show the short-run adjustment rather than a new calibration: at period 10, `BLR = 0.063644153424` and `CAR = 0.091640447259`; by period 25, `BLR = 0.079214382562` and `CAR = 0.091645964037`.
+
+        Track `PSBR` and `GD` with output because government debt is endogenous. It reflects spending, taxes, interest payments, bond issuance, bill issuance, and central-bank accommodation.
   - chart:
       id: scenario-2-chart
-      title: Scenario 2 output, deficit, and debt
-      variables:
-        - g
-        - y
-        - PSBR
-        - GD
+      title: Output and government spending, Figure 11.3A
+      more: |
+        The `g` series shows the fiscal impulse itself. The response of `y` captures the demand side, while `PSBR` and `GD` show how the public-sector balance sheet absorbs the shock in the accounting system.
+      series:
+        - expression: y
+          label: Real output
+        - expression: g
+          label: Real government spending
+      compareMode: relative
+      referenceTrace: baseline
+      sharedRange:
+        includeZero: false
+        min: 0.98
+        max: 1.02
+      seriesRanges:
+        y:
+          min: 0
+          max: 2
+      sourceRunCellId: scenario-2-run
+  - chart:
+      id: scenario-2-figure-11-3b
+      title: Employment rate, Figure 11.3B
+      more: |
+        The article adds guide lines around the employment band. This chart uses a narrow shared range around one so the employment-rate deviation is visible.
+      series:
+        - expression: ER
+          label: Employment rate
+      axisMode: shared
+      referenceTrace: baseline
+      sharedRange:
+        includeZero: false
+        min: 0.98
+        max: 1.02
+      sourceRunCellId: scenario-2-run
+  - chart:
+      id: scenario-2-figure-11-3c
+      title: Deficit and debt ratios, Figure 11.3C
+      more: |
+        The article's `DefY` and `GDY` helpers are `PSBR / Y` and `GD / Y`. These ratios keep the fiscal response readable in a growing nominal economy.
+      series:
+        - expression: PSBR / Y
+          label: Government deficit to GDP
+        - expression: GD / Y
+          label: Government debt to GDP
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      niceScale: true
+      compareMode: relative
+      referenceTrace: baseline
+      sourceRunCellId: scenario-2-run
+  - chart:
+      id: scenario-2-figure-11-3d
+      title: Firm loans, inventories, and bank liquidity, Figure 11.3D
+      more: |
+        Figure 11.3D links the fiscal shock to firm finance and bank liquidity. The `LIN` helper in the article is `L_fd / IN`.
+      series:
+        - expression: L_fd / IN
+          label: Firm loans to inventories
+        - expression: BLR
+          label: Bank liquidity ratio
       axisMode: separate
       axisSnapTolarance: 0.5
+      niceScale: true
+      compareMode: relative
+      referenceTrace: baseline
       sourceRunCellId: scenario-2-run
   - markdown:
-      id: scenario-10-note
-      title: Scenario 10
-      source: "Scenario 10 raises non-performing loans as in the article: `npl` rises from `0.02` to `0.05` from periods 10 to 150."
+      id: scenario-2b-note
+      title: "Scenario 2B: A one-shot permanent decrease in the income tax rate θ"
+      source: "Scenario 2B applies the article's one-shot income-tax cut: `theta` falls from `0.22844` to `0.22` from periods 10 to 150."
+      more: |
+        This experiment is the tax-side counterpart to the government-spending shock. It works first through regular disposable income, then consumption, output, taxes, and the public-sector balance sheet.
   - run:
-      id: scenario-10-run
-      title: "Scenario 10: higher non-performing loans"
+      id: scenario-2b-run
+      title: Lower income tax
       mode: scenario
       scenario:
         shocks:
-          - variables:
+          - rangeInclusive:
+              - 10
+              - 100
+            variables:
+              theta:
+                kind: constant
+                value: 0.22
+            startPeriodInclusive: 10
+            endPeriodInclusive: 100
+      baselineRunCellId: baseline-run
+      periods: 100
+      resultKey: gl8_growth_s2b
+      sourceModelId: equations
+      baselineStartPeriod: 100
+  - chart:
+      id: scenario-2b-figure-11-3e
+      title: Consumption and output, Figure 11.3E
+      more: |
+        Figure 11.3E shows the demand response to a lower tax rate. The mechanism is direct: lower `theta` raises regular disposable income `YD_r`, which supports consumption `c` and output `y`.
+      series:
+        - expression: c
+          label: Real consumption
+        - expression: y
+          label: Real output
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      compareMode: relative
+      referenceTrace: baseline
+      sourceRunCellId: scenario-2b-run
+  - markdown:
+      id: scenario-3-note
+      title: "Scenario 3: A permanent increase in the growth rate of pure government expenditures"
+      source: "Scenario 3 makes the fiscal-growth shock permanent: `GRg` rises from `0.03` to `0.035`"
+      more: |
+        Unlike Scenario 2, the higher growth rate of real government spending is sustained. This lets the notebook reproduce Figures 11.4A through 11.4C.
+  - run:
+      id: scenario-3-run
+      title: A permanent fiscal growth shock
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 10
+              - 100
+            variables:
+              GRg:
+                kind: constant
+                value: 0.035
+            startPeriodInclusive: 10
+            endPeriodInclusive: 100
+      baselineRunCellId: baseline-run
+      periods: 100
+      resultKey: gl8_growth_s3
+      sourceModelId: equations
+      baselineStartPeriod: 100
+  - chart:
+      id: scenario-3-figure-11-4a
+      title: Employment and inflation, Figure 11.4A
+      series:
+        - expression: ER
+          label: Employment rate
+        - expression: PI
+          label: "Price inflation rate "
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      compareMode: levels
+      sourceRunCellId: scenario-3-run
+  - chart:
+      id: scenario-3-figure-11-4b
+      title: Growth rates, Figure 11.4B
+      more: |
+        The article's `GRy` helper is `y / y' - 1`, the period growth rate of real output.
+      series:
+        - expression: GRg
+          label: Government spending growth
+        - expression: gr
+          label: Capital growth
+        - expression: y / y' - 1
+          label: Output growth
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      compareMode: relative
+      sourceRunCellId: scenario-3-run
+  - chart:
+      id: scenario-3-figure-11-4c
+      title: Fiscal ratios, Figure 11.4C
+      series:
+        - expression: PSBR / Y
+          label: Government deficit to GDP
+        - expression: GD / Y
+          label: Government debt to GDP
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      compareMode: relative
+      sourceRunCellId: scenario-3-run
+  - markdown:
+      id: scenario-4-note
+      title: "Scenario 4: A permanent increase in the bill rate of interest"
+      source: "Scenario 4 applies the article's staged permanent increase in the bill rate: `Rbbar` rises to `0.038`, then `0.041`, then `0.044`, then `0.047`."
+      more: |
+        The staged path avoids a single large jump in interest rates. It exposes the household-debt, government-debt, and bank-rate channels in Figures 11.5A through 11.5E.
+  - run:
+      id: scenario-4-run
+      title: A higher bill rate
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 10
+              - 11
+            variables:
+              Rbbar:
+                kind: constant
+                value: 0.038
+            startPeriodInclusive: 10
+            endPeriodInclusive: 11
+          - rangeInclusive:
+              - 11
+              - 12
+            variables:
+              Rbbar:
+                kind: constant
+                value: 0.041
+            startPeriodInclusive: 11
+            endPeriodInclusive: 12
+          - rangeInclusive:
+              - 13
+              - 14
+            variables:
+              Rbbar:
+                kind: constant
+                value: 0.044
+            startPeriodInclusive: 13
+            endPeriodInclusive: 14
+          - rangeInclusive:
+              - 15
+              - 100
+            variables:
+              Rbbar:
+                kind: constant
+                value: 0.047
+            startPeriodInclusive: 15
+            endPeriodInclusive: 100
+      baselineRunCellId: baseline-run
+      periods: 100
+      resultKey: gl8_growth_s4
+      sourceModelId: equations
+      baselineStartPeriod: 100
+  - chart:
+      id: scenario-4-figure-11-5a
+      title: Interest rates, Figure 11.5A
+      series:
+        - expression: r_l
+          label: Loan rate
+        - expression: R_bl
+          label: Bond rate
+        - expression: R_b
+          label: Bill rate
+        - expression: r_m
+          label: Deposit rate
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      sourceRunCellId: scenario-4-run
+  - chart:
+      id: scenario-4-figure-11-5b
+      title: Consumption and output, Figure 11.5B
+      series:
+        - expression: c
+          label: Real consumption
+        - expression: y
+          label: Real output
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      compareMode: relative
+      referenceTrace: baseline
+      sourceRunCellId: scenario-4-run
+  - chart:
+      id: scenario-4-figure-11-5c
+      title: Debt ratio, Figure 11.5C
+      series:
+        - expression: GD / Y
+          label: Government debt to GDP
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      referenceTrace: baseline
+      sourceRunCellId: scenario-4-run
+  - chart:
+      id: scenario-4-figure-11-5d
+      title: Household loans to income, Figure 11.5D
+      series:
+        - expression: L_hd / YD_r
+          label: Household loans to regular disposable income
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      sourceRunCellId: scenario-4-run
+  - chart:
+      id: scenario-4-figure-11-5e
+      title: Household debt burden, Figure 11.5E
+      series:
+        - expression: BUR
+          label: Household debt burden
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      sourceRunCellId: scenario-4-run
+  - markdown:
+      id: scenario-5-note
+      title: "Scenario 5: An increase in the propensity to consume out of regular income"
+      source: "Scenario 5 increases the propensity to consume out of regular income: `alpha1` rises from `0.75` to `0.80` from periods 10 to 150."
+      more: |
+        This demand shock is the source for Figures 11.7A through 11.7G. It changes consumption directly and then works through prices, retained earnings, inventories, fiscal balances, and equity valuation.
+  - run:
+      id: scenario-5-run
+      title: Higher income propensity to consume
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 10
+              - 100
+            variables:
+              alpha1:
+                kind: constant
+                value: 0.8
+            startPeriodInclusive: 10
+            endPeriodInclusive: 100
+      baselineRunCellId: baseline-run
+      periods: 100
+      resultKey: gl8_growth_s5
+      sourceModelId: equations
+      baselineStartPeriod: 100
+  - chart:
+      id: scenario-5-figure-11-7a
+      title: Consumption and output, Figure 11.7A
+      series:
+        - expression: c
+          label: Real consumption
+        - expression: y
+          label: Real output
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      compareMode: relative
+      referenceTrace: baseline
+      sourceRunCellId: scenario-5-run
+  - chart:
+      id: scenario-5-figure-11-7b
+      title: Real wealth, Figure 11.7B
+      series:
+        - expression: v
+          label: Real household wealth
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      compareMode: relative
+      referenceTrace: baseline
+      sourceRunCellId: scenario-5-run
+  - chart:
+      id: scenario-5-figure-11-7c
+      title: Inflation, Figure 11.7C
+      series:
+        - expression: PI
+          label: Price inflation
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      referenceTrace: baseline
+      sourceRunCellId: scenario-5-run
+  - chart:
+      id: scenario-5-figure-11-7d
+      title: Normal historic costs and mark-up, Figure 11.7D
+      series:
+        - expression: NHUC
+          label: Normal historic unit cost
+        - expression: phi
+          label: Mark-up
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      compareMode: relative
+      referenceTrace: baseline
+      sourceRunCellId: scenario-5-run
+  - chart:
+      id: scenario-5-figure-11-7e
+      title: Retained earnings and inventories, Figure 11.7E
+      series:
+        - expression: FU_f / INV
+          label: Retained earnings to investment
+        - expression: in
+          label: Real inventories
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      compareMode: relative
+      referenceTrace: baseline
+      sourceRunCellId: scenario-5-run
+  - chart:
+      id: scenario-5-figure-11-7f
+      title: Fiscal ratios, Figure 11.7F
+      series:
+        - expression: PSBR / Y
+          label: Government deficit to GDP
+        - expression: GD / Y
+          label: Government debt to GDP
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      referenceTrace: baseline
+      sourceRunCellId: scenario-5-run
+  - chart:
+      id: scenario-5-figure-11-7g
+      title: Tobin's Q and price-earnings ratio, Figure 11.7G
+      series:
+        - expression: Q
+          label: Tobin's Q
+        - expression: PE
+          label: Price-earnings ratio
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      niceScale: true
+      compareMode: relative
+      referenceTrace: baseline
+      yAxisTickCount: 7
+      sourceRunCellId: scenario-5-run
+  - markdown:
+      id: scenario-7-note
+      title: "Scenario 7: An increase in the gross new loans to personal income ratio"
+      source: Scenario 7 increases the gross new loans to personal income ratio by raising `eta0` from `0.07416` to `0.08416` from periods 10 to 150.
+      more: |
+        This is the household-credit experiment behind Figures 11.8A through 11.8E. The first-order effect is more gross borrowing; the model then traces consumption, bank liquidity, loan pricing, and fiscal feedbacks.
+  - run:
+      id: scenario-7-run
+      title: Higher household borrowing
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 10
+              - 100
+            variables:
+              eta0:
+                kind: constant
+                value: 0.08416
+            startPeriodInclusive: 10
+            endPeriodInclusive: 100
+      baselineRunCellId: baseline-run
+      periods: 100
+      resultKey: gl8_growth_s7
+      sourceModelId: equations
+      baselineStartPeriod: 100
+  - chart:
+      id: scenario-7-figure-11-8a
+      title: Household leverage and burden, Figure 11.8A
+      series:
+        - expression: L_hd / YD_r
+          label: Household loans to regular disposable income
+        - expression: BUR
+          label: Household debt burden
+      axisMode: separate
+      niceScale: true
+      sourceRunCellId: scenario-7-run
+  - chart:
+      id: scenario-7-figure-11-8b
+      title: Output and consumption, Figure 11.8B
+      series:
+        - expression: y
+          label: Real output
+        - expression: c
+          label: Real consumption
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      niceScale: true
+      compareMode: relative
+      referenceTrace: baseline
+      sourceRunCellId: scenario-7-run
+  - chart:
+      id: scenario-7-figure-11-8c
+      title: Bank liquidity and capital, Figure 11.8C
+      series:
+        - expression: BLR
+          label: Bank liquidity ratio
+        - expression: CAR
+          label: Capital adequacy ratio
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      compareMode: relative
+      referenceTrace: baseline
+      sourceRunCellId: scenario-7-run
+  - chart:
+      id: scenario-7-figure-11-8d
+      title: Loan rate, Figure 11.8D
+      series:
+        - expression: r_l
+          label: Loan rate
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      sourceRunCellId: scenario-7-run
+  - chart:
+      id: scenario-7-figure-11-8e
+      title: Fiscal ratios, Figure 11.8E
+      series:
+        - expression: PSBR / Y
+          label: Government deficit to GDP
+        - expression: GD / Y
+          label: Government debt to GDP
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      compareMode: relative
+      referenceTrace: baseline
+      sourceRunCellId: scenario-7-run
+  - markdown:
+      id: scenario-8-note
+      title: "Scenario 8: An increase in the desire to hold equities"
+      source: "Scenario 8 raises the household desire to hold equities: `lambda40` rises from `0.67132` to `0.77132` from periods 10 to 150."
+      more: |
+        The article notes that changing one portfolio parameter is offset by the hidden deposit allocation. Figures 11.9A through 11.9C show the equity-price, activity, and bank-rate responses.
+  - run:
+      id: scenario-8-run
+      title: Higher desire to hold equities
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 10
+              - 100
+            variables:
+              lambda40:
+                kind: constant
+                value: 0.77132
+            startPeriodInclusive: 10
+            endPeriodInclusive: 100
+      baselineRunCellId: baseline-run
+      periods: 100
+      resultKey: gl8_growth_s8
+      sourceModelId: equations
+      baselineStartPeriod: 100
+  - chart:
+      id: scenario-8-figure-11-9a
+      title: Equity valuation, Figure 11.9A
+      series:
+        - expression: Q
+          label: Tobin's Q
+        - expression: PE
+          label: Price-earnings ratio
+        - expression: Pe * e_d / V_fma
+          label: Equities to investible wealth
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      compareMode: relative
+      referenceTrace: baseline
+      sourceRunCellId: scenario-8-run
+  - chart:
+      id: scenario-8-figure-11-9b
+      title: Real activity and wealth, Figure 11.9B
+      series:
+        - expression: c
+          label: Real consumption
+        - expression: v
+          label: Real wealth
+        - expression: y
+          label: Real output
+        - expression: i
+          label: Real investment
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      compareMode: relative
+      referenceTrace: baseline
+      sourceRunCellId: scenario-8-run
+  - chart:
+      id: scenario-8-figure-11-9c
+      title: Loan and deposit rates, Figure 11.9C
+      series:
+        - expression: r_l
+          label: Loan rate
+        - expression: r_m
+          label: Deposit rate
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      sourceRunCellId: scenario-8-run
+  - markdown:
+      id: scenario-8b-note
+      title: "Scenario 8B: Households switch to stock market equities by reducing their holdings of government bonds and bills"
+      source: "Scenario 8B offsets the higher equity preference with lower desires to hold bills and bonds: `lambda20` falls to `0.20` and `lambda30` falls to `-0.09341`."
+      more: |
+        This scenario keeps the equity-preference shock from Scenario 8 and offsets it with lower bill and bond preferences. It backs Figure 11.9D.
+  - run:
+      id: scenario-8b-run
+      title: Equity preference offset
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 10
+              - 150
+            variables:
+              lambda40:
+                kind: constant
+                value: 0.77132
+            startPeriodInclusive: 10
+            endPeriodInclusive: 150
+          - rangeInclusive:
+              - 10
+              - 150
+            variables:
+              lambda20:
+                kind: constant
+                value: 0.2
+              lambda30:
+                kind: constant
+                value: -0.09341
+            startPeriodInclusive: 10
+            endPeriodInclusive: 150
+      baselineRunCellId: baseline-run
+      periods: 350
+      resultKey: gl8_growth_s8b
+      sourceModelId: equations
+  - chart:
+      id: scenario-8b-figure-11-9d
+      title: Interest rates, Figure 11.9D
+      series:
+        - expression: r_l
+          label: Loan rate
+        - expression: R_b
+          label: Bill rate
+        - expression: r_m
+          label: Deposit rate
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      sourceRunCellId: scenario-8b-run
+  - markdown:
+      id: scenario-9-note
+      title: "Scenario 9: An increase in the target proportion of gross investment ﬁnanced by retained earnings"
+      source: "Scenario 9 raises the target proportion of gross investment financed by retained earnings: `psiu` rises from `0.92` to `1` from periods 10 to 150."
+      more: |
+        This changes firms' desired internal finance and drives Figures 11.10A through 11.10E.
+  - run:
+      id: scenario-9-run
+      title: Higher retained-earnings target
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 10
+              - 100
+            variables:
+              psiu:
+                kind: constant
+                value: 1
+            startPeriodInclusive: 10
+            endPeriodInclusive: 100
+      baselineRunCellId: baseline-run
+      periods: 100
+      resultKey: gl8_growth_s9
+      sourceModelId: equations
+      baselineStartPeriod: 100
+  - chart:
+      id: scenario-9-figure-11-10a
+      title: "Costing margin: Figure 11.10A"
+      series:
+        - expression: phi
+          label: Mark-up
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      sourceRunCellId: scenario-9-run
+  - chart:
+      id: scenario-9-figure-11-10b
+      title: Wage inflation, Figure 11.10B
+      series:
+        - expression: d(W) / W'
+          label: Wage inflation
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      compareMode: levels
+      sourceRunCellId: scenario-9-run
+  - chart:
+      id: scenario-9-figure-11-10c
+      title: Employment and consumption, Figure 11.10C
+      series:
+        - expression: ER
+          label: Employment rate
+        - expression: c
+          label: Real consumption
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      compareMode: relative
+      referenceTrace: baseline
+      sourceRunCellId: scenario-9-run
+  - chart:
+      id: scenario-9-figure-11-10d
+      title: Tobin's Q and price-earnings ratio, Figure 11.10D
+      more: |-
+        Figure 11.10D Evolution of Tobin’s q ratio and of the price-earnings ratio, relative to
+        the base line solution, following an increase in the target proportion of gross invest-
+        ment being ﬁnanced by gross retained earnings, which also corresponds to a decrease
+        in the proportion of investment being ﬁnanced by new equity issues
+      series:
+        - expression: Q
+          label: Tobin's Q
+        - expression: PE
+          label: Price-earnings ratio
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      compareMode: relative
+      referenceTrace: baseline
+      sourceRunCellId: scenario-9-run
+  - chart:
+      id: scenario-9-figure-11-10e
+      title: Real profit and equity-price growth, Figure 11.10E
+      more: |-
+        Evolution of the deﬂated averaged growth rate of the entrepreneurial
+        proﬁts of ﬁrms and of the deﬂated growth rate of equity prices, following an increase
+        in the target proportion of gross investment being ﬁnanced by gross retained earnings
+        and no new equity issues
+      series:
+        - expression: (F_f / P) / (F_f' / P') - 1
+          label: Real profit growth
+        - expression: (Pe / P) / (Pe' / P') - 1
+          label: Real equity-price growth
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      sourceRunCellId: scenario-9-run
+  - markdown:
+      id: scenario-10-note
+      title: "Scenario 10: Banks capital adequacy ratios"
+      source: "Scenario 10 raises non-performing loans as in the article: `npl` rises from `0.02` to `0.05` from periods 10 to 150."
+      more: |
+        The Chapter 11 banking block treats defaults as both a flow loss and an expectation problem. Actual non-performing loans are `NPL = npl * L_fs[-1]`, expected default intensity evolves through `npl^e`, and banks use that expectation when setting target retained earnings and loan spreads.
+
+        This makes the shock a balance-sheet stress experiment. It lowers bank own funds through `OF_b = OF_b[-1] + (FU_b - NPL) * dt`, changes the target profit calculation, and eventually feeds into the lending rate `r_l`.
+  - run:
+      id: scenario-10-run
+      title: Higher non-performing loans
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 10
+              - 100
+            variables:
               npl:
                 kind: constant
                 value: 0.05
-            rangeInclusive:
-              - 10
-              - 150
+            startPeriodInclusive: 10
+            endPeriodInclusive: 100
       baselineRunCellId: baseline-run
-      periods: 350
+      periods: 100
       resultKey: gl8_growth_s10
       sourceModelId: equations
+      baselineStartPeriod: 100
+      more: |
+        The R fixture shows the stress clearly. At period 10, `CAR = 0.078014236581`; by period 150, `r_l = 0.079990862443`, `BLR = 0.102248956781`, and `PI = -0.000108494375`.
+
+        The shock is temporary, but expectations and accumulated bank capital make the response persistent. Use this run to inspect how the commercial-bank block transmits credit losses into interest rates and real activity.
   - chart:
       id: scenario-10-chart
-      title: Scenario 10 bank stress indicators
-      variables:
-        - NPL
-        - CAR
-        - Rl
-        - OFb
-      axisMode: separate
+      title: Capital adequacy, Figure 11.11A
+      more: |
+        The chart places the direct default flow `NPL` beside bank capital adequacy `CAR`, the loan rate `r_l`, and bank own funds `OF_b`. This is the banking channel that distinguishes Chapter 11 from simpler growth models without commercial-bank capital.
+      series:
+        - expression: CAR
+          label: Capital adequacy ratio
+      axisMode: shared
       axisSnapTolarance: 0.5
-      seriesRanges:
-        CAR:
-          includeZero: true
-        Rl:
-          includeZero: true
       sourceRunCellId: scenario-10-run
-  - sequence:
-      id: equation-dependency-graph
-      title: GROWTH equation dependency graph
-      source:
-        kind: dependency
-        modelId: equations
-        showAccountingStrips: true
-        showExogenous: false
-      description: Dependency view of the GROWTH equations organized by sector strips and accounting bands.
-      note: This view is intentionally dense. Use it to inspect how the large GROWTH model clusters into exogenous inputs, intermediate flows, and downstream stocks.
-      collapsed: true
+  - chart:
+      id: scenario-10-figure-11-11b
+      title: Deposit and loan rates, Figure 11.11B
+      more: |
+        Figure 11.11B follows the interest-rate response to higher non-performing loans. Expected defaults raise banks' desired retained earnings and feed into the lending spread.
+      series:
+        - expression: r_m
+          label: Deposit rate
+        - expression: r_l
+          label: Loan rate
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      compareMode: relative
+      referenceTrace: baseline
+      sourceRunCellId: scenario-10-run
+  - markdown:
+      id: scenario-10b-note
+      title: "Scenario 10B: Raises the normal capital adequacy ratio"
+      source: "Scenario 10B raises the normal capital adequacy ratio: `NCAR` rises from `0.1` to `0.11` from periods 10 to 150."
+      more: |
+        This is the companion banking experiment in the article. It asks what happens when banks target a higher capital adequacy norm rather than facing a higher direct default rate.
+  - run:
+      id: scenario-10b-run
+      title: Higher normal capital adequacy
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 10
+              - 100
+            variables:
+              NCAR:
+                kind: constant
+                value: 0.11
+            startPeriodInclusive: 10
+            endPeriodInclusive: 100
+      baselineRunCellId: baseline-run
+      periods: 100
+      resultKey: gl8_growth_s10b
+      sourceModelId: equations
+      baselineStartPeriod: 100
+  - chart:
+      id: scenario-10b-figure-11-11c
+      title: Normal and actual capital adequacy, Figure 11.11C
+      series:
+        - expression: NCAR
+          label: Normal capital adequacy ratio
+        - expression: CAR
+          label: Capital adequacy ratio
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      sourceRunCellId: scenario-10b-run
+  - chart:
+      id: scenario-10b-figure-11-11d
+      title: Loan rate, Figure 11.11D
+      more: |-
+        Evolution of the interest rate on loans set by banks, following a
+        one-time permanent increase in the normal capital adequacy ratio
+      series:
+        - expression: r_l
+          label: Loan rate
+      axisMode: shared
+      axisSnapTolarance: 0.5
+      sourceRunCellId: scenario-10b-run
