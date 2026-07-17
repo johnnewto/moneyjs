@@ -160,7 +160,31 @@ describe("App per-cell source editors", () => {
     expect(screen.getByRole("heading", { name: /journal overview/i })).toBeInTheDocument();
   }, 15000);
 
-  it("edits a run cell title through the per-cell source editor", async () => {
+  it("edits a run cell title through the per-cell title editor", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    const runHeading = screen.getByRole("heading", { name: /baseline run with newton/i });
+    const runArticle = runHeading.closest("article");
+    expect(runArticle).not.toBeNull();
+    if (!runArticle) {
+      throw new Error("Expected run cell article.");
+    }
+
+    await user.click(within(runArticle).getByRole("button", { name: /^edit$/i }));
+
+    const titleEditor = screen.getByRole("textbox", {
+      name: /title editor for baseline run with newton/i
+    }) as HTMLInputElement;
+    fireEvent.change(titleEditor, { target: { value: "Updated baseline run" } });
+    await user.click(within(runArticle).getByRole("button", { name: /^apply$/i }));
+
+    expect(screen.getByRole("heading", { name: /updated baseline run/i })).toBeInTheDocument();
+  }, 15000);
+
+  it("keeps the title editor and JSON source title in sync", async () => {
     const user = userEvent.setup();
     window.location.hash = "#/notebook";
 
@@ -176,21 +200,22 @@ describe("App per-cell source editors", () => {
     await user.click(within(runArticle).getByRole("button", { name: /^edit$/i }));
     await user.click(within(runArticle).getByRole("radio", { name: /compact/i }));
 
+    const titleEditor = screen.getByRole("textbox", {
+      name: /title editor for baseline run with newton/i
+    }) as HTMLInputElement;
     const sourceEditor = screen.getByRole("textbox", {
       name: /source editor for baseline run with newton/i
     }) as HTMLTextAreaElement;
 
+    fireEvent.change(titleEditor, { target: { value: "Title from box" } });
+    expect(sourceEditor.value).toContain('"title": "Title from box"');
+
     fireEvent.change(sourceEditor, {
       target: {
-        value: sourceEditor.value.replace(
-          '"title": "Baseline run with Newton"',
-          '"title": "Updated baseline run"'
-        )
+        value: sourceEditor.value.replace('"title": "Title from box"', '"title": "Title from JSON"')
       }
     });
-    await user.click(screen.getByRole("button", { name: /^apply$/i }));
-
-    expect(screen.getByRole("heading", { name: /updated baseline run/i })).toBeInTheDocument();
+    expect(titleEditor.value).toBe("Title from JSON");
   }, 15000);
 
   it("renders matrix notes as inline markdown in the cell header", async () => {

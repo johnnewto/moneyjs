@@ -56,7 +56,9 @@ import {
   formatCellBody,
   isSourceEditable,
   parseCellSource,
-  serializeCellBody
+  readCellSourceTitle,
+  serializeCellBody,
+  writeCellSourceTitle
 } from "./sourceEditing";
 import {
   NotebookCellHeaderActions,
@@ -324,9 +326,9 @@ function NotebookCellViewComponent({
   const currentSerializedBody = serializeCellBody(cell);
   const currentMore = cell.more ?? "";
   const hasSourceEdits =
-    (cell.type === "markdown"
-      ? titleDraft !== cell.title || sourceDraft !== currentSerializedBody
-      : sourceDraft !== currentSerializedBody) || moreDraft !== currentMore;
+    titleDraft !== cell.title ||
+    sourceDraft !== currentSerializedBody ||
+    moreDraft !== currentMore;
   const isCollapsed = cell.collapsed === true && !isEditingSource && !isLinkedModelEditorCell(cell);
   const variableDescriptions = useMemo(
     () => resolveCellVariableDescriptions(cells, cell),
@@ -551,12 +553,7 @@ function NotebookCellViewComponent({
     }
 
     try {
-      const nextCell = parseCellSource(
-        cell,
-        sourceDraft,
-        cell.type === "markdown" ? titleDraft : undefined,
-        moreDraft
-      );
+      const nextCell = parseCellSource(cell, sourceDraft, titleDraft, moreDraft);
       if (nextCell.type === "matrix") {
         setSourceValidationError(
           formatMatrixCellUnitValidationMessage(nextCell, variableUnitMetadata)
@@ -648,12 +645,7 @@ function NotebookCellViewComponent({
 
   function handleApplySource(): void {
     try {
-      const nextCell = parseCellSource(
-        cell,
-        sourceDraft,
-        cell.type === "markdown" ? titleDraft : undefined,
-        moreDraft
-      );
+      const nextCell = parseCellSource(cell, sourceDraft, titleDraft, moreDraft);
       onCellChange(cell.id, () => nextCell);
       setSourceError(null);
       setSourceValidationError(null);
@@ -721,6 +713,34 @@ function NotebookCellViewComponent({
     setIsMatrixEquationProposalDialogOpen(false);
     setMatrixEquationProposalSelection(new Set());
     setIsEditingSource(false);
+  }
+
+  function resolveSourceJsonLayoutMode(): "pretty" | "compact" {
+    return sourceLayoutMode === "pretty" ? "pretty" : "compact";
+  }
+
+  function handleTitleDraftChange(nextTitle: string): void {
+    setTitleDraft(nextTitle);
+    if (cell.type === "markdown") {
+      return;
+    }
+
+    const nextSource = writeCellSourceTitle(sourceDraft, nextTitle, resolveSourceJsonLayoutMode());
+    if (nextSource != null) {
+      setSourceDraft(nextSource);
+    }
+  }
+
+  function handleSourceDraftChange(nextSource: string): void {
+    setSourceDraft(nextSource);
+    if (cell.type === "markdown") {
+      return;
+    }
+
+    const nextTitle = readCellSourceTitle(nextSource);
+    if (nextTitle != null && nextTitle !== titleDraft) {
+      setTitleDraft(nextTitle);
+    }
   }
 
   function handleSourceLayoutModeChange(nextMode: "pretty" | "compact" | "grid" | "run"): void {
@@ -1150,33 +1170,31 @@ function NotebookCellViewComponent({
                 </details>
               )}
             </div>
-            {cell.type === "markdown" ? (
-              <label className="field">
-                <span>Title</span>
-                <input
-                  type="text"
-                  value={titleDraft}
-                  onChange={(event) => setTitleDraft(event.target.value)}
-                  aria-label={`Title editor for ${cell.title}`}
-                />
-              </label>
-            ) : null}
+            <label className="field">
+              <span>Title</span>
+              <input
+                type="text"
+                value={titleDraft}
+                onChange={(event) => handleTitleDraftChange(event.target.value)}
+                aria-label={`Title editor for ${cell.title}`}
+              />
+            </label>
             {cell.type === "run" && sourceLayoutMode === "run" ? (
               <RunSourceEditor
                 cells={cells}
                 runCellId={cell.id}
                 value={sourceDraft}
-                onChange={setSourceDraft}
+                onChange={handleSourceDraftChange}
                 onReplaceCells={onReplaceCells}
               />
             ) : cell.type === "matrix" && sourceLayoutMode === "grid" ? (
-              <MatrixSourceEditor value={sourceDraft} onChange={setSourceDraft} />
+              <MatrixSourceEditor value={sourceDraft} onChange={handleSourceDraftChange} />
             ) : (
               <NotebookHighlightedSourceEditor
                 active={isEditingSource}
                 ariaLabel={`Source editor for ${cell.title}`}
                 highlightCellType={cell.type}
-                onChange={setSourceDraft}
+                onChange={handleSourceDraftChange}
                 value={sourceDraft}
               />
             )}

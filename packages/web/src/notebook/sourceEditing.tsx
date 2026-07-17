@@ -179,6 +179,36 @@ export function formatCellBody(
     : stringifyJsonWithCompactLeaves(cellBody, 0);
 }
 
+/** Read `"title"` from a non-markdown cell source draft when JSON is valid. */
+export function readCellSourceTitle(source: string): string | null {
+  try {
+    const parsed = JSON.parse(source) as { title?: unknown };
+    return typeof parsed?.title === "string" ? parsed.title : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Write `"title"` into a non-markdown cell source draft.
+ * Returns null when the draft is not valid JSON (leave the draft untouched).
+ */
+export function writeCellSourceTitle(
+  source: string,
+  title: string,
+  mode: "pretty" | "compact" = "compact"
+): string | null {
+  try {
+    const parsed = JSON.parse(source) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return null;
+    }
+    return formatCellBody({ ...parsed, title }, mode);
+  } catch {
+    return null;
+  }
+}
+
 export function highlightSourceDraft(
   source: string,
   cellType: NotebookCell["type"]
@@ -196,16 +226,16 @@ export function parseCellSource(
   title?: string,
   more?: string
 ): NotebookCell {
-  if (cell.type === "markdown") {
-    const nextTitle = title?.trim() ?? "";
-    if (!nextTitle) {
-      throw new Error("Cell title is required.");
-    }
+  const nextTitle = title?.trim();
+  if (title !== undefined && !nextTitle) {
+    throw new Error("Cell title is required.");
+  }
 
+  if (cell.type === "markdown") {
     return applyCellMore(
       {
         ...cell,
-        title: nextTitle,
+        title: nextTitle ?? cell.title,
         source
       },
       more
@@ -219,14 +249,20 @@ export function parseCellSource(
   if (parsed.type !== cell.type) {
     throw new Error(`Cell source must remain type '${cell.type}'.`);
   }
-  if (typeof parsed.title !== "string" || !parsed.title.trim()) {
-    throw new Error("Cell source must include title.");
+  if (title === undefined) {
+    if (typeof parsed.title !== "string" || !parsed.title.trim()) {
+      throw new Error("Cell source must include title.");
+    }
   }
   if (typeof parsed.id !== "string") {
     throw new Error("Cell source must include id.");
   }
   validateCellSourceShape(cell.type, parsed);
-  return applyCellMore(normalizeCellSource(parsed), more);
+  const normalized = normalizeCellSource(parsed);
+  return applyCellMore(
+    nextTitle !== undefined ? { ...normalized, title: nextTitle } : normalized,
+    more
+  );
 }
 
 function applyCellMore(cell: NotebookCell, more?: string): NotebookCell {

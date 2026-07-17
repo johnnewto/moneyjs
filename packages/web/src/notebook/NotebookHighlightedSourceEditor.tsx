@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 
 import { highlightSourceDraft } from "./sourceEditing";
 import type { NotebookCell } from "./types";
@@ -23,7 +23,7 @@ export function NotebookHighlightedSourceEditor({
     String(index + 1)
   ).join("\n");
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!active || !textareaRef.current) {
       return;
     }
@@ -52,7 +52,11 @@ export function NotebookHighlightedSourceEditor({
       </pre>
       <div className="notebook-source-editor-pane">
         <pre ref={highlightRef} className="notebook-source-highlight" aria-hidden="true">
-          <code>{highlightSourceDraft(value, highlightCellType)}</code>
+          {/* Trailing newline matches textarea blank-line metrics (pre drops a lone final \n). */}
+          <code>
+            {highlightSourceDraft(value, highlightCellType)}
+            {"\n"}
+          </code>
         </pre>
         <textarea
           ref={textareaRef}

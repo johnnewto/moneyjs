@@ -5,7 +5,9 @@ import {
   buildSourceHelpText,
   getNotebookHelpTopicIdForCell,
   parseCellSource,
-  serializeCellBody
+  readCellSourceTitle,
+  serializeCellBody,
+  writeCellSourceTitle
 } from "../src/notebook/sourceEditing";
 import type { ChartCell, MatrixCell } from "../src/notebook/types";
 
@@ -140,5 +142,43 @@ describe("parseCellSource markdown more", () => {
     expect(next.type).toBe("run");
     expect(next.more).toBe("Run detail.");
     expect(parseCellSource(cell, serializeCellBody(cell), undefined, "  ").more).toBeUndefined();
+  });
+
+  it("overrides title from the title editor for non-markdown cells", () => {
+    const cell = {
+      id: "baseline-run",
+      type: "run" as const,
+      title: "Baseline run",
+      sourceModelId: "model",
+      mode: "baseline" as const,
+      resultKey: "baseline",
+      periods: 10
+    };
+
+    const next = parseCellSource(cell, serializeCellBody(cell), "Updated baseline run");
+    expect(next.title).toBe("Updated baseline run");
+    expect(() => parseCellSource(cell, serializeCellBody(cell), "   ")).toThrow(
+      /title is required/i
+    );
+  });
+
+  it("reads and writes title in the JSON source draft", () => {
+    const source = serializeCellBody({
+      id: "baseline-run",
+      type: "run",
+      title: "Baseline run",
+      sourceModelId: "model",
+      mode: "baseline",
+      resultKey: "baseline",
+      periods: 10
+    });
+
+    expect(readCellSourceTitle(source)).toBe("Baseline run");
+    expect(readCellSourceTitle("{")).toBeNull();
+
+    const rewritten = writeCellSourceTitle(source, "Updated baseline run");
+    expect(rewritten).not.toBeNull();
+    expect(readCellSourceTitle(rewritten!)).toBe("Updated baseline run");
+    expect(writeCellSourceTitle("{", "Nope")).toBeNull();
   });
 });
