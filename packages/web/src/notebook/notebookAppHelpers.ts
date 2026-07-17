@@ -206,6 +206,21 @@ export function buildNotebookPathname(args: {
   return base ? `${base}${path}` : path;
 }
 
+/** Path (+ search) for returning from publish live view to the interactive editor. */
+export function buildNotebookReturnUrl(args?: {
+  templateId?: NotebookTemplateId | null;
+  variantId?: string | null;
+  cellId?: string | null;
+}): string {
+  const location = args ?? readNotebookRouteLocation();
+  const pathname = buildNotebookPathname({
+    templateId: location.templateId ?? undefined,
+    variantId: location.variantId ?? undefined,
+    cellId: location.cellId ?? undefined
+  });
+  return `${pathname}${window.location.search}`;
+}
+
 /** @deprecated Prefer buildNotebookPathname. Kept for tests comparing legacy hash URLs. */
 export function buildNotebookHash(args: {
   templateId?: NotebookTemplateId;
@@ -288,12 +303,15 @@ export function notebookHasUnsavedChanges(args: {
   hasImportPreview: boolean;
   hasPendingImportTextChanges: boolean;
   isUnnamedNotebookSession: boolean;
+  /** When true, journal edits are already persisted by version autosave. */
+  hasAutosavedVersionSession?: boolean;
 }): boolean {
+  const hasUnsavedJournalEdits = args.hasEditHistory && !args.hasAutosavedVersionSession;
   return (
     args.isUnnamedNotebookSession ||
     args.hasPendingImportTextChanges ||
     args.hasImportPreview ||
-    args.hasEditHistory
+    hasUnsavedJournalEdits
   );
 }
 

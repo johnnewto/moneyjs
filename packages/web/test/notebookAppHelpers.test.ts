@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   buildNotebookHash,
   buildNotebookPathname,
+  buildNotebookReturnUrl,
   parseNotebookCellIdFromHash,
   parseNotebookPathname,
   readNotebookRouteLocation,
@@ -64,6 +65,14 @@ describe("notebookAppHelpers hash routing", () => {
     expect(
       buildNotebookPathname({ variantId: "my-variant", cellId: "transaction-flow-sequence" })
     ).toBe("/notebook/variant/my-variant/transaction-flow-sequence");
+  });
+
+  it("builds notebook return URLs from the current notebook route, not app root", () => {
+    history.replaceState(history.state, "", "/#/notebook/bmw/intro");
+    expect(buildNotebookReturnUrl()).toBe("/notebook/bmw/intro");
+
+    history.replaceState(history.state, "", "/notebook/variant/my-variant");
+    expect(buildNotebookReturnUrl()).toBe("/notebook/variant/my-variant");
   });
 
   it("writes pathname URLs and clears stray hash fragments", () => {

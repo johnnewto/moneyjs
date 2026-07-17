@@ -102,9 +102,19 @@
   border-color: rgba(100, 116, 139, 0.4);
 }
 .notebook-rail-template-actions {
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
+}
+.notebook-rail-template-actions .notebook-run-button {
+  align-items: center;
+  box-sizing: border-box;
+  display: inline-flex;
+  justify-content: center;
+  line-height: 1.1;
+  min-height: 1.55rem;
+  text-decoration: none;
 }
 .notebook-variant-manager-dialog {
   background: #fff;
@@ -730,15 +740,21 @@
   padding: 0.65rem 0.95rem 0.85rem;
 }
 .notebook-commands-panel-actions {
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
 }
-.notebook-commands-panel-actions .notebook-run-button,
-.notebook-commands-panel-actions .notebook-toolbar-link {
+.notebook-commands-panel-actions .notebook-run-button {
+  align-items: center;
+  box-sizing: border-box;
+  display: inline-flex;
   font-size: 0.78rem;
+  justify-content: center;
+  line-height: 1.1;
   min-height: 1.85rem;
   padding: 0.2rem 0.55rem;
+  text-decoration: none;
 }
 .notebook-outline {
   align-content: start;

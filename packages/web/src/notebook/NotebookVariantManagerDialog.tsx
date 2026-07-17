@@ -91,7 +91,7 @@ export function NotebookVariantManagerDialog({
   }
 
   function handleRename(entry: NotebookVariantIndexEntry): void {
-    const nextTitle = window.prompt("Rename variant", entry.title);
+    const nextTitle = window.prompt("Rename version", entry.title);
     if (nextTitle == null) {
       return;
     }
@@ -117,7 +117,7 @@ export function NotebookVariantManagerDialog({
     }
 
     const title =
-      newTemplateTitle.trim() || `${NOTEBOOK_TEMPLATES[newTemplateId].label} variant`;
+      newTemplateTitle.trim() || `${NOTEBOOK_TEMPLATES[newTemplateId].label} version`;
     onCreateFromTemplate(newTemplateId, title);
     setNewTemplateTitle("");
   }
@@ -144,20 +144,22 @@ export function NotebookVariantManagerDialog({
         onClick={(event) => event.stopPropagation()}
       >
         <div className="notebook-variant-manager-header">
-          <h3 id="notebook-variant-manager-title">Manage notebook variants</h3>
+          <h3 id="notebook-variant-manager-title">Manage notebook versions</h3>
           <button type="button" className="notebook-run-button" onClick={onClose}>
             Close
           </button>
         </div>
 
         <p className="notebook-variant-manager-intro">
-          Variants are saved copies tied to a template (for example BMW shock 1). Pick a template for
-          a fresh copy, or save the notebook you have open now.
+          Versions are saved copies tied to a template (for example BMW shock 1). Pick a template for
+          a fresh copy, or save the notebook you have open now. Edits are autosaved to the open
+          version. All copies are saved in browser storage and will be deleted if you delete browsing
+          data.
         </p>
 
-        <section className="notebook-variant-manager-section" aria-label="Saved variants">
+        <section className="notebook-variant-manager-section" aria-label="Saved versions">
           {variants.length === 0 ? (
-            <p className="notebook-variant-manager-empty">No saved variants yet.</p>
+            <p className="notebook-variant-manager-empty">No saved versions yet.</p>
           ) : (
             <>
               {groupedVariants.templateGroups.map((group) => (
@@ -242,7 +244,7 @@ export function NotebookVariantManagerDialog({
                 onChange={(event) => setNewCurrentTitle(event.target.value)}
               />
             </label>
-            <button type="submit">Save as variant</button>
+            <button type="submit">Save as version</button>
           </div>
         </form>
       </div>

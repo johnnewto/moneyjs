@@ -30,6 +30,30 @@ describe("notebookHasUnsavedChanges", () => {
       })
     ).toBe(true);
   });
+
+  it("ignores journal edits when a version session is autosaving", () => {
+    expect(
+      notebookHasUnsavedChanges({
+        hasEditHistory: true,
+        hasImportPreview: false,
+        hasPendingImportTextChanges: false,
+        isUnnamedNotebookSession: false,
+        hasAutosavedVersionSession: true
+      })
+    ).toBe(false);
+  });
+
+  it("still treats journal edits as unsaved without a version session", () => {
+    expect(
+      notebookHasUnsavedChanges({
+        hasEditHistory: true,
+        hasImportPreview: false,
+        hasPendingImportTextChanges: false,
+        isUnnamedNotebookSession: false,
+        hasAutosavedVersionSession: false
+      })
+    ).toBe(true);
+  });
 });
 
 describe("isNotebookNavigationLoadLabel", () => {

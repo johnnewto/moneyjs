@@ -1,4 +1,8 @@
 import {
+  buildNotebookPathname,
+  parseNotebookPathname
+} from "../notebook/notebookAppHelpers";
+import {
   DEFAULT_NOTEBOOK_TEMPLATE_ID,
   isNotebookTemplateId,
   type NotebookTemplateId
@@ -168,4 +172,45 @@ export function buildPublicationPathnameFromRoute(args: {
 export function navigateToPublicationView(pathname: string): void {
   window.history.pushState(window.history.state, "", pathname);
   window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
+/**
+ * True when a live-session return URL points at the interactive notebook editor,
+ * not the publication surface (including app root `/`, which is the publish landing).
+ */
+export function isInteractiveNotebookReturnUrl(href: string): boolean {
+  const trimmed = href.trim();
+  if (!trimmed) {
+    return false;
+  }
+
+  try {
+    const url = new URL(trimmed, window.location.href);
+    if (isPublicationPathname(url.pathname)) {
+      return false;
+    }
+    return parseNotebookPathname(url.pathname) != null;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Resolve the "Open interactive notebook" target for a publication view.
+ * Template publications always link to `/notebook/<id>`. Live publications prefer
+ * the session return URL when it still points at the notebook editor.
+ */
+export function resolveInteractiveNotebookHref(args: {
+  source: PublicationDocumentSource;
+  templateId: NotebookTemplateId;
+  liveReturnUrl?: string | null;
+}): string {
+  if (args.source === "live") {
+    const returnUrl = args.liveReturnUrl?.trim() || null;
+    if (returnUrl && isInteractiveNotebookReturnUrl(returnUrl)) {
+      return returnUrl;
+    }
+  }
+
+  return buildNotebookPathname({ templateId: args.templateId });
 }

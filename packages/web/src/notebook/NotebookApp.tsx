@@ -118,6 +118,7 @@ import {
   NOTEBOOK_TEMPLATES
 } from "./templates";
 import {
+  buildNotebookReturnUrl,
   buildNotebookVariableDescriptions,
   buildNotebookVariableUnitMetadata,
   formatElapsedTime,
@@ -786,6 +787,7 @@ export function NotebookApp() {
   const [activeVariantId, setActiveVariantId] = useState<string | null>(
     initialNotebookSession.activeVariantId
   );
+  const skipNextVersionAutosaveToastRef = useRef(true);
   const [variantIndex, setVariantIndex] = useState<NotebookVariantIndexEntry[]>(() =>
     listNotebookVariants()
   );
@@ -1396,14 +1398,14 @@ export function NotebookApp() {
   const handlePreparePublicationView = useCallback(() => {
     writePublicationLiveSession({
       document: notebookDocument,
-      returnUrl: `${window.location.pathname}${window.location.search}`
+      returnUrl: buildNotebookReturnUrl()
     });
   }, [notebookDocument]);
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       writePublicationLiveSession({
         document: notebookDocument,
-        returnUrl: `${window.location.pathname}${window.location.search}`
+        returnUrl: buildNotebookReturnUrl()
       });
     }, 300);
 
@@ -1421,9 +1423,11 @@ export function NotebookApp() {
         hasEditHistory: notebookJournal.past.length > 0,
         hasImportPreview: importPreview != null,
         hasPendingImportTextChanges,
-        isUnnamedNotebookSession: isUnnamedNotebookSessionForGuard
+        isUnnamedNotebookSession: isUnnamedNotebookSessionForGuard,
+        hasAutosavedVersionSession: activeVariantId != null
       }),
     [
+      activeVariantId,
       hasPendingImportTextChanges,
       importPreview,
       isUnnamedNotebookSessionForGuard,
@@ -1724,14 +1728,32 @@ export function NotebookApp() {
   }, []);
 
   useEffect(() => {
+    skipNextVersionAutosaveToastRef.current = true;
+  }, [activeVariantId]);
+
+  useEffect(() => {
     if (!activeVariantId) {
       return;
     }
 
     const savedNotebook = saveNotebookVariantDocument(activeVariantId, notebookDocument);
-    if (savedNotebook) {
-      refreshVariantIndex();
+    if (!savedNotebook) {
+      return;
     }
+
+    refreshVariantIndex();
+
+    if (skipNextVersionAutosaveToastRef.current) {
+      skipNextVersionAutosaveToastRef.current = false;
+      return;
+    }
+
+    const versionTitle = savedNotebook.title.trim() || activeVariantId;
+    const timeoutId = window.setTimeout(() => {
+      setUiMessage(`Autosaved version “${versionTitle}”.`);
+    }, 700);
+
+    return () => window.clearTimeout(timeoutId);
   }, [activeVariantId, notebookDocument, refreshVariantIndex]);
 
   useEffect(() => {
@@ -4098,8 +4120,34 @@ export function NotebookApp() {
                     className="notebook-run-button"
                     onClick={() => setIsVariantManagerOpen(true)}
                   >
-                    Manage variants…
+                    Manage Versions
                   </button>
+                  {publicationHref ? (
+                    <a
+                      className="notebook-run-button"
+                      href={publicationHref}
+                      title="Publication view (P)"
+                      onClick={(event) => {
+                        handlePreparePublicationView();
+
+                        if (
+                          event.defaultPrevented ||
+                          event.button !== 0 ||
+                          event.metaKey ||
+                          event.ctrlKey ||
+                          event.shiftKey ||
+                          event.altKey
+                        ) {
+                          return;
+                        }
+
+                        event.preventDefault();
+                        navigateToPublicationView(publicationHref);
+                      }}
+                    >
+                      <u className="notebook-run-all-hotkey">P</u>ublication view
+                    </a>
+                  ) : null}
                 </div>
               </div>
             </div>

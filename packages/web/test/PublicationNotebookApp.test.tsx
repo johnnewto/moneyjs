@@ -5,7 +5,9 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { createNotebookFromTemplate } from "../src/notebook/templates";
 import { PublicationNotebookApp } from "../src/publication/PublicationNotebookApp";
+import { writePublicationLiveSession } from "../src/publication/publicationLiveSession";
 
 const runAllMock = vi.fn(async () => undefined);
 
@@ -24,6 +26,7 @@ vi.mock("../src/notebook/useNotebookRunner", () => ({
 afterEach(() => {
   cleanup();
   runAllMock.mockClear();
+  window.sessionStorage.clear();
 });
 
 describe("PublicationNotebookApp", () => {
@@ -51,6 +54,61 @@ describe("PublicationNotebookApp", () => {
     expect(screen.getByRole("complementary", { name: "Contents" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Overview" })).toBeInTheDocument();
     expect(screen.getAllByRole("combobox", { name: "Notebook" }).length).toBeGreaterThan(0);
+  });
+
+  it("links Open interactive notebook to /notebook/<id>, not the publish landing", async () => {
+    writePublicationLiveSession({
+      document: createNotebookFromTemplate("bmw"),
+      returnUrl: "/"
+    });
+
+    render(
+      <PublicationNotebookApp
+        route={{
+          mode: "publish",
+          source: "template",
+          templateId: "bmw",
+          cellId: null,
+          embedCellId: null
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Running simulations/i)).not.toBeInTheDocument();
+    });
+
+    const links = screen.getAllByRole("link", { name: "Open interactive notebook" });
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links) {
+      expect(link).toHaveAttribute("href", "/notebook/bmw");
+    }
+  });
+
+  it("uses a live-session notebook return URL when it still points at the editor", async () => {
+    writePublicationLiveSession({
+      document: createNotebookFromTemplate("bmw"),
+      returnUrl: "/notebook/bmw/intro"
+    });
+
+    render(
+      <PublicationNotebookApp
+        route={{
+          mode: "publish",
+          source: "live",
+          templateId: null,
+          cellId: null,
+          embedCellId: null
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Running simulations/i)).not.toBeInTheDocument();
+    });
+
+    const links = screen.getAllByRole("link", { name: "Open interactive notebook" });
+    expect(links[0]).toHaveAttribute("href", "/notebook/bmw/intro");
   });
 
   it("renders a single embed cell when requested", async () => {

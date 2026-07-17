@@ -71,7 +71,7 @@ export function NotebookCommandActions({
       </button>
       {publicationHref ? (
         <a
-          className="notebook-toolbar-link notebook-run-button"
+          className="notebook-run-button"
           href={publicationHref}
           title="Publication view (P)"
           onClick={(event) => {
@@ -104,7 +104,7 @@ export function NotebookCommandActions({
         Contents
       </button>
       <a
-        className="notebook-toolbar-link notebook-run-button"
+        className="notebook-run-button"
         href={NOTEBOOK_AI_LANDING_URL}
         rel="noreferrer"
         target="_blank"
@@ -112,7 +112,7 @@ export function NotebookCommandActions({
         AI resources
       </a>
       <a
-        className="notebook-toolbar-link notebook-run-button"
+        className="notebook-run-button"
         href={NOTEBOOK_AI_GUIDE_URL}
         rel="noreferrer"
         target="_blank"

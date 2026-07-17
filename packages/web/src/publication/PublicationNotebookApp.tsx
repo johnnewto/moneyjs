@@ -18,7 +18,7 @@ import {
   type MatrixGraphRequest
 } from "../notebook/matrixSliceGraph";
 import type { MatrixCell } from "../notebook/types";
-import { buildNotebookPathname, buildNotebookVariableUnitMetadata } from "../notebook/notebookAppHelpers";
+import { buildNotebookVariableUnitMetadata } from "../notebook/notebookAppHelpers";
 import { useNotebookRunner } from "../notebook/useNotebookRunner";
 import { PeriodScrubber } from "../components/PeriodScrubber";
 import { type MatrixEntryDisplayMode } from "../notebook/matrixEntryDisplay";
@@ -30,7 +30,8 @@ import type { PublicationRouteLocation } from "./publicationRouteHelpers";
 import {
   buildPublicationPathname,
   buildPublicationPathnameFromRoute,
-  isBarePublishPathname
+  isBarePublishPathname,
+  resolveInteractiveNotebookHref
 } from "./publicationRouteHelpers";
 import { PublicationNotebookPicker } from "./PublicationNotebookPicker";
 import { DEFAULT_NOTEBOOK_TEMPLATE_ID } from "../notebook/templates";
@@ -486,11 +487,11 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
     target?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [route.cellId, route.mode, runPhase]);
 
-  const interactiveNotebookHref =
-    readPublicationLiveReturnUrl() ??
-    buildNotebookPathname({
-      templateId: publicationTemplateId
-    });
+  const interactiveNotebookHref = resolveInteractiveNotebookHref({
+    source: route.source,
+    templateId: publicationTemplateId,
+    liveReturnUrl: readPublicationLiveReturnUrl()
+  });
   const printHref = buildPublicationPathnameFromRoute({
     route: { mode: "print", source: route.source, templateId: route.templateId },
     cellId: route.cellId ?? undefined

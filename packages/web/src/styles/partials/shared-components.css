@@ -593,7 +593,8 @@
   position: fixed;
   white-space: normal;
   width: max-content;
-  z-index: 200;
+  /* Above floating panels (e.g. publication variable inspector at 1200). */
+  z-index: 1300;
 }
 .instant-tooltip-top::after,
 .instant-tooltip-bottom::after {

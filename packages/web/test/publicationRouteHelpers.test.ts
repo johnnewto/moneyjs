@@ -5,9 +5,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   buildPublicationPathname,
   isBarePublishPathname,
+  isInteractiveNotebookReturnUrl,
   isPublicationPathname,
   parsePublicationPathname,
-  readPublicationRouteLocation
+  readPublicationRouteLocation,
+  resolveInteractiveNotebookHref
 } from "../src/publication/publicationRouteHelpers";
 
 describe("publicationRouteHelpers", () => {
@@ -126,5 +128,51 @@ describe("publicationRouteHelpers", () => {
         embedCellId: "balance-sheet"
       })
     ).toBe("/embed/bmw?cell=balance-sheet");
+  });
+
+  it("resolves interactive notebook hrefs without looping back to publish", () => {
+    expect(
+      resolveInteractiveNotebookHref({
+        source: "template",
+        templateId: "sim",
+        liveReturnUrl: "/"
+      })
+    ).toBe("/notebook/sim");
+
+    expect(
+      resolveInteractiveNotebookHref({
+        source: "template",
+        templateId: "bmw",
+        liveReturnUrl: "/notebook/bmw"
+      })
+    ).toBe("/notebook/bmw");
+
+    expect(
+      resolveInteractiveNotebookHref({
+        source: "live",
+        templateId: "bmw",
+        liveReturnUrl: "/notebook/bmw/intro"
+      })
+    ).toBe("/notebook/bmw/intro");
+
+    expect(
+      resolveInteractiveNotebookHref({
+        source: "live",
+        templateId: "bmw",
+        liveReturnUrl: "/"
+      })
+    ).toBe("/notebook/bmw");
+
+    expect(
+      resolveInteractiveNotebookHref({
+        source: "live",
+        templateId: "bmw",
+        liveReturnUrl: "/publish/live"
+      })
+    ).toBe("/notebook/bmw");
+
+    expect(isInteractiveNotebookReturnUrl("/")).toBe(false);
+    expect(isInteractiveNotebookReturnUrl("/publish/bmw")).toBe(false);
+    expect(isInteractiveNotebookReturnUrl("/notebook/bmw")).toBe(true);
   });
 });
