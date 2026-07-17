@@ -35,6 +35,8 @@ describe("unsavedChangesGuard helpers", () => {
   });
 
   it("recognizes publication navigation hrefs", () => {
+    expect(isPublicationNavigationHref("/")).toBe(true);
+    expect(isPublicationNavigationHref("/publish")).toBe(true);
     expect(isPublicationNavigationHref("/publish/live")).toBe(true);
     expect(isPublicationNavigationHref("/print/bmw")).toBe(true);
     expect(isPublicationNavigationHref("#/notebook")).toBe(false);

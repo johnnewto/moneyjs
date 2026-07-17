@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type MouseEvent } from "react";
 
 import type { PublicationContentsEntry } from "./buildPublicationViewModel";
 import { PublicationActionLinks, type PublicationShareResult } from "./PublicationActionLinks";
+import { PublicationNotebookPicker } from "./PublicationNotebookPicker";
 import type { PublicationRouteLocation } from "./publicationRouteHelpers";
 import { buildPublicationPathnameFromRoute } from "./publicationRouteHelpers";
 
@@ -12,7 +13,8 @@ export function PublicationContents({
   isPrint,
   onShare,
   printHref,
-  route
+  route,
+  showCatalog = false
 }: {
   activeAnchorId: string | null;
   entries: PublicationContentsEntry[];
@@ -21,6 +23,7 @@ export function PublicationContents({
   onShare?: () => Promise<PublicationShareResult>;
   printHref: string;
   route: PublicationRouteLocation;
+  showCatalog?: boolean;
 }) {
   const [trackedAnchorId, setTrackedAnchorId] = useState<string | null>(activeAnchorId);
 
@@ -86,7 +89,7 @@ export function PublicationContents({
     [route]
   );
 
-  if (entries.length === 0) {
+  if (entries.length === 0 && !showCatalog) {
     return null;
   }
 
@@ -95,27 +98,34 @@ export function PublicationContents({
   return (
     <aside className="publication-contents publication-no-print" aria-label="Contents">
       <nav className="publication-contents-nav">
-        <h2 className="publication-contents-title">Contents</h2>
-        <ol className="publication-contents-list">
-          {entries.map((entry) => (
-            <li key={entry.anchorId} data-level={entry.level}>
-              <a
-                className={
-                  highlightedAnchorId === entry.anchorId
-                    ? "publication-contents-link is-active"
-                    : "publication-contents-link"
-                }
-                href={buildPublicationPathnameFromRoute({
-                  route,
-                  cellId: entry.anchorId
-                })}
-                onClick={(event) => handleNavigate(entry.anchorId, event)}
-              >
-                {entry.title}
-              </a>
-            </li>
-          ))}
-        </ol>
+        {showCatalog ? (
+          <PublicationNotebookPicker id="publication-notebook-picker-sidebar" route={route} />
+        ) : null}
+        {entries.length > 0 ? (
+          <>
+            <h2 className="publication-contents-title">Contents</h2>
+            <ol className="publication-contents-list">
+              {entries.map((entry) => (
+                <li key={entry.anchorId} data-level={entry.level}>
+                  <a
+                    className={
+                      highlightedAnchorId === entry.anchorId
+                        ? "publication-contents-link is-active"
+                        : "publication-contents-link"
+                    }
+                    href={buildPublicationPathnameFromRoute({
+                      route,
+                      cellId: entry.anchorId
+                    })}
+                    onClick={(event) => handleNavigate(entry.anchorId, event)}
+                  >
+                    {entry.title}
+                  </a>
+                </li>
+              ))}
+            </ol>
+          </>
+        ) : null}
         <PublicationActionLinks
           interactiveNotebookHref={interactiveNotebookHref}
           isPrint={isPrint}

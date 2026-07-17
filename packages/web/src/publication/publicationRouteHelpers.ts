@@ -35,6 +35,18 @@ function stripAppBasePath(pathname: string): string {
 
 export function parsePublicationPathname(pathname: string): PublicationRouteLocation | null {
   const path = stripAppBasePath(pathname);
+
+  // App root and bare /publish default to the BMW template catalog landing.
+  if (isDefaultPublishEntryPath(path)) {
+    return {
+      mode: "publish",
+      source: "template",
+      templateId: DEFAULT_NOTEBOOK_TEMPLATE_ID,
+      cellId: null,
+      embedCellId: null
+    };
+  }
+
   const match = path.match(/^\/(publish|embed|print)\/([^/]+)(?:\/([^/]+))?\/?$/);
   if (!match) {
     return null;
@@ -70,7 +82,15 @@ export function parsePublicationPathname(pathname: string): PublicationRouteLoca
 }
 
 export function readPublicationRouteLocation(): PublicationRouteLocation | null {
-  return parsePublicationPathname(window.location.pathname);
+  const fromPath = parsePublicationPathname(window.location.pathname);
+  if (fromPath) {
+    // Root `/` is also the hash notebook entry (`/#/notebook…`); keep the editor there.
+    if (isAppRootPath(stripAppBasePath(window.location.pathname)) && hasNotebookHashEntry(window.location.hash)) {
+      return null;
+    }
+    return fromPath;
+  }
+  return null;
 }
 
 export function buildPublicationPathname(args: {
@@ -105,7 +125,32 @@ export function buildPublicationPathname(args: {
 
 export function isPublicationPathname(pathname: string): boolean {
   const path = stripAppBasePath(pathname);
-  return /^\/(publish|embed|print)\//.test(path);
+  if (isAppRootPath(path)) {
+    return true;
+  }
+  return /^\/(publish|embed|print)(\/|$)/.test(path);
+}
+
+function isAppRootPath(path: string): boolean {
+  return path === "/" || path === "";
+}
+
+function isDefaultPublishEntryPath(path: string): boolean {
+  return isAppRootPath(path) || /^\/publish\/?$/.test(path);
+}
+
+function hasNotebookHashEntry(hash: string): boolean {
+  return (
+    hash.startsWith("#/notebook") ||
+    hash.startsWith("#/workspace") ||
+    hash.startsWith("#/chat-builder")
+  );
+}
+
+/** True when the path should canonicalize to `/publish/bmw` (root or bare `/publish`). */
+export function isBarePublishPathname(pathname: string): boolean {
+  const path = stripAppBasePath(pathname);
+  return isDefaultPublishEntryPath(path);
 }
 
 export function buildPublicationPathnameFromRoute(args: {

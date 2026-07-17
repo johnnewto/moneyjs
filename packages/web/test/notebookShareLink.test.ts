@@ -80,7 +80,7 @@ describe("notebookShareLink", () => {
   });
 
   it("returns an error when the compressed payload exceeds the share limit", () => {
-    const document = createNotebookFromTemplate("gl8-growth");
+    const document = createNotebookFromTemplate("bmw");
     // Pad with high-entropy content so the compressed payload reliably exceeds the
     // share limit regardless of the configured limit value.
     let filler = "";

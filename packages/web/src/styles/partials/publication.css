@@ -104,6 +104,48 @@ body:has(.publication-root) {
   line-height: 1.25;
 }
 
+.publication-notebook-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0 0 1rem;
+  font-family: system-ui, sans-serif;
+}
+
+.publication-header .publication-notebook-picker {
+  margin: 0.75rem 0 0;
+  max-width: 22rem;
+}
+
+@media (min-width: 992px) {
+  /* Sidebar catalog is available; avoid duplicating the header picker. */
+  body:has(.publication-layout-with-contents) .publication-header .publication-notebook-picker {
+    display: none;
+  }
+}
+
+.publication-notebook-picker-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #444;
+}
+
+.publication-notebook-picker select {
+  width: 100%;
+  max-width: 22rem;
+  padding: 0.35rem 0.5rem;
+  font: inherit;
+  font-size: 0.9rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  color: #1a1a1a;
+}
+
+.publication-contents-nav .publication-notebook-picker {
+  margin-bottom: 1.1rem;
+}
+
 .publication-contents-list {
   margin: 0;
   padding: 0;

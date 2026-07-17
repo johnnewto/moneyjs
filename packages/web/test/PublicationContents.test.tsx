@@ -47,11 +47,13 @@ describe("PublicationContents", () => {
           cellId: null,
           embedCellId: null
         }}
+        showCatalog
       />
     );
 
     expect(screen.getByRole("complementary", { name: "Contents" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Contents" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Notebook" })).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "Open interactive notebook" }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: "Print view" }).length).toBeGreaterThan(0);
 

@@ -28,8 +28,12 @@ import { PublicationContents } from "./PublicationContents";
 import { PublicationActionLinks } from "./PublicationActionLinks";
 import type { PublicationRouteLocation } from "./publicationRouteHelpers";
 import {
-  buildPublicationPathnameFromRoute
+  buildPublicationPathname,
+  buildPublicationPathnameFromRoute,
+  isBarePublishPathname
 } from "./publicationRouteHelpers";
+import { PublicationNotebookPicker } from "./PublicationNotebookPicker";
+import { DEFAULT_NOTEBOOK_TEMPLATE_ID } from "../notebook/templates";
 import {
   buildPublicationInspectRequest,
   mergePublicationVariableInteraction,
@@ -138,6 +142,21 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
         : (previous ?? -1) + 1
     );
   }, [route]);
+
+  useEffect(() => {
+    if (route.mode !== "publish" || typeof window === "undefined") {
+      return;
+    }
+    if (!isBarePublishPathname(window.location.pathname)) {
+      return;
+    }
+
+    const canonical = buildPublicationPathname({
+      mode: "publish",
+      templateId: DEFAULT_NOTEBOOK_TEMPLATE_ID
+    });
+    window.history.replaceState(window.history.state, "", canonical);
+  }, [route.mode]);
 
   useEffect(() => {
     if (route.source !== "live") {
@@ -509,7 +528,8 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
     () => buildPublicationContentsEntries(viewModel.bodySections),
     [viewModel.bodySections]
   );
-  const showContents = !isEmbed && contentsEntries.length > 1;
+  const showCatalog = route.mode === "publish";
+  const showContents = !isEmbed && (contentsEntries.length > 1 || showCatalog);
 
   const showScrubber = maxPeriodIndex > 0;
   const showWidthToggle = !isEmbed && !isPrint;
@@ -610,6 +630,9 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
         <header className="publication-header publication-no-print">
           <p className="publication-eyebrow">MoneyJS publication</p>
           <h1 className="publication-title">{viewModel.title}</h1>
+          {showCatalog ? (
+            <PublicationNotebookPicker id="publication-notebook-picker-header" route={route} />
+          ) : null}
           {runPhase === "running" ? (
             <p className="publication-status">Running simulations…</p>
           ) : null}
@@ -631,6 +654,7 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
                 onShare={handleSharePublication}
                 route={route}
                 printHref={printHref}
+                showCatalog={showCatalog}
               />
             ) : null}
           </div>

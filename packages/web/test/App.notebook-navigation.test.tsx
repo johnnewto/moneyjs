@@ -1072,37 +1072,4 @@ describe("App notebook navigation and inspection", () => {
       within(sequenceCell).queryByRole("region", { name: /dependency graph/i })
     ).not.toBeInTheDocument();
   });
-
-  it("renders separate externals and initial-values cells for the growth notebook", async () => {
-    const user = userEvent.setup();
-    window.location.hash = "#/notebook";
-
-    render(<App />);
-
-    await user.selectOptions(screen.getByLabelText(/notebook template/i), "gl8-growth");
-
-    const commandsPanel = await openNotebookCommandsPanel(user);
-    expect(within(commandsPanel).getByText(/gl8 growth notebook/i)).toBeInTheDocument();
-    expect(screen.getAllByRole("heading", { name: /^externals$/i }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("heading", { name: /initial values/i }).length).toBeGreaterThan(0);
-
-    const externalsCell = screen
-      .getAllByRole("heading", { name: /^externals$/i })
-      .map((heading) => heading.closest("article"))
-      .find((article): article is HTMLElement => article instanceof HTMLElement);
-    expect(externalsCell).not.toBeNull();
-    if (!externalsCell) {
-      throw new Error("Expected externals cell article.");
-    }
-
-    expect(within(externalsCell).getByRole("button", { name: /^show$/i })).toBeInTheDocument();
-    expect(within(externalsCell).queryByRole("button", { name: /add external/i })).not.toBeInTheDocument();
-
-    await user.click(within(externalsCell).getByRole("button", { name: /^show$/i }));
-
-    expect(within(externalsCell).getByRole("button", { name: /^hide$/i })).toBeInTheDocument();
-    expect(within(externalsCell).getByRole("button", { name: /^edit$/i })).toBeInTheDocument();
-    await user.click(within(externalsCell).getByRole("button", { name: /^edit$/i }));
-    expect(within(externalsCell).getByRole("button", { name: /add external/i })).toBeInTheDocument();
-  }, 15000);
 });

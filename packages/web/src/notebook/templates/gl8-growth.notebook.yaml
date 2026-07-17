@@ -1,11 +1,10 @@
 format: sfcr-notebook-yaml
 formatVersion: 1
-id: gl8-growth-g1
-title: g1
+id: gl8-growth-notebook
+title: GL8 Growth Notebook
 metadata:
   version: 1
   template: gl8-growth
-  sourceFileName: gl8-growth-g1 (1).notebook.yaml
 cells:
   - markdown:
       id: intro

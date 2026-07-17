@@ -50,6 +50,7 @@ describe("PublicationNotebookApp", () => {
 
     expect(screen.getByRole("complementary", { name: "Contents" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Overview" })).toBeInTheDocument();
+    expect(screen.getAllByRole("combobox", { name: "Notebook" }).length).toBeGreaterThan(0);
   });
 
   it("renders a single embed cell when requested", async () => {
