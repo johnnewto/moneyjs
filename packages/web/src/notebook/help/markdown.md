@@ -5,7 +5,8 @@ Markdown cells hold narrative text inside a notebook. Use them for introductions
 1. Press **Edit** on the markdown cell.
 2. Edit the title if needed.
 3. Write the body in Markdown.
-4. Press **Apply** to save the cell.
+4. Optionally fill **More** for longer textbook-style detail shown in the collapsible panel (same highlighted editor as the body).
+5. Press **Apply** to save the cell.
 
 Markdown cells do not run the solver. They document the notebook and make the computational cells easier to understand.
 

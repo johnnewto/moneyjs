@@ -76,11 +76,52 @@ describe("App per-cell source editors", () => {
 
     fireEvent.change(titleEditor, { target: { value: "Updated overview" } });
     fireEvent.change(sourceEditor, { target: { value: "Updated notebook overview." } });
+    const moreEditor = screen.getByRole("textbox", {
+      name: /more editor for overview/i
+    }) as HTMLTextAreaElement;
+    expect(moreEditor.closest(".notebook-source-codeframe")).not.toBeNull();
+    fireEvent.change(moreEditor, {
+      target: { value: "Optional longer overview detail for the more panel." }
+    });
     expect(applyButton).toBeEnabled();
     await user.click(applyButton);
 
     expect(screen.getByRole("heading", { name: /updated overview/i })).toBeInTheDocument();
     expect(within(overviewArticle).getByText(/updated notebook overview\./i)).toBeInTheDocument();
+    expect(
+      within(overviewArticle).getByText(/optional longer overview detail for the more panel\./i)
+    ).toBeInTheDocument();
+    expect(within(overviewArticle).getByRole("button", { name: /^less$/i })).toBeInTheDocument();
+  }, 15000);
+
+  it("edits more on a non-markdown cell with the highlighted source editor", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "#/notebook";
+
+    render(<App />);
+
+    const runHeading = screen.getByRole("heading", { name: /baseline run with newton/i });
+    const runArticle = runHeading.closest("article");
+    expect(runArticle).not.toBeNull();
+    if (!runArticle) {
+      throw new Error("Expected run cell article.");
+    }
+
+    await user.click(within(runArticle).getByRole("button", { name: /^edit$/i }));
+
+    const moreEditor = screen.getByRole("textbox", {
+      name: /more editor for baseline run with newton/i
+    }) as HTMLTextAreaElement;
+    expect(moreEditor.closest(".notebook-source-codeframe")).not.toBeNull();
+    fireEvent.change(moreEditor, {
+      target: { value: "Baseline run more detail for the panel." }
+    });
+    await user.click(within(runArticle).getByRole("button", { name: /^apply$/i }));
+
+    expect(
+      within(runArticle).getByText(/baseline run more detail for the panel\./i)
+    ).toBeInTheDocument();
+    expect(within(runArticle).getByRole("button", { name: /^less$/i })).toBeInTheDocument();
   }, 15000);
 
   it("undoes and redoes applied notebook edits from the app bar", async () => {

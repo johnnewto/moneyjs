@@ -92,6 +92,33 @@ describe("buildPublicationViewModel", () => {
     expect(entries.every((entry) => entry.title.length > 0)).toBe(true);
   });
 
+  it("nests non-markdown contents entries under markdown sections", () => {
+    const document = createNotebookFromTemplate("bmw");
+    const viewModel = buildPublicationViewModel({
+      document,
+      templateId: "bmw",
+      mode: "publish"
+    });
+
+    const entries = buildPublicationContentsEntries(viewModel.bodySections);
+    const byAnchor = new Map(entries.map((entry) => [entry.anchorId, entry]));
+
+    expect(byAnchor.get("intro")?.level).toBe(0);
+    expect(byAnchor.get("balance-sheet")?.level).toBe(1);
+
+    const markdownLevels = viewModel.bodySections
+      .filter((section) => section.cell.type === "markdown")
+      .map((section) => byAnchor.get(section.anchorId)?.level);
+    const nestedLevels = viewModel.bodySections
+      .filter((section) => section.cell.type !== "markdown")
+      .map((section) => byAnchor.get(section.anchorId)?.level)
+      .filter((level): level is 0 | 1 => level !== undefined);
+
+    expect(markdownLevels.every((level) => level === 0)).toBe(true);
+    expect(nestedLevels.length).toBeGreaterThan(0);
+    expect(nestedLevels.every((level) => level === 1)).toBe(true);
+  });
+
   it("includes chart-grid cells in body publication sections", () => {
     const document = createNotebookFromTemplate("italy-sfc");
     const chartGridCells = document.cells.filter((cell) => cell.type === "chart-grid");

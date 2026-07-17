@@ -28,6 +28,7 @@ import { MatrixUnitMetaDialog } from "./components/MatrixUnitMetaDialog";
 import { NotebookCellMore } from "./components/NotebookCellMore";
 import { MatrixEquationProposalDialog } from "./components/MatrixEquationProposalDialog";
 import { MatrixSourceEditor } from "./MatrixSourceEditor";
+import { NotebookHighlightedSourceEditor } from "./NotebookHighlightedSourceEditor";
 import {
   applyMatrixEquationUpdates,
   collectProposedMatrixEquationUpdates,
@@ -53,7 +54,6 @@ import {
   buildSourceHelpText,
   buildSourceHelperActions,
   formatCellBody,
-  highlightSourceDraft,
   isSourceEditable,
   parseCellSource,
   serializeCellBody
@@ -298,6 +298,7 @@ function NotebookCellViewComponent({
   const [isEditingSource, setIsEditingSource] = useState(false);
   const [titleDraft, setTitleDraft] = useState(() => cell.title);
   const [sourceDraft, setSourceDraft] = useState(() => serializeCellBody(cell));
+  const [moreDraft, setMoreDraft] = useState(() => cell.more ?? "");
   const [sourceLayoutMode, setSourceLayoutMode] = useState<
     "pretty" | "compact" | "grid" | "run"
   >(cell.type === "matrix" ? "grid" : cell.type === "run" ? "run" : "compact");
@@ -318,20 +319,15 @@ function NotebookCellViewComponent({
   >({});
   const insertMenuRef = useRef<HTMLDivElement | null>(null);
   const cellContextMenuRef = useRef<HTMLDivElement | null>(null);
-  const sourceTextareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const sourceHighlightRef = useRef<HTMLPreElement | null>(null);
-  const sourceGutterRef = useRef<HTMLPreElement | null>(null);
   const deferredBodyRef = useRef<HTMLDivElement | null>(null);
   const [measuredDeferredBodyHeight, setMeasuredDeferredBodyHeight] = useState<number | null>(null);
   const currentSerializedBody = serializeCellBody(cell);
+  const currentMore = cell.more ?? "";
   const hasSourceEdits =
-    cell.type === "markdown"
+    (cell.type === "markdown"
       ? titleDraft !== cell.title || sourceDraft !== currentSerializedBody
-      : sourceDraft !== currentSerializedBody;
+      : sourceDraft !== currentSerializedBody) || moreDraft !== currentMore;
   const isCollapsed = cell.collapsed === true && !isEditingSource && !isLinkedModelEditorCell(cell);
-  const sourceLineNumbers = Array.from({ length: sourceDraft.split("\n").length }, (_, index) =>
-    String(index + 1)
-  ).join("\n");
   const variableDescriptions = useMemo(
     () => resolveCellVariableDescriptions(cells, cell),
     [cells, cell]
@@ -519,6 +515,7 @@ function NotebookCellViewComponent({
   useEffect(() => {
     setTitleDraft(cell.title);
     setSourceDraft(serializeCellBody(cell));
+    setMoreDraft(cell.more ?? "");
     setSourceLayoutMode(cell.type === "matrix" ? "grid" : cell.type === "run" ? "run" : "compact");
     setOpenSourceMenu(null);
     setSourceError(null);
@@ -557,7 +554,8 @@ function NotebookCellViewComponent({
       const nextCell = parseCellSource(
         cell,
         sourceDraft,
-        cell.type === "markdown" ? titleDraft : undefined
+        cell.type === "markdown" ? titleDraft : undefined,
+        moreDraft
       );
       if (nextCell.type === "matrix") {
         setSourceValidationError(
@@ -572,7 +570,7 @@ function NotebookCellViewComponent({
         validationError instanceof Error ? validationError.message : "Invalid cell source"
       );
     }
-  }, [cell, isEditingSource, sourceDraft, titleDraft, variableUnitMetadata]);
+  }, [cell, isEditingSource, moreDraft, sourceDraft, titleDraft, variableUnitMetadata]);
 
   useEffect(() => {
     if (!isEditingSource || openSourceMenu == null) {
@@ -648,39 +646,13 @@ function NotebookCellViewComponent({
     };
   }, [cell.type, shouldMountViewportDeferredBody]);
 
-  useEffect(() => {
-    if (
-      !isEditingSource ||
-      sourceLayoutMode === "grid" ||
-      sourceLayoutMode === "run" ||
-      !sourceTextareaRef.current
-    ) {
-      return;
-    }
-
-    const textarea = sourceTextareaRef.current;
-    textarea.style.height = "auto";
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 640)}px`;
-  }, [isEditingSource, sourceDraft, sourceLayoutMode]);
-
-  function handleSourceScroll(): void {
-    if (!sourceTextareaRef.current || !sourceHighlightRef.current) {
-      return;
-    }
-
-    sourceHighlightRef.current.scrollTop = sourceTextareaRef.current.scrollTop;
-    sourceHighlightRef.current.scrollLeft = sourceTextareaRef.current.scrollLeft;
-    if (sourceGutterRef.current) {
-      sourceGutterRef.current.scrollTop = sourceTextareaRef.current.scrollTop;
-    }
-  }
-
   function handleApplySource(): void {
     try {
       const nextCell = parseCellSource(
         cell,
         sourceDraft,
-        cell.type === "markdown" ? titleDraft : undefined
+        cell.type === "markdown" ? titleDraft : undefined,
+        moreDraft
       );
       onCellChange(cell.id, () => nextCell);
       setSourceError(null);
@@ -739,6 +711,7 @@ function NotebookCellViewComponent({
   function handleCancelSource(): void {
     setTitleDraft(cell.title);
     setSourceDraft(serializeCellBody(cell));
+    setMoreDraft(cell.more ?? "");
     setSourceLayoutMode(cell.type === "matrix" ? "grid" : cell.type === "run" ? "run" : "compact");
     setOpenSourceMenu(null);
     setSourceError(null);
@@ -1199,30 +1172,24 @@ function NotebookCellViewComponent({
             ) : cell.type === "matrix" && sourceLayoutMode === "grid" ? (
               <MatrixSourceEditor value={sourceDraft} onChange={setSourceDraft} />
             ) : (
-              <div className="notebook-source-codeframe">
-                <pre ref={sourceGutterRef} className="notebook-source-gutter" aria-hidden="true">
-                  <code>{sourceLineNumbers}</code>
-                </pre>
-                <div className="notebook-source-editor-pane">
-                  <pre
-                    ref={sourceHighlightRef}
-                    className="notebook-source-highlight"
-                    aria-hidden="true"
-                  >
-                    <code>{highlightSourceDraft(sourceDraft, cell.type)}</code>
-                  </pre>
-                  <textarea
-                    ref={sourceTextareaRef}
-                    className="json-area notebook-source-textarea"
-                    value={sourceDraft}
-                    onChange={(event) => setSourceDraft(event.target.value)}
-                    onScroll={handleSourceScroll}
-                    spellCheck={false}
-                    aria-label={`Source editor for ${cell.title}`}
-                  />
-                </div>
-              </div>
+              <NotebookHighlightedSourceEditor
+                active={isEditingSource}
+                ariaLabel={`Source editor for ${cell.title}`}
+                highlightCellType={cell.type}
+                onChange={setSourceDraft}
+                value={sourceDraft}
+              />
             )}
+            <div className="notebook-source-more-section">
+              <div className="notebook-source-more-label">More</div>
+              <NotebookHighlightedSourceEditor
+                active={isEditingSource}
+                ariaLabel={`More editor for ${cell.title}`}
+                highlightCellType="markdown"
+                onChange={setMoreDraft}
+                value={moreDraft}
+              />
+            </div>
             <div className="notebook-source-validation-footer">
               {sourceValidationError ? (
                 <div className="notebook-source-validation" aria-live="polite">
@@ -1667,7 +1634,7 @@ function NotebookCellViewComponent({
             />
           </div>
         ) : null}
-        {!isCollapsed && cellMore ? (
+        {!isCollapsed && cellMore && !isEditingSource ? (
           <NotebookCellMore
             currentValues={noteInspectionContext?.currentValues}
             highlightedVariable={highlightedVariable}

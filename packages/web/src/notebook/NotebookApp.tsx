@@ -74,6 +74,7 @@ import { NotebookCommandsPanel } from "./components/NotebookCommandsPanel";
 import { NotebookCommandsToggle } from "./components/NotebookCommandsToggle";
 import { PinnedCellPanel } from "./components/PinnedCellPanel";
 import { VariableUsagesPopup } from "./components/VariableUsagesPopup";
+import { resolveContentsOutlineLevel } from "./contentsOutline";
 import { countVariableReferences, type ModelRenameScope } from "./renameVariable";
 import { resolveNotebookScopeId } from "./resolveNotebookScopeId";
 import { NotebookRenderProfiler } from "./notebookProfiler";
@@ -4407,6 +4408,7 @@ export function NotebookApp() {
                 {notebookDocument.cells.map((cell, index) => (
                   <li
                     key={cell.id}
+                    data-level={resolveContentsOutlineLevel(cell)}
                     className={`${selectedCellId === cell.id ? "notebook-outline-item-is-selected" : ""}${
                       activeEditorCellId === cell.id ? " notebook-outline-item-is-active" : ""
                     }`.trim()}

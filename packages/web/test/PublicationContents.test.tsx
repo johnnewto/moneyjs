@@ -54,7 +54,19 @@ describe("PublicationContents", () => {
     expect(screen.getByRole("heading", { name: "Contents" })).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "Open interactive notebook" }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: "Print view" }).length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole("link", { name: overviewEntry!.title }));
+
+    const overviewLink = screen.getByRole("link", { name: overviewEntry!.title });
+    expect(overviewLink.closest("li")).toHaveAttribute("data-level", "0");
+
+    const renderedEntries = entries.slice(0, 3);
+    const nestedEntry = renderedEntries.find((entry) => entry.level === 1);
+    expect(nestedEntry).toBeDefined();
+    expect(screen.getByRole("link", { name: nestedEntry!.title }).closest("li")).toHaveAttribute(
+      "data-level",
+      "1"
+    );
+
+    fireEvent.click(overviewLink);
 
     expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
     expect(replaceState).toHaveBeenCalledWith(null, "", expect.stringContaining("/publish/live/intro"));

@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   buildSourceHelperActions,
   buildSourceHelpText,
-  getNotebookHelpTopicIdForCell
+  getNotebookHelpTopicIdForCell,
+  parseCellSource,
+  serializeCellBody
 } from "../src/notebook/sourceEditing";
 import type { ChartCell, MatrixCell } from "../src/notebook/types";
 
@@ -88,5 +90,55 @@ describe("sourceEditing chart axisGroups insert", () => {
 
   it("falls back to a generic example when no suggestion is given", () => {
     expect(axisGroupsInsert(chartCell())).toBe('"axisGroups": [["Y", "Cd", "Mh"], ["W"]]');
+  });
+});
+
+describe("parseCellSource markdown more", () => {
+  it("sets, updates, and clears the optional more field", () => {
+    const cell = {
+      id: "intro",
+      type: "markdown" as const,
+      title: "Overview",
+      source: "Short body."
+    };
+
+    expect(parseCellSource(cell, "Short body.", "Overview", "Longer detail.").more).toBe(
+      "Longer detail."
+    );
+    expect(
+      parseCellSource(
+        { ...cell, more: "Old detail." },
+        "Short body.",
+        "Overview",
+        "Updated detail."
+      ).more
+    ).toBe("Updated detail.");
+    expect(
+      parseCellSource({ ...cell, more: "Old detail." }, "Short body.", "Overview", "   ").more
+    ).toBeUndefined();
+    expect(parseCellSource({ ...cell, more: "Keep me." }, "Short body.", "Overview").more).toBe(
+      "Keep me."
+    );
+  });
+
+  it("applies more for non-markdown cells and omits it from serialized source body", () => {
+    const cell = {
+      id: "baseline-run",
+      type: "run" as const,
+      title: "Baseline run",
+      sourceModelId: "model",
+      mode: "baseline" as const,
+      resultKey: "baseline",
+      periods: 10,
+      more: "Existing more."
+    };
+
+    expect(serializeCellBody(cell)).not.toContain('"more"');
+    expect(serializeCellBody(cell)).toContain('"title": "Baseline run"');
+
+    const next = parseCellSource(cell, serializeCellBody(cell), undefined, "Run detail.");
+    expect(next.type).toBe("run");
+    expect(next.more).toBe("Run detail.");
+    expect(parseCellSource(cell, serializeCellBody(cell), undefined, "  ").more).toBeUndefined();
   });
 });

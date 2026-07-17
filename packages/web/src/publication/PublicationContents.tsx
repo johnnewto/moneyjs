@@ -98,7 +98,7 @@ export function PublicationContents({
         <h2 className="publication-contents-title">Contents</h2>
         <ol className="publication-contents-list">
           {entries.map((entry) => (
-            <li key={entry.anchorId}>
+            <li key={entry.anchorId} data-level={entry.level}>
               <a
                 className={
                   highlightedAnchorId === entry.anchorId

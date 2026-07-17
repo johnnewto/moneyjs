@@ -165,7 +165,9 @@ export function serializeCellBody(cell: NotebookCell): string {
   if (cell.type === "markdown") {
     return cell.source;
   }
-  return formatCellBody(serializeNotebookCell(cell), "compact");
+  const serialized = serializeNotebookCell(cell);
+  const { more: _more, ...withoutMore } = serialized;
+  return formatCellBody(withoutMore, "compact");
 }
 
 export function formatCellBody(
@@ -188,18 +190,26 @@ export function highlightSourceDraft(
   return highlightJsonSource(source);
 }
 
-export function parseCellSource(cell: NotebookCell, source: string, title?: string): NotebookCell {
+export function parseCellSource(
+  cell: NotebookCell,
+  source: string,
+  title?: string,
+  more?: string
+): NotebookCell {
   if (cell.type === "markdown") {
     const nextTitle = title?.trim() ?? "";
     if (!nextTitle) {
       throw new Error("Cell title is required.");
     }
 
-    return {
-      ...cell,
-      title: nextTitle,
-      source
-    };
+    return applyCellMore(
+      {
+        ...cell,
+        title: nextTitle,
+        source
+      },
+      more
+    );
   }
 
   const parsed = JSON.parse(source) as NotebookCell;
@@ -216,7 +226,19 @@ export function parseCellSource(cell: NotebookCell, source: string, title?: stri
     throw new Error("Cell source must include id.");
   }
   validateCellSourceShape(cell.type, parsed);
-  return normalizeCellSource(parsed);
+  return applyCellMore(normalizeCellSource(parsed), more);
+}
+
+function applyCellMore(cell: NotebookCell, more?: string): NotebookCell {
+  if (more === undefined) {
+    return cell;
+  }
+
+  const { more: _previousMore, ...rest } = cell;
+  return {
+    ...rest,
+    ...(more.trim() ? { more } : {})
+  } as NotebookCell;
 }
 
 function formatAxisGroupsInsert(suggestion?: string[][]): string {
@@ -384,7 +406,7 @@ export function buildSourceHelperActions(
 export function buildSourceHelpText(cell: NotebookCell): string {
   switch (cell.type) {
     case "markdown":
-      return "Markdown cell source is plain text.\n\nExample:\nUpdated notebook overview with `inline code` and a short bullet list.";
+      return "Markdown cell source is plain text.\n\nExample:\nUpdated notebook overview with `inline code` and a short bullet list.\n\nOptional More field: longer textbook-style detail for the collapsible panel.";
     case "run":
       return `Required fields:
 - title

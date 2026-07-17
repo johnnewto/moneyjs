@@ -1,3 +1,4 @@
+import { resolveContentsOutlineLevel } from "../notebook/contentsOutline";
 import type { NotebookCell, NotebookDocument } from "../notebook/types";
 import type { NotebookTemplateId } from "../notebook/templates";
 import type { PublicationRenderMode } from "./publicationRouteHelpers";
@@ -31,6 +32,8 @@ export interface PublicationViewModel {
 export interface PublicationContentsEntry {
   anchorId: string;
   title: string;
+  /** 0 = markdown section; 1 = nested under the preceding markdown. */
+  level: 0 | 1;
 }
 
 export function buildPublicationContentsEntries(
@@ -39,7 +42,8 @@ export function buildPublicationContentsEntries(
   return sections
     .map((section) => ({
       anchorId: section.anchorId,
-      title: section.cell.title.trim()
+      title: section.cell.title.trim(),
+      level: resolveContentsOutlineLevel(section.cell)
     }))
     .filter((entry) => entry.title.length > 0);
 }

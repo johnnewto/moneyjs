@@ -754,6 +754,9 @@
   padding: 0 0 0 0.7rem;
   position: relative;
 }
+.notebook-outline-list li[data-level="1"] {
+  padding-left: 0.75rem;
+}
 .notebook-outline-list::before {
   background: rgba(100, 116, 139, 0.6);
   content: "";
@@ -1997,6 +2000,13 @@
   display: grid;
   gap: 0.85rem;
   margin-bottom: 0.35rem;
+}
+.notebook-source-more-section {
+  display: grid;
+  gap: 0.4rem;
+}
+.notebook-source-more-label {
+  font-weight: 700;
 }
 .notebook-source-toolbar {
   display: flex;

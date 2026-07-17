@@ -117,6 +117,10 @@ body:has(.publication-root) {
   margin-top: 0.45rem;
 }
 
+.publication-contents-list li[data-level="1"] {
+  padding-left: 0.85rem;
+}
+
 .publication-contents-link {
   color: #1a4b8c;
   display: block;
