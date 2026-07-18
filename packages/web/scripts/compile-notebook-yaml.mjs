@@ -17,7 +17,7 @@ const write = args.includes("--write");
 const writePublicExamples = args.includes("--write-public-examples");
 const preserveIds = args.includes("--preserve-ids");
 const requestedTemplateIds = args.filter((arg) => !arg.startsWith("--"));
-const defaultTemplateIds = ["bmw", "sim", "werner_quantity_theory_credit", "werner_qtc_explainer"];
+const defaultTemplateIds = ["bmw", "sim"];
 const templateIds = requestedTemplateIds.length ? requestedTemplateIds : defaultTemplateIds;
 
 if (args.includes("--compact-init") || args.includes("--convert-only")) {

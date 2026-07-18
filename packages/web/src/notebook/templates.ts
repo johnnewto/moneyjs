@@ -3,11 +3,8 @@ import bmwNotebookYaml from "./templates/bmw.notebook.yaml?raw";
 import eco3IoPcNotebookYaml from "./templates/eco-3io-pc.notebook.yaml?raw";
 import endogenousMoneyNotebookYaml from "./templates/endogenous-money.notebook.yaml?raw";
 import gl2PcNotebookYaml from "./templates/gl2-pc.notebook.yaml?raw";
-import pcTwoClassNotebookYaml from "./templates/pc-two-class.notebook.yaml?raw";
 import ioPcNotebookYaml from "./templates/io-pc.notebook.yaml?raw";
 import gl6DisNotebookYaml from "./templates/gl6-dis.notebook.yaml?raw";
-import gl6DisRentierNotebookYaml from "./templates/gl6-dis-rentier.notebook.yaml?raw";
-import gl6DisRentierV2NotebookYaml from "./templates/gl6-dis-rentier-v2.notebook.yaml?raw";
 import gl7InsoutNotebookYaml from "./templates/gl7-insout.notebook.yaml?raw";
 import gl8GrowthNotebookYaml from "./templates/gl8-growth.notebook.yaml?raw";
 import godleyFiscalSfcNotebookYaml from "./templates/godley_fiscal_sfc.notebook.yaml?raw";
@@ -18,9 +15,6 @@ import opensimplestNotebookYaml from "./templates/opensimplest.notebook.yaml?raw
 import predatorPreyNotebookYaml from "./templates/predator-prey.notebook.yaml?raw";
 import simpleEpidemicNotebookYaml from "./templates/simple-epidemic.notebook.yaml?raw";
 import simNotebookYaml from "./templates/sim.notebook.yaml?raw";
-import solverOverviewNotebookYaml from "./templates/solver-overview.notebook.yaml?raw";
-import wernerQuantityTheoryCreditNotebookYaml from "./templates/werner_quantity_theory_credit.notebook.yaml?raw";
-import wernerQtcExplainerNotebookYaml from "./templates/werner_qtc_explainer.notebook.yaml?raw";
 import { analyzeNotebookSource, type NotebookSourceDiagnostic } from "./document";
 import type { NotebookDocument } from "./types";
 
@@ -30,11 +24,8 @@ export type NotebookTemplateId =
   | "eco-3io-pc"
   | "endogenous-money"
   | "gl2-pc"
-  | "pc-two-class"
   | "io-pc"
   | "gl6-dis"
-  | "gl6-dis-rentier"
-  | "gl6-dis-rentier-v2"
   | "gl7-insout"
   | "gl8-growth"
   | "godley-fiscal-sfc"
@@ -44,10 +35,7 @@ export type NotebookTemplateId =
   | "opensimplest"
   | "predator-prey"
   | "simple-epidemic"
-  | "sim"
-  | "solver-overview"
-  | "werner-quantity-theory-credit"
-  | "werner-qtc-explainer";
+  | "sim";
 export const DEFAULT_NOTEBOOK_TEMPLATE_ID: NotebookTemplateId = "bmw";
 
 export interface NotebookTemplateDefinition {
@@ -67,11 +55,8 @@ const NOTEBOOK_TEMPLATE_YAML: Record<NotebookTemplateId, string> = {
   "eco-3io-pc": eco3IoPcNotebookYaml,
   "endogenous-money": endogenousMoneyNotebookYaml,
   "gl2-pc": gl2PcNotebookYaml,
-  "pc-two-class": pcTwoClassNotebookYaml,
   "io-pc": ioPcNotebookYaml,
   "gl6-dis": gl6DisNotebookYaml,
-  "gl6-dis-rentier": gl6DisRentierNotebookYaml,
-  "gl6-dis-rentier-v2": gl6DisRentierV2NotebookYaml,
   "gl7-insout": gl7InsoutNotebookYaml,
   "gl8-growth": gl8GrowthNotebookYaml,
   "godley-fiscal-sfc": godleyFiscalSfcNotebookYaml,
@@ -80,10 +65,7 @@ const NOTEBOOK_TEMPLATE_YAML: Record<NotebookTemplateId, string> = {
   opensimplest: opensimplestNotebookYaml,
   "opensimplest-levy": opensimplestLevyNotebookYaml,
   "predator-prey": predatorPreyNotebookYaml,
-  "simple-epidemic": simpleEpidemicNotebookYaml,
-  "solver-overview": solverOverviewNotebookYaml,
-  "werner-quantity-theory-credit": wernerQuantityTheoryCreditNotebookYaml,
-  "werner-qtc-explainer": wernerQtcExplainerNotebookYaml
+  "simple-epidemic": simpleEpidemicNotebookYaml
 };
 
 export const NOTEBOOK_TEMPLATES: Record<NotebookTemplateId, NotebookTemplateDefinition> = {
@@ -122,12 +104,6 @@ export const NOTEBOOK_TEMPLATES: Record<NotebookTemplateId, NotebookTemplateDefi
     description:
       "PC notebook based on the gl2-pc article baseline, balance-sheet views, account-transactions matrix, and two deterministic extensions."
   },
-  "pc-two-class": {
-    id: "pc-two-class",
-    label: "PC Two-Class",
-    description:
-      "PC notebook with poor and rich households, linear poor consumption, log rich consumption, and separate portfolio choice."
-  },
   "io-pc": {
     id: "io-pc",
     label: "Model IO-PC",
@@ -138,17 +114,6 @@ export const NOTEBOOK_TEMPLATES: Record<NotebookTemplateId, NotebookTemplateDefi
     id: "gl6-dis",
     label: "GL6 DIS",
     description: "DIS notebook based on the gl6-dis article baseline, matrices, and two scenarios."
-  },
-  "gl6-dis-rentier": {
-    id: "gl6-dis-rentier",
-    label: "GL6 DIS Rentier",
-    description:
-      "Two-household DIS notebook with workers, rentiers, taxes, and a money-versus-bonds portfolio split."
-  },
-  "gl6-dis-rentier-v2": {
-    id: "gl6-dis-rentier-v2",
-    label: "GL6 DIS Rentier v2",
-    description: "Separate v2 notebook entry for the DIS rentier template."
   },
   "gl7-insout": {
     id: "gl7-insout",
@@ -203,24 +168,6 @@ export const NOTEBOOK_TEMPLATES: Record<NotebookTemplateId, NotebookTemplateDefi
     label: "Simple epidemic",
     description:
       "Runnable version of the legacy simple epidemic model with stock equations, a contact lookup approximation, and a baseline chart."
-  },
-  "solver-overview": {
-    id: "solver-overview",
-    label: "Solver overview",
-    description:
-      "Runnable version of the solver overview block-ordering example with one acyclic chain, one cyclic block, and one scenario."
-  },
-  "werner-quantity-theory-credit": {
-    id: "werner-quantity-theory-credit",
-    label: "Werner QTC",
-    description:
-      "Credit-allocation notebook contrasting productive credit, asset credit, asset-price inflation, and leverage dynamics."
-  },
-  "werner-qtc-explainer": {
-    id: "werner-qtc-explainer",
-    label: "Werner QTC explainer",
-    description:
-      "Explanatory QTC notebook with the two credit-circulation equations, growth-form interpretation, and allocation scenarios."
   }
 };
 

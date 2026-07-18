@@ -104,8 +104,6 @@ See [append-cells.md](append-cells.md) for per-type snippets.
 |----------------------|-----------------------------------|
 | `bmw` | `bmw` |
 | `sim` | `sim` |
-| `werner_quantity_theory_credit` | `werner-quantity-theory-credit` |
-| `werner_qtc_explainer` | `werner-qtc-explainer` |
 
 After editing pilot YAML:
 

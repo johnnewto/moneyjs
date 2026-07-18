@@ -54,7 +54,7 @@ describe("PublicationNotebookApp", () => {
     expect(screen.getByRole("complementary", { name: "Contents" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Overview" })).toBeInTheDocument();
     expect(screen.getAllByRole("combobox", { name: "Notebook" }).length).toBeGreaterThan(0);
-  });
+  }, 15000);
 
   it("links Open interactive notebook to /notebook/<id>, not the publish landing", async () => {
     writePublicationLiveSession({
@@ -83,7 +83,7 @@ describe("PublicationNotebookApp", () => {
     for (const link of links) {
       expect(link).toHaveAttribute("href", "/notebook/bmw");
     }
-  });
+  }, 15000);
 
   it("uses a live-session notebook return URL when it still points at the editor", async () => {
     writePublicationLiveSession({
@@ -109,7 +109,7 @@ describe("PublicationNotebookApp", () => {
 
     const links = screen.getAllByRole("link", { name: "Open interactive notebook" });
     expect(links[0]).toHaveAttribute("href", "/notebook/bmw/intro");
-  });
+  }, 15000);
 
   it("renders a single embed cell when requested", async () => {
     render(

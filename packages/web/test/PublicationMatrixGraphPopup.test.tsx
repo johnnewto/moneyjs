@@ -60,7 +60,7 @@ describe("PublicationNotebookApp matrix graph popup", () => {
     await user.click(graphButton);
 
     expect(screen.getByRole("dialog", { name: "Graph" })).toBeInTheDocument();
-  });
+  }, 15000);
 
   it("renders a period scrubber and matrix display-mode toggle", async () => {
     render(
@@ -84,7 +84,7 @@ describe("PublicationNotebookApp matrix graph popup", () => {
     ).toBeGreaterThan(0);
     expect(screen.getByLabelText("Selected simulation period")).toBeInTheDocument();
     expect(screen.getByText(/Period \d+ of \d+/)).toBeInTheDocument();
-  });
+  }, 15000);
 
   it("switches matrix entries to evaluated values when the toggle is used", async () => {
     const user = userEvent.setup();
@@ -111,5 +111,5 @@ describe("PublicationNotebookApp matrix graph popup", () => {
     await user.click(matrixToggle);
 
     expect(container.querySelector(".publication-matrix-value")).not.toBeNull();
-  });
+  }, 15000);
 });

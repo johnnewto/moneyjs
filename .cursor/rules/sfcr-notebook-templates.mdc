@@ -9,7 +9,7 @@ alwaysApply: false
 **Source of truth:** `*.notebook.yaml` in `templates/`.
 **Generated (checked in):** `templates/generated/*.notebook.json` — do not hand-edit for pilot IDs.
 
-Pilot templates (enforced by compile + tests): `bmw`, `sim`, `werner_quantity_theory_credit`, `werner_qtc_explainer`.
+Pilot templates (enforced by compile + tests): `bmw`, `sim`.
 
 After editing pilot YAML:
 
@@ -24,6 +24,6 @@ pnpm --filter @sfcr/web compile:notebook-yaml -- --write --write-public-examples
 ```
 
 Adding a template requires:
-1. YAML file (underscores in filename, e.g. `werner_quantity_theory_credit.notebook.yaml`)
-2. Entry in `templates.ts` (`?raw` import + `NOTEBOOK_TEMPLATES`; TS id uses hyphens, e.g. `"werner-quantity-theory-credit"`)
+1. YAML file (underscores in filename, e.g. `godley_fiscal_sfc.notebook.yaml`)
+2. Entry in `templates.ts` (`?raw` import + `NOTEBOOK_TEMPLATES`; TS id uses hyphens, e.g. `"godley-fiscal-sfc"`)
 3. Relevant smoke/regression tests

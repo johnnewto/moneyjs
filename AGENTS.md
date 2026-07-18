@@ -41,7 +41,7 @@ Keep solver and model semantics in `packages/core`. Keep worker transport and br
 Pilot notebook templates use YAML as source of truth:
 - Source: `packages/web/src/notebook/templates/<id>.notebook.yaml`
 - Generated (checked in): `packages/web/src/notebook/templates/generated/<id>.notebook.json`
-- Pilot IDs: `bmw`, `sim`, `werner_quantity_theory_credit`, `werner_qtc_explainer`
+- Pilot IDs: `bmw`, `sim`
 
 After editing pilot YAML:
 
@@ -55,7 +55,7 @@ When pilot templates feed public AI examples (`bmw`, `sim`), also refresh `publi
 pnpm --filter @sfcr/web compile:notebook-yaml -- --write --write-public-examples
 ```
 
-Adding a template requires the YAML file, an entry in `packages/web/src/notebook/templates.ts` (`?raw` import + `NOTEBOOK_TEMPLATES`), and relevant tests. File names use underscores; TypeScript `NotebookTemplateId` values use hyphens (e.g. file `werner_quantity_theory_credit.notebook.yaml` → id `"werner-quantity-theory-credit"`).
+Adding a template requires the YAML file, an entry in `packages/web/src/notebook/templates.ts` (`?raw` import + `NOTEBOOK_TEMPLATES`), and relevant tests. File names use underscores; TypeScript `NotebookTemplateId` values use hyphens (e.g. file `godley_fiscal_sfc.notebook.yaml` → id `"godley-fiscal-sfc"`).
 
 ## Notebook Schema
 Canonical schema for validation: `packages/notebook-core/src/sfcr-notebook.schema.json`.

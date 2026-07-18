@@ -8,12 +8,9 @@ import { getNotebookTemplateDocument } from "../src/notebook/templates";
 
 type TemplateId =
   | "endogenous-money"
-  | "gl6-dis-rentier"
-  | "gl6-dis-rentier-v2"
   | "interbank-liquidity-risk"
   | "opensimplest"
   | "opensimplest-levy"
-  | "pc-two-class"
   | "predator-prey";
 
 interface TemplateSmokeCase {
@@ -145,68 +142,6 @@ const TEMPLATE_CASES: TemplateSmokeCase[] = [
       expect(Number.isFinite(result.series.predator.at(-1) ?? NaN)).toBe(true);
     }
   },
-  {
-    templateId: "gl6-dis-rentier",
-    baselineRunCellId: "baseline-run",
-    scenarioRunCellId: "scenario-2-run",
-    baselineExpectations(result) {
-      expect(result.options.periods).toBe(80);
-      expect(result.series.Y.length).toBe(80);
-      expect(Number.isFinite(result.series.Y.at(-1) ?? NaN)).toBe(true);
-      expect(Number.isFinite(result.series.Bh.at(-1) ?? NaN)).toBe(true);
-      expect(Number.isFinite(result.series.Mh.at(-1) ?? NaN)).toBe(true);
-      expect(Math.abs(result.series.gap.at(-1) ?? NaN)).toBeLessThan(1e-6);
-    },
-    scenarioExpectations(result) {
-      expect(result.options.periods).toBe(55);
-      expect(result.series.Bh.length).toBe(55);
-      expect(Number.isFinite(result.series.Bh.at(-1) ?? NaN)).toBe(true);
-      expect(Number.isFinite(result.series.Mh.at(-1) ?? NaN)).toBe(true);
-    }
-  },
-  {
-    templateId: "gl6-dis-rentier-v2",
-    baselineRunCellId: "baseline-run",
-    scenarioRunCellId: "scenario-2-run",
-    baselineExpectations(result) {
-      expect(result.options.periods).toBe(100);
-      expect(result.series.ydhs.length).toBe(100);
-      expect(Number.isFinite(result.series.ydhs.at(-1) ?? NaN)).toBe(true);
-      expect(Number.isFinite(result.series.Mh.at(-1) ?? NaN)).toBe(true);
-    },
-    scenarioExpectations(result) {
-      expect(result.options.periods).toBe(50);
-      expect(result.series.inv.length).toBe(50);
-      expect(Number.isFinite(result.series.inv.at(-1) ?? NaN)).toBe(true);
-      expect(Number.isFinite(result.series.inv_E.at(-1) ?? NaN)).toBe(true);
-    }
-  },
-  {
-    templateId: "pc-two-class",
-    baselineRunCellId: "baseline-run",
-    scenarioRunCellId: "scenario-run",
-    baselineExpectations(result) {
-      expect(result.options.periods).toBe(70);
-      expect(result.series.Y.length).toBe(70);
-      expect(result.series.Cp.length).toBe(70);
-      expect(result.series.Cr.length).toBe(70);
-      expect(Number.isFinite(result.series.Y.at(-1) ?? NaN)).toBe(true);
-      expect(Number.isFinite(result.series.Vp.at(-1) ?? NaN)).toBe(true);
-      expect(Number.isFinite(result.series.Vr.at(-1) ?? NaN)).toBe(true);
-      expect(Number.isFinite(result.series.Bhr.at(-1) ?? NaN)).toBe(true);
-      expect(result.series.Vr[0] ?? NaN).toBeCloseTo(120, 4);
-    },
-    scenarioExpectations(result, baselineResult) {
-      expect(result.options.periods).toBe(70);
-      expect(result.series.Cr.length).toBe(70);
-      expect(Number.isFinite(result.series.Cr.at(-1) ?? NaN)).toBe(true);
-      expect(Number.isFinite(result.series.Bhr.at(-1) ?? NaN)).toBe(true);
-      expect(result.series.Cr.at(-1) ?? NaN).toBeLessThan(baselineResult.series.Cr.at(-1) ?? NaN);
-      expect(result.series.Bhr.at(-1) ?? NaN).toBeGreaterThan(
-        baselineResult.series.Bhr.at(-1) ?? NaN
-      );
-    }
-  }
 ];
 
 describe("notebook template smoke tests", () => {
