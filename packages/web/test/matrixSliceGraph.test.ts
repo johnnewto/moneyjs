@@ -9,7 +9,10 @@ import {
   collectMatrixColumnGraphSeries,
   collectMatrixRowGraphSeries,
   listAddableMatrixGraphSeries,
-  resolveMatrixGraphChartSeries
+  listAddableMatrixGraphSources,
+  matrixGraphChartHasExternalSeries,
+  resolveMatrixGraphChartSeries,
+  resolveMatrixGraphSeriesEntryToAdd
 } from "../src/notebook/matrixSliceGraph";
 import { getNotebookTemplateDocument } from "../src/notebook/templates";
 import type { MatrixCell, RunCell } from "../src/notebook/types";
@@ -156,5 +159,74 @@ describe("matrixSliceGraph", () => {
     expect(addable.map((entry) => entry.source)).toEqual(
       remainingEntries.map((entry) => entry.source)
     );
+  });
+
+  it("includes leftover slice sources and other run series in add options", () => {
+    const consumptionRowIndex = transactionFlowMatrix.rows.findIndex(
+      (row) => row.label.trim() === "Consumption"
+    );
+    const sliceSeries = collectMatrixRowGraphSeries(
+      transactionFlowMatrix,
+      consumptionRowIndex,
+      baselineResult
+    );
+    const [firstEntry] = sliceSeries;
+    expect(firstEntry).toBeDefined();
+
+    const addableSources = listAddableMatrixGraphSources(
+      firstEntry ? [firstEntry] : [],
+      sliceSeries,
+      baselineResult
+    );
+
+    expect(addableSources).toEqual(expect.arrayContaining(sliceSeries.slice(1).map((entry) => entry.source)));
+    expect(addableSources.some((source) => Object.hasOwn(baselineResult.series, source))).toBe(true);
+    expect(addableSources).not.toContain(firstEntry?.source);
+
+    const runOnlyName = Object.keys(baselineResult.series).find(
+      (name) => !sliceSeries.some((entry) => entry.source === name || entry.source.trim() === name)
+    );
+    expect(runOnlyName).toBeDefined();
+    const resolved = resolveMatrixGraphSeriesEntryToAdd(
+      runOnlyName!,
+      sliceSeries,
+      baselineResult
+    );
+    expect(resolved?.source).toBe(runOnlyName);
+    expect(resolved?.values).toEqual(Array.from(baselineResult.series[runOnlyName!] ?? []));
+  });
+
+  it("refreshes chart series values from the live result and detects external series", () => {
+    const consumptionRowIndex = transactionFlowMatrix.rows.findIndex(
+      (row) => row.label.trim() === "Consumption"
+    );
+    const sliceSeries = collectMatrixRowGraphSeries(
+      transactionFlowMatrix,
+      consumptionRowIndex,
+      baselineResult
+    );
+    const [firstEntry] = sliceSeries;
+    expect(firstEntry).toBeDefined();
+
+    const staleEntry = {
+      ...firstEntry!,
+      values: [0, 0]
+    };
+    const withExternal = [
+      staleEntry,
+      {
+        crossLabel: "Output",
+        label: "Y",
+        source: "Y",
+        values: [1, 1]
+      }
+    ];
+
+    expect(matrixGraphChartHasExternalSeries(withExternal, sliceSeries)).toBe(true);
+    expect(matrixGraphChartHasExternalSeries([staleEntry], sliceSeries)).toBe(false);
+
+    const live = resolveMatrixGraphChartSeries([staleEntry], "expression", baselineResult);
+    expect(live[0]?.values).toEqual(buildMatrixEntryTimeSeries(firstEntry!.source, baselineResult));
+    expect(live[0]?.values.some((value) => value !== 0)).toBe(true);
   });
 });

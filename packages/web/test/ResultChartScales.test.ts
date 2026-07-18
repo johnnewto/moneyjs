@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   applyTimeRangeDrag,
+  buildAxisMetrics,
   clampInteractiveTimeRange,
   periodFromSvgX,
   timeRangeInclusiveEquals,
@@ -105,5 +106,25 @@ describe("ResultChartScales time range slider helpers", () => {
       startPeriodInclusive: 7,
       endPeriodInclusive: 12
     });
+  });
+});
+
+describe("buildAxisMetrics", () => {
+  it("uses a safe default range when there are no finite values", () => {
+    const metrics = buildAxisMetrics([], { includeZero: true });
+    expect(metrics.min).toBeLessThan(metrics.max);
+    expect(metrics.range).toBeGreaterThan(0);
+  });
+
+  it("expands equal manual bounds instead of throwing", () => {
+    const metrics = buildAxisMetrics([1, 2, 3], { min: 5, max: 5 });
+    expect(metrics.min).toBe(5);
+    expect(metrics.max).toBe(6);
+  });
+
+  it("swaps inverted manual bounds instead of throwing", () => {
+    const metrics = buildAxisMetrics([1, 2, 3], { min: 10, max: 2 });
+    expect(metrics.min).toBe(2);
+    expect(metrics.max).toBe(10);
   });
 });

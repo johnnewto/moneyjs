@@ -2,11 +2,16 @@
 
 import "@testing-library/jest-dom/vitest";
 
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ResultChart, resolveMinScenarioShockLabelX } from "../src/components/ResultChart";
+import {
+  LEGEND_MENU_CLOSE_DELAY_MS,
+  LEGEND_MENU_OPEN_DELAY_MS,
+  ResultChart,
+  resolveMinScenarioShockLabelX
+} from "../src/components/ResultChart";
 
 afterEach(() => {
   cleanup();
@@ -324,6 +329,132 @@ describe("ResultChart", () => {
     );
 
     expect(handleRemoveVariable).toHaveBeenCalledWith("B");
+  });
+
+  it("opens legend variable actions from the label", async () => {
+    const user = userEvent.setup();
+    const handleMoveVariable = vi.fn();
+    const handleRemoveVariable = vi.fn();
+
+    render(
+      <ResultChart
+        onMoveVariable={handleMoveVariable}
+        onRemoveVariable={handleRemoveVariable}
+        series={[
+          { name: "A", values: [2, 3, 5, 4] },
+          { name: "B", values: [10, 15, 25, 20] },
+          { name: "C", values: [30, 31, 32, 33] }
+        ]}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /^B chart variable actions$/i }));
+
+    const menu = screen.getByRole("menu", { name: /B chart variable actions/i });
+    await user.click(within(menu).getByRole("menuitem", { name: /move right/i }));
+
+    expect(handleMoveVariable).toHaveBeenCalledWith("B", "right");
+    expect(screen.queryByRole("menu", { name: /B chart variable actions/i })).not.toBeInTheDocument();
+  });
+
+  it("keeps the legend menu open on a second label click", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ResultChart
+        onRemoveVariable={vi.fn()}
+        series={[
+          { name: "A", values: [2, 3, 5, 4] },
+          { name: "B", values: [10, 15, 25, 20] }
+        ]}
+      />
+    );
+
+    const label = screen.getByRole("button", { name: /^B chart variable actions$/i });
+    await user.click(label);
+    expect(screen.getByRole("menu", { name: /B chart variable actions/i })).toBeInTheDocument();
+
+    await user.click(label);
+    expect(screen.getByRole("menu", { name: /B chart variable actions/i })).toBeInTheDocument();
+  });
+
+  it("opens legend variable actions on hover after a delay", async () => {
+    vi.useFakeTimers();
+    try {
+      const handleRemoveVariable = vi.fn();
+
+      render(
+        <ResultChart
+          onRemoveVariable={handleRemoveVariable}
+          series={[
+            { name: "A", values: [2, 3, 5, 4] },
+            { name: "B", values: [10, 15, 25, 20] }
+          ]}
+        />
+      );
+
+      const legendB = screen
+        .getByRole("button", { name: /^B chart variable actions$/i })
+        .closest(".legend-item");
+      if (!legendB) {
+        throw new Error("Expected B legend item.");
+      }
+
+      fireEvent.mouseEnter(legendB);
+      expect(screen.queryByRole("menu", { name: /B chart variable actions/i })).not.toBeInTheDocument();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(LEGEND_MENU_OPEN_DELAY_MS - 1);
+      });
+      expect(screen.queryByRole("menu", { name: /B chart variable actions/i })).not.toBeInTheDocument();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(screen.getByRole("menu", { name: /B chart variable actions/i })).toBeInTheDocument();
+
+      fireEvent.mouseLeave(legendB);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(LEGEND_MENU_CLOSE_DELAY_MS);
+      });
+      expect(screen.queryByRole("menu", { name: /B chart variable actions/i })).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("removes a series from the legend actions menu", async () => {
+    const user = userEvent.setup();
+    const handleRemoveVariable = vi.fn();
+
+    render(
+      <ResultChart
+        onRemoveVariable={handleRemoveVariable}
+        series={[
+          { name: "A", values: [2, 3, 5, 4] },
+          { name: "B", values: [10, 15, 25, 20] }
+        ]}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /^B chart variable actions$/i }));
+    await user.click(screen.getByRole("menuitem", { name: /remove from chart/i }));
+
+    expect(handleRemoveVariable).toHaveBeenCalledWith("B");
+  });
+
+  it("disables remove in the legend menu when only one series remains", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ResultChart
+        onRemoveVariable={vi.fn()}
+        series={[{ name: "A", values: [2, 3, 5, 4] }]}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /^A chart variable actions$/i }));
+    expect(screen.getByRole("menuitem", { name: /remove from chart/i })).toBeDisabled();
   });
 
   it("keeps separate-axis tick rows aligned by using the same tick count on each axis", () => {

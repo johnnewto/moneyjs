@@ -64,7 +64,7 @@ export function addMatrixGraphChartSeries(
 ): MatrixGraphChartEntry[] {
   return charts.map((chart) =>
     chart.id === chartId && !chart.series.some((series) => series.source === entry.source)
-      ? { ...chart, series: [...chart.series, entry] }
+      ? { ...chart, series: [entry, ...chart.series] }
       : chart
   );
 }
@@ -79,4 +79,35 @@ export function removeMatrixGraphChartSeries(
       ? { ...chart, series: chart.series.filter((entry) => entry.source !== source) }
       : chart
   );
+}
+
+export function moveMatrixGraphChartSeries(
+  charts: MatrixGraphChartEntry[],
+  chartId: string,
+  source: string,
+  direction: "left" | "right"
+): MatrixGraphChartEntry[] {
+  return charts.map((chart) => {
+    if (chart.id !== chartId) {
+      return chart;
+    }
+
+    const currentIndex = chart.series.findIndex((entry) => entry.source === source);
+    if (currentIndex === -1) {
+      return chart;
+    }
+
+    const nextIndex = direction === "left" ? currentIndex - 1 : currentIndex + 1;
+    if (nextIndex < 0 || nextIndex >= chart.series.length) {
+      return chart;
+    }
+
+    const nextSeries = [...chart.series];
+    [nextSeries[currentIndex], nextSeries[nextIndex]] = [
+      nextSeries[nextIndex]!,
+      nextSeries[currentIndex]!
+    ];
+
+    return { ...chart, series: nextSeries };
+  });
 }

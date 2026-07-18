@@ -17,6 +17,7 @@ export function PublicationMatrixGraphPopup({
   onAddChartSeries,
   onClose,
   onDismissChart,
+  onMoveChartSeries,
   onRemoveChartSeries,
   onToggleChartLegendMode,
   onToggleChartPin,
@@ -28,6 +29,7 @@ export function PublicationMatrixGraphPopup({
   onAddChartSeries(chartId: string, source: string): void;
   onClose(): void;
   onDismissChart(chartId: string): void;
+  onMoveChartSeries?(chartId: string, source: string, direction: "left" | "right"): void;
   onRemoveChartSeries(chartId: string, source: string): void;
   onToggleChartLegendMode(chartId: string): void;
   onToggleChartPin(chartId: string): void;
@@ -73,6 +75,7 @@ export function PublicationMatrixGraphPopup({
           getResult={getResult}
           onAddChartSeries={onAddChartSeries}
           onDismissChart={onDismissChart}
+          onMoveChartSeries={onMoveChartSeries}
           onRemoveChartSeries={onRemoveChartSeries}
           onToggleChartLegendMode={onToggleChartLegendMode}
           onToggleChartPin={onToggleChartPin}

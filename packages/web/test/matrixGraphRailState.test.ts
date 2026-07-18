@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   addMatrixGraphChartSeries,
   applyMatrixGraphRequest,
+  moveMatrixGraphChartSeries,
   removeMatrixGraphChart,
   removeMatrixGraphChartSeries,
   toggleMatrixGraphChartLegendMode,
@@ -101,7 +102,8 @@ describe("matrixGraphRailState", () => {
     });
 
     expect(next[0]?.series).toHaveLength(2);
-    expect(next[0]?.series[1]?.source).toBe("Cd");
+    expect(next[0]?.series[0]?.source).toBe("Cd");
+    expect(next[0]?.series[1]?.source).toBe("-Ld");
   });
 
   it("removes a trace but keeps at least one series", () => {
@@ -117,5 +119,29 @@ describe("matrixGraphRailState", () => {
     expect(removeMatrixGraphChartSeries(current, "chart-1", "Cd")[0]?.series).toHaveLength(1);
     expect(removeMatrixGraphChartSeries(current, "chart-1", "-Ld")[0]?.series).toHaveLength(1);
     expect(removeMatrixGraphChartSeries([entry("chart-1")], "chart-1", "-Ld")[0]?.series).toHaveLength(1);
+  });
+
+  it("moves a trace left and right", () => {
+    const current = [
+      entry("chart-1", {
+        series: [
+          { crossLabel: "Firms", label: "-Ld", source: "-Ld", values: [1, 2, 3] },
+          { crossLabel: "Households", label: "Cd", source: "Cd", values: [4, 5, 6] },
+          { crossLabel: "Banks", label: "Ms", source: "Ms", values: [7, 8, 9] }
+        ]
+      })
+    ];
+
+    const movedRight = moveMatrixGraphChartSeries(current, "chart-1", "Cd", "right");
+    expect(movedRight[0]?.series.map((series) => series.source)).toEqual(["-Ld", "Ms", "Cd"]);
+
+    const movedLeft = moveMatrixGraphChartSeries(current, "chart-1", "Cd", "left");
+    expect(movedLeft[0]?.series.map((series) => series.source)).toEqual(["Cd", "-Ld", "Ms"]);
+
+    expect(moveMatrixGraphChartSeries(current, "chart-1", "-Ld", "left")[0]?.series.map((series) => series.source)).toEqual([
+      "-Ld",
+      "Cd",
+      "Ms"
+    ]);
   });
 });

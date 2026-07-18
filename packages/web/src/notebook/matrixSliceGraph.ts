@@ -177,7 +177,8 @@ export function collectMatrixColumnGraphSeries(
 
 export function resolveMatrixGraphChartSeries(
   series: MatrixGraphSeriesEntry[],
-  legendMode: MatrixGraphLegendMode
+  legendMode: MatrixGraphLegendMode,
+  result?: SimulationResult | null
 ): MatrixGraphChartSeries[] {
   const nameCounts = new Map<string, number>();
 
@@ -186,11 +187,14 @@ export function resolveMatrixGraphChartSeries(
     const seenCount = (nameCounts.get(baseName) ?? 0) + 1;
     nameCounts.set(baseName, seenCount);
     const name = seenCount > 1 ? `${baseName} (${entry.label})` : baseName;
+    const liveValues = result ? buildMatrixEntryTimeSeries(entry.source, result) : null;
+    const values =
+      liveValues && isGraphableTimeSeries(liveValues) ? liveValues : Array.from(entry.values);
 
     return {
       highlightKey: entry.source,
       name,
-      values: entry.values,
+      values,
       legendTooltip:
         legendMode === "cross"
           ? entry.label
@@ -199,6 +203,14 @@ export function resolveMatrixGraphChartSeries(
             : undefined
     };
   });
+}
+
+export function matrixGraphChartHasExternalSeries(
+  chartSeries: MatrixGraphSeriesEntry[],
+  sliceSeries: MatrixGraphSeriesEntry[]
+): boolean {
+  const sliceSources = new Set(sliceSeries.map((entry) => entry.source.trim()));
+  return chartSeries.some((entry) => !sliceSources.has(entry.source.trim()));
 }
 
 export function matrixGraphCrossLegendHint(kind: MatrixGraphSliceKind): string {
@@ -222,4 +234,56 @@ export function listAddableMatrixGraphSeries(
 ): MatrixGraphSeriesEntry[] {
   const activeSources = new Set(chartSeries.map((entry) => entry.source));
   return sliceSeries.filter((entry) => !activeSources.has(entry.source));
+}
+
+export function listAddableMatrixGraphSources(
+  chartSeries: MatrixGraphSeriesEntry[],
+  sliceSeries: MatrixGraphSeriesEntry[],
+  result: SimulationResult | null | undefined
+): string[] {
+  const activeSources = new Set(chartSeries.map((entry) => entry.source.trim()));
+  const fromSlice = listAddableMatrixGraphSeries(chartSeries, sliceSeries).map((entry) => entry.source);
+  const fromRun = result
+    ? Object.entries(result.series)
+        .filter(
+          ([name, values]) =>
+            !activeSources.has(name.trim()) &&
+            values.length > 1 &&
+            values.some(Number.isFinite)
+        )
+        .map(([name]) => name)
+    : [];
+
+  return Array.from(new Set([...fromSlice, ...fromRun])).sort((left, right) =>
+    left.localeCompare(right)
+  );
+}
+
+export function resolveMatrixGraphSeriesEntryToAdd(
+  source: string,
+  sliceSeries: MatrixGraphSeriesEntry[],
+  result: SimulationResult,
+  variableDescriptions?: VariableDescriptions
+): MatrixGraphSeriesEntry | null {
+  const trimmed = source.trim();
+  const fromSlice = sliceSeries.find(
+    (entry) => entry.source === source || entry.source.trim() === trimmed
+  );
+  if (fromSlice) {
+    return fromSlice;
+  }
+
+  const values = result.series[source] ?? result.series[trimmed];
+  if (!values || !isGraphableTimeSeries(values)) {
+    return null;
+  }
+
+  const description = variableDescriptions?.get(source) ?? variableDescriptions?.get(trimmed);
+
+  return {
+    crossLabel: description ?? trimmed,
+    label: trimmed,
+    source: trimmed,
+    values: Array.from(values)
+  };
 }

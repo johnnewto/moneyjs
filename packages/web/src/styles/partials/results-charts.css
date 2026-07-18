@@ -149,6 +149,26 @@
   stroke-linejoin: round;
   stroke-width: 1.8;
 }
+.chart-legend .legend-label-menu {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+}
+.chart-legend .legend-label-menu:hover .variable-math-label,
+.chart-legend .legend-label-menu:focus-visible .variable-math-label {
+  text-decoration: underline;
+  text-decoration-color: rgba(37, 99, 235, 0.32);
+}
+.chart-legend .legend-label-menu:focus-visible {
+  outline: 2px solid rgba(245, 158, 11, 0.65);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
 .chart-legend-add-menu {
   background: #fff;
   border: 1px solid rgba(148, 163, 184, 0.35);
@@ -165,6 +185,19 @@
   position: absolute;
   top: 100%;
   z-index: 30;
+}
+.legend-item-tooltip-anchor {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.35rem;
+  min-width: 0;
+}
+.chart-legend-menu-portal {
+  left: 0;
+  margin-top: 0;
+  position: fixed;
+  top: 0;
+  z-index: 1400;
 }
 .chart-legend-add-option {
   align-items: flex-start;

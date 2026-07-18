@@ -7,6 +7,7 @@ import { isSameInspectorContext, type VariableInspectRequest } from "../lib/vari
 import {
   addMatrixGraphChartSeries,
   applyMatrixGraphRequest,
+  moveMatrixGraphChartSeries,
   removeMatrixGraphChart,
   removeMatrixGraphChartSeries,
   toggleMatrixGraphChartLegendMode,
@@ -15,6 +16,7 @@ import {
 } from "../notebook/matrixGraphRailState";
 import {
   collectMatrixGraphSliceSeries,
+  resolveMatrixGraphSeriesEntryToAdd,
   type MatrixGraphRequest
 } from "../notebook/matrixSliceGraph";
 import type { MatrixCell } from "../notebook/types";
@@ -422,21 +424,24 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
           (cell): cell is MatrixCell => cell.type === "matrix" && cell.id === chart.matrixCellId
         );
         const result = runner.getResult(chart.sourceRunCellId);
-        if (!matrixCell || !result) {
+        if (!result) {
           return charts;
         }
 
-        const sliceEntry = collectMatrixGraphSliceSeries(
-          matrixCell,
-          chart.kind,
-          chart.index,
-          result
-        ).find((entry) => entry.source === source);
-        if (!sliceEntry) {
+        const sliceSeries = matrixCell
+          ? collectMatrixGraphSliceSeries(matrixCell, chart.kind, chart.index, result)
+          : [];
+        const entry = resolveMatrixGraphSeriesEntryToAdd(
+          source,
+          sliceSeries,
+          result,
+          chart.variableDescriptions
+        );
+        if (!entry) {
           return charts;
         }
 
-        return addMatrixGraphChartSeries(charts, chartId, sliceEntry);
+        return addMatrixGraphChartSeries(charts, chartId, entry);
       });
     },
     [notebookDocument, runner]
@@ -445,6 +450,15 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
   const handleRemoveMatrixGraphChartSeries = useCallback((chartId: string, source: string) => {
     setMatrixGraphCharts((current) => removeMatrixGraphChartSeries(current, chartId, source));
   }, []);
+
+  const handleMoveMatrixGraphChartSeries = useCallback(
+    (chartId: string, source: string, direction: "left" | "right") => {
+      setMatrixGraphCharts((current) =>
+        moveMatrixGraphChartSeries(current, chartId, source, direction)
+      );
+    },
+    []
+  );
 
   const handleCloseMatrixGraph = useCallback(() => {
     setMatrixGraphCharts([]);
@@ -698,6 +712,7 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
           onAddChartSeries={handleAddMatrixGraphChartSeries}
           onClose={handleCloseMatrixGraph}
           onDismissChart={handleDismissMatrixGraphChart}
+          onMoveChartSeries={handleMoveMatrixGraphChartSeries}
           onRemoveChartSeries={handleRemoveMatrixGraphChartSeries}
           onToggleChartLegendMode={handleToggleMatrixGraphChartLegendMode}
           onToggleChartPin={handleToggleMatrixGraphChartPin}

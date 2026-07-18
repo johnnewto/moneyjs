@@ -56,8 +56,9 @@ export function buildAxisMetrics(
   options?: { exactTickCount?: boolean; niceScale?: boolean }
 ): { min: number; max: number; range: number; ticks: number[] } {
   const includeZero = axisRange?.includeZero === true;
-  const autoBounds = buildAutoBounds(finiteValues, includeZero);
-  const rawAutoBounds = buildRawAutoBounds(finiteValues, includeZero);
+  const usableValues = finiteValues.filter(Number.isFinite);
+  const autoBounds = buildAutoBounds(usableValues, includeZero);
+  const rawAutoBounds = buildRawAutoBounds(usableValues, includeZero);
   const manualMin = axisRange?.min;
   const manualMax = axisRange?.max;
   const resolvedAutoBounds =
@@ -69,11 +70,23 @@ export function buildAxisMetrics(
           options.exactTickCount === true
         )
       : autoBounds;
-  const resolvedMin = manualMin ?? resolvedAutoBounds.min;
-  const resolvedMax = manualMax ?? resolvedAutoBounds.max;
+  let resolvedMin = manualMin ?? resolvedAutoBounds.min;
+  let resolvedMax = manualMax ?? resolvedAutoBounds.max;
 
   if (!(resolvedMin < resolvedMax)) {
-    throw new Error("Axis range min must be less than max.");
+    if (Number.isFinite(resolvedMin) && Number.isFinite(resolvedMax)) {
+      if (resolvedMin > resolvedMax) {
+        const swap = resolvedMin;
+        resolvedMin = resolvedMax;
+        resolvedMax = swap;
+      } else {
+        // Equal bounds (or denormal after nice-scaling): expand to a unit window.
+        resolvedMax = resolvedMin + 1;
+      }
+    } else {
+      resolvedMin = 0;
+      resolvedMax = 1;
+    }
   }
 
   return {
@@ -96,7 +109,7 @@ function buildAutoBounds(finiteValues: number[], includeZero: boolean): { min: n
     paddedMax = Math.max(paddedMax, 0);
   }
 
-  if (paddedMin === paddedMax) {
+  if (!(paddedMin < paddedMax)) {
     paddedMax = paddedMin + 1;
   }
 
@@ -104,6 +117,10 @@ function buildAutoBounds(finiteValues: number[], includeZero: boolean): { min: n
 }
 
 function buildRawAutoBounds(finiteValues: number[], includeZero: boolean): { min: number; max: number } {
+  if (finiteValues.length === 0) {
+    return includeZero ? { min: 0, max: 1 } : { min: 0, max: 1 };
+  }
+
   const minValue = Math.min(...finiteValues);
   const maxValue = Math.max(...finiteValues);
   const range = maxValue - minValue || Math.max(Math.abs(maxValue), 1);
@@ -115,7 +132,7 @@ function buildRawAutoBounds(finiteValues: number[], includeZero: boolean): { min
     paddedMax = Math.max(paddedMax, 0);
   }
 
-  if (paddedMin === paddedMax) {
+  if (!(paddedMin < paddedMax)) {
     paddedMax = paddedMin + 1;
   }
 

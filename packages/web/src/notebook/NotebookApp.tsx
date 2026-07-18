@@ -193,11 +193,12 @@ import {
   addMatrixGraphChartSeries,
   removeMatrixGraphChart,
   removeMatrixGraphChartSeries,
+  moveMatrixGraphChartSeries,
   toggleMatrixGraphChartLegendMode,
   toggleMatrixGraphChartPin,
   type MatrixGraphChartEntry
 } from "./matrixGraphRailState";
-import { collectMatrixGraphSliceSeries } from "./matrixSliceGraph";
+import { collectMatrixGraphSliceSeries, resolveMatrixGraphSeriesEntryToAdd } from "./matrixSliceGraph";
 import { VariableMathLabel } from "../components/VariableMathLabel";
 import { useDragScroll } from "../hooks/useDragScroll";
 import { useInspectorVariableHistory } from "../hooks/useInspectorVariableHistory";
@@ -2055,23 +2056,39 @@ export function NotebookApp() {
         (cell): cell is MatrixCell => cell.type === "matrix" && cell.id === chart.matrixCellId
       );
       const result = runner.getResult(chart.sourceRunCellId);
-      if (!matrixCell || !result) {
+      if (!result) {
         return charts;
       }
 
-      const sliceEntry = collectMatrixGraphSliceSeries(matrixCell, chart.kind, chart.index, result).find(
-        (entry) => entry.source === source
+      const sliceSeries = matrixCell
+        ? collectMatrixGraphSliceSeries(matrixCell, chart.kind, chart.index, result)
+        : [];
+      const entry = resolveMatrixGraphSeriesEntryToAdd(
+        source,
+        sliceSeries,
+        result,
+        chart.variableDescriptions
       );
-      if (!sliceEntry) {
+      if (!entry) {
         return charts;
       }
 
-      return addMatrixGraphChartSeries(charts, chartId, sliceEntry);
+      return addMatrixGraphChartSeries(charts, chartId, entry);
     });
   }
 
   function handleRemoveMatrixGraphChartSeries(chartId: string, source: string): void {
     setMatrixGraphCharts((current) => removeMatrixGraphChartSeries(current, chartId, source));
+  }
+
+  function handleMoveMatrixGraphChartSeries(
+    chartId: string,
+    source: string,
+    direction: "left" | "right"
+  ): void {
+    setMatrixGraphCharts((current) =>
+      moveMatrixGraphChartSeries(current, chartId, source, direction)
+    );
   }
 
   function handleCatalogRowSelect(row: VariableCatalogRow): void {
@@ -4443,6 +4460,7 @@ export function NotebookApp() {
               onDismissChart={handleDismissMatrixGraphChart}
               onGraphExpressionHighlightChange={handleGraphExpressionHighlightChange}
               onGraphSliceHighlightChange={handleGraphSliceHighlightChange}
+              onMoveChartSeries={handleMoveMatrixGraphChartSeries}
               onRemoveChartSeries={handleRemoveMatrixGraphChartSeries}
               onToggleChartLegendMode={handleToggleMatrixGraphChartLegendMode}
               onToggleChartPin={handleToggleMatrixGraphChartPin}

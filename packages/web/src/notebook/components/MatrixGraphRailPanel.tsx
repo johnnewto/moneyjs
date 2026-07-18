@@ -5,7 +5,8 @@ import type { MatrixGraphSliceHighlight } from "../graphDocumentHighlight";
 import type { MatrixGraphChartEntry } from "../matrixGraphRailState";
 import {
   collectMatrixGraphSliceSeries,
-  listAddableMatrixGraphSeries,
+  listAddableMatrixGraphSources,
+  matrixGraphChartHasExternalSeries,
   matrixGraphCrossLegendHint,
   resolveMatrixGraphChartSeries
 } from "../matrixSliceGraph";
@@ -40,6 +41,7 @@ export function MatrixGraphRailPanel({
   onDismissChart,
   onGraphExpressionHighlightChange,
   onGraphSliceHighlightChange,
+  onMoveChartSeries,
   onRemoveChartSeries,
   onToggleChartLegendMode,
   onToggleChartPin,
@@ -52,6 +54,7 @@ export function MatrixGraphRailPanel({
   onDismissChart(chartId: string): void;
   onGraphExpressionHighlightChange?(expression: string | null): void;
   onGraphSliceHighlightChange?(slice: MatrixGraphSliceHighlight | null): void;
+  onMoveChartSeries?(chartId: string, source: string, direction: "left" | "right"): void;
   onRemoveChartSeries(chartId: string, source: string): void;
   onToggleChartLegendMode(chartId: string): void;
   onToggleChartPin(chartId: string): void;
@@ -76,20 +79,23 @@ export function MatrixGraphRailPanel({
       <div className="notebook-graph-rail-chart-stack">
         {charts.map((chart) => {
           const legendMode = chart.legendMode ?? "expression";
-          const chartSeries = resolveMatrixGraphChartSeries(chart.series, legendMode);
-          const seriesLength = chartSeries[0]?.values.length ?? 0;
-          const title = formatMatrixGraphTitle(chart);
           const slicePool = resolveMatrixGraphSlicePool(chart, cells, getResult);
-          const addableEntries = listAddableMatrixGraphSeries(chart.series, slicePool);
-          const addVariableOptions = addableEntries
-            .map((entry) => entry.source)
-            .sort((left, right) => left.localeCompare(right));
+          const result = getResult(chart.sourceRunCellId);
+          const chartSeries = resolveMatrixGraphChartSeries(chart.series, legendMode, result);
+          const seriesLength = Math.max(
+            0,
+            ...chartSeries.map((entry) => entry.values.length),
+            ...(result ? Object.values(result.series).map((values) => values.length) : [0])
+          );
+          const title = formatMatrixGraphTitle(chart);
+          const addVariableOptions = listAddableMatrixGraphSources(chart.series, slicePool, result);
           const addVariableDescriptions = new Map(chart.variableDescriptions);
-          for (const entry of addableEntries) {
+          for (const entry of slicePool) {
             if (!addVariableDescriptions.has(entry.source)) {
               addVariableDescriptions.set(entry.source, entry.crossLabel);
             }
           }
+          const useSeparateAxes = matrixGraphChartHasExternalSeries(chart.series, slicePool);
 
           const canShowChart = chartSeries.length > 0 || addVariableOptions.length > 0;
 
@@ -100,7 +106,7 @@ export function MatrixGraphRailPanel({
               ) : (
                 <ResultChart
                   addVariableOptions={addVariableOptions}
-                  axisMode="shared"
+                  axisMode={useSeparateAxes ? "separate" : "shared"}
                   graphSlice={{
                     index: chart.index,
                     kind: chart.kind,
@@ -113,8 +119,23 @@ export function MatrixGraphRailPanel({
                   onDismiss={() => onDismissChart(chart.id)}
                   onGraphExpressionHighlightChange={onGraphExpressionHighlightChange}
                   onGraphSliceHighlightChange={onGraphSliceHighlightChange}
+                  onMoveVariable={
+                    onMoveChartSeries
+                      ? (displayName, direction) => {
+                          const match = chartSeries.find(
+                            (entry) =>
+                              entry.name === displayName || entry.highlightKey === displayName
+                          );
+                          if (match?.highlightKey) {
+                            onMoveChartSeries(chart.id, match.highlightKey, direction);
+                          }
+                        }
+                      : undefined
+                  }
                   onRemoveVariable={(displayName) => {
-                    const match = chartSeries.find((entry) => entry.name === displayName);
+                    const match = chartSeries.find(
+                      (entry) => entry.name === displayName || entry.highlightKey === displayName
+                    );
                     if (match?.highlightKey) {
                       onRemoveChartSeries(chart.id, match.highlightKey);
                     }
@@ -123,7 +144,7 @@ export function MatrixGraphRailPanel({
                   onTogglePin={() => onToggleChartPin(chart.id)}
                   selectedIndex={selectedPeriodIndex}
                   series={chartSeries}
-                  sharedRange={{ includeZero: true }}
+                  sharedRange={useSeparateAxes ? undefined : { includeZero: true }}
                   showAxisSummary={false}
                   title={title}
                   timeRangeDefaults={{
