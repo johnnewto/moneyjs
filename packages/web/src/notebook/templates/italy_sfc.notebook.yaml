@@ -863,24 +863,6 @@ cells:
         - {type: chart, id: chart-yield-oos, title: Fig. 3(g) Average yield on gov. securities, series: [{expression: 100 * rb, label: Yield, unit: "%"}], axisMode: shared, referenceTrace: observed, sourceRunCellId: out-of-sample-run}
         - {type: chart, id: chart-debt-ratio-oos, title: Fig. 3(h) Government debt to GDP ratio, series: [{expression: 100 * deb / y, label: Debt-to-GDP, unit: "%"}], axisMode: shared, referenceTrace: observed, sourceRunCellId: out-of-sample-run}
         - {type: chart, id: chart-deflator-oos, title: Fig. 3(i) Price level (GDP deflator), variables: [p], axisMode: shared, referenceTrace: observed, sourceRunCellId: out-of-sample-run}
-  - table:
-      id: baseline-table
-      title: Key macro aggregates
-      variables:
-        - y
-        - yR
-        - cons
-        - id
-        - nx
-        - deb
-        - def
-        - deb_ratio
-        - p
-        - pc
-        - nd
-        - un
-        - rb
-      sourceRunCellId: baseline-run
   - markdown:
       id: watertightness
       title: Model watertightness
