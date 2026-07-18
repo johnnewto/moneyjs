@@ -1,6 +1,11 @@
 import { getBundledChatBuilderSystemPrompt } from "./chatBuilderSystemPrompt.ts";
 import { getBundledNotebookAssistantPrompt } from "./notebookAssistantPrompt.ts";
 
+interface KvNamespaceLike {
+  get(key: string): Promise<string | null>;
+  put(key: string, value: string): Promise<void>;
+}
+
 interface Env {
   ALLOWED_ORIGINS?: string;
   BETA_PASSWORD?: string;
@@ -11,7 +16,13 @@ interface Env {
   NOTEBOOK_ASSISTANT_SYSTEM_PROMPT?: string | (() => string | Promise<string>);
   OPENAI_API_KEY?: string;
   OPENAI_MODEL_ALLOWLIST?: string;
-  TINYURL_API_TOKEN?: string;
+  SHARE_LINKS?: KvNamespaceLike;
+  SHORT_LINK_BASE_URL?: string;
+}
+
+interface ShareLinkRecord {
+  createdAt: string;
+  url: string;
 }
 
 interface CacheStorageWithDefault extends CacheStorage {
@@ -67,7 +78,13 @@ interface SfcrNotebookManifest {
 }
 
 const DEFAULT_ALLOWED_MODELS = ["gpt-5.4-mini", "gpt-5.4", "gpt-4.1", "gpt-5.5", "o3"];
-const DEFAULT_DISCOVERY_ALLOWED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173", "https://johnnewto.github.io"];
+const DEFAULT_DISCOVERY_ALLOWED_ORIGINS = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
+  "https://johnnewto.github.io"
+];
 const DEFAULT_MAX_OUTPUT_TOKENS = 8000;
 const DISCOVERY_CACHE_TTL_SECONDS = 600;
 const MAX_DISCOVERY_BUNDLE_LENGTH = 1_000_000;
@@ -77,7 +94,11 @@ const MAX_PROMPT_LENGTH = 12000;
 const MAX_MESSAGE_COUNT = 12;
 const MAX_MESSAGE_LENGTH = 8000;
 const MAX_NOTEBOOK_SHARE_URL_LENGTH = 32_000;
+const MAX_SHARE_CODE_ATTEMPTS = 8;
 const NOTEBOOK_SHARE_QUERY_PARAM = "nbz";
+const SHARE_CODE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+const SHARE_CODE_LENGTH = 8;
+const SHARE_REDIRECT_PATH = /^\/s\/([A-Za-z0-9]{8})$/;
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -93,6 +114,11 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
   }
 
   const url = new URL(request.url);
+  const shareRedirectMatch = SHARE_REDIRECT_PATH.exec(url.pathname);
+  if (shareRedirectMatch) {
+    return handleShareRedirect(request, env, shareRedirectMatch[1]!, corsHeaders);
+  }
+
   if (url.pathname === "/v1/notebook-assistant/ask") {
     return handleNotebookAssistantRequest(request, env, corsHeaders);
   }
@@ -206,8 +232,8 @@ async function handleNotebookShareShortenRequest(
     return rateLimitResponse;
   }
 
-  if (!env.TINYURL_API_TOKEN?.trim()) {
-    return jsonResponse({ error: "TINYURL_API_TOKEN is not configured." }, 503, corsHeaders);
+  if (!env.SHARE_LINKS) {
+    return jsonResponse({ error: "SHARE_LINKS is not configured." }, 503, corsHeaders);
   }
 
   let payload: NotebookShareShortenRequest;
@@ -223,32 +249,111 @@ async function handleNotebookShareShortenRequest(
   }
 
   try {
-    const tinyUrlResponse = await fetch("https://api.tinyurl.com/create", {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${env.TINYURL_API_TOKEN.trim()}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ url: validation.url })
-    });
-
-    if (!tinyUrlResponse.ok) {
-      return jsonResponse({ error: await readTinyUrlError(tinyUrlResponse) }, 502, corsHeaders);
+    const code = await mintShareCode(env.SHARE_LINKS, validation.url);
+    if (!code) {
+      return jsonResponse({ error: "Unable to allocate a short link code." }, 500, corsHeaders);
     }
 
-    const tinyUrlPayload = (await tinyUrlResponse.json()) as {
-      data?: { tiny_url?: string };
-    };
-    const shortUrl = tinyUrlPayload.data?.tiny_url?.trim();
-    if (!shortUrl) {
-      return jsonResponse({ error: "TinyURL response did not include a short URL." }, 502, corsHeaders);
-    }
-
+    const shortUrl = `${resolveShortLinkBase(request, env)}/s/${code}`;
     return jsonResponse({ shortUrl }, 200, corsHeaders);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to shorten notebook share URL.";
     return jsonResponse({ error: message }, 500, corsHeaders);
+  }
+}
+
+async function handleShareRedirect(
+  request: Request,
+  env: Env,
+  code: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    return jsonResponse({ error: "Method not allowed." }, 405, corsHeaders);
+  }
+
+  if (!env.SHARE_LINKS) {
+    return jsonResponse({ error: "SHARE_LINKS is not configured." }, 503, corsHeaders);
+  }
+
+  try {
+    const stored = await env.SHARE_LINKS.get(code);
+    if (!stored) {
+      return jsonResponse({ error: "Short link not found." }, 404, corsHeaders);
+    }
+
+    const record = parseShareLinkRecord(stored);
+    if (!record) {
+      return jsonResponse({ error: "Short link is invalid." }, 500, corsHeaders);
+    }
+
+    return new Response(null, {
+      status: 302,
+      headers: {
+        ...corsHeaders,
+        "Cache-Control": "no-store",
+        Location: record.url
+      }
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to resolve short link.";
+    return jsonResponse({ error: message }, 500, corsHeaders);
+  }
+}
+
+async function mintShareCode(store: KvNamespaceLike, longUrl: string): Promise<string | null> {
+  const record: ShareLinkRecord = {
+    createdAt: new Date().toISOString(),
+    url: longUrl
+  };
+  const value = JSON.stringify(record);
+
+  for (let attempt = 0; attempt < MAX_SHARE_CODE_ATTEMPTS; attempt += 1) {
+    const code = createShareCode();
+    const existing = await store.get(code);
+    if (existing !== null) {
+      continue;
+    }
+
+    await store.put(code, value);
+    return code;
+  }
+
+  return null;
+}
+
+function createShareCode(): string {
+  const bytes = new Uint8Array(SHARE_CODE_LENGTH);
+  crypto.getRandomValues(bytes);
+  let code = "";
+  for (const byte of bytes) {
+    code += SHARE_CODE_ALPHABET[byte % SHARE_CODE_ALPHABET.length]!;
+  }
+  return code;
+}
+
+function resolveShortLinkBase(request: Request, env: Env): string {
+  const configured = env.SHORT_LINK_BASE_URL?.trim().replace(/\/+$/, "");
+  if (configured) {
+    return configured;
+  }
+
+  return new URL(request.url).origin;
+}
+
+function parseShareLinkRecord(stored: string): ShareLinkRecord | null {
+  try {
+    const parsed = JSON.parse(stored) as Partial<ShareLinkRecord>;
+    if (typeof parsed.url !== "string" || parsed.url.trim() === "") {
+      return null;
+    }
+
+    return {
+      createdAt: typeof parsed.createdAt === "string" ? parsed.createdAt : "",
+      url: parsed.url
+    };
+  } catch {
+    return null;
   }
 }
 
@@ -818,19 +923,6 @@ async function readOpenAiError(response: Response): Promise<string> {
     return error.error?.message ?? "OpenAI request failed.";
   } catch {
     return "OpenAI request failed.";
-  }
-}
-
-async function readTinyUrlError(response: Response): Promise<string> {
-  try {
-    const error = (await response.json()) as {
-      errors?: Array<{ message?: string }>;
-      message?: string;
-    };
-    const firstMessage = error.errors?.[0]?.message ?? error.message;
-    return firstMessage?.trim() || "TinyURL request failed.";
-  } catch {
-    return "TinyURL request failed.";
   }
 }
 

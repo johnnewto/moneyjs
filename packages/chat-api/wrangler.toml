@@ -3,10 +3,20 @@ main = "src/index.ts"
 compatibility_date = "2026-05-03"
 
 [vars]
-ALLOWED_ORIGINS = "http://localhost:5173,https://johnnewto.github.io"
-DISCOVERY_ALLOWED_ORIGINS = "http://localhost:5173,https://johnnewto.github.io"
+ALLOWED_ORIGINS = "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,https://johnnewto.github.io"
+DISCOVERY_ALLOWED_ORIGINS = "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,https://johnnewto.github.io"
 MAX_OUTPUT_TOKENS = "8000"
 OPENAI_MODEL_ALLOWLIST = "gpt-5.4-mini,gpt-5.4,gpt-4.1,gpt-5.5,o3"
+# Optional: override short-link host (defaults to this Worker's origin).
+# SHORT_LINK_BASE_URL = "https://sfcr-chat-api.example"
+
+[[kv_namespaces]]
+binding = "SHARE_LINKS"
+# Create namespaces, then paste the IDs:
+#   pnpm dlx wrangler kv namespace create SHARE_LINKS
+#   pnpm dlx wrangler kv namespace create SHARE_LINKS --preview
+id = "dcbb9843113847aba2f5600dd1b3a155"
+preview_id = "113ff7c750da4f69b91c4b3aff856a38"
 
 [[ratelimits]]
 name = "CHAT_BUILDER_RATE_LIMITER"

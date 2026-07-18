@@ -168,11 +168,11 @@ Opening the link loads the notebook as an imported variant. If a cell is selecte
 
 **Size limit:** compressed `nbz` payloads are capped at 12,000 characters in the browser. Larger notebooks (for example `gl8-growth`) must use Save or Export instead.
 
-**TinyURL shortening:** when the chat API Worker is configured, Share link automatically copies a TinyURL short link instead of the long `nbz` URL. The Worker proxies to [TinyURL](https://tinyurl.com/app/dev) so the API token stays server-side. If shortening is unavailable, Share link falls back to the long URL.
+**Share link shortening:** when the chat API Worker is configured with the `SHARE_LINKS` KV binding, Share link automatically copies a short `/s/:code` URL (on the Worker host, or `SHORT_LINK_BASE_URL` if set) instead of the long `nbz` URL. Opening the short link `302`s to the MoneyJS share URL. If shortening is unavailable, Share link falls back to the long URL.
 
 Production requires both:
 
-1. Worker secret `TINYURL_API_TOKEN` (see [Chat API](#chat-api))
+1. `SHARE_LINKS` KV binding on the chat API Worker (see [Chat API](#chat-api))
 2. GitHub Pages build var `VITE_NOTEBOOK_ASSISTANT_API_URL` or `VITE_CHAT_BUILDER_API_URL` pointing at the deployed Worker
 
 Local development:
@@ -180,14 +180,13 @@ Local development:
 ```bash
 # terminal 1
 cp packages/chat-api/.dev.vars.example packages/chat-api/.dev.vars
-# add TINYURL_API_TOKEN=... to .dev.vars
 pnpm --filter @sfcr/chat-api dev
 
 # terminal 2
 pnpm dev
 ```
 
-On `localhost`, the web app uses `http://localhost:8787` for shortening without extra env vars.
+On `localhost`, the web app uses `http://localhost:8787` for shortening without extra env vars (the Node adapter uses in-memory KV).
 
 More detail: `packages/chat-api/README.md` (Notebook share shortening section).
 
@@ -203,7 +202,7 @@ Also update `packages/web/public/404.html`; GitHub Pages uses that file to redir
 
 ### Chat API
 
-The in-notebook assistant, notebook share shortening (TinyURL), and offline draft-eval harness use a Cloudflare Worker in `packages/chat-api` so secrets stay out of the browser bundle.
+The in-notebook assistant, notebook share shortening (Cloudflare KV `/s/:code`), and offline draft-eval harness use a Cloudflare Worker in `packages/chat-api` so secrets stay out of the browser bundle.
 
 Detailed usage notes are in `packages/chat-api/README.md`.
 
@@ -216,7 +215,6 @@ cp packages/chat-api/.dev.vars.example packages/chat-api/.dev.vars
 Edit `packages/chat-api/.dev.vars`:
 
 - `OPENAI_API_KEY` — in-notebook assistant
-- `TINYURL_API_TOKEN` — automatic TinyURL shortening for Share link ([get a token](https://tinyurl.com/app/dev))
 - `BETA_PASSWORD` — optional beta gate
 
 Start the GLIBC-friendly local Node adapter:
@@ -225,7 +223,7 @@ Start the GLIBC-friendly local Node adapter:
 pnpm --filter @sfcr/chat-api dev
 ```
 
-Deploy the Worker:
+Deploy the Worker (after creating KV namespaces and pasting IDs into `packages/chat-api/wrangler.toml` — see `packages/chat-api/README.md`):
 
 ```bash
 pnpm --filter @sfcr/chat-api run deploy
@@ -236,7 +234,6 @@ Configure Worker secrets (prompted interactively):
 ```bash
 cd packages/chat-api
 pnpm dlx wrangler secret put OPENAI_API_KEY
-pnpm dlx wrangler secret put TINYURL_API_TOKEN
 pnpm dlx wrangler secret put BETA_PASSWORD   # optional
 ```
 
@@ -246,7 +243,7 @@ Point GitHub Pages builds at the Worker (repository variable or workflow env):
 VITE_NOTEBOOK_ASSISTANT_API_URL=https://sfcr-chat-api.<account>.workers.dev/v1/notebook-assistant/ask
 ```
 
-The Worker streams OpenAI Responses API events to the browser, caps each response with `MAX_OUTPUT_TOKENS`, and accepts only allowlisted origins and models. Configure `ALLOWED_ORIGINS`, `MAX_OUTPUT_TOKENS`, and `OPENAI_MODEL_ALLOWLIST` in `packages/chat-api/wrangler.toml` or Cloudflare. `wrangler.toml` also defines a Cloudflare Workers Rate Limiting binding for 10 requests per minute per rate-limit key.
+The Worker streams OpenAI Responses API events to the browser, caps each response with `MAX_OUTPUT_TOKENS`, and accepts only allowlisted origins and models. Configure `ALLOWED_ORIGINS`, `MAX_OUTPUT_TOKENS`, and `OPENAI_MODEL_ALLOWLIST` in `packages/chat-api/wrangler.toml` or Cloudflare. `wrangler.toml` also defines a Cloudflare Workers Rate Limiting binding for 10 requests per minute per rate-limit key, plus the `SHARE_LINKS` KV binding used by notebook share shortening.
 
 ### AI Discovery Endpoints
 

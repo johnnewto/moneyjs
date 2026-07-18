@@ -1,11 +1,12 @@
 # SFCR Chat API
 
-Cloudflare Worker proxy for the in-notebook assistant, notebook share shortening (TinyURL), and offline notebook-draft eval harness. It keeps API keys out of the browser and streams model events back to clients.
+Cloudflare Worker proxy for the in-notebook assistant, first-party notebook share shortening (KV), and offline notebook-draft eval harness. It keeps API keys out of the browser and streams model events back to clients.
 
 Endpoints:
 
 - `POST /v1/notebook-assistant/ask`: Q&A and safe edit proposals for the current notebook.
-- `POST /v1/notebook-share/shorten`: shorten a MoneyJS `nbz` share URL via TinyURL (requires `TINYURL_API_TOKEN`).
+- `POST /v1/notebook-share/shorten`: shorten a MoneyJS `nbz` share URL into `/s/:code` (requires `SHARE_LINKS` KV binding).
+- `GET /s/:code`: redirect to the stored long MoneyJS share URL.
 - `POST /v1/chat-builder/draft`: generate a full notebook draft (used by the eval harness and API clients, not a browser route).
 
 ## Local Development
@@ -21,8 +22,8 @@ cp packages/chat-api/.dev.vars.example packages/chat-api/.dev.vars
 Edit `packages/chat-api/.dev.vars` and set:
 
 - `OPENAI_API_KEY` — in-notebook assistant
-- `TINYURL_API_TOKEN` — automatic TinyURL shortening for Share link ([TinyURL developer / API token](https://tinyurl.com/app/dev))
 - `BETA_PASSWORD` — optional beta gate
+- `SHORT_LINK_BASE_URL` — optional short-link host override (defaults to the request origin)
 
 Start the local Node adapter:
 
@@ -35,7 +36,11 @@ Expected output:
 ```text
 SFCR chat API local server listening on http://localhost:8787
 Draft endpoint: http://localhost:8787/v1/chat-builder/draft
+Share shorten: http://localhost:8787/v1/notebook-share/shorten
+Share redirect: http://localhost:8787/s/<code>
 ```
+
+The local Node adapter injects an in-memory KV store for `SHARE_LINKS`, so Share link works without Wrangler.
 
 Editable local prompts live in `packages/chat-api/prompts/`:
 
@@ -64,25 +69,29 @@ On `localhost`, the web app calls `http://localhost:8787/v1/notebook-share/short
 
 ## Notebook share shortening
 
-MoneyJS **Share link** builds a long URL with an `nbz` query parameter (LZ-compressed notebook JSON), then calls this Worker to shorten it via TinyURL before copying to the clipboard.
+MoneyJS **Share link** builds a long URL with an `nbz` query parameter (LZ-compressed notebook JSON), then calls this Worker to mint a short `/s/:code` link before copying to the clipboard.
 
 Flow:
 
 1. Browser builds `…/#/notebook?nbz=…&cell=…` (hash routing avoids HTTP 414 on static hosts; optional `cell` for deep links).
 2. Browser `POST`s `{ "url": "<long share url>" }` to `/v1/notebook-share/shorten`.
 3. Worker validates the URL origin (must match `ALLOWED_ORIGINS` / `DISCOVERY_ALLOWED_ORIGINS`) and that it is a notebook share link with `nbz`.
-4. Worker calls TinyURL `POST https://api.tinyurl.com/create` with `TINYURL_API_TOKEN`.
-5. Browser copies the TinyURL (for example `https://tinyurl.com/…`). If shortening fails, it copies the long URL instead.
+4. Worker stores `{ url, createdAt }` in the `SHARE_LINKS` KV namespace under an 8-character code.
+5. Browser copies `https://<worker-or-SHORT_LINK_BASE_URL>/s/<code>`. Opening that URL `GET`s the Worker, which `302`s to the long MoneyJS URL. If shortening fails, Share link copies the long URL instead.
 
-**Local:** set `TINYURL_API_TOKEN` in `.dev.vars`, run `pnpm --filter @sfcr/chat-api dev`, then `pnpm dev` in another terminal.
+**Local:** run `pnpm --filter @sfcr/chat-api dev` (in-memory KV), then `pnpm dev` in another terminal.
 
-**Production:**
+**Production:** create KV namespaces and paste the IDs into `wrangler.toml`:
 
 ```bash
 cd packages/chat-api
-pnpm dlx wrangler secret put TINYURL_API_TOKEN
+pnpm dlx wrangler kv namespace create SHARE_LINKS
+pnpm dlx wrangler kv namespace create SHARE_LINKS --preview
+# Edit wrangler.toml: replace REPLACE_WITH_SHARE_LINKS_KV_* placeholders with the printed IDs
 pnpm --filter @sfcr/chat-api run deploy
 ```
+
+Optional: set `SHORT_LINK_BASE_URL` in `wrangler.toml` `[vars]` (or the Cloudflare dashboard) when short links should use a custom host instead of the Worker origin.
 
 Configure the static frontend to use the same Worker base URL as the assistant:
 
@@ -95,15 +104,24 @@ VITE_NOTEBOOK_ASSISTANT_API_URL=https://sfcr-chat-api.<account>.workers.dev/v1/n
 **Verify after deploy:**
 
 ```bash
-curl -s -X POST "https://sfcr-chat-api.<account>.workers.dev/v1/notebook-share/shorten" \
+SHORT=$(curl -s -X POST "https://sfcr-chat-api.<account>.workers.dev/v1/notebook-share/shorten" \
   -H "Content-Type: application/json" \
   -H "Origin: https://johnnewto.github.io" \
-  -d '{"url":"https://johnnewto.github.io/moneyjs/notebook?nbz=test"}'
+  -d '{"url":"https://johnnewto.github.io/moneyjs/notebook?nbz=test"}')
+echo "$SHORT"
+# Expected: {"shortUrl":"https://sfcr-chat-api.<account>.workers.dev/s/<code>"}
+
+curl -sI "$(echo "$SHORT" | sed -n 's/.*"shortUrl":"\([^"]*\)".*/\1/p')"
+# Expected: HTTP/2 302 and Location: https://johnnewto.github.io/moneyjs/notebook?nbz=test
 ```
 
-Expected: `200` with `{ "shortUrl": "https://tinyurl.com/..." }`. `503` with `TINYURL_API_TOKEN is not configured` means the secret is missing.
+`503` with `SHARE_LINKS is not configured` means the KV binding is missing. Short links open on the **Worker** host and redirect to GitHub Pages (or a future Pages/custom domain). Shortening does not bypass the browser `nbz` size limit for very large notebooks.
 
-TinyURL only shortens the long MoneyJS URL; it does not bypass the browser `nbz` size limit for very large notebooks.
+If you previously used TinyURL, remove the unused Worker secret:
+
+```bash
+pnpm dlx wrangler secret delete TINYURL_API_TOKEN
+```
 
 ## Draft Eval Harness
 
@@ -135,17 +153,12 @@ Set a beta password as a Worker secret when you want the public frontend gated:
 pnpm dlx wrangler secret put BETA_PASSWORD
 ```
 
-Set a TinyURL API token when you want Share link to copy shortened URLs automatically:
-
-```bash
-pnpm dlx wrangler secret put TINYURL_API_TOKEN
-```
-
 For production, set:
 
 - `OPENAI_API_KEY`: Cloudflare secret.
 - `BETA_PASSWORD`: optional Cloudflare secret. When set, browser requests must include the matching beta password.
-- `TINYURL_API_TOKEN`: optional Cloudflare secret. When set, `POST /v1/notebook-share/shorten` proxies notebook share URLs to TinyURL.
+- `SHARE_LINKS`: Cloudflare KV namespace binding in `wrangler.toml` for notebook share short links.
+- `SHORT_LINK_BASE_URL`: optional var. When set, minted short URLs use this origin instead of the Worker request origin.
 - `ALLOWED_ORIGINS`: comma-separated allowed browser origins, for example `https://johnnewto.github.io`.
 - `DISCOVERY_ALLOWED_ORIGINS`: comma-separated allowed origins for public discovery bundles. Defaults to `ALLOWED_ORIGINS` when unset.
 - `MAX_OUTPUT_TOKENS`: output token cap for each OpenAI response. Defaults to `8000`.

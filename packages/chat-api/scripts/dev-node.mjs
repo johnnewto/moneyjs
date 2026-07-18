@@ -8,15 +8,20 @@ import worker from "../src/index.ts";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const packageDir = resolve(__dirname, "..");
 const port = Number(process.env.PORT ?? 8787);
+const shareLinks = createMemoryKv();
 const env = {
-  ALLOWED_ORIGINS: "http://localhost:5173,https://johnnewto.github.io",
+  ALLOWED_ORIGINS:
+    "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,https://johnnewto.github.io",
   CHAT_BUILDER_SYSTEM_PROMPT: () => readFile(resolve(packageDir, "prompts/chat-builder-system.md"), "utf8"),
-  DISCOVERY_ALLOWED_ORIGINS: "http://localhost:5173,https://johnnewto.github.io",
+  DISCOVERY_ALLOWED_ORIGINS:
+    "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,https://johnnewto.github.io",
   MAX_OUTPUT_TOKENS: "8000",
   NOTEBOOK_ASSISTANT_SYSTEM_PROMPT: () => readFile(resolve(packageDir, "prompts/notebook-assistant-system.md"), "utf8"),
   OPENAI_MODEL_ALLOWLIST: "gpt-5.4-mini,gpt-5.4,gpt-4.1,gpt-5.5,o3",
   ...process.env,
-  ...(await readDevVars(resolve(packageDir, ".dev.vars")))
+  ...(await readDevVars(resolve(packageDir, ".dev.vars"))),
+  // Keep the in-memory KV binding even if .dev.vars / process.env override other keys.
+  SHARE_LINKS: shareLinks
 };
 
 const server = createServer(async (nodeRequest, nodeResponse) => {
@@ -37,10 +42,24 @@ const server = createServer(async (nodeRequest, nodeResponse) => {
 server.listen(port, () => {
   console.log(`SFCR chat API local server listening on http://localhost:${port}`);
   console.log(`Draft endpoint: http://localhost:${port}/v1/chat-builder/draft`);
+  console.log(`Share shorten: http://localhost:${port}/v1/notebook-share/shorten`);
+  console.log(`Share redirect: http://localhost:${port}/s/<code>`);
   if (!env.OPENAI_API_KEY) {
     console.log("OPENAI_API_KEY is not set. Add packages/chat-api/.dev.vars or export it in your shell.");
   }
 });
+
+function createMemoryKv() {
+  const store = new Map();
+  return {
+    async get(key) {
+      return store.has(key) ? store.get(key) : null;
+    },
+    async put(key, value) {
+      store.set(key, value);
+    }
+  };
+}
 
 async function toWebRequest(nodeRequest) {
   const protocol = "http";

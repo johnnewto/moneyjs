@@ -141,7 +141,7 @@ describe("notebookShareLink", () => {
     const longUrl = "http://localhost:5173/notebook?nbz=compressed";
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => new Response(JSON.stringify({ error: "TinyURL request failed." }), { status: 502 }))
+      vi.fn(async () => new Response(JSON.stringify({ error: "SHARE_LINKS is not configured." }), { status: 503 }))
     );
 
     const resolved = await resolveNotebookShareLinkToCopy(longUrl);
