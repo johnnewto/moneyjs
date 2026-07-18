@@ -166,7 +166,7 @@ The `nbz` payload lives in the **hash** so static hosts (GitHub Pages) do not re
 
 Opening the link loads the notebook as an imported variant. If a cell is selected when sharing, the optional `cell` parameter deep-links to that section.
 
-**Size limit:** compressed `nbz` payloads are capped at 12,000 characters in the browser. Larger notebooks (for example `gl8-growth`) must use Save or Export instead.
+**Size limit:** compressed `nbz` payloads are capped at 128,000 characters in the browser. Larger notebooks must use Save or Export instead. The chat-api shorten endpoint accepts share URLs up to the same 128,000-character limit.
 
 **Share link shortening:** when the chat API Worker is configured with the `SHARE_LINKS` KV binding, Share link automatically copies a short `/s/:code` URL (on the Worker host, or `SHORT_LINK_BASE_URL` if set) instead of the long `nbz` URL. Opening the short link `302`s to the MoneyJS share URL. If shortening is unavailable, Share link falls back to the long URL.
 

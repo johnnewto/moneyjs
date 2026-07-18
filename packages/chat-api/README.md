@@ -115,7 +115,7 @@ curl -sI "$(echo "$SHORT" | sed -n 's/.*"shortUrl":"\([^"]*\)".*/\1/p')"
 # Expected: HTTP/2 302 and Location: https://johnnewto.github.io/moneyjs/notebook?nbz=test
 ```
 
-`503` with `SHARE_LINKS is not configured` means the KV binding is missing. Short links open on the **Worker** host and redirect to GitHub Pages (or a future Pages/custom domain). Shortening does not bypass the browser `nbz` size limit for very large notebooks.
+`503` with `SHARE_LINKS is not configured` means the KV binding is missing. Short links open on the **Worker** host and redirect to GitHub Pages (or a future Pages/custom domain). Share URLs (and compressed `nbz` payloads) are capped at 128,000 characters; shortening does not raise that limit.
 
 If you previously used TinyURL, remove the unused Worker secret:
 
