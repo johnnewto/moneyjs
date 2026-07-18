@@ -11,6 +11,7 @@ export function PublicationContents({
   entries,
   interactiveNotebookHref,
   isPrint,
+  onOpenGraph,
   onShare,
   printHref,
   route,
@@ -20,6 +21,7 @@ export function PublicationContents({
   entries: PublicationContentsEntry[];
   interactiveNotebookHref: string;
   isPrint: boolean;
+  onOpenGraph?: () => void;
   onShare?: () => Promise<PublicationShareResult>;
   printHref: string;
   route: PublicationRouteLocation;
@@ -129,6 +131,7 @@ export function PublicationContents({
         <PublicationActionLinks
           interactiveNotebookHref={interactiveNotebookHref}
           isPrint={isPrint}
+          onOpenGraph={onOpenGraph}
           onShare={onShare}
           printHref={printHref}
           variant="sidebar"

@@ -172,6 +172,33 @@ describe("PublicationChart", () => {
     expect(optionNames).toEqual(["C"]);
   });
 
+  it("shows a variable picker when interactive and the chart has no series", () => {
+    const result = createResult({
+      Y: [100, 105, 110, 115],
+      C: [80, 84, 88, 92]
+    });
+    const emptyCell: ChartCell = {
+      ...chartCell,
+      variables: []
+    };
+
+    render(
+      <PublicationChart
+        cell={emptyCell}
+        cells={cells}
+        getResult={() => result}
+        interaction={interaction}
+        interactive
+        result={result}
+        selectedPeriodIndex={0}
+      />
+    );
+
+    expect(screen.getByText("Add a variable to graph")).toBeInTheDocument();
+    expect(screen.getByRole("listbox", { name: "Available chart variables" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /^Y$/i })).toBeInTheDocument();
+  });
+
   it("updates rendered traces without mutating the precomputed result", () => {
     const result = createResult({
       Y: [100, 105, 110, 115, 120, 125, 130, 135],

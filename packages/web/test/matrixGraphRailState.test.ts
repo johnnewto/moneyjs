@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   addMatrixGraphChartSeries,
   applyMatrixGraphRequest,
+  createFreeformMatrixGraphChart,
+  isFreeformMatrixGraphChart,
   moveMatrixGraphChartSeries,
   removeMatrixGraphChart,
   removeMatrixGraphChartSeries,
@@ -106,7 +108,7 @@ describe("matrixGraphRailState", () => {
     expect(next[0]?.series[1]?.source).toBe("-Ld");
   });
 
-  it("removes a trace but keeps at least one series", () => {
+  it("removes a trace including the last series", () => {
     const current = [
       entry("chart-1", {
         series: [
@@ -118,7 +120,26 @@ describe("matrixGraphRailState", () => {
 
     expect(removeMatrixGraphChartSeries(current, "chart-1", "Cd")[0]?.series).toHaveLength(1);
     expect(removeMatrixGraphChartSeries(current, "chart-1", "-Ld")[0]?.series).toHaveLength(1);
-    expect(removeMatrixGraphChartSeries([entry("chart-1")], "chart-1", "-Ld")[0]?.series).toHaveLength(1);
+    expect(removeMatrixGraphChartSeries([entry("chart-1")], "chart-1", "-Ld")[0]?.series).toEqual([]);
+  });
+
+  it("creates a freeform chart from a variable", () => {
+    const chart = createFreeformMatrixGraphChart({
+      createId: () => "chart-free",
+      seriesEntry: {
+        crossLabel: "Income",
+        label: "Y",
+        source: "Y",
+        values: [1, 2, 3]
+      },
+      sourceRunCellId: "baseline-run",
+      variableDescriptions: new Map([["Y", "Income"]]),
+      variableUnitMetadata: new Map()
+    });
+
+    expect(isFreeformMatrixGraphChart(chart)).toBe(true);
+    expect(chart.series.map((entry) => entry.source)).toEqual(["Y"]);
+    expect(chart.matrixCellId).toBe("");
   });
 
   it("moves a trace left and right", () => {

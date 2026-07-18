@@ -404,8 +404,280 @@ export function ResultChart({
     );
   }, [timeRangeSourceKey, timeRangeInclusive, timeRangeDefaults, provisionalSeriesLength]);
 
+  const selectableVariableNames = (addVariableOptions ?? []).filter(
+    (name) =>
+      !normalizedSeries.some((entry) => entry.name === name || entry.highlightKey === name)
+  );
+  const canAddVariable = onAddVariable != null && selectableVariableNames.length > 0;
+  const hasLegendContextMenu = onMoveVariable != null || onRemoveVariable != null;
+  const legendDocumentHighlight = onGraphExpressionHighlightChange ? null : highlightedVariable;
+
+  useEffect(() => {
+    if (!canAddVariable && isAddVariableMenuOpen) {
+      setIsAddVariableMenuOpen(false);
+    }
+  }, [canAddVariable, isAddVariableMenuOpen]);
+
+  useEffect(() => {
+    if (!isAddVariableMenuOpen) {
+      return undefined;
+    }
+
+    function handlePointerDown(event: MouseEvent): void {
+      const target = event.target;
+      if (
+        target instanceof Element &&
+        (addVariableMenuRef.current?.contains(target) ||
+          target.closest(".chart-legend-add-menu"))
+      ) {
+        return;
+      }
+
+      setIsAddVariableMenuOpen(false);
+    }
+
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (event.key === "Escape") {
+        setIsAddVariableMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isAddVariableMenuOpen]);
+
+  useLayoutEffect(() => {
+    if (!isAddVariableMenuOpen) {
+      setAddMenuAnchorRect(null);
+      return undefined;
+    }
+
+    const anchor = addVariableMenuRef.current;
+    if (!anchor) {
+      return undefined;
+    }
+
+    function updatePosition(): void {
+      const rect = anchor.getBoundingClientRect();
+      setAddMenuAnchorRect({ left: rect.left, bottom: rect.bottom });
+    }
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [isAddVariableMenuOpen]);
+
+  useLayoutEffect(() => {
+    if (!openLegendMenuSeriesName) {
+      setLegendMenuAnchorRect(null);
+      return undefined;
+    }
+
+    const anchor = legendItemRefs.current.get(openLegendMenuSeriesName);
+    if (!anchor) {
+      return undefined;
+    }
+
+    function updatePosition(): void {
+      const rect = anchor.getBoundingClientRect();
+      setLegendMenuAnchorRect({ left: rect.left, bottom: rect.bottom });
+    }
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [openLegendMenuSeriesName]);
+
+  useEffect(() => {
+    return () => {
+      if (legendMenuOpenTimeoutRef.current != null) {
+        clearTimeout(legendMenuOpenTimeoutRef.current);
+      }
+      if (legendMenuCloseTimeoutRef.current != null) {
+        clearTimeout(legendMenuCloseTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!openLegendMenuSeriesName) {
+      return undefined;
+    }
+
+    function handleClick(event: MouseEvent): void {
+      const target = event.target;
+      if (
+        target instanceof Element &&
+        (target.closest(".chart-legend-context-menu") ||
+          target.closest(".legend-item.is-menu-open"))
+      ) {
+        return;
+      }
+
+      clearLegendMenuTimers();
+      setOpenLegendMenuSeriesName(null);
+    }
+
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (event.key === "Escape") {
+        clearLegendMenuTimers();
+        setOpenLegendMenuSeriesName(null);
+      }
+    }
+
+    document.addEventListener("click", handleClick);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("click", handleClick);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [openLegendMenuSeriesName]);
+
+  function clearLegendMenuTimers(): void {
+    if (legendMenuOpenTimeoutRef.current != null) {
+      clearTimeout(legendMenuOpenTimeoutRef.current);
+      legendMenuOpenTimeoutRef.current = null;
+    }
+    if (legendMenuCloseTimeoutRef.current != null) {
+      clearTimeout(legendMenuCloseTimeoutRef.current);
+      legendMenuCloseTimeoutRef.current = null;
+    }
+  }
+
   if (normalizedSeries.length === 0) {
-    return null;
+    if (!canAddVariable || onAddVariable == null) {
+      return title !== "Chart" || onDismiss || onTogglePin ? (
+        <section className="result-panel result-chart-empty">
+          <div className="panel-header">
+            <div className="result-chart-heading">
+              <h2>{title}</h2>
+              {onTogglePin || onDismiss ? (
+                <div className="result-chart-heading-actions">
+                  {onTogglePin ? (
+                    <button
+                      type="button"
+                      className="result-chart-pin-button"
+                      aria-label={isPinned ? "Unpin chart" : "Pin chart"}
+                      aria-pressed={isPinned ? "true" : "false"}
+                      title={isPinned ? "Unpin chart" : "Pin chart"}
+                      onClick={onTogglePin}
+                    >
+                      <PinToggleIcon pinned={isPinned} />
+                    </button>
+                  ) : null}
+                  {onDismiss ? (
+                    <button
+                      type="button"
+                      className="result-chart-dismiss-button"
+                      aria-label="Remove chart"
+                      title="Remove chart"
+                      onClick={onDismiss}
+                    >
+                      <svg viewBox="0 0 16 16" focusable="false" aria-hidden="true">
+                        <path
+                          d="M4.2 4.2 11.8 11.8M11.8 4.2 4.2 11.8"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeLinecap="round"
+                          strokeWidth="1.5"
+                        />
+                      </svg>
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          </div>
+          <p className="chart-empty-variable-picker-hint">No graphable series available.</p>
+        </section>
+      ) : null;
+    }
+
+    return (
+      <section className="result-panel result-chart-empty">
+        <div className="panel-header">
+          <div className="result-chart-heading">
+            <h2>{title}</h2>
+            {onTogglePin || onDismiss ? (
+              <div className="result-chart-heading-actions">
+                {onTogglePin ? (
+                  <button
+                    type="button"
+                    className="result-chart-pin-button"
+                    aria-label={isPinned ? "Unpin chart" : "Pin chart"}
+                    aria-pressed={isPinned ? "true" : "false"}
+                    title={isPinned ? "Unpin chart" : "Pin chart"}
+                    onClick={onTogglePin}
+                  >
+                    <PinToggleIcon pinned={isPinned} />
+                  </button>
+                ) : null}
+                {onDismiss ? (
+                  <button
+                    type="button"
+                    className="result-chart-dismiss-button"
+                    aria-label="Remove chart"
+                    title="Remove chart"
+                    onClick={onDismiss}
+                  >
+                    <svg viewBox="0 0 16 16" focusable="false" aria-hidden="true">
+                      <path
+                        d="M4.2 4.2 11.8 11.8M11.8 4.2 4.2 11.8"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeLinecap="round"
+                        strokeWidth="1.5"
+                      />
+                    </svg>
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        </div>
+        <div className="chart-empty-variable-picker">
+          <p className="chart-empty-variable-picker-hint">Add a variable to graph</p>
+          <div
+            className="chart-empty-variable-picker-list"
+            role="listbox"
+            aria-label="Available chart variables"
+          >
+            {selectableVariableNames.map((name) => (
+              <button
+                key={name}
+                type="button"
+                className="chart-legend-add-option"
+                role="option"
+                onClick={() => onAddVariable(name)}
+              >
+                <span className="chart-legend-add-option-name">
+                  <VariableMathLabel name={name} />
+                </span>
+                {variableDescriptions?.get(name) ? (
+                  <span className="chart-legend-add-option-description">
+                    {variableDescriptions.get(name)}
+                  </span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
   }
 
   const visibleSeries = normalizedSeries.filter((entry) => !hiddenSeriesNames.has(entry.name));
@@ -602,159 +874,6 @@ export function ResultChart({
           variableUnitMetadata
         )
       : null;
-  const selectableVariableNames = (addVariableOptions ?? []).filter(
-    (name) =>
-      !normalizedSeries.some((entry) => entry.name === name || entry.highlightKey === name)
-  );
-  const canAddVariable = onAddVariable != null && selectableVariableNames.length > 0;
-  const hasLegendContextMenu = onMoveVariable != null || onRemoveVariable != null;
-  const legendDocumentHighlight = onGraphExpressionHighlightChange ? null : highlightedVariable;
-
-  useEffect(() => {
-    if (!canAddVariable && isAddVariableMenuOpen) {
-      setIsAddVariableMenuOpen(false);
-    }
-  }, [canAddVariable, isAddVariableMenuOpen]);
-
-  useEffect(() => {
-    if (!isAddVariableMenuOpen) {
-      return undefined;
-    }
-
-    function handlePointerDown(event: MouseEvent): void {
-      const target = event.target;
-      if (
-        target instanceof Element &&
-        (addVariableMenuRef.current?.contains(target) ||
-          target.closest(".chart-legend-add-menu"))
-      ) {
-        return;
-      }
-
-      setIsAddVariableMenuOpen(false);
-    }
-
-    function handleKeyDown(event: KeyboardEvent): void {
-      if (event.key === "Escape") {
-        setIsAddVariableMenuOpen(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isAddVariableMenuOpen]);
-
-  useLayoutEffect(() => {
-    if (!isAddVariableMenuOpen) {
-      setAddMenuAnchorRect(null);
-      return undefined;
-    }
-
-    const anchor = addVariableMenuRef.current;
-    if (!anchor) {
-      return undefined;
-    }
-
-    function updatePosition(): void {
-      const rect = anchor.getBoundingClientRect();
-      setAddMenuAnchorRect({ left: rect.left, bottom: rect.bottom });
-    }
-
-    updatePosition();
-    window.addEventListener("resize", updatePosition);
-    window.addEventListener("scroll", updatePosition, true);
-    return () => {
-      window.removeEventListener("resize", updatePosition);
-      window.removeEventListener("scroll", updatePosition, true);
-    };
-  }, [isAddVariableMenuOpen]);
-
-  useLayoutEffect(() => {
-    if (!openLegendMenuSeriesName) {
-      setLegendMenuAnchorRect(null);
-      return undefined;
-    }
-
-    const anchor = legendItemRefs.current.get(openLegendMenuSeriesName);
-    if (!anchor) {
-      return undefined;
-    }
-
-    function updatePosition(): void {
-      const rect = anchor.getBoundingClientRect();
-      setLegendMenuAnchorRect({ left: rect.left, bottom: rect.bottom });
-    }
-
-    updatePosition();
-    window.addEventListener("resize", updatePosition);
-    window.addEventListener("scroll", updatePosition, true);
-    return () => {
-      window.removeEventListener("resize", updatePosition);
-      window.removeEventListener("scroll", updatePosition, true);
-    };
-  }, [openLegendMenuSeriesName]);
-
-  useEffect(() => {
-    return () => {
-      if (legendMenuOpenTimeoutRef.current != null) {
-        clearTimeout(legendMenuOpenTimeoutRef.current);
-      }
-      if (legendMenuCloseTimeoutRef.current != null) {
-        clearTimeout(legendMenuCloseTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!openLegendMenuSeriesName) {
-      return undefined;
-    }
-
-    function handleClick(event: MouseEvent): void {
-      const target = event.target;
-      if (
-        target instanceof Element &&
-        (target.closest(".chart-legend-context-menu") ||
-          target.closest(".legend-item.is-menu-open"))
-      ) {
-        return;
-      }
-
-      clearLegendMenuTimers();
-      setOpenLegendMenuSeriesName(null);
-    }
-
-    function handleKeyDown(event: KeyboardEvent): void {
-      if (event.key === "Escape") {
-        clearLegendMenuTimers();
-        setOpenLegendMenuSeriesName(null);
-      }
-    }
-
-    document.addEventListener("click", handleClick);
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("click", handleClick);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [openLegendMenuSeriesName]);
-
-  function clearLegendMenuTimers(): void {
-    if (legendMenuOpenTimeoutRef.current != null) {
-      clearTimeout(legendMenuOpenTimeoutRef.current);
-      legendMenuOpenTimeoutRef.current = null;
-    }
-    if (legendMenuCloseTimeoutRef.current != null) {
-      clearTimeout(legendMenuCloseTimeoutRef.current);
-      legendMenuCloseTimeoutRef.current = null;
-    }
-  }
 
   function openLegendMenu(seriesName: string): void {
     clearLegendMenuTimers();
@@ -1178,7 +1297,6 @@ export function ResultChart({
                           <button
                             type="button"
                             role="menuitem"
-                            disabled={normalizedSeries.length <= 1}
                             onClick={() => {
                               clearLegendMenuTimers();
                               onRemoveVariable(entry.name);

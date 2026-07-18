@@ -49,6 +49,39 @@ function chartEntry(overrides: Partial<MatrixGraphChartEntry> = {}): MatrixGraph
 }
 
 describe("MatrixGraphRailPanel", () => {
+  it("shows a variable picker when the graph rail is empty", async () => {
+    const user = userEvent.setup();
+    const handleCreate = vi.fn();
+
+    render(
+      <MatrixGraphRailPanel
+        cells={[matrixCell]}
+        charts={[]}
+        getResult={() => ({
+          options: { periods: 4 },
+          series: {
+            Y: [100, 110, 120, 130],
+            C: [80, 85, 90, 95]
+          },
+          warnings: []
+        })}
+        onAddChartSeries={vi.fn()}
+        onCreateChartFromVariable={handleCreate}
+        onDismissChart={vi.fn()}
+        onRemoveChartSeries={vi.fn()}
+        onToggleChartLegendMode={vi.fn()}
+        onToggleChartPin={vi.fn()}
+        selectedPeriodIndex={0}
+      />
+    );
+
+    expect(screen.getByText(/Click a matrix row or column label/i)).toBeInTheDocument();
+    expect(screen.getByText("Add a variable to graph")).toBeInTheDocument();
+    const picker = screen.getByRole("listbox", { name: /available chart variables/i });
+    await user.click(within(picker).getByRole("option", { name: /^Y$/i }));
+    expect(handleCreate).toHaveBeenCalledWith("Y");
+  });
+
   it("exposes add, hide, remove, and move actions for graph traces", async () => {
     const user = userEvent.setup();
     const handleAdd = vi.fn();

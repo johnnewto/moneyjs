@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { PublicationCellView } from "../src/publication/PublicationCellView";
 import type { PublicationSection } from "../src/publication/buildPublicationViewModel";
 import type { PublicationVariableInteraction } from "../src/publication/publicationInspect";
-import type { ChartGridCell, NotebookCell, RunCell } from "../src/notebook/types";
+import type { ChartCell, ChartGridCell, NotebookCell, RunCell } from "../src/notebook/types";
 
 const runCell: RunCell = {
   id: "run-1",
@@ -19,6 +19,14 @@ const runCell: RunCell = {
   sourceModelId: "model",
   title: "Baseline",
   type: "run"
+};
+
+const chartCell: ChartCell = {
+  id: "chart-1",
+  title: "Output",
+  type: "chart",
+  sourceRunCellId: "run-1",
+  variables: ["Y"]
 };
 
 const chartGridCell: ChartGridCell = {
@@ -96,5 +104,30 @@ describe("PublicationCellView", () => {
     expect(screen.getByText("Consumption")).toBeInTheDocument();
     expect(document.querySelector(".publication-chart-grid")).not.toBeNull();
     expect(document.querySelectorAll(".publication-chart-grid-item")).toHaveLength(2);
+  });
+
+  it("enables chart series add menu when interactiveCharts is set", () => {
+    const result = createResult({
+      Y: [100, 105, 110, 115],
+      C: [80, 82, 84, 86]
+    });
+    const chartSection: PublicationSection = {
+      kind: "chart",
+      cell: chartCell,
+      anchorId: chartCell.id
+    };
+
+    render(
+      <PublicationCellView
+        cells={[runCell, chartCell]}
+        getResult={() => result}
+        interaction={interaction}
+        interactiveCharts
+        section={chartSection}
+        selectedPeriodIndex={0}
+      />
+    );
+
+    expect(screen.getByLabelText("Add chart variable")).toBeInTheDocument();
   });
 });

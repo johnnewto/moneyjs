@@ -240,6 +240,10 @@ describe("chartSeries", () => {
     };
     const removed = removeChartSeriesByDisplayName(withBoth, "Bill share");
     expect(removed.series?.map((entry) => entry.label ?? entry.expression)).toEqual(["v", "Money share"]);
+
+    const emptied = removeChartSeriesByDisplayName(removed, "v");
+    const emptiedAgain = removeChartSeriesByDisplayName(emptied, "Money share");
+    expect(emptiedAgain.series).toEqual([]);
   });
 
   it("sets and clears chart timeRangeInclusive", () => {

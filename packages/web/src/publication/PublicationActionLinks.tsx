@@ -9,12 +9,14 @@ export function PublicationActionLinks({
   interactiveNotebookHref,
   isPrint,
   printHref,
+  onOpenGraph,
   onShare,
   variant = "footer"
 }: {
   interactiveNotebookHref: string;
   isPrint: boolean;
   printHref: string;
+  onOpenGraph?: () => void;
   onShare?: () => Promise<PublicationShareResult>;
   variant?: "footer" | "sidebar";
 }) {
@@ -81,6 +83,11 @@ export function PublicationActionLinks({
           disabled={sharing}
         >
           {sharing ? "Copying link…" : "Copy share link"}
+        </button>
+      ) : null}
+      {onOpenGraph ? (
+        <button type="button" className="publication-graph-button" onClick={onOpenGraph}>
+          Open Graph
         </button>
       ) : null}
       {shareStatus ? (

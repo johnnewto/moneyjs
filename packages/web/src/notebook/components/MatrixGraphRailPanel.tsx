@@ -2,7 +2,11 @@ import type { SimulationResult } from "@sfcr/core";
 
 import { ResultChart } from "../../components/ResultChart";
 import type { MatrixGraphSliceHighlight } from "../graphDocumentHighlight";
-import type { MatrixGraphChartEntry } from "../matrixGraphRailState";
+import {
+  isFreeformMatrixGraphChart,
+  resolveDefaultGraphSourceRunCellId,
+  type MatrixGraphChartEntry
+} from "../matrixGraphRailState";
 import {
   collectMatrixGraphSliceSeries,
   listAddableMatrixGraphSources,
@@ -10,9 +14,18 @@ import {
   matrixGraphCrossLegendHint,
   resolveMatrixGraphChartSeries
 } from "../matrixSliceGraph";
+import {
+  buildNotebookVariableDescriptions,
+  buildNotebookVariableUnitMetadata
+} from "../notebookAppHelpers";
 import type { MatrixCell, NotebookCell } from "../types";
 
-function formatMatrixGraphTitle(chart: Pick<MatrixGraphChartEntry, "kind" | "label" | "matrixTitle">): string {
+function formatMatrixGraphTitle(
+  chart: Pick<MatrixGraphChartEntry, "kind" | "label" | "matrixCellId" | "matrixTitle">
+): string {
+  if (isFreeformMatrixGraphChart(chart)) {
+    return "Graph";
+  }
   const sliceKind = chart.kind === "row" ? "Row" : "Column";
   return `${chart.matrixTitle}: ${sliceKind} ${chart.label}`;
 }
@@ -22,6 +35,10 @@ function resolveMatrixGraphSlicePool(
   cells: NotebookCell[],
   getResult: (runCellId: string) => SimulationResult | null | undefined
 ) {
+  if (isFreeformMatrixGraphChart(chart)) {
+    return [];
+  }
+
   const matrixCell = cells.find(
     (cell): cell is MatrixCell => cell.type === "matrix" && cell.id === chart.matrixCellId
   );
@@ -38,6 +55,7 @@ export function MatrixGraphRailPanel({
   charts,
   getResult,
   onAddChartSeries,
+  onCreateChartFromVariable,
   onDismissChart,
   onGraphExpressionHighlightChange,
   onGraphSliceHighlightChange,
@@ -51,6 +69,7 @@ export function MatrixGraphRailPanel({
   charts: MatrixGraphChartEntry[];
   getResult(runCellId: string): SimulationResult | null | undefined;
   onAddChartSeries(chartId: string, source: string): void;
+  onCreateChartFromVariable?(source: string): void;
   onDismissChart(chartId: string): void;
   onGraphExpressionHighlightChange?(expression: string | null): void;
   onGraphSliceHighlightChange?(slice: MatrixGraphSliceHighlight | null): void;
@@ -61,15 +80,37 @@ export function MatrixGraphRailPanel({
   selectedPeriodIndex: number;
 }) {
   if (charts.length === 0) {
+    const sourceRunCellId = resolveDefaultGraphSourceRunCellId(cells, getResult);
+    const result = sourceRunCellId ? getResult(sourceRunCellId) : null;
+    const addVariableOptions = listAddableMatrixGraphSources([], [], result);
+    const canPickVariable =
+      onCreateChartFromVariable != null && addVariableOptions.length > 0 && result != null;
+
     return (
       <section id="notebook-graph-panel" className="notebook-sidebar-panel notebook-graph-rail-panel" role="tabpanel">
         <div className="panel-header">
           <h2>Graph</h2>
           <p className="panel-subtitle">
-            Click a matrix row or column label to graph signed entries. Pin a chart to keep it while exploring
-            other slices. Use Labels to show row or column names in the legend.
+            {result == null
+              ? "Run the model to graph variables, or click a matrix row or column label."
+              : "Click a matrix row or column label to graph signed entries. Pin a chart to keep it while exploring other slices. Use Labels to show row or column names in the legend. Or pick a variable below."}
           </p>
         </div>
+        {canPickVariable ? (
+          <div className="notebook-graph-rail-chart-stack">
+            <div className="notebook-graph-rail-chart">
+              <ResultChart
+                addVariableOptions={addVariableOptions}
+                onAddVariable={onCreateChartFromVariable}
+                series={[]}
+                showAxisSummary={false}
+                title="Graph"
+                variableDescriptions={buildNotebookVariableDescriptions(cells)}
+                variableUnitMetadata={buildNotebookVariableUnitMetadata(cells)}
+              />
+            </div>
+          </div>
+        ) : null}
       </section>
     );
   }
@@ -96,6 +137,7 @@ export function MatrixGraphRailPanel({
             }
           }
           const useSeparateAxes = matrixGraphChartHasExternalSeries(chart.series, slicePool);
+          const freeform = isFreeformMatrixGraphChart(chart);
 
           const canShowChart = chartSeries.length > 0 || addVariableOptions.length > 0;
 
@@ -107,18 +149,22 @@ export function MatrixGraphRailPanel({
                 <ResultChart
                   addVariableOptions={addVariableOptions}
                   axisMode={useSeparateAxes ? "separate" : "shared"}
-                  graphSlice={{
-                    index: chart.index,
-                    kind: chart.kind,
-                    matrixCellId: chart.matrixCellId
-                  }}
+                  graphSlice={
+                    freeform
+                      ? null
+                      : {
+                          index: chart.index,
+                          kind: chart.kind,
+                          matrixCellId: chart.matrixCellId
+                        }
+                  }
                   isPinned={chart.pinned}
                   legendMode={legendMode}
                   legendModeCrossHint={matrixGraphCrossLegendHint(chart.kind)}
                   onAddVariable={(source) => onAddChartSeries(chart.id, source)}
                   onDismiss={() => onDismissChart(chart.id)}
                   onGraphExpressionHighlightChange={onGraphExpressionHighlightChange}
-                  onGraphSliceHighlightChange={onGraphSliceHighlightChange}
+                  onGraphSliceHighlightChange={freeform ? undefined : onGraphSliceHighlightChange}
                   onMoveVariable={
                     onMoveChartSeries
                       ? (displayName, direction) => {
@@ -140,7 +186,7 @@ export function MatrixGraphRailPanel({
                       onRemoveChartSeries(chart.id, match.highlightKey);
                     }
                   }}
-                  onToggleLegendMode={() => onToggleChartLegendMode(chart.id)}
+                  onToggleLegendMode={freeform ? undefined : () => onToggleChartLegendMode(chart.id)}
                   onTogglePin={() => onToggleChartPin(chart.id)}
                   selectedIndex={selectedPeriodIndex}
                   series={chartSeries}

@@ -191,9 +191,11 @@ import { MatrixGraphRailPanel } from "./components/MatrixGraphRailPanel";
 import {
   applyMatrixGraphRequest,
   addMatrixGraphChartSeries,
+  createFreeformMatrixGraphChart,
   removeMatrixGraphChart,
   removeMatrixGraphChartSeries,
   moveMatrixGraphChartSeries,
+  resolveDefaultGraphSourceRunCellId,
   toggleMatrixGraphChartLegendMode,
   toggleMatrixGraphChartPin,
   type MatrixGraphChartEntry
@@ -2075,6 +2077,44 @@ export function NotebookApp() {
 
       return addMatrixGraphChartSeries(charts, chartId, entry);
     });
+  }
+
+  function handleCreateMatrixGraphFromVariable(source: string): void {
+    setMatrixGraphCharts((current) => {
+      if (current.length > 0) {
+        return current;
+      }
+
+      const sourceRunCellId = resolveDefaultGraphSourceRunCellId(notebookDocument.cells, (runCellId) =>
+        runner.getResult(runCellId)
+      );
+      if (!sourceRunCellId) {
+        return current;
+      }
+
+      const result = runner.getResult(sourceRunCellId);
+      if (!result) {
+        return current;
+      }
+
+      const variableDescriptions = buildNotebookVariableDescriptions(notebookDocument.cells);
+      const entry = resolveMatrixGraphSeriesEntryToAdd(source, [], result, variableDescriptions);
+      if (!entry) {
+        return current;
+      }
+
+      matrixGraphChartIdRef.current += 1;
+      return [
+        createFreeformMatrixGraphChart({
+          createId: () => `matrix-graph-${matrixGraphChartIdRef.current}`,
+          seriesEntry: entry,
+          sourceRunCellId,
+          variableDescriptions,
+          variableUnitMetadata: buildNotebookVariableUnitMetadata(notebookDocument.cells)
+        })
+      ];
+    });
+    setActiveRailTab("graph");
   }
 
   function handleRemoveMatrixGraphChartSeries(chartId: string, source: string): void {
@@ -4457,6 +4497,7 @@ export function NotebookApp() {
               charts={matrixGraphCharts}
               getResult={(runCellId) => runner.getResult(runCellId)}
               onAddChartSeries={handleAddMatrixGraphChartSeries}
+              onCreateChartFromVariable={handleCreateMatrixGraphFromVariable}
               onDismissChart={handleDismissMatrixGraphChart}
               onGraphExpressionHighlightChange={handleGraphExpressionHighlightChange}
               onGraphSliceHighlightChange={handleGraphSliceHighlightChange}

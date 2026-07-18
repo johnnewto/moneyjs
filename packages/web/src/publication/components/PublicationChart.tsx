@@ -64,13 +64,23 @@ export function PublicationChart({
     return <p className="publication-status-hint">Chart data is not available.</p>;
   }
 
+  const addVariableOptions = interactive
+    ? Object.entries(result.series)
+        .filter(([, values]) => values.length > 1 && Array.from(values).some(Number.isFinite))
+        .map(([name]) => name)
+        .sort((left, right) => left.localeCompare(right))
+    : undefined;
+
   const levelSeries = buildResolvedChartSeriesWithUnits(
     activeCell,
     result,
     variableUnitMetadata,
     getResult
   );
-  if (levelSeries.length === 0) {
+  if (
+    levelSeries.length === 0 &&
+    !(interactive && addVariableOptions != null && addVariableOptions.length > 0)
+  ) {
     return <p className="publication-status-hint">Chart data is not available.</p>;
   }
 
@@ -105,13 +115,6 @@ export function PublicationChart({
   const seriesRanges = buildResolvedChartSeriesRanges(activeCell, series);
   const seriesLength = Math.max(...series.map((entry) => entry.values.length), 1);
   const sharedRange = resolveCompareModeSharedRange(activeCell, compareModeApplicable);
-
-  const addVariableOptions = interactive
-    ? Object.entries(result.series)
-        .filter(([, values]) => values.length > 1 && Array.from(values).some(Number.isFinite))
-        .map(([name]) => name)
-        .sort((left, right) => left.localeCompare(right))
-    : undefined;
   const hasObserved = result.observed != null && Object.keys(result.observed).length > 0;
   const referenceTraces = filterReferenceTracesForCompareMode(
     resolveReferenceTraces(activeCell, sourceRunCell, hasObserved),

@@ -796,7 +796,8 @@ body:has(.publication-root) {
 .publication-interactive-link,
 .publication-print-link,
 .publication-print-button,
-.publication-share-button {
+.publication-share-button,
+.publication-graph-button {
   color: #1a4b8c;
   text-decoration: none;
   background: none;
@@ -809,7 +810,8 @@ body:has(.publication-root) {
 .publication-interactive-link:hover,
 .publication-print-link:hover,
 .publication-print-button:hover,
-.publication-share-button:hover {
+.publication-share-button:hover,
+.publication-graph-button:hover {
   text-decoration: underline;
 }
 
@@ -839,11 +841,15 @@ body:has(.publication-root) {
 }
 
 .publication-graph-popup {
-  width: min(34rem, calc(100vw - 2rem));
-  max-width: min(34rem, calc(100vw - 2rem));
+  max-height: none;
+  max-width: none;
+  min-height: 200px;
+  min-width: 320px;
 }
 
 .publication-graph-popup-body {
+  flex: 1;
+  min-height: 0;
   overflow: auto;
   padding: 0 0.75rem 0.75rem;
 }

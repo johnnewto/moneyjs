@@ -7,9 +7,11 @@ import { isSameInspectorContext, type VariableInspectRequest } from "../lib/vari
 import {
   addMatrixGraphChartSeries,
   applyMatrixGraphRequest,
+  createFreeformMatrixGraphChart,
   moveMatrixGraphChartSeries,
   removeMatrixGraphChart,
   removeMatrixGraphChartSeries,
+  resolveDefaultGraphSourceRunCellId,
   toggleMatrixGraphChartLegendMode,
   toggleMatrixGraphChartPin,
   type MatrixGraphChartEntry
@@ -20,7 +22,10 @@ import {
   type MatrixGraphRequest
 } from "../notebook/matrixSliceGraph";
 import type { MatrixCell } from "../notebook/types";
-import { buildNotebookVariableUnitMetadata } from "../notebook/notebookAppHelpers";
+import {
+  buildNotebookVariableDescriptions,
+  buildNotebookVariableUnitMetadata
+} from "../notebook/notebookAppHelpers";
 import { useNotebookRunner } from "../notebook/useNotebookRunner";
 import { PeriodScrubber } from "../components/PeriodScrubber";
 import { type MatrixEntryDisplayMode } from "../notebook/matrixEntryDisplay";
@@ -123,6 +128,7 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
   const [inspectorContext, setInspectorContext] = useState<VariableInspectRequest | null>(null);
   const inspectorHistory = useInspectorVariableHistory();
   const [matrixGraphCharts, setMatrixGraphCharts] = useState<MatrixGraphChartEntry[]>([]);
+  const [matrixGraphOpen, setMatrixGraphOpen] = useState(false);
   const matrixGraphChartIdRef = useRef(0);
   const [periodOverride, setPeriodOverride] = useState<number | null>(null);
   const [matrixEntryDisplayModes, setMatrixEntryDisplayModes] = useState<
@@ -392,12 +398,17 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
   );
 
   const handleMatrixGraphRequest = useCallback((request: MatrixGraphRequest) => {
+    setMatrixGraphOpen(true);
     setMatrixGraphCharts((current) =>
       applyMatrixGraphRequest(current, request, () => {
         matrixGraphChartIdRef.current += 1;
         return `publication-matrix-graph-${matrixGraphChartIdRef.current}`;
       })
     );
+  }, []);
+
+  const handleOpenMatrixGraph = useCallback(() => {
+    setMatrixGraphOpen(true);
   }, []);
 
   const handleToggleMatrixGraphChartPin = useCallback((chartId: string) => {
@@ -447,6 +458,48 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
     [notebookDocument, runner]
   );
 
+  const handleCreateMatrixGraphFromVariable = useCallback(
+    (source: string) => {
+      setMatrixGraphCharts((current) => {
+        if (current.length > 0) {
+          return current;
+        }
+
+        const sourceRunCellId = resolveDefaultGraphSourceRunCellId(
+          notebookDocument.cells,
+          (runCellId) => runner.getResult(runCellId)
+        );
+        if (!sourceRunCellId) {
+          return current;
+        }
+
+        const result = runner.getResult(sourceRunCellId);
+        if (!result) {
+          return current;
+        }
+
+        const variableDescriptions = buildNotebookVariableDescriptions(notebookDocument.cells);
+        const entry = resolveMatrixGraphSeriesEntryToAdd(source, [], result, variableDescriptions);
+        if (!entry) {
+          return current;
+        }
+
+        matrixGraphChartIdRef.current += 1;
+        return [
+          createFreeformMatrixGraphChart({
+            createId: () => `publication-matrix-graph-${matrixGraphChartIdRef.current}`,
+            seriesEntry: entry,
+            sourceRunCellId,
+            variableDescriptions,
+            variableUnitMetadata: buildNotebookVariableUnitMetadata(notebookDocument.cells)
+          })
+        ];
+      });
+      setMatrixGraphOpen(true);
+    },
+    [notebookDocument, runner]
+  );
+
   const handleRemoveMatrixGraphChartSeries = useCallback((chartId: string, source: string) => {
     setMatrixGraphCharts((current) => removeMatrixGraphChartSeries(current, chartId, source));
   }, []);
@@ -461,6 +514,7 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
   );
 
   const handleCloseMatrixGraph = useCallback(() => {
+    setMatrixGraphOpen(false);
     setMatrixGraphCharts([]);
   }, []);
 
@@ -600,6 +654,7 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
           cells={notebookDocument.cells}
           getResult={runner.getResult}
           interaction={buildCellInteraction(section.cell)}
+          interactiveCharts={runPhase === "done" && !isPrint}
           matrixEntryDisplayMode={matrixEntryDisplayModes[section.cell.id] ?? "equation"}
           onMatrixEntryDisplayModeChange={(mode) =>
             handleMatrixEntryDisplayModeChange(section.cell.id, mode)
@@ -621,6 +676,7 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
               cells={notebookDocument.cells}
               getResult={runner.getResult}
               interaction={buildCellInteraction(section.cell)}
+              interactiveCharts={runPhase === "done" && !isPrint}
               matrixEntryDisplayMode={matrixEntryDisplayModes[section.cell.id] ?? "equation"}
               onMatrixEntryDisplayModeChange={(mode) =>
                 handleMatrixEntryDisplayModeChange(section.cell.id, mode)
@@ -666,6 +722,7 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
                 entries={contentsEntries}
                 interactiveNotebookHref={interactiveNotebookHref}
                 isPrint={isPrint}
+                onOpenGraph={runPhase === "done" && !isPrint ? handleOpenMatrixGraph : undefined}
                 onShare={handleSharePublication}
                 route={route}
                 printHref={printHref}
@@ -681,6 +738,7 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
           <PublicationActionLinks
             interactiveNotebookHref={interactiveNotebookHref}
             isPrint={isPrint}
+            onOpenGraph={runPhase === "done" && !isPrint ? handleOpenMatrixGraph : undefined}
             onShare={handleSharePublication}
             printHref={printHref}
             variant="footer"
@@ -704,13 +762,14 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
         />
       ) : null}
 
-      {matrixGraphCharts.length > 0 ? (
+      {matrixGraphOpen ? (
         <PublicationMatrixGraphPopup
           cells={notebookDocument.cells}
           charts={matrixGraphCharts}
           getResult={runner.getResult}
           onAddChartSeries={handleAddMatrixGraphChartSeries}
           onClose={handleCloseMatrixGraph}
+          onCreateChartFromVariable={handleCreateMatrixGraphFromVariable}
           onDismissChart={handleDismissMatrixGraphChart}
           onMoveChartSeries={handleMoveMatrixGraphChartSeries}
           onRemoveChartSeries={handleRemoveMatrixGraphChartSeries}

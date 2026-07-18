@@ -333,7 +333,7 @@ export function removeChartSeriesByDisplayName(cell: ChartCell, displayName: str
   if (chartCellUsesSeriesEntries(cell)) {
     const names = resolveChartSeriesDisplayNames(cell);
     const removeIndex = names.indexOf(displayName);
-    if (removeIndex === -1 || (cell.series?.length ?? 0) <= 1) {
+    if (removeIndex === -1) {
       return cell;
     }
 
@@ -344,7 +344,7 @@ export function removeChartSeriesByDisplayName(cell: ChartCell, displayName: str
   }
 
   const variables = cell.variables ?? [];
-  if (variables.length <= 1 || !variables.includes(displayName)) {
+  if (!variables.includes(displayName)) {
     return cell;
   }
 

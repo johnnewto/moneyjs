@@ -443,18 +443,64 @@ describe("ResultChart", () => {
     expect(handleRemoveVariable).toHaveBeenCalledWith("B");
   });
 
-  it("disables remove in the legend menu when only one series remains", async () => {
+  it("portals the legend actions menu to document.body", async () => {
     const user = userEvent.setup();
 
     render(
       <ResultChart
         onRemoveVariable={vi.fn()}
+        series={[
+          { name: "A", values: [2, 3, 5, 4] },
+          { name: "B", values: [10, 15, 25, 20] }
+        ]}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /^B chart variable actions$/i }));
+
+    const menu = screen.getByRole("menu", { name: /B chart variable actions/i });
+    expect(menu).toHaveClass("chart-legend-context-menu", "chart-legend-menu-portal");
+    expect(menu.parentElement).toBe(document.body);
+    expect(menu.style.top).toMatch(/px$/);
+    expect(menu.style.left).toMatch(/px$/);
+  });
+
+  it("allows removing the last series from the legend actions menu", async () => {
+    const user = userEvent.setup();
+    const handleRemoveVariable = vi.fn();
+
+    render(
+      <ResultChart
+        onRemoveVariable={handleRemoveVariable}
         series={[{ name: "A", values: [2, 3, 5, 4] }]}
       />
     );
 
     await user.click(screen.getByRole("button", { name: /^A chart variable actions$/i }));
-    expect(screen.getByRole("menuitem", { name: /remove from chart/i })).toBeDisabled();
+    await user.click(screen.getByRole("menuitem", { name: /remove from chart/i }));
+
+    expect(handleRemoveVariable).toHaveBeenCalledWith("A");
+  });
+
+  it("shows a variable picker when the chart has no series", async () => {
+    const user = userEvent.setup();
+    const handleAddVariable = vi.fn();
+
+    render(
+      <ResultChart
+        addVariableOptions={["Y", "C"]}
+        onAddVariable={handleAddVariable}
+        series={[]}
+        title="Empty graph"
+      />
+    );
+
+    expect(screen.getByText("Add a variable to graph")).toBeInTheDocument();
+    const picker = screen.getByRole("listbox", { name: "Available chart variables" });
+    expect(within(picker).getByRole("option", { name: /Y/i })).toBeInTheDocument();
+
+    await user.click(within(picker).getByRole("option", { name: /C/i }));
+    expect(handleAddVariable).toHaveBeenCalledWith("C");
   });
 
   it("keeps separate-axis tick rows aligned by using the same tick count on each axis", () => {

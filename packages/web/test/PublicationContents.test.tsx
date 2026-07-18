@@ -39,6 +39,7 @@ describe("PublicationContents", () => {
         entries={entries.slice(0, 3)}
         interactiveNotebookHref="/notebook/bmw"
         isPrint={false}
+        onOpenGraph={vi.fn()}
         printHref="/print/live"
         route={{
           mode: "publish",
@@ -56,6 +57,7 @@ describe("PublicationContents", () => {
     expect(screen.getByRole("combobox", { name: "Notebook" })).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "Open interactive notebook" }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: "Print view" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "Open Graph" }).length).toBeGreaterThan(0);
 
     const overviewLink = screen.getByRole("link", { name: overviewEntry!.title });
     expect(overviewLink.closest("li")).toHaveAttribute("data-level", "0");

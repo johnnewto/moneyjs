@@ -2,7 +2,7 @@
 
 import "@testing-library/jest-dom/vitest";
 
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -33,6 +33,7 @@ vi.mock("../src/notebook/useNotebookRunner", () => ({
 afterEach(() => {
   cleanup();
   runAllMock.mockClear();
+  window.sessionStorage.clear();
 });
 
 describe("PublicationNotebookApp matrix graph popup", () => {
@@ -59,7 +60,38 @@ describe("PublicationNotebookApp matrix graph popup", () => {
     expect(graphButton).toBeDefined();
     await user.click(graphButton);
 
-    expect(screen.getByRole("dialog", { name: "Graph" })).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog", { name: "Graph" });
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByRole("separator", { name: "Resize graph panel" })).toBeInTheDocument();
+    expect(dialog).toHaveStyle({ width: "544px", height: "480px" });
+  }, 15000);
+
+  it("opens the graph popup from the Open Graph action link", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <PublicationNotebookApp
+        route={{
+          mode: "publish",
+          source: "template",
+          templateId: "bmw",
+          cellId: null,
+          embedCellId: null
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Running simulations/i)).not.toBeInTheDocument();
+    });
+
+    const openGraphButtons = screen.getAllByRole("button", { name: "Open Graph" });
+    expect(openGraphButtons.length).toBeGreaterThan(0);
+    await user.click(openGraphButtons[0]!);
+
+    const dialog = screen.getByRole("dialog", { name: "Graph" });
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText("Add a variable to graph")).toBeInTheDocument();
   }, 15000);
 
   it("renders a period scrubber and matrix display-mode toggle", async () => {

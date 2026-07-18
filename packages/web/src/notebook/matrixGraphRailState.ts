@@ -1,9 +1,76 @@
-import type { MatrixGraphLegendMode, MatrixGraphRequest } from "./matrixSliceGraph";
+import type { SimulationResult } from "@sfcr/core";
+
+import type { VariableUnitMetadata } from "../lib/unitMeta";
+import type { VariableDescriptions } from "../lib/variableDescriptions";
+import type { MatrixGraphLegendMode, MatrixGraphRequest, MatrixGraphSeriesEntry } from "./matrixSliceGraph";
+import type { NotebookCell } from "./types";
 
 export interface MatrixGraphChartEntry extends MatrixGraphRequest {
   id: string;
   legendMode: MatrixGraphLegendMode;
   pinned: boolean;
+}
+
+export function isFreeformMatrixGraphChart(
+  chart: Pick<MatrixGraphChartEntry, "matrixCellId">
+): boolean {
+  return chart.matrixCellId.trim() === "";
+}
+
+export function resolveDefaultGraphSourceRunCellId(
+  cells: NotebookCell[],
+  getResult: (runCellId: string) => SimulationResult | null | undefined
+): string | null {
+  const candidateIds: string[] = [];
+  for (const cell of cells) {
+    if (cell.type === "run") {
+      candidateIds.push(cell.id);
+      continue;
+    }
+    if (cell.type === "matrix" && cell.sourceRunCellId) {
+      candidateIds.push(cell.sourceRunCellId);
+      continue;
+    }
+    if (cell.type === "chart" && cell.sourceRunCellId) {
+      candidateIds.push(cell.sourceRunCellId);
+    }
+  }
+
+  const uniqueIds = Array.from(new Set(candidateIds));
+  const withResult = uniqueIds.find((runCellId) => {
+    const result = getResult(runCellId);
+    return result != null && Object.keys(result.series).length > 0;
+  });
+  return withResult ?? uniqueIds[0] ?? null;
+}
+
+export function createFreeformMatrixGraphChart({
+  createId,
+  seriesEntry,
+  sourceRunCellId,
+  variableDescriptions,
+  variableUnitMetadata
+}: {
+  createId(): string;
+  seriesEntry: MatrixGraphSeriesEntry;
+  sourceRunCellId: string;
+  variableDescriptions: VariableDescriptions;
+  variableUnitMetadata: VariableUnitMetadata;
+}): MatrixGraphChartEntry {
+  return {
+    id: createId(),
+    index: -1,
+    kind: "column",
+    label: "Variables",
+    legendMode: "expression",
+    matrixCellId: "",
+    matrixTitle: "Graph",
+    pinned: false,
+    series: [seriesEntry],
+    sourceRunCellId,
+    variableDescriptions,
+    variableUnitMetadata
+  };
 }
 
 export function applyMatrixGraphRequest(
@@ -75,7 +142,7 @@ export function removeMatrixGraphChartSeries(
   source: string
 ): MatrixGraphChartEntry[] {
   return charts.map((chart) =>
-    chart.id === chartId && chart.series.length > 1
+    chart.id === chartId
       ? { ...chart, series: chart.series.filter((entry) => entry.source !== source) }
       : chart
   );

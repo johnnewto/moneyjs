@@ -192,13 +192,6 @@
   gap: 0.35rem;
   min-width: 0;
 }
-.chart-legend-menu-portal {
-  left: 0;
-  margin-top: 0;
-  position: fixed;
-  top: 0;
-  z-index: 1400;
-}
 .chart-legend-add-option {
   align-items: flex-start;
   appearance: none;
@@ -225,6 +218,26 @@
   color: var(--color-text-subtle);
   font-size: 0.8rem;
 }
+.chart-empty-variable-picker {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.35rem 0.15rem 0.55rem;
+}
+.chart-empty-variable-picker-hint {
+  color: var(--color-text-subtle);
+  font-size: 0.88rem;
+  margin: 0;
+}
+.chart-empty-variable-picker-list {
+  background: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 12px;
+  display: grid;
+  gap: 0.2rem;
+  max-height: 14rem;
+  overflow: auto;
+  padding: 0.35rem;
+}
 .chart-legend-context-menu {
   background: #fff;
   border: 1px solid rgba(148, 163, 184, 0.35);
@@ -239,6 +252,15 @@
   position: absolute;
   top: 100%;
   z-index: 35;
+}
+/* Portaled menus must beat the absolute/z-index rules above (and add-menu). */
+.chart-legend-add-menu.chart-legend-menu-portal,
+.chart-legend-context-menu.chart-legend-menu-portal {
+  left: 0;
+  margin-top: 0;
+  position: fixed;
+  top: 0;
+  z-index: 1400;
 }
 .chart-legend-context-menu button {
   appearance: none;
