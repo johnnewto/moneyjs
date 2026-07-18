@@ -10,6 +10,42 @@ cells:
       id: intro
       title: Overview
       source: "This notebook adapts the `gl7-insout.Rmd` article into executable browser cells. It includes the INSOUT balance-sheet and transactions-flow matrices, the full baseline model, and three representative simulations from the article: higher targeted inventories, higher government expenditure, and the combined inflation-plus-interest-rate experiment."
+      more: |
+        **INSOUT** is Godley & Lavoie's _"model with both inside and outside money"_
+        (_Monetary Economics_, 2007, chapter 10). It is the most complete model in the
+        book short of the growth model: it takes the production-and-inventories economy
+        of chapter 9 (model DIS) and bolts on a full **financial system** with a menu of
+        assets, an active **banking sector**, a **central bank**, and a government that
+        funds itself with bills and bonds.
+
+        The name captures the central theme. **Outside money** is the liability of the
+        state — high-powered money `Hs` (households' cash plus banks' reserves), created
+        when the central bank buys government bills or lends to banks. **Inside money** is
+        the liability of the banking system — the **checking deposits** `M1` and **time
+        deposits** `M2` that come into existence when banks make **loans** to firms.
+        INSOUT lets the two kinds of money coexist and interact.
+
+        Four things are genuinely new relative to DIS:
+
+        - **A portfolio of assets.** Households no longer hold a single deposit. They
+          spread wealth across cash, `M1`, `M2`, Treasury bills `Bhh` and long bonds
+          `BLh` using a Tobinesque demand system (the `lambda` matrix), so _relative
+          interest rates_ now allocate wealth.
+        - **An active banking sector.** Banks set both the **deposit rate** `rm` and the
+          **loan rate** `rl` themselves, nudging them up or down to keep their liquidity
+          ratio and profit margin inside target bands.
+        - **A central bank and a Treasury.** The government issues bills `Bs` and bonds
+          `BLs`; the central bank buys bills, supplies advances `As` to banks, and rebates
+          its profit to the Treasury. Monetary policy is the exogenous **bill rate** `rb`.
+        - **Endogenous inflation near full employment.** Money wages chase a target real
+          wage that rises with the employment ratio `N / Nfe`, so demand pressure turns
+          into a wage-price spiral — the mechanism behind Simulations 2 and 7.
+
+        The baseline settles essentially at full employment (`N ≈ 133.2` against
+        `Nfe = 133.28`) with a stable price level (`p ≈ 1.21`) and near-zero inflation.
+        As in every G&L model one equation is **redundant**: here the banks' demand for
+        reserves equals the supply, `Hbd = Hbs`, which the solver checks rather than
+        imposes.
   - matrix:
       id: balance-sheet
       sourceRunCellId: baseline-run
@@ -92,6 +128,30 @@ cells:
             - "0"
             - -INV
         - [Sum, Sum, "0", "0", "0", "0", "0", "0"]
+      more: |
+        This is the INSOUT **balance sheet** (Table 10.1 in Godley & Lavoie). Read down a
+        column to see a sector's wealth; read across a row to see who holds and who issues
+        each asset. Every row sums to zero (one sector's asset is another's liability) and
+        the bottom row confirms every column closes.
+
+        - **Households** are the wealth-owners. Their net worth `V ≈ 131` is held as a
+          _portfolio_: cash `Hhd ≈ 13.1`, checking deposits `M1h ≈ 3.5`, time deposits
+          `M2h ≈ 35.1`, Treasury bills `Bhh ≈ 46.8` and long bonds `BLh * pbl ≈ 32.8`.
+          This menu — absent in DIS — is the whole point of the model.
+        - **Firms** own **inventories** `INV ≈ 33.3` (the only tangible asset) financed
+          one-for-one by bank **loans** `Ld ≈ 33.3`, so their net worth is zero.
+        - **Government** has negative net worth: its outstanding bills `Bs` and bonds
+          `BLs` are the public debt `GD ≈ 98`.
+        - **Central bank** holds bills `Bcb` and advances `As` as assets and issues
+          high-powered money `Hs` (the **outside money**) as its liability.
+        - **Banks** hold loans `Ls`, bills `Bbd` and required reserves `Hbd` against their
+          deposit liabilities `M1s + M2s`, topping up with central-bank advances `Ad` when
+          short; like firms they carry no net worth.
+
+        The contrast that names the model is visible here: `Hs` (a state liability) is
+        **outside money**, while `M1` and `M2` (banking-system liabilities created by
+        lending) are **inside money**. Household financial wealth is, ultimately, claims on
+        the goods in firms' warehouses plus the government's debt.
   - matrix:
       id: transaction-flow
       sourceRunCellId: baseline-run
@@ -123,6 +183,31 @@ cells:
         - [Bills, Change bills, -d(Bhh), "", "", +d(Bs), "", -d(Bcb), "", -d(Bbd), "0"]
         - [Bonds, Change bonds, -d(BLh) * pbl, "", "", +d(BLs) * pbl, "", "", "", "", "0"]
         - [Sum, Sum, "0", "0", "0", "0", "0", "0", "0", "0", "0"]
+      more: |
+        The **transactions-flow matrix** (Table 10.2 in Godley & Lavoie) is where INSOUT's
+        stock-flow consistency is enforced. As in DIS, firms, the central bank and banks
+        each get a _current_ account (income and spending) and a _capital_ account
+        (financing), giving the wide nine-column layout. Every row sums to zero (each flow
+        has a payer and a payee) and every column sums to zero (each account's budget
+        constraint), and the matrix has many more rows than DIS because there are now many
+        more assets to pay interest on and to revalue.
+
+        The top block is the **income-expenditure circuit**: consumption `C`, government
+        spending `G`, the change in inventories `d(INV)`, taxes `TX`, wages `WB`, and three
+        kinds of distributed profit — entrepreneurial `FXf`, bank `FXb`, and central-bank
+        `FXcb`. Crucially the central bank rebates its profit to the **government**, which
+        is why `FXcb` lands in the government column.
+
+        The **interest block** pays last period's rate on last period's stock — note every
+        entry uses `lag(...)` — for advances, loans, time deposits, bills and bonds. This
+        is the web of interest income that DIS lacked: households earn on `M2h`, `Bhh` and
+        `BLh`; firms pay on loans; the government pays on bills and bonds; banks earn the
+        spread and pay for advances.
+
+        The bottom block turns flows back into **stock changes**: `d(As)`, `d(Ld)`,
+        `d(Hh)`, `d(M1)`, `d(M2)`, `d(Bh)` and `d(BL)`. These rows are the model's flow of
+        funds — every sector's saving is placed into, or financed by, some financial
+        instrument, and the columns confirm no sector can spend money it has not raised.
   - matrix:
       id: account-transactions
       collapsed: false
@@ -156,6 +241,21 @@ cells:
         - [Bills, Change bills, -d(Bhh), "", "", "", "", "", +d(Bs), "", -d(Bcb), "", "", "", "", -d(Bbd), "", "0"]
         - [Bonds, Change bonds, -d(BLh)•pbl, "", "", "", "", "", +d(BLs)•pbl, "", "", "", "", "", "", "", "", "0"]
         - [Sum, Sum, "", V, "0", INV, Ld, "", GD, Hs, "", Ls, "", "0", "", "", "", "0"]
+      more: |
+        This is the same period's transactions broken out **account by account** rather
+        than sector by sector. Each balance-sheet account a sector owns gets its own
+        column — households' deposits and net worth; firms' current, capital, loans and
+        net worth; the central bank's current and capital; the banks' many books — and the
+        **column badges** label each as an `asset`, `liability` or `equity` position.
+
+        Reading it this way makes the _double entry_ behind every transaction explicit:
+        a single payment debits one account and credits another, so a flow that looks like
+        one number in the sector matrix appears as a matched pair here. The closing **Sum**
+        row reports the resulting end-of-period stocks — household wealth `V`, firms'
+        inventories `INV` and loans `Ld`, government debt `GD`, high-powered money `Hs`,
+        bank loans `Ls` — tying the flow matrix directly back to the balance sheet above.
+        Use _Expand all_ / _Collapse all_, or click a sector header, to fold the detail
+        columns back into sector totals.
   - sequence:
       id: transaction-flow-sequence
       title: INSOUT transaction flow sequence
@@ -164,6 +264,17 @@ cells:
         matrixCellId: transaction-flow
       description: Sequence view generated from the INSOUT transactions-flow matrix at the selected simulation period.
       collapsed: true
+      more: |
+        This reads the transactions-flow matrix **column by column**, as the budget
+        identity of each account in turn, for the selected period. It is the clearest way
+        to trace INSOUT's within-period money circuit: firms borrow to produce and carry
+        inventories, pay wages and taxes, and distribute profit; banks intermediate loans
+        into deposits, hold bills and reserves, and lean on central-bank advances when
+        short of liquidity; the central bank buys bills and rebates its profit to the
+        Treasury; the government spends, taxes and funds the gap with bills and bonds; and
+        households receive incomes, pay for consumption, and place the remainder across
+        cash, deposits, bills and bonds. Following the columns shows how every sector's
+        budget constraint is satisfied simultaneously.
   - equations:
       id: equations
       title: INSOUT model
@@ -256,6 +367,55 @@ cells:
         - [omega^T, exp(Omega0 + Omega1 * log(pr) + Omega2 * log(N / Nfe)), "Target real wage.", "", "", "", eq-83-omegaT]
         - [W, lag(W) * (1 + Omega3 * (lag(omega^T) - (lag(W) / lag(p)))), "Money wage."]
         - [Y, p * s + UC * (inv - lag(inv)), "Nominal output."]
+      more: |
+        These are the equations of model INSOUT as set out in Godley & Lavoie chapter 10.
+        It is a large system, but it organises into the same behavioural blocks as DIS,
+        with a much richer financial side bolted on.
+
+        **Production and inventories.** Output anticipates expected sales plus planned
+        inventory change, `y = s^E + (inv^E - lag(inv))`. Desired inventories track
+        expected sales through a target ratio that _falls_ when borrowing is dear,
+        `inv^T = sigma^T * s^E` with `sigma^T = sigma0 - sigma1 * rl`. Realised inventories
+        absorb the forecasting error, `inv = lag(inv) + y - s`, and are valued at unit cost
+        as `INV = inv * UC`.
+
+        **Pricing.** Firms mark up a normalised historic unit cost,
+        `p = (1 + tau) * (1 + phi) * NHUC`, where `NHUC` loads part of the cost on last
+        period's interest-bearing inventories, so the loan rate is a genuine cost of
+        production. The tax wedge `tau` is built straight into the price.
+
+        **Households: income, wealth, portfolio.** The behavioural core is real
+        consumption out of expected real income and lagged real wealth,
+        `c = alpha0 + alpha1 * ydr^E + alpha2 * lag(v)`. The Haig-Simons measures (`ydhs`,
+        `YDhs`) add capital gains on bonds `CG` and subtract the inflation tax on real
+        balances, the same real-income subtlety as in DIS. Wealth net of cash is then
+        allocated across `M1`, `M2`, bills and bonds by a **Tobinesque demand system** —
+        the `lambda` matrix — in which each asset share rises with its own rate and falls
+        with the others (`M2d`, `Bhd`, `BLd`). The `z1`/`z2` switches stop checking
+        deposits going negative, routing any shortfall into time deposits.
+
+        **Government and central bank.** The Treasury's deficit is the public-sector
+        borrowing requirement `PSBR`, funded by issuing bills `Bs` (the residual) and
+        bonds `BLs`; the bond price is `pbl = 1 / rbl`. The central bank buys the bills
+        households and banks do not want (`Bcb`), supplies advances `As = Ad`, sets the
+        advance rate to the bill rate (`ra = rb`), and rebates its profit `FXcb` to the
+        government — the textbook _outside-money_ operations.
+
+        **Banks: endogenous rates.** Banks supply whatever deposits and loans are demanded,
+        hold required reserves `Hbd`, and fund any reserve/asset gap with advances. They
+        then _adjust their own rates_: the deposit rate `rm` moves with the bank liquidity
+        ratio relative to its band `[bot, top]` (the `z4`/`z5` signals), and the loan rate
+        `rl` moves with the bank profit margin `BPM` relative to `[botpm, toppm]` (the
+        `z6`/`z7` signals). This feedback is what makes _inside money_ endogenous.
+
+        **Wages and inflation.** Money wages chase a target real wage that rises with the
+        employment ratio, `omega^T = exp(Omega0 + Omega1 * log(pr) + Omega2 * log(N / Nfe))`,
+        adjusting partially each period. When demand pushes `N` toward or past `Nfe` this
+        becomes a wage-price spiral — the engine of Simulations 2 and 7.
+
+        As always there is one **redundant equation**: the banks' demand for high-powered
+        money equals its supply, `Hbd = Hbs`. It is never imposed; it emerges, and the
+        solver checks it (see the solver note).
   - solver:
       id: solver
       title: Solver
@@ -269,6 +429,22 @@ cells:
       hiddenRightVariable: Hbs
       hiddenTolerance: "0.00001"
       relativeHiddenTolerance: false
+      more: |
+        INSOUT is solved period by period with Gauss-Seidel iteration. The many **lagged**
+        terms — last period's stocks, rates, expectations and unit cost — are known when
+        each period starts, which breaks what would otherwise be impossible same-period
+        cycles and lets the within-period system be solved simultaneously for current flows
+        and end-of-period stocks. Because the financial block is large and tightly coupled
+        (and contains the `if`-based regime switches `z1`–`z7`), the solver is given a tight
+        `tolerance` of `1e-15` and up to `400` iterations to converge cleanly.
+
+        The **hidden variables** `Hbd` (left) and `Hbs` (right) implement the
+        redundant-equation check. The equality `Hbd = Hbs` — the high-powered money banks
+        must hold as reserves equals the amount the central bank supplies — is _not_ used to
+        find the solution. Instead the solver verifies, to `hiddenTolerance`, that the
+        independently computed demand for and supply of reserves agree every period. If they
+        ever diverged the model's accounting would be leaking, so this check is the
+        numerical embodiment of stock-flow consistency across the whole five-sector system.
   - externals:
       id: externals-equations
       title: Externals
@@ -328,6 +504,35 @@ cells:
         - [lambda43, -15, "Portfolio parameter."]
         - [lambda44, 30, "Portfolio parameter."]
         - [lambda45, -0.06, "Portfolio parameter."]
+      more: |
+        These are the exogenous parameters of INSOUT, set to the values used in Godley &
+        Lavoie chapter 10. They fall into a few groups:
+
+        - **Policy and technology.** The bill rate `rb = 0.023` is the model's
+          monetary-policy lever (the central bank sets it; the advance rate follows,
+          `ra = rb`), and the bond rate `rbl = 0.027` fixes the bond price `pbl = 1/rbl`.
+          Real government spending `g = 25`, the tax rate `tau = 0.25`, productivity
+          `pr = 1` and full-employment labour `Nfe = 133.28` close the real side.
+        - **Pricing and inventories.** The markup `phi = 0.1`, and the target
+          inventory-sales rule `sigma^T = sigma0 - sigma1 * rl` uses `sigma0 = 0.3612`
+          and `sigma1 = 3`; at the baseline loan rate this gives `sigma^T ≈ 0.285`.
+        - **Consumption and expectations.** `alpha1 = 0.95` (out of expected real income)
+          and `alpha2 = 0.05` (out of wealth), with `alpha0 = 0`; the adjustment speeds
+          `beta`, `epsilon`, `gamma` are all `0.5`.
+        - **The wage-inflation block.** `Omega0 = -0.32549`, `Omega1 = 1`, `Omega2 = 1.5`
+          and `Omega3 = 0.1` calibrate the target-real-wage curve and how fast wages chase
+          it — `Omega2` is the sensitivity to the employment ratio that drives inflation.
+        - **Banking behaviour.** Banks keep their liquidity ratio inside `[bot, top] =
+          [0.02, 0.06]` and their profit margin inside `[botpm, toppm] = [0.003, 0.005]`,
+          moving `rm` and `rl` at speeds `zetam`, `zetal = 0.0002` (with `zetab = 0.9`
+          pass-through from the bill rate); reserve requirements are `ro1 = ro2 = 0.1`.
+        - **The portfolio (`lambda`) matrix.** The `lambda20..lambda45` block is the Tobin
+          demand system; the large own-rate terms (e.g. `lambda22 = 30`, `lambda33 = 30`,
+          `lambda44 = 30`) and negative cross terms make each asset's share rise with its
+          own return and fall with rival returns.
+
+        With these numbers the baseline settles essentially at full employment with
+        `y = s ≈ 133.2`, `p ≈ 1.21` and near-zero inflation.
   - initial-values:
       id: initial-values-equations
       title: Initial values
@@ -339,6 +544,16 @@ cells:
         - [UC, 1]
         - [BPM, 0.0035]
         - [rb, 1e-15]
+      more: |
+        Only a handful of stocks and prices need seeding; everything else starts from the
+        solver's tiny default and is built up by the model. The price level, money wage and
+        unit cost all start at `p = W = UC = 1`, the bank profit margin is primed at
+        `BPM = 0.0035` (just inside its target band, so the loan-rate rule does not fire
+        spuriously in period 1), and the bill rate is nudged off zero. Godley & Lavoie note
+        that the path away from such a "cold start" is transitory: the stationary state
+        INSOUT converges to does not depend on these starting values, so the early periods
+        simply show the economy assembling its inventories, deposits, bills and bonds from
+        scratch.
   - run:
       id: baseline-run
       title: Baseline run
@@ -347,6 +562,25 @@ cells:
       periods: 210
       resultKey: gl7_insout_baseline
       sourceModelId: equations
+      more: |
+        The baseline runs INSOUT forward for **210 periods** from a cold start. Because the
+        economy has to assemble its inventories, deposits, bills and bonds from nothing, the
+        first ten or twenty periods swing hard — real inventories `inv` even go negative on
+        impact (to about `-22.5`) as sales briefly outrun cautiously forecast output, and
+        inflation `pi` spikes before subsiding — but everything then settles into a
+        **stationary state**.
+
+        In that steady state the real economy rests essentially at **full employment**:
+        output and sales converge to `y = s ≈ 133.2` against a labour supply of
+        `Nfe = 133.28`, real consumption to `c ≈ 108.2`, and the price level to `p ≈ 1.21`
+        with inflation back to zero. The financial side closes neatly: inventories
+        `INV ≈ 33.3` are financed one-for-one by loans `Ld = Ls ≈ 33.3`, household wealth
+        is `V ≈ 131` spread across cash, deposits, bills and bonds, and the public debt is
+        `GD ≈ 98`. Critically, the banks' self-set rates leave both control ratios inside
+        their target bands — liquidity `BLRN ≈ 0.037` within `[0.02, 0.06]` and profit
+        margin `BPM ≈ 0.0048` within `[0.003, 0.005]` — confirming the endogenous
+        rate-setting block has reached a consistent resting point. This is the long-run
+        benchmark against which the three scenarios are measured.
   - chart:
       id: baseline-chart
       title: Baseline steady-state checks
@@ -367,6 +601,20 @@ cells:
         BPM:
           includeZero: true
       sourceRunCellId: baseline-run
+      more: |
+        These six series are the baseline's **health checks**. The nominal wage `W`, wage
+        bill `WB` and nominal output `Y` climb out of the cold start and flatten as the
+        economy reaches its stationary state (`W ≈ 0.88`, `WB ≈ 117`, `Y ≈ 162`).
+        Inflation `pi` shows the early transition spike and then returns to zero, confirming
+        wages and prices have stopped chasing each other once employment settles just below
+        `Nfe`.
+
+        The two bank ratios are the most important diagnostic. The notional liquidity ratio
+        `BLRN` and the profit margin `BPM` both come to rest **inside their target bands**
+        (`BLRN ≈ 0.037` in `[0.02, 0.06]`; `BPM ≈ 0.0048` in `[0.003, 0.005]`). Because the
+        deposit rate `rm` and loan rate `rl` only move when these ratios stray outside their
+        bands, seeing both parked safely inside confirms the banks' endogenous rate-setting
+        has converged rather than oscillating.
   - table:
       id: baseline-table
       title: Baseline variable summary
@@ -379,10 +627,26 @@ cells:
         - BLRN
         - BPM
       sourceRunCellId: baseline-run
+      more: |
+        The table makes the stationary state concrete. Real output and sales sit together
+        at `y = s ≈ 133.2`, the price level holds at `p ≈ 1.21`, and household wealth is
+        `V ≈ 131`. The inventory stock settles at `INV ≈ 33.3`, and the realised
+        inventory-sales ratio `sigmas ≈ 0.285` matches the target `sigma^T` exactly, which
+        is the sign that the inventory adjustment has finished. The two bank control ratios
+        `BLRN ≈ 0.037` and `BPM ≈ 0.0048` again sit inside their bands. Reading down the
+        final rows confirms the model is genuinely at rest, not merely passing through.
   - markdown:
       id: scenario-1-note
       title: Simulation 1
       source: Simulation 1 raises `sigma0` from `0.3612` to `0.4` between periods 5 and 70, increasing the targeted inventories-to-sales ratio through the `sigma^T` rule.
+      more: |
+        Simulation 1 is Godley & Lavoie's **inventory-target experiment** for INSOUT. Firms
+        decide to hold more stock relative to sales by lifting the intercept `sigma0` from
+        `0.3612` to `0.4`, which raises the target inventory-sales ratio
+        `sigma^T = sigma0 - sigma1 * rl` from about `0.285` to about `0.324`. The interest
+        of the experiment is that a purely _real_ buffer-stock decision now has to be
+        **financed through the banking system**, so it ripples into loans, deposits and the
+        rates banks set.
   - run:
       id: scenario-1-run
       title: "Simulation 1: targeted inventories shock"
@@ -402,10 +666,17 @@ cells:
       periods: 70
       resultKey: gl7_insout_s1
       sourceModelId: equations
+      more: |
+        Starting from the baseline's stationary state, `sigma0` steps up from period 5 and
+        firms begin closing the gap to their higher inventory target at speed `gamma`,
+        producing above sales until the new stock is in place. Because only the inventory
+        target changes, the experiment cleanly isolates how a real stockholding decision
+        propagates through INSOUT's financial plumbing.
   - chart:
       id: scenario-1-chart
       title: Simulation 1 inventories and rates
       variables:
+        - M2h
         - INV
         - Ls
         - rm
@@ -418,10 +689,31 @@ cells:
         rb:
           includeZero: true
       sourceRunCellId: scenario-1-run
+      more: |
+        Inventories `INV` climb from the baseline `≈ 33.3` to about `37.5` (peaking near
+        `38.9` while firms over-build during the transition), and bank loans `Ls` move
+        **lockstep** with them — the chart's clearest message, because `Ls = Ld = INV`, so
+        the extra warehouse stock is matched penny-for-penny by new bank credit.
+
+        That new credit is the interesting part. Each loan creates a deposit, so households
+        end up holding more inside money; time deposits `M2h` rise from about `35` to `40`.
+        Funding the bigger loan book draws down the banks' liquidity, so the deposit rate
+        responds: `rm` is nudged up from `0.0197` to `0.0213` by the liquidity-band rule
+        (the `z4`/`z5` signals). The bill rate `rb` is exogenous and stays flat at `0.023`,
+        which is exactly why plotting `rm` against `rb` isolates the **endogenous** banking
+        response — banks raise their _own_ rate even though the policy rate has not moved.
   - markdown:
       id: scenario-2-note
       title: Simulation 2
       source: Simulation 2 raises real government expenditure `g` from `25` to `30` between periods 5 and 55.
+      more: |
+        Simulation 2 is the **fiscal-expansion experiment**: real government spending `g`
+        jumps `20%`, from `25` to `30`. In a model sitting below full employment this would
+        be a clean Keynesian boost to output. The twist in INSOUT is that the baseline
+        already rests _at_ full employment (`N ≈ 133.2`, `Nfe = 133.28`), so pushing demand
+        higher forces employment **above** `Nfe` and ignites the model's wage-price
+        mechanism. The chapter uses this to show how a real demand shock turns into
+        persistent inflation once labour is fully employed.
   - run:
       id: scenario-2-run
       title: "Simulation 2: government expenditure shock"
@@ -442,10 +734,19 @@ cells:
       periods: 55
       resultKey: gl7_insout_s2
       sourceModelId: equations
+      more: |
+        From the baseline steady state `g` steps up to `30` from period 5. Two responses run
+        in parallel: real output rises as government demand adds to sales (`y` climbs from
+        about `133` toward `152`), and because that lifts employment past `Nfe`, the
+        target-real-wage equation pushes money wages up period after period. With wages
+        chasing prices and prices marking up wages, the experiment generates a **sustained
+        inflation** rather than a one-off price jump.
   - chart:
       id: scenario-2-chart
       title: Simulation 2 income, wealth, and inflation
       variables:
+        - p
+        - GD
         - c
         - v
         - ydr
@@ -456,10 +757,33 @@ cells:
         pi:
           includeZero: true
       sourceRunCellId: scenario-2-run
+      more: |
+        The chart shows the experiment is expansionary in **real** terms _and_ inflationary
+        at once. Real consumption `c`, real disposable income `ydr` and real wealth `v` all
+        step up to a permanently higher plateau (roughly `c ≈ 122`, `ydr ≈ 122`, `v ≈ 123`,
+        up from about `108`): the bigger deficit puts more income and more interest-bearing
+        government paper into household hands, and they consume and save more.
+
+        At the same time inflation `pi` settles at a positive rate of roughly `1.5%` per
+        period instead of returning to zero — the signature of running the economy past full
+        employment. That persistent inflation is why the model's _nominal_ magnitudes
+        explode even though the real ones merely rise: the price level more than doubles
+        (`p` from about `1.2` to about `2.6`) and the public debt `GD` balloons from about
+        `98` to about `234` over the run. The contrast between the modest real gains and the
+        runaway nominal totals is exactly Godley & Lavoie's point about fiscal expansion at
+        full employment.
   - markdown:
       id: scenario-7-note
       title: Simulation 7
       source: "Simulation 7 combines a higher target real wage with higher bill and bond rates: `Omega0` rises from `-0.32549` to `-0.2` during periods 4 to 55, while `rb` rises from `0.023` to `0.03` and `rbl` rises from `0.027` to `0.039` during periods 5 to 55."
+      more: |
+        Simulation 7 is the chapter's **combined inflation-and-interest-rate experiment**.
+        Two shocks land together: the wage-target intercept `Omega0` rises from `-0.32549`
+        to `-0.2`, lifting the target real wage and so kicking off wage-push inflation; and
+        monetary policy tightens, with the bill rate `rb` raised from `0.023` to `0.03` and
+        the bond rate `rbl` from `0.027` to `0.039`. The question Godley & Lavoie pose is
+        whether tighter interest rates can be _real-neutral_ even while a wage shock drives
+        the price level up — and INSOUT's answer is largely yes.
   - run:
       id: scenario-7-run
       title: "Simulation 7: inflation and rate shock"
@@ -491,10 +815,19 @@ cells:
       periods: 55
       resultKey: gl7_insout_s7
       sourceModelId: equations
+      more: |
+        From the baseline steady state the wage-target shock hits in period 4 and the
+        rate shocks in period 5. The higher target real wage feeds wage inflation, while
+        the higher bill rate pulls the banks' own rates up with it — the loan rate `rl`
+        rises from `0.0254` to about `0.0316` and the deposit rate `rm` from `0.0197` to
+        about `0.0286` — and the higher bond rate drops the bond price to `pbl = 1/0.039
+        ≈ 25.6`. Watch how little the _real_ side moves while the _nominal_ side and the
+        rate structure reset.
   - chart:
       id: scenario-7-chart
       title: Simulation 7 inflation, sales, and debt
       variables:
+        - v
         - pi
         - s
         - V
@@ -505,6 +838,22 @@ cells:
         pi:
           includeZero: true
       sourceRunCellId: scenario-7-run
+      more: |
+        The four series tell the real-neutrality story. Inflation `pi` jumps to a positive
+        rate of roughly `1%` per period, driven by the higher wage target, and real sales
+        `s` barely budge — they dip only slightly (from about `133.2` to about `133.0`),
+        confirming the shocks are almost entirely **nominal**. Nominal household wealth `V`
+        rises steeply (from about `131` to about `200`) and the stock of bills `Bs` first
+        _falls_ — households shift toward the now higher-yielding time deposits and bonds,
+        so the central bank absorbs bills — before climbing as the inflating deficit issues
+        new debt.
+
+        The deeper point is what the chart leaves _out_: real disposable income and real
+        wealth end the run essentially where they started (`v ≈ 108` unchanged), because
+        households are compensated for higher prices by the higher interest they now earn on
+        deposits, bills and bonds. As in DIS, an interest-rate change in this framework is
+        close to **real-neutral** while clearly resetting the price level and the whole
+        nominal scale of the economy.
   - sequence:
       id: equation-dependency-graph
       title: INSOUT  dependency graph
@@ -513,6 +862,23 @@ cells:
         modelId: equations
         showAccountingStrips: true
         showExogenous: false
-      description: Dependency view of the pc equations organized by sector strips and accounting bands.
+      description: Dependency view of the INSOUT equations organized by sector strips and accounting bands.
       note: ""
       collapsed: true
+      more: |
+        This graph lays out how the INSOUT equations feed one another within and across
+        periods, organised by sector strip and accounting band. The dynamic spine runs
+        through the **lagged** links: adaptive sales and income expectations (`s^E`,
+        `ydr^E`) carry information forward, realised inventories `inv` accumulate the
+        production-minus-sales gap, last period's interest-bearing stocks set this period's
+        interest flows, and last period's bank ratios drive the rate adjustments.
+
+        Following the arrows reveals INSOUT's three interlocking loops. The **real loop**:
+        expected sales drive production and inventories, which feed back into sales
+        expectations. The **financial loop**: inventories drive loans, loans create
+        deposits, deposits and the portfolio allocate wealth across `M1`, `M2`, bills and
+        bonds, and wealth drives consumption and hence sales. And the **policy/banking
+        loop**: the bill rate and the banks' liquidity and profit-margin ratios set `rm`
+        and `rl`, which feed back into pricing, the inventory target and portfolio choice.
+        Read alongside the transactions-flow matrix, it connects the accounting identities
+        to the model's adjustment mechanisms.

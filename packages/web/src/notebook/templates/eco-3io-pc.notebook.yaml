@@ -11,6 +11,37 @@ cells:
       id: intro
       title: Overview
       source: This notebook ports Marco Veronese Passarella's ECO-3IO-PC prototype from the Florence 2025 keynote. It combines Model PC with a three-industry input-output structure and an ecological block for matter, energy, emissions, and temperature feedback on consumption.
+      more: |
+        **ECO-3IO-PC** is the ecological-input-output cousin of Godley & Lavoie's
+        Model PC. It is the destination of lecture 4, _"Introducing the ecosystem"_,
+        in Marco Veronese Passarella's _Six lectures on SFC models_ (Beijing,
+        2023): start from the portfolio-choice model **PC**, add input-output
+        interdependencies between industries (**IO-PC**), then bolt on a physical
+        ecosystem to obtain **ECO-PC**. This notebook uses the three-industry
+        variant (agriculture, manufacturing, services) rather than the two-industry
+        version of the lecture code, but the structure is identical.
+
+        Ecological SFC models, pioneered by Dafermos, Nikolaidi and Galanis
+        (2016, 2018) and Jackson and Victor (2015), join **monetary** accounting
+        (every financial flow comes from somewhere and goes somewhere, in the
+        tradition of Godley & Lavoie) to **physical** accounting (matter and
+        energy are conserved, in the tradition of Georgescu-Roegen). The ecosystem
+        here rests on eight assumptions taken from the lecture:
+
+        - there are two kinds of reserves, **matter** and **energy**;
+        - energy is either **renewable** (`ren`) or **non-renewable** (`nen`);
+        - resources are converted into reserves at fixed rates (`sigma_m`, `sigma_e`);
+        - industrial **CO2 emissions** track the use of non-renewable energy;
+        - **atmospheric temperature** is a rising function of cumulative emissions;
+        - consumption goods can be **durable** or non-durable;
+        - a share of the durable (socio-economic) stock is **discarded** each period;
+        - waste and emissions are produced only by the **firm** sector.
+
+        Because the physical block is layered on top of an intact monetary core,
+        the model stays watertight: the redundant cash-market condition
+        `h_h = h_s` still holds (enforced as the solver's hidden equation), while
+        the new equations only describe the flows of matter, energy and carbon
+        that the monetary economy sets in motion.
   - matrix:
       id: balance-sheet
       sourceRunCellId: baseline-run
@@ -25,6 +56,23 @@ cells:
         - [Bills, Bills, +b_h, "", +b_cb, -b_s, "0"]
         - [Wealth, Wealth, -v, "", "", +b_s, "0"]
         - [Sum, Sum, "0", "0", "0", "0", "0"]
+      more: |
+        The monetary core is unchanged from Model **PC**: the only two financial
+        assets are government **cash** (`h_h` held by households, `h_s` issued by
+        the central bank) and government **bills** (`b_h` held by households,
+        `b_cb` held by the central bank, `b_s` issued by the government).
+        Households own all the net wealth of the economy, `v = h_h + b_h`, which
+        is exactly the value of the government's outstanding debt held outside the
+        central bank.
+
+        Reading the table the SFC way: **assets are positive, liabilities
+        negative**, so every asset row sums across sectors to zero (one sector's
+        claim is another's obligation), and the net-worth row closes each column.
+        Firms hold no financial assets here — production is sold within the period
+        and profits are distributed — so they appear only in the flow accounts.
+        The ecosystem adds **no** financial assets: matter, energy and carbon are
+        tracked in their own physical matrices (see the appendix), keeping this
+        balance sheet identical to the textbook PC model.
   - matrix:
       id: transaction-flow
       sourceRunCellId: baseline-run
@@ -44,6 +92,23 @@ cells:
         - [Cash, Change in cash, -d(h_h), "", +d(h_s), "", "0"]
         - [Bills, Change in bills, -d(b_h), "", -d(b_cb), +d(b_s), "0"]
         - [Sum, Sum, "0", "0", "0", "0", "0"]
+      more: |
+        The transactions-flow matrix is the period-by-period companion of the
+        balance sheet, and again it reproduces Model **PC**. Every row is an
+        identity that sums to zero across sectors — there are no black holes.
+        Consumption and government expenditure are valued at their price indices
+        (`cons * p_c`, `g * p_g`) because the input-output block lets the consumer
+        and government baskets carry different prices. GDP appears as
+        `y = p1 * d1 + p2 * d2 + p3 * d3`, the value of final demand.
+
+        The bottom two rows are the **flow-of-funds**: household saving that is not
+        held as cash, `d(b_h)`, is lent to the government by buying bills, while
+        any residual bill supply is absorbed by the central bank (`d(b_cb)`), whose
+        bill purchases create cash (`d(h_s)`). Because the columns balance, the
+        change in household wealth equals income minus consumption, which is the
+        accounting root of the wealth equation `v = I(yd - p_c * cons)`. The
+        ecosystem does not enter here: matter and energy never appear in the
+        monetary transactions matrix, only in the physical tables.
   - sequence:
       id: transaction-flow-sequence
       title: ECO-3IO-PC transaction flow sequence
@@ -51,6 +116,45 @@ cells:
         kind: matrix
         matrixCellId: transaction-flow
       description: Sequence view generated from the transactions-flow matrix at the selected simulation period.
+  - markdown:
+      id: ecosystem-block-note
+      title: The ecosystem block
+      source: >-
+        Lecture 4 of the Six lectures builds the ecosystem in four steps on top of the IO-PC core: (1) extraction of matter and waste, (2) energy use and CO2 emissions, (3) the dynamics of reserves and resources, and (4) climate feedback on behaviour. The equations cell below lists them all; this note groups them so the physical logic is easy to follow.
+      more: |
+        **1. Matter and waste.** Production of material goods
+        `x_mat = mu_mat1 * x1 + mu_mat2 * x2 + mu_mat3 * x3` weights each
+        industry's gross output by its material intensity. Some of the demand for
+        matter is met by **recycling** the discarded socio-economic stock
+        (`rec = rho_dis * dis`), so virgin **extraction** is only the remainder,
+        `mat = x_mat - rec`. Durable consumption goods accumulate into stocks
+        `dc1, dc2, dc3`, a fraction `zeta_dc` of which is discarded each period;
+        the **socio-economic stock** of matter grows by `kh = I(x_mat - dis)` and
+        the leftover becomes **waste**, `wa = mat - (kh - lag(kh))`.
+
+        **2. Energy and emissions.** Total energy use is
+        `en = eps_en1 * x1 + eps_en2 * x2 + eps_en3 * x3`; the renewable part
+        `ren` uses the industry shares `eta_en`, leaving non-renewable energy
+        `nen = en - ren`. Burning non-renewables emits CO2,
+        `emis = beta_e * nen`, where `beta_e` is the carbon intensity of fossil
+        energy. Emissions accumulate (`co2_cum = I(emis)`) and drive
+        **temperature** through the transient-climate-response identity
+        `temp = (tcre / (1 - fnc)) * co2_cum`.
+
+        **3. Reserves and resources.** Matter and energy each have a stock of
+        **reserves** that is drawn down by use and topped up by converting the much
+        larger stock of **resources**: `k_m = I(conv_m - mat)` with
+        `conv_m = sigma_m * res_m`, and `k_e = I(conv_e - nen)` with
+        `conv_e = sigma_e * res_e`. The depletion ratios `depl_m_pct` and
+        `depl_e_pct` report annual use as a percentage of lagged reserves.
+
+        **4. Feedback.** Climate change feeds back onto the economy through the
+        propensity to consume,
+        `alpha1 = alpha10 - alpha11 * lag(r) - alpha12 * (temp - lag(temp))`. The
+        elasticity `alpha12` is **zero in the baseline**, so the ecosystem is
+        purely a passive accounting layer until the scenario switches the channel
+        on. Note the feedback works on the _change_ in temperature `temp - lag(temp)`,
+        i.e. the pace of warming, not its level.
   - equations:
       id: equations
       title: ECO-3IO-PC model
@@ -109,6 +213,35 @@ cells:
         - [k_e, I(conv_e - nen), "Energy reserves.", J, stock, accumulation]
         - [conv_e, sigma_e * res_e, "Energy resources converted to reserves.", J/year, flow, identity]
         - [res_e, lag(res_e) - conv_e*dt, "Energy resource stock.", J, stock, accumulation]
+      more: |
+        These rows hold the **full** model: the monetary PC block, the
+        input-output block, and the four ecosystem sub-blocks described in the
+        note above. A few things are worth highlighting.
+
+        The **input-output** core inverts the Leontief system: final demand by
+        product `d1, d2, d3` (split between consumption and government via the
+        `beta` shares) drives gross output `x1, x2, x3` through
+        `x = a * x + d`, so each industry's output covers both final demand and
+        the intermediate inputs other industries need. Unit prices are a markup
+        over wages and intermediate costs,
+        `p1 = (w / pr1) + (p1 * a11 + p2 * a21 + p3 * a31) * (1 + mu)`. With the
+        wage `w`, markup `mu` and productivities fixed, these prices are constant,
+        so the consumer price index settles at `p_c = 1.0019` and the inflation
+        tax `infl` is negligible.
+
+        **Real consumption** avoids money illusion:
+        `cons = alpha1 * ((yd / p_c) - infl) + alpha2 * lag(v) / p_c`, deflating
+        income and wealth by the price index. The propensity `alpha1` is where the
+        climate feedback enters. In the baseline (`alpha12 = 0`) `alpha1` is flat
+        at `0.8 - 8 * 0.025 = 0.6`, and the economy converges to a monetary steady
+        state with GDP `y` near `105.7` and household wealth `v` near `85.9`.
+
+        The **physical identities** then ride on top of that real activity. Because
+        `beta_e` declines at 1% a year (`beta_e = lag(beta_e) * (1 - g_beta_e)`),
+        emissions `emis` peak around `47` near period 20 and fall back toward `22`
+        by period 100 even as output plateaus — decarbonisation per unit of fossil
+        energy outpaces the modest growth in `nen`. Cumulative CO2 keeps rising,
+        so `temp` climbs monotonically to about `8.7°C` over the run.
   - solver:
       id: solver
       title: Solver
@@ -217,6 +350,22 @@ cells:
         - [y, yd, cons, v, temp, emis]
       axisSnapTolarance: 0.5
       sourceRunCellId: baseline-run
+      more: |
+        The baseline traces the model from its low starting point to its steady
+        state. Income `y`, disposable income `yd`, consumption `cons` and wealth
+        `v` rise together from around `38` (GDP at period 1) and flatten near their
+        long-run values — `y` about `105.7`, with `yd`, `cons` and `v` all close to
+        `85.7` to `85.9`. This is the ordinary Model PC convergence; the ecosystem
+        does not disturb it because the feedback elasticity `alpha12` is zero in the
+        baseline.
+
+        The two physical series tell the ecological story. `temp` climbs steadily,
+        without flattening, to roughly `8.7°C` by period 100, because it tracks
+        _cumulative_ emissions and carbon keeps accumulating. `emis`, by contrast,
+        is hump-shaped: it rises to about `47` near period 20 and then drifts down
+        toward `22`, reflecting the assumed 1%-a-year fall in the carbon intensity
+        `beta_e`. `infl` sits on its own axis and stays essentially flat at zero,
+        confirming the constant-price result of the input-output block.
   - table:
       id: baseline-table
       title: Baseline variable summary
@@ -235,10 +384,39 @@ cells:
         - x2
         - x3
       sourceRunCellId: baseline-run
+      more: |
+        Use the period selector to read the model at any date. At the steady state
+        (late periods) GDP `y` is about `105.7`, with `yd`, `cons` and `v` near
+        `85.7` to `85.9` and the consumer price index `p_c` pinned at `1.0019`.
+        Gross outputs settle at roughly `x1 = 36.3` (agriculture),
+        `x2 = 77.1` (manufacturing) and `x3 = 82.4` (services) — manufacturing and
+        services dominate because they carry the larger consumption and government
+        shares and absorb more intermediate inputs.
+
+        The ecological columns make the physical scale visible: temperature `temp`
+        rises past `8°C`, cumulative CO2 `co2_cum` exceeds `3400`, while annual
+        emissions `emis` have already fallen back from their peak. Reading `b_h`
+        and `h_h` together confirms the portfolio split of household wealth between
+        bills and cash, and that `h_h` equals the central bank's cash supply — the
+        watertightness check built into the solver.
   - markdown:
       id: scenario-1-note
       title: Temperature elasticity scenario
       source: This scenario sets `alpha12 = 4` from period 50 onward, matching the alternative experiment in the Florence keynote code.
+      more: |
+        This is the lecture-4 experiment: _"how do key variables behave when the
+        propensity to consume out of income is influenced by an emissions-led
+        increase in temperature?"_ Switching `alpha12` from `0` to `4` activates
+        the term `- alpha12 * (temp - lag(temp))` in the propensity-to-consume
+        equation, so households cut back when the climate is warming quickly.
+
+        Two mechanics of the run are worth keeping in mind. First, the shock targets
+        the **external** parameter `alpha12` only — exactly the kind of lever the
+        notebook engine allows a scenario to pull. Second, a scenario run starts
+        from the **baseline's last-period state**, so cumulative emissions and
+        temperature are already at their end-of-baseline levels when the experiment
+        begins; the interesting comparison is therefore the _path of the response_,
+        not the absolute level of `temp` against the baseline chart.
   - run:
       id: scenario-1-run
       title: "Scenario 1: higher temperature elasticity"
@@ -275,10 +453,38 @@ cells:
         - [alpha1]
       axisSnapTolarance: 0.5
       sourceRunCellId: scenario-1-run
+      more: |
+        Once the feedback is switched on, the propensity to consume `alpha1` drops
+        from its baseline `0.6` to about `0.48`, since rapid warming now subtracts
+        from it. The demand contraction is immediate: GDP `y` falls roughly 16%,
+        from about `105.7` to near `89.7` in the first shock periods, dragging
+        consumption `cons` down with it.
+
+        The effect is not permanent, though, and this is the instructive part. The
+        feedback responds to the _change_ in temperature, `temp - lag(temp)`. As
+        the carbon intensity `beta_e` keeps falling, annual emissions and hence the
+        pace of warming ease off, so the drag on `alpha1` shrinks and the propensity
+        partially recovers (back toward `0.52`). Output and consumption rebound and
+        even edge above their old steady state, while households temporarily hold
+        **more** wealth `v` during the low-consumption phase. The lesson mirrors the
+        lecture's Figure 1: a climate-driven fall in the propensity to consume
+        reshapes the whole macro trajectory, not just the level of emissions.
   - markdown:
       id: appendix-mat-en-note
       title: "Appendix: physical matter and energy accounting"
       source: This appendix follows `8_Mat_En_Tables.R` (Tables 4–5) and the ecological figures in `1_ECO-3IO-PC-Model.R` (Figures 7–10). Matrices are evaluated at the selected simulation period; charts trace reserves, emissions, and temperature over time.
+      more: |
+        Just as the monetary side has a balance sheet and a transactions-flow
+        matrix, the ecosystem has two consistency tables, generated in the lecture
+        by `ECOPC_model_tables.R`. The **physical flow matrix** (Table 4) is the
+        law of conservation of mass and energy for a single period: what enters the
+        economy as matter and energy must leave as emissions, waste, dissipated
+        energy or additions to stock. The **physical stock-flow matrix** (Table 5)
+        is the analogue of a flow-of-funds for the four physical stocks — material
+        reserves, energy reserves, atmospheric CO2 and the socio-economic stock —
+        showing how each opening stock plus the period's flows yields the closing
+        stock. Both tables close to zero, which is the physical counterpart of the
+        watertight monetary accounts.
   - matrix:
       id: physical-flow-matrix
       sourceRunCellId: baseline-run
@@ -299,6 +505,21 @@ cells:
         - [Outputs, Discarded socio-economic stock, -dis, ""]
         - [Outputs, Dissipated energy, "", -en]
         - [Outputs, Change in socio-economic stock, -(kh - lag(kh)), ""]
+      more: |
+        Read this as a mass-and-energy balance for the selected period. In the
+        **matter** column, inputs are extracted matter `mat`, recycled stock `rec`,
+        the carbon mass of the fossil energy burned `cen`, and the oxygen `o2`
+        drawn in to oxidise it; outputs are industrial CO2 `emis`, the discarded
+        socio-economic stock `dis`, and the net build-up of socio-economic stock
+        `kh - lag(kh)`. The column sums to zero: nothing is created or destroyed,
+        only transformed.
+
+        In the **energy** column, renewable `ren` and non-renewable `nen` energy
+        enter and the whole amount is ultimately dissipated as `en` (the first law
+        of thermodynamics — energy is conserved, but degraded). Around period 20,
+        for example, the economy draws in roughly `mat = 87` of matter and uses
+        `en = 966` of energy of which `nen = 822` is fossil, emitting about
+        `emis = 47` of CO2 — the numbers behind the figures below.
   - matrix:
       id: physical-stock-flow-matrix
       sourceRunCellId: baseline-run
@@ -315,6 +536,21 @@ cells:
         - [Flows, Extraction of matter / use of energy, -mat, -nen, "", ""]
         - [Flows, Destruction of socio-economic stock, "", "", "", -dis]
         - [Stock, Final stock, +k_m, +k_e, +co2_cum, +kh]
+      more: |
+        Each column starts from the opening stock (`lag(...)`), adds the period's
+        flows, and lands on the closing stock — and the discrepancy row is zero.
+        The two **reserve** columns reveal a counter-intuitive baseline result:
+        conversion of resources into reserves outruns extraction, so reserves
+        actually _grow_. Around period 20 the matter column adds `conv_m = 193` of
+        new reserves against only `mat = 87` of extraction, lifting `k_m` from about
+        `8323` to `8428`; energy reserves `k_e` rise similarly. With the assumed
+        resource base, scarcity is not the binding constraint in this run.
+
+        The **CO2** column shows the opposite: there is no offsetting outflow, so
+        atmospheric carbon `co2_cum` only accumulates — from about `785` to `832` in
+        that single period. The **socio-economic stock** column nets production of
+        durable goods `x_mat` against discards `dis`, so `kh` keeps building up the
+        material legacy embedded in long-lived consumption goods.
   - chart:
       id: appendix-figure-7-reserves-chart
       title: "Figure 7: matter and energy reserves"
@@ -325,6 +561,13 @@ cells:
       axisMode: shared
       axisSnapTolarance: 0.5
       sourceRunCellId: baseline-run
+      more: |
+        Both reserve stocks rise over the run — matter reserves `k_m` from `6000`
+        to about `16400`, energy reserves `k_e` from `37000` to about `95600` —
+        because the conversion of resources into reserves (`conv_m`, `conv_e`)
+        exceeds annual use. In this baseline the ecosystem's binding problem is the
+        _sink_ side (accumulating CO2 and temperature), not the _source_ side
+        (running out of reserves).
   - chart:
       id: appendix-figure-7-depletion-chart
       title: "Figure 7: reserves depletion rates"
@@ -335,6 +578,13 @@ cells:
       axisMode: shared
       axisSnapTolarance: 0.5
       sourceRunCellId: baseline-run
+      more: |
+        The depletion rates express annual extraction as a percentage of the
+        previous period's reserves, `100 * mat / lag(k_m)` and
+        `100 * nen / lag(k_e)`. Both stay low — peaking around `1.1%` for matter and
+        `1.5%` for energy near period 20 — and then _decline_, because reserves are
+        growing faster than use. The energy rate sits above the matter rate
+        throughout, reflecting the economy's heavier draw on energy than on matter.
   - chart:
       id: appendix-figure-8-chart
       title: "Figure 8: annual CO2 emissions by industry"
@@ -346,6 +596,15 @@ cells:
       axisMode: shared
       axisSnapTolarance: 0.5
       sourceRunCellId: baseline-run
+      more: |
+        Industry emissions decompose total CO2 by sector,
+        `emis_z = eps_en_z * (1 - eta_en_z) * x_z * beta_e`. Manufacturing
+        (`emis2`) is the largest emitter — it has high energy intensity, a low
+        renewable share, and large output — followed by agriculture and then
+        services. Each industry's curve is hump-shaped for the same reason as
+        the aggregate: the falling carbon intensity `beta_e` eventually outweighs
+        the gentle rise in output. This is the breakdown behind Figure 2 of the
+        lecture's emissions experiment.
   - chart:
       id: appendix-figure-9-chart
       title: "Figure 9: total CO2 emissions"
@@ -356,6 +615,13 @@ cells:
       axisMode: separate
       axisSnapTolarance: 0.5
       sourceRunCellId: baseline-run
+      more: |
+        This pairs the **flow** of emissions with the **stock** they accumulate
+        into. Annual emissions `emis` peak near `47` around period 20 and then fall
+        back toward `22`, but cumulative CO2 `co2_cum` rises without pause — past
+        `3400` by period 100 — because a falling _flow_ that stays positive still
+        _adds_ to the stock every period. The dual-axis layout makes the point that
+        slowing emissions is not the same as stabilising the climate.
   - chart:
       id: appendix-figure-10-chart
       title: "Figure 10: atmospheric temperature"
@@ -365,6 +631,14 @@ cells:
       axisMode: separate
       axisSnapTolarance: 0.5
       sourceRunCellId: baseline-run
+      more: |
+        Temperature is a linear function of cumulative emissions,
+        `temp = (tcre / (1 - fnc)) * co2_cum`, so it inherits the steady climb of
+        `co2_cum` and reaches roughly `8.7°C` by period 100. The coefficient
+        bundles the transient climate response `tcre` with the non-CO2 forcing
+        share `fnc`. This is the deliberately simple climate module of the lecture:
+        warming is driven entirely by the carbon the economy has already emitted, so
+        only sustained _negative_ net emissions could bend the curve down.
   - table:
       id: appendix-physical-table
       title: Physical accounting summary
@@ -394,3 +668,12 @@ cells:
         - o2
         - wa
       sourceRunCellId: baseline-run
+      more: |
+        This table gathers every physical variable so you can cross-check the two
+        matrices above at the selected period and watch the conservation identities
+        hold. Two are easy to verify by eye: the waste residual
+        `wa = mat - (kh - lag(kh))` is what is left of extracted matter after the
+        socio-economic stock grows, and the carbon/oxygen split satisfies
+        `emis = cen + o2` for every period. The recycling flow `rec` stays small
+        relative to extraction `mat`, so the economy in this baseline remains
+        heavily dependent on virgin matter rather than on closing the material loop.

@@ -9,7 +9,33 @@ cells:
   - markdown:
       id: intro
       title: Overview
-      source: This notebook presents the Godley and Lavoie DIS model as an executable browser notebook. It focuses on how expected sales, inventory adjustment, bank credit, and household wealth accumulation interact through a stock-flow consistent structure, and includes the baseline model, accounting matrices, and two scenario experiments from the chapter.
+      source: This notebook presents the Godley and Lavoie DIS model as an executable browser notebook. It focuses on how expected sales, inventory adjustment, bank credit, and household wealth accumulation interact through a stock-flow consistent structure, and includes the baseline model, accounting matrices, and three scenario experiments from the chapter.
+      more: |
+        The **DIS** model — Godley & Lavoie's _"model with private bank money,
+        inventories and inflation"_ (_Monetary Economics_, 2007, chapter 9) — is the
+        first model in the book where the economy stops being a frictionless
+        service economy and starts to look like a real production economy. It builds
+        directly on the accounting groundwork of chapter 8 (_"Time, inventories,
+        profits and pricing"_).
+
+        Four new ideas separate DIS from the pure government-money models (SIM, PC):
+
+        - **Production takes time.** Firms must decide how much to produce _before_ they
+          know how much they will sell, so they act on **expected sales** `s_E`.
+        - **Inventories are a buffer.** The gap between what is produced and what is
+          actually sold piles up (or runs down) as **inventories** `inv`. Inventories
+          absorb every forecasting error.
+        - **Private, inside money.** Firms must borrow from **banks** to finance the
+          inventories they carry. Bank lending creates **deposits**, so money is now
+          _endogenous_ inside money, not the government's outside money of SIM.
+        - **Prices, profits and inflation.** Firms set prices as a markup (the costing
+          margin `phi`) over a **normal historic unit cost**, so the model now has a
+          genuine price level, entrepreneurial profits `EF`, and bank profits `EFb`.
+
+        Every income flow — wages, both kinds of profit, and interest on deposits — ends
+        up with households, who decide real consumption and accumulate wealth as bank
+        deposits. The accounting still closes watertight: the supply of deposits equals
+        the demand for them (`Mh = Ms`), which is the model's redundant equation.
   - matrix:
       id: balance-sheet
       accountingKind: balance-sheet
@@ -30,6 +56,27 @@ cells:
         - [Inventories, Inventories, "", +INV, "", +INV]
         - [Balance, Balance, -Mh, "", "", -Mh]
         - [Sum, Sum, "0", "0", "0", "0"]
+      more: |
+        This is the DIS **balance sheet** (Table 9.1 in Godley & Lavoie). Compared with
+        SIM it has two assets instead of one, because money is now created by private
+        bank lending:
+
+        - **Households** hold their entire wealth as bank **deposits** `+Mh` — there is no
+          government money in this model.
+        - **Production firms** own **inventories** `+INV` (valued at cost) and owe **loans**
+          `-Ld` to the banks. Inventories are the only tangible asset in the economy.
+        - **Banks** hold the loans as assets `+Ls` and owe the deposits `-Ms`. Banks have
+          no net worth of their own: they simply intermediate.
+
+        Reading across, each row sums to zero, and two tight identities hold in the solved
+        baseline: loans exactly finance inventories (`Ld = Ls = INV ≈ 8.97`), and deposits
+        equal loans (`Mh = Ms ≈ 8.97`). So household financial wealth is, in the end,
+        the cost value of the goods sitting in firms' warehouses. The **balance row**
+        `-Mh` closes the household column, recording money deposits as net worth.
+
+        The contrast with SIM is the whole point of chapter 9: there money was a
+        government liability (**outside money**); here it is a banking-system liability
+        created by credit (**inside money**).
   - matrix:
       id: transaction-flow
       accountingKind: transaction-flow
@@ -50,6 +97,31 @@ cells:
         - [Loans, Change loans, "", "", +d(Ld), "", -d(Ls), "0"]
         - [Deposits, Change deposits, -d(Mh), "", "", "", +d(Ms), "0"]
         - [Sum, Sum, "0", "0", "0", "0", "0", "0"]
+      more: |
+        The **transactions-flow matrix** (Table 9.3 in Godley & Lavoie) is where the
+        DIS model's stock-flow consistency is enforced. Following the chapter 8
+        convention, firms and banks each get **two columns** — a _current_ account (income
+        and spending) and a _capital_ account (financing). As always every row sums to
+        zero (each flow has a payer and a payee) and every column sums to zero (each
+        account's budget constraint).
+
+        Three features are new relative to SIM:
+
+        - **Inventory investment is financed.** The change in inventories `d(INV)` appears
+          as income on firms' current account but as an outlay on their capital account,
+          and that capital outlay is funded by **new loans** `d(Ld)`. Building stock
+          requires borrowing.
+        - **Two layers of profit.** Entrepreneurial profits `EF` flow from firms' current
+          account to households, and bank profits `EFb` flow from banks to households. In
+          DIS _all_ profit is distributed — there are no retained earnings beyond the
+          inventory finance itself.
+        - **Interest flows both ways.** Households earn interest on deposits
+          (`rm[-1] * Mh[-1]`) while firms pay interest on loans (`rl[-1] * Ld[-1]`); the
+          banks pocket the spread. Note these use _last period's_ rates and stocks.
+
+        The two bottom rows, the change in **loans** and the change in **deposits**, are
+        where the flows turn back into stocks: new lending to finance inventories is
+        exactly matched by the new deposits households accumulate as saving.
   - sequence:
       id: transaction-flow-sequence
       title: DIS transaction flow sequence
@@ -57,6 +129,14 @@ cells:
         kind: matrix
         matrixCellId: transaction-flow
       description: Sequence view of the DIS transactions-flow matrix, showing how spending, income, and financial positions propagate through the selected period.
+      more: |
+        This reads the transactions-flow matrix **column by column**, as the budget
+        identity of each account in turn. It traces the within-period money circuit:
+        firms borrow to produce and carry inventories, pay wages, and distribute profits;
+        banks intermediate loans into deposits and earn the interest spread; households
+        receive wages, profits and deposit interest, consume, and bank the rest as new
+        deposits. Whatever households save shows up one-for-one as the new bank money that
+        financed the period's extra inventories.
   - equations:
       id: equations
       title: DIS model
@@ -93,6 +173,41 @@ cells:
         - [mh, Mh / p, "Real household wealth."]
         - [c, alpha0 + alpha1 * ydhs_E + alpha2 * lag(mh), "Real consumption demand."]
         - [ydhs_E, epsilon * lag(ydhs) + (1 - epsilon) * lag(ydhs_E), "Expected Haig-Simons disposable income."]
+      more: |
+        These equations are model DIS as written in Godley & Lavoie chapter 9. They fall
+        into four blocks that mirror the decisions firms, banks and households make in
+        sequence.
+
+        **Production decision.** Because output must be set before sales are known, firms
+        produce to meet expected sales _plus_ the inventory change they plan:
+        `y = s_E + inv_E - lag(inv)`. Desired inventories track expected sales,
+        `inv_T = sigma_T * s_E`, and firms close only a fraction `gamma` of the gap each
+        period (`inv_E`). **Realized** inventories then absorb the forecasting error:
+        `inv = lag(inv) + (y - s)` — whatever is produced but not sold piles up. Sales
+        expectations are adaptive (`s_E`), and unit cost is `UC = WB / y`.
+
+        **Pricing decision.** Firms mark up a **normal historic unit cost**:
+        `p = (1 + phi) * NHUC`, where `NHUC = (1 - sigma_T) * UC + sigma_T * (1 + lag(rl)) * lag(UC)`.
+        The second term is what makes interest a _cost_: carrying inventories from last
+        period ties up borrowed funds, so the loan rate enters the price. Entrepreneurial
+        profit is `EF = S - WB + (INV - lag(INV)) - lag(rl) * lag(INV)`.
+
+        **Banking system.** Loans finance inventories exactly (`Ld = INV`), the banks
+        supply whatever is demanded (`Ls = Ld`, `Ms = Ls`), the deposit rate sits a fixed
+        spread below the loan rate (`rm = rl - add`), and bank profit is the spread earned
+        on last period's stocks (`EFb`).
+
+        **Consumption decision.** Households receive `YD = WB + EF + EFb + lag(rm) * lag(Mh)`
+        and accumulate deposits `Mh = lag(Mh) + YD - C`. The behavioural core is the
+        consumption function `c = alpha0 + alpha1 * ydhs_E + alpha2 * lag(mh)`, driven by
+        **expected real disposable income** and **lagged real wealth**. A key subtlety is
+        the **Haig-Simons** measure `ydhs = c + (mh - lag(mh))`: real disposable income is
+        consumption plus the _real_ change in wealth, so when prices jump and erode real
+        balances `mh = Mh / p`, measured real income falls even if nominal income does not.
+
+        As in every G&L model there is one **redundant equation**: the supply of deposits
+        equals the demand for them, `Mh = Ms`. It is never imposed — it emerges, and the
+        solver checks it (see the solver note).
   - solver:
       id: solver
       title: Solver
@@ -106,6 +221,20 @@ cells:
       hiddenRightVariable: Ms
       hiddenTolerance: "0.00001"
       relativeHiddenTolerance: false
+      more: |
+        DIS is solved period by period with Gauss-Seidel iteration. The many **lagged**
+        terms — last period's inventories, sales and income expectations, unit cost, and
+        interest-bearing stocks — are known when each period starts, which keeps the
+        within-period system free of impossible same-period cycles and lets it be solved
+        simultaneously for current flows and end-of-period stocks.
+
+        The **hidden variables** `Mh` (left) and `Ms` (right) implement the
+        redundant-equation check. The equality `Mh = Ms` — household deposits equal the
+        deposits banks create against their loans — is _not_ used to find the solution.
+        Instead the solver verifies, to tolerance `hiddenTolerance`, that the
+        independently computed demand for and supply of deposits agree every period. If
+        they ever diverged the model's accounting would be leaking, so this is the
+        numerical embodiment of stock-flow consistency in a credit economy.
   - externals:
       id: externals-equations
       title: Externals
@@ -124,12 +253,40 @@ cells:
         - [gamma, 0.25, "Speed of inventory adjustment."]
         - [phi, 0.25, "Costing margin."]
         - [sigma_T, 0.15, "Target inventory-to-sales ratio."]
+      more: |
+        These are the exogenous parameters of DIS, set to the values used in Godley &
+        Lavoie chapter 9. They split into policy/technology variables and behavioural
+        speeds:
+
+        - `rl` = 0.025 — the loan interest rate, the model's monetary-policy lever
+          (shocked in Scenario 3). The deposit rate follows as `rm = rl - add`.
+        - `add` = 0.02 — the fixed banking spread between loan and deposit rates.
+        - `W` = 0.75, `pr` = 1 — the money wage and labour productivity, so unit cost is
+          `UC = W / pr = 0.75` whenever output is produced.
+        - `phi` = 0.25 — the **costing margin** firms add over normal historic unit cost
+          (shocked in Scenario 1).
+        - `sigma_T` = 0.15 — the **target inventory-to-sales ratio** (shocked in
+          Scenario 2).
+        - `alpha0` = 15, `alpha1` = 0.8, `alpha2` = 0.1 — autonomous consumption, the
+          propensity to consume out of expected real income, and the propensity to consume
+          out of real wealth.
+        - `beta`, `epsilon` = 0.75 — the adjustment speeds of sales and income
+          expectations; `gamma` = 0.25 — the speed of inventory adjustment toward target.
+
+        With these numbers the baseline settles at a stationary real output of about
+        `79.77` and a price level of about `0.941`.
   - initial-values:
       id: initial-values-equations
       title: Initial values
       modelId: equations
       collapsed: true
       rows: []
+      more: |
+        No explicit starting stocks are set: the baseline begins from effectively empty
+        inventories and deposits and lets the model build them up. Godley & Lavoie note
+        that the path away from such a "cold start" is transitory — the stationary state
+        DIS converges to is independent of where it begins, so the early periods show the
+        economy assembling its inventories, loans and deposits from scratch.
   - run:
       id: baseline-run
       title: Baseline run
@@ -138,6 +295,21 @@ cells:
       periods: 100
       resultKey: gl6_dis_baseline
       sourceModelId: equations
+      more: |
+        The baseline runs the model forward for 100 periods from empty stocks. Because the
+        economy has to assemble its inventories, loans and deposits from nothing, the early
+        periods show large swings — realized inventories even go negative on impact as
+        sales briefly outrun the cautiously forecast output — before everything settles
+        into a **stationary state**.
+
+        In that steady state the real quantities all line up: output, sales, real
+        consumption and real disposable income converge to about `y = s = c = ydhs ≈ 79.77`,
+        and the price level settles at `p ≈ 0.941` (with unit cost pinned at
+        `UC = W / pr = 0.75`). The financial side closes neatly too: real inventories
+        settle near `inv ≈ 11.97`, and the cost value of those inventories equals the
+        loans financing them and the deposits households hold,
+        `INV = Ld = Mh ≈ 8.97`, while real wealth is `mh = Mh / p ≈ 9.54`. This is the
+        long-run resting point against which the three scenarios are measured.
   - chart:
       id: baseline-chart
       title: Baseline headline variables
@@ -152,6 +324,15 @@ cells:
         p:
           includeZero: true
       sourceRunCellId: baseline-run
+      more: |
+        The headline real series — Haig-Simons real disposable income `ydhs` and real
+        consumption `c` — rise out of the cold start and converge together to about
+        `79.77`. They _coincide_ in the steady state because, once real wealth `mh` stops
+        changing, the Haig-Simons identity `ydhs = c + (mh - lag(mh))` collapses to
+        `ydhs = c`. The price level `p` climbs to its stationary `0.941`, and the nominal
+        deposit stock `Mh` accumulates to about `8.97`. The early wobble reflects firms
+        learning their sales: expectations and inventories overshoot and correct before the
+        model finds its rest.
   - table:
       id: baseline-table
       title: Baseline variable summary
@@ -163,10 +344,24 @@ cells:
         - Mh
         - INV
       sourceRunCellId: baseline-run
+      more: |
+        The table makes the stationary state concrete. In the closing rows the real
+        quantities `y`, `ydhs` and `c` all sit at about `79.77`, the price level holds at
+        `0.941`, and the two financial stocks coincide at `Mh = INV ≈ 8.97`. That last
+        equality is the economic content of the `Mh = Ms` closure: the money households
+        hold is exactly the cost value of the inventories that bank credit financed.
+        Nominal inventories satisfy `INV = inv * UC ≈ 11.97 * 0.75`.
   - markdown:
       id: scenario-1-note
       title: Scenario 1
       source: Scenario 1 raises the costing margin `phi` from 0.25 to 0.35 between periods 5 and 40.
+      more: |
+        Scenario 1 reproduces Godley & Lavoie's **costing-margin experiment**: firms become
+        more aggressive in their pricing, lifting the markup `phi` from `0.25` to `0.35`.
+        Because the price is `p = (1 + phi) * NHUC`, a higher margin feeds straight into a
+        higher price level. The interesting question chapter 9 poses is what this does to
+        _real_ income — and the answer turns on how the price jump interacts with
+        households' money balances and the distribution between wages and profits.
   - run:
       id: scenario-1-run
       title: "Scenario 1: costing margin shock"
@@ -184,6 +379,12 @@ cells:
       periods: 40
       resultKey: gl6_dis_s1
       sourceModelId: equations
+      more: |
+        The scenario starts from the baseline's stationary state and steps `phi` up to
+        `0.35` from period 5. Since only the margin changes, the experiment isolates the
+        effect of a pure markup increase. Unit cost `UC` is untouched (it stays at `0.75`),
+        so the entire price response comes through the markup, and the entire real response
+        comes through how that price change is absorbed.
   - chart:
       id: scenario-1-chart
       title: Scenario 1 consumption and income
@@ -197,10 +398,31 @@ cells:
         p:
           includeZero: true
       sourceRunCellId: scenario-1-run
+      more: |
+        The price level jumps immediately, from `0.941` to about `1.016` (`+8%`), the moment
+        the higher markup takes effect, and the redistribution toward profits is sharp:
+        entrepreneurial profit `EF` leaps from about `15.0` to about `20.9`.
+
+        The real story is more subtle, and it is the point Godley & Lavoie make. On impact
+        the price jump erodes the **real value of households' money**: nominal `Mh` is
+        predetermined, so `mh = Mh / p` drops from about `9.54` to `8.83`. The Haig-Simons
+        measure books that capital loss, so **real disposable income `ydhs` dips sharply**
+        in the shock period (to about `79.06`) before recovering. Real consumption `c`,
+        which depends on _expected_ income and _lagged_ wealth, only responds with a lag
+        and then drifts down. The economy settles at a slightly **lower** real level
+        (`c ≈ ydhs ≈ 79.39`): a higher markup is mildly contractionary in real terms while
+        permanently raising prices and the profit share.
   - markdown:
       id: scenario-2-note
       title: Scenario 2
       source: Scenario 2 raises the target inventories-to-sales ratio `sigma_T` from 0.15 to 0.25 between periods 5 and 50.
+      more: |
+        Scenario 2 is Godley & Lavoie's **inventory-target experiment**: firms decide to
+        hold more stock relative to sales, raising `sigma_T` from `0.15` to `0.25`. Desired
+        inventories `inv_T = sigma_T * s_E` jump up, and to build them firms must
+        temporarily produce above sales. The chapter uses this to show that a change in a
+        purely _real_ buffer-stock target ripples all the way through to bank credit,
+        household wealth and consumption.
   - run:
       id: scenario-2-run
       title: "Scenario 2: inventory target shock"
@@ -218,6 +440,12 @@ cells:
       periods: 50
       resultKey: gl6_dis_s2
       sourceModelId: equations
+      more: |
+        Starting from the baseline steady state, `sigma_T` steps up to `0.25` from period 5.
+        The target inventory stock `inv_T` immediately rises from about `11.97` to `19.94`
+        (a quarter of expected sales instead of a sixth), and firms begin closing that gap
+        at speed `gamma`, producing more than they sell until inventories reach the new
+        target.
   - chart:
       id: scenario-2-chart
       title: Scenario 2 inventories and income
@@ -234,6 +462,100 @@ cells:
         inv_E:
           includeZero: true
       sourceRunCellId: scenario-2-run
+      more: |
+        The extra production needed to build inventories raises output on impact (`y` jumps
+        to about `81.8` in period 5) and real inventories climb steadily from `11.97`
+        toward about `20.84`. But the experiment is **expansionary in the long run too**,
+        not just transitionally. The chain runs through the financial side: bigger
+        inventories need bigger loans (`Ld = INV`), which create more deposits, so
+        households' nominal wealth `Mh` rises from about `8.97` to `15.63`. Richer
+        households consume more through the `alpha2 * lag(mh)` term, so real consumption and
+        income settle at a permanently higher `c ≈ ydhs ≈ 83.3`. The price level barely
+        moves (it edges up to `0.943`, as the higher `sigma_T` puts a touch more weight on
+        the interest-carrying historic cost in `NHUC`).
+  - markdown:
+      id: scenario-3-note
+      title: Scenario 3
+      source: Scenario 3 raises the interest rate on loans `rl` from 0.025 to 0.05 between periods 5 and 60.
+      more: |
+        Scenario 3 is Godley & Lavoie's **monetary-policy experiment**: the central bank
+        doubles the loan rate `rl` from `0.025` to `0.05`. In this model interest is not
+        only a financial flow but a genuine **cost of production**, because firms borrow to
+        carry inventories and that interest charge enters the normal historic unit cost
+        `NHUC`. The experiment asks whether tighter money is contractionary, neutral, or —
+        through the cost channel — even inflationary.
+  - run:
+      id: scenario-3-run
+      title: "Scenario 3: interest rate shock"
+      mode: scenario
+      scenario:
+        shocks:
+          - rangeInclusive:
+              - 5
+              - 60
+            variables:
+              rl:
+                kind: constant
+                value: 0.05
+      baselineRunCellId: baseline-run
+      periods: 60
+      resultKey: gl6_dis_s3
+      sourceModelId: equations
+      more: |
+        From the baseline steady state, `rl` steps up to `0.05` from period 5. Two things
+        follow mechanically. The deposit rate moves one-for-one — `rm = rl - add` rises from
+        `0.005` to `0.03` — because the banking spread `add` is fixed. And the higher loan
+        rate raises the interest cost of carrying last period's inventories, which feeds
+        into `NHUC` (and hence the price) with a one-period lag.
+  - chart:
+      id: scenario-3-chart
+      title: Scenario 3 prices, profits, and income
+      variables:
+        - p
+        - ydhs
+        - c
+        - rm
+      axisMode: separate
+      axisSnapTolarance: 0.5
+      seriesRanges:
+        p:
+          includeZero: true
+        rm:
+          includeZero: true
+      sourceRunCellId: scenario-3-run
+      more: |
+        The clearest response is in **prices**: one period after the rate rises, `p` steps
+        up from `0.941` to about `0.9445`, because the higher loan rate flows through the
+        interest-carrying term of `NHUC` (which climbs from `0.7528` to `0.7556`). This is
+        the chapter's **interest cost-push** result — tighter money is _inflationary_ here,
+        not disinflationary, since interest is a business cost.
+
+        The **real** effects, by contrast, are tiny. Real consumption `c` and Haig-Simons
+        income `ydhs` barely move from their baseline `79.77`, settling around `79.75`.
+        Households are nearly compensated: the deposit rate `rm` jumps to `0.03`, so they
+        earn much more interest on their balances, roughly offsetting the slightly higher
+        prices. In this model an interest-rate change is close to **real-neutral** while
+        clearly raising the price level.
+  - table:
+      id: scenario-3-table
+      title: Scenario 3 variable summary
+      variables:
+        - rl
+        - rm
+        - p
+        - NHUC
+        - EFb
+        - ydhs
+        - Mh
+      sourceRunCellId: scenario-3-run
+      more: |
+        The table lines up the pass-through. `rl` doubles to `0.05` and `rm` tracks it
+        exactly a fixed `0.02` below at `0.03`. One period later `NHUC` and `p` step up
+        together. Notably **bank profit `EFb` is essentially unchanged** (about `0.18`):
+        because the spread `add` is fixed, bank profit is roughly `add` times the deposit
+        stock, so doubling the _level_ of rates leaves it almost untouched. Household
+        income `ydhs` and the deposit stock `Mh` are likewise nearly flat — the signature
+        of an almost real-neutral, purely inflationary shock.
   - sequence:
       id: equation-dependency-graph
       title: DIS equation dependency graph
@@ -246,3 +568,15 @@ cells:
       description: Dependency view of the DIS equations, highlighting how expected sales, inventories, pricing, bank credit, and household income feed back through the model over time.
       note: Use this alongside the transactions-flow matrix to connect the accounting structure with the model's dynamic adjustment mechanisms.
       collapsed: true
+      more: |
+        This graph lays out how the DIS equations feed one another within and across
+        periods. The dynamic spine runs through the **lagged** links: adaptive sales
+        expectations `s_E` and income expectations `ydhs_E` carry information forward,
+        realized inventories `inv` accumulate the production-minus-sales gap, and the
+        interest-carrying term in `NHUC` links last period's rate and cost to today's
+        price. Following the arrows shows the model's two feedback loops — the **real**
+        loop (expected sales drive production and inventories, which feed back into
+        sales expectations) and the **financial** loop (inventories drive loans, loans
+        create deposits, deposits become wealth, and wealth drives consumption and hence
+        sales). Reading it next to the transactions-flow matrix connects the accounting
+        identities to these adjustment mechanisms.

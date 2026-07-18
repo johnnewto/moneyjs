@@ -105,7 +105,8 @@ describe("canonical YAML notebook templates", () => {
     expect(compactYaml).toContain('        - [Ls, lag(Ls) + d(Ld) * dt, "Supply of bank loans", $, stock, accumulation]');
     expect(compactYaml).toContain('        - [alpha0, 20, "Exogenous component in consumption", $/year, aux]');
     expect(compactYaml).toContain("      rows: []");
-    expect(compactYaml).not.toContain("      source: |");
+    expect(compactYaml).toContain("      source: |");
+    expect(compactYaml).toContain("      more: |");
     expect(compactYaml).not.toContain("      values:");
     expect(compactYaml).toContain("  - matrix:");
     expect(compactYaml).toContain("      columns: [Households, Firms_current, Firms_capital, Banks_current, Banks_capital, Sum]");

@@ -422,7 +422,7 @@ describe("App notebook navigation and inspection", () => {
     }
 
     await user.click(
-      within(scenarioArticle).getByRole("button", { name: /^Inspect variable alpha0$/i })
+      within(scenarioArticle).getAllByRole("button", { name: /^Inspect variable alpha0$/i })[0]
     );
 
     expect(screen.getByText("Selected variable")).toBeInTheDocument();

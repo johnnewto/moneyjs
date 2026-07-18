@@ -35,6 +35,7 @@ describe("PublicationTable", () => {
     expect(screen.getByRole("columnheader", { name: "Equation" })).toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: /Period/i })).not.toBeInTheDocument();
     expect(screen.getByRole("rowheader", { name: "Y" })).toBeInTheDocument();
-    expect(screen.getAllByText("α").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Cs").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Is").length).toBeGreaterThan(0);
   });
 });

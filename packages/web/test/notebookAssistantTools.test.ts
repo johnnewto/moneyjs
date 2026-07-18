@@ -107,7 +107,7 @@ describe("notebook assistant tools", () => {
         expect.objectContaining({
           id: "baseline-chart",
           sourceRunCellId: "baseline-newton",
-          variables: ["Y", "Cd", "Mh", "W"]
+          variables: ["Y", "YD", "Cd", "Id", "W"]
         })
       ])
     );
