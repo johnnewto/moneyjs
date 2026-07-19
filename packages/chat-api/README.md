@@ -115,7 +115,7 @@ curl -sI "$(echo "$SHORT" | sed -n 's/.*"shortUrl":"\([^"]*\)".*/\1/p')"
 # Expected: HTTP/2 302 and Location: https://johnnewto.github.io/moneyjs/notebook?nbz=test
 ```
 
-`503` with `SHARE_LINKS is not configured` means the KV binding is missing. Short links open on the **Worker** host and redirect to GitHub Pages (or a future Pages/custom domain). Share URLs (and compressed `nbz` payloads) are capped at 128,000 characters; shortening does not raise that limit.
+`503` with `SHARE_LINKS is not configured` means the KV binding is missing. Short links open on the **Worker** host and redirect to GitHub Pages or Cloudflare Pages (or a future custom domain). Share URLs (and compressed `nbz` payloads) are capped at 128,000 characters; shortening does not raise that limit.
 
 If you previously used TinyURL, remove the unused Worker secret:
 
@@ -159,17 +159,19 @@ For production, set:
 - `BETA_PASSWORD`: optional Cloudflare secret. When set, browser requests must include the matching beta password.
 - `SHARE_LINKS`: Cloudflare KV namespace binding in `wrangler.toml` for notebook share short links.
 - `SHORT_LINK_BASE_URL`: optional var. When set, minted short URLs use this origin instead of the Worker request origin.
-- `ALLOWED_ORIGINS`: comma-separated allowed browser origins, for example `https://johnnewto.github.io`.
+- `ALLOWED_ORIGINS`: comma-separated allowed browser origins, for example `https://johnnewto.github.io,https://moneyjs.pages.dev`.
 - `DISCOVERY_ALLOWED_ORIGINS`: comma-separated allowed origins for public discovery bundles. Defaults to `ALLOWED_ORIGINS` when unset.
 - `MAX_OUTPUT_TOKENS`: output token cap for each OpenAI response. Defaults to `8000`.
 - `OPENAI_MODEL_ALLOWLIST`: comma-separated model ids accepted by the proxy, for example `gpt-5.4-mini,gpt-5.4,gpt-4.1,gpt-5.5,o3`.
 - `CHAT_BUILDER_RATE_LIMITER`: Cloudflare Workers Rate Limiting binding configured in `wrangler.toml` as 10 requests per minute per rate-limit key.
 
-Configure GitHub Pages builds with:
+Configure GitHub Pages and Cloudflare Pages builds with the same repository variable:
 
 ```text
 VITE_NOTEBOOK_ASSISTANT_API_URL=https://sfcr-chat-api.<account>.workers.dev/v1/notebook-assistant/ask
 ```
+
+Both static hosts share this Worker. Short links mint on the Worker and redirect to whichever long MoneyJS URL was shortened.
 
 The Worker only fetches notebook discovery bundles from trusted origins. Discovery resources are capped at 250 KB each, example loading is capped at five unique examples, and the assembled discovery bundle is capped at 1 MB. Public discovery resources are cached for 10 minutes when Cloudflare's default cache is available.
 

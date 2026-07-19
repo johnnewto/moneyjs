@@ -1,4 +1,4 @@
-name: Deploy GitHub Pages
+name: Deploy Cloudflare Pages
 
 on:
   push:
@@ -6,22 +6,19 @@ on:
       - main
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
 concurrency:
-  group: pages
+  group: cloudflare-pages
   cancel-in-progress: true
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     env:
-      VITE_BASE_PATH: /moneyjs/
+      VITE_BASE_PATH: /
       VITE_NOTEBOOK_ASSISTANT_API_URL: ${{ vars.VITE_NOTEBOOK_ASSISTANT_API_URL }}
       VITE_CHAT_BUILDER_API_URL: ${{ vars.VITE_CHAT_BUILDER_API_URL }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -41,21 +38,5 @@ jobs:
       - name: Build application
         run: pnpm build
 
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: packages/web/dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Deploy to Cloudflare Pages
+        run: pnpm dlx wrangler pages deploy packages/web/dist --project-name=moneyjs --branch=main

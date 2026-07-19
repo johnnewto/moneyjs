@@ -2,7 +2,10 @@
 
 `sfcr` is now centered on a **browser-first TypeScript implementation** for building and running stock-flow consistent (SFC) models.
 
-Live app: [https://johnnewto.github.io/moneyjs/](https://johnnewto.github.io/moneyjs/)
+Live app:
+
+- GitHub Pages: [https://johnnewto.github.io/moneyjs/](https://johnnewto.github.io/moneyjs/)
+- Cloudflare Pages: [https://moneyjs.pages.dev/](https://moneyjs.pages.dev/)
 
 The main product surface lives in:
 
@@ -106,18 +109,24 @@ For a GitHub Pages deployment, build the app with the repository base path:
 VITE_BASE_PATH=/moneyjs/ pnpm web:build
 ```
 
-To enable the in-notebook assistant on GitHub Pages, point the static frontend at the Cloudflare Worker proxy:
+For a Cloudflare Pages deployment (root path on `moneyjs.pages.dev`):
+
+```bash
+VITE_BASE_PATH=/ pnpm web:build
+```
+
+To enable the in-notebook assistant on either static host, point the frontend at the Cloudflare Worker proxy:
 
 ```bash
 VITE_BASE_PATH=/moneyjs/ VITE_NOTEBOOK_ASSISTANT_API_URL=https://sfcr-chat-api.<account>.workers.dev/v1/notebook-assistant/ask pnpm web:build
 ```
 
-Equivalent root script:
+Equivalent root scripts:
 
 ```bash
 pnpm web:build:pages
+pnpm web:build:cloudflare
 ```
-
 ## Testing And Typechecking
 
 Workspace-level checks:
@@ -173,7 +182,9 @@ Opening the link loads the notebook as an imported variant. If a cell is selecte
 Production requires both:
 
 1. `SHARE_LINKS` KV binding on the chat API Worker (see [Chat API](#chat-api))
-2. GitHub Pages build var `VITE_NOTEBOOK_ASSISTANT_API_URL` or `VITE_CHAT_BUILDER_API_URL` pointing at the deployed Worker
+2. Static-host build var `VITE_NOTEBOOK_ASSISTANT_API_URL` or `VITE_CHAT_BUILDER_API_URL` pointing at the deployed Worker (same vars for GitHub Pages and Cloudflare Pages)
+
+Short links mint on the Worker host and `302` to whichever long MoneyJS URL was shortened (GitHub Pages or Cloudflare Pages).
 
 Local development:
 
@@ -190,15 +201,30 @@ On `localhost`, the web app uses `http://localhost:8787` for shortening without 
 
 More detail: `packages/chat-api/README.md` (Notebook share shortening section).
 
-## GitHub Pages
+## Static hosting (GitHub Pages and Cloudflare Pages)
 
-This repository is configured to deploy the browser app to:
-[https://johnnewto.github.io/moneyjs/](https://johnnewto.github.io/moneyjs/)
+This repository deploys the browser app to both:
 
-The GitHub Actions workflow in `.github/workflows/deploy-pages.yml` publishes `packages/web/dist` whenever `main` is updated.
+- [https://johnnewto.github.io/moneyjs/](https://johnnewto.github.io/moneyjs/) (`VITE_BASE_PATH=/moneyjs/`)
+- [https://moneyjs.pages.dev/](https://moneyjs.pages.dev/) (`VITE_BASE_PATH=/`)
 
-If the repository name changes, update the `VITE_BASE_PATH` value in that workflow so it matches the new Pages path.
+Both workflows run on pushes to `main` (and `workflow_dispatch`):
+
+- `.github/workflows/deploy-pages.yml` — GitHub Pages
+- `.github/workflows/deploy-cloudflare-pages.yml` — Cloudflare Pages project `moneyjs`
+
+If the GitHub repository name changes, update the `VITE_BASE_PATH` value in the GitHub Pages workflow so it matches the new Pages path.
 Also update `packages/web/public/404.html`; GitHub Pages uses that file to redirect direct deep links such as `/moneyjs/notebook/sim` or `/moneyjs/publish/italy-sfc` back into the browser app (as `/#/notebook/...` or `/#/publish/...`, which the client restores to real pathnames).
+
+Cloudflare Pages uses `packages/web/public/_redirects` (`/* → /index.html` with status 200) for History-API deep links. GitHub Pages ignores `_redirects`.
+
+### One-time Cloudflare Pages setup
+
+1. Create a Cloudflare API token with Pages edit and Account read permissions.
+2. Add GitHub Actions secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
+3. Set repository variable `VITE_NOTEBOOK_ASSISTANT_API_URL` (or `VITE_CHAT_BUILDER_API_URL`) to the Worker ask URL — both static deploy workflows read these vars.
+4. After updating Worker allowlists, redeploy the Worker: `pnpm --filter @sfcr/chat-api run deploy`.
+5. First successful Cloudflare Pages deploy creates project `moneyjs`; confirm at `https://moneyjs.pages.dev/`.
 
 ### Chat API
 
@@ -237,14 +263,13 @@ pnpm dlx wrangler secret put OPENAI_API_KEY
 pnpm dlx wrangler secret put BETA_PASSWORD   # optional
 ```
 
-Point GitHub Pages builds at the Worker (repository variable or workflow env):
+Point both static-host builds at the Worker (repository variable or workflow env):
 
 ```text
 VITE_NOTEBOOK_ASSISTANT_API_URL=https://sfcr-chat-api.<account>.workers.dev/v1/notebook-assistant/ask
 ```
 
-The Worker streams OpenAI Responses API events to the browser, caps each response with `MAX_OUTPUT_TOKENS`, and accepts only allowlisted origins and models. Configure `ALLOWED_ORIGINS`, `MAX_OUTPUT_TOKENS`, and `OPENAI_MODEL_ALLOWLIST` in `packages/chat-api/wrangler.toml` or Cloudflare. `wrangler.toml` also defines a Cloudflare Workers Rate Limiting binding for 10 requests per minute per rate-limit key, plus the `SHARE_LINKS` KV binding used by notebook share shortening.
-
+The Worker streams OpenAI Responses API events to the browser, caps each response with `MAX_OUTPUT_TOKENS`, and accepts only allowlisted origins and models. Configure `ALLOWED_ORIGINS`, `MAX_OUTPUT_TOKENS`, and `OPENAI_MODEL_ALLOWLIST` in `packages/chat-api/wrangler.toml` or Cloudflare. Production allowlists include `https://johnnewto.github.io` and `https://moneyjs.pages.dev`. `wrangler.toml` also defines a Cloudflare Workers Rate Limiting binding for 10 requests per minute per rate-limit key, plus the `SHARE_LINKS` KV binding used by notebook share shortening.
 ### AI Discovery Endpoints
 
 The browser app publishes AI-facing notebook authoring resources for browser-based tools such as ChatGPT or Claude.
