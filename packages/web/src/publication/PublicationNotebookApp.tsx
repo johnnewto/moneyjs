@@ -52,7 +52,10 @@ import {
 import { buildPublicationVariableDescriptions } from "./publicationVariables";
 import { PublicationVariableInspectorPopup } from "./PublicationVariableInspectorPopup";
 import { PublicationMatrixGraphPopup } from "./PublicationMatrixGraphPopup";
-import { hasNotebookShareSearch } from "../notebook/notebookShareLink";
+import {
+  hasNotebookShareSearch,
+  resolveNotebookShareLinkToCopy
+} from "../notebook/notebookShareLink";
 import {
   readPublicationLiveReturnUrl,
   readPublicationLiveSession
@@ -570,11 +573,16 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
       return { ok: false, message: result.error };
     }
 
+    const shareLink = await resolveNotebookShareLinkToCopy(result.url);
+    const linkLengthLabel = shareLink.url.length.toLocaleString();
+
     try {
-      await navigator.clipboard.writeText(result.url);
+      await navigator.clipboard.writeText(shareLink.url);
       return {
         ok: true,
-        message: `Copied publish share link (${result.url.length.toLocaleString()} characters).`
+        message: shareLink.shortened
+          ? `Copied short publish share link (${linkLengthLabel} characters).`
+          : `Copied publish share link (${linkLengthLabel} characters).`
       };
     } catch {
       return { ok: false, message: "Could not copy share link to the clipboard." };

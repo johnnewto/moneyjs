@@ -65,6 +65,23 @@ describe("chat API notebook share shortening", () => {
     expect(stored.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
+  it("accepts publish-view share URLs", async () => {
+    const longUrl = "https://johnnewto.github.io/moneyjs/publish/live?nbz=compressed";
+    const shareLinks = createMemoryKv();
+    const response = await worker.fetch(createShareShortenRequest(longUrl), {
+      ...env,
+      SHARE_LINKS: shareLinks
+    });
+
+    const payload = (await response.json()) as { shortUrl?: string };
+    expect(response.status).toBe(200);
+    expect(payload.shortUrl).toMatch(/^https:\/\/sfcr-chat-api\.example\/s\/[A-Za-z0-9]{8}$/);
+
+    const code = payload.shortUrl!.split("/").pop()!;
+    const stored = JSON.parse((await shareLinks.get(code))!) as { url: string };
+    expect(stored.url).toBe(longUrl);
+  });
+
   it("uses SHORT_LINK_BASE_URL when configured", async () => {
     const longUrl = "https://johnnewto.github.io/moneyjs/notebook?nbz=compressed";
     const response = await worker.fetch(createShareShortenRequest(longUrl), {

@@ -691,7 +691,7 @@ function validateNotebookShareShortenRequest(
 }
 
 function isNotebookShareRouteUrl(shareUrl: URL): boolean {
-  if (shareUrl.pathname.includes("/notebook")) {
+  if (shareUrl.pathname.includes("/notebook") || shareUrl.pathname.includes("/publish")) {
     return true;
   }
 
