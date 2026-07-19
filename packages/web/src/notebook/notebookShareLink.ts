@@ -59,6 +59,25 @@ function parseNotebookShareHash(hash: string): NotebookShareSearchParams | null 
     return parseNotebookShareSearch(normalized.slice(1));
   }
 
+  // After Pages 404 rewrite, `/publish/live#?nbz=...` becomes
+  // `/#/publish/live#?nbz=...` — recover the share payload from the second `#?`.
+  const nestedShareIdx = normalized.indexOf("#?");
+  if (nestedShareIdx > 0) {
+    return parseNotebookShareSearch(normalized.slice(nestedShareIdx + 1));
+  }
+
+  // Also accept `#/publish/live?nbz=...` (query embedded in the route hash).
+  if (
+    normalized.startsWith("#/publish") ||
+    normalized.startsWith("#/embed") ||
+    normalized.startsWith("#/print")
+  ) {
+    const queryIdx = normalized.indexOf("?");
+    if (queryIdx !== -1) {
+      return parseNotebookShareSearch(normalized.slice(queryIdx));
+    }
+  }
+
   return null;
 }
 

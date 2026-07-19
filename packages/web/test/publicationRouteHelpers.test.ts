@@ -135,6 +135,35 @@ describe("publicationRouteHelpers", () => {
     expect(window.location.hash).toBe("");
   });
 
+  it("recovers Pages 404 rewrite of publish live share links and keeps nbz in the hash", () => {
+    history.replaceState(history.state, "", "/#/publish/live#?nbz=compressedShare");
+    expect(parsePublicationHash("#/publish/live#?nbz=compressedShare")).toEqual({
+      mode: "publish",
+      source: "live",
+      templateId: null,
+      cellId: null,
+      embedCellId: null
+    });
+    expect(readPublicationRouteLocation()).toEqual({
+      mode: "publish",
+      source: "live",
+      templateId: null,
+      cellId: null,
+      embedCellId: null
+    });
+
+    migratePublicationHashToPathname();
+    expect(window.location.pathname).toBe("/publish/live");
+    expect(window.location.hash).toBe("#?nbz=compressedShare");
+    expect(readPublicationRouteLocation()).toEqual({
+      mode: "publish",
+      source: "live",
+      templateId: null,
+      cellId: null,
+      embedCellId: null
+    });
+  });
+
   it("parses live publication routes", () => {
     expect(parsePublicationPathname("/publish/live")).toEqual({
       mode: "publish",

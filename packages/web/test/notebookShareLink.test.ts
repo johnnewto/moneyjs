@@ -90,6 +90,21 @@ describe("notebookShareLink", () => {
     );
   });
 
+  it("loads nbz from Pages 404 double-hash rewrite URLs", () => {
+    const document = createNotebookFromTemplate("sim");
+    document.title = "Pages Double Hash";
+    const nbz = compressNotebookSharePayload(notebookToJson(document));
+    history.replaceState(
+      history.state,
+      "",
+      `/#/publish/live#?${NOTEBOOK_SHARE_QUERY_PARAM}=${nbz}`
+    );
+
+    expect(tryLoadNotebookFromShareSearch(readNotebookShareSearchSource())?.title).toBe(
+      "Pages Double Hash"
+    );
+  });
+
   it("returns an error when the compressed payload exceeds the share limit", () => {
     const document = createNotebookFromTemplate("bmw");
     // Pad with high-entropy content so the compressed payload reliably exceeds the

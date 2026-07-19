@@ -89,12 +89,51 @@ export function parsePublicationPathname(pathname: string): PublicationRouteLoca
  * GitHub Pages serves `404.html` for unknown paths and rewrites them to
  * `/#/publish/...` (and notebook `/#/notebook/...`). Recover the publication
  * route from that hash when the pathname is still the app root.
+ *
+ * Share links use `/publish/live#?nbz=...`. After the Pages rewrite that becomes
+ * `/#/publish/live#?nbz=...` — strip the share suffix before parsing the route.
  */
 export function parsePublicationHash(hash: string): PublicationRouteLocation | null {
+  const parts = splitPublicationHash(hash);
+  if (!parts) {
+    return null;
+  }
+  return parsePublicationPathname(parts.routePath);
+}
+
+/**
+ * Split a Pages rewrite hash into the publication route path and an optional
+ * share query (`nbz=...`). Handles:
+ * - `#/publish/live`
+ * - `#/publish/live#?nbz=...` (404 rewrite preserving original share hash)
+ * - `#/publish/live?nbz=...`
+ */
+export function splitPublicationHash(hash: string): {
+  routePath: string;
+  shareQuery: string | null;
+} | null {
   if (!hasPublicationHashEntry(hash)) {
     return null;
   }
-  return parsePublicationPathname(hash.slice(1));
+
+  const rest = hash.slice(1);
+  const doubleHashIdx = rest.indexOf("#?");
+  if (doubleHashIdx !== -1) {
+    return {
+      routePath: rest.slice(0, doubleHashIdx),
+      shareQuery: rest.slice(doubleHashIdx + 2) || null
+    };
+  }
+
+  const queryIdx = rest.indexOf("?");
+  if (queryIdx !== -1) {
+    return {
+      routePath: rest.slice(0, queryIdx),
+      shareQuery: rest.slice(queryIdx + 1) || null
+    };
+  }
+
+  return { routePath: rest, shareQuery: null };
 }
 
 export function readPublicationRouteLocation(): PublicationRouteLocation | null {
@@ -123,7 +162,12 @@ export function migratePublicationHashToPathname(): void {
     return;
   }
 
-  const fromHash = parsePublicationHash(window.location.hash);
+  const parts = splitPublicationHash(window.location.hash);
+  if (!parts) {
+    return;
+  }
+
+  const fromHash = parsePublicationPathname(parts.routePath);
   if (!fromHash) {
     return;
   }
@@ -138,9 +182,12 @@ export function migratePublicationHashToPathname(): void {
     cellId: fromHash.cellId ?? undefined,
     embedCellId: fromHash.embedCellId ?? undefined
   });
-  // Embed already carries `?cell=`; other modes keep any existing search params.
+  // Keep nbz in the hash (not the query string) so a later navigation/404 cannot
+  // put a multi-kilobyte request URI back on the wire.
+  const shareHash =
+    parts.shareQuery && parts.shareQuery.includes("nbz=") ? `#?${parts.shareQuery}` : "";
   const nextUrl =
-    fromHash.mode === "embed" ? nextPath : `${nextPath}${window.location.search}`;
+    fromHash.mode === "embed" ? nextPath : `${nextPath}${window.location.search}${shareHash}`;
   history.replaceState(history.state, "", nextUrl);
 }
 
