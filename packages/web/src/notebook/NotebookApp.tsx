@@ -191,6 +191,8 @@ import { MatrixGraphRailPanel } from "./components/MatrixGraphRailPanel";
 import {
   applyMatrixGraphRequest,
   addMatrixGraphChartSeries,
+  appendEmptyFreeformMatrixGraphChart,
+  createEmptyFreeformMatrixGraphChart,
   createFreeformMatrixGraphChart,
   removeMatrixGraphChart,
   removeMatrixGraphChartSeries,
@@ -2113,6 +2115,33 @@ export function NotebookApp() {
           variableUnitMetadata: buildNotebookVariableUnitMetadata(notebookDocument.cells)
         })
       ];
+    });
+    setActiveRailTab("graph");
+  }
+
+  function handleCreateEmptyMatrixGraphChart(): void {
+    setMatrixGraphCharts((current) => {
+      const sourceRunCellId = resolveDefaultGraphSourceRunCellId(notebookDocument.cells, (runCellId) =>
+        runner.getResult(runCellId)
+      );
+      if (!sourceRunCellId) {
+        return current;
+      }
+
+      const result = runner.getResult(sourceRunCellId);
+      if (!result) {
+        return current;
+      }
+
+      return appendEmptyFreeformMatrixGraphChart(current, () => {
+        matrixGraphChartIdRef.current += 1;
+        return createEmptyFreeformMatrixGraphChart({
+          createId: () => `matrix-graph-${matrixGraphChartIdRef.current}`,
+          sourceRunCellId,
+          variableDescriptions: buildNotebookVariableDescriptions(notebookDocument.cells),
+          variableUnitMetadata: buildNotebookVariableUnitMetadata(notebookDocument.cells)
+        });
+      });
     });
     setActiveRailTab("graph");
   }
@@ -4498,6 +4527,7 @@ export function NotebookApp() {
               getResult={(runCellId) => runner.getResult(runCellId)}
               onAddChartSeries={handleAddMatrixGraphChartSeries}
               onCreateChartFromVariable={handleCreateMatrixGraphFromVariable}
+              onCreateEmptyChart={handleCreateEmptyMatrixGraphChart}
               onDismissChart={handleDismissMatrixGraphChart}
               onGraphExpressionHighlightChange={handleGraphExpressionHighlightChange}
               onGraphSliceHighlightChange={handleGraphSliceHighlightChange}

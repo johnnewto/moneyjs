@@ -875,6 +875,57 @@
 .notebook-graph-rail-chart .result-panel {
   margin-bottom: 0;
 }
+.notebook-graph-rail-add-chart {
+  display: flex;
+  justify-content: center;
+  padding: 0.15rem 0 0.35rem;
+}
+.notebook-graph-rail-add-chart-button {
+  align-items: center;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-pill);
+  color: #059669;
+  cursor: pointer;
+  display: inline-flex;
+  height: 1.55rem;
+  justify-content: center;
+  min-height: 0;
+  min-width: 0;
+  padding: 0;
+  transition:
+    color 140ms ease,
+    transform 140ms ease;
+  width: 1.55rem;
+}
+.notebook-graph-rail-add-chart-button:hover:not(:disabled),
+.notebook-graph-rail-add-chart-button:focus-visible {
+  color: #047857;
+  outline: none;
+  transform: translateY(-1px);
+}
+.notebook-graph-rail-add-chart-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.notebook-graph-rail-add-chart-button svg {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+.notebook-graph-rail-add-chart-button circle {
+  fill: currentColor;
+  stroke: color-mix(in srgb, currentColor 55%, var(--color-text-strong) 45%);
+  stroke-width: 1.5;
+}
+.notebook-graph-rail-add-chart-button path {
+  fill: none;
+  stroke: #f8fafc;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
 .notebook-rail-tabs {
   display: grid;
   gap: 0.22rem;

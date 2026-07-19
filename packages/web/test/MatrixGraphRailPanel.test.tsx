@@ -135,4 +135,70 @@ describe("MatrixGraphRailPanel", () => {
     await user.click(within(menu).getByRole("menuitem", { name: /move right/i }));
     expect(handleMove).toHaveBeenCalledWith("chart-1", "-Ld", "right");
   });
+
+  it("adds a new empty graph panel from the plus button", async () => {
+    const user = userEvent.setup();
+    const handleCreateEmpty = vi.fn();
+
+    render(
+      <MatrixGraphRailPanel
+        cells={[matrixCell]}
+        charts={[chartEntry()]}
+        getResult={() => ({
+          options: { periods: 4 },
+          series: {
+            Cd: [4, 5, 6, 7],
+            Ld: [1, 2, 3, 4],
+            Y: [100, 110, 120, 130]
+          },
+          warnings: []
+        })}
+        onAddChartSeries={vi.fn()}
+        onCreateEmptyChart={handleCreateEmpty}
+        onDismissChart={vi.fn()}
+        onRemoveChartSeries={vi.fn()}
+        onToggleChartLegendMode={vi.fn()}
+        onToggleChartPin={vi.fn()}
+        selectedPeriodIndex={0}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /add graph panel/i }));
+    expect(handleCreateEmpty).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides the plus button when the last chart is already an empty picker", () => {
+    render(
+      <MatrixGraphRailPanel
+        cells={[matrixCell]}
+        charts={[
+          chartEntry(),
+          chartEntry({
+            id: "chart-empty",
+            matrixCellId: "",
+            series: []
+          })
+        ]}
+        getResult={() => ({
+          options: { periods: 4 },
+          series: {
+            Cd: [4, 5, 6, 7],
+            Ld: [1, 2, 3, 4],
+            Y: [100, 110, 120, 130]
+          },
+          warnings: []
+        })}
+        onAddChartSeries={vi.fn()}
+        onCreateEmptyChart={vi.fn()}
+        onDismissChart={vi.fn()}
+        onRemoveChartSeries={vi.fn()}
+        onToggleChartLegendMode={vi.fn()}
+        onToggleChartPin={vi.fn()}
+        selectedPeriodIndex={0}
+      />
+    );
+
+    expect(screen.getByText("Add a variable to graph")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /add graph panel/i })).not.toBeInTheDocument();
+  });
 });

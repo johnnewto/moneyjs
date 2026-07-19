@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   addMatrixGraphChartSeries,
+  appendEmptyFreeformMatrixGraphChart,
   applyMatrixGraphRequest,
+  createEmptyFreeformMatrixGraphChart,
   createFreeformMatrixGraphChart,
   isFreeformMatrixGraphChart,
   moveMatrixGraphChartSeries,
@@ -140,6 +142,57 @@ describe("matrixGraphRailState", () => {
     expect(isFreeformMatrixGraphChart(chart)).toBe(true);
     expect(chart.series.map((entry) => entry.source)).toEqual(["Y"]);
     expect(chart.matrixCellId).toBe("");
+  });
+
+  it("creates an empty freeform chart for the variable picker", () => {
+    const chart = createEmptyFreeformMatrixGraphChart({
+      createId: () => "chart-empty",
+      sourceRunCellId: "baseline-run",
+      variableDescriptions: new Map(),
+      variableUnitMetadata: new Map()
+    });
+
+    expect(isFreeformMatrixGraphChart(chart)).toBe(true);
+    expect(chart.series).toEqual([]);
+  });
+
+  it("appends an empty freeform chart below existing charts", () => {
+    const current = [entry("chart-1")];
+    const next = appendEmptyFreeformMatrixGraphChart(current, () =>
+      createEmptyFreeformMatrixGraphChart({
+        createId: () => "chart-2",
+        sourceRunCellId: "baseline-run",
+        variableDescriptions: new Map(),
+        variableUnitMetadata: new Map()
+      })
+    );
+
+    expect(next).toHaveLength(2);
+    expect(next[1]?.id).toBe("chart-2");
+    expect(next[1]?.series).toEqual([]);
+  });
+
+  it("does not append another empty freeform chart when the last one is already empty", () => {
+    const current = [
+      entry("chart-1"),
+      createEmptyFreeformMatrixGraphChart({
+        createId: () => "chart-empty",
+        sourceRunCellId: "baseline-run",
+        variableDescriptions: new Map(),
+        variableUnitMetadata: new Map()
+      })
+    ];
+
+    expect(
+      appendEmptyFreeformMatrixGraphChart(current, () =>
+        createEmptyFreeformMatrixGraphChart({
+          createId: () => "chart-extra",
+          sourceRunCellId: "baseline-run",
+          variableDescriptions: new Map(),
+          variableUnitMetadata: new Map()
+        })
+      )
+    ).toBe(current);
   });
 
   it("moves a trace left and right", () => {

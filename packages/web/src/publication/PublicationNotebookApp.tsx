@@ -6,7 +6,9 @@ import { useInspectorVariableHistory } from "../hooks/useInspectorVariableHistor
 import { isSameInspectorContext, type VariableInspectRequest } from "../lib/variableInspect";
 import {
   addMatrixGraphChartSeries,
+  appendEmptyFreeformMatrixGraphChart,
   applyMatrixGraphRequest,
+  createEmptyFreeformMatrixGraphChart,
   createFreeformMatrixGraphChart,
   moveMatrixGraphChartSeries,
   removeMatrixGraphChart,
@@ -500,6 +502,34 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
     [notebookDocument, runner]
   );
 
+  const handleCreateEmptyMatrixGraphChart = useCallback(() => {
+    setMatrixGraphCharts((current) => {
+      const sourceRunCellId = resolveDefaultGraphSourceRunCellId(
+        notebookDocument.cells,
+        (runCellId) => runner.getResult(runCellId)
+      );
+      if (!sourceRunCellId) {
+        return current;
+      }
+
+      const result = runner.getResult(sourceRunCellId);
+      if (!result) {
+        return current;
+      }
+
+      return appendEmptyFreeformMatrixGraphChart(current, () => {
+        matrixGraphChartIdRef.current += 1;
+        return createEmptyFreeformMatrixGraphChart({
+          createId: () => `publication-matrix-graph-${matrixGraphChartIdRef.current}`,
+          sourceRunCellId,
+          variableDescriptions: buildNotebookVariableDescriptions(notebookDocument.cells),
+          variableUnitMetadata: buildNotebookVariableUnitMetadata(notebookDocument.cells)
+        });
+      });
+    });
+    setMatrixGraphOpen(true);
+  }, [notebookDocument, runner]);
+
   const handleRemoveMatrixGraphChartSeries = useCallback((chartId: string, source: string) => {
     setMatrixGraphCharts((current) => removeMatrixGraphChartSeries(current, chartId, source));
   }, []);
@@ -770,6 +800,7 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
           onAddChartSeries={handleAddMatrixGraphChartSeries}
           onClose={handleCloseMatrixGraph}
           onCreateChartFromVariable={handleCreateMatrixGraphFromVariable}
+          onCreateEmptyChart={handleCreateEmptyMatrixGraphChart}
           onDismissChart={handleDismissMatrixGraphChart}
           onMoveChartSeries={handleMoveMatrixGraphChartSeries}
           onRemoveChartSeries={handleRemoveMatrixGraphChartSeries}

@@ -50,12 +50,32 @@ function resolveMatrixGraphSlicePool(
   return collectMatrixGraphSliceSeries(matrixCell, chart.kind, chart.index, result);
 }
 
+function GraphAddChartButton({ onClick }: { onClick(): void }) {
+  return (
+    <div className="notebook-graph-rail-add-chart">
+      <button
+        type="button"
+        className="notebook-graph-rail-add-chart-button"
+        aria-label="Add graph panel"
+        title="Add graph panel"
+        onClick={onClick}
+      >
+        <svg viewBox="0 0 16 16" focusable="false" aria-hidden="true">
+          <circle cx="8" cy="8" r="6.25" />
+          <path d="M8 3.25v9.5M3.25 8h9.5" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
 export function MatrixGraphRailPanel({
   cells,
   charts,
   getResult,
   onAddChartSeries,
   onCreateChartFromVariable,
+  onCreateEmptyChart,
   onDismissChart,
   onGraphExpressionHighlightChange,
   onGraphSliceHighlightChange,
@@ -70,6 +90,7 @@ export function MatrixGraphRailPanel({
   getResult(runCellId: string): SimulationResult | null | undefined;
   onAddChartSeries(chartId: string, source: string): void;
   onCreateChartFromVariable?(source: string): void;
+  onCreateEmptyChart?(): void;
   onDismissChart(chartId: string): void;
   onGraphExpressionHighlightChange?(expression: string | null): void;
   onGraphSliceHighlightChange?(slice: MatrixGraphSliceHighlight | null): void;
@@ -79,6 +100,14 @@ export function MatrixGraphRailPanel({
   onToggleChartPin(chartId: string): void;
   selectedPeriodIndex: number;
 }) {
+  const lastChart = charts[charts.length - 1];
+  const lastChartIsEmptyPicker =
+    lastChart != null &&
+    lastChart.series.length === 0 &&
+    isFreeformMatrixGraphChart(lastChart);
+  const canAddChartPanel =
+    onCreateEmptyChart != null && charts.length > 0 && !lastChartIsEmptyPicker;
+
   if (charts.length === 0) {
     const sourceRunCellId = resolveDefaultGraphSourceRunCellId(cells, getResult);
     const result = sourceRunCellId ? getResult(sourceRunCellId) : null;
@@ -204,6 +233,7 @@ export function MatrixGraphRailPanel({
             </div>
           );
         })}
+        {canAddChartPanel ? <GraphAddChartButton onClick={onCreateEmptyChart} /> : null}
       </div>
     </section>
   );

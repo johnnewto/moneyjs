@@ -44,6 +44,33 @@ export function resolveDefaultGraphSourceRunCellId(
   return withResult ?? uniqueIds[0] ?? null;
 }
 
+export function createEmptyFreeformMatrixGraphChart({
+  createId,
+  sourceRunCellId,
+  variableDescriptions,
+  variableUnitMetadata
+}: {
+  createId(): string;
+  sourceRunCellId: string;
+  variableDescriptions: VariableDescriptions;
+  variableUnitMetadata: VariableUnitMetadata;
+}): MatrixGraphChartEntry {
+  return {
+    id: createId(),
+    index: -1,
+    kind: "column",
+    label: "Variables",
+    legendMode: "expression",
+    matrixCellId: "",
+    matrixTitle: "Graph",
+    pinned: false,
+    series: [],
+    sourceRunCellId,
+    variableDescriptions,
+    variableUnitMetadata
+  };
+}
+
 export function createFreeformMatrixGraphChart({
   createId,
   seriesEntry,
@@ -58,19 +85,26 @@ export function createFreeformMatrixGraphChart({
   variableUnitMetadata: VariableUnitMetadata;
 }): MatrixGraphChartEntry {
   return {
-    id: createId(),
-    index: -1,
-    kind: "column",
-    label: "Variables",
-    legendMode: "expression",
-    matrixCellId: "",
-    matrixTitle: "Graph",
-    pinned: false,
-    series: [seriesEntry],
-    sourceRunCellId,
-    variableDescriptions,
-    variableUnitMetadata
+    ...createEmptyFreeformMatrixGraphChart({
+      createId,
+      sourceRunCellId,
+      variableDescriptions,
+      variableUnitMetadata
+    }),
+    series: [seriesEntry]
   };
+}
+
+export function appendEmptyFreeformMatrixGraphChart(
+  charts: MatrixGraphChartEntry[],
+  createEmpty: () => MatrixGraphChartEntry
+): MatrixGraphChartEntry[] {
+  const lastChart = charts[charts.length - 1];
+  if (lastChart && lastChart.series.length === 0 && isFreeformMatrixGraphChart(lastChart)) {
+    return charts;
+  }
+
+  return [...charts, createEmpty()];
 }
 
 export function applyMatrixGraphRequest(
