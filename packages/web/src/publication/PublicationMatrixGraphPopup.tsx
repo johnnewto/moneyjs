@@ -79,7 +79,7 @@ export function PublicationMatrixGraphPopup({
         <div>
           <div className="eyebrow">Graph</div>
           <p className="stability-raw-dialog-subtitle">
-            Click matrix column headings to graph signed entries. Or pick a variable below.
+            Click a matrix row or column label to graph signed entries. Or pick a variable below.
           </p>
         </div>
         <button type="button" className="stability-raw-dialog-close" onClick={onClose} aria-label="Close">

@@ -24,6 +24,7 @@ import {
 } from "../../notebook/matrixAccountSumRow";
 import {
   collectMatrixColumnGraphSeries,
+  collectMatrixRowGraphSeries,
   type MatrixGraphRequest
 } from "../../notebook/matrixSliceGraph";
 import type { MatrixEntryDisplayMode } from "../../notebook/matrixEntryDisplay";
@@ -190,6 +191,33 @@ function PublicationMatrixColumnHeaderLabel({
   );
 }
 
+function PublicationMatrixRowHeaderLabel({
+  canGraph,
+  label,
+  onGraphRow,
+  rowIndex
+}: {
+  canGraph: boolean;
+  label: string;
+  onGraphRow(rowIndex: number): void;
+  rowIndex: number;
+}) {
+  if (!canGraph) {
+    return <>{label}</>;
+  }
+
+  return (
+    <button
+      type="button"
+      className="publication-matrix-graph-trigger"
+      title={`Graph row ${label}`}
+      onClick={() => onGraphRow(rowIndex)}
+    >
+      {label}
+    </button>
+  );
+}
+
 function PublicationMatrixHeader({
   canGraph,
   cell,
@@ -326,6 +354,31 @@ export function PublicationMatrix({
     [cell, interaction, onRequestMatrixGraph, result, sumColumnIndex]
   );
 
+  const handleGraphRow = useCallback(
+    (rowIndex: number) => {
+      if (!cell.sourceRunCellId || !result || !onRequestMatrixGraph) {
+        return;
+      }
+      if (rowIndex === sumRowIndex) {
+        return;
+      }
+
+      const label = cell.rows[rowIndex]?.label.trim() || `Row ${rowIndex + 1}`;
+      onRequestMatrixGraph({
+        index: rowIndex,
+        kind: "row",
+        label,
+        matrixCellId: cell.id,
+        matrixTitle: cell.title,
+        sourceRunCellId: cell.sourceRunCellId,
+        series: collectMatrixRowGraphSeries(cell, rowIndex, result),
+        variableDescriptions: interaction.variableDescriptions,
+        variableUnitMetadata: interaction.variableUnitMetadata
+      });
+    },
+    [cell, interaction, onRequestMatrixGraph, result, sumRowIndex]
+  );
+
   return (
     <div className="publication-matrix-wrap">
       <table
@@ -341,7 +394,14 @@ export function PublicationMatrix({
         <tbody>
           {cell.rows.map((row, rowIndex) => (
             <tr key={`${row.label}-${row.band ?? ""}`}>
-              <th scope="row">{formatAccountTransactionsSumRowDisplayLabel(cell, row.label)}</th>
+              <th scope="row">
+                <PublicationMatrixRowHeaderLabel
+                  canGraph={canGraph && rowIndex !== sumRowIndex}
+                  label={formatAccountTransactionsSumRowDisplayLabel(cell, row.label)}
+                  onGraphRow={handleGraphRow}
+                  rowIndex={rowIndex}
+                />
+              </th>
               {row.values.map((source, columnIndex) => {
                 const isSumCell = columnIndex === sumColumnIndex || rowIndex === sumRowIndex;
                 const stockRole =

@@ -3,7 +3,8 @@
 import "@testing-library/jest-dom/vitest";
 
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { SimulationResult } from "@sfcr/core";
 
@@ -160,5 +161,67 @@ describe("PublicationMatrix", () => {
     expect(firstCell?.textContent).toContain("Mh");
     expect(firstCell?.textContent).toContain("=");
     expect(firstCell?.textContent).toContain("30.00");
+  });
+
+  it("requests a row graph when a row label is clicked", async () => {
+    const user = userEvent.setup();
+    const onRequestMatrixGraph = vi.fn();
+
+    render(
+      <PublicationMatrix
+        cell={buildValueMatrixCell()}
+        getResult={() => buildResult()}
+        interaction={createTestPublicationInteraction()}
+        onRequestMatrixGraph={onRequestMatrixGraph}
+      />
+    );
+
+    await user.click(screen.getByTitle("Graph row Deposits"));
+
+    expect(onRequestMatrixGraph).toHaveBeenCalledTimes(1);
+    expect(onRequestMatrixGraph).toHaveBeenCalledWith(
+      expect.objectContaining({
+        index: 0,
+        kind: "row",
+        label: "Deposits",
+        matrixCellId: "matrix-1",
+        matrixTitle: "Balance sheet",
+        sourceRunCellId: "run-1"
+      })
+    );
+    expect(onRequestMatrixGraph.mock.calls[0]?.[0]?.series).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ source: "+Mh" }),
+        expect.objectContaining({ source: "-Mh" })
+      ])
+    );
+  });
+
+  it("requests a column graph when a column label is clicked", async () => {
+    const user = userEvent.setup();
+    const onRequestMatrixGraph = vi.fn();
+
+    render(
+      <PublicationMatrix
+        cell={buildValueMatrixCell()}
+        getResult={() => buildResult()}
+        interaction={createTestPublicationInteraction()}
+        onRequestMatrixGraph={onRequestMatrixGraph}
+      />
+    );
+
+    await user.click(screen.getByTitle("Graph column Households"));
+
+    expect(onRequestMatrixGraph).toHaveBeenCalledTimes(1);
+    expect(onRequestMatrixGraph).toHaveBeenCalledWith(
+      expect.objectContaining({
+        index: 0,
+        kind: "column",
+        label: "Households",
+        matrixCellId: "matrix-1",
+        matrixTitle: "Balance sheet",
+        sourceRunCellId: "run-1"
+      })
+    );
   });
 });

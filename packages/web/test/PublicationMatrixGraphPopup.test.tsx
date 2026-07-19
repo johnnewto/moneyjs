@@ -64,6 +64,37 @@ describe("PublicationNotebookApp matrix graph popup", () => {
     expect(dialog).toBeInTheDocument();
     expect(screen.getByRole("separator", { name: "Resize graph panel" })).toBeInTheDocument();
     expect(dialog).toHaveStyle({ width: "544px", height: "480px" });
+    expect(
+      within(dialog).getByText(/Click a matrix row or column label to graph signed entries/i)
+    ).toBeInTheDocument();
+  }, 15000);
+
+  it("opens a floating graph popup when a matrix row label is clicked", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <PublicationNotebookApp
+        route={{
+          mode: "publish",
+          source: "template",
+          templateId: "bmw",
+          cellId: null,
+          embedCellId: null
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Running simulations/i)).not.toBeInTheDocument();
+    });
+
+    const graphButton = screen.getAllByTitle(/^Graph row/i)[0];
+    expect(graphButton).toBeDefined();
+    await user.click(graphButton);
+
+    const dialog = screen.getByRole("dialog", { name: "Graph" });
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText(/: Row /)).toBeInTheDocument();
   }, 15000);
 
   it("opens the graph popup from the Open Graph action link", async () => {
