@@ -85,16 +85,63 @@ export function parsePublicationPathname(pathname: string): PublicationRouteLoca
   };
 }
 
-export function readPublicationRouteLocation(): PublicationRouteLocation | null {
-  const fromPath = parsePublicationPathname(window.location.pathname);
-  if (fromPath) {
-    // Root `/` is also the hash notebook entry (`/#/notebook…`); keep the editor there.
-    if (isAppRootPath(stripAppBasePath(window.location.pathname)) && hasNotebookHashEntry(window.location.hash)) {
-      return null;
-    }
-    return fromPath;
+/**
+ * GitHub Pages serves `404.html` for unknown paths and rewrites them to
+ * `/#/publish/...` (and notebook `/#/notebook/...`). Recover the publication
+ * route from that hash when the pathname is still the app root.
+ */
+export function parsePublicationHash(hash: string): PublicationRouteLocation | null {
+  if (!hasPublicationHashEntry(hash)) {
+    return null;
   }
-  return null;
+  return parsePublicationPathname(hash.slice(1));
+}
+
+export function readPublicationRouteLocation(): PublicationRouteLocation | null {
+  const strippedPath = stripAppBasePath(window.location.pathname);
+  const hash = window.location.hash;
+
+  // Root `/` is also the hash notebook entry (`/#/notebook…`); keep the editor there.
+  if (isAppRootPath(strippedPath) && hasNotebookHashEntry(hash)) {
+    return null;
+  }
+
+  // Prefer Pages 404 hash rewrite over the default BMW landing on app root.
+  if (isAppRootPath(strippedPath)) {
+    const fromHash = parsePublicationHash(hash);
+    if (fromHash) {
+      return fromHash;
+    }
+  }
+
+  return parsePublicationPathname(window.location.pathname);
+}
+
+/** Restore a real `/publish|embed|print/...` pathname after a Pages 404 hash rewrite. */
+export function migratePublicationHashToPathname(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const fromHash = parsePublicationHash(window.location.hash);
+  if (!fromHash) {
+    return;
+  }
+  if (!isAppRootPath(stripAppBasePath(window.location.pathname))) {
+    return;
+  }
+
+  const nextPath = buildPublicationPathname({
+    mode: fromHash.mode,
+    source: fromHash.source,
+    templateId: fromHash.templateId ?? undefined,
+    cellId: fromHash.cellId ?? undefined,
+    embedCellId: fromHash.embedCellId ?? undefined
+  });
+  // Embed already carries `?cell=`; other modes keep any existing search params.
+  const nextUrl =
+    fromHash.mode === "embed" ? nextPath : `${nextPath}${window.location.search}`;
+  history.replaceState(history.state, "", nextUrl);
 }
 
 export function buildPublicationPathname(args: {
@@ -148,6 +195,14 @@ function hasNotebookHashEntry(hash: string): boolean {
     hash.startsWith("#/notebook") ||
     hash.startsWith("#/workspace") ||
     hash.startsWith("#/chat-builder")
+  );
+}
+
+function hasPublicationHashEntry(hash: string): boolean {
+  return (
+    hash.startsWith("#/publish") ||
+    hash.startsWith("#/embed") ||
+    hash.startsWith("#/print")
   );
 }
 

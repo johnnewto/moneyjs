@@ -7,6 +7,8 @@ import {
   isBarePublishPathname,
   isInteractiveNotebookReturnUrl,
   isPublicationPathname,
+  migratePublicationHashToPathname,
+  parsePublicationHash,
   parsePublicationPathname,
   readPublicationRouteLocation,
   resolveInteractiveNotebookHref
@@ -87,6 +89,50 @@ describe("publicationRouteHelpers", () => {
       cellId: null,
       embedCellId: null
     });
+  });
+
+  it("recovers Pages 404 hash rewrites for publish deep links", () => {
+    history.replaceState(history.state, "", "/#/publish/italy-sfc");
+    expect(parsePublicationHash("#/publish/italy-sfc")).toEqual({
+      mode: "publish",
+      source: "template",
+      templateId: "italy-sfc",
+      cellId: null,
+      embedCellId: null
+    });
+    expect(readPublicationRouteLocation()).toEqual({
+      mode: "publish",
+      source: "template",
+      templateId: "italy-sfc",
+      cellId: null,
+      embedCellId: null
+    });
+
+    migratePublicationHashToPathname();
+    expect(window.location.pathname).toBe("/publish/italy-sfc");
+    expect(window.location.hash).toBe("");
+    expect(readPublicationRouteLocation()).toEqual({
+      mode: "publish",
+      source: "template",
+      templateId: "italy-sfc",
+      cellId: null,
+      embedCellId: null
+    });
+  });
+
+  it("recovers Pages 404 hash rewrites for publish cell deep links", () => {
+    history.replaceState(history.state, "", "/#/publish/italy-sfc/balance-sheet");
+    expect(readPublicationRouteLocation()).toEqual({
+      mode: "publish",
+      source: "template",
+      templateId: "italy-sfc",
+      cellId: "balance-sheet",
+      embedCellId: null
+    });
+
+    migratePublicationHashToPathname();
+    expect(window.location.pathname).toBe("/publish/italy-sfc/balance-sheet");
+    expect(window.location.hash).toBe("");
   });
 
   it("parses live publication routes", () => {

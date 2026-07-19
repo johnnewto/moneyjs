@@ -198,7 +198,7 @@ This repository is configured to deploy the browser app to:
 The GitHub Actions workflow in `.github/workflows/deploy-pages.yml` publishes `packages/web/dist` whenever `main` is updated.
 
 If the repository name changes, update the `VITE_BASE_PATH` value in that workflow so it matches the new Pages path.
-Also update `packages/web/public/404.html`; GitHub Pages uses that file to redirect direct notebook deep links such as `/moneyjs/notebook/sim` back into the browser app.
+Also update `packages/web/public/404.html`; GitHub Pages uses that file to redirect direct deep links such as `/moneyjs/notebook/sim` or `/moneyjs/publish/italy-sfc` back into the browser app (as `/#/notebook/...` or `/#/publish/...`, which the client restores to real pathnames).
 
 ### Chat API
 

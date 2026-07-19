@@ -1,7 +1,10 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 
 import "../styles/app.css";
-import { readPublicationRouteLocation } from "../publication/publicationRouteHelpers";
+import {
+  migratePublicationHashToPathname,
+  readPublicationRouteLocation
+} from "../publication/publicationRouteHelpers";
 
 const NotebookApp = lazy(() =>
   import("../notebook/NotebookApp").then((module) => ({ default: module.NotebookApp }))
@@ -25,10 +28,16 @@ function redirectLegacyRoutes(): void {
 }
 
 function AppContent() {
-  const [routeRevision, setRouteRevision] = useState(0);
+  // Pages 404.html rewrites `/publish/...` to `/#/publish/...`; restore the path
+  // before the first route read so bare-publish canonicalization does not steal BMW.
+  const [routeRevision, setRouteRevision] = useState(() => {
+    migratePublicationHashToPathname();
+    return 0;
+  });
 
   useEffect(() => {
     function handleRouteChange(): void {
+      migratePublicationHashToPathname();
       setRouteRevision((current) => current + 1);
     }
 

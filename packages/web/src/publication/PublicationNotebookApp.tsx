@@ -158,7 +158,12 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
     if (route.mode !== "publish" || typeof window === "undefined") {
       return;
     }
+    // Only canonicalize true bare landings — not Pages hash rewrites that still
+    // carry `#/publish/<id>` before migration (or if migration was skipped).
     if (!isBarePublishPathname(window.location.pathname)) {
+      return;
+    }
+    if (window.location.hash.startsWith("#/publish")) {
       return;
     }
 
