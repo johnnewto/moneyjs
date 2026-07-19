@@ -66,7 +66,7 @@ describe("chat API notebook share shortening", () => {
   });
 
   it("accepts publish-view share URLs", async () => {
-    const longUrl = "https://johnnewto.github.io/moneyjs/publish/live?nbz=compressed";
+    const longUrl = "https://johnnewto.github.io/moneyjs/publish/live#?nbz=compressed";
     const shareLinks = createMemoryKv();
     const response = await worker.fetch(createShareShortenRequest(longUrl), {
       ...env,

@@ -79,6 +79,17 @@ describe("notebookShareLink", () => {
     );
   });
 
+  it("loads publish-style #?nbz= hash payloads", () => {
+    const document = createNotebookFromTemplate("sim");
+    document.title = "Publish Style Hash";
+    const nbz = compressNotebookSharePayload(notebookToJson(document));
+    history.replaceState(history.state, "", `/publish/live#?${NOTEBOOK_SHARE_QUERY_PARAM}=${nbz}`);
+
+    expect(tryLoadNotebookFromShareSearch(readNotebookShareSearchSource())?.title).toBe(
+      "Publish Style Hash"
+    );
+  });
+
   it("returns an error when the compressed payload exceeds the share limit", () => {
     const document = createNotebookFromTemplate("bmw");
     // Pad with high-entropy content so the compressed payload reliably exceeds the

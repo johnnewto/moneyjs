@@ -49,11 +49,17 @@ export function parseNotebookShareSearch(search: string): NotebookShareSearchPar
 
 function parseNotebookShareHash(hash: string): NotebookShareSearchParams | null {
   const normalized = hash.trim();
-  if (!normalized.startsWith(`${NOTEBOOK_SHARE_HASH_ROUTE}?`)) {
-    return null;
+  if (normalized.startsWith(`${NOTEBOOK_SHARE_HASH_ROUTE}?`)) {
+    return parseNotebookShareSearch(normalized.slice(NOTEBOOK_SHARE_HASH_ROUTE.length));
   }
 
-  return parseNotebookShareSearch(normalized.slice(NOTEBOOK_SHARE_HASH_ROUTE.length));
+  // Publish share links keep nbz in `#?nbz=...` so static hosts never see it on
+  // the HTTP request line (avoids HTTP 414 on GitHub Pages).
+  if (normalized.startsWith("#?")) {
+    return parseNotebookShareSearch(normalized.slice(1));
+  }
+
+  return null;
 }
 
 export function readNotebookShareSearchSource(): string {

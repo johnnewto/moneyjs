@@ -8,12 +8,12 @@ import type { NotebookDocument } from "../notebook/types";
 import { buildPublicationPathname } from "./publicationRouteHelpers";
 
 /**
- * Builds a self-contained publish URL such as `<origin>/publish/live?nbz=...`.
+ * Builds a self-contained publish URL such as `<origin>/publish/live#?nbz=...`.
  *
- * The notebook document is compressed into the `nbz` query parameter (the same
- * scheme used by the interactive notebook share link), so the link renders the
- * shared document in any browser without relying on the live `sessionStorage`
- * handoff.
+ * The notebook document is compressed into the `nbz` hash parameter (same
+ * payload scheme as the interactive notebook share link). Hash routing keeps
+ * `nbz` off the HTTP request line so static hosts like GitHub Pages do not
+ * return HTTP 414. Legacy `?nbz=` query links still load when present.
  */
 export function buildPublicationShareUrl(args: {
   document: NotebookDocument;
@@ -37,5 +37,5 @@ export function buildPublicationShareUrl(args: {
   const params = new URLSearchParams();
   params.set(NOTEBOOK_SHARE_QUERY_PARAM, nbz);
 
-  return { url: `${origin}${path}?${params.toString()}` };
+  return { url: `${origin}${path}#?${params.toString()}` };
 }

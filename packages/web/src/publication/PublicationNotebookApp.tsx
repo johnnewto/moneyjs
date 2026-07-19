@@ -53,7 +53,7 @@ import { buildPublicationVariableDescriptions } from "./publicationVariables";
 import { PublicationVariableInspectorPopup } from "./PublicationVariableInspectorPopup";
 import { PublicationMatrixGraphPopup } from "./PublicationMatrixGraphPopup";
 import {
-  hasNotebookShareSearch,
+  hasNotebookShareInLocation,
   resolveNotebookShareLinkToCopy
 } from "../notebook/notebookShareLink";
 import {
@@ -166,7 +166,7 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
     if (!isBarePublishPathname(window.location.pathname)) {
       return;
     }
-    if (window.location.hash.startsWith("#/publish")) {
+    if (window.location.hash.startsWith("#/publish") || hasNotebookShareInLocation()) {
       return;
     }
 
@@ -182,9 +182,9 @@ export function PublicationNotebookApp({ route }: { route: PublicationRouteLocat
       return;
     }
 
-    // When the document came from a shared `?nbz=` link we are viewing a static
+    // When the document came from a shared nbz link we are viewing a static
     // snapshot, so we must not let the local live session overwrite it.
-    if (typeof window !== "undefined" && hasNotebookShareSearch(window.location.search)) {
+    if (typeof window !== "undefined" && hasNotebookShareInLocation()) {
       return;
     }
 
