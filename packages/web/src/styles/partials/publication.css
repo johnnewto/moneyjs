@@ -341,19 +341,19 @@ body:has(.publication-root) {
 }
 
 .publication-equation-block.trace-root .publication-equation-expression {
-  background: rgba(219, 234, 254, 0.78);
+  background: var(--trace-root-bg);
 }
 
 .publication-equation-block.trace-input .publication-equation-expression {
-  background: rgba(220, 252, 231, 0.7);
+  background: var(--trace-input-bg);
 }
 
 .publication-equation-block.trace-output .publication-equation-expression {
-  background: rgba(254, 249, 195, 0.82);
+  background: var(--trace-output-bg);
 }
 
 .publication-equation-block.trace-both .publication-equation-expression {
-  background: rgba(255, 237, 213, 0.82);
+  background: var(--trace-both-bg);
 }
 
 .publication-equation-expression {

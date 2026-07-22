@@ -481,16 +481,16 @@
   background: rgba(241, 245, 249, 0.96);
 }
 .notebook-model-view-row.trace-root {
-  background: rgba(219, 234, 254, 0.78);
+  background: var(--trace-root-bg);
 }
 .notebook-model-view-row.trace-input {
-  background: rgba(220, 252, 231, 0.7);
+  background: var(--trace-input-bg);
 }
 .notebook-model-view-row.trace-output {
-  background: rgba(254, 249, 195, 0.82);
+  background: var(--trace-output-bg);
 }
 .notebook-model-view-row.trace-both {
-  background: rgba(255, 237, 213, 0.82);
+  background: var(--trace-both-bg);
 }
 .notebook-model-view-row.has-issue {
   background: rgba(254, 242, 242, 0.72);

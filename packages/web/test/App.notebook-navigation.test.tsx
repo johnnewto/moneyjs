@@ -425,7 +425,7 @@ describe("App notebook navigation and inspection", () => {
       within(scenarioArticle).getAllByRole("button", { name: /^Inspect variable alpha0$/i })[0]
     );
 
-    expect(screen.getByText("Selected variable")).toBeInTheDocument();
+    expect(document.getElementById("notebook-inspect-panel")).not.toBeNull();
     let inspectorHeading = document.querySelector(".variable-inspector-panel h3");
     expect(inspectorHeading).not.toBeNull();
     expect(inspectorHeading?.textContent).toMatch(/α|alpha/i);
@@ -445,7 +445,7 @@ describe("App notebook navigation and inspection", () => {
       within(shockVariableList).getByRole("button", { name: /^Inspect variable alpha0$/i })
     );
 
-    expect(screen.getByText("Selected variable")).toBeInTheDocument();
+    expect(document.getElementById("notebook-inspect-panel")).not.toBeNull();
     inspectorHeading = document.querySelector(".variable-inspector-panel h3");
     expect(inspectorHeading).not.toBeNull();
     expect(inspectorHeading?.textContent).toMatch(/α|alpha/i);
@@ -479,8 +479,7 @@ describe("App notebook navigation and inspection", () => {
     fireEvent.click(yRowButton);
     await expectVariableInspectorOpen();
 
-    const selectedVariableLabel = screen.getByText(/^Selected variable$/i);
-    const inspector = selectedVariableLabel.closest(".variable-inspector-panel");
+    const inspector = document.getElementById("notebook-inspect-panel");
     expect(inspector).not.toBeNull();
     if (!(inspector instanceof HTMLElement)) {
       throw new Error("Expected variable inspector container.");
@@ -489,8 +488,6 @@ describe("App notebook navigation and inspection", () => {
     const inspectorHeading = within(inspector).getByRole("heading", { name: /^Y\b/i });
     expect(inspectorHeading).toBeInTheDocument();
 
-    expect(within(inspector).getByText(/^Endogenous$/i)).toBeInTheDocument();
-    expect(within(inspector).getByText(/^Flow$/i)).toBeInTheDocument();
     expect(within(inspector).getByText(/^Equation role$/i)).toBeInTheDocument();
     expect(within(inspector).getByText(/^Identity$/i)).toBeInTheDocument();
     expect(within(inspector).getByText(/^Declared$/i)).toBeInTheDocument();
@@ -514,7 +511,7 @@ describe("App notebook navigation and inspection", () => {
     fireEvent.click(yRowButton);
     await expectVariableInspectorOpen();
 
-    const inspector = screen.getByText(/^Selected variable$/i).closest(".variable-inspector-panel");
+    const inspector = document.getElementById("notebook-inspect-panel");
     expect(inspector).not.toBeNull();
     if (!(inspector instanceof HTMLElement)) {
       throw new Error("Expected variable inspector container.");
@@ -825,7 +822,7 @@ describe("App notebook navigation and inspection", () => {
 
     await clickForDeferredVariableInspect(rmToken);
 
-    const inspector = screen.getByText(/^Selected variable$/i).closest(".variable-inspector-panel");
+    const inspector = document.getElementById("notebook-inspect-panel");
     expect(inspector).not.toBeNull();
     if (!(inspector instanceof HTMLElement)) {
       throw new Error("Expected variable inspector container.");
@@ -854,7 +851,7 @@ describe("App notebook navigation and inspection", () => {
     }
 
     await user.click(within(ydEquation).getByRole("button", { name: /^Inspect variable YD$/i }));
-    let currentInspector = screen.getByText(/^Selected variable$/i).closest(".variable-inspector-panel");
+    let currentInspector = document.getElementById("notebook-inspect-panel");
     expect(currentInspector).toBeInstanceOf(HTMLElement);
     if (!(currentInspector instanceof HTMLElement)) {
       throw new Error("Expected current variable inspector container.");

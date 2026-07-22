@@ -209,7 +209,15 @@ export async function setNotebookSourceFormat(
 }
 
 export async function expectVariableInspectorOpen(timeout = 3500): Promise<void> {
-  await testingScreen.findByText("Selected variable", undefined, { timeout });
+  await waitFor(
+    () => {
+      const panel = document.getElementById("notebook-inspect-panel");
+      if (!panel) {
+        throw new Error("Expected variable inspector panel.");
+      }
+    },
+    { timeout }
+  );
 }
 
 /** Clicks a variable token that schedules inspect after ~400ms (matrix / equation expression). */

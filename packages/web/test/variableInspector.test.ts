@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { editorStateFromModel, type EditorState } from "../src/lib/editorModel";
-import { buildVariableInspectorData } from "../src/lib/variableInspector";
+import {
+  buildVariableInspectorData,
+  isRelatedEquationInitiallyVisible,
+  RELATED_EQUATIONS_INITIAL_UPSTREAM_DEPTH
+} from "../src/lib/variableInspector";
 import {
   buildVariableDescriptions,
   getVariableDescription
@@ -484,5 +488,143 @@ describe("variableInspector matrix column sums", () => {
     expect(data?.equationRoleSourceLabel).toBe("From matrix Sum row");
     expect(data?.equationInputs.current).toEqual(expect.arrayContaining(["WBd", "Cs"]));
     expect(data?.generatedEquationExplanation).toMatch(/accumulated value/i);
+  });
+});
+
+describe("variableInspector related equations", () => {
+  it("omits the selected variable's own defining equation from affected equations", () => {
+    const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
+    editor.equations = [
+      { id: "eq-y", name: "Y", expression: "C + G" },
+      { id: "eq-c", name: "C", expression: "0.6 * Y" },
+      { id: "eq-g", name: "G", expression: "20" }
+    ];
+    const variableDescriptions = buildVariableDescriptions({
+      equations: editor.equations,
+      externals: editor.externals
+    });
+    const variableUnitMetadata = buildVariableUnitMetadata({
+      equations: editor.equations,
+      externals: editor.externals
+    });
+
+    const data = buildVariableInspectorData({
+      editor,
+      selectedVariable: "Y",
+      variableDescriptions,
+      variableUnitMetadata
+    });
+
+    expect(data?.definingEquation?.id).toBe("eq-y");
+    // Upstream (G) before equations that are also downstream (C).
+    expect(data?.relatedEquations.map((entry) => entry.equation.id)).toEqual(["eq-g", "eq-c"]);
+    expect(data?.relatedEquations.map((entry) => entry.role)).toEqual(["input", "both"]);
+    expect(data?.relatedEquations.some((entry) => entry.role === "root")).toBe(false);
+  });
+
+  it("lists upstream equations before downstream equations", () => {
+    const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
+    editor.equations = [
+      { id: "eq-tax", name: "Tax", expression: "0.2 * Y" },
+      { id: "eq-y", name: "Y", expression: "C + G" },
+      { id: "eq-g", name: "G", expression: "20" },
+      { id: "eq-c", name: "C", expression: "10" }
+    ];
+    const variableDescriptions = buildVariableDescriptions({
+      equations: editor.equations,
+      externals: editor.externals
+    });
+    const variableUnitMetadata = buildVariableUnitMetadata({
+      equations: editor.equations,
+      externals: editor.externals
+    });
+
+    const data = buildVariableInspectorData({
+      editor,
+      selectedVariable: "Y",
+      variableDescriptions,
+      variableUnitMetadata
+    });
+
+    expect(data?.relatedEquations.map((entry) => entry.equation.id)).toEqual([
+      "eq-g",
+      "eq-c",
+      "eq-tax"
+    ]);
+    expect(data?.relatedEquations.map((entry) => entry.role)).toEqual([
+      "input",
+      "input",
+      "output"
+    ]);
+  });
+  it("omits self-referential defining equations from affected equations", () => {
+    const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
+    editor.equations = [
+      { id: "eq-h", name: "H", expression: "TSLAG(H,1) + G" },
+      { id: "eq-g", name: "G", expression: "20" }
+    ];
+    const variableDescriptions = buildVariableDescriptions({
+      equations: editor.equations,
+      externals: editor.externals
+    });
+    const variableUnitMetadata = buildVariableUnitMetadata({
+      equations: editor.equations,
+      externals: editor.externals
+    });
+
+    const data = buildVariableInspectorData({
+      editor,
+      selectedVariable: "H",
+      variableDescriptions,
+      variableUnitMetadata
+    });
+
+    expect(data?.definingEquation?.id).toBe("eq-h");
+    expect(data?.equationInputs.lagged).toEqual(["H"]);
+    expect(data?.relatedEquations.map((entry) => entry.equation.id)).toEqual(["eq-g"]);
+  });
+
+  it("walks transitive upstream and records depth", () => {
+    const editor = editorStateFromModel(simBaselineModel, simBaselineOptions, null);
+    editor.equations = [
+      { id: "eq-y", name: "Y", expression: "C" },
+      { id: "eq-c", name: "C", expression: "D" },
+      { id: "eq-d", name: "D", expression: "E" },
+      { id: "eq-e", name: "E", expression: "1" }
+    ];
+    const variableDescriptions = buildVariableDescriptions({
+      equations: editor.equations,
+      externals: editor.externals
+    });
+    const variableUnitMetadata = buildVariableUnitMetadata({
+      equations: editor.equations,
+      externals: editor.externals
+    });
+
+    const data = buildVariableInspectorData({
+      editor,
+      selectedVariable: "Y",
+      variableDescriptions,
+      variableUnitMetadata
+    });
+
+    expect(
+      data?.relatedEquations.map((entry) => ({
+        id: entry.equation.id,
+        role: entry.role,
+        depth: entry.depth
+      }))
+    ).toEqual([
+      { id: "eq-c", role: "input", depth: 1 },
+      { id: "eq-d", role: "input", depth: 2 },
+      { id: "eq-e", role: "input", depth: 3 }
+    ]);
+
+    expect(
+      data?.relatedEquations.filter((entry) => isRelatedEquationInitiallyVisible(entry)).map(
+        (entry) => entry.equation.id
+      )
+    ).toEqual(["eq-c", "eq-d"]);
+    expect(RELATED_EQUATIONS_INITIAL_UPSTREAM_DEPTH).toBe(2);
   });
 });

@@ -80,12 +80,17 @@ export interface VariableInspectorData {
   relatedEquations: Array<{
     equation: EquationRow;
     role: "root" | "input" | "output" | "both";
+    /** Hop distance from the selected variable. Direct neighbors are 1. */
+    depth: number;
     tokenRoles: Map<string, "root" | "input" | "output" | "both">;
   }>;
   externalDefinition: ExternalRow | null;
   hasObservedData: boolean;
   isStockFlowLabel: string | null;
 }
+
+/** Upstream equations deeper than this are hidden until the inspector expand control is used. */
+export const RELATED_EQUATIONS_INITIAL_UPSTREAM_DEPTH = 2;
 
 interface EquationAnalysis {
   currentDependencies: string[];
@@ -387,6 +392,7 @@ function buildRelatedEquations(args: {
     {
       equation: EquationRow;
       role: InspectorTraceRole;
+      depth: number;
       tokenRoles: Map<string, InspectorTraceRole>;
       order: number;
     }
@@ -397,7 +403,8 @@ function buildRelatedEquations(args: {
   function addEntry(
     equation: EquationRow,
     role: InspectorTraceRole,
-    tokenAssignments: Array<[string, InspectorTraceRole]>
+    tokenAssignments: Array<[string, InspectorTraceRole]>,
+    depth: number
   ): void {
     const existing = entries.get(equation.id);
     const tokenRoles = existing?.tokenRoles ?? new Map<string, InspectorTraceRole>();
@@ -415,52 +422,118 @@ function buildRelatedEquations(args: {
     entries.set(equation.id, {
       equation,
       role: mergeInspectorTraceRole(existing?.role, role),
+      depth: existing ? Math.min(existing.depth, depth) : depth,
       tokenRoles,
       order: orderById.get(equation.id) ?? Number.MAX_SAFE_INTEGER
     });
   }
 
   if (args.definingEquation) {
-    const definingAnalysis = args.equationAnalysis.get(args.definingEquation.id);
-    const definingName = args.definingEquation.name.trim();
-    const rootTokens: Array<[string, InspectorTraceRole]> = [[args.selectedVariable, "root"]];
-    if (definingName && definingName !== args.selectedVariable) {
-      rootTokens.push([definingName, "root"]);
+    // Transitive upstream (BFS). Omit the selected variable's own defining equation.
+    const queue: Array<{ variable: string; depth: number }> = [];
+    const queuedVariables = new Set<string>();
+    const visitedEquationIds = new Set<string>();
+
+    function enqueueVariable(variable: string, depth: number): void {
+      const normalized = variable.trim();
+      if (!normalized || normalized === args.selectedVariable || queuedVariables.has(normalized)) {
+        return;
+      }
+      queuedVariables.add(normalized);
+      queue.push({ variable: normalized, depth });
     }
-    addEntry(args.definingEquation, "root", [
-      ...rootTokens,
-      ...((definingAnalysis?.currentDependencies ?? []).map(
-        (token): [string, InspectorTraceRole] => [token, "input"]
-      )),
-      ...((definingAnalysis?.lagDependencies ?? []).map(
-        (token): [string, InspectorTraceRole] => [token, "input"]
-      ))
-    ]);
 
     uniqueSorted([
       ...args.equationInputs.currentDependencies,
       ...args.equationInputs.lagDependencies
     ]).forEach((dependency) => {
-      (rowsByOutput.get(dependency) ?? []).forEach((equation) => {
-        const output = equationOutputVariable(equation.name);
-        addEntry(equation, "input", [
-          [dependency, "input"],
-          ...(output ? ([[output, "input"]] as Array<[string, InspectorTraceRole]>) : [])
-        ]);
-      });
+      enqueueVariable(dependency, 1);
     });
+
+    while (queue.length > 0) {
+      const current = queue.shift();
+      if (!current) {
+        break;
+      }
+
+      (rowsByOutput.get(current.variable) ?? []).forEach((equation) => {
+        if (equationDefinesVariable(equation.name, args.selectedVariable)) {
+          return;
+        }
+        if (visitedEquationIds.has(equation.id)) {
+          return;
+        }
+        visitedEquationIds.add(equation.id);
+
+        const output = equationOutputVariable(equation.name);
+        addEntry(
+          equation,
+          "input",
+          [
+            [current.variable, "input"],
+            ...(output ? ([[output, "input"]] as Array<[string, InspectorTraceRole]>) : [])
+          ],
+          current.depth
+        );
+
+        const analysis = args.equationAnalysis.get(equation.id);
+        uniqueSorted([
+          ...(analysis?.currentDependencies ?? []),
+          ...(analysis?.lagDependencies ?? [])
+        ]).forEach((dependency) => {
+          enqueueVariable(dependency, current.depth + 1);
+        });
+      });
+    }
   }
 
   args.appearsInEquations.forEach((equation) => {
-    addEntry(equation, "output", [
-      [args.selectedVariable, "output"],
-      [equation.name.trim(), "output"]
-    ]);
+    addEntry(
+      equation,
+      "output",
+      [
+        [args.selectedVariable, "output"],
+        [equation.name.trim(), "output"]
+      ],
+      1
+    );
   });
 
   return [...entries.values()]
-    .sort((left, right) => left.order - right.order)
-    .map(({ equation, role, tokenRoles }) => ({ equation, role, tokenRoles }));
+    .sort((left, right) => {
+      const roleDelta = relatedEquationRoleSortKey(left.role) - relatedEquationRoleSortKey(right.role);
+      if (roleDelta !== 0) {
+        return roleDelta;
+      }
+      if (left.depth !== right.depth) {
+        return left.depth - right.depth;
+      }
+      return left.order - right.order;
+    })
+    .map(({ equation, role, depth, tokenRoles }) => ({ equation, role, depth, tokenRoles }));
+}
+
+function relatedEquationRoleSortKey(role: InspectorTraceRole): number {
+  switch (role) {
+    case "input":
+      return 0;
+    case "both":
+      return 1;
+    case "output":
+      return 2;
+    case "root":
+      return 3;
+  }
+}
+
+export function isRelatedEquationInitiallyVisible(entry: {
+  role: InspectorTraceRole;
+  depth: number;
+}): boolean {
+  if (entry.role === "output" || entry.role === "both") {
+    return true;
+  }
+  return entry.depth <= RELATED_EQUATIONS_INITIAL_UPSTREAM_DEPTH;
 }
 
 function buildGeneratedEquationExplanation(

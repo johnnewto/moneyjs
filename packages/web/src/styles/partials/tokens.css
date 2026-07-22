@@ -46,6 +46,12 @@
   --radius-xl: 24px;
   --radius-pill: 999px;
 
+  /* Equation dependency trace row tints */
+  --trace-root-bg: rgba(219, 234, 254, 0.78);
+  --trace-input-bg: rgba(220, 252, 231, 0.7);
+  --trace-output-bg: rgba(254, 249, 195, 0.82);
+  --trace-both-bg: rgba(255, 237, 213, 0.82);
+
   /* Layout (dynamic — set inline where needed) */
   --panel-left-width: 57%;
   --eq-col-variable-width: 140px;

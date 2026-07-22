@@ -279,16 +279,16 @@
   background: rgba(241, 245, 249, 0.96);
 }
 .equation-grid-row.trace-root {
-  background: rgba(219, 234, 254, 0.78);
+  background: var(--trace-root-bg);
 }
 .equation-grid-row.trace-input {
-  background: rgba(220, 252, 231, 0.7);
+  background: var(--trace-input-bg);
 }
 .equation-grid-row.trace-output {
-  background: rgba(254, 249, 195, 0.82);
+  background: var(--trace-output-bg);
 }
 .equation-grid-row.trace-both {
-  background: rgba(255, 237, 213, 0.82);
+  background: var(--trace-both-bg);
 }
 .equation-grid-row input {
   background: #fff;

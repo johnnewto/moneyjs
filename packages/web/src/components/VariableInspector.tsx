@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 
 import type { EquationRow, ExternalRow } from "../lib/editorModel";
 import {
@@ -7,7 +7,11 @@ import {
   resolveModelOverrides,
   type ConstantExternalOverrides
 } from "../lib/externalParameterControls";
-import type { VariableInspectorData } from "../lib/variableInspector";
+import {
+  isRelatedEquationInitiallyVisible,
+  RELATED_EQUATIONS_INITIAL_UPSTREAM_DEPTH,
+  type VariableInspectorData
+} from "../lib/variableInspector";
 import { collectEquationDenominatorVariables } from "../lib/equationDivisionAnalysis";
 import type { VariableDescriptions } from "../lib/variableDescriptions";
 import type { VariableUnitMetadata } from "../lib/unitMeta";
@@ -81,84 +85,78 @@ export function VariableInspector({
 }: VariableInspectorProps) {
   return (
     <section id="notebook-inspect-panel" className="control-panel variable-inspector-panel" role="tabpanel">
-      {stability ? (
-        <StabilityInspectorSection
-          display={stability.display}
-          isComputing={stability.isComputing}
-          onClearAnalysis={stability.onClearAnalysis}
-          onOpenRawData={stability.onOpenRawData}
-          onRequestAnalysis={stability.onRequestAnalysis}
-          selectedPeriodIndex={selectedPeriodIndex}
-          selectedVariableName={data?.name ?? null}
-          simulationResult={stability.simulationResult}
-        />
-      ) : null}
       {data ? (
         <div className="variable-inspector-body">
           <div className="variable-inspector-hero-block">
+          {stability ? (
+            <StabilityInspectorSection
+              display={stability.display}
+              isComputing={stability.isComputing}
+              part="chrome"
+              onClearAnalysis={stability.onClearAnalysis}
+              onOpenRawData={stability.onOpenRawData}
+              onRequestAnalysis={stability.onRequestAnalysis}
+              selectedPeriodIndex={selectedPeriodIndex}
+              selectedVariableName={data.name}
+              simulationResult={stability.simulationResult}
+            />
+          ) : null}
           <div className="variable-inspector-hero">
             <div className="variable-inspector-hero-title">
-              <div className="variable-inspector-eyebrow-row">
-                <div className="eyebrow">Selected variable</div>
-                {onGoBack || onGoForward ? (
-                  <div className="variable-inspector-nav">
-                    <button
-                      type="button"
-                      className="variable-inspector-nav-button"
-                      aria-label="Go back"
-                      title="Go back"
-                      disabled={!canGoBack}
-                      onClick={onGoBack}
-                    >
-                      <span aria-hidden="true">↩</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="variable-inspector-nav-button"
-                      aria-label="Go forward"
-                      title="Go forward"
-                      disabled={!canGoForward}
-                      onClick={onGoForward}
-                    >
-                      <span aria-hidden="true">↪</span>
-                    </button>
+              <div className="variable-inspector-title-row">
+                <h3>
+                  <InspectorVariablePicker
+                    currentValues={currentValues}
+                    name={data.name}
+                    onSelectVariable={onSelectVariable}
+                    options={variableOptions}
+                    variableDescriptions={variableDescriptions}
+                    variableUnitMetadata={variableUnitMetadata}
+                  />
+                </h3>
+                {onGoBack || onGoForward || onShowUsages ? (
+                  <div className="variable-inspector-hero-actions">
+                    {onGoBack || onGoForward ? (
+                      <div className="variable-inspector-nav">
+                        <button
+                          type="button"
+                          className="variable-inspector-nav-button"
+                          aria-label="Go back"
+                          title="Go back"
+                          disabled={!canGoBack}
+                          onClick={onGoBack}
+                        >
+                          <span aria-hidden="true">↩</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="variable-inspector-nav-button"
+                          aria-label="Go forward"
+                          title="Go forward"
+                          disabled={!canGoForward}
+                          onClick={onGoForward}
+                        >
+                          <span aria-hidden="true">↪</span>
+                        </button>
+                      </div>
+                    ) : null}
+                    {onShowUsages ? (
+                      <button
+                        type="button"
+                        className="variable-inspector-usages-button"
+                        onClick={onShowUsages}
+                        title={`Show everywhere ${data.name} appears`}
+                      >
+                        {usagesCount && usagesCount > 0
+                          ? `Appears in ${usagesCount} place${usagesCount === 1 ? "" : "s"}`
+                          : "Find all usages"}
+                        <span aria-hidden="true"> ↗</span>
+                      </button>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
-              <h3>
-                <InspectorVariablePicker
-                  currentValues={currentValues}
-                  name={data.name}
-                  onSelectVariable={onSelectVariable}
-                  options={variableOptions}
-                  variableDescriptions={variableDescriptions}
-                  variableUnitMetadata={variableUnitMetadata}
-                />
-              </h3>
             </div>
-            <div className="variable-inspector-badges">
-              <span className="inspector-badge">{data.roleLabel}</span>
-              {data.isStockFlowLabel ? (
-                <span className="inspector-badge is-muted">{data.isStockFlowLabel}</span>
-              ) : null}
-              {data.unitLabel ? <span className="inspector-badge is-muted">{data.unitLabel}</span> : null}
-              {data.hasObservedData ? (
-                <span className="inspector-badge is-muted">Observed data</span>
-              ) : null}
-            </div>
-            {onShowUsages ? (
-              <button
-                type="button"
-                className="variable-inspector-usages-button"
-                onClick={onShowUsages}
-                title={`Show everywhere ${data.name} appears`}
-              >
-                {usagesCount && usagesCount > 0
-                  ? `Appears in ${usagesCount} place${usagesCount === 1 ? "" : "s"}`
-                  : "Find all usages"}
-                <span aria-hidden="true"> ↗</span>
-              </button>
-            ) : null}
           </div>
           {seriesValues ? (
             <VariableInspectorSparkline
@@ -167,6 +165,20 @@ export function VariableInspector({
             />
           ) : null}
           </div>
+
+          {stability ? (
+            <StabilityInspectorSection
+              display={stability.display}
+              isComputing={stability.isComputing}
+              part="details"
+              onClearAnalysis={stability.onClearAnalysis}
+              onOpenRawData={stability.onOpenRawData}
+              onRequestAnalysis={stability.onRequestAnalysis}
+              selectedPeriodIndex={selectedPeriodIndex}
+              selectedVariableName={data.name}
+              simulationResult={stability.simulationResult}
+            />
+          ) : null}
 
           <InspectorSection title={data.description?.trim() || "Definition"}>
             {data.definingEquation ? (
@@ -180,6 +192,7 @@ export function VariableInspector({
                 generatedEquationExplanation={data.generatedEquationExplanation}
                 onApplyExpression={onApplyDefiningExpression}
                 onEditingChange={onEditingChange}
+                onSelectVariable={onSelectVariable}
                 parameterNames={parameterNames}
                 variableDescriptions={variableDescriptions}
                 variableUnitMetadata={variableUnitMetadata}
@@ -250,120 +263,18 @@ export function VariableInspector({
             />
           ) : null}
 
-          <InspectorSection title="Flows Affecting It">
-            <div className="inspector-chip-grid">
-              <VariableChipList
-                currentValues={currentValues}
-                emptyLabel="No direct current-period drivers detected."
-                label="Current-period drivers"
-                variableDescriptions={variableDescriptions}
-                variableUnitMetadata={variableUnitMetadata}
-                values={data.equationInputs.current}
-                onSelectVariable={onSelectVariable}
-              />
-              <VariableChipList
-                currentValues={currentValues}
-                emptyLabel="No lagged drivers detected."
-                label="Lagged drivers"
-                variableDescriptions={variableDescriptions}
-                variableUnitMetadata={variableUnitMetadata}
-                values={data.equationInputs.lagged}
-                onSelectVariable={onSelectVariable}
-              />
-            </div>
-          </InspectorSection>
-
-          <InspectorSection title="Directly Affects">
-            <div className="inspector-chip-grid">
-              <VariableChipList
-                currentValues={currentValues}
-                emptyLabel="No downstream equations reference this variable yet."
-                label="Downstream variables"
-                variableDescriptions={variableDescriptions}
-                variableUnitMetadata={variableUnitMetadata}
-                values={data.affects}
-                onSelectVariable={onSelectVariable}
-              />
-              <StaticChipList
-                emptyLabel="No accounting matrix terms reference this variable yet."
-                label="Accounting terms"
-                values={data.affectsAccountingTerms}
-              />
-            </div>
-          </InspectorSection>
-
           <InspectorSection title="Affected equations">
-            {data.relatedEquations.length > 0 ? (
-              <div className="inspector-related-equation-list">
-                {data.relatedEquations.map((entry) => (
-                  <article
-                    key={entry.equation.id}
-                    className={`inspector-related-equation trace-${entry.role}`}
-                  >
-                    <div className="inspector-related-equation-meta">
-                      <button
-                        type="button"
-                        aria-label={`Inspect variable ${entry.equation.name.trim()}`}
-                        className="result-variable-button inspector-related-equation-title"
-                        onClick={() => onSelectVariable(entry.equation.name.trim())}
-                      >
-                        <span className="inspector-related-equation-title-name">
-                          <VariableLabel
-                            currentValues={currentValues}
-                            name={entry.equation.name}
-                            variableDescriptions={variableDescriptions}
-                            variableUnitMetadata={variableUnitMetadata}
-                          />
-                        </span>
-                        <span className="inspector-related-equation-title-separator" aria-hidden="true">
-                          |
-                        </span>
-                        <span className="inspector-related-equation-title-description">
-                          {getRelatedEquationTitleDescription(entry.equation.name.trim(), entry.equation.desc, variableDescriptions)}
-                        </span>
-                        <span className="inspector-related-equation-title-separator" aria-hidden="true">
-                          |
-                        </span>
-                        <span className="inspector-related-equation-title-role">
-                          {formatRelatedEquationRole(entry.role)}
-                        </span>
-                      </button>
-                    </div>
-                    <code className="inspector-equation">
-                      <InspectorRelatedEquationLhs
-                        currentValues={currentValues}
-                        name={entry.equation.name}
-                        onSelectVariable={onSelectVariable}
-                        parameterNames={data.parameterNames}
-                        traceRole={entry.tokenRoles.get(entry.equation.name.trim())}
-                        variableDescriptions={variableDescriptions}
-                        variableUnitMetadata={variableUnitMetadata}
-                      />
-                      {" = "}
-                      {highlightFormula(
-                        entry.equation.expression,
-                        new Set(data.parameterNames),
-                        entry.tokenRoles,
-                        variableDescriptions,
-                        variableUnitMetadata,
-                        onSelectVariable,
-                        undefined,
-                        currentValues,
-                        null,
-                        false,
-                        laggedCurrentValues,
-                        laggedPeriodLabel,
-                        collectEquationDenominatorVariables(entry.equation.expression)
-                      )}
-                    </code>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <div className="inspector-empty-note">
-                No related equations are available for this variable yet.
-              </div>
-            )}
+            <InspectorRelatedEquations
+              currentValues={currentValues}
+              laggedCurrentValues={laggedCurrentValues}
+              laggedPeriodLabel={laggedPeriodLabel}
+              onSelectVariable={onSelectVariable}
+              parameterNames={data.parameterNames}
+              relatedEquations={data.relatedEquations}
+              selectedVariableName={data.name}
+              variableDescriptions={variableDescriptions}
+              variableUnitMetadata={variableUnitMetadata}
+            />
           </InspectorSection>
 
           {data.equationRoleLabel ? (
@@ -384,26 +295,211 @@ export function VariableInspector({
       ) : (
         <div className="variable-inspector-body">
           <div className="variable-inspector-hero-block">
+            {stability ? (
+              <StabilityInspectorSection
+                display={stability.display}
+                isComputing={stability.isComputing}
+                part="chrome"
+                onClearAnalysis={stability.onClearAnalysis}
+                onOpenRawData={stability.onOpenRawData}
+                onRequestAnalysis={stability.onRequestAnalysis}
+                selectedPeriodIndex={selectedPeriodIndex}
+                selectedVariableName={null}
+                simulationResult={stability.simulationResult}
+              />
+            ) : null}
             <div className="variable-inspector-hero">
               <div className="variable-inspector-hero-title">
-                <div className="eyebrow">Selected variable</div>
-                <h3>
-                  <InspectorVariablePicker
-                    currentValues={currentValues}
-                    name=""
-                    onSelectVariable={onSelectVariable}
-                    options={variableOptions}
-                    variableDescriptions={variableDescriptions}
-                    variableUnitMetadata={variableUnitMetadata}
-                  />
-                </h3>
+                <div className="variable-inspector-title-row">
+                  <h3>
+                    <InspectorVariablePicker
+                      currentValues={currentValues}
+                      name=""
+                      onSelectVariable={onSelectVariable}
+                      options={variableOptions}
+                      variableDescriptions={variableDescriptions}
+                      variableUnitMetadata={variableUnitMetadata}
+                    />
+                  </h3>
+                </div>
               </div>
             </div>
           </div>
+          {stability ? (
+            <StabilityInspectorSection
+              display={stability.display}
+              isComputing={stability.isComputing}
+              part="details"
+              onClearAnalysis={stability.onClearAnalysis}
+              onOpenRawData={stability.onOpenRawData}
+              onRequestAnalysis={stability.onRequestAnalysis}
+              selectedPeriodIndex={selectedPeriodIndex}
+              selectedVariableName={null}
+              simulationResult={stability.simulationResult}
+            />
+          ) : null}
           <p className="variable-inspector-empty">Select a variable to inspect it here.</p>
         </div>
       )}
     </section>
+  );
+}
+
+function InspectorRelatedEquations({
+  currentValues,
+  laggedCurrentValues,
+  laggedPeriodLabel,
+  onSelectVariable,
+  parameterNames,
+  relatedEquations,
+  selectedVariableName,
+  variableDescriptions,
+  variableUnitMetadata
+}: {
+  currentValues?: Record<string, number | undefined>;
+  laggedCurrentValues?: Record<string, number | undefined>;
+  laggedPeriodLabel?: string;
+  onSelectVariable(variableName: string): void;
+  parameterNames: string[];
+  relatedEquations: VariableInspectorData["relatedEquations"];
+  selectedVariableName: string;
+  variableDescriptions?: VariableDescriptions;
+  variableUnitMetadata?: VariableUnitMetadata;
+}) {
+  const [showAllUpstream, setShowAllUpstream] = useState(false);
+
+  useEffect(() => {
+    setShowAllUpstream(false);
+  }, [selectedVariableName]);
+
+  const hiddenUpstreamCount = useMemo(
+    () =>
+      relatedEquations.filter(
+        (entry) => entry.role === "input" && entry.depth > RELATED_EQUATIONS_INITIAL_UPSTREAM_DEPTH
+      ).length,
+    [relatedEquations]
+  );
+
+  const visibleEquations = useMemo(
+    () =>
+      showAllUpstream
+        ? relatedEquations
+        : relatedEquations.filter((entry) => isRelatedEquationInitiallyVisible(entry)),
+    [relatedEquations, showAllUpstream]
+  );
+
+  const visibleUpstreamEquations = useMemo(
+    () => visibleEquations.filter((entry) => entry.role === "input"),
+    [visibleEquations]
+  );
+  const upstreamLevels = useMemo(() => {
+    const levels: Array<{
+      depth: number;
+      entries: VariableInspectorData["relatedEquations"];
+    }> = [];
+    for (const entry of visibleUpstreamEquations) {
+      const current = levels[levels.length - 1];
+      if (current && current.depth === entry.depth) {
+        current.entries.push(entry);
+      } else {
+        levels.push({ depth: entry.depth, entries: [entry] });
+      }
+    }
+    return levels;
+  }, [visibleUpstreamEquations]);
+  const visibleOtherEquations = useMemo(
+    () => visibleEquations.filter((entry) => entry.role !== "input"),
+    [visibleEquations]
+  );
+
+  if (relatedEquations.length === 0) {
+    return (
+      <div className="inspector-empty-note">
+        No related equations are available for this variable yet.
+      </div>
+    );
+  }
+
+  function renderRelatedEquation(
+    entry: VariableInspectorData["relatedEquations"][number]
+  ): ReactNode {
+    const description = getRelatedEquationDescription(
+      entry.equation.name.trim(),
+      entry.equation.desc,
+      variableDescriptions
+    );
+    return (
+      <article
+        key={entry.equation.id}
+        aria-label={`${formatRelatedEquationRole(entry.role)} equation`}
+        className={`inspector-related-equation trace-${entry.role}`}
+      >
+        <div className="inspector-related-equation-expression">
+          <code className="inspector-related-equation-formula">
+            <InspectorRelatedEquationLhs
+              currentValues={currentValues}
+              name={entry.equation.name}
+              onSelectVariable={onSelectVariable}
+              parameterNames={parameterNames}
+              traceRole={entry.tokenRoles.get(entry.equation.name.trim())}
+              variableDescriptions={variableDescriptions}
+              variableUnitMetadata={variableUnitMetadata}
+            />
+            {" = "}
+            {highlightFormula(
+              entry.equation.expression,
+              new Set(parameterNames),
+              entry.tokenRoles,
+              variableDescriptions,
+              variableUnitMetadata,
+              onSelectVariable,
+              undefined,
+              currentValues,
+              null,
+              false,
+              laggedCurrentValues,
+              laggedPeriodLabel,
+              collectEquationDenominatorVariables(entry.equation.expression)
+            )}
+          </code>
+        </div>
+        {description ? (
+          <span className="inspector-related-equation-description">{description}</span>
+        ) : null}
+      </article>
+    );
+  }
+
+  return (
+    <div className="inspector-related-equation-list">
+      {upstreamLevels.map((level, index) => (
+        <Fragment key={`upstream-level-${level.depth}`}>
+          {index > 0 ? (
+            <div
+              className="inspector-related-equation-level-rule"
+              role="separator"
+              aria-label={`Upstream level ${level.depth}`}
+            />
+          ) : null}
+          {level.entries.map((entry) => renderRelatedEquation(entry))}
+        </Fragment>
+      ))}
+      {hiddenUpstreamCount > 0 ? (
+        <button
+          type="button"
+          className="inspector-related-equation-expand"
+          aria-expanded={showAllUpstream}
+          onClick={() => setShowAllUpstream((current) => !current)}
+        >
+          {showAllUpstream
+            ? "Show fewer upstream equations"
+            : `Show ${hiddenUpstreamCount} more upstream equation${
+                hiddenUpstreamCount === 1 ? "" : "s"
+              }`}
+        </button>
+      ) : null}
+      {visibleOtherEquations.map((entry) => renderRelatedEquation(entry))}
+    </div>
   );
 }
 
@@ -466,6 +562,7 @@ function InspectorDefiningEquation({
   generatedEquationExplanation,
   onApplyExpression,
   onEditingChange,
+  onSelectVariable,
   parameterNames,
   variableDescriptions,
   variableUnitMetadata
@@ -479,6 +576,7 @@ function InspectorDefiningEquation({
   generatedEquationExplanation: string | null;
   onApplyExpression?: (expression: string) => void;
   onEditingChange?: (isEditing: boolean) => void;
+  onSelectVariable(variableName: string): void;
   parameterNames: string[];
   variableDescriptions?: VariableDescriptions;
   variableUnitMetadata?: VariableUnitMetadata;
@@ -598,9 +696,11 @@ function InspectorDefiningEquation({
             onDoubleClick={beginEditing}
             title={canEdit ? "Double-click expression to edit" : undefined}
           >
-            <VariableLabel
+            <InspectorRelatedEquationLhs
               currentValues={currentValues}
               name={definingEquation.name}
+              onSelectVariable={onSelectVariable}
+              parameterNames={parameterNames}
               variableDescriptions={variableDescriptions}
               variableUnitMetadata={variableUnitMetadata}
             />
@@ -611,7 +711,7 @@ function InspectorDefiningEquation({
               undefined,
               variableDescriptions,
               variableUnitMetadata,
-              undefined,
+              onSelectVariable,
               undefined,
               currentValues,
               null,
@@ -726,7 +826,13 @@ function InspectorRelatedEquationLhs({
       type="button"
       aria-label={`Inspect variable ${normalizedName}`}
       className={className}
-      onClick={() => onSelectVariable(normalizedName)}
+      onClick={(event) => {
+        event.stopPropagation();
+        onSelectVariable(normalizedName);
+      }}
+      onMouseDown={(event) => {
+        event.stopPropagation();
+      }}
     >
       <VariableLabel
         currentValues={currentValues}
@@ -751,16 +857,14 @@ function formatRelatedEquationRole(role: InspectorTraceRole): string {
   }
 }
 
-function getRelatedEquationTitleDescription(
+function getRelatedEquationDescription(
   variableName: string,
   equationDescription: string | undefined,
   variableDescriptions?: VariableDescriptions
-): string {
-  return (
-    variableDescriptions?.get(variableName)?.trim() ||
-    equationDescription?.trim() ||
-    "No description"
-  );
+): string | null {
+  const text =
+    variableDescriptions?.get(variableName)?.trim() || equationDescription?.trim() || "";
+  return text || null;
 }
 
 function StaticChipList({
@@ -942,52 +1046,6 @@ function InspectorVariablePicker({
           </div>
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function VariableChipList({
-  currentValues,
-  emptyLabel,
-  label,
-  onSelectVariable,
-  variableDescriptions,
-  variableUnitMetadata,
-  values
-}: {
-  currentValues?: Record<string, number | undefined>;
-  emptyLabel: string;
-  label: string;
-  onSelectVariable(variableName: string): void;
-  variableDescriptions?: VariableDescriptions;
-  variableUnitMetadata?: VariableUnitMetadata;
-  values: string[];
-}) {
-  return (
-    <div className="inspector-chip-group">
-      <div className="inspector-chip-label">{label}</div>
-      {values.length > 0 ? (
-        <div className="inspector-chip-list">
-          {values.map((value) => (
-            <button
-              key={value}
-              type="button"
-              aria-label={`Inspect variable ${value}`}
-              className="inspector-chip"
-              onClick={() => onSelectVariable(value)}
-            >
-              <VariableLabel
-                currentValues={currentValues}
-                name={value}
-                variableDescriptions={variableDescriptions}
-                variableUnitMetadata={variableUnitMetadata}
-              />
-            </button>
-          ))}
-        </div>
-      ) : (
-        <div className="inspector-empty-note">{emptyLabel}</div>
-      )}
     </div>
   );
 }

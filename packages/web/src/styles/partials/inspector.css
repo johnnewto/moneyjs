@@ -3,7 +3,7 @@
 .variable-inspector-panel {
   display: grid;
   gap: 0.55rem;
-  padding: 0.7rem;
+  padding: 0.25rem 0.7rem 0.7rem;
 }
 .inspector-parameter-controls {
   align-items: center;
@@ -25,13 +25,14 @@
 }
 .variable-inspector-hero-block {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.2rem;
 }
 .variable-inspector-hero {
-  align-items: start;
+  align-items: center;
   display: flex;
   gap: 0.45rem;
-  justify-content: space-between;
+  min-width: 0;
+  width: 100%;
 }
 .variable-inspector-sparkline-wrap {
   display: grid;
@@ -65,25 +66,50 @@
   fill: #111827;
 }
 .variable-inspector-hero-title {
-  display: grid;
   flex: 1;
-  gap: 0.15rem;
   min-width: 0;
 }
-.variable-inspector-eyebrow-row {
+.variable-inspector-title-row {
   align-items: center;
   display: flex;
+  flex-wrap: nowrap;
+  gap: 0.45rem;
   min-height: 1.45rem;
-  position: relative;
+  min-width: 0;
+  width: 100%;
 }
-.variable-inspector-nav {
+.variable-inspector-title-row h3 {
+  flex: 1 1 auto;
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.variable-inspector-title-row .inspector-variable-picker {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+}
+.variable-inspector-title-row .inspector-variable-picker-trigger {
+  max-width: 100%;
+}
+.variable-inspector-title-row .variable-label-inline {
+  flex-wrap: nowrap;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+.variable-inspector-hero-actions {
+  align-items: center;
   display: flex;
   flex-shrink: 0;
-  gap: 5mm;
-  left: 50%;
-  position: absolute;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  flex-wrap: nowrap;
+  gap: 0.4rem;
+}
+.variable-inspector-nav {
+  align-items: center;
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.35rem;
 }
 .variable-inspector-nav-button {
   align-items: center;
@@ -256,7 +282,6 @@
 }
 
 .variable-inspector-usages-button {
-  align-self: flex-end;
   appearance: none;
   background: transparent;
   border: 1px solid rgba(148, 163, 184, 0.32);
@@ -265,7 +290,7 @@
   cursor: pointer;
   font-size: 0.72rem;
   font-weight: 700;
-  margin-top: 0.35rem;
+  line-height: 1.2;
   padding: 0.22rem 0.55rem;
 }
 .variable-inspector-usages-button:hover {
@@ -500,50 +525,79 @@
 }
 .inspector-related-equation-list {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.15rem;
 }
 .inspector-related-equation {
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 12px;
-  display: grid;
-  gap: 0.22rem;
-  padding: 0.38rem 0.48rem;
-}
-.inspector-related-equation.trace-root {
-  background: rgba(219, 234, 254, 0.78);
-}
-.inspector-related-equation.trace-input {
-  background: rgba(220, 252, 231, 0.7);
-}
-.inspector-related-equation.trace-output {
-  background: rgba(254, 249, 195, 0.82);
-}
-.inspector-related-equation.trace-both {
-  background: rgba(255, 237, 213, 0.82);
-}
-.inspector-related-equation-meta {
-  align-items: center;
-  display: flex;
-  gap: 0.35rem;
-  justify-content: flex-start;
-}
-.inspector-related-equation-title {
   align-items: baseline;
-  display: inline-flex;
+  border-radius: 3px;
+  display: flex;
+  flex-direction: row;
   flex-wrap: wrap;
-  gap: 0.22rem;
+  gap: 0.25rem 0.85rem;
+  margin: 0;
+  padding: 0.24rem 0.5rem;
   text-align: left;
 }
-.inspector-related-equation-title-name {
-  font-weight: 700;
+.inspector-related-equation.trace-root {
+  background: var(--trace-root-bg);
 }
-.inspector-related-equation-title-description,
-.inspector-related-equation-title-role {
+.inspector-related-equation.trace-input {
+  background: var(--trace-input-bg);
+}
+.inspector-related-equation.trace-output {
+  background: var(--trace-output-bg);
+}
+.inspector-related-equation.trace-both {
+  background: var(--trace-both-bg);
+}
+.inspector-related-equation-expression {
+  display: block;
+  text-align: left;
+}
+.inspector-related-equation-formula {
+  color: var(--color-text-strong);
+  display: block;
+  font: 0.84rem/1.35 "IBM Plex Mono", "SFMono-Regular", monospace;
+  white-space: break-spaces;
+}
+.inspector-related-equation-formula .inspector-equation-lhs {
+  display: inline;
+  vertical-align: baseline;
+}
+.inspector-related-equation-description {
   color: var(--color-text-secondary);
   font-size: 0.79rem;
+  line-height: 1.35;
 }
-.inspector-related-equation-title-separator {
-  color: rgba(71, 85, 105, 0.55);
+.inspector-related-equation-level-rule {
+  border: 0;
+  border-top: 1px solid rgba(100, 116, 139, 0.28);
+  height: 0;
+  margin: 0.18rem 0.1rem;
+}
+.inspector-related-equation-expand {
+  appearance: none;
+  background: transparent;
+  border: 1px dashed rgba(148, 163, 184, 0.45);
+  border-radius: 6px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 600;
+  margin-top: 0.1rem;
+  padding: 0.32rem 0.5rem;
+  text-align: left;
+  width: 100%;
+}
+.inspector-related-equation-expand:hover {
+  background: rgba(241, 245, 249, 0.9);
+  border-color: rgba(100, 116, 139, 0.45);
+  color: #334155;
+}
+.inspector-related-equation-expand:focus-visible {
+  outline: 2px solid rgba(245, 158, 11, 0.45);
+  outline-offset: 1px;
 }
 .inspector-chip-group {
   display: grid;
@@ -672,9 +726,44 @@
   flex-shrink: 0;
 }
 .stability-inspector-section {
-  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
-  margin-bottom: 0.75rem;
-  padding-bottom: 0.75rem;
+  border-bottom: none;
+  border-top: none;
+  margin-bottom: 0.45rem;
+  padding-bottom: 0.35rem;
+  padding-top: 0;
+}
+.stability-inspector-chrome {
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+.stability-inspector-chrome .stability-inspector-actions {
+  gap: 0.2rem 0.45rem;
+  margin-top: 0;
+}
+.stability-inspector-chrome .stability-inspector-actions-primary {
+  gap: 0.35rem;
+}
+.stability-inspector-chrome .stability-analyze-button {
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 0.16rem 0.42rem;
+}
+.stability-inspector-chrome .stability-inspector-actions-hint {
+  font-size: 0.68rem;
+  line-height: 1.25;
+  min-width: 0;
+}
+.stability-inspector-chrome .stability-raw-data-link {
+  font-size: 0.72rem;
+}
+.stability-inspector-chrome .stability-inspector-heading h3 {
+  font-size: 0.84rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+.stability-inspector-chrome .stability-clear-button {
+  font-size: 0.72rem;
 }
 .stability-inspector-model-label {
   color: var(--color-text-subtle);

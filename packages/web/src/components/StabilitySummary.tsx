@@ -27,6 +27,8 @@ import {
 export interface StabilitySummaryProps {
   display: StabilityDisplayState;
   isComputing?: boolean;
+  /** `chrome` = toolbar above the variable; `details` = results below sparkline; `all` = both. */
+  part?: "chrome" | "details" | "all";
   selectedPeriodIndex: number;
   selectedVariableName?: string | null;
   simulationResult?: SimulationResult | null;
@@ -38,6 +40,7 @@ export interface StabilitySummaryProps {
 export function StabilityInspectorSection({
   display,
   isComputing = false,
+  part = "all",
   selectedPeriodIndex,
   selectedVariableName = null,
   simulationResult = null,
@@ -47,8 +50,13 @@ export function StabilityInspectorSection({
 }: StabilitySummaryProps) {
   const periodLabel = selectedPeriodIndex + 1;
   const canAnalyze = stabilityPeriodFromUiIndex(selectedPeriodIndex) != null;
+  const showChrome = part === "chrome" || part === "all";
+  const showDetails = part === "details" || part === "all";
 
   if (display.status === "no-run") {
+    if (!showDetails) {
+      return null;
+    }
     return (
       <section className="inspector-section stability-inspector-section">
         <h3>Local stability</h3>
@@ -58,12 +66,16 @@ export function StabilityInspectorSection({
   }
 
   if (display.status === "idle") {
+    if (!showChrome) {
+      return null;
+    }
     return (
-      <section className="inspector-section stability-inspector-section">
+      <section className="inspector-section stability-inspector-section stability-inspector-chrome">
         <StabilityInspectorActions
           analyzeLabel={`Transition-matrix analysis at period ${periodLabel}`}
           canAnalyze={canAnalyze}
           canOpenRawData={canAnalyze}
+          compact
           disabledReason={
             canAnalyze
               ? undefined
@@ -78,61 +90,85 @@ export function StabilityInspectorSection({
 
   if (display.status === "initial-period") {
     return (
-      <section className="inspector-section stability-inspector-section">
-        <h3>Local stability</h3>
-        <p className="inspector-empty-note">
-          Period {periodLabel} is the initial condition. Move the scrubber to period 2 or later for transition-matrix
-          analysis.
-        </p>
-        <StabilityInspectorActions
-          analyzeLabel={`Transition-matrix analysis at period ${periodLabel}`}
-          canAnalyze={false}
-          canOpenRawData={false}
-          disabledReason="Local stability requires period 2 or later."
-          onOpenRawData={onOpenRawData}
-          onRequestAnalysis={onRequestAnalysis}
-        />
-      </section>
+      <>
+        {showChrome ? (
+          <section className="inspector-section stability-inspector-section stability-inspector-chrome">
+            <StabilityInspectorActions
+              analyzeLabel={`Transition-matrix analysis at period ${periodLabel}`}
+              canAnalyze={false}
+              canOpenRawData={false}
+              compact
+              disabledReason="Local stability requires period 2 or later."
+              onOpenRawData={onOpenRawData}
+              onRequestAnalysis={onRequestAnalysis}
+            />
+          </section>
+        ) : null}
+        {showDetails ? (
+          <section className="inspector-section stability-inspector-section">
+            <p className="inspector-empty-note">
+              Period {periodLabel} is the initial condition. Move the scrubber to period 2 or later for
+              transition-matrix analysis.
+            </p>
+          </section>
+        ) : null}
+      </>
     );
   }
 
   if (display.status === "computing" || isComputing) {
     return (
-      <section className="inspector-section stability-inspector-section">
-        <StabilityInspectorHeading
-          periodLabel={periodLabel}
-          canOpenRawData={canAnalyze}
-          onClearAnalysis={onClearAnalysis}
-          onOpenRawData={onOpenRawData}
-        />
-        <p className="inspector-empty-note">Computing stability metrics…</p>
-      </section>
+      <>
+        {showChrome ? (
+          <section className="inspector-section stability-inspector-section stability-inspector-chrome">
+            <StabilityInspectorHeading
+              periodLabel={periodLabel}
+              canOpenRawData={canAnalyze}
+              onClearAnalysis={onClearAnalysis}
+              onOpenRawData={onOpenRawData}
+            />
+          </section>
+        ) : null}
+        {showDetails ? (
+          <section className="inspector-section stability-inspector-section">
+            <p className="inspector-empty-note">Computing stability metrics…</p>
+          </section>
+        ) : null}
+      </>
     );
   }
 
   if (display.status === "error") {
     return (
-      <section className="inspector-section stability-inspector-section">
-        <StabilityInspectorHeading
-          periodLabel={periodLabel}
-          canOpenRawData={canAnalyze}
-          onClearAnalysis={onClearAnalysis}
-          onOpenRawData={onOpenRawData}
-        />
-        <p className="inspector-empty-note">{display.errorMessage ?? "Stability analysis failed."}</p>
-        <StabilityInspectorActions
-          analyzeLabel="Retry analysis"
-          canAnalyze={canAnalyze}
-          canOpenRawData={canAnalyze}
-          disabledReason={
-            canAnalyze
-              ? undefined
-              : "Move the scrubber to period 2 or later (a converged step with a lagged state)."
-          }
-          onOpenRawData={onOpenRawData}
-          onRequestAnalysis={onRequestAnalysis}
-        />
-      </section>
+      <>
+        {showChrome ? (
+          <section className="inspector-section stability-inspector-section stability-inspector-chrome">
+            <StabilityInspectorHeading
+              periodLabel={periodLabel}
+              canOpenRawData={canAnalyze}
+              onClearAnalysis={onClearAnalysis}
+              onOpenRawData={onOpenRawData}
+            />
+          </section>
+        ) : null}
+        {showDetails ? (
+          <section className="inspector-section stability-inspector-section">
+            <p className="inspector-empty-note">{display.errorMessage ?? "Stability analysis failed."}</p>
+            <StabilityInspectorActions
+              analyzeLabel="Retry analysis"
+              canAnalyze={canAnalyze}
+              canOpenRawData={canAnalyze}
+              disabledReason={
+                canAnalyze
+                  ? undefined
+                  : "Move the scrubber to period 2 or later (a converged step with a lagged state)."
+              }
+              onOpenRawData={onOpenRawData}
+              onRequestAnalysis={onRequestAnalysis}
+            />
+          </section>
+        ) : null}
+      </>
     );
   }
 
@@ -145,17 +181,32 @@ export function StabilityInspectorSection({
   const topEigenvalues = analysis.eigenvalues.slice(0, 8);
 
   return (
-    <StabilityInspectorReadySection
-      analysis={analysis}
-      periodLabel={periodLabel}
-      display={display}
-      residualWarning={residualWarning}
-      topEigenvalues={topEigenvalues}
-      selectedVariableName={selectedVariableName}
-      simulationResult={simulationResult}
-      onClearAnalysis={onClearAnalysis}
-      onOpenRawData={onOpenRawData}
-    />
+    <>
+      {showChrome ? (
+        <section className="inspector-section stability-inspector-section stability-inspector-chrome">
+          <StabilityInspectorHeading
+            periodLabel={periodLabel}
+            canOpenRawData
+            onClearAnalysis={onClearAnalysis}
+            onOpenRawData={onOpenRawData}
+          />
+        </section>
+      ) : null}
+      {showDetails ? (
+        <StabilityInspectorReadySection
+          analysis={analysis}
+          periodLabel={periodLabel}
+          display={display}
+          residualWarning={residualWarning}
+          topEigenvalues={topEigenvalues}
+          selectedVariableName={selectedVariableName}
+          simulationResult={simulationResult}
+          showHeading={false}
+          onClearAnalysis={onClearAnalysis}
+          onOpenRawData={onOpenRawData}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -199,6 +250,7 @@ function StabilityInspectorReadySection({
   topEigenvalues,
   selectedVariableName,
   simulationResult,
+  showHeading = true,
   onClearAnalysis,
   onOpenRawData
 }: {
@@ -209,17 +261,20 @@ function StabilityInspectorReadySection({
   topEigenvalues: Eigenvalue[];
   selectedVariableName: string | null;
   simulationResult?: SimulationResult | null;
+  showHeading?: boolean;
   onClearAnalysis?: () => void;
   onOpenRawData?: () => void;
 }) {
   return (
     <section className="inspector-section stability-inspector-section">
-      <StabilityInspectorHeading
-        periodLabel={periodLabel}
-        canOpenRawData
-        onClearAnalysis={onClearAnalysis}
-        onOpenRawData={onOpenRawData}
-      />
+      {showHeading ? (
+        <StabilityInspectorHeading
+          periodLabel={periodLabel}
+          canOpenRawData
+          onClearAnalysis={onClearAnalysis}
+          onOpenRawData={onOpenRawData}
+        />
+      ) : null}
       {display.modelLabel ? (
         <p className="stability-inspector-model-label">Model: {display.modelLabel}</p>
       ) : null}
@@ -699,6 +754,7 @@ function StabilityInspectorActions({
   analyzeLabel,
   canAnalyze,
   canOpenRawData,
+  compact = false,
   disabledReason,
   onOpenRawData,
   onRequestAnalysis
@@ -706,11 +762,13 @@ function StabilityInspectorActions({
   analyzeLabel: string;
   canAnalyze: boolean;
   canOpenRawData?: boolean;
+  compact?: boolean;
   disabledReason?: string;
   onOpenRawData?: () => void;
   onRequestAnalysis?: () => void;
 }) {
   const canOpenPanel = canOpenRawData ?? canAnalyze;
+  const showInlineHint = Boolean(disabledReason && !canAnalyze && !compact);
 
   return (
     <div className="stability-inspector-actions">
@@ -719,13 +777,14 @@ function StabilityInspectorActions({
           type="button"
           className="primary-button stability-analyze-button"
           disabled={!canAnalyze || !onRequestAnalysis}
+          title={!canAnalyze ? disabledReason : undefined}
           onClick={onRequestAnalysis}
         >
           {analyzeLabel}
         </button>
         <StabilityRawDataLink canOpen={canOpenPanel} onOpen={onOpenRawData} />
       </div>
-      {disabledReason && !canAnalyze ? (
+      {showInlineHint ? (
         <span className="stability-inspector-actions-hint">{disabledReason}</span>
       ) : null}
     </div>
