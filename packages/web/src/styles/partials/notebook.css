@@ -876,7 +876,9 @@
   margin-bottom: 0;
 }
 .notebook-graph-rail-add-chart {
+  align-items: center;
   display: flex;
+  gap: 0.35rem;
   justify-content: center;
   padding: 0.15rem 0 0.35rem;
 }

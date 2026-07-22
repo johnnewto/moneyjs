@@ -1,5 +1,6 @@
 import type { SimulationResult } from "@sfcr/core";
 
+import { PinToggleIcon } from "../../components/PinToggleIcon";
 import { ResultChart } from "../../components/ResultChart";
 import type { MatrixGraphSliceHighlight } from "../graphDocumentHighlight";
 import {
@@ -52,19 +53,53 @@ function resolveMatrixGraphSlicePool(
 
 function GraphAddChartButton({ onClick }: { onClick(): void }) {
   return (
+    <button
+      type="button"
+      className="notebook-graph-rail-add-chart-button"
+      aria-label="Add graph panel"
+      title="Add graph panel"
+      onClick={onClick}
+    >
+      <svg viewBox="0 0 16 16" focusable="false" aria-hidden="true">
+        <circle cx="8" cy="8" r="6.25" />
+        <path d="M8 3.25v9.5M3.25 8h9.5" />
+      </svg>
+    </button>
+  );
+}
+
+function GraphPanelFooterActions({
+  canAddChartPanel,
+  isPanelPinned,
+  onCreateEmptyChart,
+  onTogglePanelPin
+}: {
+  canAddChartPanel: boolean;
+  isPanelPinned: boolean;
+  onCreateEmptyChart?(): void;
+  onTogglePanelPin?(): void;
+}) {
+  if (!onTogglePanelPin && !canAddChartPanel) {
+    return null;
+  }
+
+  return (
     <div className="notebook-graph-rail-add-chart">
-      <button
-        type="button"
-        className="notebook-graph-rail-add-chart-button"
-        aria-label="Add graph panel"
-        title="Add graph panel"
-        onClick={onClick}
-      >
-        <svg viewBox="0 0 16 16" focusable="false" aria-hidden="true">
-          <circle cx="8" cy="8" r="6.25" />
-          <path d="M8 3.25v9.5M3.25 8h9.5" />
-        </svg>
-      </button>
+      {onTogglePanelPin ? (
+        <button
+          type="button"
+          className="result-chart-pin-button"
+          aria-label={isPanelPinned ? "Dock graph" : "Pin in floating panel"}
+          aria-pressed={isPanelPinned}
+          title={isPanelPinned ? "Dock graph" : "Pin in floating panel"}
+          onClick={onTogglePanelPin}
+        >
+          <PinToggleIcon pinned={isPanelPinned} />
+        </button>
+      ) : null}
+      {canAddChartPanel && onCreateEmptyChart ? (
+        <GraphAddChartButton onClick={onCreateEmptyChart} />
+      ) : null}
     </div>
   );
 }
@@ -73,6 +108,7 @@ export function MatrixGraphRailPanel({
   cells,
   charts,
   getResult,
+  isPanelPinned = false,
   onAddChartSeries,
   onCreateChartFromVariable,
   onCreateEmptyChart,
@@ -83,11 +119,13 @@ export function MatrixGraphRailPanel({
   onRemoveChartSeries,
   onToggleChartLegendMode,
   onToggleChartPin,
+  onTogglePanelPin,
   selectedPeriodIndex
 }: {
   cells: NotebookCell[];
   charts: MatrixGraphChartEntry[];
   getResult(runCellId: string): SimulationResult | null | undefined;
+  isPanelPinned?: boolean;
   onAddChartSeries(chartId: string, source: string): void;
   onCreateChartFromVariable?(source: string): void;
   onCreateEmptyChart?(): void;
@@ -98,6 +136,7 @@ export function MatrixGraphRailPanel({
   onRemoveChartSeries(chartId: string, source: string): void;
   onToggleChartLegendMode(chartId: string): void;
   onToggleChartPin(chartId: string): void;
+  onTogglePanelPin?(): void;
   selectedPeriodIndex: number;
 }) {
   const lastChart = charts[charts.length - 1];
@@ -107,6 +146,15 @@ export function MatrixGraphRailPanel({
     isFreeformMatrixGraphChart(lastChart);
   const canAddChartPanel =
     onCreateEmptyChart != null && charts.length > 0 && !lastChartIsEmptyPicker;
+
+  const footer = (
+    <GraphPanelFooterActions
+      canAddChartPanel={canAddChartPanel}
+      isPanelPinned={isPanelPinned}
+      onCreateEmptyChart={onCreateEmptyChart}
+      onTogglePanelPin={onTogglePanelPin}
+    />
+  );
 
   if (charts.length === 0) {
     const sourceRunCellId = resolveDefaultGraphSourceRunCellId(cells, getResult);
@@ -140,6 +188,7 @@ export function MatrixGraphRailPanel({
             </div>
           </div>
         ) : null}
+        {footer}
       </section>
     );
   }
@@ -233,7 +282,7 @@ export function MatrixGraphRailPanel({
             </div>
           );
         })}
-        {canAddChartPanel ? <GraphAddChartButton onClick={onCreateEmptyChart} /> : null}
+        {footer}
       </div>
     </section>
   );

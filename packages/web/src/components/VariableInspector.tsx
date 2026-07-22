@@ -17,6 +17,7 @@ import type { VariableDescriptions } from "../lib/variableDescriptions";
 import type { VariableUnitMetadata } from "../lib/unitMeta";
 import { HighlightedFormulaInput, highlightFormula } from "./EquationGridEditor";
 import { ParameterSliderControl } from "./ParameterSliderControl";
+import { PinToggleIcon } from "./PinToggleIcon";
 import { VariableLabel } from "./VariableLabel";
 import { VariableInspectorSparkline } from "./VariableInspectorSparkline";
 import {
@@ -33,10 +34,12 @@ interface VariableInspectorProps {
   laggedCurrentValues?: Record<string, number | undefined>;
   laggedPeriodLabel?: string;
   data: VariableInspectorData | null;
+  isPinned?: boolean;
   onApplyDefiningExpression?: (expression: string) => void;
   onEditingChange?: (isEditing: boolean) => void;
   onGoBack?: () => void;
   onGoForward?: () => void;
+  onTogglePin?: () => void;
   hasPendingParameterOverrides?: boolean;
   inspectorModelId?: string | null;
   onParameterOverrideChange?(modelId: string, name: string, value: number): void;
@@ -63,12 +66,14 @@ export function VariableInspector({
   laggedCurrentValues,
   laggedPeriodLabel,
   data,
+  isPinned = false,
   onApplyDefiningExpression,
   onEditingChange,
   onGoBack,
   hasPendingParameterOverrides = false,
   inspectorModelId = null,
   onGoForward,
+  onTogglePin,
   onParameterOverrideChange,
   onParameterOverrideRelease,
   onShowUsages,
@@ -83,6 +88,8 @@ export function VariableInspector({
   variableDescriptions,
   variableUnitMetadata
 }: VariableInspectorProps) {
+  const showHeroActions = Boolean(onGoBack || onGoForward || onShowUsages || onTogglePin);
+
   return (
     <section id="notebook-inspect-panel" className="control-panel variable-inspector-panel" role="tabpanel">
       {data ? (
@@ -114,8 +121,20 @@ export function VariableInspector({
                     variableUnitMetadata={variableUnitMetadata}
                   />
                 </h3>
-                {onGoBack || onGoForward || onShowUsages ? (
+                {showHeroActions ? (
                   <div className="variable-inspector-hero-actions">
+                    {onTogglePin ? (
+                      <button
+                        type="button"
+                        className="result-chart-pin-button"
+                        aria-label={isPinned ? "Dock inspector" : "Pin in floating panel"}
+                        aria-pressed={isPinned}
+                        title={isPinned ? "Dock inspector" : "Pin in floating panel"}
+                        onClick={onTogglePin}
+                      >
+                        <PinToggleIcon pinned={isPinned} />
+                      </button>
+                    ) : null}
                     {onGoBack || onGoForward ? (
                       <div className="variable-inspector-nav">
                         <button

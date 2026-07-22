@@ -167,6 +167,49 @@ describe("MatrixGraphRailPanel", () => {
     expect(handleCreateEmpty).toHaveBeenCalledTimes(1);
   });
 
+  it("places the panel pin button next to the add-graph plus button", async () => {
+    const user = userEvent.setup();
+    const handleTogglePanelPin = vi.fn();
+
+    render(
+      <MatrixGraphRailPanel
+        cells={[matrixCell]}
+        charts={[chartEntry()]}
+        getResult={() => ({
+          options: { periods: 4 },
+          series: {
+            Cd: [4, 5, 6, 7],
+            Ld: [1, 2, 3, 4],
+            Y: [100, 110, 120, 130]
+          },
+          warnings: []
+        })}
+        onAddChartSeries={vi.fn()}
+        onCreateEmptyChart={vi.fn()}
+        onDismissChart={vi.fn()}
+        onRemoveChartSeries={vi.fn()}
+        onToggleChartLegendMode={vi.fn()}
+        onToggleChartPin={vi.fn()}
+        onTogglePanelPin={handleTogglePanelPin}
+        selectedPeriodIndex={0}
+      />
+    );
+
+    const footer = document.querySelector(".notebook-graph-rail-add-chart");
+    expect(footer).not.toBeNull();
+    if (!(footer instanceof HTMLElement)) {
+      throw new Error("Expected graph footer actions.");
+    }
+
+    const pinButton = within(footer).getByRole("button", { name: /pin in floating panel/i });
+    const addButton = within(footer).getByRole("button", { name: /add graph panel/i });
+    expect(footer.children[0]).toBe(pinButton);
+    expect(footer.children[1]).toBe(addButton);
+
+    await user.click(pinButton);
+    expect(handleTogglePanelPin).toHaveBeenCalledTimes(1);
+  });
+
   it("hides the plus button when the last chart is already an empty picker", () => {
     render(
       <MatrixGraphRailPanel

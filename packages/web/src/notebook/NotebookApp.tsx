@@ -72,6 +72,7 @@ import { NotebookCellView, type NotebookCellViewProps } from "./NotebookCellView
 import { NotebookCommandActions } from "./components/NotebookCommandActions";
 import { NotebookCommandsPanel } from "./components/NotebookCommandsPanel";
 import { NotebookCommandsToggle } from "./components/NotebookCommandsToggle";
+import { NotebookVariableInspectorPopup } from "./components/NotebookVariableInspectorPopup";
 import { PinnedCellPanel } from "./components/PinnedCellPanel";
 import { VariableUsagesPopup } from "./components/VariableUsagesPopup";
 import { resolveContentsOutlineLevel } from "./contentsOutline";
@@ -178,6 +179,7 @@ import { PeriodScrubber } from "../components/PeriodScrubber";
 import { AssistantMarkdown } from "../components/AssistantMarkdown";
 import { formatAssistantTokenUsage, mergeAssistantTokenUsage, type AssistantTokenUsage } from "../assistant/sse";
 import { VariableInspector } from "../components/VariableInspector";
+import { PinToggleIcon } from "../components/PinToggleIcon";
 import { BlockConvergencePanel } from "../components/BlockConvergencePanel";
 import { SolverBlockDagPanel } from "../components/SolverBlockDagPanel";
 import {
@@ -188,6 +190,7 @@ import { VariableCatalogPanel } from "../components/VariableCatalogPanel";
 import type { MatrixGraphSliceHighlight } from "./graphDocumentHighlight";
 import { matrixGraphSliceHighlightsEqual } from "./graphDocumentHighlight";
 import { MatrixGraphRailPanel } from "./components/MatrixGraphRailPanel";
+import { NotebookMatrixGraphPopup } from "./components/NotebookMatrixGraphPopup";
 import {
   applyMatrixGraphRequest,
   addMatrixGraphChartSeries,
@@ -819,6 +822,8 @@ export function NotebookApp() {
     () => readNotebookShareCellIdFromLocation() ?? initialNotebookRoute.cellId
   );
   const [pinnedCellId, setPinnedCellId] = useState<string | null>(null);
+  const [inspectorPinned, setInspectorPinned] = useState(false);
+  const [graphPinned, setGraphPinned] = useState(false);
   const [activeRailTab, setActiveRailTab] = useState<NotebookRailTab>("contents");
   const [helpContext, setHelpContext] = useState<{
     cellId: string;
@@ -1478,6 +1483,22 @@ export function NotebookApp() {
   }, []);
   const handlePinCellRequest = useCallback((cellId: string) => {
     setPinnedCellId((current) => (current === cellId ? null : cellId));
+  }, []);
+
+  const handleToggleInspectorPin = useCallback(() => {
+    setInspectorPinned((current) => !current);
+  }, []);
+
+  const handleDockInspector = useCallback(() => {
+    setInspectorPinned(false);
+  }, []);
+
+  const handleToggleGraphPin = useCallback(() => {
+    setGraphPinned((current) => !current);
+  }, []);
+
+  const handleDockGraph = useCallback(() => {
+    setGraphPinned(false);
   }, []);
   const setNotebookCellUrl = useCallback(
     (cellId: string) => {
@@ -4032,6 +4053,91 @@ export function NotebookApp() {
   }, [variantIndex]);
   const nextNotebookSourceFormat = getNextNotebookSourceFormat(sourceFormat);
 
+  const renderVariableInspector = (isPinned: boolean) => (
+    <VariableInspector
+      canEditDefiningEquation={
+        inspectorContext?.modelSource != null &&
+        isInspectorModelEditable(notebookDocument.cells, inspectorContext.modelSource) &&
+        selectedVariableData?.definingEquation != null &&
+        !selectedVariableData.isImplicitEquation
+      }
+      canGoBack={inspectorVariableHistory.canGoBack}
+      canGoForward={inspectorVariableHistory.canGoForward}
+      commitStyle="draft"
+      currentValues={inspectorCurrentValues}
+      laggedCurrentValues={inspectorLaggedCurrentValues}
+      laggedPeriodLabel={inspectorLaggedPeriodLabel}
+      data={selectedVariableData}
+      isPinned={isPinned}
+      onApplyDefiningExpression={handleInspectorDefiningExpressionApply}
+      onGoBack={handleInspectorGoBack}
+      onGoForward={handleInspectorGoForward}
+      onTogglePin={isPinned ? undefined : handleToggleInspectorPin}
+      onSelectVariable={(variableName) => {
+        setActiveRailTab("inspect");
+        if (!inspectorContext) {
+          const row = inspectorFallbackRowByName.get(variableName);
+          if (row) {
+            handleCatalogRowSelect(row);
+          }
+          return;
+        }
+        inspectorVariableHistory.push(variableName);
+        setInspectorContext((current) =>
+          current ? { ...current, selectedVariable: variableName } : current
+        );
+      }}
+      hasPendingParameterOverrides={inspectorHasPendingParameterOverrides}
+      inspectorModelId={inspectorModelId}
+      onParameterOverrideChange={handleParameterOverrideChange}
+      onParameterOverrideRelease={handleParameterOverrideRelease}
+      onShowUsages={
+        inspectorRenameScope ? () => setVariableUsagesOpen(true) : undefined
+      }
+      usagesCount={inspectorUsages.length}
+      variableOptions={inspectorVariableOptions}
+      parameterNames={externalRowsOnly(inspectorContext?.editor.externals ?? []).map((external) => external.name)}
+      parameterOverrides={parameterOverrides}
+      selectedPeriodIndex={selectedPeriodIndex}
+      seriesValues={inspectorSeriesValues}
+      stability={{
+        display: stabilityDisplay,
+        isComputing: stabilityIsComputing,
+        onClearAnalysis: () => {
+          setStabilityEnabled(false);
+          setShowStabilityRawPanel(false);
+        },
+        onOpenRawData: () => setShowStabilityRawPanel(true),
+        onRequestAnalysis: () => setStabilityEnabled(true),
+        selectedPeriodIndex,
+        simulationResult: stabilityTarget?.result ?? null
+      }}
+      variableDescriptions={inspectorContext?.variableDescriptions}
+      variableUnitMetadata={inspectorContext?.variableUnitMetadata}
+    />
+  );
+
+  const renderMatrixGraphRail = (isPinned: boolean) => (
+    <MatrixGraphRailPanel
+      cells={notebookDocument.cells}
+      charts={matrixGraphCharts}
+      getResult={(runCellId) => runner.getResult(runCellId)}
+      isPanelPinned={isPinned}
+      onAddChartSeries={handleAddMatrixGraphChartSeries}
+      onCreateChartFromVariable={handleCreateMatrixGraphFromVariable}
+      onCreateEmptyChart={handleCreateEmptyMatrixGraphChart}
+      onDismissChart={handleDismissMatrixGraphChart}
+      onGraphExpressionHighlightChange={handleGraphExpressionHighlightChange}
+      onGraphSliceHighlightChange={handleGraphSliceHighlightChange}
+      onMoveChartSeries={handleMoveMatrixGraphChartSeries}
+      onRemoveChartSeries={handleRemoveMatrixGraphChartSeries}
+      onToggleChartLegendMode={handleToggleMatrixGraphChartLegendMode}
+      onToggleChartPin={handleToggleMatrixGraphChartPin}
+      onTogglePanelPin={isPinned ? undefined : handleToggleGraphPin}
+      selectedPeriodIndex={selectedPeriodIndex}
+    />
+  );
+
   return (
     <NotebookRenderProfiler
       id="NotebookApp"
@@ -4459,84 +4565,53 @@ export function NotebookApp() {
           ) : null}
 
           {activeRailTab === "inspect" ? (
-            <VariableInspector
-              canEditDefiningEquation={
-                inspectorContext?.modelSource != null &&
-                isInspectorModelEditable(notebookDocument.cells, inspectorContext.modelSource) &&
-                selectedVariableData?.definingEquation != null &&
-                !selectedVariableData.isImplicitEquation
-              }
-              canGoBack={inspectorVariableHistory.canGoBack}
-              canGoForward={inspectorVariableHistory.canGoForward}
-              commitStyle="draft"
-              currentValues={inspectorCurrentValues}
-              laggedCurrentValues={inspectorLaggedCurrentValues}
-              laggedPeriodLabel={inspectorLaggedPeriodLabel}
-              data={selectedVariableData}
-              onApplyDefiningExpression={handleInspectorDefiningExpressionApply}
-              onGoBack={handleInspectorGoBack}
-              onGoForward={handleInspectorGoForward}
-              onSelectVariable={(variableName) => {
-                setActiveRailTab("inspect");
-                if (!inspectorContext) {
-                  const row = inspectorFallbackRowByName.get(variableName);
-                  if (row) {
-                    handleCatalogRowSelect(row);
-                  }
-                  return;
-                }
-                inspectorVariableHistory.push(variableName);
-                setInspectorContext((current) =>
-                  current ? { ...current, selectedVariable: variableName } : current
-                );
-              }}
-              hasPendingParameterOverrides={inspectorHasPendingParameterOverrides}
-              inspectorModelId={inspectorModelId}
-              onParameterOverrideChange={handleParameterOverrideChange}
-              onParameterOverrideRelease={handleParameterOverrideRelease}
-              onShowUsages={
-                inspectorRenameScope ? () => setVariableUsagesOpen(true) : undefined
-              }
-              usagesCount={inspectorUsages.length}
-              variableOptions={inspectorVariableOptions}
-              parameterNames={externalRowsOnly(inspectorContext?.editor.externals ?? []).map((external) => external.name)}
-              parameterOverrides={parameterOverrides}
-              selectedPeriodIndex={selectedPeriodIndex}
-              seriesValues={inspectorSeriesValues}
-              stability={{
-                display: stabilityDisplay,
-                isComputing: stabilityIsComputing,
-                onClearAnalysis: () => {
-                  setStabilityEnabled(false);
-                  setShowStabilityRawPanel(false);
-                },
-                onOpenRawData: () => setShowStabilityRawPanel(true),
-                onRequestAnalysis: () => setStabilityEnabled(true),
-                selectedPeriodIndex,
-                simulationResult: stabilityTarget?.result ?? null
-              }}
-              variableDescriptions={inspectorContext?.variableDescriptions}
-              variableUnitMetadata={inspectorContext?.variableUnitMetadata}
-            />
+            inspectorPinned ? (
+              <section
+                id="notebook-inspect-pinned-placeholder"
+                className="control-panel variable-inspector-panel notebook-inspector-pinned-placeholder"
+                role="tabpanel"
+              >
+                <p className="variable-inspector-empty">
+                  Inspector is pinned in a floating panel.
+                </p>
+                <button
+                  type="button"
+                  className="result-chart-pin-button"
+                  aria-label="Dock inspector"
+                  aria-pressed={true}
+                  title="Dock inspector"
+                  onClick={handleDockInspector}
+                >
+                  <PinToggleIcon pinned />
+                </button>
+              </section>
+            ) : (
+              renderVariableInspector(false)
+            )
           ) : null}
 
           {activeRailTab === "graph" ? (
-            <MatrixGraphRailPanel
-              cells={notebookDocument.cells}
-              charts={matrixGraphCharts}
-              getResult={(runCellId) => runner.getResult(runCellId)}
-              onAddChartSeries={handleAddMatrixGraphChartSeries}
-              onCreateChartFromVariable={handleCreateMatrixGraphFromVariable}
-              onCreateEmptyChart={handleCreateEmptyMatrixGraphChart}
-              onDismissChart={handleDismissMatrixGraphChart}
-              onGraphExpressionHighlightChange={handleGraphExpressionHighlightChange}
-              onGraphSliceHighlightChange={handleGraphSliceHighlightChange}
-              onMoveChartSeries={handleMoveMatrixGraphChartSeries}
-              onRemoveChartSeries={handleRemoveMatrixGraphChartSeries}
-              onToggleChartLegendMode={handleToggleMatrixGraphChartLegendMode}
-              onToggleChartPin={handleToggleMatrixGraphChartPin}
-              selectedPeriodIndex={selectedPeriodIndex}
-            />
+            graphPinned ? (
+              <section
+                id="notebook-graph-pinned-placeholder"
+                className="notebook-sidebar-panel notebook-graph-pinned-placeholder"
+                role="tabpanel"
+              >
+                <p className="variable-inspector-empty">Graph is pinned in a floating panel.</p>
+                <button
+                  type="button"
+                  className="result-chart-pin-button"
+                  aria-label="Dock graph"
+                  aria-pressed={true}
+                  title="Dock graph"
+                  onClick={handleDockGraph}
+                >
+                  <PinToggleIcon pinned />
+                </button>
+              </section>
+            ) : (
+              renderMatrixGraphRail(false)
+            )
           ) : null}
 
           {activeRailTab === "contents" ? (
@@ -5015,6 +5090,23 @@ export function NotebookApp() {
             />
           )}
         />
+      ) : null}
+      {inspectorPinned ? (
+        <NotebookVariableInspectorPopup
+          onClose={handleDockInspector}
+          selectedPeriodIndex={selectedPeriodIndex}
+          subtitle={selectedVariableData?.description}
+        >
+          {renderVariableInspector(true)}
+        </NotebookVariableInspectorPopup>
+      ) : null}
+      {graphPinned ? (
+        <NotebookMatrixGraphPopup
+          onClose={handleDockGraph}
+          selectedPeriodIndex={selectedPeriodIndex}
+        >
+          {renderMatrixGraphRail(true)}
+        </NotebookMatrixGraphPopup>
       ) : null}
       {variableUsagesOpen && inspectorContext?.selectedVariable ? (
         <VariableUsagesPopup

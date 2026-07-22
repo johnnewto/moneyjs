@@ -1020,6 +1020,51 @@
   width: min(960px, calc(100vw - 2rem));
   z-index: 1200;
 }
+.notebook-inspector-popup {
+  width: min(28rem, calc(100vw - 2rem));
+  max-width: min(28rem, calc(100vw - 2rem));
+}
+.notebook-inspector-popup-header-actions {
+  align-items: center;
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.35rem;
+}
+.notebook-inspector-popup-body {
+  overflow: auto;
+  padding: 0 0.75rem 0.75rem;
+}
+.notebook-inspector-popup-body .variable-inspector-panel {
+  padding: 0;
+}
+.notebook-inspector-pinned-placeholder {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.notebook-graph-popup {
+  max-height: none;
+  max-width: none;
+  min-height: 200px;
+  min-width: 320px;
+}
+.notebook-graph-popup-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 0.75rem 0.75rem;
+}
+.notebook-graph-popup-body .notebook-graph-rail-panel,
+.notebook-graph-popup-body .notebook-sidebar-panel {
+  padding: 0;
+}
+.notebook-graph-pinned-placeholder {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
 .stability-raw-dialog-header-draggable {
   cursor: grab;
   touch-action: none;
